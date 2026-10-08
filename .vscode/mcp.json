@@ -1,0 +1,17 @@
+{
+  "servers": {
+    "uptimely": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/.venv/bin/uptimely-mcp",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "--spec",
+        "${workspaceFolder}/examples/example_1/generated/spec/spec.json",
+        "--project-root",
+        "${workspaceFolder}",
+        "--runtime-resources",
+        "${workspaceFolder}/examples/example_1/runtime-resources.json"
+      ]
+    }
+  }
+}

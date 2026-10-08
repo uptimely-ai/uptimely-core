@@ -1,0 +1,18 @@
+<section id="overview" class="mb-16">
+  <p class="mb-3 font-mono text-[10px] uppercase tracking-[.2em] text-cyan-300">OpenAnalytics specification</p>
+  <h1 class="flex items-center gap-3 font-display text-4xl font-semibold text-white sm:text-6xl"><i data-lucide="layout-dashboard" class="h-9 w-9 shrink-0 text-cyan-300 sm:h-12 sm:w-12" aria-hidden="true"></i>Documentation</h1>
+  <p class="mt-5 max-w-2xl text-base leading-7 text-slate-400">Reference documentation generated from the single specification document.</p>
+  <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    {% for label, value in [("Entities", summary.entity_count), ("Datasets", summary.dataset_count), ("Fragments", summary.fragment_count), ("Dimensions", summary.dimension_count)] %}
+    <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5"><span class="font-mono text-[10px] uppercase tracking-[.15em] text-slate-500">{{ label }}</span><p class="mt-4 font-display text-3xl font-semibold text-white">{{ value }}</p></div>
+    {% endfor %}
+  </div>
+  {% set feature_chart = [("input", summary.feature_buckets.input, "bg-amber-300"), ("intermediate", summary.feature_buckets.intermediate, "bg-cyan-300"), ("output", summary.feature_buckets.output, "bg-lime-300")] %}
+  {% set function_chart = [("read", summary.function_buckets.read, "bg-cyan-300"), ("write", summary.function_buckets.write, "bg-violet-300"), ("vectorize", summary.function_buckets.vectorize, "bg-lime-300"), ("aggregate", summary.function_buckets.aggregate, "bg-amber-300")] %}
+  <div class="mt-5 grid gap-5 lg:grid-cols-2">
+    {% for chart_title, chart in [("Features", feature_chart), ("Functions", function_chart)] %}
+    {% set chart_max = chart|map(attribute=1)|max %}
+    <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5"><div class="mb-5 flex items-baseline justify-between gap-4"><h2 class="font-display text-lg font-semibold text-white">{{ chart_title }}</h2>{% if chart_title == "Features" %}<div class="flex gap-3 font-mono text-[10px] uppercase tracking-wider text-slate-500"><span>total {{ summary.feature_count }}</span><span>vectorized {{ summary.vectorized_feature_count }}</span></div>{% else %}<span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">total {{ summary.function_count }}</span>{% endif %}</div><div class="space-y-4">{% for label, value, color in chart %}<div class="grid grid-cols-[5.5rem_minmax(0,1fr)_2rem] items-center gap-3"><span class="font-mono text-xs text-slate-400">{{ label }}</span><div class="h-2 overflow-hidden rounded-full bg-slate-800"><div class="h-full rounded-full {{ color }}" style="width: {{ (value / chart_max * 100) if chart_max else 0 }}%"></div></div><span class="text-right font-mono text-xs text-white">{{ value }}</span></div>{% endfor %}</div></div>
+    {% endfor %}
+  </div>
+</section>

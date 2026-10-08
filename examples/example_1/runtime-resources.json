@@ -1,0 +1,13 @@
+{
+  "storage": {
+    "pump_reference_source": {
+      "path": "examples/example_1/data/pump_reference.json"
+    },
+    "telemetry_source": {
+      "path": "examples/example_1/data/pump_telemetry.json"
+    },
+    "telemetry_archive_source": {
+      "path": "examples/example_1/data/pump_telemetry_archive.json"
+    }
+  }
+}

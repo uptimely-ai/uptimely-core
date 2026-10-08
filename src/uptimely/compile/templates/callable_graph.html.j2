@@ -1,0 +1,90 @@
+<section id="callable-graph" class="mb-16">
+	<div class="mb-6">
+		<h2 class="flex items-center gap-3 font-display text-3xl font-semibold text-white"><i data-lucide="git-fork" class="h-7 w-7 shrink-0 text-cyan-300" aria-hidden="true"></i>Callable graph</h2>
+	</div>
+	<div class="relative h-[34rem] overflow-hidden rounded-lg border border-slate-800 bg-slate-950 sm:h-[40rem]">
+		<div class="absolute left-4 top-4 z-10 rounded-lg border border-slate-700 bg-slate-900/90 px-4 py-3">
+			<div class="grid gap-2 font-mono text-xs text-slate-300">
+				<span><i class="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style="background: {{ graph_style.input_color }}"></i>Dataframe operation</span>
+				<span><i class="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style="background: {{ graph_style.function_color }}"></i>Vectorize</span>
+				<span><i class="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style="background: {{ graph_style.feature_color }}"></i>Write</span>
+			</div>
+		</div>
+		<div class="absolute bottom-4 right-4 z-10 w-[min(20rem,calc(100%-2rem))] rounded-lg border border-slate-700 bg-slate-900/90 p-4" id="callable-node-details">
+			<h3 class="mb-2 font-mono text-xs uppercase tracking-wider text-slate-400">Callable details</h3>
+			<div class="text-sm leading-6 text-slate-300">Select a callable to inspect its operation, entity, output feature, and feature inputs.</div>
+		</div>
+		<div class="h-full w-full" id="callable-graph-canvas"></div>
+	</div>
+</section>
+<script>
+	{
+		const callableGraphData = {{ callable_graph_data|safe }};
+		const callableGraphContainer = document.getElementById('callable-graph-canvas');
+		const callableNodeDetails = document.getElementById('callable-node-details');
+		const formatList = (values) => Array.isArray(values) && values.length ? values.join(', ') : 'none';
+		const updateCallableDetails = (node) => {
+			if (!node) {
+				callableNodeDetails.innerHTML = `
+					<h3 class="mb-2 font-mono text-xs uppercase tracking-wider text-slate-400">Callable details</h3>
+					<div class="text-sm leading-6 text-slate-300">Select a callable to inspect its operation, entity, output feature, and feature inputs.</div>
+				`;
+				return;
+			}
+			callableNodeDetails.innerHTML = `
+				<h3 class="mb-2 font-mono text-xs uppercase tracking-wider text-slate-400">Callable details</h3>
+				<div class="mb-1 break-all text-xs text-slate-300"><strong>Callable type:</strong> ${node.callable_type || 'n/a'}</div>
+				<div class="mb-1 break-all text-xs text-slate-300"><strong>Graph role:</strong> ${node.operation_type || 'n/a'}</div>
+				<div class="mb-1 break-all text-xs text-slate-300"><strong>Operation:</strong> ${node.function_id || 'n/a'}</div>
+				<div class="mb-1 break-all text-xs text-slate-300"><strong>Entity:</strong> ${node.entity || 'n/a'}</div>
+				<div class="mb-1 break-all text-xs text-slate-300"><strong>Produces:</strong> ${node.feature || 'n/a'}</div>
+				<div class="break-all text-xs text-slate-300"><strong>Feature inputs:</strong> ${formatList(node.depends_on_features)}</div>
+			`;
+		};
+		const callableColors = {
+			read: '{{ graph_style.input_color }}',
+			conform: '{{ graph_style.input_color }}',
+			expand: '{{ graph_style.input_color }}',
+			collapse: '{{ graph_style.input_color }}',
+			vectorize: '{{ graph_style.function_color }}',
+			write: '{{ graph_style.feature_color }}',
+		};
+		const callableGraph = ForceGraph3D()(callableGraphContainer)
+			.width(callableGraphContainer.clientWidth)
+			.height(callableGraphContainer.clientHeight)
+			.graphData(callableGraphData)
+			.backgroundColor('{{ graph_style.background_color }}')
+			.nodeLabel(node => `${node.function_id}<br>produces: ${node.feature}`)
+			.nodeColor(node => callableColors[node.operation_type])
+			.nodeRelSize({{ graph_style.node_rel_size }})
+			.nodeResolution({{ graph_style.node_resolution }})
+			.linkDirectionalArrowLength({{ graph_style.arrow_length }})
+			.linkDirectionalArrowRelPos({{ graph_style.arrow_rel_pos }})
+			.linkWidth({{ graph_style.link_width }})
+			.linkColor(() => '{{ graph_style.link_color }}')
+			.linkOpacity({{ graph_style.link_opacity }})
+			.onNodeClick(node => updateCallableDetails(node))
+			.nodeThreeObject(node => {
+				const material = new THREE.MeshLambertMaterial({ color: callableColors[node.operation_type] });
+				const mesh = new THREE.Mesh(
+					new THREE.OctahedronGeometry({{ graph_style.function_node_size }}, 0),
+					material,
+				);
+				const group = new THREE.Group();
+				group.add(mesh);
+				const label = new SpriteText(node.function_id || '', 3.2, '{{ graph_style.label_color }}');
+				label.backgroundColor = 'rgba(16,24,32,0.72)';
+				label.padding = 2;
+				label.borderRadius = 2;
+				label.position.set(0, 18, 0);
+				group.add(label);
+				return group;
+			});
+		callableGraph.d3Force('charge').strength({{ graph_style.charge_strength }}).distanceMax({{ graph_style.charge_distance_max }});
+		callableGraph.d3Force('link').distance({{ graph_style.link_distance }});
+		window.addEventListener('resize', () => callableGraph
+			.width(callableGraphContainer.clientWidth)
+			.height(callableGraphContainer.clientHeight));
+		updateCallableDetails(null);
+	}
+</script>

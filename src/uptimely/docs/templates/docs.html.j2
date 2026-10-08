@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-slate-950">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenAnalytics specification</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {theme: {extend: {fontFamily: {
+      sans: ["DM Sans", "sans-serif"], display: ["Space Grotesk", "sans-serif"], mono: ["JetBrains Mono", "monospace"]
+    }}}}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-slate-950 font-sans text-slate-200">
+  <div class="pointer-events-none fixed inset-0 -z-0 opacity-30" style="background-image: linear-gradient(rgba(51,65,85,.22) 1px, transparent 1px), linear-gradient(90deg, rgba(51,65,85,.22) 1px, transparent 1px); background-size: 48px 48px;"></div>
+  <div class="relative z-10 mx-auto max-w-7xl px-5 py-6 sm:px-8 lg:px-10">
+    <header class="mb-10 border-b border-slate-800/80 pb-5"><p class="font-display text-sm font-bold text-white">openanalytics<span class="text-cyan-300">/</span>docs</p><p class="mt-1 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">specification {{ configuration.version }}</p>{% if generated_at %}<p class="mt-1 font-mono text-[10px] text-slate-600">generated {{ generated_at }}</p>{% endif %}</header>
+    <div class="lg:grid lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-12">
+      <aside class="mb-10 lg:mb-0">
+        <nav class="lg:sticky lg:top-8" aria-label="Documentation sections">
+          <p class="mb-3 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Contents</p>
+          <div class="flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
+            {% for anchor, label, icon, icon_color in [("overview", "Overview", "layout-dashboard", "text-cyan-300"), ("entities", "Features", "boxes", "text-amber-300"), ("dimensions", "Dimensions", "layers-3", "text-rose-300"), ("functions", "Functions", "braces", "text-lime-300")] %}
+            <a href="#{{ anchor }}" class="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 font-mono text-xs text-slate-400 transition hover:bg-slate-900 hover:text-cyan-200"><i data-lucide="{{ icon }}" class="h-3.5 w-3.5 {{ icon_color }}" aria-hidden="true"></i>{{ label }}</a>
+            {% endfor %}
+          </div>
+        </nav>
+      </aside>
+      <main>
+        {% include "sections/overview.html.j2" %}
+        {% include "sections/entities.html.j2" %}
+        {% include "sections/dimensions.html.j2" %}
+        {% include "sections/functions.html.j2" %}
+      </main>
+    </div>
+  </div>
+  <script src="https://unpkg.com/lucide@latest"></script><script>lucide.createIcons();</script>
+</body>
+</html>

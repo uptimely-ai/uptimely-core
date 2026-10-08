@@ -1,0 +1,159 @@
+{
+  "version": "0.1.0",
+  "dimensions": {
+    "id": {
+      "type": "integer",
+      "description": "Stable identifier for each input row",
+      "parent": null
+    }
+  },
+  "functions": {
+    "read": {
+      "read": {
+        "entrypoint": "examples.example_2.functions.functions:read_data",
+        "args": {}
+      }
+    },
+    "write": {
+      "write": {
+        "entrypoint": "examples.example_2.functions.functions:write_data",
+        "args": {
+          "df": {
+            "type": "dataframe",
+            "comment": null
+          },
+          "cols": {
+            "type": "array[string]",
+            "comment": null
+          }
+        }
+      }
+    },
+    "vectorize": {
+      "sum_features": {
+        "entrypoint": "examples.example_2.functions.functions:sum_features",
+        "args": {
+          "left_feature": {
+            "type": "string",
+            "comment": null
+          },
+          "right_feature": {
+            "type": "string",
+            "comment": null
+          },
+          "output": {
+            "type": "string",
+            "comment": null
+          }
+        },
+        "description": "Vectorized feature: column_3",
+        "input_scope": null,
+        "partitioning": null
+      },
+      "column_4": {
+        "entrypoint": "examples.example_2.functions.functions:tag_first_item",
+        "args": {
+          "output": {
+            "type": "string",
+            "comment": null
+          },
+          "id_column": {
+            "type": "string",
+            "comment": null
+          }
+        },
+        "description": "Vectorized feature: column_4",
+        "input_scope": null,
+        "partitioning": null
+      }
+    },
+    "aggregate": {}
+  },
+  "entities": {
+    "entity": {
+      "name": "entity",
+      "description": null,
+      "dimensions": [
+        "id"
+      ],
+      "datasets": [
+        {
+          "description": "Dataset loaded by read.",
+          "row_scope": {
+            "grain": "One row per id",
+            "filtering": "",
+            "coverage": ""
+          },
+          "read": {
+            "read": {
+              "binding": {
+                "function": "read",
+                "args": {}
+              },
+              "features": {
+                "input_1": {
+                  "description": "Input feature: input_1",
+                  "type": "object",
+                  "unit": null
+                },
+                "input_2": {
+                  "description": "Input feature: input_2",
+                  "type": "object",
+                  "unit": null
+                },
+                "id": {
+                  "description": "Stable identifier for each input row",
+                  "type": "object",
+                  "unit": null
+                }
+              }
+            }
+          },
+          "conform": {},
+          "expand": {},
+          "collapse": {},
+          "vectorize": {
+            "column_3": {
+              "description": "Vectorized feature: column_3",
+              "unit": null,
+              "binding": {
+                "function": "sum_features",
+                "args": {
+                  "left_feature": "$features.input_1",
+                  "right_feature": "$features.input_2",
+                  "output": "$features.column_3"
+                }
+              }
+            },
+            "column_4": {
+              "description": "Vectorized feature: column_4",
+              "unit": null,
+              "binding": {
+                "function": "column_4",
+                "args": {
+                  "output": "$features.column_4",
+                  "id_column": "$dimensions.id"
+                }
+              }
+            }
+          },
+          "write": {
+            "write": {
+              "binding": {
+                "function": "write",
+                "args": {
+                  "df": "$datasets.@",
+                  "cols": [
+                    "$features.column_3",
+                    "$features.column_4"
+                  ]
+                }
+              }
+            }
+          },
+          "id": "my_beautiful_dataset"
+        }
+      ]
+    }
+  }
+}

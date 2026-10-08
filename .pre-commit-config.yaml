@@ -1,0 +1,17 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.10
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+        # Engine/example runs regenerate these artifacts without trailing newlines.
+        exclude: '(^examples/example_1/data/pump_telemetry_calculated\.json$|/generated/)'
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict

@@ -1,0 +1,118 @@
+{% extends "base.html.j2" %}
+{% block title %}Uptimely Dependency Graph{% endblock %}
+{% block head %}
+	<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+	<script src="https://unpkg.com/3d-force-graph@1.77.0/dist/3d-force-graph.min.js"></script>
+	<script src="https://unpkg.com/three-spritetext@1.10.0/dist/three-spritetext.min.js"></script>
+{% endblock %}
+{% block style %}
+	.legend-separator { display: block; height: 1px; margin: 4px 0; background: #52616b; }
+{% endblock %}
+{% block body %}
+	<div class="panel">
+		<div class="legend">
+			<span style="--color:{{ style.feature_color }}">Feature</span>
+			<span class="legend-separator" aria-hidden="true"></span>
+			{% for function_type, color in style.function_colors.items() %}
+			<span style="--color:{{ color }}">{{ function_type|title }}</span>
+			{% endfor %}
+		</div>
+
+	</div>
+	<div class="details" id="node-details">
+		<h2>Node details</h2>
+		<div class="meta">Click a node</div>
+		<div class="summary">Select any feature in the graph to see its identifier and details.</div>
+	</div>
+	<div id="graph"></div>
+	<script>
+		const data = {{ graph_data|safe }};
+		const functionColors = {
+			{% for function_type, color in style.function_colors.items() %}
+			{{ function_type|tojson }}: '{{ color }}'{% if not loop.last %},{% endif %}
+			{% endfor %}
+		};
+		const featureColor = '{{ style.feature_color }}';
+		const nodeDetails = document.getElementById('node-details');
+		const formatDetailValue = (value) => value == null ? 'n/a' : String(value).slice(0, 220);
+		const updateDetails = (node) => {
+			if (!node) {
+				nodeDetails.innerHTML = `
+					<h2>Node details</h2>
+					<div class="meta">Click a node</div>
+					<div class="summary">Select any feature in the graph to see its identifier and details.</div>
+				`;
+				return;
+			}
+			const label = node.label || node.id || 'Unknown';
+			const isFunction = node.is_function === true;
+			if (isFunction) {
+				const entrypoint = node.entrypoint || null;
+				const feature = node.feature || null;
+				const detailParts = [
+					`<div class="meta"><strong>Node type:</strong> Function</div>`,
+					`<div class="meta"><strong>Function:</strong> ${label}</div>`,
+					`<div class="meta"><strong>Function type:</strong> ${node.function_type || 'n/a'}</div>`,
+					feature ? `<div class="meta"><strong>Produces:</strong> ${formatDetailValue(feature)}</div>` : '',
+					entrypoint ? `<div class="meta"><strong>Entrypoint:</strong> ${formatDetailValue(entrypoint)}</div>` : '',
+				].filter(Boolean).join('');
+				nodeDetails.innerHTML = `
+					<h2>Node details</h2>
+					${detailParts || '<div class="meta">No function metadata available.</div>'}
+				`;
+				return;
+			}
+			const dataType = node.data_type || node.type || 'unknown';
+			const entity = node.entity || 'n/a';
+			nodeDetails.innerHTML = `
+				<h2>Node details</h2>
+				<div class="meta"><strong>Node type:</strong> Feature</div>
+				<div class="meta"><strong>Feature:</strong> ${label}</div>
+				<div class="meta"><strong>Entity:</strong> ${formatDetailValue(entity)}</div>
+				<div class="meta"><strong>Data type:</strong> ${formatDetailValue(dataType)}</div>
+			`;
+		};
+		const graph = ForceGraph3D()(document.getElementById('graph'))
+			.graphData(data)
+			.backgroundColor('{{ style.background_color }}')
+			.nodeLabel(node => `${node.is_function ? 'function' : 'feature'}: ${node.label}<br>entity: ${node.entity || 'n/a'}`)
+			.nodeColor(node => node.is_function ? functionColors[node.function_type] : featureColor)
+			.nodeRelSize({{ style.node_rel_size }})
+			.nodeResolution({{ style.node_resolution }})
+			.linkDirectionalArrowLength({{ style.arrow_length }})
+			.linkDirectionalArrowRelPos({{ style.arrow_rel_pos }})
+			.linkWidth({{ style.link_width }})
+			.linkColor(() => '{{ style.link_color }}')
+			.linkOpacity({{ style.link_opacity }})
+			.onNodeClick(node => updateDetails(node))
+			.nodeThreeObject(node => {
+				const color = node.is_function ? functionColors[node.function_type] : featureColor;
+				const material = new THREE.MeshLambertMaterial({ color });
+				const isVariable = !node.is_function;
+				const geometry = isVariable
+					? new THREE.SphereGeometry({{ style.feature_node_size }}, 16, 12)
+					: new THREE.OctahedronGeometry({{ style.function_node_size }}, 0)
+				;
+				const mesh = new THREE.Mesh(geometry, material);
+
+				if (!isVariable) {
+					return mesh;
+				}
+
+				const group = new THREE.Group();
+				group.add(mesh);
+				const label = new SpriteText(node.label || '', 3.2, '{{ style.label_color }}');
+				label.backgroundColor = 'rgba(16,24,32,0.72)';
+				label.padding = 2;
+				label.borderRadius = 2;
+				label.position.set(0, 14, 0);
+				group.add(label);
+				return group;
+			});
+		const chargeForce = graph.d3Force('charge');
+		chargeForce.strength({{ style.charge_strength }});
+		chargeForce.distanceMax({{ style.charge_distance_max }});
+		graph.d3Force('link').distance({{ style.link_distance }});
+		updateDetails(null);
+	</script>
+{% endblock %}

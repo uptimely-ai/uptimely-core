@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pipx install poetry
+      - name: Verify tag matches package version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(poetry version -s)"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "Tag $TAG does not match pyproject version $PKG"
+            exit 1
+          fi
+      - run: poetry build
+      - run: pipx run twine check dist/*
+      - uses: pypa/gh-action-pypi-publish@release/v1

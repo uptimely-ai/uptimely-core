@@ -1,0 +1,53 @@
+*.whl
+# Build / distribution
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# Testing
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Mypy / type checkers
+.mypy_cache/
+.dmypy.json
+
+# Ruff / linters
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+*.html
+generated/*.html
+examples/example_1/generated/output/
+*Identifier
+
+# Local documentation preview
+docs/.bundle/
+docs/.jekyll-cache/
+docs/.jekyll-metadata
+docs/_site/
+docs/vendor/
