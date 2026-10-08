@@ -1,0 +1,35 @@
+[
+  {
+    "plant": "PLANT-01",
+    "production_line": "LINE-A",
+    "pump": "PUMP-101",
+    "timestamp": "2026-09-01T08:00:00Z",
+    "discharge_pressure": 5.3,
+    "flow_rate": 118.0,
+    "bearing_temperature": 68.2,
+    "vibration_rms": 2.1,
+    "motor_power": 17.9
+  },
+  {
+    "plant": "PLANT-01",
+    "production_line": "LINE-A",
+    "pump": "PUMP-101",
+    "timestamp": "2026-09-01T08:01:00Z",
+    "discharge_pressure": 5.4,
+    "flow_rate": 119.5,
+    "bearing_temperature": 68.7,
+    "vibration_rms": 2.2,
+    "motor_power": 18.1
+  },
+  {
+    "plant": "PLANT-01",
+    "production_line": "LINE-B",
+    "pump": "PUMP-201",
+    "timestamp": "2026-09-01T08:00:00Z",
+    "discharge_pressure": 4.1,
+    "flow_rate": 83.0,
+    "bearing_temperature": 64.5,
+    "vibration_rms": 1.8,
+    "motor_power": 11.7
+  }
+]

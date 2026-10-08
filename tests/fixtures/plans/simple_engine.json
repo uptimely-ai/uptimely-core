@@ -1,0 +1,103 @@
+{
+  "plan_version": "1.0.0",
+  "specification_version": "2024.01",
+  "required_backend": "polars",
+  "resources": {
+    "specification_version": "2024.01",
+    "entities": {
+      "asset": {
+        "dimensions": [
+          "asset_id"
+        ]
+      }
+    },
+    "functions": {
+      "read": {
+        "load": {
+          "args": {
+            "source": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "vectorize": {
+        "double": {
+          "args": {
+            "column": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "write": {
+        "save": {
+          "args": {
+            "dataset": {
+              "type": "dataframe"
+            },
+            "features": {
+              "type": "array[string]"
+            }
+          }
+        }
+      }
+    }
+  },
+  "operations": [
+    {
+      "id": "callable:read:load:asset:telemetry:reading",
+      "kind": "read",
+      "entrypoint": "test:read",
+      "entity_id": "asset",
+      "dataset_id": "telemetry",
+      "output": "reading",
+      "arguments": {
+        "source": "?storage.source.path"
+      },
+      "dependency_ids": []
+    },
+    {
+      "id": "callable:vectorize:double:asset:telemetry:doubled",
+      "kind": "vectorize",
+      "entrypoint": "test:double",
+      "entity_id": "asset",
+      "dataset_id": "telemetry",
+      "output": "doubled",
+      "arguments": {
+        "column": "reading"
+      },
+      "dependency_ids": [
+        "callable:read:load:asset:telemetry:reading"
+      ]
+    },
+    {
+      "id": "callable:write:save:asset:telemetry:doubled",
+      "kind": "write",
+      "entrypoint": "test:write",
+      "entity_id": "asset",
+      "dataset_id": "telemetry",
+      "output": "doubled",
+      "arguments": {
+        "dataset": "telemetry",
+        "features": [
+          "doubled"
+        ]
+      },
+      "dependency_ids": [
+        "callable:vectorize:double:asset:telemetry:doubled"
+      ]
+    }
+  ],
+  "stages": [
+    [
+      "callable:read:load:asset:telemetry:reading"
+    ],
+    [
+      "callable:vectorize:double:asset:telemetry:doubled"
+    ],
+    [
+      "callable:write:save:asset:telemetry:doubled"
+    ]
+  ]
+}

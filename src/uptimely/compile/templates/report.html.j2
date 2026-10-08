@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-slate-950">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Execution plan</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/3d-force-graph@1.77.0/dist/3d-force-graph.min.js"></script>
+  <script src="https://unpkg.com/three-spritetext@1.10.0/dist/three-spritetext.min.js"></script>
+  <script>
+    tailwind.config = {theme: {extend: {fontFamily: {
+      sans: ["DM Sans", "sans-serif"], display: ["Space Grotesk", "sans-serif"], mono: ["JetBrains Mono", "monospace"]
+    }}}}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-slate-950 font-sans text-slate-200">
+  <div class="pointer-events-none fixed inset-0 -z-0 opacity-30" style="background-image: linear-gradient(rgba(51,65,85,.22) 1px, transparent 1px), linear-gradient(90deg, rgba(51,65,85,.22) 1px, transparent 1px); background-size: 48px 48px;"></div>
+  <div class="relative z-10 mx-auto max-w-7xl px-5 py-6 sm:px-8 lg:px-10">
+    <header class="mb-10 border-b border-slate-800/80 pb-5">
+      <p class="font-display text-sm font-bold text-white">openanalytics<span class="text-cyan-300">/</span>compile</p>
+      <p class="mt-1 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">specification {{ spec_version }}</p>
+    </header>
+    <main>
+      <section class="mb-16">
+        <p class="mb-3 font-mono text-[10px] uppercase tracking-[.2em] text-cyan-300">OpenAnalytics specification</p>
+        <h1 class="flex items-center gap-3 font-display text-4xl font-semibold text-white sm:text-6xl"><i data-lucide="workflow" class="h-9 w-9 shrink-0 text-cyan-300 sm:h-12 sm:w-12" aria-hidden="true"></i>Execution plan</h1>
+        <p class="mt-5 max-w-2xl text-base leading-7 text-slate-400">Execution plan compiled from <span class="text-cyan-200">{{ spec_path }}</span>, ordered by dependency resolution.</p>
+        <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {% for label, value in [("callables", callable_count), ("functions", function_count), ("entities", entity_count), ("features", feature_count)] %}
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5"><span class="font-mono text-[10px] uppercase tracking-[.15em] text-slate-500">{{ label }}</span><p class="mt-4 font-display text-3xl font-semibold text-white">{{ value }}</p></div>
+          {% endfor %}
+        </div>
+      </section>
+      {% include "callable_graph.html.j2" %}
+      <section id="operations" class="mb-16">
+        <div class="mb-6"><h2 class="flex items-center gap-3 font-display text-3xl font-semibold text-white"><i data-lucide="network" class="h-7 w-7 shrink-0 text-lime-300" aria-hidden="true"></i>Operations</h2></div>
+        <div class="space-y-8">
+          {% for stage in stages %}
+          <section>
+            <div class="mb-3 flex items-center gap-3">
+              <span class="rounded-lg bg-lime-300/10 px-2.5 py-1 font-mono text-xs text-lime-300">Stage {{ stage.stage }}</span>
+              <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ stage.steps | length }} parallel operation{% if stage.steps | length != 1 %}s{% endif %}</span>
+            </div>
+            <div class="grid grid-cols-1 gap-4">
+          {% for step in stage.steps %}
+          <div>
+            <h3 class="mb-2 font-display text-lg font-semibold text-white">{{ step.title }}</h3>
+          <article class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
+            <dl class="grid overflow-hidden rounded-lg border border-slate-800 bg-slate-950/55 font-mono text-xs md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]">
+              <div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
+                <dt class="mb-1 uppercase tracking-wider text-slate-500">Callable type</dt>
+                <dd class="text-amber-200">{{ step.callable_type }}</dd>
+              </div>
+              <div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
+                <dt class="mb-1 uppercase tracking-wider text-slate-500">Operation</dt>
+                <dd class="flex min-w-0 items-center gap-2 text-white">
+                  <span class="break-all">{{ step.function }}</span>
+                  {% if step.source_href %}<a href="{{ step.source_href }}" class="shrink-0 text-cyan-300 hover:text-cyan-200" title="Open Python module"><i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i><span class="sr-only">Open Python module</span></a>{% endif %}
+                </dd>
+              </div>
+              <div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
+                <dt class="mb-1 uppercase tracking-wider text-slate-500">Produces</dt>
+                <dd class="break-all text-cyan-200">{{ step.feature }}</dd>
+              </div>
+              <div class="min-w-0 border-b border-slate-800 p-3">
+                <dt class="mb-1 uppercase tracking-wider text-slate-500">Returns</dt>
+                <dd class="break-all text-lime-300">{{ step.returns.type.engine or "—" }}</dd>
+              </div>
+              <div class="min-w-0 p-3 md:col-span-4">
+                <dt class="mb-1 uppercase tracking-wider text-slate-500">Depends on callables</dt>
+                <dd class="flex flex-wrap gap-1.5">
+                  {% if step.depends_on_callables %}
+                    {% for dependency in step.depends_on_callables %}<span class="rounded-md bg-slate-950/70 px-2 py-1 text-slate-300">{{ dependency.function }}</span>{% endfor %}
+                  {% else %}
+                    <span class="text-slate-400">No callable dependencies</span>
+                  {% endif %}
+                </dd>
+              </div>
+            </dl>
+            {% if step.args %}
+            <div class="mt-5 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80">
+              <table class="w-full font-mono text-xs">
+                <thead><tr class="border-b border-slate-800 text-left text-slate-500"><th class="px-4 py-2 font-normal uppercase tracking-wider">Argument</th><th class="px-4 py-2 font-normal uppercase tracking-wider">Value</th><th class="px-4 py-2 font-normal uppercase tracking-wider">Binding type</th><th class="px-4 py-2 font-normal uppercase tracking-wider">Function type</th><th class="px-4 py-2 font-normal uppercase tracking-wider">Engine type</th></tr></thead>
+                <tbody>
+                  {% for argument_id, argument in step.args.items() %}
+                  <tr class="border-b border-slate-800/60 last:border-0"><td class="px-4 py-2 text-cyan-200">{{ argument_id }}</td><td class="px-4 py-2 break-all text-white">{{ argument.value }}</td><td class="px-4 py-2 text-slate-400">{{ argument.type.binding or "—" }}</td><td class="px-4 py-2 text-slate-400">{{ argument.type.function or "—" }}</td><td class="px-4 py-2 text-lime-300">{{ argument.type.engine or "—" }}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% endif %}
+          </article>
+          </div>
+          {% endfor %}
+            </div>
+          </section>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="https://unpkg.com/lucide@latest"></script><script>lucide.createIcons();</script>
+</body>
+</html>

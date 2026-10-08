@@ -1,0 +1,48 @@
+<section id="functions" class="mb-16">
+  <div class="mb-6"><h2 class="flex items-center gap-3 font-display text-3xl font-semibold text-white"><i data-lucide="braces" class="h-7 w-7 shrink-0 text-lime-300" aria-hidden="true"></i>Functions</h2></div>
+  {% for group_name, group in configuration.functions.items() %}
+    {% set ordered_functions = group.items() | list %}
+    {% if ordered_functions %}
+      <div class="mb-8">
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <h3 class="font-display text-xl font-semibold text-white">{{ group_name|title }}</h3>
+          <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ ordered_functions|length }} {{ group_name }}</span>
+        </div>
+        <div class="grid gap-5 lg:grid-cols-2">
+          {% for function_id, function in ordered_functions %}
+            <article class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h4 class="font-display text-lg font-semibold text-white">{{ function_id }}</h4>
+                  {% if function.return_type %}<p class="mt-2 text-xs text-lime-300">returns {{ function.return_type }}</p>{% endif %}
+                </div>
+              </div>
+              <p class="mt-4 text-sm leading-6 text-slate-400">{{ function.description or "No description provided." }}</p>
+              <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/80 p-3 font-mono text-xs text-slate-200">
+                <div class="text-slate-500">def <span class="text-white">{{ function_id }}</span>(</div>
+                {% if function.args %}
+                  {% for argument_id, argument in function.args.items() %}
+                    <div class="pl-4"><span class="text-cyan-200">{{ argument_id }}</span><span class="text-slate-500">: </span><span class="text-lime-300">{{ argument.type or "unspecified" }}</span>{% if not loop.last %}<span class="text-slate-500">,</span>{% endif %}</div>
+                  {% endfor %}
+                {% else %}
+                  <div class="pl-4 text-slate-400">pass</div>
+                {% endif %}
+                <div class="text-slate-500">)</div>
+                {% if function.return_type %}<div class="mt-1 text-lime-300">-&gt; {{ function.return_type }}</div>{% endif %}
+              </div>
+              {% if function.entrypoint %}
+                <div class="mt-5 border-t border-slate-800 pt-4">
+                  <p class="font-mono text-[10px] uppercase tracking-[.16em] text-slate-500">source</p>
+                  <a href="{{ function.entrypoint_file or function.entrypoint }}" class="mt-2 flex min-w-0 items-center gap-2 font-mono text-xs text-cyan-200 transition hover:text-cyan-100" target="_blank" rel="noreferrer">
+                    <i data-lucide="external-link" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></i>
+                    <span class="truncate">{{ function.entrypoint }}</span>
+                  </a>
+                </div>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
+</section>

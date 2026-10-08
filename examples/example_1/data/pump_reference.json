@@ -1,0 +1,18 @@
+[
+  {
+    "pump": "PUMP-101",
+    "rated_flow_rate": 120.0,
+    "rated_discharge_pressure": 5.5,
+    "rated_motor_power": 18.5,
+    "maximum_bearing_temperature": 90.0,
+    "maximum_vibration_rms": 4.5
+  },
+  {
+    "pump": "PUMP-201",
+    "rated_flow_rate": 85.0,
+    "rated_discharge_pressure": 4.2,
+    "rated_motor_power": 12.0,
+    "maximum_bearing_temperature": 90.0,
+    "maximum_vibration_rms": 4.5
+  }
+]

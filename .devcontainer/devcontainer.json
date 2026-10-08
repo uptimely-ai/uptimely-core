@@ -1,0 +1,36 @@
+{
+    "name": "Uptimely Core",
+    "dockerFile": "Dockerfile",
+    "postCreateCommand": "bash .devcontainer/post-create.sh",
+    "forwardPorts": [4000],
+    "portsAttributes": {
+        "4000": {
+            "label": "Jekyll docs",
+            "onAutoForward": "notify"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "chat.mcp.autostart": "newAndOutdated"
+            },
+            "extensions": [
+                "GitHub.copilot",
+                "GitHub.copilot-chat",
+                "GitHub.vscode-pull-request-github",
+                "ms-python.python",
+                "ms-python.vscode-pylance"
+            ]
+        }
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2.5.5": {}
+    },
+    "remoteUser": "vscode",
+    "updateRemoteUserUID": true,
+    "runArgs": [
+        "--network=host"
+    ],
+    "containerEnv": {
+    }
+}

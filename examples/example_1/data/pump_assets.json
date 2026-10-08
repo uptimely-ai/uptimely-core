@@ -1,0 +1,12 @@
+[
+  {
+    "plant": "PLANT-01",
+    "production_line": "LINE-A",
+    "pump": "PUMP-101"
+  },
+  {
+    "plant": "PLANT-01",
+    "production_line": "LINE-B",
+    "pump": "PUMP-201"
+  }
+]
