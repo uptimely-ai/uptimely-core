@@ -2,16 +2,16 @@
 requires = ["poetry-core>=2.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry]
+[project]
 name = "uptimely-core"
 version = "0.0.1"
 description = "Declarative numerical analytics with complex dependencies at scale"
-authors = ["Mikael Ahonen <mikael.ahonen@uptimely.ai>"]
+authors = [{ name = "Mikael Ahonen", email = "mikael.ahonen@uptimely.ai" }]
 license = "MIT"
+license-files = ["LICENSE"]
 readme = "readme.md"
-homepage = "https://github.com/uptimely-ai/uptimely-core"
-repository = "https://github.com/uptimely-ai/uptimely-core"
-documentation = "https://uptimely-ai.github.io/uptimely-core"
+# graphable requires Python >=3.13, so 3.13 is the floor until that widens.
+requires-python = ">=3.13,<4.0"
 keywords = ["analytics", "declarative", "industrial", "feature-engineering", "polars"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -21,43 +21,38 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering",
 ]
-packages = [{ include = "uptimely", from = "src" }]
+dependencies = [
+  "polars>=1.0,<2.0",
+  "numpy>=1.26,<3.0",
+  "graphable>=0.6.1,<0.8",
+  "Jinja2>=3.1,<4.0",
+  "pydantic>=2.10,<3.0",
+]
 
-[tool.poetry.dependencies]
-# graphable requires Python >=3.13, so 3.13 is the floor until that widens.
-python = ">=3.13,<4.0"
-polars = ">=1.0,<2.0"
-numpy = ">=1.26,<3.0"
-graphable = ">=0.6.1,<0.8"
-Jinja2 = ">=3.1,<4.0"
-pydantic = ">=2.10,<3.0"
-boto3 = { version = ">=1.34,<2.0", optional = true }
+[project.optional-dependencies]
+s3 = ["boto3>=1.34,<2.0"]
 # fastmcp 2.x caps mcp<2.0 with broken metadata; 4.x pairs with mcp 2.x.
-fastmcp = { version = ">=2.12,<5.0", optional = true }
+mcp = ["fastmcp>=2.12,<5.0"]
 
-[tool.poetry.extras]
-s3 = ["boto3"]
-mcp = ["fastmcp"]
+[project.scripts]
+uptimely = "uptimely.cli.cli:main"
+uptimely-mcp = "uptimely.mcp.server:main"
 
-[tool.poetry.group.test.dependencies]
-pytest = ">=8.0"
-pytest-cov = ">=5.0"
+[project.urls]
+Homepage = "https://github.com/uptimely-ai/uptimely-core"
+Repository = "https://github.com/uptimely-ai/uptimely-core"
+Documentation = "https://uptimely-ai.github.io/uptimely-core"
 
-[tool.poetry.group.dev.dependencies]
-pre-commit = ">=3.0"
-ruff = ">=0.8"
+[dependency-groups]
+test = ["pytest>=8.0", "pytest-cov>=5.0"]
+dev = ["pre-commit>=3.0", "ruff>=0.8"]
+docs = ["mkdocs>=1.6,<2.0", "mkdocs-material>=9.7,<10.0", "mkdocstrings[python]>=1.0,<2.0"]
+
+[tool.poetry]
+packages = [{ include = "uptimely", from = "src" }]
 
 [tool.poetry.group.docs]
 optional = true
-
-[tool.poetry.group.docs.dependencies]
-mkdocs = ">=1.6,<2.0"
-mkdocs-material = ">=9.7,<10.0"
-mkdocstrings = { version = ">=1.0,<2.0", extras = ["python"] }
-
-[tool.poetry.scripts]
-uptimely = "uptimely.cli.cli:main"
-uptimely-mcp = "uptimely.mcp.server:main"
 
 [tool.ruff]
 target-version = "py313"

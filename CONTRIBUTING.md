@@ -172,7 +172,7 @@ Releases are prepared in a short-lived PR to `main`, not on a long-lived
 `release/*` branch. Keep the release PR focused on release metadata:
 
 1. Choose the next version according to the versioning policy above.
-2. Update `version` under `[tool.poetry]` in [`pyproject.toml`](pyproject.toml).
+2. Update `version` under `[project]` in [`pyproject.toml`](pyproject.toml).
    This is the active package version used to build distributions.
 3. In [`CHANGELOG.md`](CHANGELOG.md), change `## [Unreleased]` to
    `## [<version>] - YYYY-MM-DD`, keeping its entries and categories, then add
