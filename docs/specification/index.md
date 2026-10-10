@@ -1,10 +1,3 @@
----
-layout: default
-title: Specification
-nav_order: 3
-has_children: true
----
-
 # Open Analytics Specification
 
 The Open Analytics Specification describes an analytical system in a single JSON

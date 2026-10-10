@@ -1,11 +1,3 @@
----
-group: development
-parent: Development
-layout: default
-title: Roadmap
-nav_order: 4
----
-
 # Development roadmap
 
 ## Data validation

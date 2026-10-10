@@ -8,7 +8,7 @@ Contributions are welcome via pull requests.
 2. Open the repository in the included `.devcontainer/`, or install locally:
 
    ```sh
-   poetry install --with test,dev --extras "mcp s3"
+   poetry install --with test,dev,docs --extras "mcp s3"
    ```
 
 3. Install the git hooks:
@@ -18,12 +18,10 @@ Contributions are welcome via pull requests.
    ```
 
 The devcontainer image installs Python tooling through
-[`.devcontainer/install-python.sh`](.devcontainer/install-python.sh) and Ruby
-tooling for Jekyll through
-[`.devcontainer/install-jekyll.sh`](.devcontainer/install-jekyll.sh).
-Both scripts run as root during the image build.
+[`.devcontainer/install-python.sh`](.devcontainer/install-python.sh).
+The script runs as root during the image build.
 [`.devcontainer/post-create.sh`](.devcontainer/post-create.sh) installs the
-project's Python dependencies and documentation gems as the container user.
+project's Python and documentation dependencies as the container user.
 Rebuild the devcontainer after changing its Dockerfile or image setup scripts.
 
 ### GitHub access from VS Code
@@ -58,37 +56,46 @@ can still start, but SSH Git operations need separate authentication setup.
 
 ## Previewing documentation
 
-The devcontainer includes Ruby and Bundler and installs the Jekyll dependencies
-from [`docs/Gemfile`](docs/Gemfile) during setup.
+The site uses MkDocs for Markdown guides and mkdocstrings for the Python API
+reference. The devcontainer installs both through the optional Poetry `docs`
+group. Outside the devcontainer, run `poetry install --with docs`.
 
 Start the documentation preview from the repository root:
 
 ```sh
-cd docs
-bundle exec jekyll serve --host 0.0.0.0
+poetry run mkdocs serve --dev-addr 0.0.0.0:8000
 ```
 
-Open <http://localhost:4000> using the forwarded port. Jekyll rebuilds the site
-when documentation files change. The remote theme requires internet access.
-Stop the server with `Ctrl+C`.
+Open <http://localhost:8000> using the forwarded port. MkDocs rebuilds the site
+when documentation or Python source files change. Stop the server with `Ctrl+C`.
+Architecture diagrams load Mermaid from a pinned CDN URL, so viewing diagrams
+requires internet access.
 
-The remote theme currently uses deprecated Sass functions and `@import`.
-[`docs/_config.yml`](docs/_config.yml) suppresses only the `color-functions`,
-`global-builtin`, and `import` deprecation warnings until the theme migrates to
-modern Sass. Other warnings and build errors remain visible.
-
-Outside the devcontainer, install Ruby, its development headers, Bundler,
-OpenSSL development headers, `pkg-config`, and native build tools, then run
-these commands before starting the preview:
+Validate the complete site, including API generation and internal links:
 
 ```sh
-cd docs
-bundle config set --local path vendor/bundle
-bundle install
+poetry run mkdocs build --strict
 ```
 
-To render the site without starting a server, run `bundle exec jekyll build`
-from `docs/`. The generated site and local gem dependencies are ignored by Git.
+The generated `site/` directory is ignored by Git. Edit guides in [`docs/`](docs/)
+and navigation in [`mkdocs.yml`](mkdocs.yml). The
+[API reference](docs/reference/api.md) selects public interfaces; their signatures
+and Google-style docstrings come directly from `src/uptimely/`. Do not commit
+generated API pages. When adding a public interface, include it in the reference
+and document its arguments, return value, errors, and usage where applicable.
+
+### Automatic publishing
+
+[The documentation workflow](.github/workflows/docs.yml) builds the site on pull
+requests and pushes to `main`. Warnings fail the build. Only successful builds
+on `main` deploy to <https://uptimely-ai.github.io/uptimely-core/>. It can also
+be run manually from the Actions tab.
+
+Once per repository, open **Settings -> Pages -> Build and deployment** and
+set **Source** to **GitHub Actions**. No personal access token or custom secret is
+required. If the `github-pages` environment has deployment protection rules,
+allow deployments from `main` or approve them as required by your organization.
+Use this workflow as the site's only deployment mechanism.
 
 ## Workflow
 

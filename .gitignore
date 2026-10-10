@@ -46,6 +46,7 @@ examples/example_1/generated/output/
 *Identifier
 
 # Local documentation preview
+site/
 docs/.bundle/
 docs/.jekyll-cache/
 docs/.jekyll-metadata

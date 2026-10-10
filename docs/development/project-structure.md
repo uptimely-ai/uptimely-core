@@ -1,11 +1,3 @@
----
-group: development
-parent: Development
-layout: default
-title: Project Structure
-nav_order: 1
----
-
 # Analytics project structure
 
 This page shows a recommended project layout for a single analytics project built with Uptimely Core.
@@ -47,7 +39,7 @@ project/
 
 This separation keeps the project easy to reason about: the code that defines the model lives in the spec folder, the runtime logic lives in functions, and generated resources stay clearly separate from source inputs.
 
-The [end-to-end example](../../examples/example_1/README.md) also has documentation
+The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/example_1/README.md) also has documentation
 and feature-graph runners, writing to `generated/docs/` and `generated/graph/`.
-The [smaller Python example](../../examples/example_2/README.md) demonstrates
+The [smaller Python example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/example_2/README.md) demonstrates
 specification export without the full compilation and execution workflow.

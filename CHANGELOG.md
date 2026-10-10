@@ -12,6 +12,8 @@ Initial public release.
 
 ### Added
 
+- Python API reference generated from source, with documentation validation on
+  pull requests and automatic GitHub Pages publishing from `main`.
 - Declarative specification model with JSON export.
 - Compiler producing portable, staged execution plans.
 - Built-in batch engine with a Polars dataframe backend.

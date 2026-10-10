@@ -1,11 +1,3 @@
----
-group: development
-parent: Development
-layout: default
-title: Organizing Analytics
-nav_order: 2
----
-
 # Organizing analytics
 
 This page introduces three ways to organize analytical projects.
@@ -40,7 +32,7 @@ coordinate export, compilation, and execution.
 
 Source datasets and other generated artifacts are described in the
 [project structure guide](project-structure.md). See the
-[end-to-end example](../../examples/example_1/README.md) for the complete layout.
+[end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/example_1/README.md) for the complete layout.
 
 Keep functions in simple modules initially. Split them into packages when their
 size or reuse warrants it, and distribute shared code as a versioned package when
@@ -68,9 +60,9 @@ generated output.
 
 ## Decentralized
 
-> [!CAUTION]
-> Automatic composition of specifications from multiple repositories is not
-> supported. This pattern requires project-specific assembly tooling.
+!!! caution
+    Automatic composition of specifications from multiple repositories is not
+    supported. This pattern requires project-specific assembly tooling.
 
 A master project brings multiple scattered analytics repositories and their
 specifications together in one place. Each contributing repository maintains its

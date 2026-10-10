@@ -1,11 +1,3 @@
----
-group: artifacts
-parent: Artifacts
-layout: default
-title: Automatic Documentation
-nav_order: 1
----
-
 # Automatic documentation
 
 The framework knows each source input, calculation, resulting feature, dependency, and source-code location.

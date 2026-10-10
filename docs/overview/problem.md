@@ -1,10 +1,3 @@
----
-layout: default
-title: The problem
-parent: Overview
-nav_order: 1
----
-
 # The problem that Uptimely Core solves
 
 Uptimely Core aims to reduce the specification and development process for massive scale numerical calculations with complex dependencies for industrial needs from weeks to minutes.

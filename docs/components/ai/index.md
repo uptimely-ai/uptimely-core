@@ -1,12 +1,3 @@
----
-group: components
-layout: default
-title: AI Agents
-parent: Components
-nav_order: 3
-has_children: false
----
-
 # Working with AI Agents
 
 Uptimely Core is built from ground up to natively run and manage numerical calculations with AI agents.
@@ -96,7 +87,7 @@ server must log to stderr only.
 ## Connecting VS Code Copilot Chat
 
 The repository contains a ready-made
-[`.vscode/mcp.json`](../../../.vscode/mcp.json) for VS Code Copilot Chat. Keep
+[`.vscode/mcp.json`](https://github.com/uptimely-ai/uptimely-core/blob/main/.vscode/mcp.json) for VS Code Copilot Chat. Keep
 `.vscode/` at the repository root, not inside `.devcontainer/`. In a Dev
 Container window, VS Code resolves `${workspaceFolder}` to the container's
 workspace and launches the server from its Poetry virtual environment.

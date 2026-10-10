@@ -7,8 +7,5 @@ ENV POETRY_HOME=/opt/poetry \
 COPY install-python.sh /tmp/install-python.sh
 RUN bash /tmp/install-python.sh && rm /tmp/install-python.sh
 
-COPY install-jekyll.sh /tmp/install-jekyll.sh
-RUN bash /tmp/install-jekyll.sh && rm /tmp/install-jekyll.sh
-
 # Set workdir
 WORKDIR /workspace

@@ -1,10 +1,3 @@
----
-layout: default
-title: Architecture
-parent: Overview
-nav_order: 2
----
-
 # Project architecture
 
 Uptimely Core separates authoring, specification, planning, and execution into

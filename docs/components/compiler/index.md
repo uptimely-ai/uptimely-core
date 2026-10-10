@@ -1,21 +1,12 @@
----
-group: components
-layout: default
-title: Compiler
-parent: Components
-nav_order: 1
-has_children: false
----
-
 # Compiler
 
-The compiler translates an [Open Analytics specification](../../specification/)
+The compiler translates an [Open Analytics specification](../../specification/index.md)
 into a portable execution plan. It resolves declared dependencies, creates
 operations from function bindings, and organizes those operations into execution
 stages.
 
 Compilation prepares the workflow; it does not run the analytical operations.
-The resulting plan is the hand-off format to an [engine](../engine/), which
+The resulting plan is the hand-off format to an [engine](../engine/index.md), which
 loads it and executes the operations against runtime data.
 
 ## Compilation workflow
@@ -189,7 +180,7 @@ HTML report for inspecting operation order and dependencies:
 plan.export_html("generated/compile/execution_plan.html")
 ```
 
-The [Engine documentation](../engine/) describes how the built-in engine
+The [Engine documentation](../engine/index.md) describes how the built-in engine
 executes the loaded plan and accumulates runtime dataframes. The plan itself
 remains independent of that engine's dataframe implementation and orchestration
 environment.
@@ -199,7 +190,7 @@ environment.
 The built-in compiler is a reference implementation, not a required part of every
 deployment. You can create another compiler to target a different execution
 environment or apply backend-specific planning strategies while retaining the
-[specification](../../specification/) as the source of truth.
+[specification](../../specification/index.md) as the source of truth.
 
 Start by deciding which engine will consume the output. A compiler targeting the
 built-in engine must produce its existing execution plan contract. A compiler
