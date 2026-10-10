@@ -56,9 +56,11 @@ can still start, but SSH Git operations need separate authentication setup.
 
 ## Previewing documentation
 
-The site uses MkDocs for Markdown guides and mkdocstrings for the Python API
-reference. The devcontainer installs both through the optional Poetry `docs`
-group. Outside the devcontainer, run `poetry install --with docs`.
+The site uses MkDocs with the Material theme for Markdown guides and mkdocstrings
+for the Python API reference. Main navigation is in the left sidebar; the right
+sidebar shows the current page's contents. Top navigation tabs are not enabled.
+The devcontainer installs documentation dependencies through the optional Poetry
+`docs` group. Outside the devcontainer, run `poetry install --with docs`.
 
 Start the documentation preview from the repository root:
 

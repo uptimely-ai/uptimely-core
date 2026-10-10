@@ -7,7 +7,7 @@ strict: true
 watch: [src/uptimely]
 
 theme:
-  name: mkdocs
+  name: material
 
 plugins:
   - search
