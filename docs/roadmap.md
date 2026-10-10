@@ -32,7 +32,7 @@ prod without changing its bindings or recompiling.
 
 The Python API accepts a mapping; application code can load that mapping from
 JSON. The MCP CLI already accepts a JSON file through `--runtime-resources`.
-See [runtime overrides](../components/engine/index.md#runtime-overrides) for usage.
+See [runtime overrides](components/engine/index.md#runtime-overrides) for usage.
 
 Future work includes automatic environment selection, layered configuration
 merging, and a mechanism for calculation constants. Runtime resource substitution
@@ -68,6 +68,6 @@ Add section to spec to define something like this:
 
 Add traditional 2-dimensional column level lineage for features.
 
-## MCP support
+## Extend the MCP support
 
-Add MCP support for each atomic function.
+Add MCP support for each atomic analytical functions.

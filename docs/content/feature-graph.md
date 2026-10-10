@@ -31,7 +31,21 @@ A subset can be sliced from the global graph. This is useful for on-demand calcu
 
 ## Difference between physical and logical lineage
 
-For example, a calculated feature `B` can depend on feature `A`.
+Physical data shows stored values, but does not necessarily explain their
+analytical meaning. Consider two features observed at two steps:
+
+| Step | Feature | Value |
+| --- | --- | --- |
+| 1 | A | 10 |
+| 1 | B | 8 |
+| 2 | A | 11 |
+| 2 | B | 17 |
+
+These rows do not tell a consumer what `A` and `B` represent, how they were
+produced, or which downstream calculations use them. The same values can support
+different business definitions, reports, and decisions.
+
+Suppose calculated feature `B` depends on feature `A`.
 
 The Python processing might look clear:
 
@@ -50,6 +64,11 @@ But in practice, you need to inspect a lot of code before you understand the who
 
 Or maybe they are produced in a single black-box execution named `process_many_things`.
 
-The [Specification overview](../specification/index.md#logical-layer) explains how the logical layer connects physical data with analytical meaning. Its [result validation section](../specification/index.md#result-validation) describes how consumers can review the declared dependencies alongside numerical tests and data-quality checks.
+The [specification](../specification/index.md) provides a logical layer alongside
+the physical data by declaring feature identities, dependencies, and the
+operations that produce them. The feature dependency graph visualizes those
+declarations, connecting source inputs to consumption-ready information without
+requiring consumers to reconstruct the workflow from database tables and
+implementation code.
 
 The graph distinguishes two kinds of features: green circles are columns supplied by fragments, blue circles are calculated features, and orange cylinders are functions.
