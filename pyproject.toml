@@ -47,6 +47,13 @@ pytest-cov = ">=5.0"
 pre-commit = ">=3.0"
 ruff = ">=0.8"
 
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+mkdocs = ">=1.6,<2.0"
+mkdocstrings = { version = ">=1.0,<2.0", extras = ["python"] }
+
 [tool.poetry.scripts]
 uptimely = "uptimely.cli.cli:main"
 uptimely-mcp = "uptimely.mcp.server:main"

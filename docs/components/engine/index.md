@@ -1,12 +1,3 @@
----
-group: components
-layout: default
-title: Engine
-parent: Components
-nav_order: 2
-has_children: false
----
-
 # Execution Engine
 
 This page describes the built-in engine shipped with Uptimely Core. It is the reference execution implementation for the project, but it is not the only possible engine. Any engine that can read the portable compiled plan and execute its operations according to the plan contract may be used instead. An alternative engine may be implemented in another language or runtime, as long as it respects the portable execution model and the plan's declared backend compatibility.

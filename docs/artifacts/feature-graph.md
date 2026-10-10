@@ -1,11 +1,3 @@
----
-group: artifacts
-parent: Artifacts
-layout: default
-title: Feature Dependency Graph
-nav_order: 2
----
-
 # Feature dependency graph
 
 Data teams might have various lineages to visualize data flow:

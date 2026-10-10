@@ -1,10 +1,3 @@
----
-layout: default
-title: Artifacts
-nav_order: 5
-has_children: true
----
-
 # Artifacts
 
 Uptimely Core generates documentation and dependency graphs from the

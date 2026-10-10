@@ -41,9 +41,10 @@ Explore the [documentation site](https://uptimely-ai.github.io/uptimely-core/).
 
 | Path | Purpose |
 | --- | --- |
-| [`src/uptimely/`](src/uptimely/) | Package implementation for specifications, compilation, dependencies, documentation, and engine. |
-| [`examples/`](examples/README.md) | Runnable examples and generated artifacts. |
 | [`docs/`](docs/index.md) | Architecture, specification, and development documentation. |
+| [`examples/`](examples/README.md) | Runnable examples and generated artifacts. |
+| [`scripts/`](scripts) | Code snippets for repository management |
+| [`src/uptimely/`](src/uptimely/) | Package implementation for specifications, compilation, dependencies, documentation, and engine. |
 | [`tests/`](tests/) | Automated tests for the package and examples. |
 
 ## Development

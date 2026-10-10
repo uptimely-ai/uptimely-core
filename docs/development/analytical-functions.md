@@ -1,11 +1,3 @@
----
-group: development
-parent: Development
-layout: default
-title: Analytical functions
-nav_order: 3
----
-
 # Analytical functions
 
 The framework creates many safeguards what can go into the analytical functions, and what comes out. For example dataset, feature and dimension data types, structural validation, operation types etc.

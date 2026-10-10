@@ -1,11 +1,3 @@
----
-group: specification
-layout: default
-title: Open Analytics Specification
-parent: Specification
-nav_order: 1
----
-
 # Open Analytics Specification
 
 The Open Analytics Specification is a single JSON document that declares an analytical system: its data model, executable operation templates, and feature dependencies. It is the contract between a declarative analytical design and its implementation.
