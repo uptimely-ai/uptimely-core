@@ -21,27 +21,21 @@ Currently the examples are built around batch processing. Streaming abstractions
 
 Read more at [uptimely.ai website](https://uptimely.ai).
 
+## Quick start
 
-## Start here
-
-Explore the [documentation site](https://uptimely-ai.github.io/uptimely-core/).
-
-The [examples overview](examples/README.md) describes the runnable examples in this repository.
-
-## Try it yourself
-
-Clone the repository, open it in the included `.devcontainer/` or install the Poetry environment, then run the complete example workflow:
-
-Requires **Python >= 3.13** (the `graphable` dependency sets the floor).
+Install the package, download examples and run.
 
 ```sh
-git clone https://github.com/uptimely-ai/uptimely-core.git
-cd uptimely-core
-poetry install --extras "mcp"
-poetry run python examples/run_all.py
+pip install uptimely-core
+uptimely examples download
+python examples/run_all.py
 ```
 
-For setup alternatives, individual workflows, and generated output, see the [examples guide](examples/README.md).
+Explore the examples files, generated resources and modify for the needs of your own project.
+
+## Documentation
+
+Explore the [documentation site](https://uptimely-ai.github.io/uptimely-core/).
 
 ## Repository guide
 

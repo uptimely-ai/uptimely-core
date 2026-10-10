@@ -18,6 +18,8 @@ Initial public release.
 - Documentation and feature-graph generation from specifications.
 - MCP server exposing specification introspection and feature execution tools.
 - Runnable examples under `examples/` with an automated test suite.
+- `uptimely examples download` command to fetch examples from the public GitHub
+  repository, with revision and destination options.
 
 ## [0.0.1] - 2026-08-16
 

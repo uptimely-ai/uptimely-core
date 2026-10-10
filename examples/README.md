@@ -31,6 +31,41 @@ examples/
 
 ## Quick start
 
+### Download examples with the installed package
+
+With Python 3.13 or newer, install the package and download the examples without
+cloning the repository:
+
+```sh
+pip install uptimely-core
+uptimely examples download
+python examples/check_setup.py
+python examples/run_all.py
+```
+
+Run these commands from the parent of the downloaded `examples/` directory.
+The download copies only the public GitHub repository's root-level `examples/` contents,
+including data and specifications. It does not execute downloaded code.
+Empty directories are not copied.
+
+The source repository comes from the installed package's `Repository` metadata,
+which is configured in [`pyproject.toml`](../pyproject.toml). By default the command
+downloads the repository's current default branch. To select a release tag,
+branch, or commit, or to use a different destination:
+
+```sh
+uptimely examples download --ref main --output ./demo/examples
+cd demo
+python examples/run_all.py
+```
+
+Use a revision compatible with your installed package: the default branch may
+contain unreleased changes. The destination must not already exist, even if it
+is empty. Download and extraction errors produce a nonzero exit status without
+leaving a partially extracted destination.
+
+### Run examples from a repository checkout
+
 1. Clone the repository and change into its directory:
 
 	```sh

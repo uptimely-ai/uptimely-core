@@ -48,6 +48,7 @@ pre-commit = ">=3.0"
 ruff = ">=0.8"
 
 [tool.poetry.scripts]
+uptimely = "uptimely.cli.cli:main"
 uptimely-mcp = "uptimely.mcp.server:main"
 
 [tool.ruff]
