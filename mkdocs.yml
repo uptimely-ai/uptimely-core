@@ -45,25 +45,21 @@ validation:
 nav:
   - Home: index.md
   - Overview:
-      - Introduction: overview/index.md
       - The problem: overview/problem.md
       - Architecture: overview/architecture.md
   - Specification:
-      - Introduction: specification/index.md
-      - Format reference: specification/specification.md
+      - About Specification: specification/index.md
+      - Open Analytics Specification: specification/specification.md
   - Components:
-      - Introduction: components/index.md
       - Compiler: components/compiler/index.md
       - Engine: components/engine/index.md
       - AI agents: components/ai/index.md
-  - Artifacts:
-      - Introduction: artifacts/index.md
-      - Automatic documentation: artifacts/automatic-documentation.md
-      - Feature dependency graph: artifacts/feature-graph.md
+  - Generated materials:
+      - Automatic documentation: content/automatic-documentation.md
+      - Feature dependency graph: content/feature-graph.md
   - Development:
-      - Introduction: development/index.md
       - Project structure: development/project-structure.md
       - Organizing analytics: development/organize.md
       - Analytical functions: development/analytical-functions.md
-      - Roadmap: development/roadmap.md
+  - Roadmap: roadmap.md
   - Python API: reference/api.md

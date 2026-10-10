@@ -85,4 +85,4 @@ the declarative contract.
 ::: uptimely.docs.docs.Documentation
 
 These methods generate documentation for an analytics specification, not this
-Python API reference. See [automatic documentation](../artifacts/automatic-documentation.md).
+Python API reference. See [automatic documentation](../content/automatic-documentation.md).
