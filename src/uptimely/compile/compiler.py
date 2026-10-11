@@ -102,6 +102,17 @@ class Compiler:
         resources["signatures"] = {
             node_id: signature.returns for node_id, signature in signatures.items()
         }
+        if any(operation.row_context is not None for operation in operations):
+            planned_datasets = {operation.dataset_id for operation in operations}
+            resources["datasets"] = {
+                dataset.id: {
+                    "order": [key.model_dump() for key in dataset.order],
+                    "row_scope": dataset.row_scope.model_dump(),
+                }
+                for entity in self.specification.entities.values()
+                for dataset in entity.datasets
+                if dataset.id in planned_datasets
+            }
         plan = Plan(
             plan_version="1.0.0",
             specification_version=self.specification.version,
@@ -133,6 +144,7 @@ class Compiler:
                 )
             ),
             dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
+            row_context=node.row_context,
         )
 
     @staticmethod

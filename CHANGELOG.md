@@ -17,6 +17,9 @@ Initial public release.
 - Declarative specification model with JSON export.
 - Optional dataset logical ordering by dimension, with explicit ascending or
   descending directions, JSON and Python authoring, and reference validation.
+- Feature-level row-context requirements with time, integer-step, and row
+  extents, unbounded context, Python argument annotations, and portable plan
+  metadata. Replaces the function-template `input_scope` field.
 - Compiler producing portable, staged execution plans.
 - Built-in batch engine with a Polars dataframe backend.
 - Documentation and feature-graph generation from specifications.

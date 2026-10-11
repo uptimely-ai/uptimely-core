@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from uptimely.row_context import RowContext
+
 
 @dataclass(frozen=True)
 class Operation:
@@ -20,6 +22,14 @@ class Operation:
     output: str | None
     arguments: dict[str, Any] = field(default_factory=dict)
     dependency_ids: list[str] = field(default_factory=list)
+    row_context: RowContext | None = None
+
+    def __post_init__(self) -> None:
+        """Validate context metadata, including operations loaded from JSON."""
+        if self.row_context is not None:
+            if self.kind != "vectorize":
+                raise ValueError("Only vectorize operations can declare row context")
+            object.__setattr__(self, "row_context", RowContext.model_validate(self.row_context))
 
     @property
     def function_id(self) -> str:
@@ -71,6 +81,11 @@ class Plan:
                     "output": operation.output,
                     "arguments": operation.arguments,
                     "dependency_ids": operation.dependency_ids,
+                    "row_context": (
+                        operation.row_context.to_dict()
+                        if operation.row_context is not None
+                        else None
+                    ),
                 }
                 for operation in self.operations
             ],
@@ -220,6 +235,9 @@ class ExecutionPlan:
             "entity": operation.entity_id,
             "dataset": operation.dataset_id,
             "feature": operation.feature,
+            "row_context": (
+                operation.row_context.to_dict() if operation.row_context is not None else None
+            ),
             "depends_on_callables": [
                 {
                     "function": dependency.split(":")[2]

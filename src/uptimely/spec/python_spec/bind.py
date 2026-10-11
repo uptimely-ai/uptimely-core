@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .ref import Reference
+from .row_context import RowContextBinding
 
 __all__ = [
     "Bind",
@@ -23,8 +24,22 @@ class Bind:
     function_id: str | None = None
 
 
-def bind(function: Callable[..., object], /, function_id: str | None = None, **args: Any) -> Bind:
-    """Bind named arguments to a plain vectorize function."""
+def bind(
+    function: Callable[..., object],
+    /,
+    function_id: str | None = None,
+    **args: Any,
+) -> Bind:
+    """Bind named arguments to a plain function.
+
+    Args:
+        function: The callable to invoke.
+        function_id: Optional catalog identifier.
+        **args: Actual function arguments, optionally annotated with row context.
+
+    Returns:
+        A declaration preserving primitive arguments and separate metadata.
+    """
     return Bind(function=function, args=args, function_id=function_id)
 
 
@@ -37,6 +52,8 @@ def _binding_value(value: Any) -> Any:
     """Convert Python references recursively to canonical binding values."""
     from .feature import Aggregation
 
+    if isinstance(value, RowContextBinding):
+        return _binding_value(value.value)
     if isinstance(value, Reference):
         return value.to_model()
     if isinstance(value, Aggregation):
@@ -57,6 +74,8 @@ def _argument_definition(value: Any) -> dict[str, Any]:
     """Infer a recursive function-argument schema from a bound value."""
     from .feature import Aggregation
 
+    if isinstance(value, RowContextBinding):
+        return _argument_definition(value.value)
     if isinstance(value, Reference):
         return {"type": "dataframe" if value.type in {"dataset", "fragment"} else "string"}
     if isinstance(value, Aggregation):

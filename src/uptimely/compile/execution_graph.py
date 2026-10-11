@@ -92,6 +92,11 @@ class CallableGraph:
                     dataset_id=self._dataset_id(call.entity, call.feature),
                     args=call.args,
                     callable=call,
+                    row_context=next(
+                        dataset.vectorize[call.feature].row_context
+                        for dataset in self.specification.entities[call.entity].datasets
+                        if call.feature in dataset.vectorize
+                    ),
                 )
                 node_key = self._node_key(callable_node)
                 nodes[node_key] = graphable.Graphable(callable_node)

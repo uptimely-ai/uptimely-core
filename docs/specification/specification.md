@@ -111,9 +111,10 @@ specified by this declaration.
 This is descriptive metadata, not a persistent physical row-order contract.
 Implementations MAY use it for sorting, source-query pushdown, presentation, or
 optimization, or leave physical rows unordered. The declaration does not define
-grouping or partitioning. Operations whose correctness depends on order, such as
-window calculations, MUST still declare their ordering inputs explicitly and
-MUST NOT assume incoming rows follow dataset `order`.
+grouping or partitioning. Row-context requirements inherit these ordering keys,
+but operations MUST NOT assume incoming rows physically follow dataset `order`.
+The current batch engine does not sort automatically: a function whose
+correctness depends on order must still implement ordering explicitly.
 
 Python authoring uses the same keys and preserves their precedence:
 
@@ -170,7 +171,6 @@ Each category under `functions` (`read`, `write`, `vectorize`, `aggregate`, `col
 | `entrypoint` | string | Yes | All | Executable implementation location, commonly `path/to/file.py:function_name`. |
 | `description` | string | No | All | Human-readable explanation of the operation template. |
 | `args` | object | No | All | Argument definitions keyed by argument name. |
-| `input_scope` | string | No | `vectorize` | Input extent required by the calculation: `row`, `dataset`, `window`, or `group`. |
 | `partitioning` | string | No | `vectorize` | Engine partitioning expectation: `none`, `by_entity_dimensions`, or `custom`. |
 
 ### Argument Definitions
@@ -322,6 +322,7 @@ A feature is any dataframe column that describes an entity. Fragment columns are
 | `description` | string | No | Human-readable explanation. |
 | `unit` | string | No | Unit of measure, for example `bar`, `kW`, or `mm/s`. |
 | `binding` | object | Yes | The vectorize function and concrete arguments that produce the output feature. |
+| `row_context` | object | No | Consolidated input-observation requirements for this feature. Omission means unknown. |
 
 Calculated features do not declare a `type`. System reads the type automatically from the return annotation of the function referenced by `binding.function`.
 
@@ -333,6 +334,126 @@ A vectorize binding calls one `functions.vectorize` template to create its outpu
 | --- | --- | --- | --- |
 | `function` | string | Yes | Identifier of a declared vectorize template. |
 | `args` | object | No | Concrete argument values keyed by argument name. Structural references are plain strings. |
+
+### Row Context
+
+`row_context` describes the input observations required to calculate a vectorized feature.
+Each calculated feature owns its requirement, interpreted using the dataset's
+logical ordering and the function's partitioning contract. Features invoking the
+same function can declare different context extents.
+
+Context metadata is stored beside the feature's binding. Function arguments
+retain their ordinary string, integer, array, or object values:
+
+```json
+{
+  "binding": {
+    "function": "rolling_mean",
+    "args": {
+      "column": "$features.temperature",
+      "window": "8h"
+    }
+  },
+  "row_context": {
+    "extent": "bounded",
+    "before": {"time": "8h"},
+    "after": {}
+  }
+}
+```
+
+| Field | Values | Meaning |
+| --- | --- | --- |
+| `extent` | `bounded` (default), `partition`, `dataset` | Directional context, the whole input partition, or the whole input dataset. |
+| `before` | Object, default `{}` | Required preceding observations in dataset logical order. |
+| `after` | Object, default `{}` | Required following observations in dataset logical order. |
+
+Choose one measurement for the feature's entire context, shared by `before`
+and `after`:
+
+| Measure | Value | Meaning |
+| --- | --- | --- |
+| `time` | Fixed-duration string | Elapsed time, for example `"8h"`. |
+| `steps` | Nonnegative integer | Distance along an integer coordinate. |
+| `rows` | Nonnegative integer | Number of ordered observations, regardless of coordinate gaps. |
+
+Each measure also accepts `"unbounded"` for all observations in that direction
+within the applicable input scope. Omit unused measurements; use `"0s"` or `0`
+for an explicit zero extent.
+
+For example, `before={"time": "8h"}` and `after={"time": "1h"}` use time in both
+directions. Each direction can also be empty. An empty bounded context explicitly
+declares current-row-only input. An omitted or `null` `row_context` is unknown.
+Whole-partition and whole-dataset extents use empty directional objects.
+
+Fixed durations use distinct lowercase suffixes: `w`, `d`, `h`, `m`, `s`, `ms`,
+`us`, and `ns`. Examples include `"8h"`, `"1h30m"`, and `"1.5s"`. Days are exactly
+24 hours and weeks exactly seven days. Durations are nonnegative, contain each
+unit at most once, have no whitespace, and use precision of one nanosecond or
+coarser. `"0s"` is zero time context.
+
+Python authoring can annotate the existing argument directly:
+
+```python
+from uptimely.spec.python_spec import bind, feature, ref, row_context
+
+calculation = feature.Vectorize(
+    id="temperature_mean",
+    bind=bind.bind(
+        rolling_mean,
+        column=ref.feature("temperature"),
+        window=row_context.time("8h", before="8h"),
+    ),
+)
+
+lag = row_context.rows(
+    "unbounded preceding",
+    before=row_context.UNBOUNDED,
+)
+```
+
+The positional value is passed unchanged to the function. `before` and `after`
+are keyword-only; omitted directions default to zero within an annotation.
+`row_context.steps(value, before=8)` measures coordinate distance rather than
+row count. For an eight-row window including the current row, declare seven
+preceding rows; an eight-row lag requires eight.
+
+Annotations nested in arrays and objects are unwrapped recursively. Their
+requirements consolidate into one feature-level context using the maximum
+extent in each direction. All contributing annotations and direct declarations
+use the same measurement.
+Unbounded dominates bounded values of the same measure. Declare the full extent
+required by a calculation: an eight-hour window ending two hours ago requires
+ten hours of preceding context.
+
+Context can also be declared directly on the feature using
+`feature.Vectorize(..., row_context=row_context.current())`,
+`row_context.partition()`, or `row_context.dataset()`. Custom directional
+declarations use the same `time`, `steps`, and `rows` helpers:
+
+```python
+calculation = feature.Vectorize(
+    id="temperature_delta",
+    bind=bind.bind(
+        temperature_delta,
+        column=ref.feature("temperature"),
+    ),
+    row_context=row_context.rows(1, before=1),
+)
+```
+
+Direct metadata and argument annotations are merged using the same rules.
+When a helper is supplied directly as feature context, its context extent is
+registered; its positional value is only passed to a function when the helper
+is used in that function's bound arguments.
+
+The compiler reads the feature's context and preserves it on the corresponding
+portable operation. When context is declared, the plan also includes planned
+datasets' logical ordering and row-scope metadata. Each requirement describes
+the operation's immediate input extent. The engine executes the function with
+its ordinary bound arguments.
+
+### Structural Binding References
 
 Structural references in binding arguments use these forms:
 

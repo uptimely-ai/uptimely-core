@@ -1,6 +1,6 @@
 """Pump telemetry dataset declarations for example 1."""
 
-from uptimely.spec.python_spec import bind, dataset, feature, fragment, ref
+from uptimely.spec.python_spec import bind, dataset, feature, fragment, ref, row_context
 
 from ...functions import calculation, sink, source
 
@@ -93,6 +93,7 @@ telemetry_calculations = [
     ),
     feature.Vectorize(
         id="bearing_temperature_delta",
+        row_context=row_context.rows(1, before=1),
         unit="C",
         description="Bearing-temperature change from the previous pump reading.",
         bind=bind.bind(
@@ -108,6 +109,7 @@ telemetry_calculations = [
     ),
     feature.Vectorize(
         id="vibration_delta",
+        row_context=row_context.rows(1, before=1),
         unit="mm/s",
         description="Vibration change from the previous pump reading.",
         bind=bind.bind(

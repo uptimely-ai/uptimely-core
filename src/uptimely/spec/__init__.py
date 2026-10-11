@@ -1,5 +1,7 @@
 """Public API for the specification package."""
 
+from uptimely.row_context import RowContext
+
 from .json_spec.json_model import (
     Argument,
     Binding,
@@ -20,7 +22,7 @@ from .json_spec.json_model import (
 )
 from .json_spec.json_parser import SpecificationParser
 from .json_spec.json_serializer import SpecificationSerializer
-from .python_spec import bind, dataset, dimension, entity, feature, fragment, ref, spec
+from .python_spec import bind, dataset, dimension, entity, feature, fragment, ref, row_context, spec
 
 __all__ = [
     "Argument",
@@ -35,6 +37,7 @@ __all__ = [
     "Input",
     "Order",
     "RowScope",
+    "RowContext",
     "Sink",
     "Source",
     "Specification",
@@ -48,5 +51,6 @@ __all__ = [
     "feature",
     "fragment",
     "ref",
+    "row_context",
     "spec",
 ]

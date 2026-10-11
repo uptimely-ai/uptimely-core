@@ -24,6 +24,7 @@ the declarative contract.
         - Function
         - FunctionCatalog
         - Binding
+        - RowContext
         - Call
 
 ## Python authoring
@@ -43,6 +44,8 @@ the declarative contract.
 ::: uptimely.spec.python_spec.bind
 
 ::: uptimely.spec.python_spec.ref
+
+::: uptimely.spec.python_spec.row_context
 
 ## Compilation
 
