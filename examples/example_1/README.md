@@ -12,6 +12,12 @@ Calculations consume features only from their own dataset. For example, the bear
 
 ## How the specification is read
 
+The telemetry dataset declares ascending logical order by `timestamp`. This is
+descriptive metadata, not a physical sorting guarantee. The temperature and
+vibration delta calculations retain their explicit timestamp ordering inputs.
+The pump-level dataset and Example 2 have no timestamp dimension and do not
+declare timestamp order.
+
 The specification is stored as JSON in [`_generated/spec/spec.json`](_generated/spec/spec.json). Each runner resolves that path from the repository root and reads it with `Specification.from_json(...)`. The compiler, documentation generator, feature graph, and engine then operate on the resulting `Specification` object.
 
 ## How to run

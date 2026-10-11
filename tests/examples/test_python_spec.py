@@ -82,6 +82,19 @@ def test_spec_from_entities_python_api(tmp_path: Path) -> None:
     assert specification.functions.read
 
 
+def test_example_timestamp_order_matches_python_declaration() -> None:
+    from examples.example_1.spec.spec import dimensions, entities
+
+    authored = Specification.from_python(entities=entities, dimensions=dimensions)
+    exported = Specification.from_json(SPEC_PATH)
+    expected = [{"dimension": "$dimensions.timestamp", "direction": "asc"}]
+    for specification in (authored, exported):
+        assert [
+            key.model_dump() for key in specification.entities["pump_telemetry"].datasets[0].order
+        ] == expected
+        assert specification.entities["pump"].datasets[0].order == []
+
+
 def test_spec_from_python_models_and_json_export(tmp_path: Path) -> None:
     from examples.example_2.spec.spec import dataset_, dimensions
 
