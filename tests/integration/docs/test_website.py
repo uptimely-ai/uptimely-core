@@ -225,7 +225,18 @@ def test_execution_plan_pages_render_only_their_section(
             assert f'"label_lines": {json.dumps(expected_object_lines)}' in document
             assert ".nodeLabel(node => node.label)" in document
             assert "node.label_lines.forEach((line, index) =>" in document
-            assert "node.stage = rank + 1" in document
+            assert "const rank = node.stage - 1" in document
+            graph_data_match = re.search(
+                r"const callableGraphData = (.*?);\n\t\tconst callableGraphContainer",
+                document,
+                re.DOTALL,
+            )
+            assert graph_data_match is not None
+            graph_nodes = json.loads(graph_data_match.group(1))["nodes"]
+            normalize_node = next(
+                node for node in graph_nodes if node["function_id"] == "normalize_health_signal"
+            )
+            assert normalize_node["stage"] == 3
             assert "Stage ${stage + 1}" in document
             assert ".onRenderFramePre(drawStageLanes)" in document
             assert "ctx.fillRect(left, -laneHeight / 2, 360, laneHeight)" in document
