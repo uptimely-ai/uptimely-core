@@ -18,6 +18,7 @@ The root document MUST be a JSON object in one file. Object keys that identify r
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `name` | string | No | Human-readable name of the analytics specification. |
 | `version` | string | Yes | Open Analytics specification version used by parsers and validators. |
 | `dimensions` | object | No | Reusable identifiers and their hierarchies. |
 | `functions` | object | Yes | Reusable `read`, `collapse`, `expand`, `conform`, `write`, `vectorize`, and `aggregate` function templates. |

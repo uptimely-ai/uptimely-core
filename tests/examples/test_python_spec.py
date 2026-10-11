@@ -65,14 +65,16 @@ def test_example_manifest_parses_complete_specification() -> None:
 
 
 def test_spec_from_entities_python_api(tmp_path: Path) -> None:
-    from examples.example_2.spec.spec import dimensions, entity_
+    from examples.example_2.spec.spec import python_specification
 
     specification = Specification.from_python(
-        entities=[entity_],
-        dimensions=dimensions,
+        entities=python_specification.entities,
+        dimensions=python_specification.dimensions,
+        name=python_specification.name,
     )
 
     assert specification.entities["example_2"].datasets[0].id == "my_beautiful_dataset"
+    assert specification.name == "Example 2"
     assert specification.functions.read
 
 
@@ -95,6 +97,7 @@ def test_spec_from_python_models_and_json_export(tmp_path: Path) -> None:
     assert output_path.exists()
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     dataset_payload = payload["entities"]["example_2"]["datasets"][0]
+    assert payload["name"] == "example_2"
     assert payload["version"] == "0.1.0"
     assert set(payload["functions"]) == {"read", "write", "vectorize", "aggregate"}
     assert payload["functions"]["read"]["read"]["entrypoint"].endswith(":read_data")

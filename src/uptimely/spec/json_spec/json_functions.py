@@ -256,6 +256,7 @@ def _static_datasets_to_spec(
             entity_values[entity_id] = entity_value
 
     return {
+        **({"name": name} if name is not None else {}),
         "version": "0.1.0",
         "dimensions": {
             identifier: resource.model_dump(exclude_none=False)

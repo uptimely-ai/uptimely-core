@@ -96,12 +96,14 @@ def test_json_docs_counts_match_specification(tmp_path: Path) -> None:
 
 def test_html_docs_overview_counts_match_specification(tmp_path: Path) -> None:
     specification = Specification.from_json(SPEC_PATH)
+    specification.name = "Pump analytics"
     expected_counts = _documentation_counts(specification)
 
     output_path = specification.create_html(tmp_path / "spec.html")
     parser = TextCollector()
     parser.feed(output_path.read_text(encoding="utf-8"))
 
+    assert "Specification name Pump analytics" in parser.text
     assert f"Entities {expected_counts['entity_count']}" in parser.text
     assert f"Dimensions {expected_counts['dimension_count']}" in parser.text
     assert f"Features total {expected_counts['feature_count']}" in parser.text

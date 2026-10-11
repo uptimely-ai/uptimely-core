@@ -1,6 +1,15 @@
 """Dataset declarations for example 2."""
 
-from uptimely.spec.python_spec import bind, dataset, dimension, entity, feature, fragment, ref
+from uptimely.spec.python_spec import (
+    PythonSpecification,
+    bind,
+    dataset,
+    dimension,
+    entity,
+    feature,
+    fragment,
+    ref,
+)
 
 from ..functions import functions
 
@@ -72,4 +81,10 @@ entity_ = entity.Entity(
     dimensions=["id"],
     datasets=[dataset_],
     description="Example 2 entity.",
+)
+
+python_specification = PythonSpecification(
+    entities=[entity_],
+    dimensions=dimensions,
+    name="Example 2",
 )

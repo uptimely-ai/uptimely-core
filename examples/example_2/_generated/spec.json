@@ -1,4 +1,5 @@
 {
+  "name": "Example 2",
   "version": "0.1.0",
   "dimensions": {
     "id": {
@@ -70,9 +71,9 @@
     "aggregate": {}
   },
   "entities": {
-    "entity": {
-      "name": "entity",
-      "description": null,
+    "example_2": {
+      "name": "Example 2",
+      "description": "Example 2 entity.",
       "dimensions": [
         "id"
       ],

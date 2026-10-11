@@ -263,6 +263,7 @@ class Specification(StrictModel):
     """The complete JSON specification document."""
 
     path: str | None = Field(default=None, exclude=True)
+    name: str | None = None
     version: Literal["0.1.0"] = SUPPORTED_SPECIFICATION_VERSION
     dimensions: dict[str, Dimension] = Field(default_factory=dict)
     functions: FunctionCatalog = Field(default_factory=FunctionCatalog)
