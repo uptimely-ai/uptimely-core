@@ -21,8 +21,10 @@
       box-sizing: border-box; display: flex; flex-direction: column; gap: 8px;
       padding: 24px 16px; overflow-y: auto;
       background: #0f172a; border-right: 1px solid #334155; font: 14px "DM Sans", sans-serif; }
-    .site-nav a { display: block; padding: 10px 12px; border-radius: 8px;
+    .site-nav a { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px;
       color: #cbd5e1; text-decoration: none; overflow-wrap: anywhere; }
+    .site-nav .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+    .site-nav a span { min-width: 0; }
     .site-nav a:hover, .site-nav a:focus-visible { color: #fff; text-decoration: underline; }
     .site-nav a[aria-current="page"] { color: #67e8f9; background: #1e293b; }
     .site-brand { font-weight: 700; margin-bottom: 24px; }
@@ -40,17 +42,17 @@
   {% if include_navigation %}
   <nav class="site-nav" aria-label="Documentation pages">
     <a class="site-brand" href="spec.html">openanalytics/docs</a>
-    {% for page, href, label in [("spec", "spec.html", "Specification"), ("graph", "feature_graph.html", "Feature graph"), ("plan", "execution_plan.html", "Execution plan")] %}
-    <a href="{{ href }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ label }}</a>
+    {% for page, href, label, icon in [("spec", "spec.html", "Specification", "book-open"), ("graph", "feature_graph.html", "Feature graph", "git-fork"), ("plan", "execution_plan.html", "Execution plan", "workflow")] %}
+    <a href="{{ href }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span></a>
     {% if page == "spec" %}
     <div class="site-subnav" role="group" aria-label="Specification sections">
-      {% for section, section_href, section_label in [
-        ("overview", "spec.html", "Overview"),
-        ("features", "spec_features.html", "Features"),
-        ("dimensions", "spec_dimensions.html", "Dimensions"),
-        ("functions", "spec_functions.html", "Functions")
+      {% for section, section_href, section_label, section_icon in [
+        ("overview", "spec.html", "Overview", "layout-dashboard"),
+        ("features", "spec_features.html", "Features", "boxes"),
+        ("dimensions", "spec_dimensions.html", "Dimensions", "layers-3"),
+        ("functions", "spec_functions.html", "Functions", "braces")
       ] %}
-      <a href="{{ section_href }}"{% if active_page == "spec" and active_section == section %} aria-current="page"{% endif %}>{{ section_label }}</a>
+      <a href="{{ section_href }}"{% if active_page == "spec" and active_section == section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ section_icon }}" aria-hidden="true"></i><span>{{ section_label }}</span></a>
       {% endfor %}
     </div>
     {% endif %}

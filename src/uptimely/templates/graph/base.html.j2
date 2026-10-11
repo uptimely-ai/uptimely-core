@@ -24,4 +24,4 @@
 {% block content %}
 	{% block body %}{% endblock %}
 {% endblock %}
-{% block scripts %}{% endblock %}
+{% block scripts %}{% if include_navigation %}{{ super() }}{% endif %}{% endblock %}
