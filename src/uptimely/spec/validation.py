@@ -112,6 +112,31 @@ def _validate_calculation_bindings(entity: Any) -> None:
                 raise ValueError(f"Vectorize {calculation_id} must reference one or more features")
 
 
+def _validate_dataset_order(model: Any) -> None:
+    """Require distinct ordering keys belonging to the dataset's entity."""
+    for entity_id, entity in model.entities.items():
+        dimensions = set(entity.dimensions)
+        for dataset in entity.datasets:
+            seen: set[str] = set()
+            for index, key in enumerate(dataset.order):
+                dimension = key.dimension.removeprefix("$dimensions.")
+                path = ("entities", entity_id, "datasets", dataset.id, "order", index, "dimension")
+                if dimension not in dimensions:
+                    raise SpecificationError(
+                        f"Dataset {dataset.id} order references a dimension not declared "
+                        f"by entity {entity_id}: {dimension}",
+                        code="invalid_order_dimension",
+                        path=path,
+                    )
+                if dimension in seen:
+                    raise SpecificationError(
+                        f"Dataset {dataset.id} order repeats dimension: {dimension}",
+                        code="duplicate_order_dimension",
+                        path=path,
+                    )
+                seen.add(dimension)
+
+
 def _validate_aggregations(model: Any) -> None:
     """Allow aggregations only in collapse and require source references."""
     source_features = {
@@ -311,6 +336,7 @@ def validate_specification(model: Any, calls: list[Any]) -> None:
     dimensions = _validate_dimensions(model)
     validate_dataset_ids(model)
     _validate_entity_dimensions(model, dimensions)
+    _validate_dataset_order(model)
     categories = _function_categories(model)
 
     for entity in model.entities.values():

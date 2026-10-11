@@ -154,6 +154,11 @@ same accumulated dataset. A feature is therefore added one vectorized value at a
 time, while the dataset itself remains the live working table that carries the
 current state forward to later computations and writes.
 
+The built-in compiler and engine do not apply dataset `order` metadata or insert
+sorting operations into a plan. Logical order does not change fragment alignment
+or guarantee physical row order. Order-sensitive functions must explicitly
+declare and implement their ordering inputs.
+
 In practice the loop is: load a fragment -> validate the key structure -> join it
 into the current dataset state -> evaluate vectorize node(s) -> alias the result to
 the declared feature -> add that column to the accumulated dataframe -> continue
