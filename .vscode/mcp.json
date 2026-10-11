@@ -6,7 +6,7 @@
       "cwd": "${workspaceFolder}",
       "args": [
         "--spec",
-        "${workspaceFolder}/examples/example_1/generated/spec/spec.json",
+        "${workspaceFolder}/examples/example_1/_generated/spec/spec.json",
         "--project-root",
         "${workspaceFolder}",
         "--runtime-resources",

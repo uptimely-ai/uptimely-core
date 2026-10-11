@@ -5,7 +5,7 @@ from uptimely.spec import Specification
 from uptimely.spec.python_spec import bind, dataset, feature, fragment, ref
 from uptimely.spec.python_spec.bind import _argument_definition
 
-SPEC_PATH = Path("examples/example_1/generated/spec/spec.json")
+SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
 
 
 def test_argument_definition_supports_recursive_compact_types() -> None:

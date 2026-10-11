@@ -6,7 +6,7 @@ from uptimely.analytics import FeatureGraph
 from uptimely.analytics.models import FeatureNode, FunctionNode
 from uptimely.spec import Specification
 
-SPEC_PATH = Path("examples/example_1/generated/spec/spec.json")
+SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
 
 
 def test_system_graph_connects_functions_to_feature_outputs() -> None:

@@ -11,7 +11,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
         # Engine/example runs regenerate these artifacts without trailing newlines.
-        exclude: '(^examples/example_1/data/pump_telemetry_calculated\.json$|/generated/)'
+        exclude: '(^examples/example_1/data/pump_telemetry_calculated\.json$|/_generated/)'
       - id: check-yaml
       - id: check-toml
       - id: check-merge-conflict

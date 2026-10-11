@@ -4,8 +4,8 @@ from pathlib import Path
 from uptimely.spec import Specification
 
 EXAMPLE_DIR = Path(__file__).parent
-SPEC_PATH = EXAMPLE_DIR / "generated" / "spec" / "spec.json"
-GENERATED_DIR = EXAMPLE_DIR / "generated"
+SPEC_PATH = EXAMPLE_DIR / "_generated" / "spec" / "spec.json"
+GENERATED_DIR = EXAMPLE_DIR / "_generated"
 
 
 def load_specification() -> Specification:

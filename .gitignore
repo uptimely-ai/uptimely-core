@@ -41,8 +41,8 @@ coverage.xml
 Thumbs.db
 
 *.html
-generated/*.html
-examples/example_1/generated/output/
+_generated/*.html
+examples/example_1/_generated/output/
 *Identifier
 
 # Local documentation preview

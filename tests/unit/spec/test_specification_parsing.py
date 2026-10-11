@@ -9,7 +9,7 @@ from uptimely.analytics.models import FeatureNode
 from uptimely.spec import Call, Function, Specification, SpecificationParser
 from uptimely.spec.validation import SpecificationError
 
-SPEC_PATH = Path("examples/example_1/generated/spec/spec.json")
+SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
 
 
 def _write_configuration(tmp_path: Path, configuration: dict, name: str) -> Path:

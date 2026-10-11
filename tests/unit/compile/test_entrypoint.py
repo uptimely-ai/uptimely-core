@@ -7,7 +7,7 @@ from uptimely.compile.entrypoint import load_callable
 from uptimely.spec import Specification
 
 SPEC_PATH = (
-    Path(__file__).parents[3] / "examples" / "example_1" / "generated" / "spec" / "spec.json"
+    Path(__file__).parents[3] / "examples" / "example_1" / "_generated" / "spec" / "spec.json"
 )
 
 

@@ -5,7 +5,7 @@ import pytest
 
 from uptimely.spec import Specification
 
-SPEC_PATH = Path("examples/example_1/generated/spec/spec.json")
+SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
 
 
 def test_fragment_validation(tmp_path: Path) -> None:

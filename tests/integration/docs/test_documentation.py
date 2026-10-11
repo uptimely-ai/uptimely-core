@@ -1,15 +1,34 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from uptimely.docs.docs import Documentation
 from uptimely.spec import Specification
 
-SPEC_PATH = Path("examples/example_1/generated/spec/spec.json")
+SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
+
+
+@pytest.mark.parametrize("output_format", ["json", "html"])
+def test_documentation_exports_to_default_directory(
+    tmp_path: Path, monkeypatch, output_format: str
+) -> None:
+    specification = Specification.from_json(SPEC_PATH)
+    monkeypatch.chdir(tmp_path)
+    documentation = Documentation(specification)
+
+    document_path = (
+        documentation.create_json() if output_format == "json" else documentation.create_html()
+    )
+
+    assert document_path == Path("_generated") / f"docs.{output_format}"
+    assert document_path.is_file()
+    assert not Path("generated").exists()
 
 
 def test_generate_json_docs(tmp_path: Path, monkeypatch) -> None:
     specification = Specification.from_json(SPEC_PATH)
-    monkeypatch.setattr("uptimely.docs.docs.OUTPUT_DIR", tmp_path / "generated")
+    monkeypatch.setattr("uptimely.docs.docs.OUTPUT_DIR", tmp_path / "_generated")
 
     data_path = Documentation(specification).create_json()
     data = json.loads(data_path.read_text(encoding="utf-8"))
@@ -32,7 +51,7 @@ def test_generate_json_docs(tmp_path: Path, monkeypatch) -> None:
 
 def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     specification = Specification.from_json(SPEC_PATH)
-    monkeypatch.setattr("uptimely.docs.docs.OUTPUT_DIR", tmp_path / "generated")
+    monkeypatch.setattr("uptimely.docs.docs.OUTPUT_DIR", tmp_path / "_generated")
 
     document_path = Documentation(specification).create_html()
     document = document_path.read_text(encoding="utf-8")

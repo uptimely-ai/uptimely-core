@@ -10,7 +10,7 @@ from uptimely.analytics.render import GraphStyle
 
 from .compiler import ExecutionPlan
 
-OUTPUT_PATH = Path("generated") / "compile" / "execution_plan.html"
+OUTPUT_PATH = Path("_generated") / "compile" / "execution_plan.html"
 
 
 def _render_execution_plan(plan: ExecutionPlan, output_path: str | Path = OUTPUT_PATH) -> Path:

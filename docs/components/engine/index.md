@@ -39,7 +39,7 @@ convenience constructors, but the runtime engine itself primarily works with the
 plan object.
 
 ```python
-specification = Specification.from_json("examples/example_1/generated/spec/spec.json")
+specification = Specification.from_json("examples/example_1/_generated/spec/spec.json")
 plan = Compiler(
     specification,
     features=["health_signal_normalized"],
@@ -56,7 +56,7 @@ Engine executes the resulting plan without special subset logic.
 An exported plan can be loaded and executed without recompilation:
 
 ```python
-plan = ExecutionPlan.from_json("generated/compile/execution_plan.json")
+plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
 result = Engine(plan).execute()
 ```
 
@@ -128,7 +128,7 @@ from pathlib import Path
 from uptimely.engine import Engine
 from uptimely.plan import ExecutionPlan
 
-plan = ExecutionPlan.from_json("generated/compile/execution_plan.json")
+plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
 runtime_resources = json.loads(Path("runtime-resources.prod.json").read_text(encoding="utf-8"))
 result = Engine(plan, runtime_resources=runtime_resources).execute()
 if result.failures:

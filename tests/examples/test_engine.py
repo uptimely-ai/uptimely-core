@@ -7,7 +7,7 @@ from uptimely.compile import Compiler
 from uptimely.compile.node import CallableNode
 from uptimely.engine import Engine
 
-SPEC_PATH = Path("examples/example_1/generated/spec/spec.json")
+SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
 
 
 def test_engine_returns_calculated_features_without_writing_output() -> None:

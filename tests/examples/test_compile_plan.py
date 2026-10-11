@@ -4,7 +4,7 @@ from pathlib import Path
 
 from uptimely.compile import Compiler
 
-SPEC_PATH = Path("examples/example_1/generated/spec/spec.json")
+SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
 
 
 def test_compiled_plan_export_omits_generated_timestamp(tmp_path: Path) -> None:
@@ -121,5 +121,5 @@ def test_execution_plan_exports_html_to_default_path(tmp_path: Path, monkeypatch
 
     report_path = plan.export_html()
 
-    assert report_path == Path("generated/compile/execution_plan.html")
+    assert report_path == Path("_generated/compile/execution_plan.html")
     assert report_path.is_file()
