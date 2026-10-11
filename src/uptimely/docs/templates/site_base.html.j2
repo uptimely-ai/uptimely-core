@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-slate-950">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}OpenAnalytics documentation{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {theme: {extend: {fontFamily: {
+      sans: ["DM Sans", "sans-serif"], display: ["Space Grotesk", "sans-serif"], mono: ["JetBrains Mono", "monospace"]
+    }}}}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  {% block head %}{% endblock %}
+  <style>
+    :root { --site-nav-height: {% if include_navigation %}64px{% else %}0px{% endif %}; }
+    .site-content { padding-top: var(--site-nav-height); }
+    .site-nav { position: fixed; inset: 0 0 auto; height: var(--site-nav-height); z-index: 50;
+      display: flex; align-items: center; gap: 24px; padding: 0 24px; overflow-x: auto;
+      background: #0f172a; border-bottom: 1px solid #334155; font: 14px "DM Sans", sans-serif; }
+    .site-nav a { color: #cbd5e1; white-space: nowrap; text-decoration: none; }
+    .site-nav a:hover, .site-nav a:focus-visible { color: #fff; text-decoration: underline; }
+    .site-nav a[aria-current="page"] { color: #67e8f9; }
+    .site-brand { font-weight: 700; }
+    {% block style %}{% endblock %}
+  </style>
+</head>
+<body class="{% block body_class %}min-h-screen bg-slate-950 font-sans text-slate-200{% endblock %}">
+  {% if include_navigation %}
+  <nav class="site-nav" aria-label="Documentation pages">
+    <a class="site-brand" href="spec.html">openanalytics/docs</a>
+    {% for page, href, label in [("spec", "spec.html", "Specification"), ("graph", "feature_graph.html", "Feature graph"), ("plan", "execution_plan.html", "Execution plan")] %}
+    <a href="{{ href }}"{% if active_page == page %} aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+  <div class="site-content">
+    {% block content %}{% endblock %}
+  </div>
+  {% block scripts %}
+  <script src="https://unpkg.com/lucide@latest"></script><script>lucide.createIcons();</script>
+  {% endblock %}
+</body>
+</html>

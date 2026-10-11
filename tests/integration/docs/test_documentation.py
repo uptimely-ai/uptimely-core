@@ -10,7 +10,7 @@ SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
 
 
 @pytest.mark.parametrize("output_format", ["json", "html"])
-def test_documentation_exports_to_default_directory(
+def test_reference_exports_to_default_directory(
     tmp_path: Path, monkeypatch, output_format: str
 ) -> None:
     specification = Specification.from_json(SPEC_PATH)
@@ -18,10 +18,15 @@ def test_documentation_exports_to_default_directory(
     documentation = Documentation(specification)
 
     document_path = (
-        documentation.create_json() if output_format == "json" else documentation.create_html()
+        documentation.create_json() if output_format == "json" else specification.create_html()
     )
 
-    assert document_path == Path("_generated") / f"docs.{output_format}"
+    expected = (
+        Path("_generated/docs/docs.json")
+        if output_format == "json"
+        else Path("_generated/spec/spec.html")
+    )
+    assert document_path == expected
     assert document_path.is_file()
     assert not Path("generated").exists()
 
@@ -51,12 +56,12 @@ def test_generate_json_docs(tmp_path: Path, monkeypatch) -> None:
 
 def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     specification = Specification.from_json(SPEC_PATH)
-    monkeypatch.setattr("uptimely.docs.docs.OUTPUT_DIR", tmp_path / "_generated")
+    monkeypatch.setattr("uptimely.spec.render.OUTPUT_DIR", tmp_path / "_generated" / "spec")
 
-    document_path = Documentation(specification).create_html()
+    document_path = specification.create_html()
     document = document_path.read_text(encoding="utf-8")
 
-    assert document_path.name == "docs.html"
+    assert document_path.name == "spec.html"
     assert not document_path.with_suffix(".json").exists()
     assert 'href="#overview"' in document
     assert 'href="#entities"' in document
@@ -101,7 +106,7 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert "src/features/pump_telemetry/discharge_pressure/main.py:main" not in document
     assert "entrypoint not specified" not in document
     assert "pump" in document
-    assert "Documentation" in document
+    assert ">Specification<" in document
     assert 'id="model"' not in document
     assert "3D Model" not in document
     assert ">source<" in document
@@ -129,11 +134,11 @@ def test_generate_html_docs_from_in_memory_spec_is_deterministic(tmp_path: Path)
     specification = Specification.from_json(SPEC_PATH)
     specification.path = None
 
-    first_path = Documentation(specification).create_html(
-        output_path=tmp_path / "first" / "docs.html",
+    first_path = specification.create_html(
+        output_path=tmp_path / "first" / "spec.html",
     )
-    second_path = Documentation(specification).create_html(
-        output_path=tmp_path / "second" / "docs.html",
+    second_path = specification.create_html(
+        output_path=tmp_path / "second" / "spec.html",
     )
 
     assert first_path.read_bytes() == second_path.read_bytes()

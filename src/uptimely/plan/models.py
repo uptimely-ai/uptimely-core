@@ -259,12 +259,24 @@ class ExecutionPlan:
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
         return cls(Plan.from_dict(payload))
 
-    def export_html(self, path: str | Path | None = None) -> Path:
-        """Export a plan report using the existing renderer."""
+    def export_html(
+        self, path: str | Path | None = None, *, include_navigation: bool = False
+    ) -> Path:
+        """Export an execution plan report as HTML.
+
+        Args:
+            path: Output file; defaults to ``_generated/compile/execution_plan.html``.
+            include_navigation: Link to sibling documentation website pages.
+
+        Returns:
+            The path to the rendered report.
+        """
         from uptimely.compile.render import _render_execution_plan
 
         return (
-            _render_execution_plan(self, path) if path is not None else _render_execution_plan(self)
+            _render_execution_plan(self, path, include_navigation=include_navigation)
+            if path is not None
+            else _render_execution_plan(self, include_navigation=include_navigation)
         )
 
 

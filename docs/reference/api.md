@@ -84,5 +84,8 @@ the declarative contract.
 
 ::: uptimely.docs.docs.Documentation
 
-These methods generate documentation for an analytics specification, not this
-Python API reference. See [automatic documentation](../content/automatic-documentation.md).
+`Documentation.create_html` generates a static website with specification,
+feature graph, and execution plan pages. `Specification.create_html` exports only
+the standalone specification reference. `Documentation.create_json` exports
+reference data. These outputs describe analytics, not this Python API reference.
+See [analytics documentation](../components/docs/index.md).

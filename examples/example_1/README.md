@@ -20,6 +20,7 @@ Run these commands from the project root:
 
 ```sh
 poetry run python examples/check_setup.py
+poetry run python -m examples.example_1.run_export_spec
 poetry run python -m examples.example_1.run_execution_plan
 poetry run python -m examples.example_1.run_docs
 poetry run python -m examples.example_1.run_feature_graph
@@ -27,6 +28,21 @@ poetry run python -m examples.example_1.run_engine
 ```
 
 Generated plans, HTML reports, graphs, and documentation are written to `_generated/`. The engine runner returns the calculated feature IDs directly; the telemetry sink prints selected calculated columns as JSON and does not persist a calculated telemetry file.
+
+`run_export_spec` writes the specification JSON and a standalone reference page
+to `_generated/spec/`. `run_docs` creates a unified website in `_generated/docs/`:
+open `index.html` to navigate between the specification, feature graph, and
+execution plan. The standalone plan and graph runners remain available.
+
+For a local website preview:
+
+```sh
+poetry run uptimely docs generate --spec examples/example_1/_generated/spec/spec.json --output examples/example_1/_generated/docs
+poetry run uptimely docs serve --directory examples/example_1/_generated/docs
+```
+
+Visit `http://localhost:8001/`. The pages currently use externally hosted styling,
+fonts, icons, and visualization libraries.
 
 Run `poetry run python examples/run_all.py` to execute all example workflows in one command. The scripts expect to be launched from the repository root.
 
@@ -38,7 +54,8 @@ The execution plan, feature graph, and engine commands show concise summaries by
 | --- | --- |
 | `run_*.py` | Scripts that demonstrate compilation, documentation, graph, plan, and engine workflows. |
 | `spec` | Python declarations for the datasets. |
-| `_generated/spec` | The exported declarative analytics specification in `spec.json`. |
+| `_generated/spec` | The exported specification in `spec.json` and standalone reference in `spec.html`. |
+| `_generated/docs` | Website index, specification, feature graph, execution plan, and reference JSON. |
 | `data` | JSON datasets used by the example's source functions. |
 | `functions/source.py` | Functions that load source data. |
 | `functions/calculation.py` | Functions that calculate derived features. |

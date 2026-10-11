@@ -5,7 +5,7 @@
 	<script src="https://unpkg.com/3d-force-graph@1.77.0/dist/3d-force-graph.min.js"></script>
 	<script src="https://unpkg.com/three-spritetext@1.10.0/dist/three-spritetext.min.js"></script>
 {% endblock %}
-{% block style %}
+{% block graph_style %}
 	.legend-separator { display: block; height: 1px; margin: 4px 0; background: #52616b; }
 {% endblock %}
 {% block body %}
@@ -72,7 +72,10 @@
 				<div class="meta"><strong>Data type:</strong> ${formatDetailValue(dataType)}</div>
 			`;
 		};
-		const graph = ForceGraph3D()(document.getElementById('graph'))
+		const graphContainer = document.getElementById('graph');
+		const graph = ForceGraph3D()(graphContainer)
+			.width(graphContainer.clientWidth)
+			.height(graphContainer.clientHeight)
 			.graphData(data)
 			.backgroundColor('{{ style.background_color }}')
 			.nodeLabel(node => `${node.is_function ? 'function' : 'feature'}: ${node.label}<br>entity: ${node.entity || 'n/a'}`)
@@ -113,6 +116,9 @@
 		chargeForce.strength({{ style.charge_strength }});
 		chargeForce.distanceMax({{ style.charge_distance_max }});
 		graph.d3Force('link').distance({{ style.link_distance }});
+		window.addEventListener('resize', () => graph
+			.width(graphContainer.clientWidth)
+			.height(graphContainer.clientHeight));
 		updateDetails(null);
 	</script>
 {% endblock %}

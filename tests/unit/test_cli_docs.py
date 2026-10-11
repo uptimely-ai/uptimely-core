@@ -1,0 +1,199 @@
+"""Tests for generating analytics documentation from the command line."""
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+from jinja2 import TemplateError
+
+from uptimely.cli import cli
+
+REPOSITORY_ROOT = Path(__file__).parents[2]
+SPEC_PATH = REPOSITORY_ROOT / "examples/example_1/_generated/spec/spec.json"
+PAGES = {"index.html", "spec.html", "feature_graph.html", "execution_plan.html"}
+
+
+def test_docs_generate_defaults(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "generate", "--spec", str(SPEC_PATH)])
+
+    cli.main()
+
+    output = tmp_path / "_generated/docs"
+    assert {path.name for path in output.iterdir()} == PAGES
+    result = capsys.readouterr()
+    assert "Documentation website generated at _generated/docs/index.html" in result.out
+    assert not result.err
+
+
+def test_docs_generate_custom_output_and_timestamp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output = tmp_path / "public/analytics"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "uptimely",
+            "docs",
+            "generate",
+            "--spec",
+            str(SPEC_PATH),
+            "--output",
+            str(output),
+            "--include-generated-at",
+        ],
+    )
+
+    cli.main()
+
+    assert {path.name for path in output.iterdir()} == PAGES
+    assert "generated 20" in (output / "spec.html").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [["docs"], ["docs", "unknown"], ["docs", "generate"], ["docs", "generate", "--unknown"]],
+)
+def test_docs_requires_valid_arguments(
+    monkeypatch: pytest.MonkeyPatch, arguments: list[str]
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["uptimely", *arguments])
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 2
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        PermissionError("Cannot write website"),
+        ValueError("Invalid specification"),
+        ModuleNotFoundError("Missing function module"),
+        AttributeError("Missing function"),
+        TypeError("Invalid callable signature"),
+        TemplateError("Invalid HTML template"),
+    ],
+)
+def test_docs_generation_errors_are_reported(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], failure: Exception
+) -> None:
+    def fail(*args: object, **kwargs: object) -> Path:
+        raise failure
+
+    monkeypatch.setattr(cli, "generate_docs", fail)
+    monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "generate", "--spec", "spec.json"])
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 1
+    result = capsys.readouterr()
+    assert not result.out
+    assert f"uptimely: error: {failure}" in result.err
+
+
+@pytest.mark.parametrize("content", [None, "not JSON", '{"version": "unsupported"}'])
+def test_docs_rejects_missing_or_invalid_specification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    content: str | None,
+) -> None:
+    specification = tmp_path / "spec.json"
+    if content is not None:
+        specification.write_text(content, encoding="utf-8")
+    output = tmp_path / "site"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "uptimely",
+            "docs",
+            "generate",
+            "--spec",
+            str(specification),
+            "--output",
+            str(output),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 1
+    assert "uptimely: error:" in capsys.readouterr().err
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("explicit_project_root", [False, True])
+def test_docs_generate_imports_project_functions_in_fresh_process(
+    tmp_path: Path, explicit_project_root: bool
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "analytics_functions.py").write_text(
+        "def read_values() -> object:\n    raise RuntimeError('Must not execute analytics')\n",
+        encoding="utf-8",
+    )
+    specification = project / "spec.json"
+    specification.write_text(
+        json.dumps(
+            {
+                "version": "0.1.0",
+                "functions": {
+                    "read": {"read_values": {"entrypoint": "analytics_functions:read_values"}}
+                },
+                "entities": {
+                    "sample": {
+                        "name": "Sample",
+                        "datasets": [
+                            {
+                                "id": "sample_dataset",
+                                "read": {
+                                    "values": {
+                                        "binding": {"function": "read_values"},
+                                        "features": {"value": {"type": "float"}},
+                                    }
+                                },
+                            }
+                        ],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    output = tmp_path / "website"
+    arguments = [
+        sys.executable,
+        "-m",
+        "uptimely.cli.cli",
+        "docs",
+        "generate",
+        "--spec",
+        str(specification),
+        "--output",
+        str(output),
+    ]
+    if explicit_project_root:
+        arguments.extend(["--project-root", str(project)])
+
+    result = subprocess.run(
+        arguments,
+        cwd=tmp_path if explicit_project_root else project,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert {path.name for path in output.iterdir()} == PAGES
+    assert "Documentation website generated at" in result.stdout
