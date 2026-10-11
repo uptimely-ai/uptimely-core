@@ -7,7 +7,7 @@ connected views:
 
 | Page | Purpose |
 | --- | --- |
-| Specification | Separate Overview, Features, Dimensions, and Functions pages, linked beneath Specification in the sidebar. |
+| Specification | Overview, Features, Entities, Datasets, Dimensions, and Functions pages, linked beneath Specification in the sidebar. Features are summarized per dataset with their source fragment or vectorize binding. |
 | Feature lineage | Explore logical dependencies in interactive 2D and 3D views. |
 | Execution plan | Overview summary, 2D and 3D callable graphs, and detailed parallel execution stages. |
 
@@ -31,6 +31,8 @@ _generated/docs/
 ├── index.html
 ├── spec.html
 ├── spec_features.html
+├── spec_entities.html
+├── spec_datasets.html
 ├── spec_dimensions.html
 ├── spec_functions.html
 ├── feature_graph_2d.html
@@ -43,7 +45,10 @@ _generated/docs/
 
 Start at `index.html`. `spec.html` contains the specification overview; the other
 specification pages contain only their respective sections. The Specification
-sidebar group provides subnavigation and highlights the current section.
+sidebar group provides subnavigation and highlights the current section. The
+Features page summarizes features by dataset and identifies the providing
+fragment; the Entities and Datasets pages provide focused views of those
+specification resources.
 Feature graph provides separate 2D and 3D lineage views in its sidebar
 subnavigation.
 Execution plan has Overview, 2D graph, 3D graph, and Stages subnavigation.

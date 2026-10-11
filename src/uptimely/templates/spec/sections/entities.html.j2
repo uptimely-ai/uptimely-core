@@ -1,189 +1,75 @@
-{% macro render_binding_value(value) -%}
-  {% if value is mapping %}
-    <span class="text-slate-500">{</span>{% for key, item in value.items() %}{% if not loop.first %}<span class="text-slate-500">, </span>{% endif %}<span class="text-cyan-200">{{ key }}</span><span class="text-slate-500">: </span>{{ render_binding_value(item) }}{% endfor %}<span class="text-slate-500">}</span>
-  {% elif value is sequence and value is not string %}
-    <span class="text-slate-500">[</span>{% for item in value %}{% if not loop.first %}<span class="text-slate-500">, </span>{% endif %}{{ render_binding_value(item) }}{% endfor %}<span class="text-slate-500">]</span>
-  {% elif value is string and value.startswith("?") %}
-    <span class="text-cyan-200">{{ value }}</span>
-  {% elif value is string and value.startswith("$") %}
-    <span class="text-lime-300">{{ value }}</span>
-  {% elif value is string %}
-    <span class="text-white">{{ value }}</span>
-  {% else %}
-    <span class="text-white">{{ value }}</span>
-  {% endif %}
-{%- endmacro %}
-
-{% macro render_binding_call(function_name, args) -%}
-  {% if args %}
-  <div class="mt-3 rounded-lg border border-slate-700 bg-slate-950/80 p-3 font-mono text-xs leading-6 shadow-inner shadow-slate-950/60">
-    <div><span class="text-cyan-200">{{ function_name }}</span><span class="text-slate-500">(</span></div>
-    {% for arg_name, arg_value in args.items() %}
-    <div class="pl-4"><span class="text-cyan-200">{{ arg_name }}</span><span class="text-slate-500">=</span>{{ render_binding_value(arg_value) }}{% if not loop.last %}<span class="text-slate-500">,</span>{% endif %}</div>
-    {% endfor %}
-    <div class="text-slate-500">)</div>
-  </div>
-  {% else %}
-  <div class="mt-3 rounded-lg border border-slate-700 bg-slate-950/80 p-3 font-mono text-xs leading-6 shadow-inner shadow-slate-950/60">
-    <div><span class="text-cyan-200">{{ function_name }}</span><span class="text-slate-500">()</span></div>
-  </div>
-  {% endif %}
-{%- endmacro %}
-
-{% macro render_binding_args(args, function_name, row_context=none) -%}
-  {{ render_binding_call(function_name, args) }}
-  {% if row_context is not none %}
-  <div class="mt-2 font-mono text-xs text-slate-400">Row context: {{ render_binding_value(row_context) }}</div>
-  {% endif %}
-{%- endmacro %}
-
 {% from "spec/section_header.html.j2" import section_header with context %}
-<section id="entities" class="mb-16">
-  {{ section_header("Features", "Explore source inputs and calculated features, organized by entity and dataset.", count=summary.feature_count, count_label="features") }}
-  <div class="grid gap-4 lg:grid-cols-1">
-    {% for entity_id, entity in configuration.entities.items() %}
-    <div class="mt-6 mb-2 first:mt-0">
-      <div class="mb-3 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ entity_id }}</p>
-          {% set entity_heading = "h2" if include_navigation else "h3" %}
-          <{{ entity_heading }} class="mt-1 font-display text-2xl font-semibold text-white">{{ entity.name or entity_id }}</{{ entity_heading }}>
-          <p class="mt-2 text-sm text-slate-400">{{ entity.description or "No description provided." }}</p>
-        </div>
-        {% set ns = namespace(fragment_total=0) %}
-        {% for dataset in entity.datasets %}{% for operation_type in ["read", "conform", "expand", "collapse"] %}{% set ns.fragment_total = ns.fragment_total + dataset.get(operation_type, {})|length %}{% endfor %}{% endfor %}
-        <div class="flex flex-wrap gap-2">
-          <span class="rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">{{ entity.dimensions|length }} dimensions</span>
-          <span class="rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">{{ entity.datasets|length }} datasets</span>
-          <span class="rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">{{ ns.fragment_total }} fragments</span>
-        </div>
-      </div>
-      {% if entity.dimensions %}
-      <div class="mb-4">
-        <div class="flex flex-wrap gap-2">{% for dimension in entity.dimensions %}<span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ dimension }}</span>{% endfor %}</div>
-      </div>
-      {% endif %}
-    </div>
-    <div class="space-y-5">
-      {% for dataset in entity.datasets %}
-      <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
-          <div class="flex flex-col gap-3 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
-            {% set dataset_heading = "h3" if include_navigation else "h4" %}
-            <{{ dataset_heading }} class="font-display text-xl font-semibold text-white">{{ dataset.id }}</{{ dataset_heading }}>
-            {% set dataset_ns = namespace(fragment_total=0, feature_total=dataset.vectorize|length) %}
-            {% for operation_type in ["read", "conform", "expand", "collapse"] %}
-              {% set dataset_ns.fragment_total = dataset_ns.fragment_total + dataset.get(operation_type, {})|length %}
-              {% for fragment in dataset.get(operation_type, {}).values() %}{% set dataset_ns.feature_total = dataset_ns.feature_total + fragment.features|length %}{% endfor %}
-            {% endfor %}
-            <div class="flex flex-wrap gap-2 font-mono text-[10px] uppercase tracking-wider text-slate-400">
-              <span class="rounded-md bg-slate-800 px-2 py-1">{{ dataset_ns.feature_total }} features</span>
-              <span class="rounded-md bg-slate-800 px-2 py-1">{{ dataset_ns.fragment_total }} fragments</span>
-            </div>
-          </div>
-          <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[10px] uppercase tracking-wider text-slate-500">
-            <span class="text-slate-400">operations</span>
-            {% for operation_type in ["read", "write", "vectorized"] %}
-              {% set operation_count = dataset.get("vectorize" if operation_type == "vectorized" else operation_type, {})|length %}
-              {% if operation_count %}<span><strong class="font-semibold text-slate-300">{{ operation_type }}</strong> {{ operation_count }}</span>{% endif %}
-            {% endfor %}
-          </div>
-          {% if dataset.description %}<p class="mt-4 max-w-3xl text-sm leading-6 text-slate-400">{{ dataset.description }}</p>{% endif %}
-          {% if dataset.row_scope.grain %}<div class="mt-2 font-mono text-[10px] text-slate-500">{{ dataset.row_scope.grain }}</div>{% endif %}
-          {% if dataset.order %}
-          <div class="mt-3 text-sm text-slate-400">
-            <p>Logical order (not a physical row-order guarantee)</p>
-            <ol class="mt-1 list-decimal pl-5 font-mono text-xs">
-              {% for key in dataset.order %}
-              <li>{{ key.dimension }} {{ key.direction }}</li>
-              {% endfor %}
-            </ol>
-          </div>
-          {% endif %}
-          <div class="mt-5 grid gap-5">
-            {% for operation_type in ["read", "conform", "expand", "collapse"] %}
-              {% if dataset.get(operation_type, {}) %}
-              <div>
-                <div class="mb-3 flex items-center gap-3">
-                  <p class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-200">{{ operation_type }}</p>
-                  <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ dataset.get(operation_type, {})|length }} fragments</span>
-                  <div class="h-px flex-1 bg-slate-800"></div>
-                </div>
-                <div class="grid gap-3">
-                  {% for fragment_id, fragment in dataset.get(operation_type, {}).items() %}
-                  <div class="border-b border-slate-800/80 py-3 last:border-b-0">
-                    <div class="mb-3">
-                      {% set fragment_heading = "h4" if include_navigation else "h5" %}
-                      <{{ fragment_heading }} class="font-display text-base font-semibold text-white">{{ fragment_id }}</{{ fragment_heading }}>
-                    </div>
-                    <p class="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[.16em] text-slate-500">binding</p>
-                    {{ render_binding_args(fragment.binding.args, fragment.binding.function) }}
-                    {% if fragment.features %}
-                    <p class="mt-4 mb-2 font-mono text-[10px] font-semibold uppercase tracking-[.16em] text-slate-500">features</p>
-                    <div class="mb-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
-                      {% for feature_id, feature in fragment.features.items() %}
-                      <div class="border-l-2 border-slate-700 pl-3">
-                        <div class="flex items-center justify-between gap-3">
-                          <span class="font-mono text-xs text-cyan-200">{{ feature_id }}</span>
-                          <span class="text-[10px] text-slate-500">{{ feature.type or "unspecified" }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>
-                        </div>
-                        {% if feature.description %}<p class="mt-1 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
-                      </div>
-                      {% endfor %}
-                    </div>
-                    {% endif %}
-                  </div>
-                  {% endfor %}
-                </div>
-              </div>
-              {% endif %}
-            {% endfor %}
-          </div>
-          {% if dataset.write %}
-          <div class="mt-4">
-            <div class="mb-3 flex items-center gap-3">
-              <p class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-200">write</p>
-              <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ dataset.write|length }} operations</span>
-              <div class="h-px flex-1 bg-slate-800"></div>
-            </div>
-                    <div class="grid gap-3">
-              {% for write_id, operation in dataset.write.items() %}
-              <div class="border-b border-slate-800/80 py-3 last:border-b-0">
-                <h5 class="mb-3 font-display text-base font-semibold text-white">{{ write_id }}</h5>
-                <p class="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[.16em] text-slate-500">binding</p>
-                {{ render_binding_args(operation.binding.args, operation.binding.function) }}
-              </div>
-              {% endfor %}
-            </div>
-          </div>
-          {% endif %}
-          {% if dataset.vectorize %}
-          <div class="mt-4">
-            <div class="mb-3 flex items-center gap-3">
-              <p class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-200">vectorized</p>
-              <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ dataset.vectorize|length }} features</span>
-              <div class="h-px flex-1 bg-slate-800"></div>
-            </div>
-            <div class="divide-y divide-slate-800/80">
-              {% for feature_id, feature in dataset.vectorize.items() %}
-                <div class="py-3 first:pt-0 last:pb-0">
-                  {% if feature.binding %}
-                  <p class="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[.16em] text-slate-500">binding</p>
-                  {{ render_binding_args(feature.binding.args, feature.binding.function, feature.row_context) }}
-                  {% endif %}
-                  <p class="mt-4 mb-2 font-mono text-[10px] font-semibold uppercase tracking-[.16em] text-slate-500">features</p>
-                  <div class="flex items-center justify-between gap-3 border-l-2 border-amber-300/40 pl-3">
-                    <span class="font-mono text-xs text-amber-200">{{ feature_id }}</span>
-                    {% if feature.type %}<span class="text-[10px] text-slate-500">{{ feature.type }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>{% endif %}
-                  </div>
-                  {% if feature.description %}<p class="mt-1 pl-3 text-xs text-slate-400">{{ feature.description }}</p>{% endif %}
-                </div>
-              {% endfor %}
-            </div>
-          </div>
-          {% endif %}
-        </div>
+{% set total = namespace(feature_count=0) %}
+{% for entity in configuration.entities.values() %}
+  {% for dataset in entity.datasets %}
+    {% set total.feature_count = total.feature_count + dataset.vectorize|length %}
+    {% for operation_type in ["read", "conform", "expand", "collapse"] %}
+      {% for fragment in dataset.get(operation_type, {}).values() %}
+        {% for feature_id in fragment.features %}
+          {% if feature_id not in entity.dimensions %}{% set total.feature_count = total.feature_count + 1 %}{% endif %}
         {% endfor %}
-      </div>
+      {% endfor %}
+    {% endfor %}
+  {% endfor %}
+{% endfor %}
+<section id="entities" class="mb-16">
+  {{ section_header("Features", "Browse features by dataset and see which fragment provides each one.", count=total.feature_count, count_label="features") }}
+  <div class="space-y-5">
+    {% for entity_id, entity in configuration.entities.items() %}
+      {% for dataset in entity.datasets %}
+      <section>
+        <header class="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="font-mono text-xs text-slate-400"><span class="uppercase tracking-wider text-slate-500">Entity:</span> {{ entity.name or entity_id }}</p>
+            {% set dataset_heading = "h2" if include_navigation else "h3" %}
+            <{{ dataset_heading }} class="mt-2 font-display text-xl font-semibold tracking-tight text-cyan-100">
+              <span class="mr-2 font-mono text-[10px] font-medium uppercase tracking-wider text-cyan-400">Dataset name:</span>{{ dataset.id }}
+            </{{ dataset_heading }}>
+          </div>
+          {% set ns = namespace(feature_count=dataset.vectorize|length) %}
+          {% for operation_type in ["read", "conform", "expand", "collapse"] %}
+            {% for fragment in dataset.get(operation_type, {}).values() %}
+              {% for feature_id in fragment.features %}
+                {% if feature_id not in entity.dimensions %}{% set ns.feature_count = ns.feature_count + 1 %}{% endif %}
+              {% endfor %}
+            {% endfor %}
+          {% endfor %}
+        </header>
+        <article class="rounded-xl border border-slate-800 border-l-4 border-l-cyan-500 bg-slate-900/70 px-5">
+          <p class="border-b border-slate-800 py-3 font-mono text-xs text-slate-400">{{ ns.feature_count }} features</p>
+          <div class="divide-y divide-slate-800">
+          {% for operation_type in ["read", "conform", "expand", "collapse"] %}
+            {% for fragment_id, fragment in dataset.get(operation_type, {}).items() %}
+              {% for feature_id, feature in fragment.features.items() if feature_id not in entity.dimensions %}
+              <div class="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,1fr)] sm:gap-4">
+                <div>
+                  <span class="font-mono text-sm text-cyan-200">{{ feature_id }}</span>
+                  {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+                  <span class="font-mono text-xs text-slate-400">{{ operation_type }} · {{ fragment_id }}</span>
+                  <span class="text-xs text-slate-500">{{ feature.type or "unspecified" }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>
+                </div>
+              </div>
+              {% endfor %}
+            {% endfor %}
+          {% endfor %}
+          {% for feature_id, feature in dataset.vectorize.items() %}
+          <div class="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,1fr)] sm:gap-4">
+            <div>
+              <span class="font-mono text-sm text-amber-200">{{ feature_id }}</span>
+              {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+              <span class="font-mono text-xs text-slate-400">vectorize · {{ feature_id }}</span>
+              <span class="text-xs text-slate-500">{{ feature.type or "calculated" }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>
+            </div>
+          </div>
+          {% endfor %}
+          </div>
+        </article>
+      </section>
+      {% endfor %}
     {% endfor %}
   </div>
 </section>

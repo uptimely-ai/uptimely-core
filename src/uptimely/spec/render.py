@@ -18,6 +18,8 @@ OUTPUT_DIR = Path("_generated") / "spec"
 SPECIFICATION_PAGES = {
     "overview": "spec.html",
     "features": "spec_features.html",
+    "entities": "spec_entities.html",
+    "datasets": "spec_datasets.html",
     "dimensions": "spec_dimensions.html",
     "functions": "spec_functions.html",
 }
