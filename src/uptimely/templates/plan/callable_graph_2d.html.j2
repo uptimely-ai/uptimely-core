@@ -28,22 +28,32 @@
 			const rank = ranks.get(node.id);
 			if (!layers.has(rank)) layers.set(rank, []);
 			layers.get(rank).push(node);
-			node.cardWidth = Math.min(280, Math.max(140, node.label.length * 8 + 28));
-			node.cardHeight = 44;
+			node.cardWidth = Math.min(
+				320,
+				Math.max(180, Math.max(...node.label_lines.map(line => line.length)) * 7 + 28)
+			);
+			node.cardHeight = Math.max(44, node.label_lines.length * 18 + 20);
 		}
 		for (const [rank, nodes] of layers) {
-			nodes.forEach((node, index) => {
+			const stackHeight = nodes.reduce((height, node) => height + node.cardHeight, 0)
+				+ (nodes.length - 1) * 24;
+			let top = -stackHeight / 2;
+			nodes.forEach(node => {
 				node.stage = rank + 1;
 				node.fx = rank * 360;
-				node.fy = (index - (nodes.length - 1) / 2) * 80;
+				node.fy = top + node.cardHeight / 2;
 				node.x = node.fx;
 				node.y = node.fy;
+				top += node.cardHeight + 24;
 			});
 		}
 		const stageCount = layers.size;
 		const laneHeight = Math.max(
 			160,
-			Math.max(0, ...[...layers.values()].map(nodes => nodes.length)) * 80 + 96
+			Math.max(0, ...[...layers.values()].map(nodes =>
+				nodes.reduce((height, node) => height + node.cardHeight, 0)
+					+ (nodes.length - 1) * 24
+			)) + 96
 		);
 		const drawStageLanes = (ctx, globalScale) => {
 			const scale = Math.max(globalScale, 0.01);
@@ -84,7 +94,7 @@
 			.width(callableGraphContainer.clientWidth)
 			.height(callableGraphContainer.clientHeight)
 			.backgroundColor('{{ graph_style.background_color }}')
-			.nodeLabel(node => `${node.function_id} (${node.entity})`)
+			.nodeLabel(node => node.label)
 			.onRenderFramePre(drawStageLanes)
 			.nodeCanvasObjectMode(() => 'replace')
 			.nodeCanvasObject((node, ctx) => {
@@ -99,9 +109,13 @@
 				ctx.lineWidth = 1.5;
 				ctx.stroke();
 				ctx.fillStyle = '{{ graph_style.label_color }}';
-				ctx.font = '600 12px "DM Sans", sans-serif';
-				ctx.textBaseline = 'middle';
-				ctx.fillText(node.label, left + 14, node.y, node.cardWidth - 28);
+				ctx.textBaseline = 'top';
+				node.label_lines.forEach((line, index) => {
+					ctx.font = index === 0
+						? '600 12px "DM Sans", sans-serif'
+						: '11px "DM Sans", sans-serif';
+					ctx.fillText(line, left + 14, top + 10 + index * 18, node.cardWidth - 28);
+				});
 				ctx.restore();
 			})
 			.nodePointerAreaPaint((node, color, ctx) => {

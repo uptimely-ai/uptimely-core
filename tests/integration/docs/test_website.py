@@ -180,6 +180,51 @@ def test_execution_plan_pages_render_only_their_section(
         if title == "2D graph":
             assert "callableGraph.zoomToFit(0, 140)" in document
             assert ".onEngineStop(" in document
+            expected_label = (
+                'read_pump_telemetry(source="?storage.telemetry_source.path", '
+                'environment="development")'
+            )
+            assert json.dumps(expected_label) in document
+            expected_lines = [
+                "read_pump_telemetry(",
+                '  source="?storage.telemetry_source.path",',
+                '  environment="development"',
+                ")",
+            ]
+            assert f'"label_lines": {json.dumps(expected_lines)}' in document
+            expected_list_lines = [
+                "optimize_pump_operating_point(",
+                "  optimization_features=[",
+                '    "discharge_pressure",',
+                '    "flow_rate",',
+                '    "motor_power",',
+                '    "bearing_temperature",',
+                '    "vibration_rms"',
+                "  ]",
+                ")",
+            ]
+            assert f'"label_lines": {json.dumps(expected_list_lines)}' in document
+            expected_object_lines = [
+                "aggregate_by_dimension(",
+                '  dataset="pump_telemetry_dataset",',
+                "  dimensions=[",
+                '    "plant",',
+                '    "production_line",',
+                '    "pump"',
+                "  ],",
+                "  aggregations={",
+                '    "bearing_temperature_max": {',
+                '      "function": "maximum",',
+                '      "args": {',
+                '        "feature": "bearing_temperature"',
+                "      }",
+                "    }",
+                "  }",
+                ")",
+            ]
+            assert f'"label_lines": {json.dumps(expected_object_lines)}' in document
+            assert ".nodeLabel(node => node.label)" in document
+            assert "node.label_lines.forEach((line, index) =>" in document
             assert "node.stage = rank + 1" in document
             assert "Stage ${stage + 1}" in document
             assert ".onRenderFramePre(drawStageLanes)" in document
