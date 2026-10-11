@@ -131,8 +131,26 @@ def test_system_graph_can_export_2d_lineage_html(tmp_path: Path) -> None:
     assert "ForceGraph()(graphContainer)" in html
     assert "graph-hint" not in html
     assert 'id="fit-graph"' in html
-    assert "nodeCanvasObject" in html
+    assert "function prepareGraphLayout(graphData)" in html
+    assert "function drawEntityLanes(ctx, globalScale)" in html
+    assert "function drawNode(node, ctx)" in html
+    assert "function selectAtPointer(event)" in html
+    assert ".nodeCanvasObject(drawNode)" in html
+    assert (
+        "const entityNames = [...new Set("
+        "graphData.nodes.map(node => node.entity || 'Unassigned'))]" in html
+    )
     assert "rankNodes" in html
+    assert "node.fx = rankOffsets.get(rank) - graphWidth / 2 + laneLabelWidth + 100" in html
+    assert "lanePositions.get(entity)" in html
+    assert "(index - (nodes.length - 1) / 2) * 54" in html
+    assert ".onRenderFramePre(drawEntityLanes)" in html
+    assert "lanePositions.get(entity)" in html
+    assert (
+        "ctx.fillText(entity, laneLeft + layout.laneLabelWidth, centerY, layout.laneLabelWidth)"
+        in html
+    )
+    assert "function resizeGraph()" in html
     assert "health_signal_normalized" in html
     assert ".linkOpacity(" not in html
     assert 'aria-label="2D graph legend"' in html

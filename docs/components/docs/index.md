@@ -186,10 +186,13 @@ functions. Select a node to inspect its feature or function metadata.
 
 ### 2D lineage
 
-Choose a 2D left-to-right lineage view when you want to follow upstream inputs
-through calculations to downstream features. It uses layered node cards,
-directional links, and a fit-to-view control. Both renderings include the same
-node details and can be exported with `FeatureGraph.export_html`:
+Choose the 2D lineage view when you want to follow upstream inputs through
+calculations to downstream features. It keeps the standard layered node-card
+layout and directional links, with horizontal swim lanes labeled by
+specification entity. Nodes are stacked vertically within each lane and rank
+without overlapping. Nodes without an entity are grouped in an `Unassigned` lane.
+Both renderings include the same node details and can be exported with
+`FeatureGraph.export_html`:
 
 ```python
 graph.export_html("_generated/graph/feature_graph_2d.html", dimension="2d")
