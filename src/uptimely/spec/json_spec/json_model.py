@@ -28,6 +28,13 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class SpecificationSource(StrictModel):
+    """Describe how a specification document was authored or generated."""
+
+    name: str
+    generated: bool
+
+
 class Dimension(StrictModel):
     """A globally defined grain under `dimensions`."""
 
@@ -265,6 +272,9 @@ class Specification(StrictModel):
     path: str | None = Field(default=None, exclude=True)
     name: str | None = None
     version: Literal["0.1.0"] = SUPPORTED_SPECIFICATION_VERSION
+    source: SpecificationSource = Field(
+        default_factory=lambda: SpecificationSource(name="manual", generated=False)
+    )
     dimensions: dict[str, Dimension] = Field(default_factory=dict)
     functions: FunctionCatalog = Field(default_factory=FunctionCatalog)
     entities: dict[str, Entity] = Field(default_factory=dict)

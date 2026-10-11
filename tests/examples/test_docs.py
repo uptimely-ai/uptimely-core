@@ -103,7 +103,7 @@ def test_html_docs_overview_counts_match_specification(tmp_path: Path) -> None:
     parser = TextCollector()
     parser.feed(output_path.read_text(encoding="utf-8"))
 
-    assert "Specification name Pump analytics" in parser.text
+    assert "Specification profile Pump analytics" in parser.text
     assert f"Entities {expected_counts['entity_count']}" in parser.text
     assert f"Dimensions {expected_counts['dimension_count']}" in parser.text
     assert f"Features total {expected_counts['feature_count']}" in parser.text

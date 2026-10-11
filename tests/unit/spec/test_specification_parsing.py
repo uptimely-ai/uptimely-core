@@ -37,6 +37,18 @@ def test_specification_accepts_top_level_name(tmp_path: Path) -> None:
     assert specification.name == "Pump analytics"
 
 
+def test_specification_defaults_missing_source_to_manual(tmp_path: Path) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration.pop("source", None)
+
+    specification = Specification.from_json(
+        _write_configuration(tmp_path, configuration, "manual.json")
+    )
+
+    assert specification.source.name == "manual"
+    assert specification.source.generated is False
+
+
 def test_specification_discards_legacy_slice_ordering(tmp_path: Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]

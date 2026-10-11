@@ -44,6 +44,8 @@ def test_example_manifest_parses_complete_specification() -> None:
         "timestamp",
     ]
     assert isinstance(specification, Specification)
+    assert specification.source.name == "python_api"
+    assert specification.source.generated is True
     assert set(specification.functions.model_dump(exclude_none=True)) == {
         "read",
         "write",
@@ -75,6 +77,8 @@ def test_spec_from_entities_python_api(tmp_path: Path) -> None:
 
     assert specification.entities["example_2"].datasets[0].id == "my_beautiful_dataset"
     assert specification.name == "Example 2"
+    assert specification.source.name == "python_api"
+    assert specification.source.generated is True
     assert specification.functions.read
 
 
@@ -99,6 +103,7 @@ def test_spec_from_python_models_and_json_export(tmp_path: Path) -> None:
     dataset_payload = payload["entities"]["example_2"]["datasets"][0]
     assert payload["name"] == "example_2"
     assert payload["version"] == "0.1.0"
+    assert payload["source"] == {"name": "python_api", "generated": True}
     assert set(payload["functions"]) == {"read", "write", "vectorize", "aggregate"}
     assert payload["functions"]["read"]["read"]["entrypoint"].endswith(":read_data")
     assert payload["functions"]["write"]["write"]["entrypoint"].endswith(":write_data")
