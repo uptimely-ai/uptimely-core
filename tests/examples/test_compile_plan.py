@@ -13,51 +13,33 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: Path) -> None:
     output_path = plan.export_json(tmp_path / "execution_plan.json")
     metadata = json.loads(output_path.read_text(encoding="utf-8"))
 
-    assert "generated_at" not in metadata
-    assert [stage["stage"] for stage in metadata["execution_stages"]] == list(
-        range(1, len(metadata["execution_stages"]) + 1)
-    )
-    assert [
-        step["position"] for stage in metadata["execution_stages"] for step in stage["steps"]
-    ] == list(range(1, metadata["callable_count"] + 1))
-    assert all(
-        "feature" in step
-        and "depends_on_callables" in step
-        and "callable_type" in step
-        and "title" in step
-        and "entrypoint" in step
-        for stage in metadata["execution_stages"]
-        for step in stage["steps"]
-    )
-    assert {step["operation_type"] for step in metadata["execution_order"]} == {
+    assert metadata == plan.plan.to_dict()
+    assert set(metadata) == {
+        "plan_version",
+        "specification_version",
+        "required_backend",
+        "resources",
+        "operations",
+        "stages",
+    }
+    assert {operation["kind"] for operation in metadata["operations"]} == {
         "read",
         "collapse",
         "vectorize",
         "write",
     }
-    assert {step["callable_type"] for step in metadata["execution_order"]} == {
-        "read",
-        "collapse",
-        "vectorize",
-        "write",
-    }
-    aggregate_step = next(
-        step for step in metadata["execution_order"] if step["function"] == "aggregate_by_dimension"
+    aggregate_operation = next(
+        operation
+        for operation in metadata["operations"]
+        if operation["id"].split(":")[2] == "aggregate_by_dimension"
     )
-    assert aggregate_step["entity"] == "pump"
-    assert aggregate_step["args"]["dataset"]["value"] == "pump_telemetry_dataset"
-    assert all(
-        value.get("value") != "$current"
-        for operation in plan.operations
-        for value in operation.arguments.values()
-        if isinstance(value, dict) and "value" in value
-    )
-    assert aggregate_step["args"]["dimensions"]["value"] == [
+    assert aggregate_operation["entity_id"] == "pump"
+    assert aggregate_operation["arguments"]["dataset"] == "pump_telemetry_dataset"
+    assert aggregate_operation["arguments"]["dimensions"] == [
         "plant",
         "production_line",
         "pump",
     ]
-    assert aggregate_step["returns"]["type"] == {"engine": "LazyFrame"}
     assert "spec_type" not in json.dumps(metadata)
     assert "runtime_type" not in json.dumps(metadata)
 

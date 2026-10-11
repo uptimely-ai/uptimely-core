@@ -40,7 +40,10 @@ def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
     assert result.failures == {}
     assert result.plan_version == "1.0.0"
     assert isinstance(result.calculated_outputs["asset", "telemetry", "doubled"], pl.Expr)
-    assert engine.datasets["asset", "telemetry"].select("doubled").to_series().to_list() == [4, 6]
+    assert result.datasets["asset", "telemetry"].select("doubled").to_series().to_list() == [
+        4,
+        6,
+    ]
     assert written["features"] == ["doubled"]
     assert written["dataset"].select("asset_id", "doubled").rows() == [("A", 4), ("B", 6)]
 
@@ -82,6 +85,11 @@ def test_engine_validates_plan_backend_and_specification_version() -> None:
             _plan(),
             resources={"specification_version": "2025.01"},
         )
+
+
+def test_engine_rejects_execution_plan_as_resource_override() -> None:
+    with pytest.raises(TypeError, match="resources must be a dictionary"):
+        Engine(_plan(), _plan())
 
 
 @pytest.mark.parametrize("reference", ["?", "?storage.source", "?storage.source.path.extra"])
@@ -136,7 +144,7 @@ def test_execute_converts_scalar_calculations_to_columns() -> None:
     result = engine.execute()
 
     assert result.failures == {}
-    assert engine.datasets["asset", "telemetry"].select("doubled").item() == 10
+    assert result.datasets["asset", "telemetry"].select("doubled").item() == 10
 
 
 @pytest.mark.parametrize("batch_size", [0, -1, True, "100"])

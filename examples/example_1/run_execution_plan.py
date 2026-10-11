@@ -19,22 +19,25 @@ def main(verbose: bool | None = None) -> None:
     json_path = plan.export_json(output_dir / "execution_plan.json")
     html_path = plan.export_html(output_dir / "execution_plan.html")
 
-    print(f"Compiled {len(plan.callables)} callables from {SPEC_PATH}")
+    print(f"Compiled {len(plan.operations)} operations from {SPEC_PATH}")
     print(f"Execution plan: {json_path}")
     print(f"Execution plan report: {html_path}")
 
     if verbose:
-        print("\nCallable dependency graph")
-        plan.callable_graph.print_graph()
+        operations_by_id = {operation.id: operation for operation in plan.operations}
         print("\nExecution stages")
         for stage_number, stage in enumerate(plan.execution_stages, 1):
             print(f"Stage {stage_number}")
-            for node in stage:
+            for operation in stage:
                 dependencies = [
-                    dependency.function_id for dependency in plan.callable_graph.dependencies(node)
+                    operations_by_id[dependency_id].function_id
+                    for dependency_id in operation.dependency_ids
                 ]
                 suffix = f" <- [{', '.join(dependencies)}]" if dependencies else ""
-                print(f"  {node.function_id}({node.entity}) -> {node.feature}{suffix}")
+                print(
+                    f"  {operation.function_id}({operation.entity_id}) -> "
+                    f"{operation.output}{suffix}"
+                )
 
 
 if __name__ == "__main__":

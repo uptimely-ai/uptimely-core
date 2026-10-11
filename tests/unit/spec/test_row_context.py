@@ -374,7 +374,7 @@ def test_shared_binding_supports_distinct_feature_contexts() -> None:
         dimensions=[dimension.Dimension(id="id", type="integer")],
     )
     contexts = {
-        operation.feature: operation.row_context.before.time
+        operation.output: operation.row_context.before.time
         for operation in Compiler(specification).compile().operations
         if operation.kind == "vectorize"
     }
@@ -481,16 +481,15 @@ def test_old_plans_without_context_load_as_unknown() -> None:
     assert all(item.row_context is None for item in Plan.from_dict(payload).operations)
 
 
-def test_plan_context_is_present_in_report_steps() -> None:
+def test_plan_context_is_present_in_portable_operations() -> None:
     plan = Compiler(
         _specification(
             bind.bind(calculate, column=ref.feature("temperature")),
             context=row_context.current(),
         )
     ).compile()
-    payload = plan.to_dict()
-    step = next(item for item in payload["execution_order"] if item["feature"] == "result")
-    assert step["row_context"] == row_context.current().to_dict()
+    operation = next(item for item in plan.operations if item.output == "result")
+    assert operation.row_context == row_context.current()
 
 
 def test_aggregations_execute_without_row_context() -> None:

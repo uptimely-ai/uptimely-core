@@ -4,7 +4,6 @@ import polars as pl
 import pytest
 
 from uptimely.compile import Compiler
-from uptimely.compile.node import CallableNode
 from uptimely.engine import Engine
 
 SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
@@ -31,10 +30,10 @@ def test_engine_returns_calculated_features_without_writing_output() -> None:
         "vibration_delta",
     ]
     assert isinstance(
-        engine.calculations[("pump", "pump_dataset", "health_signal_normalized")].element,
+        result.calculated_outputs[("pump", "pump_dataset", "health_signal_normalized")],
         pl.Expr,
     )
-    pump_frame = engine.datasets[("pump", "pump_dataset")].collect()
+    pump_frame = result.datasets[("pump", "pump_dataset")].collect()
     assert pump_frame.select("pump", "bearing_temperature_max", "health_signal_normalized").sort(
         "pump"
     ).rows() == [
@@ -97,7 +96,7 @@ def test_engine_rejects_unknown_runtime_attribute() -> None:
 
 def test_engine_merges_fragments_by_entity_dimensions() -> None:
     engine = Engine(SPEC_PATH)
-    engine.datasets = {
+    engine._runtime_datasets = {
         ("pump", "pump_dataset"): pl.LazyFrame(
             {
                 "plant": ["PLANT-01", "PLANT-01"],
@@ -116,15 +115,12 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
         }
     )
 
-    merged = engine._merge_fragment(
-        CallableNode(
-            function_id="fragment",
-            entity="pump",
-            operation_type="collapse",
-            dataset_id="pump_dataset",
-        ),
-        fragment,
-    ).collect()
+    operation = next(
+        operation
+        for operation in engine.plan.operations
+        if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
+    )
+    merged = engine._merge_fragment(operation, fragment).collect()
 
     assert merged.select("pump", "existing", "new").sort("pump").rows() == [
         ("PUMP-101", 1, 10),
@@ -151,21 +147,19 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
 )
 def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> None:
     engine = Engine(SPEC_PATH)
-    engine.datasets = {}
-    node = CallableNode(
-        function_id="fragment",
-        entity="pump",
-        operation_type="collapse",
-        dataset_id="pump_dataset",
+    operation = next(
+        operation
+        for operation in engine.plan.operations
+        if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
     )
 
     with pytest.raises(ValueError, match=message):
-        engine._merge_fragment(node, fragment)
+        engine._merge_fragment(operation, fragment)
 
 
 def test_engine_rejects_ambiguous_dataset_references() -> None:
     engine = Engine(SPEC_PATH)
-    engine.datasets = {
+    engine._runtime_datasets = {
         ("first", "shared"): pl.LazyFrame({"id": [1]}),
         ("second", "shared"): pl.LazyFrame({"id": [2]}),
     }
@@ -218,18 +212,21 @@ def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: Path) 
     from examples.example_1.spec.spec import storage_resources
 
     plan = Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
-    engine = Engine(plan.specification, plan, runtime_resources={"storage": storage_resources})
+    engine = Engine(plan, runtime_resources={"storage": storage_resources})
     assert [
-        node.feature for node in engine.callable_order if node.operation_type == "vectorize"
+        operation.output
+        for stage in engine.plan.execution_stages
+        for operation in stage
+        if operation.kind == "vectorize"
     ] == [
         "health_signal_normalized",
     ]
-    assert {node.operation_type for node in engine.callable_order} == {
+    assert {operation.kind for stage in engine.plan.execution_stages for operation in stage} == {
         "read",
         "collapse",
         "vectorize",
     }
 
-    engine.execute()
+    result = engine.execute()
 
-    assert engine.datasets[("pump", "pump_dataset")].collect().height == 2
+    assert result.datasets[("pump", "pump_dataset")].collect().height == 2

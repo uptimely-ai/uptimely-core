@@ -12,18 +12,19 @@ def test_compiler_creates_callable_graph_subset_for_requested_features() -> None
     plan = Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
 
     assert [
-        node.feature for node in plan.execution_order if node.operation_type == "vectorize"
+        operation.output
+        for stage in plan.execution_stages
+        for operation in stage
+        if operation.kind == "vectorize"
     ] == [
         "health_signal_normalized",
     ]
-    assert {node.operation_type for node in plan.callable_graph.callables} == {
+    assert {operation.kind for operation in plan.operations} == {
         "read",
         "collapse",
         "vectorize",
     }
-    assert {
-        node.feature for node in plan.callable_graph.callables if node.operation_type == "vectorize"
-    } == {
+    assert {operation.output for operation in plan.operations if operation.kind == "vectorize"} == {
         "health_signal_normalized",
     }
 

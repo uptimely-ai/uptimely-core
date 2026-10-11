@@ -65,8 +65,8 @@ def test_plan_round_trip_preserves_operation_metadata() -> None:
 
     assert restored == plan
     assert restored.operations[1].function_id == "aggregate"
-    assert restored.operations[1].entity == "pump"
-    assert restored.operations[1].feature is None
+    assert restored.operations[1].entity_id == "pump"
+    assert restored.operations[1].output == "pressure_by_pump"
     assert restored.operations[0].dataset_id == "pump_dataset"
 
 
@@ -82,25 +82,24 @@ def test_plan_stages_track_operation_order() -> None:
     assert [
         [operation.function_id for operation in stage] for stage in execution_plan.execution_stages
     ] == [["load"], ["aggregate"], ["save"]]
-    assert [operation.function_id for operation in execution_plan.execution_order] == [
-        "load",
-        "aggregate",
-        "save",
-    ]
 
     restored = Plan.from_dict(plan.to_dict())
     assert restored.stages == plan.stages
 
 
-def test_execution_plan_exposes_legacy_execution_views() -> None:
+def test_execution_plan_serializes_only_the_portable_plan() -> None:
     plan = _sample_plan()
     execution_plan = ExecutionPlan(plan)
 
-    legacy = execution_plan.to_dict()
-    assert legacy["execution_stages"][1]["steps"][0]["position"] == 2
-    assert legacy["execution_order"][1]["depends_on_callables"][0]["function"] == "load"
-    assert legacy["execution_order"][2]["returns"]["type"] == {"engine": "None"}
-    assert legacy["spec_version"] == "2024.01"
+    assert execution_plan.to_dict() == plan.to_dict()
+    assert set(execution_plan.to_dict()) == {
+        "plan_version",
+        "specification_version",
+        "required_backend",
+        "resources",
+        "operations",
+        "stages",
+    }
 
 
 def test_plan_json_helpers_round_trip(tmp_path) -> None:
@@ -112,7 +111,6 @@ def test_plan_json_helpers_round_trip(tmp_path) -> None:
     recreated = from_json(destination)
 
     assert payload["operations"][0]["kind"] == "read"
-    assert payload["execution_order"][0]["function"] == "load"
     assert recreated.plan == plan
     assert recreated.operations[0].id == "callable:read:load:pump:pump_dataset:pressure"
 
@@ -123,6 +121,14 @@ def test_plan_rejects_missing_required_fields(missing_field: str) -> None:
     del payload[missing_field]
 
     with pytest.raises(ValueError, match=f"Plan is missing required fields: {missing_field}"):
+        Plan.from_dict(payload)
+
+
+def test_plan_rejects_legacy_execution_fields() -> None:
+    payload = _sample_plan().to_dict()
+    payload["execution_order"] = []
+
+    with pytest.raises(ValueError, match="Plan contains unknown fields: execution_order"):
         Plan.from_dict(payload)
 
 

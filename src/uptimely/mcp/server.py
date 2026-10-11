@@ -221,7 +221,6 @@ def create_server(state: ServerState) -> FastMCP:
         specification = state.load_specification()
         plan = Compiler(specification, features=[feature_id]).compile()
         engine = Engine(
-            specification,
             plan,
             runtime_resources=state.runtime_resources,
         )

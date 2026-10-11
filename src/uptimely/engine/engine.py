@@ -24,14 +24,6 @@ from .result import ExecutionResult
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class Calculation:
-    """Runtime state of one evaluated calculated feature."""
-
-    node: Operation
-    element: object = None
-
-
 @dataclass(frozen=True)
 class EngineConfig:
     """Runtime configuration supplied to an execution engine."""
@@ -66,7 +58,7 @@ class Engine:
     def __init__(
         self,
         plan: ExecutionPlan | str | Path | Specification,
-        resources: dict[str, Any] | ExecutionPlan | None = None,
+        resources: dict[str, Any] | None = None,
         *,
         config: EngineConfig | None = None,
         backend: DataFrameBackend | None = None,
@@ -78,10 +70,6 @@ class Engine:
         self._specification: Specification | None = None
         if isinstance(plan, ExecutionPlan):
             self.plan = plan
-        elif isinstance(resources, ExecutionPlan):
-            self.plan = resources
-            if isinstance(plan, Specification):
-                self._verify_specification_version(plan.version)
         elif isinstance(plan, (str, Path, Specification)):
             self._specification = (
                 Specification.from_json(plan) if isinstance(plan, (str, Path)) else plan
@@ -91,7 +79,9 @@ class Engine:
             raise ValueError("plan must be an ExecutionPlan, specification, or specification path")
 
         self.resources = dict(self.plan.plan.resources)
-        if isinstance(resources, dict):
+        if resources is not None:
+            if not isinstance(resources, dict):
+                raise TypeError("resources must be a dictionary of plan resource overrides")
             self.resources.update(resources)
         self.config = config or EngineConfig()
         self.backend = backend or PolarsBackend()
@@ -99,7 +89,7 @@ class Engine:
         self.callable_loader = callable_loader or EntrypointLoader()
         self._runtime_datasets: dict[tuple[str, str], object] = {}
         self._runtime_fragments: dict[tuple[str, str], object] = {}
-        self._runtime_calculations: dict[tuple[str, str, str], Calculation] = {}
+        self._runtime_calculations: dict[tuple[str, str, str], object] = {}
         self.runtime_resources = runtime_resources or {}
         self._verify_plan()
 
@@ -118,30 +108,11 @@ class Engine:
         )
 
     @property
-    def callable_order(self) -> list[Operation]:
-        """Return operations in execution order."""
-        return self.plan.execution_order
-
-    @property
     def specification(self) -> Specification:
         """Return the convenience specification when one was supplied."""
         if self._specification is None:
             raise AttributeError("Portable-plan engines do not retain a Specification")
         return self._specification
-
-    @property
-    def datasets(self) -> dict[tuple[str, str], object]:
-        """Compatibility access to the current runtime dataset registry."""
-        return self._runtime_datasets
-
-    @datasets.setter
-    def datasets(self, value: dict[tuple[str, str], object]) -> None:
-        self._runtime_datasets = value
-
-    @property
-    def calculations(self) -> dict[tuple[str, str, str], Calculation]:
-        """Compatibility access to calculations from the latest execution."""
-        return self._runtime_calculations
 
     def _verify_plan(self) -> None:
         """Verify that this runtime supports the portable plan."""
@@ -165,7 +136,7 @@ class Engine:
         """Execute plan stages and return explicit runtime state and statuses."""
         datasets: dict[tuple[str, str], object] = {}
         fragments: dict[tuple[str, str], object] = {}
-        calculations: dict[tuple[str, str, str], Calculation] = {}
+        calculations: dict[tuple[str, str, str], object] = {}
         statuses: dict[str, str] = {}
         durations: dict[str, float] = {}
         failures: dict[str, str] = {}
@@ -175,7 +146,7 @@ class Engine:
 
         def _mark_unrun_operations_skipped() -> None:
             """Mark operations that never ran so consumers can distinguish skipped from absent."""
-            for operation in self.plan.execution_order:
+            for operation in self.plan.operations:
                 statuses.setdefault(operation.id, "skipped")
 
         logger.info("Executing plan: %d stages", len(self.plan.execution_stages))
@@ -207,9 +178,7 @@ class Engine:
 
         return ExecutionResult(
             datasets=dict(datasets),
-            calculated_outputs={
-                key: calculation.element for key, calculation in calculations.items()
-            },
+            calculated_outputs=dict(calculations),
             operation_statuses=statuses,
             durations=durations,
             failures=failures,
@@ -218,25 +187,25 @@ class Engine:
 
     def _execute_source(self, operation: Operation) -> None:
         """Run a fragment operation and merge its columns into the dataset."""
-        frame = self.datasets.get((operation.entity_id, operation.dataset_id))
+        frame = self._runtime_datasets.get((operation.entity_id, operation.dataset_id))
         kwargs = self._resolve_args(operation, dataset_frame=frame)
         result = self.callable_loader.load(operation.entrypoint)(**kwargs)
         self._runtime_fragments[(operation.entity_id, operation.output or operation.id)] = result
-        self.datasets[(operation.entity_id, operation.dataset_id)] = self._merge_fragment(
+        self._runtime_datasets[(operation.entity_id, operation.dataset_id)] = self._merge_fragment(
             operation, result
         )
 
-    def _merge_fragment(self, operation: object, fragment: object) -> object:
+    def _merge_fragment(self, operation: Operation, fragment: object) -> object:
         """Validate and merge a fragment using its entity dimension keys."""
-        function_id = getattr(operation, "function_id", "fragment")
         if not self.backend.is_frame(fragment):
-            raise ValueError(f"Fragment {function_id} must return a Polars DataFrame or LazyFrame")
-        entity_id = getattr(operation, "entity_id", operation.entity)
-        dimensions = self.resource_resolver.entity_dimensions(entity_id)
+            raise ValueError(
+                f"Fragment {operation.function_id} must return a Polars DataFrame or LazyFrame"
+            )
+        dimensions = self.resource_resolver.entity_dimensions(operation.entity_id)
         self._validate_fragment_keys(operation, fragment, dimensions)
         dataset_id = operation.dataset_id
-        key = (entity_id, dataset_id)
-        existing = self.datasets.get(key)
+        key = (operation.entity_id, dataset_id)
+        existing = self._runtime_datasets.get(key)
         if existing is None:
             return fragment
         if not self.backend.is_frame(existing):
@@ -258,21 +227,21 @@ class Engine:
         return self.backend.join(left, right, dimensions)
 
     def _validate_fragment_keys(
-        self, operation: object, fragment: object, dimensions: list[str]
+        self, operation: Operation, fragment: object, dimensions: list[str]
     ) -> None:
         """Validate the dimension-key contract of one dataframe fragment."""
-        function_id = getattr(operation, "function_id", "fragment")
         columns = set(self.backend.column_names(fragment))
         missing = sorted(set(dimensions) - columns)
         if missing:
             raise ValueError(
-                f"Fragment {function_id} is missing dimension columns: " + ", ".join(missing)
+                f"Fragment {operation.function_id} is missing dimension columns: "
+                + ", ".join(missing)
             )
         keys = self.backend.select(fragment, dimensions)
         if not isinstance(keys, type(fragment)):
             keys = self.backend.collect(keys)
         if self.backend.is_duplicated(keys):
-            raise ValueError(f"Fragment {function_id} contains duplicate dimension keys")
+            raise ValueError(f"Fragment {operation.function_id} contains duplicate dimension keys")
 
     def _execute_calculation(self, operation: Operation) -> None:
         """Run a calculation and append its resulting column to the dataset."""
@@ -281,12 +250,14 @@ class Engine:
         result = self.callable_loader.load(operation.entrypoint)(**kwargs)
         output = operation.output or operation.function_id
         element = self._as_column(result, output)
-        self.datasets[dataset_key] = self.backend.with_columns(self.datasets[dataset_key], element)
-        self._runtime_calculations[(*dataset_key, output)] = Calculation(operation, element)
+        self._runtime_datasets[dataset_key] = self.backend.with_columns(
+            self._runtime_datasets[dataset_key], element
+        )
+        self._runtime_calculations[(*dataset_key, output)] = element
 
     def _execute_sink(self, operation: Operation) -> None:
         """Persist the selected columns of the accumulated dataset."""
-        frame = self.datasets[(operation.entity_id, operation.dataset_id)]
+        frame = self._runtime_datasets[(operation.entity_id, operation.dataset_id)]
         kwargs = self._resolve_args(
             operation, dataset_frame=frame, dataset_key=(operation.entity_id, operation.dataset_id)
         )
@@ -386,7 +357,7 @@ class Engine:
             else None
         )
         if calculation is not None:
-            return calculation.element
+            return calculation
         if dataset_frame is None:
             return self.backend.feature_column(feature)
         return (
@@ -397,7 +368,9 @@ class Engine:
 
     def _dataset_by_id(self, dataset_id: str) -> object | None:
         matches = [
-            frame for (_, current_id), frame in self.datasets.items() if current_id == dataset_id
+            frame
+            for (_, current_id), frame in self._runtime_datasets.items()
+            if current_id == dataset_id
         ]
         if len(matches) > 1:
             raise ValueError(f"Ambiguous dataset reference: {dataset_id}")

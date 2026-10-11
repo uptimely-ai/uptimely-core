@@ -286,9 +286,9 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: Path) -> None:
         "Features": str(
             len(
                 {
-                    operation.feature
+                    operation.output
                     for operation in plan.operations
-                    if operation.feature is not None
+                    if operation.kind == "vectorize" and operation.output is not None
                 }
             )
         ),

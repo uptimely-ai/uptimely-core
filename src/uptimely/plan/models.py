@@ -37,21 +37,6 @@ class Operation:
         parts = self.id.split(":")
         return parts[2] if len(parts) > 2 and parts[0] == "callable" else self.id
 
-    @property
-    def operation_type(self) -> str:
-        """Compatibility name for the operation kind."""
-        return self.kind
-
-    @property
-    def feature(self) -> str | None:
-        """Compatibility name for the operation output."""
-        return self.output if self.kind == "vectorize" else None
-
-    @property
-    def entity(self) -> str:
-        """Compatibility name for the entity identifier."""
-        return self.entity_id
-
 
 @dataclass(frozen=True)
 class Plan:
@@ -106,6 +91,9 @@ class Plan:
         missing = sorted(required - payload.keys())
         if missing:
             raise ValueError("Plan is missing required fields: " + ", ".join(missing))
+        unexpected = sorted(payload.keys() - required)
+        if unexpected:
+            raise ValueError("Plan contains unknown fields: " + ", ".join(unexpected))
         operations = [Operation(**operation) for operation in payload["operations"]]
         operation_ids = {operation.id for operation in operations}
         if len(operation_ids) != len(operations):
@@ -155,114 +143,14 @@ class ExecutionPlan:
         return self.plan.operations
 
     @property
-    def callables(self) -> list[Operation]:
-        """Compatibility name for the portable operation collection."""
-        return self.operations
-
-    @property
     def execution_stages(self) -> list[list[Operation]]:
         """Return staged operations resolved from stage identifiers."""
         by_id = {operation.id: operation for operation in self.operations}
         return [[by_id[operation_id] for operation_id in stage] for stage in self.plan.stages]
 
-    @property
-    def execution_order(self) -> list[Operation]:
-        """Return staged operations as a flat compatibility view."""
-        return [operation for stage in self.execution_stages for operation in stage]
-
-    @property
-    def callable_graph(self) -> object:
-        """Return a lightweight callable collection for legacy inspection APIs."""
-        return _PortableCallableView(self.operations)
-
-    @property
-    def specification(self) -> object:
-        """Return a version-only compatibility view for legacy constructors."""
-        from uptimely.spec.json_spec.json_model import Specification
-
-        return Specification.model_construct(version=self.plan.specification_version)
-
     def to_dict(self) -> dict[str, Any]:
         """Return the portable plan as plain JSON-compatible data."""
-        payload = self.plan.to_dict()
-        positions = {
-            operation.id: position
-            for position, operation in enumerate(self.execution_order, start=1)
-        }
-        steps = [
-            self._legacy_step(position, operation)
-            for position, operation in enumerate(self.execution_order, start=1)
-        ]
-        payload.update(
-            {
-                "spec_path": None,
-                "spec_version": self.plan.specification_version,
-                "callable_count": len(self.operations),
-                "execution_stages": [
-                    {
-                        "stage": stage_number,
-                        "steps": [
-                            self._legacy_step(positions[operation.id], operation)
-                            for operation in stage
-                        ],
-                    }
-                    for stage_number, stage in enumerate(self.execution_stages, start=1)
-                ],
-                "execution_order": steps,
-            }
-        )
-        return payload
-
-    def _legacy_step(self, position: int, operation: Operation) -> dict[str, Any]:
-        """Return the former report shape for existing renderers and consumers."""
-
-        def display_value(value: object) -> object:
-            if isinstance(value, dict):
-                if "type" in value and "value" in value:
-                    return display_value(value["value"])
-                return {name: display_value(item) for name, item in value.items()}
-            if isinstance(value, list):
-                return [display_value(item) for item in value]
-            return value
-
-        return {
-            "position": position,
-            "function": operation.function_id,
-            "operation_type": operation.kind,
-            "callable_type": operation.kind,
-            "title": operation.function_id.replace("_", " ").capitalize(),
-            "entrypoint": operation.entrypoint,
-            "entity": operation.entity_id,
-            "dataset": operation.dataset_id,
-            "feature": operation.feature,
-            "row_context": (
-                operation.row_context.to_dict() if operation.row_context is not None else None
-            ),
-            "depends_on_callables": [
-                {
-                    "function": dependency.split(":")[2]
-                    if dependency.startswith("callable:")
-                    else dependency
-                }
-                for dependency in operation.dependency_ids
-            ],
-            "args": {
-                name: {
-                    "type": {
-                        "binding": value.get("type") if isinstance(value, dict) else None,
-                        "function": None,
-                        "engine": None,
-                    },
-                    "value": display_value(
-                        value.get("value") if isinstance(value, dict) and "type" in value else value
-                    ),
-                }
-                for name, value in operation.arguments.items()
-            },
-            "returns": {
-                "type": {"engine": self.plan.resources.get("signatures", {}).get(operation.id)}
-            },
-        }
+        return self.plan.to_dict()
 
     def export_json(self, path: str | Path) -> Path:
         """Write the portable plan to JSON."""
@@ -299,10 +187,3 @@ class ExecutionPlan:
             if path is not None
             else _render_execution_plan(self, include_navigation=include_navigation)
         )
-
-
-@dataclass(frozen=True)
-class _PortableCallableView:
-    """Minimal graph-compatible view that is intentionally not serialized."""
-
-    callables: list[Operation]
