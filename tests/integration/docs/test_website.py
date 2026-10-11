@@ -180,6 +180,10 @@ def test_execution_plan_pages_render_only_their_section(
         if title == "2D graph":
             assert "callableGraph.zoomToFit(0, 140)" in document
             assert ".onEngineStop(" in document
+            assert "node.stage = rank + 1" in document
+            assert "Stage ${stage + 1}" in document
+            assert ".onRenderFramePre(drawStageLanes)" in document
+            assert "ctx.fillRect(left, -laneHeight / 2, 360, laneHeight)" in document
     assert ('id="plan-overview"' in document) == (title == "Overview")
     assert ('id="callable-graph"' in document) == (title in ("2D graph", "3D graph"))
     assert ("const callableGraphData" in document) == (title in ("2D graph", "3D graph"))
