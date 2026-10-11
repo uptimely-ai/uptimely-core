@@ -4,6 +4,7 @@ from pathlib import Path
 
 from uptimely.analytics import FeatureGraph
 from uptimely.compile import Compiler
+from uptimely.compile.render import PLAN_PAGES
 from uptimely.render import html_environment
 from uptimely.spec import Specification
 from uptimely.spec.render import SPECIFICATION_PAGES, create_website_pages
@@ -61,7 +62,7 @@ class Documentation:
         if target.name in {
             *SPECIFICATION_PAGES.values(),
             "feature_graph.html",
-            "execution_plan.html",
+            *PLAN_PAGES.values(),
         }:
             raise ValueError("The website index path must not overwrite a report page.")
         plan = Compiler(self.spec).compile()

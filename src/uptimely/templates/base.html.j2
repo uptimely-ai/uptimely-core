@@ -55,6 +55,15 @@
       <a href="{{ section_href }}"{% if active_page == "spec" and active_section == section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ section_icon }}" aria-hidden="true"></i><span>{{ section_label }}</span></a>
       {% endfor %}
     </div>
+    {% elif page == "plan" %}
+    <div class="site-subnav" role="group" aria-label="Execution plan sections">
+      {% for section, section_href, section_label, section_icon in [
+        ("overview", "execution_plan.html", "Overview", "layout-dashboard"),
+        ("stages", "execution_plan_stages.html", "Stages", "layers-3")
+      ] %}
+      <a href="{{ section_href }}"{% if active_page == "plan" and active_section == section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ section_icon }}" aria-hidden="true"></i><span>{{ section_label }}</span></a>
+      {% endfor %}
+    </div>
     {% endif %}
     {% endfor %}
   </nav>

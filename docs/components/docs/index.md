@@ -9,7 +9,7 @@ connected views:
 | --- | --- |
 | Specification | Separate Overview, Features, Dimensions, and Functions pages, linked beneath Specification in the sidebar. |
 | Feature graph | Explore logical dependencies between features and the functions that produce them. |
-| Execution plan | Inspect callable dependencies, arguments, and parallel execution stages. |
+| Execution plan | Separate Overview and Stages pages for the callable graph, plan summary, and detailed parallel operations. |
 
 The documentation is about
 analytics project, not the Uptimely package itself.
@@ -34,12 +34,17 @@ _generated/docs/
 ├── spec_dimensions.html
 ├── spec_functions.html
 ├── feature_graph.html
-└── execution_plan.html
+├── execution_plan.html
+└── execution_plan_stages.html
 ```
 
 Start at `index.html`. `spec.html` contains the specification overview; the other
 specification pages contain only their respective sections. The Specification
 sidebar group provides subnavigation and highlights the current section.
+Execution plan has its own Overview and Stages subnavigation. Its overview
+contains summary counts and the interactive callable graph; Stages lists the
+dependency-ordered operations with their arguments and return types.
+Standalone execution-plan exports keep both sections in one HTML document.
 Each report is a complete HTML page, with relative links to
 the other reports. The directory can be moved or hosted beneath a URL prefix
 without rebuilding its page navigation.
