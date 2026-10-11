@@ -73,6 +73,7 @@ def test_website_exports_all_reports_with_relative_navigation(tmp_path: Path, mo
         assert parser.active_links == ([] if filename == "index.html" else [filename])
         assert "<iframe" not in document
     assert "Pump telemetry" in (index.parent / "spec_features.html").read_text(encoding="utf-8")
+    assert "Pump analytics" in (index.parent / "spec.html").read_text(encoding="utf-8")
     graph_2d = (index.parent / "feature_graph_2d.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_2d
     assert "force-graph@1.52.0/dist/force-graph.min.js" in graph_2d

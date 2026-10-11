@@ -1,4 +1,5 @@
 {
+  "name": "Pump analytics",
   "version": "0.1.0",
   "dimensions": {
     "plant": {

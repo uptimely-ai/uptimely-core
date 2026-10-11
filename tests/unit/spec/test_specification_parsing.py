@@ -26,6 +26,17 @@ def test_specification_rejects_unknown_fields(tmp_path: Path) -> None:
         Specification.from_json(_write_configuration(tmp_path, configuration, "unknown.json"))
 
 
+def test_specification_accepts_top_level_name(tmp_path: Path) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration["name"] = "Pump analytics"
+
+    specification = Specification.from_json(
+        _write_configuration(tmp_path, configuration, "named.json")
+    )
+
+    assert specification.name == "Pump analytics"
+
+
 def test_specification_discards_legacy_slice_ordering(tmp_path: Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]

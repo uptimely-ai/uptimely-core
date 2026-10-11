@@ -15,6 +15,7 @@ def main() -> None:
     specification = Specification.from_python(
         entities=entities,
         dimensions=dimensions,
+        name="Pump analytics",
     )
     output_path = specification.to_json(OUTPUT_PATH)
     html_path = specification.create_html(OUTPUT_PATH.with_suffix(".html"))
