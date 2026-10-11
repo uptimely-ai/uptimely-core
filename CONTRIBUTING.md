@@ -169,7 +169,11 @@ announced at least one minor release in advance.
 ### Preparing and publishing a release
 
 Releases are prepared in a short-lived PR to `main`, not on a long-lived
-`release/*` branch. Keep the release PR focused on release metadata:
+`release/*` branch.
+
+#### Stable releases
+
+Keep the stable release PR focused on release metadata:
 
 1. Choose the next version according to the versioning policy above.
 2. Update `version` under `[project]` in [`pyproject.toml`](pyproject.toml).
@@ -187,7 +191,7 @@ tree and run the release-tag helper from the repository root:
 ```sh
 git switch main
 git pull --ff-only
-./scripts/tag-release.sh
+./scripts/tag-stable-release.sh
 ```
 
 The script reads the version from Poetry, checks that it is a stable
@@ -197,18 +201,34 @@ it creates and pushes an annotated `v<version>` tag (for example, `v0.2.0`).
 A Git tag names the exact commit it points to; create the release tag on the
 merged release commit, where the package version matches the tag.
 
+After a successful stable release, open a small follow-up PR to update
+`pyproject.toml` to the next development version (for example,
+`0.1.0` → `0.2.0.dev0`) so installs from the Git source are not mistaken for a
+published release. Keep a fresh `Unreleased` section in the changelog.
+
+#### Development releases
+
+For a development release, set the package version to a PEP 440 development
+version such as `0.1.0.dev0` in a PR to `main`, then merge it after review and
+CI pass. From the clean, up-to-date `main`, run:
+
+```sh
+./scripts/tag-dev-release.sh
+```
+
+The helper accepts only `X.Y.Z.devN` versions and creates the matching
+`v<version>` tag after confirmation. Increment `N` for each subsequent
+development upload; PyPI does not allow replacing an already-published version.
+Keep changelog entries under `Unreleased`; do not create a version heading for
+the development version.
+
+#### PyPI publishing
+
 Pushing a `v*` tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml).
 That workflow verifies the tag matches the version in `pyproject.toml`, builds
 the package, checks the distributions with Twine, and publishes them to PyPI
 using trusted publishing. The GitHub `release` environment and matching PyPI
 trusted publisher must be configured for publication to succeed.
-
-After a successful release, open a small follow-up PR to update
-`pyproject.toml` to the next development version (for example,
-`0.1.0` → `0.2.0.dev0`) so installs from the Git source are not mistaken for a
-published release. This step is not automated. Keep a fresh `Unreleased`
-section in the changelog; do not create a version heading for the development
-version.
 
 ## Commit and PR conventions
 
