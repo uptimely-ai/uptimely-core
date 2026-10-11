@@ -180,6 +180,11 @@ HTML report for inspecting operation order and dependencies:
 plan.export_html("_generated/compile/execution_plan.html")
 ```
 
+The standalone report includes the summary, 3D callable graph, and stages.
+`uptimely docs generate` separates these into Overview, 2D graph, 3D graph,
+and Stages pages. Both graph views use compiled callable operations and their
+dependency edges; feature lineage is shown separately under Feature graph.
+
 The [Engine documentation](../engine/index.md) describes how the built-in engine
 executes the loaded plan and accumulates runtime dataframes. The plan itself
 remains independent of that engine's dataframe implementation and orchestration

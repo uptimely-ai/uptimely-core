@@ -20,6 +20,8 @@ REPORTS = {
     "feature_graph_2d.html": "graph",
     "feature_graph_3d.html": "graph",
     "execution_plan.html": "plan",
+    "execution_plan_graph_2d.html": "plan",
+    "execution_plan_graph_3d.html": "plan",
     "execution_plan_stages.html": "stages",
 }
 
@@ -83,8 +85,8 @@ def test_website_exports_all_reports_with_relative_navigation(tmp_path: Path, mo
         assert 'href="feature_graph_3d.html"' in graph_page
     assert 'aria-current="page"><span>2D graph</span>' in graph_2d
     assert 'aria-current="page"><span>3D graph</span>' in graph_3d
-    plan = (index.parent / "execution_plan.html").read_text(encoding="utf-8")
-    assert "Callable graph" in plan
+    plan = (index.parent / "execution_plan_graph_3d.html").read_text(encoding="utf-8")
+    assert 'id="callable-graph"' in plan
     assert "normalize_health_signal" in plan
     assert not Path("_generated/spec").exists()
     assert not Path("_generated/compile").exists()
@@ -138,7 +140,12 @@ def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: Path) -
 
 @pytest.mark.parametrize(
     ("filename", "title"),
-    [("execution_plan.html", "Overview"), ("execution_plan_stages.html", "Stages")],
+    [
+        ("execution_plan.html", "Overview"),
+        ("execution_plan_graph_2d.html", "2D graph"),
+        ("execution_plan_graph_3d.html", "3D graph"),
+        ("execution_plan_stages.html", "Stages"),
+    ],
 )
 def test_execution_plan_pages_render_only_their_section(
     tmp_path: Path, filename: str, title: str
@@ -148,13 +155,19 @@ def test_execution_plan_pages_render_only_their_section(
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert 'aria-label="Execution plan sections"' in document
-    assert re.findall(r'<h1 class="[^"]+">([^<]+)</h1>', document) == [title]
+    is_graph = title in ("2D graph", "3D graph")
+    assert re.findall(r'<h1 class="[^"]+">([^<]+)</h1>', document) == ([] if is_graph else [title])
+    if is_graph:
+        assert 'class="absolute inset-0"' in document
+        assert "<header" not in document
+        assert ">Callable graph</h2>" not in document
     assert ('id="plan-overview"' in document) == (title == "Overview")
-    assert ('id="callable-graph"' in document) == (title == "Overview")
-    assert ("const callableGraphData" in document) == (title == "Overview")
+    assert ('id="callable-graph"' in document) == (title in ("2D graph", "3D graph"))
+    assert ("const callableGraphData" in document) == (title in ("2D graph", "3D graph"))
     assert ('id="operations"' in document) == (title == "Stages")
     assert (">Argument</th>" in document) == (title == "Stages")
-    assert ("3d-force-graph.min.js" in document) == (title == "Overview")
+    assert ("3d-force-graph.min.js" in document) == (title == "3D graph")
+    assert ("force-graph@1.52.0" in document) == (title == "2D graph")
 
 
 def test_website_without_timestamp_is_deterministic(tmp_path: Path) -> None:
@@ -219,7 +232,8 @@ def test_website_propagates_compilation_errors_without_writing_reports(tmp_path:
     [
         ("feature_graph_2d.html", "data"),
         ("feature_graph_3d.html", "data"),
-        ("execution_plan.html", "callableGraphData"),
+        ("execution_plan_graph_2d.html", "callableGraphData"),
+        ("execution_plan_graph_3d.html", "callableGraphData"),
     ],
 )
 def test_website_graph_links_reference_exported_nodes(
@@ -239,6 +253,29 @@ def test_website_graph_links_reference_exported_nodes(
     for link in payload["links"]:
         assert link["source"] in identifiers
         assert link["target"] in identifiers
+
+
+def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: Path) -> None:
+    specification = Specification.from_json(SPEC_PATH)
+    plan = Compiler(specification).compile()
+    Documentation(specification).create_html(tmp_path / "index.html")
+    payloads = []
+    for dimension in ("2d", "3d"):
+        document = (tmp_path / f"execution_plan_graph_{dimension}.html").read_text(encoding="utf-8")
+        match = re.search(r"const callableGraphData = (.+);", document)
+        assert match is not None
+        payloads.append(json.loads(match.group(1)))
+
+    assert payloads[0] == payloads[1]
+    assert {node["id"] for node in payloads[0]["nodes"]} == {
+        operation.id for operation in plan.operations
+    }
+    assert all(node["node_type"] == "callable" for node in payloads[0]["nodes"])
+    assert {(link["source"], link["target"]) for link in payloads[0]["links"]} == {
+        (dependency_id, operation.id)
+        for operation in plan.operations
+        for dependency_id in operation.dependency_ids
+    }
 
 
 def test_website_does_not_execute_analytics(tmp_path: Path, monkeypatch) -> None:

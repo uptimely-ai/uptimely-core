@@ -21,6 +21,8 @@ PAGES = {
     "feature_graph_2d.html",
     "feature_graph_3d.html",
     "execution_plan.html",
+    "execution_plan_graph_2d.html",
+    "execution_plan_graph_3d.html",
     "execution_plan_stages.html",
 }
 

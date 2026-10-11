@@ -266,10 +266,10 @@ class ExecutionPlan:
 
         Args:
             path: Output file; defaults to ``_generated/compile/execution_plan.html``.
-            include_navigation: Generate linked Overview and Stages pages.
-                The overview uses ``path``; stages are written alongside it as
-                ``execution_plan_stages.html``. Without navigation, both sections
-                remain in a single standalone report.
+            include_navigation: Generate linked Overview, 2D graph, 3D graph,
+                and Stages pages. The overview uses ``path``; callable graph and
+                stage pages are written alongside it. Without navigation, the
+                summary, 3D callable graph, and stages remain in a single report.
 
         Returns:
             The path to the rendered report.

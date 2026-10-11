@@ -1,10 +1,12 @@
 {% extends "base.html.j2" %}
-{% block title %}Execution plan{% if include_navigation %} {{ active_section }}{% endif %}{% endblock %}
+{% block title %}Execution plan{% if include_navigation %} {{ section_title }}{% endif %}{% endblock %}
 {% block head %}
-  {% if not include_navigation or active_section == "overview" %}
+  {% if not include_navigation or active_section == "graph_3d" %}
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
   <script src="https://unpkg.com/3d-force-graph@1.77.0/dist/3d-force-graph.min.js"></script>
   <script src="https://unpkg.com/three-spritetext@1.10.0/dist/three-spritetext.min.js"></script>
+  {% elif active_section == "graph_2d" %}
+  <script src="https://unpkg.com/force-graph@1.52.0/dist/force-graph.min.js"></script>
   {% endif %}
 {% endblock %}
 {% block content %}
@@ -17,8 +19,8 @@
     <main>
       <header class="mb-8 border-b border-slate-800/80 pb-6">
         <p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Execution plan</p>
-        <h1 class="font-display text-3xl font-semibold tracking-tight text-white">{% if include_navigation %}{{ active_section|title }}{% else %}Execution plan{% endif %}</h1>
-        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-400">{% if active_section == "stages" %}Inspect dependency-ordered stages, parallel operations, and their argument bindings.{% else %}Execution plan compiled from <span class="break-all text-cyan-200">{{ spec_path }}</span>, ordered by dependency resolution.{% endif %}</p>
+        <h1 class="font-display text-3xl font-semibold tracking-tight text-white">{% if include_navigation %}{{ section_title }}{% else %}Execution plan{% endif %}</h1>
+        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-400">{% if active_section == "stages" %}Inspect dependency-ordered stages, parallel operations, and their argument bindings.{% elif active_section in ("graph_2d", "graph_3d") %}Explore compiled callable operations and the dependencies that determine their execution order.{% else %}Execution plan compiled from <span class="break-all text-cyan-200">{{ spec_path }}</span>, ordered by dependency resolution.{% endif %}</p>
       </header>
       {% block plan_overview %}
       <section id="plan-overview" class="mb-16">
@@ -28,6 +30,8 @@
           {% endfor %}
         </div>
       </section>
+      {% endblock %}
+      {% block plan_graph %}
       {% include "plan/callable_graph.html.j2" %}
       {% endblock %}
       {% block plan_stages %}
