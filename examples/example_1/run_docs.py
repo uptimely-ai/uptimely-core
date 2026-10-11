@@ -11,11 +11,11 @@ def main() -> None:
         include_generated_at=False,
     )
     html_path = documentation.create_html(
-        output_path=GENERATED_DIR / "docs" / "docs.html",
+        output_path=GENERATED_DIR / "docs" / "index.html",
         include_generated_at=False,
     )
     print(f"Documentation data written to {json_path}")
-    print(f"HTML documentation written to {html_path}")
+    print(f"Documentation website written to {html_path}")
 
 
 if __name__ == "__main__":

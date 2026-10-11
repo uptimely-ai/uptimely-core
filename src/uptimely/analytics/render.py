@@ -7,7 +7,8 @@ from datetime import datetime
 from pathlib import Path
 
 from graphable.views import CytoscapeStylingConfig, create_topology_cytoscape
-from jinja2 import Environment, PackageLoader, select_autoescape
+
+from uptimely.render import html_environment
 
 if typing.TYPE_CHECKING:
     from .feature_graph import GraphBase
@@ -50,19 +51,35 @@ def render_graph_html(
     nodes: list[dict[str, typing.Any]],
     links: list[dict[str, str]],
     style: GraphStyle | None = None,
+    *,
+    include_navigation: bool = False,
 ) -> str:
-    """Render the dependency graph as an interactive 3D HTML."""
+    """Render the dependency graph as interactive 3D HTML.
+
+    Args:
+        nodes: Graph nodes with stable identifiers and display metadata.
+        links: Directed connections between node identifiers.
+        style: Optional graph appearance settings.
+        include_navigation: Link to sibling documentation website pages.
+
+    Returns:
+        The complete HTML document.
+    """
     style = style or GraphStyle()
-    environment = Environment(
-        loader=PackageLoader("uptimely", "analytics/templates"),
-        autoescape=select_autoescape(["html"]),
-    )
-    graph_data = json.dumps({"nodes": nodes, "links": links}).replace("</script>", r"<\/script>")
+    environment = html_environment("analytics/templates")
+    graph_data = json.dumps(
+        {
+            "nodes": sorted(nodes, key=lambda node: node["id"]),
+            "links": sorted(links, key=lambda link: (link["source"], link["target"])),
+        }
+    ).replace("</script>", r"<\/script>")
     template = environment.get_template("graph.html.j2")
     return template.render(
         style=style,
         graph_data=graph_data,
         generated_at=datetime.now().astimezone().isoformat(timespec="seconds"),
+        include_navigation=include_navigation,
+        active_page="graph",
     )
 
 
@@ -95,9 +112,23 @@ def graph_payload_from_cytoscape(
 
 
 def export_graph_html(
-    graph: "GraphBase", output_path: str | Path, style: GraphStyle | None = None
+    graph: "GraphBase",
+    output_path: str | Path,
+    style: GraphStyle | None = None,
+    *,
+    include_navigation: bool = False,
 ) -> Path:
-    """Export a feature dependency graph as an interactive 3D HTML document."""
+    """Export a feature dependency graph as an interactive 3D HTML document.
+
+    Args:
+        graph: The feature dependency graph to export.
+        output_path: Destination for the HTML document.
+        style: Optional graph appearance settings.
+        include_navigation: Link to sibling documentation website pages.
+
+    Returns:
+        The path to the rendered graph.
+    """
     target = Path(output_path)
     if target.suffix.lower() != ".html":
         target = target.with_suffix(".html")
@@ -105,6 +136,6 @@ def export_graph_html(
 
     nodes, links = graph_payload_from_cytoscape(graph)
 
-    document = render_graph_html(nodes, links, style)
+    document = render_graph_html(nodes, links, style, include_navigation=include_navigation)
     target.write_text(document, encoding="utf-8")
     return target

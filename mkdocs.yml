@@ -53,10 +53,8 @@ nav:
   - Components:
       - Compiler: components/compiler/index.md
       - Engine: components/engine/index.md
+      - Analytics documentation: components/docs/index.md
       - AI agents: components/ai/index.md
-  - Generated materials:
-      - Automatic documentation: content/automatic-documentation.md
-      - Feature dependency graph: content/feature-graph.md
   - Development:
       - Project structure: development/project-structure.md
       - Organizing analytics: development/organize.md

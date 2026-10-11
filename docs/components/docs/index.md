@@ -1,0 +1,221 @@
+# Analytics documentation
+
+Uptimely generates documentation from an
+[Open Analytics Specification](../../specification/index.md). Feature definitions,
+function bindings, and declared dependencies become a static website with three
+connected views:
+
+| Page | Purpose |
+| --- | --- |
+| Specification | Browse entities, datasets, features, dimensions, and function definitions. |
+| Feature graph | Explore logical dependencies between features and the functions that produce them. |
+| Execution plan | Inspect callable dependencies, arguments, and parallel execution stages. |
+
+The pages share navigation and describe the same specification. They document an
+analytics project, not the Uptimely package itself.
+
+![Specification reference overview](../../assets/img/open-analytics-specification-overview.png)
+
+## Generate the website
+
+### Command line
+
+```sh
+uptimely docs generate --spec _generated/spec/spec.json
+```
+
+The command exports this directory:
+
+```text
+_generated/docs/
+├── index.html
+├── spec.html
+├── feature_graph.html
+└── execution_plan.html
+```
+
+Start at `index.html`. Each report is a complete HTML page, with relative links to
+the other reports. The directory can be moved or hosted beneath a URL prefix
+without rebuilding its page navigation.
+
+The generation options are:
+
+| Option | Behavior |
+| --- | --- |
+| `--spec` | Required path to a JSON specification. |
+| `--output` | Website directory; defaults to `_generated/docs`. |
+| `--project-root` | Directory added to Python's import path; defaults to the working directory. |
+| `--include-generated-at` | Show a build timestamp on the specification page. |
+
+For a project outside the working directory:
+
+```sh
+uptimely docs generate \
+  --spec analytics/_generated/spec/spec.json \
+  --project-root analytics \
+  --output public/analytics
+```
+
+Specification and output paths are relative to the working directory, not to
+`--project-root`. The import root lets Uptimely inspect the declared function
+entrypoints when compiling the execution plan.
+
+Generation imports function modules and inspects signatures, but does not invoke
+analytical functions or run the engine. Use trusted specifications and
+implementations, with their dependencies installed. Invalid specifications,
+compilation failures, and export errors produce an error message and a nonzero
+exit status.
+
+### Python API
+
+```python
+from uptimely.docs.docs import Documentation
+from uptimely.spec import Specification
+
+specification = Specification.from_json("_generated/spec/spec.json")
+documentation = Documentation(specification)
+index_path = documentation.create_html()
+```
+
+The generator also accepts an in-memory `Specification`; no source JSON path is
+required. Function entrypoints must still be importable.
+
+Unlike the CLI's `--output` directory, the Python API's `output_path` is an
+**index-file path**:
+
+```python
+index_path = documentation.create_html(
+    output_path="public/analytics/index.html",
+)
+```
+
+All three reports are written beside the index. The index filename cannot be
+`spec.html`, `feature_graph.html`, or `execution_plan.html`, because those names
+are reserved for the reports.
+
+Timestamps are disabled by default for reproducible exports. Pass
+`include_generated_at=True` to display one on the specification page.
+
+## Preview and publish
+
+```sh
+uptimely docs serve
+```
+
+This serves an existing `_generated/docs/` website at
+<http://127.0.0.1:8001/>. Port **8001** is separate from the project documentation's
+MkDocs preview on port **8000**.
+
+| Option | Behavior |
+| --- | --- |
+| `--directory` | Website directory; defaults to `_generated/docs`. Must contain `index.html`. |
+| `--host` | Bind address; defaults to `127.0.0.1`, restricting access to the local machine. |
+| `--port` | TCP port; defaults to `8001`. Use `0` to select an available port. |
+
+The server prints its address at startup. Stop it with **Ctrl+C**. It serves
+existing files; it does not generate, watch, or rebuild the website.
+
+For the end-to-end example, run from the repository root:
+
+```sh
+poetry run uptimely docs generate \
+  --spec examples/example_1/_generated/spec/spec.json \
+  --output examples/example_1/_generated/docs
+poetry run uptimely docs serve --directory examples/example_1/_generated/docs
+```
+
+Visit <http://localhost:8001/>.
+
+The preview server has no authentication or TLS and is not intended for
+production hosting. Binding to `0.0.0.0` exposes files on all IPv4 interfaces.
+Serve only a directory intended for publication, without sensitive files or
+symlinks to private content.
+
+For deployment, publish the generated directory through a static web host. No
+Python application server is needed. Use authenticated hosting for private
+specifications. The pages currently load styling, fonts, icons, and graph
+libraries from external services; full styling and visualization require network
+access.
+
+## Understand the feature graph
+
+### Logical dependencies versus physical data flow
+
+A warehouse schema, ETL diagram, or execution trace describes where data is
+stored or processed. It does not necessarily explain what a feature means or
+which other features it depends on.
+
+For example, a table containing values for `A` and `B` does not reveal that a
+calculation produces `B` from `A`, what their types are, or which downstream
+features consume `B`. Reading `calculate_b(a)` in Python also leaves questions
+about its inputs, outputs, and surrounding workflow.
+
+The specification declares those relationships explicitly. Uptimely visualizes
+them without trying to infer arbitrary Python behavior from source code. The
+graph reflects the declared model, not dependencies or side effects that
+functions leave undeclared.
+
+The current interactive 3D graph uses:
+
+- **Blue spheres** for features, including source-provided and calculated features.
+- **Octahedra colored by operation type** for functions.
+- **Directed arrows** for dependency connections.
+
+The legend identifies read, vectorize, collapse, conform, expand, and write
+functions. Select a node to inspect its feature or function metadata.
+
+The feature graph explains logical lineage; the
+[execution plan](../compiler/index.md) separately shows callable dependencies and
+execution stages.
+
+### Focus on a feature
+
+The Python graph API can export the upstream dependency subset needed for a
+selected feature:
+
+```python
+from uptimely.analytics import FeatureGraph
+
+graph = FeatureGraph(specification)
+subset = graph.subset(["health_signal_normalized"])
+subset.export_html("_generated/graph/health_signal.html")
+```
+
+This is useful for debugging, reviewing a calculation, or sharing a smaller
+lineage view. Website generation exports the full feature graph; subset reports
+are created separately through the Python API.
+
+## Standalone reports and reference data
+
+The individual HTML exporters remain available without website navigation:
+
+```python
+from uptimely.analytics import FeatureGraph
+from uptimely.compile import Compiler
+
+specification.create_html()  # _generated/spec/spec.html
+FeatureGraph(specification).export_html("_generated/graph/feature_graph.html")
+Compiler(specification).compile().export_html()  # _generated/compile/execution_plan.html
+```
+
+Each exporter accepts an explicit output-file path.
+`Specification.create_html` is the standalone specification reference exporter
+previously provided by `Documentation.create_html`. The latter now exports the
+complete website and returns its index path.
+
+Reference JSON is a separate export:
+
+```python
+data_path = documentation.create_json()  # _generated/docs/docs.json
+```
+
+It contains the specification configuration, summary counts, feature
+dependencies, and optional generation timestamp. Neither `Documentation.create_html`
+nor `uptimely docs generate` automatically writes this JSON. The example's
+`run_docs.py` calls both exports.
+
+![Specification feature reference](../../assets/img/open-analytics-specification-features.png)
+
+See the [Python API reference](../../reference/api.md#analytics-documentation) for
+the documentation interface and the
+[feature graph API](../../reference/api.md#dependency-graphs) for graph operations.

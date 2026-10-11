@@ -77,9 +77,26 @@ class GraphBase:
     def print(self) -> None:
         self.print_graph()
 
-    def export_html(self, output_path: str | Path, style: GraphStyle | None = None) -> Path:
-        """Export the graph as an interactive 3D HTML document."""
-        return render.export_graph_html(self, output_path, style)
+    def export_html(
+        self,
+        output_path: str | Path,
+        style: GraphStyle | None = None,
+        *,
+        include_navigation: bool = False,
+    ) -> Path:
+        """Export the graph as an interactive 3D HTML document.
+
+        Args:
+            output_path: Where to write the graph document.
+            style: Optional graph appearance settings.
+            include_navigation: Link to sibling documentation website pages.
+
+        Returns:
+            The path to the rendered graph.
+        """
+        return render.export_graph_html(
+            self, output_path, style, include_navigation=include_navigation
+        )
 
     def _node_type(self, reference: NodeMeta) -> str:
         """Return the single presentation type used by the feature graph."""

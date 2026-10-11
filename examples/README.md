@@ -90,6 +90,7 @@ The individual workflows can also be run directly:
 
 ```sh
 poetry run python -m examples.example_1.run_execution_plan
+poetry run python -m examples.example_1.run_export_spec
 poetry run python -m examples.example_1.run_docs
 poetry run python -m examples.example_1.run_feature_graph
 poetry run python -m examples.example_1.run_engine
@@ -104,15 +105,35 @@ Generated artifacts are written beneath each example's `_generated/` directory:
 | --- | --- |
 | [`example_1/_generated/compile/execution_plan.json`](example_1/_generated/compile/execution_plan.json) | `run_execution_plan.py` |
 | [`example_1/_generated/compile/execution_plan.html`](example_1/_generated/compile/execution_plan.html) | `run_execution_plan.py` |
+| [`example_1/_generated/spec/spec.json`](example_1/_generated/spec/spec.json) | `run_export_spec.py` |
+| [`example_1/_generated/spec/spec.html`](example_1/_generated/spec/spec.html) | `run_export_spec.py` |
 | [`example_1/_generated/docs/docs.json`](example_1/_generated/docs/docs.json) | `run_docs.py` |
-| [`example_1/_generated/docs/docs.html`](example_1/_generated/docs/docs.html) | `run_docs.py` |
+| [`example_1/_generated/docs/index.html`](example_1/_generated/docs/index.html) | `run_docs.py` |
+| [`example_1/_generated/docs/spec.html`](example_1/_generated/docs/spec.html) | `run_docs.py` |
+| [`example_1/_generated/docs/feature_graph.html`](example_1/_generated/docs/feature_graph.html) | `run_docs.py` |
+| [`example_1/_generated/docs/execution_plan.html`](example_1/_generated/docs/execution_plan.html) | `run_docs.py` |
 | [`example_1/_generated/graph/feature_graph.html`](example_1/_generated/graph/feature_graph.html) | `run_feature_graph.py` |
 | [`example_2/_generated/spec.json`](example_2/_generated/spec.json) | `run_export_spec.py` |
 
 The scripts are intended to run from the repository root. Python 3.13 or newer is required. See each example's README for its specification model and workflow details.
 
 Documentation can also be generated from an in-memory `Specification`; it does
-not need a source path. Use `Documentation.create_json` and
-`Documentation.create_html` for the required output formats. Pass explicit
-output paths for deterministic builds and leave `include_generated_at`
-disabled (the default).
+not need a source path. `Documentation.create_html` builds a linked static website
+containing the specification, feature graph, and execution plan. The returned path
+is the index file; all report pages are written alongside it.
+
+Use `Specification.create_html` for just the standalone specification reference,
+or `Documentation.create_json` for reference data. The plan and feature graph
+exporters also remain available independently. Leave `include_generated_at`
+disabled (the default) for reproducible builds.
+
+Preview the generated website locally:
+
+```sh
+poetry run uptimely docs generate --spec examples/example_1/_generated/spec/spec.json --output examples/example_1/_generated/docs
+poetry run uptimely docs serve --directory examples/example_1/_generated/docs
+```
+
+Open `http://localhost:8001/`. Styling and graph libraries currently require
+network access. The CLI generates the HTML website; the example's `run_docs.py`
+also exports reference JSON.

@@ -98,7 +98,7 @@ def test_html_docs_overview_counts_match_specification(tmp_path: Path) -> None:
     specification = Specification.from_json(SPEC_PATH)
     expected_counts = _documentation_counts(specification)
 
-    output_path = Documentation(specification).create_html(tmp_path / "docs.html")
+    output_path = specification.create_html(tmp_path / "spec.html")
     parser = TextCollector()
     parser.feed(output_path.read_text(encoding="utf-8"))
 

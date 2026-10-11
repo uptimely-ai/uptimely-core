@@ -4,7 +4,10 @@ import argparse
 import re
 import shutil
 import stat
+import sys
+from functools import partial
 from http.client import HTTPException
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from importlib.metadata import PackageNotFoundError, metadata
 from pathlib import Path
 from tempfile import TemporaryDirectory, TemporaryFile
@@ -111,6 +114,83 @@ def download_examples(output: Path, ref: str = "HEAD") -> Path:
     return output
 
 
+def generate_docs(
+    spec: Path,
+    output: Path,
+    project_root: Path,
+    include_generated_at: bool = False,
+) -> Path:
+    """Generate the static analytics documentation website.
+
+    Args:
+        spec: Path to the JSON specification.
+        output: Directory for the website index and report pages.
+        project_root: Directory added to the import path for function entrypoints.
+        include_generated_at: Include a timestamp on the specification page.
+
+    Returns:
+        The path to the website index.
+    """
+    from uptimely.docs.docs import Documentation
+    from uptimely.spec import Specification
+
+    root = str(project_root.resolve())
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    specification = Specification.from_json(spec)
+    return Documentation(specification).create_html(
+        output / "index.html", include_generated_at=include_generated_at
+    )
+
+
+def serve_docs(directory: Path, host: str = "127.0.0.1", port: int = 8001) -> None:
+    """Serve an existing documentation website for local preview.
+
+    Args:
+        directory: Website directory containing an index.html file.
+        host: Address to bind; defaults to localhost.
+        port: TCP port; defaults to 8001. Zero selects an available port.
+
+    Raises:
+        NotADirectoryError: The website directory does not exist or is not a directory.
+        FileNotFoundError: The website index is missing.
+        ValueError: The port is outside the valid TCP range.
+        OSError: The server cannot bind to the requested address.
+    """
+    directory = directory.resolve()
+    if not directory.is_dir():
+        raise NotADirectoryError(f"Website directory does not exist: {directory}")
+    if not (directory / "index.html").is_file():
+        raise FileNotFoundError(
+            f"Website index not found: {directory / 'index.html'}. "
+            "Run 'uptimely docs generate' first."
+        )
+    if not 0 <= port <= 65535:
+        raise ValueError("Port must be between 0 and 65535.")
+    handler = partial(SimpleHTTPRequestHandler, directory=str(directory))
+    with ThreadingHTTPServer((host, port), handler) as server:
+        print(
+            f"Serving documentation from {directory} at "
+            f"http://{host}:{server.server_port}/ (Ctrl+C to stop)",
+            flush=True,
+        )
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("\nDocumentation server stopped.")
+
+
+def _port(value: str) -> int:
+    """Parse a valid TCP port for the CLI."""
+    try:
+        port = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("Port must be an integer.") from error
+    if not 0 <= port <= 65535:
+        raise argparse.ArgumentTypeError("Port must be between 0 and 65535.")
+    return port
+
+
 def main() -> None:
     """Run the Uptimely command-line interface."""
     parser = argparse.ArgumentParser(prog="uptimely")
@@ -129,7 +209,65 @@ def main() -> None:
         default="HEAD",
         help="Branch, tag, or commit (default: the repository's default branch)",
     )
+    docs = commands.add_parser("docs", help="Manage analytics documentation")
+    doc_actions = docs.add_subparsers(dest="action", required=True)
+    generate = doc_actions.add_parser(
+        "generate", help="Generate the specification, feature graph, and execution plan website"
+    )
+    generate.add_argument("--spec", type=Path, required=True, help="JSON specification path")
+    generate.add_argument(
+        "--output",
+        type=Path,
+        default=Path("_generated/docs"),
+        help="Website directory (default: _generated/docs)",
+    )
+    generate.add_argument(
+        "--project-root",
+        type=Path,
+        default=Path.cwd(),
+        help="Root for importing function entrypoints (default: working directory)",
+    )
+    generate.add_argument(
+        "--include-generated-at",
+        action="store_true",
+        help="Include a build timestamp on the specification page",
+    )
+    serve = doc_actions.add_parser("serve", help="Serve the generated website for local preview")
+    serve.add_argument(
+        "--directory",
+        type=Path,
+        default=Path("_generated/docs"),
+        help="Website directory (default: _generated/docs)",
+    )
+    serve.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
+    serve.add_argument(
+        "--port", type=_port, default=8001, help="TCP port (default: 8001; 0 selects a free port)"
+    )
     args = parser.parse_args()
+    if args.command == "docs" and args.action == "serve":
+        try:
+            serve_docs(args.directory, args.host, args.port)
+        except (OSError, ValueError) as error:
+            parser.exit(1, f"uptimely: error: {error}\n")
+        return
+    if args.command == "docs":
+        from jinja2 import TemplateError
+
+        try:
+            index = generate_docs(
+                args.spec, args.output, args.project_root, args.include_generated_at
+            )
+        except (
+            OSError,
+            ValueError,
+            ImportError,
+            AttributeError,
+            TypeError,
+            TemplateError,
+        ) as error:
+            parser.exit(1, f"uptimely: error: {error}\n")
+        print(f"Documentation website generated at {index}")
+        return
     try:
         destination = download_examples(args.output, args.ref)
     except (
