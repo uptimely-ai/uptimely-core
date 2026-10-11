@@ -4,6 +4,7 @@ import json
 import os
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 from uptimely.analytics.render import GraphStyle
 from uptimely.plan import Operation
@@ -47,6 +48,56 @@ def _callable_label_lines(operation: Operation) -> list[str]:
     return lines
 
 
+def _render_step(position: int, operation: Operation, plan: ExecutionPlan) -> dict[str, Any]:
+    """Build the display model used by the execution-plan HTML templates."""
+
+    def display_value(value: object) -> object:
+        if isinstance(value, dict):
+            if "type" in value and "value" in value:
+                return display_value(value["value"])
+            return {name: display_value(item) for name, item in value.items()}
+        if isinstance(value, list):
+            return [display_value(item) for item in value]
+        return value
+
+    return {
+        "position": position,
+        "function": operation.function_id,
+        "operation_type": operation.kind,
+        "callable_type": operation.kind,
+        "title": operation.function_id.replace("_", " ").capitalize(),
+        "entrypoint": operation.entrypoint,
+        "entity": operation.entity_id,
+        "dataset": operation.dataset_id,
+        "feature": operation.output if operation.kind == "vectorize" else None,
+        "row_context": operation.row_context.to_dict() if operation.row_context else None,
+        "depends_on_callables": [
+            {
+                "function": dependency.split(":")[2]
+                if dependency.startswith("callable:")
+                else dependency
+            }
+            for dependency in operation.dependency_ids
+        ],
+        "args": {
+            name: {
+                "type": {
+                    "binding": value.get("type") if isinstance(value, dict) else None,
+                    "function": None,
+                    "engine": None,
+                },
+                "value": display_value(
+                    value.get("value") if isinstance(value, dict) and "type" in value else value
+                ),
+            }
+            for name, value in operation.arguments.items()
+        },
+        "returns": {
+            "type": {"engine": plan.plan.resources.get("signatures", {}).get(operation.id)}
+        },
+    }
+
+
 def _render_execution_plan(
     plan: ExecutionPlan,
     output_path: str | Path = OUTPUT_PATH,
@@ -63,13 +114,26 @@ def _render_execution_plan(
     Returns:
         The path the report was written to.
     """
-    plan_data = plan.to_dict()
-    steps = plan_data["execution_order"]
-    stages = plan_data["execution_stages"]
     target = Path(output_path)
+    operations_by_stage = plan.execution_stages
+    operations_in_order = [operation for stage in operations_by_stage for operation in stage]
+    position_by_operation = {
+        operation.id: position for position, operation in enumerate(operations_in_order, start=1)
+    }
+    stages = [
+        {
+            "stage": stage_number,
+            "steps": [
+                _render_step(position_by_operation[operation.id], operation, plan)
+                for operation in stage
+            ],
+        }
+        for stage_number, stage in enumerate(operations_by_stage, start=1)
+    ]
+    steps = [step for stage in stages for step in stage["steps"]]
     stage_by_operation = {
         operation.id: stage_number
-        for stage_number, stage in enumerate(plan.execution_stages, start=1)
+        for stage_number, stage in enumerate(operations_by_stage, start=1)
         for operation in stage
     }
     graph_nodes = [
@@ -84,7 +148,7 @@ def _render_execution_plan(
             "function_id": operation.function_id,
             "entity": operation.entity_id,
             "dataset_id": operation.dataset_id,
-            "feature": operation.feature,
+            "feature": operation.output if operation.kind == "vectorize" else None,
             "dependency_ids": sorted(operation.dependency_ids),
         }
         for operation in sorted(plan.operations, key=lambda operation: operation.id)
@@ -124,13 +188,17 @@ def _render_execution_plan(
 
     environment = html_environment()
     context = {
-        "spec_path": plan_data["spec_path"],
-        "spec_version": plan_data["spec_version"],
-        "callable_count": plan_data["callable_count"],
+        "spec_path": None,
+        "spec_version": plan.plan.specification_version,
+        "callable_count": len(plan.operations),
         "function_count": len({step["function"] for step in steps}),
-        "entity_count": len({operation.entity_id for operation in plan.execution_order}),
+        "entity_count": len({operation.entity_id for operation in operations_in_order}),
         "feature_count": len(
-            {operation.feature for operation in plan.operations if operation.feature is not None}
+            {
+                operation.output
+                for operation in plan.operations
+                if operation.kind == "vectorize" and operation.output is not None
+            }
         ),
         "stage_count": len(stages),
         "dependency_count": len(graph_links),

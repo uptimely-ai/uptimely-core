@@ -28,6 +28,13 @@ Initial public release.
 - `uptimely examples download` command to fetch examples from the public GitHub
   repository, with revision and destination options.
 
+### Changed
+
+- Removed legacy portable-plan serialization fields and API aliases, engine
+  runtime-state accessors, and pre-row-scope specification input normalization.
+  Portable plans now serialize and load only their canonical schema; execution
+  results expose runtime outputs.
+
 ## [0.0.1] - 2026-08-16
 
 Placholder release to reserve the package name in PyPI.

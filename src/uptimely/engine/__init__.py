@@ -8,11 +8,10 @@ from .backend import (
     PolarsBackend,
     ResourceResolver,
 )
-from .engine import Calculation, Engine, EngineConfig
+from .engine import Engine, EngineConfig
 from .result import ExecutionResult
 
 __all__ = [
-    "Calculation",
     "Engine",
     "EngineConfig",
     "ExecutionResult",

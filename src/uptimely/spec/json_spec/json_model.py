@@ -381,16 +381,6 @@ class Specification(StrictModel):
                 continue
             for dataset in entity.get("datasets", []) or []:
                 if isinstance(dataset, dict):
-                    if "row_scope" not in dataset:
-                        dataset.pop("ordering", None)
-                        dataset["row_scope"] = {
-                            "grain": dataset.pop("grain", "") or "",
-                            "filtering": dataset.pop("filtering", "") or "",
-                            "coverage": dataset.pop("coverage", "") or "",
-                        }
-                    elif isinstance(dataset["row_scope"], dict):
-                        dataset["row_scope"] = dict(dataset["row_scope"])
-                        dataset["row_scope"].pop("ordering", None)
                     for operation_type in ("read", "conform", "expand", "collapse"):
                         dataset[operation_type] = _with_mapping_ids(
                             dataset.get(operation_type, {}) or {}

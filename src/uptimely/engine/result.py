@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -16,6 +15,3 @@ class ExecutionResult:
     durations: dict[str, float]
     failures: dict[str, str]
     plan_version: str
-    _calculations: dict[tuple[str, str, str], Any] = field(
-        default_factory=dict, repr=False, compare=False
-    )

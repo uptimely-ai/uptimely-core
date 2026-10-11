@@ -49,21 +49,17 @@ def test_specification_defaults_missing_source_to_manual(tmp_path: Path) -> None
     assert specification.source.generated is False
 
 
-def test_specification_discards_legacy_slice_ordering(tmp_path: Path) -> None:
+@pytest.mark.parametrize("location", ["dataset", "row_scope"])
+def test_specification_rejects_legacy_slice_ordering(tmp_path: Path, location: str) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]
-    dataset["row_scope"]["ordering"] = "plant, production_line, pump, timestamp"
+    target = dataset if location == "dataset" else dataset["row_scope"]
+    target["ordering"] = "plant, production_line, pump, timestamp"
 
-    specification = Specification.from_json(
-        _write_configuration(tmp_path, configuration, "legacy-ordering.json")
-    )
-
-    dataset_row_scope = specification.entities["pump_telemetry"].datasets[0].row_scope
-    assert dataset_row_scope.model_dump() == {
-        "grain": "One row per pump and timestamp",
-        "filtering": "Development telemetry selected by the read function",
-        "coverage": "",
-    }
+    with pytest.raises(ValidationError, match="ordering"):
+        Specification.from_json(
+            _write_configuration(tmp_path, configuration, f"legacy-ordering-{location}.json")
+        )
 
 
 def test_specification_rejects_unsupported_version(tmp_path: Path) -> None:

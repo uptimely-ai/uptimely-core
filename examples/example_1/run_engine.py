@@ -14,23 +14,24 @@ def main(verbose: bool | None = None) -> list[str]:
     # To process a subset, pass to compiler:
     # features=["health_signal_normalized"]
     plan = Compiler(specification).compile()
-    engine = Engine(specification, plan, runtime_resources={"storage": storage_resources})
+    engine = Engine(plan, runtime_resources={"storage": storage_resources})
     result = engine.execute()
     if result.failures:
         failures = "; ".join(result.failures.values())
         raise RuntimeError(f"Engine flow failed: {failures}")
     calculated_features = sorted({feature_id for _, _, feature_id in result.calculated_outputs})
     print("Engine ran completed the flow")
-    print(f"{len(engine.callable_order)} callables")
+    print(f"{len(plan.operations)} operations")
     print("Calculated features: " + ", ".join(calculated_features))
     print(f"Specification: {SPEC_PATH}")
 
     if verbose:
-        print("\nCallable execution order")
-        for callable_node in engine.callable_order:
-            print(callable_node.function_id)
+        print("\nOperation execution order")
+        for stage in plan.execution_stages:
+            for operation in stage:
+                print(operation.function_id)
         print("\nDataset registry")
-        for entity_id, entity in engine.specification.entities.items():
+        for entity_id, entity in specification.entities.items():
             for dataset in entity.datasets:
                 print(f"Dataset({entity_id}, {dataset.id}): {len(dataset.features)} features")
 
