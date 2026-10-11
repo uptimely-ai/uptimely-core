@@ -5,7 +5,7 @@ from pathlib import Path
 from uptimely.docs.docs import Documentation
 from uptimely.spec import Specification
 
-SPEC_PATH = Path("examples/example_1/generated/spec/spec.json")
+SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
 FRAGMENT_OPERATIONS = ("read", "conform", "expand", "collapse")
 
 

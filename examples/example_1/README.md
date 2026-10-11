@@ -12,7 +12,7 @@ Calculations consume features only from their own dataset. For example, the bear
 
 ## How the specification is read
 
-The specification is stored as JSON in [`generated/spec/spec.json`](generated/spec/spec.json). Each runner resolves that path from the repository root and reads it with `Specification.from_json(...)`. The compiler, documentation generator, feature graph, and engine then operate on the resulting `Specification` object.
+The specification is stored as JSON in [`_generated/spec/spec.json`](_generated/spec/spec.json). Each runner resolves that path from the repository root and reads it with `Specification.from_json(...)`. The compiler, documentation generator, feature graph, and engine then operate on the resulting `Specification` object.
 
 ## How to run
 
@@ -26,7 +26,7 @@ poetry run python -m examples.example_1.run_feature_graph
 poetry run python -m examples.example_1.run_engine
 ```
 
-Generated plans, HTML reports, graphs, and documentation are written to `generated/`. The engine runner returns the calculated feature IDs directly; the telemetry sink prints selected calculated columns as JSON and does not persist a calculated telemetry file.
+Generated plans, HTML reports, graphs, and documentation are written to `_generated/`. The engine runner returns the calculated feature IDs directly; the telemetry sink prints selected calculated columns as JSON and does not persist a calculated telemetry file.
 
 Run `poetry run python examples/run_all.py` to execute all example workflows in one command. The scripts expect to be launched from the repository root.
 
@@ -38,8 +38,8 @@ The execution plan, feature graph, and engine commands show concise summaries by
 | --- | --- |
 | `run_*.py` | Scripts that demonstrate compilation, documentation, graph, plan, and engine workflows. |
 | `spec` | Python declarations for the datasets. |
-| `generated/spec` | The exported declarative analytics specification in `spec.json`. |
+| `_generated/spec` | The exported declarative analytics specification in `spec.json`. |
 | `data` | JSON datasets used by the example's source functions. |
 | `functions/source.py` | Functions that load source data. |
 | `functions/calculation.py` | Functions that calculate derived features. |
-| `generated` | Files produced by the example runners, grouped by workflow. |
+| `_generated` | Files produced by the example runners, grouped by workflow. |

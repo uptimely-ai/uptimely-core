@@ -15,7 +15,7 @@ from uptimely.compile.entrypoint import read_signature
 from uptimely.spec import Specification
 from uptimely.spec.json_spec.bindings import feature_dependencies
 
-OUTPUT_DIR = Path("generated")
+OUTPUT_DIR = Path("_generated")
 
 
 @dataclass(frozen=True)

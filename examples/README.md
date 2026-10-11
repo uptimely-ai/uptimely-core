@@ -17,14 +17,14 @@ examples/
 ├── example_1/
 │   ├── data/                 Input and calculated example datasets
 │   ├── functions/            Read, vectorize, and write function implementations
-│   ├── generated/            Plans, graphs, documentation, and engine output
+│   ├── _generated/           Plans, graphs, documentation, and engine output
 │   ├── spec/                 Python specification declarations
-│   ├── generated/spec/      Exported declarative analytics specification
+│   ├── _generated/spec/     Exported declarative analytics specification
 │   └── run_*.py              Example workflow entry points
 └── example_2/
 	├── data/                 Data used by the Python example
 	├── functions/            Example function implementations
-	├── generated/            Exported specification output
+	├── _generated/           Exported specification output
 	├── spec/                 Python specification declarations
 	└── run_export_spec.py    Specification export entry point
 ```
@@ -98,16 +98,16 @@ poetry run python -m examples.example_2.run_export_spec
 
 The execution plan, feature graph, and engine runners print a concise summary by default. Add `--verbose` to any of those commands when you need dependency graphs, execution stages, or dataset details.
 
-Generated artifacts are written beneath each example's `generated/` directory:
+Generated artifacts are written beneath each example's `_generated/` directory:
 
 | Output | Command |
 | --- | --- |
-| [`example_1/generated/compile/execution_plan.json`](example_1/generated/compile/execution_plan.json) | `run_execution_plan.py` |
-| [`example_1/generated/compile/execution_plan.html`](example_1/generated/compile/execution_plan.html) | `run_execution_plan.py` |
-| [`example_1/generated/docs/docs.json`](example_1/generated/docs/docs.json) | `run_docs.py` |
-| [`example_1/generated/docs/docs.html`](example_1/generated/docs/docs.html) | `run_docs.py` |
-| [`example_1/generated/graph/feature_graph.html`](example_1/generated/graph/feature_graph.html) | `run_feature_graph.py` |
-| [`example_2/generated/spec.json`](example_2/generated/spec.json) | `run_export_spec.py` |
+| [`example_1/_generated/compile/execution_plan.json`](example_1/_generated/compile/execution_plan.json) | `run_execution_plan.py` |
+| [`example_1/_generated/compile/execution_plan.html`](example_1/_generated/compile/execution_plan.html) | `run_execution_plan.py` |
+| [`example_1/_generated/docs/docs.json`](example_1/_generated/docs/docs.json) | `run_docs.py` |
+| [`example_1/_generated/docs/docs.html`](example_1/_generated/docs/docs.html) | `run_docs.py` |
+| [`example_1/_generated/graph/feature_graph.html`](example_1/_generated/graph/feature_graph.html) | `run_feature_graph.py` |
+| [`example_2/_generated/spec.json`](example_2/_generated/spec.json) | `run_export_spec.py` |
 
 The scripts are intended to run from the repository root. Python 3.13 or newer is required. See each example's README for its specification model and workflow details.
 

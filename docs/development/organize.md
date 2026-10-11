@@ -16,7 +16,7 @@ project/
 │   └── calculation.py
 ├── spec/
 │   └── spec.py
-├── generated/
+├── _generated/
 │   ├── spec/
 │   └── compile/
 ├── run_export_spec.py
@@ -24,8 +24,8 @@ project/
 └── run_engine.py
 ```
 
-Python declarations in `spec/` are exported to `generated/spec/spec.json`.
-The compiler produces `generated/compile/execution_plan.json`, and the engine
+Python declarations in `spec/` are exported to `_generated/spec/spec.json`.
+The compiler produces `_generated/compile/execution_plan.json`, and the engine
 executes the plan.
 Functions describe the read, transformation, and write logic; the runners
 coordinate export, compilation, and execution.
@@ -47,11 +47,11 @@ projects/
 ├── pump_analytics/
 │   ├── functions/
 │   ├── spec/
-│   └── generated/
+│   └── _generated/
 └── factory_analytics/
     ├── functions/
     ├── spec/
-    └── generated/
+    └── _generated/
 ```
 
 Each workflow exports its own complete specification and compiles its own plan.
@@ -78,7 +78,7 @@ than maintained as a separate copy of every team's definitions.
 master-project/
 ├── spec/
 │   └── sources.json
-└── generated/
+└── _generated/
     ├── spec/
     │   └── spec.json
     └── compile/
@@ -102,7 +102,7 @@ configuration format supported by Uptimely. Each analytics repository contribute
 
 Project-specific assembly tooling retrieves those specifications, combines their
 definitions, and resolves identifier conflicts and cross-repository references.
-It produces one complete `generated/spec/spec.json` for Uptimely to load.
+It produces one complete `_generated/spec/spec.json` for Uptimely to load.
 Uptimely does not discover repositories or merge their specifications
 automatically.
 

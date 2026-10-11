@@ -5,7 +5,7 @@ import pytest
 from uptimely.compile import CallableGraph, Compiler
 from uptimely.spec import Specification
 
-SPEC_PATH = Path("examples/example_1/generated/spec/spec.json")
+SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
 
 
 def test_compiler_creates_callable_graph_subset_for_requested_features() -> None:

@@ -6,7 +6,7 @@ from uptimely.spec import Specification
 
 from .spec.spec import dimensions, entities
 
-OUTPUT_PATH = Path(__file__).parent / "generated" / "spec" / "spec.json"
+OUTPUT_PATH = Path(__file__).parent / "_generated" / "spec" / "spec.json"
 
 
 def main() -> None:

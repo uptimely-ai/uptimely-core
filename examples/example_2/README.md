@@ -4,7 +4,7 @@
 
 ## How the specification is read
 
-The specification is declared in [`spec/spec.py`](spec/spec.py). It imports the example functions and dimensions, creates a `Dataset`, and registers those parts with `Specification.from_python(...)`. The runner [`run_export_spec.py`](run_export_spec.py) imports that specification setup and writes the resulting JSON to `generated/spec.json`.
+The specification is declared in [`spec/spec.py`](spec/spec.py). It imports the example functions and dimensions, creates a `Dataset`, and registers those parts with `Specification.from_python(...)`. The runner [`run_export_spec.py`](run_export_spec.py) imports that specification setup and writes the resulting JSON to `_generated/spec.json`.
 
 ## How to run
 
@@ -15,7 +15,7 @@ poetry run python examples/check_setup.py
 poetry run python -m examples.example_2.run_export_spec
 ```
 
-The generated specification is written to `examples/example_2/generated/spec.json`.
+The generated specification is written to `examples/example_2/_generated/spec.json`.
 
 ## Folder structure
 
@@ -25,4 +25,4 @@ The generated specification is written to `examples/example_2/generated/spec.jso
 | `functions/functions.py` | Function catalog used by the specification bindings. |
 | `data/data.py` | In-memory example data. |
 | `run_export_spec.py` | Builds and exports the specification. |
-| `generated/` | Exported specification output. |
+| `_generated/` | Exported specification output. |

@@ -12,7 +12,7 @@ from fastmcp import Client  # noqa: E402
 from uptimely.mcp.server import ServerState, create_server  # noqa: E402
 
 REPOSITORY_ROOT = Path(__file__).parents[3]
-SPEC_PATH = REPOSITORY_ROOT / "examples" / "example_1" / "generated" / "spec" / "spec.json"
+SPEC_PATH = REPOSITORY_ROOT / "examples" / "example_1" / "_generated" / "spec" / "spec.json"
 RUNTIME_RESOURCES_PATH = REPOSITORY_ROOT / "examples" / "example_1" / "runtime-resources.json"
 
 pytestmark = pytest.mark.skipif(not SPEC_PATH.exists(), reason="example spec is not generated")

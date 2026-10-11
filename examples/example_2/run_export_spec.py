@@ -4,7 +4,7 @@ from uptimely.spec import Specification
 
 from .spec.spec import dataset_, dimensions
 
-OUTPUT_PATH = Path(__file__).parent / "generated" / "spec.json"
+OUTPUT_PATH = Path(__file__).parent / "_generated" / "spec.json"
 
 
 def main() -> None:

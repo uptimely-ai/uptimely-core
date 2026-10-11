@@ -35,15 +35,15 @@ string or `Path`. Calling `compile()` returns an `ExecutionPlan`.
 from uptimely.compile import Compiler
 from uptimely.spec import Specification
 
-specification = Specification.from_json("generated/spec/spec.json")
+specification = Specification.from_json("_generated/spec/spec.json")
 plan = Compiler(specification).compile()
-plan.export_json("generated/compile/execution_plan.json")
+plan.export_json("_generated/compile/execution_plan.json")
 ```
 
 To compile directly from a file:
 
 ```python
-plan = Compiler("generated/spec/spec.json").compile()
+plan = Compiler("_generated/spec/spec.json").compile()
 ```
 
 ## Compiling a feature subset
@@ -168,7 +168,7 @@ recompiling the specification:
 from uptimely.engine import Engine
 from uptimely.plan import ExecutionPlan
 
-plan = ExecutionPlan.from_json("generated/compile/execution_plan.json")
+plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
 result = Engine(plan).execute()
 ```
 
@@ -177,7 +177,7 @@ and a flat execution-order view. It also supports exporting a human-readable
 HTML report for inspecting operation order and dependencies:
 
 ```python
-plan.export_html("generated/compile/execution_plan.html")
+plan.export_html("_generated/compile/execution_plan.html")
 ```
 
 The [Engine documentation](../engine/index.md) describes how the built-in engine
