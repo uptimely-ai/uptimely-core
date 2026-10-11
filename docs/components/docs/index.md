@@ -11,7 +11,7 @@ connected views:
 | Feature graph | Explore logical dependencies between features and the functions that produce them. |
 | Execution plan | Inspect callable dependencies, arguments, and parallel execution stages. |
 
-The pages share navigation and describe the same specification. They document an
+The documentation is about
 analytics project, not the Uptimely package itself.
 
 ![Specification reference overview](../../assets/img/open-analytics-specification-overview.png)
