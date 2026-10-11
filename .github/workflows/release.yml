@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     permissions:
+      contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v5
@@ -27,3 +28,16 @@ jobs:
       - run: poetry build
       - run: pipx run twine check dist/*
       - uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          args=()
+          if [[ "$GITHUB_REF_NAME" == *".dev"* ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            "${args[@]}"
