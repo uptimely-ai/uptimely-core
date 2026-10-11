@@ -17,7 +17,8 @@ REPORTS = {
     "spec_features.html": "features",
     "spec_dimensions.html": "dimensions",
     "spec_functions.html": "functions",
-    "feature_graph.html": "graph",
+    "feature_graph_2d.html": "graph",
+    "feature_graph_3d.html": "graph",
     "execution_plan.html": "plan",
     "execution_plan_stages.html": "stages",
 }
@@ -68,9 +69,20 @@ def test_website_exports_all_reports_with_relative_navigation(tmp_path: Path, mo
         assert parser.active_links == ([] if filename == "index.html" else [filename])
         assert "<iframe" not in document
     assert "Pump telemetry" in (index.parent / "spec_features.html").read_text(encoding="utf-8")
-    graph = (index.parent / "feature_graph.html").read_text(encoding="utf-8")
-    assert '"label": "health_signal_normalized"' in graph
-    assert ".height(graphContainer.clientHeight)" in graph
+    graph_2d = (index.parent / "feature_graph_2d.html").read_text(encoding="utf-8")
+    assert '"label": "health_signal_normalized"' in graph_2d
+    assert "force-graph@1.52.0/dist/force-graph.min.js" in graph_2d
+    assert ".height(graphContainer.clientHeight)" in graph_2d
+    graph_3d = (index.parent / "feature_graph_3d.html").read_text(encoding="utf-8")
+    assert '"label": "health_signal_normalized"' in graph_3d
+    assert "3d-force-graph" in graph_3d
+    for filename in ("feature_graph_2d.html", "feature_graph_3d.html"):
+        graph_page = (index.parent / filename).read_text(encoding="utf-8")
+        assert 'aria-label="Feature graph views"' in graph_page
+        assert 'href="feature_graph_2d.html"' in graph_page
+        assert 'href="feature_graph_3d.html"' in graph_page
+    assert 'aria-current="page"><span>2D graph</span>' in graph_2d
+    assert 'aria-current="page"><span>3D graph</span>' in graph_3d
     plan = (index.parent / "execution_plan.html").read_text(encoding="utf-8")
     assert "Callable graph" in plan
     assert "normalize_health_signal" in plan
@@ -204,7 +216,11 @@ def test_website_propagates_compilation_errors_without_writing_reports(tmp_path:
 
 @pytest.mark.parametrize(
     ("filename", "variable"),
-    [("feature_graph.html", "data"), ("execution_plan.html", "callableGraphData")],
+    [
+        ("feature_graph_2d.html", "data"),
+        ("feature_graph_3d.html", "data"),
+        ("execution_plan.html", "callableGraphData"),
+    ],
 )
 def test_website_graph_links_reference_exported_nodes(
     tmp_path: Path, filename: str, variable: str

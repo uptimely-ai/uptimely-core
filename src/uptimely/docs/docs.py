@@ -61,14 +61,20 @@ class Documentation:
         target = target.with_suffix(".html")
         if target.name in {
             *SPECIFICATION_PAGES.values(),
-            "feature_graph.html",
+            "feature_graph_2d.html",
+            "feature_graph_3d.html",
             *PLAN_PAGES.values(),
         }:
             raise ValueError("The website index path must not overwrite a report page.")
         plan = Compiler(self.spec).compile()
         graph = FeatureGraph(self.spec)
         create_website_pages(self.spec, target.parent, include_generated_at)
-        graph.export_html(target.parent / "feature_graph.html", include_navigation=True)
+        for dimension in ("2d", "3d"):
+            graph.export_html(
+                target.parent / f"feature_graph_{dimension}.html",
+                dimension=dimension,
+                include_navigation=True,
+            )
         plan.export_html(target.parent / "execution_plan.html", include_navigation=True)
         document = (
             html_environment()

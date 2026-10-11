@@ -4,10 +4,11 @@
   <p class="font-mono text-xs uppercase tracking-wider text-cyan-300">OpenAnalytics specification {{ specification.version }}</p>
   <h1 class="mt-4 font-display text-4xl font-semibold text-white">Analytics documentation</h1>
   <p class="mt-5 max-w-2xl text-slate-400">Explore the specification, its feature dependencies, and its compiled execution plan.</p>
-  <div class="mt-10 grid gap-5 md:grid-cols-3">
+  <div class="mt-10 grid gap-5 md:grid-cols-4">
     {% for href, title, description in [
       ("spec.html", "Specification", "Browse entities, features, dimensions, and function definitions."),
-      ("feature_graph.html", "Feature graph", "Explore dependencies between features and the functions that produce them."),
+      ("feature_graph_2d.html", "2D lineage", "Trace feature dependencies from upstream inputs to downstream outputs."),
+      ("feature_graph_3d.html", "3D lineage", "Explore dependencies between features and the functions that produce them."),
       ("execution_plan.html", "Execution plan", "Inspect callable dependencies, arguments, and parallel execution stages.")
     ] %}
     <a href="{{ href }}" class="rounded-2xl border border-slate-800 bg-slate-900 p-6 transition hover:border-cyan-300 focus-visible:outline focus-visible:outline-cyan-300">
