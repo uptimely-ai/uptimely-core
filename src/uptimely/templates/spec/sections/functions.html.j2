@@ -5,10 +5,19 @@
     {% set ordered_functions = group.items() | list %}
     {% if ordered_functions %}
       <div class="mb-8">
-        <div class="mb-4 flex items-center justify-between gap-3">
+        {% set group_icons = {"read": "database", "write": "send", "vectorize": "wand-sparkles", "aggregate": "calculator", "collapse": "combine", "expand": "expand", "conform": "shuffle"} %}
+        <div data-function-group="{{ group_name }}" class="mb-4 flex items-center justify-between gap-4 rounded-2xl border border-cyan-900/60 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/50 px-4 py-3 shadow-lg shadow-cyan-950/10">
+          <div class="flex items-center gap-3">
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-800/70 bg-cyan-950/60 text-cyan-300">
+              <i data-lucide="{{ group_icons.get(group_name, 'braces') }}" class="h-5 w-5" aria-hidden="true"></i>
+            </span>
+            <div>
           {% set group_heading = "h2" if include_navigation else "h3" %}
-          <{{ group_heading }} class="font-display text-xl font-semibold text-white">{{ group_name|title }}</{{ group_heading }}>
-          <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ ordered_functions|length }} {{ group_name }}</span>
+              <{{ group_heading }} class="font-display text-xl font-semibold tracking-tight text-white">{{ group_name|title }}</{{ group_heading }}>
+              <p class="mt-0.5 text-xs text-slate-400">Function group</p>
+            </div>
+          </div>
+          <span class="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-cyan-200">{{ ordered_functions|length }} functions</span>
         </div>
         <div class="grid gap-5 lg:grid-cols-2">
           {% for function_id, function in ordered_functions %}
