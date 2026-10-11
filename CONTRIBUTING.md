@@ -134,7 +134,7 @@ This project uses **trunk-based development**:
   requests. Branch lifetimes are measured in days, not weeks.
 - Releases are tags on `main` (`v0.1.0`, ...); there are no `develop` or
   `release/*` branches. Tagging a commit runs the CI release workflow that
-  publishes to PyPI.
+  publishes to PyPI and GitHub Releases.
 - Keep `main` green: merge changes that pass CI, and split large work into
   reviewable steps that each keep the test suite passing. Gate unfinished
   behavior behind an opt-in code path rather than a long-lived branch.
@@ -222,13 +222,25 @@ development upload; PyPI does not allow replacing an already-published version.
 Keep changelog entries under `Unreleased`; do not create a version heading for
 the development version.
 
-#### PyPI publishing
+#### PyPI and GitHub publishing
 
 Pushing a `v*` tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml).
 That workflow verifies the tag matches the version in `pyproject.toml`, builds
 the package, checks the distributions with Twine, and publishes them to PyPI
 using trusted publishing. The GitHub `release` environment and matching PyPI
 trusted publisher must be configured for publication to succeed.
+
+After the PyPI upload succeeds, the workflow publishes a GitHub release for
+the same tag with automatically generated release notes and attaches the wheel
+and source distribution from `dist/`. Development tags (`vX.Y.Z.devN`) are
+marked as prereleases. The job uses `contents: write` with the built-in GitHub
+token; no additional secret is required.
+
+Merge workflow changes before pushing a release tag so the tagged commit
+includes them. Existing tags do not automatically gain a GitHub release:
+publish one manually from the repository's **Releases -> Draft a new release**
+page, select the existing tag, and click **Publish release**. Mark development
+versions as prereleases.
 
 ## Commit and PR conventions
 
