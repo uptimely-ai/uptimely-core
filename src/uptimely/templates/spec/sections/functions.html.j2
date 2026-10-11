@@ -1,11 +1,13 @@
+{% from "spec/section_header.html.j2" import section_header with context %}
 <section id="functions" class="mb-16">
-  <div class="mb-6"><h2 class="flex items-center gap-3 font-display text-3xl font-semibold text-white"><i data-lucide="braces" class="h-7 w-7 shrink-0 text-lime-300" aria-hidden="true"></i>Functions</h2></div>
+  {{ section_header("Functions", "Browse the function catalog, argument types, return signatures, and source entrypoints.", count=summary.function_count, count_label="functions") }}
   {% for group_name, group in configuration.functions.items() %}
     {% set ordered_functions = group.items() | list %}
     {% if ordered_functions %}
       <div class="mb-8">
         <div class="mb-4 flex items-center justify-between gap-3">
-          <h3 class="font-display text-xl font-semibold text-white">{{ group_name|title }}</h3>
+          {% set group_heading = "h2" if include_navigation else "h3" %}
+          <{{ group_heading }} class="font-display text-xl font-semibold text-white">{{ group_name|title }}</{{ group_heading }}>
           <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ ordered_functions|length }} {{ group_name }}</span>
         </div>
         <div class="grid gap-5 lg:grid-cols-2">
@@ -13,7 +15,8 @@
             <article class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
               <div class="flex items-start justify-between gap-4">
                 <div>
-                  <h4 class="font-display text-lg font-semibold text-white">{{ function_id }}</h4>
+                  {% set function_heading = "h3" if include_navigation else "h4" %}
+                  <{{ function_heading }} class="break-words font-display text-lg font-semibold text-white">{{ function_id }}</{{ function_heading }}>
                   {% if function.return_type %}<p class="mt-2 text-xs text-lime-300">returns {{ function.return_type }}</p>{% endif %}
                 </div>
               </div>
