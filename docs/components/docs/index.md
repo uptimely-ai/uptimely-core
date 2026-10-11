@@ -47,8 +47,9 @@ sidebar group provides subnavigation and highlights the current section.
 Feature graph provides separate 2D and 3D lineage views in its sidebar
 subnavigation.
 Execution plan has Overview, 2D graph, 3D graph, and Stages subnavigation.
-Overview contains summary counts; the graph pages show compiled callable
-operations and their dependencies, rather than feature-lineage nodes.
+Overview contains summary counts; the 2D graph groups callable operations into
+vertical lanes by dependency stage, and the graph pages show compiled callable
+operations and their dependencies rather than feature-lineage nodes.
 Stages lists dependency-ordered operations with their arguments and return types.
 Standalone execution-plan exports keep the summary, 3D callable graph, and
 stages in one HTML document.

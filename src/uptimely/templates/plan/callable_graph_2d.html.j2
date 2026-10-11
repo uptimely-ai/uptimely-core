@@ -33,12 +33,43 @@
 		}
 		for (const [rank, nodes] of layers) {
 			nodes.forEach((node, index) => {
+				node.stage = rank + 1;
 				node.fx = rank * 360;
 				node.fy = (index - (nodes.length - 1) / 2) * 80;
 				node.x = node.fx;
 				node.y = node.fy;
 			});
 		}
+		const stageCount = layers.size;
+		const laneHeight = Math.max(
+			160,
+			Math.max(0, ...[...layers.values()].map(nodes => nodes.length)) * 80 + 96
+		);
+		const drawStageLanes = (ctx, globalScale) => {
+			const scale = Math.max(globalScale, 0.01);
+			ctx.save();
+			ctx.font = `600 ${14 / scale}px "DM Sans", sans-serif`;
+			ctx.textAlign = 'center';
+			ctx.textBaseline = 'middle';
+			for (let stage = 0; stage < stageCount; stage++) {
+				const left = stage * 360 - 180;
+				ctx.fillStyle = stage % 2 === 0
+					? 'rgba(143, 163, 181, .07)'
+					: 'rgba(143, 163, 181, .03)';
+				ctx.fillRect(left, -laneHeight / 2, 360, laneHeight);
+				ctx.strokeStyle = 'rgba(143, 163, 181, .4)';
+				ctx.lineWidth = 1 / scale;
+				ctx.beginPath();
+				ctx.moveTo(left, -laneHeight / 2);
+				ctx.lineTo(left + 360, -laneHeight / 2);
+				ctx.moveTo(left, laneHeight / 2);
+				ctx.lineTo(left + 360, laneHeight / 2);
+				ctx.stroke();
+				ctx.fillStyle = '#9fb3c3';
+				ctx.fillText(`Stage ${stage + 1}`, stage * 360, -laneHeight / 2 + 28);
+			}
+			ctx.restore();
+		};
 		const selectCallableAtPointer = (event) => {
 			const bounds = callableGraphContainer.getBoundingClientRect();
 			const point = callableGraph.screen2GraphCoords(
@@ -54,6 +85,7 @@
 			.height(callableGraphContainer.clientHeight)
 			.backgroundColor('{{ graph_style.background_color }}')
 			.nodeLabel(node => `${node.function_id} (${node.entity})`)
+			.onRenderFramePre(drawStageLanes)
 			.nodeCanvasObjectMode(() => 'replace')
 			.nodeCanvasObject((node, ctx) => {
 				const left = node.x - node.cardWidth / 2;
