@@ -19,6 +19,7 @@ the declarative contract.
         - SpecificationSerializer
         - Entity
         - Dataset
+        - Order
         - Dimension
         - Function
         - FunctionCatalog

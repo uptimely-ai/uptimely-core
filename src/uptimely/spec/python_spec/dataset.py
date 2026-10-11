@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from uptimely.spec.json_spec.json_model import (
     AggregateFunction,
@@ -20,6 +20,9 @@ from uptimely.spec.json_spec.json_model import (
     Dataset as DatasetModel,
 )
 from uptimely.spec.json_spec.json_model import (
+    Order as OrderModel,
+)
+from uptimely.spec.json_spec.json_model import (
     RowScope as RowScopeModel,
 )
 from uptimely.spec.json_spec.json_model import (
@@ -30,6 +33,7 @@ from uptimely.spec.json_spec.json_model import (
 )
 
 from .bind import _argument_definition, _entrypoint, _models_by_id
+from .ref import Reference
 
 if TYPE_CHECKING:
     from .feature import Vectorize
@@ -37,6 +41,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Dataset",
+    "Order",
     "RowScope",
 ]
 
@@ -59,6 +64,31 @@ class RowScope:
 
 
 @dataclass(frozen=True)
+class Order:
+    """Declare a logical ordering key, not a required physical sort.
+
+    Args:
+        dimension: A dimension reference created by ``ref.dimension`` or its
+            canonical ``$dimensions.<id>`` string.
+        direction: Ascending (``asc``) or descending (``desc``) order.
+    """
+
+    dimension: Reference | str
+    direction: Literal["asc", "desc"]
+
+    def to_model(self) -> OrderModel:
+        """Convert this ordering key to its canonical model."""
+        return OrderModel(
+            dimension=(
+                self.dimension.to_model()
+                if isinstance(self.dimension, Reference)
+                else self.dimension
+            ),
+            direction=self.direction,
+        )
+
+
+@dataclass(frozen=True)
 class Dataset:
     """A Python declaration of one dataset and its operations."""
 
@@ -71,6 +101,7 @@ class Dataset:
     write: list[Write] = field(default_factory=list)
     description: str | None = None
     row_scope: RowScope = field(default_factory=RowScope)
+    order: list[Order] = field(default_factory=list)
 
     def to_model(self) -> DatasetModel:
         """Convert this declaration to the canonical Pydantic dataset model."""
@@ -96,6 +127,7 @@ class Dataset:
             id=self.id,
             description=self.description,
             row_scope=self.row_scope.to_model(),
+            order=[key.to_model() for key in self.order],
             read=fragment_models("read", self.read),
             conform=fragment_models("conform", self.conform),
             expand=fragment_models("expand", self.expand),

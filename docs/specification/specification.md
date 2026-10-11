@@ -60,6 +60,7 @@ A dataset is a conceptual data container for an entity.
 | `id` | string | Yes | Identifier unique within the entity. |
 | `description` | string | Yes | Human-readable explanation. |
 | `row_scope` | object | Yes | Conceptual row subset with `grain`, `filtering`, and `coverage` descriptions. |
+| `order` | array of objects | No | Logical ordering by entity dimensions, in key-precedence order. Does not require physical sorting. |
 | `read` | object | Yes | Read bindings keyed by fragment identifier. |
 | `conform` | object | Yes | Conform bindings keyed by fragment identifier. |
 | `expand` | object | Yes | Expand bindings keyed by fragment identifier. |
@@ -85,8 +86,50 @@ Presented in the `row_scope` key of a dataset. A row scope describes the concept
 | `filtering` | string | Yes | Selection criteria applied to the rows. Use an empty string when unfiltered. |
 | `coverage` | string | Yes | Expected completeness of the fragment across its dimension keys, for example dense or sparse. Use an empty string when unspecified. |
 
-A dataset has no persistent row-order contract. Operations that depend on order,
-such as window calculations, MUST declare their ordering inputs explicitly.
+### Logical Order
+
+The optional dataset-level `order` array describes a logical ordering convention:
+
+```json
+"order": [
+  {"dimension": "$dimensions.pump", "direction": "asc"},
+  {"dimension": "$dimensions.timestamp", "direction": "desc"}
+]
+```
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `dimension` | string | Yes | Structural reference `$dimensions.<id>` to a dimension declared by the dataset's owning entity. |
+| `direction` | string | Yes | `asc` for ascending or `desc` for descending order. |
+
+Array position defines precedence: the first key is primary, the second breaks
+ties in the first, and so on. Each dimension MUST appear at most once. Omitting
+`order` or providing an empty array declares no ordering. Rows equal on all keys
+have no specified relative order. Null placement and string collation are not
+specified by this declaration.
+
+This is descriptive metadata, not a persistent physical row-order contract.
+Implementations MAY use it for sorting, source-query pushdown, presentation, or
+optimization, or leave physical rows unordered. The declaration does not define
+grouping or partitioning. Operations whose correctness depends on order, such as
+window calculations, MUST still declare their ordering inputs explicitly and
+MUST NOT assume incoming rows follow dataset `order`.
+
+Python authoring uses the same keys and preserves their precedence:
+
+```python
+from uptimely.spec.python_spec import dataset, ref
+
+telemetry = dataset.Dataset(
+    id="telemetry",
+    order=[
+        dataset.Order(dimension=ref.dimension("pump"), direction="asc"),
+        dataset.Order(dimension=ref.dimension("timestamp"), direction="desc"),
+    ],
+)
+```
+
+The owning entity must declare both dimensions.
 
 ### Dataframe Contract
 

@@ -40,6 +40,7 @@ class Entity:
                     id=dataset.id,
                     description=model.description,
                     row_scope=model.row_scope,
+                    order=model.order,
                     read=model.read,
                     conform=model.conform,
                     expand=model.expand,

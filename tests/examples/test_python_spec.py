@@ -112,6 +112,7 @@ def test_spec_from_python_models_and_json_export(tmp_path: Path) -> None:
         "id",
         "description",
         "row_scope",
+        "order",
         "read",
         "conform",
         "expand",

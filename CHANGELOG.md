@@ -15,6 +15,8 @@ Initial public release.
 - Python API reference generated from source, with documentation validation on
   pull requests and automatic GitHub Pages publishing from `main`.
 - Declarative specification model with JSON export.
+- Optional dataset logical ordering by dimension, with explicit ascending or
+  descending directions, JSON and Python authoring, and reference validation.
 - Compiler producing portable, staged execution plans.
 - Built-in batch engine with a Polars dataframe backend.
 - Documentation and feature-graph generation from specifications.

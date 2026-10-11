@@ -175,6 +175,13 @@ class Sink(StrictModel):
     binding: Binding
 
 
+class Order(StrictModel):
+    """One logical dataset ordering key, without a physical row-order guarantee."""
+
+    dimension: str = Field(pattern=r"^\$dimensions\..+$")
+    direction: Literal["asc", "desc"]
+
+
 class Dataset(StrictModel):
     """An entry under an entity's `datasets` list."""
 
@@ -187,6 +194,7 @@ class Dataset(StrictModel):
     collapse: dict[str, Transform] = Field(default_factory=dict)
     vectorize: dict[str, Calculation] = Field(default_factory=dict)
     write: dict[str, Sink] = Field(default_factory=dict)
+    order: list[Order] = Field(default_factory=list)
 
     @property
     def fragment_operations(self) -> list[tuple[str, FragmentOperation]]:
