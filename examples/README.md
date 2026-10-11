@@ -124,27 +124,6 @@ Generated artifacts are written beneath each example's `_generated/` directory:
 
 The scripts are intended to run from the repository root. Python 3.13 or newer is required. See each example's README for its specification model and workflow details.
 
-Documentation can also be generated from an in-memory `Specification`; it does
-not need a source path. `Documentation.create_html` builds a linked static website
-containing the specification, 2D and 3D feature lineage graphs, and execution
-plan. The returned path is the index file; all report pages are written
-alongside it. Overview, Features, Dimensions, and Functions are separate
-specification pages with sidebar subnavigation.
-Execution plan has separate Overview, 2D graph, 3D graph, and Stages pages.
-Its graphs contain callable operations and callable dependencies, not feature nodes.
-
-Use `Specification.create_html` for just the standalone specification reference,
-or `Documentation.create_json` for reference data. The plan and feature graph
-exporters also remain available independently. Leave `include_generated_at`
-disabled (the default) for reproducible builds.
-
-Preview the generated website locally:
-
-```sh
-poetry run uptimely docs generate --spec examples/example_1/_generated/spec/spec.json --output examples/example_1/_generated/docs
-poetry run uptimely docs serve --directory examples/example_1/_generated/docs
-```
-
-Open `http://localhost:8001/`. Styling and graph libraries currently require
-network access. The CLI generates the HTML website; the example's `run_docs.py`
-also exports reference JSON.
+For website generation, customization, and preview instructions, see the
+[analytics documentation](../docs/components/docs/index.md) and the
+[Python API reference](../docs/reference/api.md#analytics-documentation).

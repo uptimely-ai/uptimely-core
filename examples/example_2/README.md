@@ -6,23 +6,9 @@
 
 The specification is declared in [`spec/spec.py`](spec/spec.py). It imports the example functions and dimensions, creates a `Dataset`, and registers those parts with `Specification.from_python(...)`. The runner [`run_export_spec.py`](run_export_spec.py) imports that specification setup and writes the resulting JSON to `_generated/spec/spec.json`.
 
-## How to run
+## Exporting the specification
 
-Run the export command from the project root:
-
-```sh
-poetry run python examples/check_setup.py
-poetry run python -m examples.example_2.run_export_spec
-```
-
-The generated specification is written to `examples/example_2/_generated/spec/spec.json`.
-
-## Folder structure
-
-| Folder or file | Description |
-| --- | --- |
-| `spec/spec.py` | Python declarations for the dataset, inputs, calculations, and dimensions. |
-| `functions/functions.py` | Function catalog used by the specification bindings. |
-| `data/data.py` | In-memory example data. |
-| `run_export_spec.py` | Builds and exports the specification. |
-| `_generated/spec/` | Exported specification in `spec.json`. |
+Run `poetry run python -m examples.example_2.run_export_spec` from the
+repository root to export the canonical JSON specification to
+`examples/example_2/_generated/spec/spec.json`. For environment setup and
+running workflows, see the shared [examples guide](../README.md).
