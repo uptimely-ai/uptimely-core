@@ -76,6 +76,20 @@ def test_system_graph_builds_from_entity_feature_bindings() -> None:
     assert "health_signal_normalized" in system.feature_names
 
 
+def test_dependency_features_keep_their_producer_entity_without_becoming_source_inputs() -> None:
+    system = FeatureGraph(Specification.from_json(SPEC_PATH))
+    features = {
+        node.reference.name: node.reference
+        for node in system.graph
+        if isinstance(node.reference, FeatureNode)
+    }
+
+    assert features["bearing_temperature_max"].entity == "pump"
+    assert features["operating_point_recommendation"].entity == "pump_telemetry"
+    assert features["bearing_temperature_max"].is_source_input is False
+    assert features["operating_point_recommendation"].is_source_input is False
+
+
 def test_system_graph_can_export_html(tmp_path: Path) -> None:
     specification = Specification.from_json(SPEC_PATH)
     system = FeatureGraph(specification)
@@ -152,6 +166,10 @@ def test_system_graph_can_export_2d_lineage_html(tmp_path: Path) -> None:
     )
     assert "function resizeGraph()" in html
     assert "health_signal_normalized" in html
+    assert '"label": "bearing_temperature_max", "tags": [], "node_type": "feature"' in html
+    assert '"is_function": false, "entity": "pump", "data_type": "float"' in html
+    assert '"label": "operating_point_recommendation", "tags": [], "node_type": "feature"' in html
+    assert '"is_function": false, "entity": "pump_telemetry"' in html
     assert ".linkOpacity(" not in html
     assert 'aria-label="2D graph legend"' in html
     assert "Feature</span>" in html
