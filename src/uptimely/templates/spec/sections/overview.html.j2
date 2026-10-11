@@ -1,14 +1,13 @@
+{% from "spec/section_header.html.j2" import section_header with context %}
 <section id="overview" class="mb-16">
-  <p class="mb-3 font-mono text-[10px] uppercase tracking-[.2em] text-cyan-300">OpenAnalytics specification</p>
-  <h1 class="flex items-center gap-3 font-display text-4xl font-semibold text-white sm:text-6xl"><i data-lucide="layout-dashboard" class="h-9 w-9 shrink-0 text-cyan-300 sm:h-12 sm:w-12" aria-hidden="true"></i>Specification</h1>
-  <p class="mt-5 max-w-2xl text-base leading-7 text-slate-400">Reference documentation generated from the single specification document.</p>
+  {{ section_header("Overview" if include_navigation else "Specification", "A summary of the entities, datasets, features, and functions declared in this specification.", standalone_title=true) }}
   <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     {% for label, value in [("Entities", summary.entity_count), ("Datasets", summary.dataset_count), ("Fragments", summary.fragment_count), ("Dimensions", summary.dimension_count)] %}
     <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5"><span class="font-mono text-[10px] uppercase tracking-[.15em] text-slate-500">{{ label }}</span><p class="mt-4 font-display text-3xl font-semibold text-white">{{ value }}</p></div>
     {% endfor %}
   </div>
-  {% set feature_chart = [("input", summary.feature_buckets.input, "bg-amber-300"), ("intermediate", summary.feature_buckets.intermediate, "bg-cyan-300"), ("output", summary.feature_buckets.output, "bg-lime-300")] %}
-  {% set function_chart = [("read", summary.function_buckets.read, "bg-cyan-300"), ("write", summary.function_buckets.write, "bg-violet-300"), ("vectorize", summary.function_buckets.vectorize, "bg-lime-300"), ("aggregate", summary.function_buckets.aggregate, "bg-amber-300")] %}
+  {% set feature_chart = [("input", summary.feature_buckets.input, "bg-cyan-400"), ("intermediate", summary.feature_buckets.intermediate, "bg-cyan-400"), ("output", summary.feature_buckets.output, "bg-cyan-400")] %}
+  {% set function_chart = [("read", summary.function_buckets.read, "bg-cyan-400"), ("write", summary.function_buckets.write, "bg-cyan-400"), ("vectorize", summary.function_buckets.vectorize, "bg-cyan-400"), ("aggregate", summary.function_buckets.aggregate, "bg-cyan-400")] %}
   <div class="mt-5 grid gap-5 lg:grid-cols-2">
     {% for chart_title, chart in [("Features", feature_chart), ("Functions", function_chart)] %}
     {% set chart_max = chart|map(attribute=1)|max %}

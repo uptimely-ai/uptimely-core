@@ -97,6 +97,19 @@ def test_specification_pages_render_only_their_section(
         assert (f'<section id="{candidate}"' in document) == (candidate == section_id)
     assert 'aria-label="Specification sections"' in document
     assert 'aria-label="Documentation sections"' not in document
+    headings = re.findall(r'<h1 class="([^"]+)">([^<]+)</h1>', document)
+    assert len(headings) == 1
+    assert headings[0][0] == "font-display text-3xl font-semibold tracking-tight text-white"
+    assert (
+        headings[0][1]
+        == {
+            "overview": "Overview",
+            "entities": "Features",
+            "dimensions": "Dimensions",
+            "functions": "Functions",
+        }[section_id]
+    )
+    assert "sm:text-6xl" not in document
 
 
 def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: Path) -> None:
@@ -142,6 +155,12 @@ def test_standalone_exports_have_no_website_navigation(tmp_path: Path) -> None:
         parser.feed(path.read_text(encoding="utf-8"))
         assert parser.html_count == 1
         assert not parser.links
+    standalone_spec = paths[0].read_text(encoding="utf-8")
+    assert len(re.findall(r"<h1\b", standalone_spec)) == 1
+    assert all(
+        f'<section id="{section}"' in standalone_spec
+        for section in ("overview", "entities", "dimensions", "functions")
+    )
 
 
 def test_website_propagates_compilation_errors_without_writing_reports(tmp_path: Path) -> None:
