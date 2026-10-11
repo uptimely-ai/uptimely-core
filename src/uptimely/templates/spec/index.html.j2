@@ -1,4 +1,4 @@
-{% extends "site_base.html.j2" %}
+{% extends "base.html.j2" %}
 {% block title %}OpenAnalytics specification{% endblock %}
 {% block content %}
   <div class="pointer-events-none fixed inset-0 -z-0 opacity-30" style="background-image: linear-gradient(rgba(51,65,85,.22) 1px, transparent 1px), linear-gradient(90deg, rgba(51,65,85,.22) 1px, transparent 1px); background-size: 48px 48px;"></div>
@@ -16,10 +16,10 @@
         </nav>
       </aside>
       <main>
-        {% include "sections/overview.html.j2" %}
-        {% include "sections/entities.html.j2" %}
-        {% include "sections/dimensions.html.j2" %}
-        {% include "sections/functions.html.j2" %}
+        {% include "spec/sections/overview.html.j2" %}
+        {% include "spec/sections/entities.html.j2" %}
+        {% include "spec/sections/dimensions.html.j2" %}
+        {% include "spec/sections/functions.html.j2" %}
       </main>
     </div>
   </div>

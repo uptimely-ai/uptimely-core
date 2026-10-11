@@ -219,3 +219,17 @@ nor `uptimely docs generate` automatically writes this JSON. The example's
 See the [Python API reference](../../reference/api.md#analytics-documentation) for
 the documentation interface and the
 [feature graph API](../../reference/api.md#dependency-graphs) for graph operations.
+
+## Template organization
+
+All HTML reports use Jinja templates in `src/uptimely/templates/`. The root
+`base.html.j2` provides the shared layout and optional website navigation.
+The root `index.html.j2` renders the website landing page. Subdirectories group
+the specification reference and sections (`spec/`), feature graph (`graph/`), and
+execution plan (`plan/`).
+
+Renderers stay in their component modules and share the package template loader
+in `uptimely.render`. Template inheritance and includes use paths relative to the
+central template directory, such as `spec/sections/entities.html.j2`. The
+templates are included in the installed Python package, so both standalone
+exports and website generation work outside a repository checkout.
