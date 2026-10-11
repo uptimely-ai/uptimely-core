@@ -273,14 +273,44 @@ class FeatureGraph(GraphBase):
             for function, _entity, _operation_id, _outputs, dependencies in self._graph_operations
             for parent in self._feature_parents(function.id, dependencies, function)
         }
-        declared_inputs = {
-            input_name: (input_feature, entity_id)
-            for entity_id, entity in self.specification.entities.items()
-            for dataset in entity.datasets
-            for operation_type, op in dataset.fragment_operations
-            if operation_type != "collapse"
-            for input_name, input_feature in op.features.items()
-        }
+        feature_metadata: dict[str, FeatureNode] = {}
+
+        def register_feature_metadata(
+            name: str,
+            data_type: str | None,
+            entity: str | None,
+            *,
+            is_source_input: bool = False,
+        ) -> None:
+            existing = feature_metadata.get(name)
+            feature_metadata[name] = FeatureNode(
+                name=name,
+                data_type=(
+                    existing.data_type if existing and existing.data_type is not None else data_type
+                ),
+                entity=existing.entity if existing and existing.entity is not None else entity,
+                is_source_input=(
+                    (existing.is_source_input if existing else False) or is_source_input
+                ),
+            )
+
+        for entity_id, entity in self.specification.entities.items():
+            for dataset in entity.datasets:
+                for operation_type, operation in dataset.fragment_operations:
+                    for name, feature in operation.features.items():
+                        register_feature_metadata(
+                            name,
+                            feature.type,
+                            entity_id,
+                            is_source_input=operation_type != "collapse",
+                        )
+        for function, entity, _operation_id, outputs, _dependencies in self._graph_operations:
+            for output in outputs:
+                register_feature_metadata(
+                    output,
+                    function.return_type,
+                    entity,
+                )
 
         def node(reference: NodeMeta) -> Node:
             return nodes.setdefault(self._node_key(reference), graphable.Graphable(reference))
@@ -291,13 +321,18 @@ class FeatureGraph(GraphBase):
             entity: str | None = None,
             data_type: str | None = None,
         ) -> FeatureNode:
+            metadata = feature_metadata.get(name)
             return FeatureNode(
                 name=name,
-                data_type=(function.return_type if function is not None else data_type),
-                entity=entity,
+                data_type=(
+                    function.return_type
+                    if function is not None
+                    else data_type or (metadata.data_type if metadata else None)
+                ),
+                entity=entity or (metadata.entity if metadata else None),
                 is_input=name in dependency_names,
                 is_output=name in output_names,
-                is_source_input=name in declared_inputs,
+                is_source_input=metadata.is_source_input if metadata else False,
             )
 
         for function, entity, operation_id, outputs, dependencies in self._graph_operations:
@@ -316,14 +351,7 @@ class FeatureGraph(GraphBase):
                 graph.add_edge(function_node, output_node)
 
             for parent in self._feature_parents(function.id, dependencies, function):
-                input_feature = declared_inputs.get(parent)
-                parent_node = node(
-                    feature_meta(
-                        parent,
-                        entity=input_feature[1] if input_feature else None,
-                        data_type=input_feature[0].type if input_feature else None,
-                    )
-                )
+                parent_node = node(feature_meta(parent))
                 graph.add_edge(parent_node, function_node)
 
         self._node_index = nodes
