@@ -15,15 +15,22 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   {% block head %}{% endblock %}
   <style>
-    :root { --site-nav-height: {% if include_navigation %}64px{% else %}0px{% endif %}; }
-    .site-content { padding-top: var(--site-nav-height); }
-    .site-nav { position: fixed; inset: 0 0 auto; height: var(--site-nav-height); z-index: 50;
-      display: flex; align-items: center; gap: 24px; padding: 0 24px; overflow-x: auto;
-      background: #0f172a; border-bottom: 1px solid #334155; font: 14px "DM Sans", sans-serif; }
-    .site-nav a { color: #cbd5e1; white-space: nowrap; text-decoration: none; }
+    :root { --site-nav-width: {% if include_navigation %}224px{% else %}0px{% endif %}; }
+    .site-content { margin-left: var(--site-nav-width); min-width: 0; }
+    .site-nav { position: fixed; inset: 0 auto 0 0; width: var(--site-nav-width); z-index: 50;
+      box-sizing: border-box; display: flex; flex-direction: column; gap: 8px;
+      padding: 24px 16px; overflow-y: auto;
+      background: #0f172a; border-right: 1px solid #334155; font: 14px "DM Sans", sans-serif; }
+    .site-nav a { display: block; padding: 10px 12px; border-radius: 8px;
+      color: #cbd5e1; text-decoration: none; overflow-wrap: anywhere; }
     .site-nav a:hover, .site-nav a:focus-visible { color: #fff; text-decoration: underline; }
-    .site-nav a[aria-current="page"] { color: #67e8f9; }
-    .site-brand { font-weight: 700; }
+    .site-nav a[aria-current="page"] { color: #67e8f9; background: #1e293b; }
+    .site-brand { font-weight: 700; margin-bottom: 24px; }
+    @media (max-width: 640px) {
+      :root { --site-nav-width: {% if include_navigation %}136px{% else %}0px{% endif %}; }
+      .site-nav { padding: 16px 8px; font-size: 12px; }
+      .site-nav a { padding: 10px 8px; }
+    }
     {% block style %}{% endblock %}
   </style>
 </head>
