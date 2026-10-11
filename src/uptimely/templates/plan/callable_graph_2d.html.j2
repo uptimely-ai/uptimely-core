@@ -35,6 +35,8 @@
 			nodes.forEach((node, index) => {
 				node.fx = rank * 360;
 				node.fy = (index - (nodes.length - 1) / 2) * 80;
+				node.x = node.fx;
+				node.y = node.fy;
 			});
 		}
 		const selectCallableAtPointer = (event) => {
@@ -46,6 +48,7 @@
 				Math.abs(point.y - node.y) <= node.cardHeight / 2);
 			if (node) updateCallableDetails(node);
 		};
+		let initialFitComplete = false;
 		const callableGraph = ForceGraph()(callableGraphContainer)
 			.width(callableGraphContainer.clientWidth)
 			.height(callableGraphContainer.clientHeight)
@@ -76,14 +79,22 @@
 			})
 			.linkColor(() => '{{ graph_style.link_color }}')
 			.linkWidth({{ graph_style.link_width }})
-			.linkDirectionalArrowLength({{ graph_style.arrow_length }})
+			.linkDirectionalParticles(2)
+			.linkDirectionalParticleWidth(2)
+			.linkDirectionalParticleSpeed(0.003)
 			.onNodeClick((_node, event) => selectCallableAtPointer(event))
 			.onLinkClick((_link, event) => selectCallableAtPointer(event))
 			.onBackgroundClick(event => selectCallableAtPointer(event))
+			.cooldownTicks(1)
+			.onEngineStop(() => {
+				if (!initialFitComplete) {
+					callableGraph.zoomToFit(0, 140);
+					initialFitComplete = true;
+				}
+			})
 			.graphData(callableGraphData);
-		const fitCallableGraph = () => callableGraph.zoomToFit(500, 80);
+		const fitCallableGraph = () => callableGraph.zoomToFit(500, 140);
 		document.getElementById('fit-callable-graph').addEventListener('click', fitCallableGraph);
-		requestAnimationFrame(fitCallableGraph);
 		window.addEventListener('resize', () => {
 			callableGraph.width(callableGraphContainer.clientWidth)
 				.height(callableGraphContainer.clientHeight);

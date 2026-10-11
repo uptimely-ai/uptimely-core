@@ -68,11 +68,11 @@
     </div>
     {% elif page == "graph" %}
     <div class="site-subnav" role="group" aria-label="Feature graph views">
-      {% for section, section_href, section_label in [
-        ("2d", "feature_graph_2d.html", "2D graph"),
-        ("3d", "feature_graph_3d.html", "3D graph")
+      {% for section, section_href, section_label, section_icon in [
+        ("2d", "feature_graph_2d.html", "2D graph", "git-fork"),
+        ("3d", "feature_graph_3d.html", "3D graph", "git-fork")
       ] %}
-      <a href="{{ section_href }}"{% if active_page == "graph" and active_section == section %} aria-current="page"{% endif %}><span>{{ section_label }}</span></a>
+      <a href="{{ section_href }}"{% if active_page == "graph" and active_section == section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ section_icon }}" aria-hidden="true"></i><span>{{ section_label }}</span></a>
       {% endfor %}
     </div>
     {% endif %}

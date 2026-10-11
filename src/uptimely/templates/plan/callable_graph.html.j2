@@ -13,7 +13,7 @@
 				<span><i class="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style="background: {{ graph_style.feature_color }}"></i>Write</span>
 			</div>
 		</div>
-		<div class="absolute bottom-4 right-4 z-10 w-[min(20rem,calc(100%-2rem))] rounded-lg border border-slate-700 bg-slate-900/90 p-4" id="callable-node-details">
+		<div class="{% if full_page_graph %}details{% if active_section == 'graph_2d' %} details-2d{% endif %}{% else %}absolute bottom-4 right-4 z-10 w-[min(20rem,calc(100%-2rem))] rounded-lg border border-slate-700 bg-slate-900/90 p-4{% endif %}" id="callable-node-details">
 			<h3 class="mb-2 font-mono text-xs uppercase tracking-wider text-slate-400">Callable details</h3>
 			<div class="text-sm leading-6 text-slate-300">Select a callable to inspect its operation, entity, output feature, and callable dependencies.</div>
 		</div>
@@ -62,11 +62,12 @@
 			.nodeColor(node => callableColors[node.operation_type])
 			.nodeRelSize({{ graph_style.node_rel_size }})
 			.nodeResolution({{ graph_style.node_resolution }})
-			.linkDirectionalArrowLength({{ graph_style.arrow_length }})
-			.linkDirectionalArrowRelPos({{ graph_style.arrow_rel_pos }})
 			.linkWidth({{ graph_style.link_width }})
 			.linkColor(() => '{{ graph_style.link_color }}')
 			.linkOpacity({{ graph_style.link_opacity }})
+			.linkDirectionalParticles(2)
+			.linkDirectionalParticleWidth(2)
+			.linkDirectionalParticleSpeed(0.003)
 			.onNodeClick(node => updateCallableDetails(node))
 			.nodeThreeObject(node => {
 				const material = new THREE.MeshLambertMaterial({ color: callableColors[node.operation_type] });
