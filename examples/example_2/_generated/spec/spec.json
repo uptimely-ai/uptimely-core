@@ -52,7 +52,6 @@
           }
         },
         "description": "Vectorized feature: column_3",
-        "input_scope": null,
         "partitioning": null
       },
       "column_4": {
@@ -68,7 +67,6 @@
           }
         },
         "description": "Vectorized feature: column_4",
-        "input_scope": null,
         "partitioning": null
       }
     },
@@ -128,7 +126,8 @@
                   "right_feature": "$features.input_2",
                   "output": "$features.column_3"
                 }
-              }
+              },
+              "row_context": null
             },
             "column_4": {
               "description": "Vectorized feature: column_4",
@@ -139,7 +138,8 @@
                   "output": "$features.column_4",
                   "id_column": "$dimensions.id"
                 }
-              }
+              },
+              "row_context": null
             }
           },
           "write": {
@@ -156,6 +156,7 @@
               }
             }
           },
+          "order": [],
           "id": "my_beautiful_dataset"
         }
       ]

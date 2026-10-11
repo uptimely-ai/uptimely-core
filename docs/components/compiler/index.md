@@ -81,6 +81,14 @@ The built-in compiler records `polars` as the required backend. The engine check
 that claim at runtime. Deployment and orchestration are outside the compiler's
 responsibility.
 
+Row-context metadata is preserved separately from operation arguments. When any
+operation declares context, planned datasets' ordering and row scopes are included under
+`resources.datasets`, so an exported plan does not need the original specification
+to interpret its context requirements. Context is local to each binding; the
+compiler does not infer transitive retention across chained calculations.
+Calculated-feature context is read from the feature declaration, not copied
+through its binding or derived call.
+
 ## Generated execution plan
 
 An execution plan describes the workflow without retaining the compiler's live
@@ -119,6 +127,7 @@ Each operation represents one callable invocation:
 | `output` | Operation output identifier, such as a calculated feature. |
 | `arguments` | Portable compiled argument values. Structural references are resolved to identifiers; runtime dataframe binding is deferred to the engine. |
 | `dependency_ids` | Operation identifiers that must complete before this operation. |
+| `row_context` | Input-context requirements from a vectorized feature; `null` when undeclared. Stored separately from function arguments. |
 
 Fragment operations return dataframes. Vectorize operations return one feature
 element, which the engine materializes as the declared output column. Write

@@ -30,8 +30,11 @@
   {% endif %}
 {%- endmacro %}
 
-{% macro render_binding_args(args, function_name) -%}
+{% macro render_binding_args(args, function_name, row_context=none) -%}
   {{ render_binding_call(function_name, args) }}
+  {% if row_context is not none %}
+  <div class="mt-2 font-mono text-xs text-slate-400">Row context: {{ render_binding_value(row_context) }}</div>
+  {% endif %}
 {%- endmacro %}
 
 {% from "spec/section_header.html.j2" import section_header with context %}
@@ -165,7 +168,7 @@
                 <div class="py-3 first:pt-0 last:pb-0">
                   {% if feature.binding %}
                   <p class="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[.16em] text-slate-500">binding</p>
-                  {{ render_binding_args(feature.binding.args, feature.binding.function) }}
+                  {{ render_binding_args(feature.binding.args, feature.binding.function, feature.row_context) }}
                   {% endif %}
                   <p class="mt-4 mb-2 font-mono text-[10px] font-semibold uppercase tracking-[.16em] text-slate-500">features</p>
                   <div class="flex items-center justify-between gap-3 border-l-2 border-amber-300/40 pl-3">

@@ -63,6 +63,15 @@ result = Engine(plan).execute()
 `result` is an `ExecutionResult` containing `datasets`, `calculated_outputs`,
 `operation_statuses`, `durations`, `failures`, and `plan_version`.
 
+### Row-context metadata
+
+Operations can carry `row_context` requirements independently of their primitive
+arguments. The batch engine does not pass this metadata to functions or use it
+to sort, retain rows, or delay output. Future stateful implementations can inspect
+the declarations, but must distinguish unknown context from explicit zero
+context and account for input partitions and dependency chains. See
+[row context](../../specification/specification.md#row-context) for the contract.
+
 ## Runtime placeholders
 
 A binding argument can hold a literal string of the form

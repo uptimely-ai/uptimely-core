@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from uptimely.row_context import RowContext
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -72,7 +74,6 @@ class VectorizeFunction(FunctionTemplate):
     """A function template under `functions.vectorize`."""
 
     description: str | None = None
-    input_scope: Literal["row", "dataset", "window", "group"] | None = None
     partitioning: Literal["none", "by_entity_dimensions", "custom"] | None = None
 
 
@@ -149,6 +150,7 @@ class Calculation(StrictModel):
     description: str | None = None
     unit: str | None = None
     binding: Binding | None = None
+    row_context: RowContext | None = None
     callable: Call | None = Field(default=None, repr=False, exclude=True)
 
 

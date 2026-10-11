@@ -17,6 +17,7 @@ from uptimely.spec.json_spec.json_model import (
 )
 
 from .bind import Bind, _binding_args, _operation_id
+from .row_context import RowContext, RowContextBinding, _context
 
 __all__ = [
     "Raw",
@@ -41,10 +42,27 @@ class Aggregation:
 
 
 def aggregation(
-    function: Callable[..., object], /, function_id: str | None = None, **args: Any
+    function: Callable[..., object],
+    /,
+    function_id: str | None = None,
+    **args: Any,
 ) -> Aggregation:
-    """Bind an aggregate function for evaluation within a collapse operation."""
-    return Aggregation(function=function, args=args, function_id=function_id)
+    """Bind an aggregate function within a collapse operation.
+
+    Args:
+        function: The aggregate callable.
+        function_id: Optional catalog identifier.
+        **args: Function arguments.
+
+    Returns:
+        A per-feature aggregation binding.
+
+    """
+    return Aggregation(
+        function=function,
+        args=args,
+        function_id=function_id,
+    )
 
 
 @dataclass(frozen=True)
@@ -74,6 +92,11 @@ class Vectorize:
     bind: Bind
     description: str | None = None
     unit: str | None = None
+    row_context: RowContext | RowContextBinding[Any] | None = None
+
+    def __post_init__(self) -> None:
+        """Consolidate requirements on the calculated feature, not its binding."""
+        object.__setattr__(self, "row_context", _context(self.bind.args, self.row_context))
 
     def to_model(self) -> CalculationModel:
         """Convert this vectorized feature declaration to its JSON model."""
@@ -81,6 +104,7 @@ class Vectorize:
             id=self.id,
             description=self.description,
             unit=self.unit,
+            row_context=_context(None, self.row_context),
             binding=Binding(
                 function=_operation_id(self.bind, None),
                 args=_binding_args(self.bind),

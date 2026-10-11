@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+from uptimely.row_context import RowContext
 from uptimely.spec import Call
 
 FRAGMENT_OPERATION_TYPES = frozenset({"read", "collapse", "expand", "conform"})
@@ -24,6 +25,7 @@ class CallableNode:
     args: dict[str, object] = field(default_factory=dict, compare=False, hash=False)
     callable: Call | None = field(default=None, compare=False, hash=False)
     callable_type_override: str | None = field(default=None, compare=False, hash=False)
+    row_context: RowContext | None = field(default=None, compare=False, hash=False)
 
     @property
     def callable_type(self) -> str:
