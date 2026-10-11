@@ -7,7 +7,7 @@ connected views:
 
 | Page | Purpose |
 | --- | --- |
-| Specification | Browse entities, datasets, features, dimensions, and function definitions. |
+| Specification | Separate Overview, Features, Dimensions, and Functions pages, linked beneath Specification in the sidebar. |
 | Feature graph | Explore logical dependencies between features and the functions that produce them. |
 | Execution plan | Inspect callable dependencies, arguments, and parallel execution stages. |
 
@@ -30,11 +30,17 @@ The command exports this directory:
 _generated/docs/
 ├── index.html
 ├── spec.html
+├── spec_features.html
+├── spec_dimensions.html
+├── spec_functions.html
 ├── feature_graph.html
 └── execution_plan.html
 ```
 
-Start at `index.html`. Each report is a complete HTML page, with relative links to
+Start at `index.html`. `spec.html` contains the specification overview; the other
+specification pages contain only their respective sections. The Specification
+sidebar group provides subnavigation and highlights the current section.
+Each report is a complete HTML page, with relative links to
 the other reports. The directory can be moved or hosted beneath a URL prefix
 without rebuilding its page navigation.
 
@@ -89,12 +95,12 @@ index_path = documentation.create_html(
 )
 ```
 
-All three reports are written beside the index. The index filename cannot be
-`spec.html`, `feature_graph.html`, or `execution_plan.html`, because those names
-are reserved for the reports.
+All reports and specification section pages are written beside the index. The
+index filename cannot match any of the six report filenames shown above, because
+those names are reserved for the reports.
 
 Timestamps are disabled by default for reproducible exports. Pass
-`include_generated_at=True` to display one on the specification page.
+`include_generated_at=True` to display one on each specification section page.
 
 ## Preview and publish
 
@@ -201,7 +207,8 @@ Compiler(specification).compile().export_html()  # _generated/compile/execution_
 Each exporter accepts an explicit output-file path.
 `Specification.create_html` is the standalone specification reference exporter
 previously provided by `Documentation.create_html`. The latter now exports the
-complete website and returns its index path.
+complete website and returns its index path. The standalone specification export
+remains a single HTML file containing all four sections and local anchor navigation.
 
 Reference JSON is a separate export:
 
@@ -225,7 +232,8 @@ the documentation interface and the
 All HTML reports use Jinja templates in `src/uptimely/templates/`. The root
 `base.html.j2` provides the shared layout and optional website navigation.
 The root `index.html.j2` renders the website landing page. Subdirectories group
-the specification reference and sections (`spec/`), feature graph (`graph/`), and
+the specification reference, individual page templates, and shared sections (`spec/`),
+feature graph (`graph/`), and
 execution plan (`plan/`).
 
 Renderers stay in their component modules and share the package template loader

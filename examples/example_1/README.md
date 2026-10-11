@@ -33,6 +33,9 @@ Generated plans, HTML reports, graphs, and documentation are written to `_genera
 to `_generated/spec/`. `run_docs` creates a unified website in `_generated/docs/`:
 open `index.html` to navigate between the specification, feature graph, and
 execution plan. The standalone plan and graph runners remain available.
+The Specification sidebar group links to separate Overview, Features, Dimensions,
+and Functions pages. The standalone specification report still contains all
+sections in one file.
 
 For a local website preview:
 

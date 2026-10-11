@@ -15,6 +15,12 @@ from uptimely.spec import Specification
 from uptimely.spec.json_spec.bindings import feature_dependencies
 
 OUTPUT_DIR = Path("_generated") / "spec"
+SPECIFICATION_PAGES = {
+    "overview": "spec.html",
+    "features": "spec_features.html",
+    "dimensions": "spec_dimensions.html",
+    "functions": "spec_functions.html",
+}
 
 
 @dataclass(frozen=True)
@@ -54,20 +60,42 @@ def _write_document_data(context: DocumentationContext, output_path: Path) -> di
 
 
 def _render_document(
-    context: dict[str, Any], output_path: Path, include_navigation: bool = False
+    context: dict[str, Any],
+    output_path: Path,
+    include_navigation: bool = False,
+    section: str | None = None,
 ) -> Path:
     environment = html_environment()
-    document = environment.get_template("spec/index.html.j2").render(
+    template = f"spec/{section}.html.j2" if section else "spec/index.html.j2"
+    document = environment.get_template(template).render(
         configuration=context["configuration"],
         summary=context["summary"],
         feature_dependencies=context["feature_dependencies"],
         generated_at=context["generated_at"],
         include_navigation=include_navigation,
         active_page="spec",
+        active_section=section,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(document, encoding="utf-8")
     return output_path
+
+
+def create_website_pages(
+    specification: Specification,
+    output_directory: Path,
+    include_generated_at: bool = False,
+) -> None:
+    """Export separate specification sections with shared website navigation.
+
+    Args:
+        specification: The canonical analytics specification.
+        output_directory: Directory shared by all website pages.
+        include_generated_at: Include a timestamp on each specification page.
+    """
+    context = asdict(_build_context(specification, include_generated_at))
+    for section, filename in SPECIFICATION_PAGES.items():
+        _render_document(context, output_directory / filename, True, section)
 
 
 def _feature_data(configuration: dict[str, Any]) -> tuple[list[dict], list[dict], set[str]]:

@@ -6,6 +6,7 @@ from uptimely.analytics import FeatureGraph
 from uptimely.compile import Compiler
 from uptimely.render import html_environment
 from uptimely.spec import Specification
+from uptimely.spec.render import SPECIFICATION_PAGES, create_website_pages
 from uptimely.spec.render import create_json as create_specification_json
 
 OUTPUT_DIR = Path("_generated") / "docs"
@@ -46,7 +47,7 @@ class Documentation:
 
         Args:
             output_path: Index file; defaults to ``_generated/docs/index.html``.
-                All three report pages are written alongside this file.
+                All report and specification section pages are written alongside this file.
             include_generated_at: Include a timestamp on the specification page.
 
         Returns:
@@ -57,15 +58,15 @@ class Documentation:
         """
         target = Path(output_path) if output_path is not None else OUTPUT_DIR / "index.html"
         target = target.with_suffix(".html")
-        if target.name in {"spec.html", "feature_graph.html", "execution_plan.html"}:
+        if target.name in {
+            *SPECIFICATION_PAGES.values(),
+            "feature_graph.html",
+            "execution_plan.html",
+        }:
             raise ValueError("The website index path must not overwrite a report page.")
         plan = Compiler(self.spec).compile()
         graph = FeatureGraph(self.spec)
-        self.spec.create_html(
-            target.parent / "spec.html",
-            include_generated_at,
-            include_navigation=True,
-        )
+        create_website_pages(self.spec, target.parent, include_generated_at)
         graph.export_html(target.parent / "feature_graph.html", include_navigation=True)
         plan.export_html(target.parent / "execution_plan.html", include_navigation=True)
         document = (
