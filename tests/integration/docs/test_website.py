@@ -1,5 +1,6 @@
 import json
 import re
+from collections import Counter
 from functools import wraps
 from html.parser import HTMLParser
 from pathlib import Path
@@ -9,6 +10,7 @@ import pytest
 from uptimely.analytics import FeatureGraph
 from uptimely.compile import Compiler
 from uptimely.docs.docs import Documentation, create_html
+from uptimely.plan.models import ExecutionPlan, Plan
 from uptimely.spec import Specification
 
 SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
@@ -194,6 +196,46 @@ def test_website_without_timestamp_is_deterministic(tmp_path: Path) -> None:
 
     for filename in ("index.html", *REPORTS):
         assert (first.parent / filename).read_bytes() == (second.parent / filename).read_bytes()
+
+
+def test_execution_plan_overview_statistics_match_plan(tmp_path: Path) -> None:
+    plan = Compiler(Specification.from_json(SPEC_PATH)).compile()
+    plan.export_html(tmp_path / "execution_plan.html", include_navigation=True)
+    document = (tmp_path / "execution_plan.html").read_text(encoding="utf-8")
+    cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
+    assert cards == {
+        "Callables": str(len(plan.operations)),
+        "Functions": str(len({operation.function_id for operation in plan.operations})),
+        "Entities": str(len({operation.entity_id for operation in plan.operations})),
+        "Features": str(
+            len(
+                {
+                    operation.feature
+                    for operation in plan.operations
+                    if operation.feature is not None
+                }
+            )
+        ),
+        "Stages": str(len(plan.execution_stages)),
+        "Dependencies": str(sum(len(operation.dependency_ids) for operation in plan.operations)),
+        "Max parallel operations": str(max(map(len, plan.execution_stages), default=0)),
+    }
+    assert dict(re.findall(r'data-operation="([^"]+)" data-count="(\d+)"', document)) == {
+        kind: str(count) for kind, count in Counter(op.kind for op in plan.operations).items()
+    }
+    assert re.findall(r'data-stage="(\d+)" data-count="(\d+)"', document) == [
+        (str(index), str(len(stage))) for index, stage in enumerate(plan.execution_stages, start=1)
+    ]
+
+
+def test_empty_execution_plan_overview_statistics(tmp_path: Path) -> None:
+    plan = ExecutionPlan(Plan("1.0.0", None, "polars", {}, [], []))
+    path = plan.export_html(tmp_path / "execution_plan.html", include_navigation=True)
+    document = path.read_text(encoding="utf-8")
+
+    assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 7
+    assert "No callable operations." in document
+    assert "No execution stages." in document
 
 
 @pytest.mark.parametrize("filename", REPORTS)

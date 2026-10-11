@@ -185,6 +185,12 @@ The standalone report includes the summary, 3D callable graph, and stages.
 and Stages pages. Both graph views use compiled callable operations and their
 dependency edges; feature lineage is shown separately under Feature graph.
 
+The overview summarizes callable, function, entity, and feature counts, along
+with stages, dependency edges, and the largest number of operations in a stage.
+Bar charts show the operation-type breakdown and each stage's size. Stage size
+indicates potential parallelism, not how many operations the engine actually
+runs concurrently.
+
 The [Engine documentation](../engine/index.md) describes how the built-in engine
 executes the loaded plan and accumulates runtime dataframes. The plan itself
 remains independent of that engine's dataframe implementation and orchestration
