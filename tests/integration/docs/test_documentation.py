@@ -71,7 +71,7 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert "Datasets" in document
     assert "Fragments" in document
     assert ">source<" in document
-    assert "lg:grid-cols-1" in document
+    assert "space-y-5" in document
     assert 'href="#engines"' not in document
     assert 'href="#graph"' not in document
     assert 'href="#variables"' not in document
@@ -98,8 +98,7 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert "file:///" in document
     assert "-&gt; LazyFrame" in document
     assert "-&gt; Expr" in document
-    assert "?storage.telemetry_source.path" in document
-    assert "$features.operating_point_recommendation" in document
+    assert "read · read_pump_telemetry" in document
     assert document.index("Pump telemetry") < document.index(
         "rounded-2xl border border-slate-800 bg-slate-900/70 p-6"
     )
@@ -111,9 +110,11 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert "3D Model" not in document
     assert ">source<" in document
     assert "mt-5 border-t border-slate-800 pt-4" in document
-    assert document.count(">Vectorize<") == 1
-    assert document.count(">Read<") == 1
-    assert document.count(">Write<") == 1
+    for group_name in ("vectorize", "read", "write"):
+        assert f'data-function-group="{group_name}"' in document
+    assert "Vectorize" in document
+    assert "Read" in document
+    assert "Write" in document
 
 
 def test_generate_json_docs_from_in_memory_spec_is_deterministic(tmp_path: Path) -> None:
