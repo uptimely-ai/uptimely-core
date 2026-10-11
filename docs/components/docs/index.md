@@ -8,7 +8,7 @@ connected views:
 | Page | Purpose |
 | --- | --- |
 | Specification | Separate Overview, Features, Dimensions, and Functions pages, linked beneath Specification in the sidebar. |
-| Feature graph | Explore logical dependencies between features and the functions that produce them. |
+| Feature lineage | Explore logical dependencies in interactive 2D and 3D views. |
 | Execution plan | Separate Overview and Stages pages for the callable graph, plan summary, and detailed parallel operations. |
 
 The documentation is about
@@ -33,7 +33,8 @@ _generated/docs/
 ├── spec_features.html
 ├── spec_dimensions.html
 ├── spec_functions.html
-├── feature_graph.html
+├── feature_graph_2d.html
+├── feature_graph_3d.html
 ├── execution_plan.html
 └── execution_plan_stages.html
 ```
@@ -41,6 +42,8 @@ _generated/docs/
 Start at `index.html`. `spec.html` contains the specification overview; the other
 specification pages contain only their respective sections. The Specification
 sidebar group provides subnavigation and highlights the current section.
+Feature graph provides separate 2D and 3D lineage views in its sidebar
+subnavigation.
 Execution plan has its own Overview and Stages subnavigation. Its overview
 contains summary counts and the interactive callable graph; Stages lists the
 dependency-ordered operations with their arguments and return types.
@@ -166,7 +169,9 @@ them without trying to infer arbitrary Python behavior from source code. The
 graph reflects the declared model, not dependencies or side effects that
 functions leave undeclared.
 
-The current interactive 3D graph uses:
+### 3D lineage
+
+The interactive 3D graph uses:
 
 - **Blue spheres** for features, including source-provided and calculated features.
 - **Octahedra colored by operation type** for functions.
@@ -174,6 +179,20 @@ The current interactive 3D graph uses:
 
 The legend identifies read, vectorize, collapse, conform, expand, and write
 functions. Select a node to inspect its feature or function metadata.
+
+### 2D lineage
+
+Choose a 2D left-to-right lineage view when you want to follow upstream inputs
+through calculations to downstream features. It uses layered node cards,
+directional links, and a fit-to-view control. Both renderings include the same
+node details and can be exported with `FeatureGraph.export_html`:
+
+```python
+graph.export_html("_generated/graph/feature_graph_2d.html", dimension="2d")
+graph.export_html("_generated/graph/feature_graph_3d.html", dimension="3d")
+```
+
+The `dimension` argument defaults to `"3d"`, preserving the existing output.
 
 The feature graph explains logical lineage; the
 [execution plan](../compiler/index.md) separately shows callable dependencies and
@@ -193,7 +212,7 @@ subset.export_html("_generated/graph/health_signal.html")
 ```
 
 This is useful for debugging, reviewing a calculation, or sharing a smaller
-lineage view. Website generation exports the full feature graph; subset reports
+lineage view. Website generation exports full 2D and 3D feature graphs; subset reports
 are created separately through the Python API.
 
 ## Standalone reports and reference data

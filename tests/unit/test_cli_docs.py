@@ -18,7 +18,8 @@ PAGES = {
     "spec_features.html",
     "spec_dimensions.html",
     "spec_functions.html",
-    "feature_graph.html",
+    "feature_graph_2d.html",
+    "feature_graph_3d.html",
     "execution_plan.html",
     "execution_plan_stages.html",
 }

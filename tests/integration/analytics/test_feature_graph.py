@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal, cast
 
 import pytest
 
@@ -102,16 +103,56 @@ def test_system_graph_can_export_html(tmp_path: Path) -> None:
     assert "<strong>Node type:</strong> Function" in html
     assert "<strong>Function:</strong> ${label}" in html
     assert "<strong>Produces:</strong> ${formatDetailValue(feature)}" in html
-    assert "Feature</span>" in html
-    assert "Read</span>" in html
-    assert "Vectorize</span>" in html
-    assert "Collapse</span>" in html
-    assert "Conform</span>" in html
-    assert "Expand</span>" in html
-    assert "Write</span>" in html
+    assert "Feature sphere</span>" in html
+    assert "Read octahedron</span>" in html
+    assert "Vectorize octahedron</span>" in html
+    assert "Collapse octahedron</span>" in html
+    assert "Conform octahedron</span>" in html
+    assert "Expand octahedron</span>" in html
+    assert "Write octahedron</span>" in html
     assert "input_color" not in html
 
     subset_output = tmp_path / "subset.html"
     system.subset(["health_signal_normalized"]).export_html(subset_output)
     subset_html = subset_output.read_text(encoding="utf-8")
     assert '"node_type": "feature"' in subset_html
+
+
+def test_system_graph_can_export_2d_lineage_html(tmp_path: Path) -> None:
+    specification = Specification.from_json(SPEC_PATH)
+    system = FeatureGraph(specification)
+
+    output = tmp_path / "lineage.html"
+    saved = system.export_html(output, dimension="2d")
+    html = output.read_text(encoding="utf-8")
+
+    assert saved == output
+    assert "force-graph@1.52.0/dist/force-graph.min.js" in html
+    assert "ForceGraph()(graphContainer)" in html
+    assert 'Upstream <span aria-hidden="true">&rarr;</span> downstream' in html
+    assert 'id="fit-graph"' in html
+    assert "nodeCanvasObject" in html
+    assert "rankNodes" in html
+    assert "health_signal_normalized" in html
+    assert ".linkOpacity(" not in html
+    assert 'aria-label="2D graph legend"' in html
+    assert "Feature</span>" in html
+    assert "Read function</span>" in html
+    assert "sphere" not in html
+    assert "octahedron" not in html
+    assert 'class="details details-2d"' in html
+    assert "Selected item" in html
+    assert ".details-2d { right: auto; left: 16px;" in html
+    assert "graph.screen2GraphCoords(" in html
+    assert ".onNodeClick((_node, event) => selectAtPointer(event))" in html
+    assert ".onBackgroundClick(event => selectAtPointer(event))" in html
+    assert "<h2>Node details</h2>" not in html
+    assert "3d-force-graph" not in html
+
+
+def test_system_graph_rejects_unsupported_html_dimension(tmp_path: Path) -> None:
+    specification = Specification.from_json(SPEC_PATH)
+    system = FeatureGraph(specification)
+
+    with pytest.raises(ValueError, match="Unsupported graph dimension"):
+        system.export_html(tmp_path / "graph.html", dimension=cast(Literal["2d", "3d"], "4d"))

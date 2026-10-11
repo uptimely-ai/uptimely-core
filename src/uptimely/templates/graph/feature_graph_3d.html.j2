@@ -1,5 +1,6 @@
 {% extends "graph/base.html.j2" %}
-{% block title %}Uptimely Dependency Graph{% endblock %}
+{% from "graph/feature_graph_shared.html.j2" import node_details_panel, node_details_script %}
+{% block title %}Uptimely 3D Feature Lineage{% endblock %}
 {% block head %}
 	<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 	<script src="https://unpkg.com/3d-force-graph@1.77.0/dist/3d-force-graph.min.js"></script>
@@ -7,23 +8,19 @@
 {% endblock %}
 {% block graph_style %}
 	.legend-separator { display: block; height: 1px; margin: 4px 0; background: #52616b; }
+	.legend .function::before { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 {% endblock %}
 {% block body %}
 	<div class="panel">
-		<div class="legend">
-			<span style="--color:{{ style.feature_color }}">Feature</span>
+		<div class="legend" aria-label="3D graph legend">
+			<span style="--color:{{ style.feature_color }}">Feature sphere</span>
 			<span class="legend-separator" aria-hidden="true"></span>
 			{% for function_type, color in style.function_colors.items() %}
-			<span style="--color:{{ color }}">{{ function_type|title }}</span>
+			<span class="function" style="--color:{{ color }}">{{ function_type|title }} octahedron</span>
 			{% endfor %}
 		</div>
-
 	</div>
-	<div class="details" id="node-details">
-		<h2>Node details</h2>
-		<div class="meta">Click a node</div>
-		<div class="summary">Select any feature in the graph to see its identifier and details.</div>
-	</div>
+	{{ node_details_panel() }}
 	<div id="graph"></div>
 	<script>
 		const data = {{ graph_data|safe }};
@@ -33,45 +30,7 @@
 			{% endfor %}
 		};
 		const featureColor = '{{ style.feature_color }}';
-		const nodeDetails = document.getElementById('node-details');
-		const formatDetailValue = (value) => value == null ? 'n/a' : String(value).slice(0, 220);
-		const updateDetails = (node) => {
-			if (!node) {
-				nodeDetails.innerHTML = `
-					<h2>Node details</h2>
-					<div class="meta">Click a node</div>
-					<div class="summary">Select any feature in the graph to see its identifier and details.</div>
-				`;
-				return;
-			}
-			const label = node.label || node.id || 'Unknown';
-			const isFunction = node.is_function === true;
-			if (isFunction) {
-				const entrypoint = node.entrypoint || null;
-				const feature = node.feature || null;
-				const detailParts = [
-					`<div class="meta"><strong>Node type:</strong> Function</div>`,
-					`<div class="meta"><strong>Function:</strong> ${label}</div>`,
-					`<div class="meta"><strong>Function type:</strong> ${node.function_type || 'n/a'}</div>`,
-					feature ? `<div class="meta"><strong>Produces:</strong> ${formatDetailValue(feature)}</div>` : '',
-					entrypoint ? `<div class="meta"><strong>Entrypoint:</strong> ${formatDetailValue(entrypoint)}</div>` : '',
-				].filter(Boolean).join('');
-				nodeDetails.innerHTML = `
-					<h2>Node details</h2>
-					${detailParts || '<div class="meta">No function metadata available.</div>'}
-				`;
-				return;
-			}
-			const dataType = node.data_type || node.type || 'unknown';
-			const entity = node.entity || 'n/a';
-			nodeDetails.innerHTML = `
-				<h2>Node details</h2>
-				<div class="meta"><strong>Node type:</strong> Feature</div>
-				<div class="meta"><strong>Feature:</strong> ${label}</div>
-				<div class="meta"><strong>Entity:</strong> ${formatDetailValue(entity)}</div>
-				<div class="meta"><strong>Data type:</strong> ${formatDetailValue(dataType)}</div>
-			`;
-		};
+{{ node_details_script() }}
 		const graphContainer = document.getElementById('graph');
 		const graph = ForceGraph3D()(graphContainer)
 			.width(graphContainer.clientWidth)
@@ -94,8 +53,7 @@
 				const isVariable = !node.is_function;
 				const geometry = isVariable
 					? new THREE.SphereGeometry({{ style.feature_node_size }}, 16, 12)
-					: new THREE.OctahedronGeometry({{ style.function_node_size }}, 0)
-				;
+					: new THREE.OctahedronGeometry({{ style.function_node_size }}, 0);
 				const mesh = new THREE.Mesh(geometry, material);
 
 				if (!isVariable) {

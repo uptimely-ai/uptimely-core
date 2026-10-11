@@ -5,6 +5,7 @@ import typing
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 from graphable.views import CytoscapeStylingConfig, create_topology_cytoscape
 
@@ -16,7 +17,7 @@ if typing.TYPE_CHECKING:
 
 @dataclass
 class GraphStyle:
-    """Visual appearance settings for the 3D dependency graph."""
+    """Visual appearance settings for the dependency graph."""
 
     function_color: str = "#d62828"
     input_color: str = "#64c7a8"
@@ -52,19 +53,27 @@ def render_graph_html(
     links: list[dict[str, str]],
     style: GraphStyle | None = None,
     *,
+    dimension: Literal["2d", "3d"] = "3d",
     include_navigation: bool = False,
 ) -> str:
-    """Render the dependency graph as interactive 3D HTML.
+    """Render the dependency graph as interactive 2D or 3D HTML.
 
     Args:
         nodes: Graph nodes with stable identifiers and display metadata.
         links: Directed connections between node identifiers.
         style: Optional graph appearance settings.
+        dimension: Graph layout to render.
         include_navigation: Link to sibling documentation website pages.
 
     Returns:
         The complete HTML document.
+
+    Raises:
+        ValueError: If the requested graph dimension is not supported.
     """
+    if dimension not in ("2d", "3d"):
+        raise ValueError(f"Unsupported graph dimension: {dimension!r}. Choose '2d' or '3d'.")
+
     style = style or GraphStyle()
     environment = html_environment()
     graph_data = json.dumps(
@@ -73,13 +82,15 @@ def render_graph_html(
             "links": sorted(links, key=lambda link: (link["source"], link["target"])),
         }
     ).replace("</script>", r"<\/script>")
-    template = environment.get_template("graph/feature_graph.html.j2")
+    template = environment.get_template(f"graph/feature_graph_{dimension}.html.j2")
     return template.render(
         style=style,
+        dimension=dimension,
         graph_data=graph_data,
         generated_at=datetime.now().astimezone().isoformat(timespec="seconds"),
         include_navigation=include_navigation,
         active_page="graph",
+        active_section=dimension,
     )
 
 
@@ -116,14 +127,16 @@ def export_graph_html(
     output_path: str | Path,
     style: GraphStyle | None = None,
     *,
+    dimension: Literal["2d", "3d"] = "3d",
     include_navigation: bool = False,
 ) -> Path:
-    """Export a feature dependency graph as an interactive 3D HTML document.
+    """Export a feature dependency graph as an interactive 2D or 3D HTML document.
 
     Args:
         graph: The feature dependency graph to export.
         output_path: Destination for the HTML document.
         style: Optional graph appearance settings.
+        dimension: Graph layout to render. The default preserves the 3D view.
         include_navigation: Link to sibling documentation website pages.
 
     Returns:
@@ -136,6 +149,12 @@ def export_graph_html(
 
     nodes, links = graph_payload_from_cytoscape(graph)
 
-    document = render_graph_html(nodes, links, style, include_navigation=include_navigation)
+    document = render_graph_html(
+        nodes,
+        links,
+        style,
+        dimension=dimension,
+        include_navigation=include_navigation,
+    )
     target.write_text(document, encoding="utf-8")
     return target
