@@ -83,8 +83,17 @@ def test_website_exports_all_reports_with_relative_navigation(tmp_path: Path, mo
         assert 'aria-label="Feature graph views"' in graph_page
         assert 'href="feature_graph_2d.html"' in graph_page
         assert 'href="feature_graph_3d.html"' in graph_page
-    assert 'aria-current="page"><span>2D graph</span>' in graph_2d
-    assert 'aria-current="page"><span>3D graph</span>' in graph_3d
+    for document, filename in (
+        (graph_2d, "feature_graph_2d.html"),
+        (graph_3d, "feature_graph_3d.html"),
+    ):
+        assert re.search(
+            rf'href="{filename}" aria-current="page"><i class="nav-icon" '
+            r'data-lucide="git-fork"',
+            document,
+        )
+    assert ".onEngineStop(" in graph_2d
+    assert "graph.zoomToFit(0, 140)" in graph_2d
     plan = (index.parent / "execution_plan_graph_3d.html").read_text(encoding="utf-8")
     assert 'id="callable-graph"' in plan
     assert "normalize_health_signal" in plan
@@ -161,6 +170,14 @@ def test_execution_plan_pages_render_only_their_section(
         assert 'class="absolute inset-0"' in document
         assert "<header" not in document
         assert ">Callable graph</h2>" not in document
+        assert ".linkDirectionalParticles(2)" in document
+        assert ".linkDirectionalArrow" not in document
+        assert (
+            'class="details details-2d"' if title == "2D graph" else 'class="details"'
+        ) in document
+        if title == "2D graph":
+            assert "callableGraph.zoomToFit(0, 140)" in document
+            assert ".onEngineStop(" in document
     assert ('id="plan-overview"' in document) == (title == "Overview")
     assert ('id="callable-graph"' in document) == (title in ("2D graph", "3D graph"))
     assert ("const callableGraphData" in document) == (title in ("2D graph", "3D graph"))

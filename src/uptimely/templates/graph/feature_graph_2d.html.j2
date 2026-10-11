@@ -11,17 +11,11 @@
 		background: radial-gradient(circle, var(--color) 0 3px, transparent 3.5px) 3px center / 6px 6px no-repeat; }
 	.legend .function::before {
 		background: linear-gradient(var(--color), var(--color)) 3px center / 6px 6px no-repeat; }
-	.graph-hint { position: absolute; top: 18px; right: 20px; z-index: 1; margin: 0;
-		padding: 10px 14px; border: 1px solid #52616b; border-radius: 999px;
-		background: rgba(16, 24, 32, .9); color: #cfe0ea; font-size: 12px; }
 	.graph-controls { position: absolute; top: 70px; right: 20px; z-index: 1; }
 	.graph-controls button { padding: 9px 14px; border: 1px solid #52616b; border-radius: 8px;
 		background: #1c2b36; color: #e8edf2; font: inherit; cursor: pointer; }
 	.graph-controls button:hover, .graph-controls button:focus-visible {
 		border-color: #67e8f9; color: #67e8f9; }
-	.details-2d { right: auto; left: 16px; width: 320px; max-height: 34%;
-		border-color: #3b8291; border-left: 3px solid #67e8f9; border-radius: 12px; }
-	.details-2d h2 { color: #67e8f9; }
 {% endblock %}
 {% block body %}
 	<div class="panel">
@@ -33,7 +27,6 @@
 			{% endfor %}
 		</div>
 	</div>
-	<p class="graph-hint">Upstream <span aria-hidden="true">&rarr;</span> downstream</p>
 	<div class="graph-controls"><button id="fit-graph" type="button">Fit graph</button></div>
 	{{ node_details_panel("details details-2d", "Selected item") }}
 	<div id="graph"></div>
@@ -102,6 +95,8 @@
 			nodes.forEach((node, index) => {
 				node.fx = rankOffsets.get(rank) - totalWidth / 2;
 				node.fy = (index - (nodes.length - 1) / 2) * 76;
+				node.x = node.fx;
+				node.y = node.fy;
 			});
 		}
 		const selectAtPointer = (event) => {
@@ -113,6 +108,7 @@
 				Math.abs(point.y - node.y) <= node.cardHeight / 2);
 			if (node) updateDetails(node);
 		};
+		let initialFitComplete = false;
 		const graph = ForceGraph()(graphContainer)
 			.width(graphContainer.clientWidth)
 			.height(graphContainer.clientHeight)
@@ -174,10 +170,16 @@
 			.onNodeClick((_node, event) => selectAtPointer(event))
 			.onLinkClick((_link, event) => selectAtPointer(event))
 			.onBackgroundClick(event => selectAtPointer(event))
+			.cooldownTicks(1)
+			.onEngineStop(() => {
+				if (!initialFitComplete) {
+					graph.zoomToFit(0, 140);
+					initialFitComplete = true;
+				}
+			})
 			.graphData(data);
-		const fitGraph = () => graph.zoomToFit(600, 80);
+		const fitGraph = () => graph.zoomToFit(600, 140);
 		document.getElementById('fit-graph').addEventListener('click', fitGraph);
-		requestAnimationFrame(fitGraph);
 		window.addEventListener('resize', () => {
 			graph.width(graphContainer.clientWidth).height(graphContainer.clientHeight);
 			fitGraph();

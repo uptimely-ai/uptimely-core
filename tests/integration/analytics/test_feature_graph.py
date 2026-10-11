@@ -129,7 +129,7 @@ def test_system_graph_can_export_2d_lineage_html(tmp_path: Path) -> None:
     assert saved == output
     assert "force-graph@1.52.0/dist/force-graph.min.js" in html
     assert "ForceGraph()(graphContainer)" in html
-    assert 'Upstream <span aria-hidden="true">&rarr;</span> downstream' in html
+    assert "graph-hint" not in html
     assert 'id="fit-graph"' in html
     assert "nodeCanvasObject" in html
     assert "rankNodes" in html
