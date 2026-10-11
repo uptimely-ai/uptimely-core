@@ -12,7 +12,15 @@ from uptimely.cli import cli
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
 SPEC_PATH = REPOSITORY_ROOT / "examples/example_1/_generated/spec/spec.json"
-PAGES = {"index.html", "spec.html", "feature_graph.html", "execution_plan.html"}
+PAGES = {
+    "index.html",
+    "spec.html",
+    "spec_features.html",
+    "spec_dimensions.html",
+    "spec_functions.html",
+    "feature_graph.html",
+    "execution_plan.html",
+}
 
 
 def test_docs_generate_defaults(

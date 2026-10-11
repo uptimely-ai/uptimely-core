@@ -110,6 +110,9 @@ Generated artifacts are written beneath each example's `_generated/` directory:
 | [`example_1/_generated/docs/docs.json`](example_1/_generated/docs/docs.json) | `run_docs.py` |
 | [`example_1/_generated/docs/index.html`](example_1/_generated/docs/index.html) | `run_docs.py` |
 | [`example_1/_generated/docs/spec.html`](example_1/_generated/docs/spec.html) | `run_docs.py` |
+| [`example_1/_generated/docs/spec_features.html`](example_1/_generated/docs/spec_features.html) | `run_docs.py` |
+| [`example_1/_generated/docs/spec_dimensions.html`](example_1/_generated/docs/spec_dimensions.html) | `run_docs.py` |
+| [`example_1/_generated/docs/spec_functions.html`](example_1/_generated/docs/spec_functions.html) | `run_docs.py` |
 | [`example_1/_generated/docs/feature_graph.html`](example_1/_generated/docs/feature_graph.html) | `run_docs.py` |
 | [`example_1/_generated/docs/execution_plan.html`](example_1/_generated/docs/execution_plan.html) | `run_docs.py` |
 | [`example_1/_generated/graph/feature_graph.html`](example_1/_generated/graph/feature_graph.html) | `run_feature_graph.py` |
@@ -120,7 +123,8 @@ The scripts are intended to run from the repository root. Python 3.13 or newer i
 Documentation can also be generated from an in-memory `Specification`; it does
 not need a source path. `Documentation.create_html` builds a linked static website
 containing the specification, feature graph, and execution plan. The returned path
-is the index file; all report pages are written alongside it.
+is the index file; all report pages are written alongside it. Overview, Features,
+Dimensions, and Functions are separate specification pages with sidebar subnavigation.
 
 Use `Specification.create_html` for just the standalone specification reference,
 or `Documentation.create_json` for reference data. The plan and feature graph

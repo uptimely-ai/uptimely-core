@@ -14,6 +14,9 @@ from uptimely.spec import Specification
 SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
 REPORTS = {
     "spec.html": "spec",
+    "spec_features.html": "features",
+    "spec_dimensions.html": "dimensions",
+    "spec_functions.html": "functions",
     "feature_graph.html": "graph",
     "execution_plan.html": "plan",
 }
@@ -63,7 +66,7 @@ def test_website_exports_all_reports_with_relative_navigation(tmp_path: Path, mo
             assert (index.parent / href).is_file()
         assert parser.active_links == ([] if filename == "index.html" else [filename])
         assert "<iframe" not in document
-    assert "Pump telemetry" in (index.parent / "spec.html").read_text(encoding="utf-8")
+    assert "Pump telemetry" in (index.parent / "spec_features.html").read_text(encoding="utf-8")
     graph = (index.parent / "feature_graph.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph
     assert ".height(graphContainer.clientHeight)" in graph
@@ -72,6 +75,28 @@ def test_website_exports_all_reports_with_relative_navigation(tmp_path: Path, mo
     assert "normalize_health_signal" in plan
     assert not Path("_generated/spec").exists()
     assert not Path("_generated/compile").exists()
+
+
+@pytest.mark.parametrize(
+    ("filename", "section_id"),
+    [
+        ("spec.html", "overview"),
+        ("spec_features.html", "entities"),
+        ("spec_dimensions.html", "dimensions"),
+        ("spec_functions.html", "functions"),
+    ],
+)
+def test_specification_pages_render_only_their_section(
+    tmp_path: Path, filename: str, section_id: str
+) -> None:
+    specification = Specification.from_json(SPEC_PATH)
+    Documentation(specification).create_html(tmp_path / "index.html")
+    document = (tmp_path / filename).read_text(encoding="utf-8")
+
+    for candidate in ("overview", "entities", "dimensions", "functions"):
+        assert (f'<section id="{candidate}"' in document) == (candidate == section_id)
+    assert 'aria-label="Specification sections"' in document
+    assert 'aria-label="Documentation sections"' not in document
 
 
 def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: Path) -> None:
