@@ -67,12 +67,18 @@ def _render_execution_plan(
     steps = plan_data["execution_order"]
     stages = plan_data["execution_stages"]
     target = Path(output_path)
+    stage_by_operation = {
+        operation.id: stage_number
+        for stage_number, stage in enumerate(plan.execution_stages, start=1)
+        for operation in stage
+    }
     graph_nodes = [
         {
             "id": operation.id,
             "node_type": "callable",
             "operation_type": operation.kind,
             "callable_type": operation.kind,
+            "stage": stage_by_operation[operation.id],
             "label": _callable_label(operation),
             "label_lines": _callable_label_lines(operation),
             "function_id": operation.function_id,

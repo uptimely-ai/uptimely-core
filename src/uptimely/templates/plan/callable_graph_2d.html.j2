@@ -3,29 +3,9 @@
 		<button id="fit-callable-graph" type="button" class="absolute right-4 top-4 z-10 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-cyan-200 hover:border-cyan-300">Fit graph</button>
 {% endblock %}
 {% block callable_renderer %}
-		const children = new Map(callableGraphData.nodes.map(node => [node.id, []]));
-		const indegree = new Map(callableGraphData.nodes.map(node => [node.id, 0]));
-		const ranks = new Map(callableGraphData.nodes.map(node => [node.id, 0]));
-		for (const link of callableGraphData.links) {
-			children.get(link.source).push(link.target);
-			indegree.set(link.target, indegree.get(link.target) + 1);
-		}
-		const queue = callableGraphData.nodes.filter(node => indegree.get(node.id) === 0)
-			.map(node => node.id);
-		for (let index = 0; index < queue.length; index++) {
-			const source = queue[index];
-			for (const target of children.get(source)) {
-				ranks.set(target, Math.max(ranks.get(target), ranks.get(source) + 1));
-				indegree.set(target, indegree.get(target) - 1);
-				if (indegree.get(target) === 0) queue.push(target);
-			}
-		}
-		if (queue.length !== callableGraphData.nodes.length) {
-			throw new Error('Cannot lay out a cyclic callable graph.');
-		}
 		const layers = new Map();
 		for (const node of callableGraphData.nodes) {
-			const rank = ranks.get(node.id);
+			const rank = node.stage - 1;
 			if (!layers.has(rank)) layers.set(rank, []);
 			layers.get(rank).push(node);
 			node.cardWidth = Math.min(
@@ -39,7 +19,6 @@
 				+ (nodes.length - 1) * 24;
 			let top = -stackHeight / 2;
 			nodes.forEach(node => {
-				node.stage = rank + 1;
 				node.fx = rank * 360;
 				node.fy = top + node.cardHeight / 2;
 				node.x = node.fx;
