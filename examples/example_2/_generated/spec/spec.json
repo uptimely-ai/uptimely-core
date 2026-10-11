@@ -1,6 +1,10 @@
 {
   "name": "Example 2",
   "version": "0.1.0",
+  "source": {
+    "name": "python_api",
+    "generated": true
+  },
   "dimensions": {
     "id": {
       "type": "integer",

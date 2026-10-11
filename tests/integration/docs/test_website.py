@@ -139,6 +139,21 @@ def test_specification_pages_render_only_their_section(
     assert "sm:text-6xl" not in document
 
 
+def test_specification_overview_displays_source_profile(tmp_path: Path) -> None:
+    specification = Specification.from_json(SPEC_PATH)
+    Documentation(specification).create_html(tmp_path / "index.html")
+    document = (tmp_path / "spec.html").read_text(encoding="utf-8")
+
+    assert "Pump analytics" in document
+    assert 'data-source-name="python_api" data-generated="true"' in document
+    assert ">Source</p>" in document
+    assert ">python_api</p>" in document
+    assert ">Generated</p>" in document
+    assert ">true</span>" in document
+    assert "Framework-generated" in document
+    assert "rounded-3xl border border-cyan-900/60 bg-gradient-to-br" in document
+
+
 def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: Path) -> None:
     specification = Specification.from_json(SPEC_PATH)
     specification.path = None

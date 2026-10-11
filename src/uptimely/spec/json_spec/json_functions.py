@@ -258,6 +258,7 @@ def _static_datasets_to_spec(
     return {
         **({"name": name} if name is not None else {}),
         "version": "0.1.0",
+        "source": {"name": "python_api", "generated": True},
         "dimensions": {
             identifier: resource.model_dump(exclude_none=False)
             for identifier, resource in dimensions.items()

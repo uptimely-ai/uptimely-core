@@ -24,7 +24,7 @@ examples/
 └── example_2/
 	├── data/                 Data used by the Python example
 	├── functions/            Example function implementations
-	├── _generated/           Exported specification output
+	├── _generated/spec/      Exported specification output
 	├── spec/                 Python specification declarations
 	└── run_export_spec.py    Specification export entry point
 ```
@@ -120,7 +120,7 @@ Generated artifacts are written beneath each example's `_generated/` directory:
 | [`example_1/_generated/docs/execution_plan_graph_3d.html`](example_1/_generated/docs/execution_plan_graph_3d.html) | `run_docs.py` |
 | [`example_1/_generated/docs/execution_plan_stages.html`](example_1/_generated/docs/execution_plan_stages.html) | `run_docs.py` |
 | [`example_1/_generated/graph/feature_graph.html`](example_1/_generated/graph/feature_graph.html) | `run_feature_graph.py` |
-| [`example_2/_generated/spec.json`](example_2/_generated/spec.json) | `run_export_spec.py` |
+| [`example_2/_generated/spec/spec.json`](example_2/_generated/spec/spec.json) | `run_export_spec.py` |
 
 The scripts are intended to run from the repository root. Python 3.13 or newer is required. See each example's README for its specification model and workflow details.
 

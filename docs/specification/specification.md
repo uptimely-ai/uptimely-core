@@ -20,6 +20,7 @@ The root document MUST be a JSON object in one file. Object keys that identify r
 | --- | --- | --- | --- |
 | `name` | string | No | Human-readable name of the analytics specification. |
 | `version` | string | Yes | Open Analytics specification version used by parsers and validators. |
+| `source` | object | No | Authoring source metadata. `name` identifies the source (for example, `python_api`, `web_app`, or `manual`); `generated` is `true` when a framework generated the document and `false` when it was hand-written. If omitted, parsers treat the document as manually authored. |
 | `dimensions` | object | No | Reusable identifiers and their hierarchies. |
 | `functions` | object | Yes | Reusable `read`, `collapse`, `expand`, `conform`, `write`, `vectorize`, and `aggregate` function templates. |
 | `entities` | object | Yes | Analytical entities, datasets, and operation bindings. |
