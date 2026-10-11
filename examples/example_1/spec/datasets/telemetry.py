@@ -179,6 +179,7 @@ telemetry_dataset = dataset.Dataset(
         grain="One row per pump and timestamp",
         filtering="Development telemetry selected by the read function",
     ),
+    order=[dataset.Order(dimension=ref.dimension("timestamp"), direction="asc")],
     read=[telemetry_read],
     vectorize=telemetry_calculations,
     write=[telemetry_write],

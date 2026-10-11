@@ -442,6 +442,12 @@
               }
             }
           },
+          "order": [
+            {
+              "dimension": "$dimensions.timestamp",
+              "direction": "asc"
+            }
+          ],
           "id": "pump_telemetry_dataset"
         }
       ]
@@ -528,6 +534,7 @@
             }
           },
           "write": {},
+          "order": [],
           "id": "pump_dataset"
         }
       ]
