@@ -95,7 +95,7 @@ def test_website_exports_all_reports_with_relative_navigation(tmp_path: Path, mo
             document,
         )
     assert ".onEngineStop(" in graph_2d
-    assert "graph.zoomToFit(0, 140)" in graph_2d
+    assert "graph.zoomToFit(0, Math.max(140, layout.laneLabelWidth + 24))" in graph_2d
     plan = (index.parent / "execution_plan_graph_3d.html").read_text(encoding="utf-8")
     assert 'id="callable-graph"' in plan
     assert "normalize_health_signal" in plan
