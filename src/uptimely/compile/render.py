@@ -2,6 +2,7 @@
 
 import json
 import os
+from collections import Counter
 from pathlib import Path
 
 from uptimely.analytics.render import GraphStyle
@@ -93,7 +94,15 @@ def _render_execution_plan(
         "callable_count": plan_data["callable_count"],
         "function_count": len({step["function"] for step in steps}),
         "entity_count": len({operation.entity_id for operation in plan.execution_order}),
-        "feature_count": len({operation.feature for operation in plan.execution_order}),
+        "feature_count": len(
+            {operation.feature for operation in plan.operations if operation.feature is not None}
+        ),
+        "stage_count": len(stages),
+        "dependency_count": len(graph_links),
+        "max_parallel_operations": max((len(stage["steps"]) for stage in stages), default=0),
+        "operation_counts": sorted(
+            Counter(operation.kind for operation in plan.operations).items()
+        ),
         "stages": stages,
         "callable_graph_data": callable_graph_data,
         "graph_style": GraphStyle(),

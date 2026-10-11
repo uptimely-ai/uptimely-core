@@ -25,9 +25,45 @@
       {% block plan_overview %}
       <section id="plan-overview" class="mb-16">
         <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {% for label, value in [("callables", callable_count), ("functions", function_count), ("entities", entity_count), ("features", feature_count)] %}
-          <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5"><span class="font-mono text-[10px] uppercase tracking-[.15em] text-slate-500">{{ label }}</span><p class="mt-4 font-display text-3xl font-semibold text-white">{{ value }}</p></div>
+          {% for label, value, icon in [("Callables", callable_count, "git-fork"), ("Functions", function_count, "braces"), ("Entities", entity_count, "boxes"), ("Features", feature_count, "layers-3"), ("Stages", stage_count, "list-ordered"), ("Dependencies", dependency_count, "network"), ("Max parallel operations", max_parallel_operations, "split")] %}
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5" data-stat="{{ label }}">
+            <div class="flex items-center justify-between gap-3"><span class="font-mono text-[10px] uppercase tracking-[.15em] text-slate-500">{{ label }}</span><i data-lucide="{{ icon }}" class="h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true"></i></div>
+            <p class="mt-4 font-display text-3xl font-semibold text-white" data-value="{{ value }}">{{ value }}</p>
+          </div>
           {% endfor %}
+        </div>
+        <div class="mt-5 grid gap-5 lg:grid-cols-2">
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5">
+            <div class="mb-5 flex items-baseline justify-between gap-4"><h2 class="font-display text-lg font-semibold text-white">Callable operations</h2><span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">total {{ callable_count }}</span></div>
+            {% set operation_max = operation_counts|map(attribute=1)|max if operation_counts else 0 %}
+            <div class="space-y-4">
+              {% for label, value in operation_counts %}
+              <div class="grid grid-cols-[5.5rem_minmax(0,1fr)_3rem] items-center gap-3" data-operation="{{ label }}" data-count="{{ value }}">
+                <span class="font-mono text-xs text-slate-400">{{ label }}</span>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-800"><div class="h-full rounded-full bg-cyan-400" style="width: {{ (value / operation_max * 100) if operation_max else 0 }}%"></div></div>
+                <span class="text-right font-mono text-xs text-white">{{ value }}</span>
+              </div>
+              {% else %}
+              <p class="text-sm text-slate-400">No callable operations.</p>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5">
+            <div class="mb-2 flex items-baseline justify-between gap-4"><h2 class="font-display text-lg font-semibold text-white">Execution stages</h2><span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">total {{ stage_count }}</span></div>
+            <p class="mb-5 text-xs leading-5 text-slate-400">Operations in each stage can run independently. Actual parallel execution depends on the engine.</p>
+            <div class="space-y-4">
+              {% for stage in stages %}
+              {% set value = stage.steps|length %}
+              <div class="grid grid-cols-[5.5rem_minmax(0,1fr)_3rem] items-center gap-3" data-stage="{{ stage.stage }}" data-count="{{ value }}">
+                <span class="font-mono text-xs text-slate-400">Stage {{ stage.stage }}</span>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-800"><div class="h-full rounded-full bg-cyan-400" style="width: {{ (value / max_parallel_operations * 100) if max_parallel_operations else 0 }}%"></div></div>
+                <span class="text-right font-mono text-xs text-white">{{ value }}</span>
+              </div>
+              {% else %}
+              <p class="text-sm text-slate-400">No execution stages.</p>
+              {% endfor %}
+            </div>
+          </div>
         </div>
       </section>
       {% endblock %}
