@@ -10,7 +10,12 @@ from uptimely.render import html_environment
 from .compiler import ExecutionPlan
 
 OUTPUT_PATH = Path("_generated") / "compile" / "execution_plan.html"
-PLAN_PAGES = {"overview": "execution_plan.html", "stages": "execution_plan_stages.html"}
+PLAN_PAGES = {
+    "overview": "execution_plan.html",
+    "graph_2d": "execution_plan_graph_2d.html",
+    "graph_3d": "execution_plan_graph_3d.html",
+    "stages": "execution_plan_stages.html",
+}
 
 
 def _render_execution_plan(
@@ -24,7 +29,7 @@ def _render_execution_plan(
     Args:
         plan: The compiled execution plan to render.
         output_path: Where to write the report file.
-        include_navigation: Generate Overview and Stages pages with website navigation.
+        include_navigation: Generate summary, callable graph, and stage pages with navigation.
 
     Returns:
         The path the report was written to.
@@ -44,6 +49,7 @@ def _render_execution_plan(
             "entity": operation.entity_id,
             "dataset_id": operation.dataset_id,
             "feature": operation.feature,
+            "dependency_ids": sorted(operation.dependency_ids),
         }
         for operation in sorted(plan.operations, key=lambda operation: operation.id)
     ]
@@ -100,7 +106,11 @@ def _render_execution_plan(
         for section, filename in PLAN_PAGES.items():
             page_target = target if section == "overview" else target.parent / filename
             document = environment.get_template(f"plan/{section}.html.j2").render(
-                **context, active_section=section
+                **context,
+                active_section=section,
+                section_title={"graph_2d": "2D graph", "graph_3d": "3D graph"}.get(
+                    section, section.title()
+                ),
             )
             page_target.write_text(document, encoding="utf-8")
     else:

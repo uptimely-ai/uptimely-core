@@ -1,0 +1,92 @@
+{% extends "plan/callable_graph.html.j2" %}
+{% block callable_controls %}
+		<button id="fit-callable-graph" type="button" class="absolute right-4 top-4 z-10 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-cyan-200 hover:border-cyan-300">Fit graph</button>
+{% endblock %}
+{% block callable_renderer %}
+		const children = new Map(callableGraphData.nodes.map(node => [node.id, []]));
+		const indegree = new Map(callableGraphData.nodes.map(node => [node.id, 0]));
+		const ranks = new Map(callableGraphData.nodes.map(node => [node.id, 0]));
+		for (const link of callableGraphData.links) {
+			children.get(link.source).push(link.target);
+			indegree.set(link.target, indegree.get(link.target) + 1);
+		}
+		const queue = callableGraphData.nodes.filter(node => indegree.get(node.id) === 0)
+			.map(node => node.id);
+		for (let index = 0; index < queue.length; index++) {
+			const source = queue[index];
+			for (const target of children.get(source)) {
+				ranks.set(target, Math.max(ranks.get(target), ranks.get(source) + 1));
+				indegree.set(target, indegree.get(target) - 1);
+				if (indegree.get(target) === 0) queue.push(target);
+			}
+		}
+		if (queue.length !== callableGraphData.nodes.length) {
+			throw new Error('Cannot lay out a cyclic callable graph.');
+		}
+		const layers = new Map();
+		for (const node of callableGraphData.nodes) {
+			const rank = ranks.get(node.id);
+			if (!layers.has(rank)) layers.set(rank, []);
+			layers.get(rank).push(node);
+			node.cardWidth = Math.min(280, Math.max(140, node.label.length * 8 + 28));
+			node.cardHeight = 44;
+		}
+		for (const [rank, nodes] of layers) {
+			nodes.forEach((node, index) => {
+				node.fx = rank * 360;
+				node.fy = (index - (nodes.length - 1) / 2) * 80;
+			});
+		}
+		const selectCallableAtPointer = (event) => {
+			const bounds = callableGraphContainer.getBoundingClientRect();
+			const point = callableGraph.screen2GraphCoords(
+				event.clientX - bounds.left, event.clientY - bounds.top);
+			const node = [...callableGraphData.nodes].reverse().find(node =>
+				Math.abs(point.x - node.x) <= node.cardWidth / 2 &&
+				Math.abs(point.y - node.y) <= node.cardHeight / 2);
+			if (node) updateCallableDetails(node);
+		};
+		const callableGraph = ForceGraph()(callableGraphContainer)
+			.width(callableGraphContainer.clientWidth)
+			.height(callableGraphContainer.clientHeight)
+			.backgroundColor('{{ graph_style.background_color }}')
+			.nodeLabel(node => `${node.function_id} (${node.entity})`)
+			.nodeCanvasObjectMode(() => 'replace')
+			.nodeCanvasObject((node, ctx) => {
+				const left = node.x - node.cardWidth / 2;
+				const top = node.y - node.cardHeight / 2;
+				ctx.save();
+				ctx.beginPath();
+				ctx.roundRect(left, top, node.cardWidth, node.cardHeight, 10);
+				ctx.fillStyle = '#172a35';
+				ctx.fill();
+				ctx.strokeStyle = callableColors[node.operation_type];
+				ctx.lineWidth = 1.5;
+				ctx.stroke();
+				ctx.fillStyle = '{{ graph_style.label_color }}';
+				ctx.font = '600 12px "DM Sans", sans-serif';
+				ctx.textBaseline = 'middle';
+				ctx.fillText(node.label, left + 14, node.y, node.cardWidth - 28);
+				ctx.restore();
+			})
+			.nodePointerAreaPaint((node, color, ctx) => {
+				ctx.fillStyle = color;
+				ctx.fillRect(node.x - node.cardWidth / 2, node.y - node.cardHeight / 2,
+					node.cardWidth, node.cardHeight);
+			})
+			.linkColor(() => '{{ graph_style.link_color }}')
+			.linkWidth({{ graph_style.link_width }})
+			.linkDirectionalArrowLength({{ graph_style.arrow_length }})
+			.onNodeClick((_node, event) => selectCallableAtPointer(event))
+			.onLinkClick((_link, event) => selectCallableAtPointer(event))
+			.onBackgroundClick(event => selectCallableAtPointer(event))
+			.graphData(callableGraphData);
+		const fitCallableGraph = () => callableGraph.zoomToFit(500, 80);
+		document.getElementById('fit-callable-graph').addEventListener('click', fitCallableGraph);
+		requestAnimationFrame(fitCallableGraph);
+		window.addEventListener('resize', () => {
+			callableGraph.width(callableGraphContainer.clientWidth)
+				.height(callableGraphContainer.clientHeight);
+			fitCallableGraph();
+		});
+{% endblock %}

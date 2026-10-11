@@ -9,7 +9,7 @@ connected views:
 | --- | --- |
 | Specification | Separate Overview, Features, Dimensions, and Functions pages, linked beneath Specification in the sidebar. |
 | Feature lineage | Explore logical dependencies in interactive 2D and 3D views. |
-| Execution plan | Separate Overview and Stages pages for the callable graph, plan summary, and detailed parallel operations. |
+| Execution plan | Overview summary, 2D and 3D callable graphs, and detailed parallel execution stages. |
 
 The documentation is about
 analytics project, not the Uptimely package itself.
@@ -36,6 +36,8 @@ _generated/docs/
 ├── feature_graph_2d.html
 ├── feature_graph_3d.html
 ├── execution_plan.html
+├── execution_plan_graph_2d.html
+├── execution_plan_graph_3d.html
 └── execution_plan_stages.html
 ```
 
@@ -44,10 +46,12 @@ specification pages contain only their respective sections. The Specification
 sidebar group provides subnavigation and highlights the current section.
 Feature graph provides separate 2D and 3D lineage views in its sidebar
 subnavigation.
-Execution plan has its own Overview and Stages subnavigation. Its overview
-contains summary counts and the interactive callable graph; Stages lists the
-dependency-ordered operations with their arguments and return types.
-Standalone execution-plan exports keep both sections in one HTML document.
+Execution plan has Overview, 2D graph, 3D graph, and Stages subnavigation.
+Overview contains summary counts; the graph pages show compiled callable
+operations and their dependencies, rather than feature-lineage nodes.
+Stages lists dependency-ordered operations with their arguments and return types.
+Standalone execution-plan exports keep the summary, 3D callable graph, and
+stages in one HTML document.
 Each report is a complete HTML page, with relative links to
 the other reports. The directory can be moved or hosted beneath a URL prefix
 without rebuilding its page navigation.

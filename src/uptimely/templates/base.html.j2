@@ -59,6 +59,8 @@
     <div class="site-subnav" role="group" aria-label="Execution plan sections">
       {% for section, section_href, section_label, section_icon in [
         ("overview", "execution_plan.html", "Overview", "layout-dashboard"),
+        ("graph_2d", "execution_plan_graph_2d.html", "2D graph", "git-fork"),
+        ("graph_3d", "execution_plan_graph_3d.html", "3D graph", "git-fork"),
         ("stages", "execution_plan_stages.html", "Stages", "layers-3")
       ] %}
       <a href="{{ section_href }}"{% if active_page == "plan" and active_section == section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ section_icon }}" aria-hidden="true"></i><span>{{ section_label }}</span></a>
