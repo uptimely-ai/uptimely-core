@@ -17,6 +17,8 @@ SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
 REPORTS = {
     "spec.html": "spec",
     "spec_features.html": "features",
+    "spec_entities.html": "entities",
+    "spec_datasets.html": "datasets",
     "spec_dimensions.html": "dimensions",
     "spec_functions.html": "functions",
     "feature_graph_2d.html": "graph",
@@ -73,6 +75,22 @@ def test_website_exports_all_reports_with_relative_navigation(tmp_path: Path, mo
         assert parser.active_links == ([] if filename == "index.html" else [filename])
         assert "<iframe" not in document
     assert "Pump telemetry" in (index.parent / "spec_features.html").read_text(encoding="utf-8")
+    features = (index.parent / "spec_features.html").read_text(encoding="utf-8")
+    assert "Entity:" in features
+    assert "Dataset name" in features
+    assert features.index("Dataset name:") < features.index(
+        '<article class="rounded-xl border border-slate-800 border-l-4'
+    )
+    assert "bearing_temperature" in features
+    assert "read · read_pump_telemetry" in features
+    assert "vectorize · health_signal_normalized" in features
+    assert "Row context:" not in features
+    entities = (index.parent / "spec_entities.html").read_text(encoding="utf-8")
+    assert "pump_telemetry" in entities
+    assert "Pump telemetry" in entities
+    datasets = (index.parent / "spec_datasets.html").read_text(encoding="utf-8")
+    assert "One row per pump and timestamp" in datasets
+    assert "read · read_pump_telemetry" in datasets
     assert "Pump analytics" in (index.parent / "spec.html").read_text(encoding="utf-8")
     graph_2d = (index.parent / "feature_graph_2d.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_2d
@@ -105,37 +123,31 @@ def test_website_exports_all_reports_with_relative_navigation(tmp_path: Path, mo
 
 
 @pytest.mark.parametrize(
-    ("filename", "section_id"),
+    ("filename", "section_id", "title"),
     [
-        ("spec.html", "overview"),
-        ("spec_features.html", "entities"),
-        ("spec_dimensions.html", "dimensions"),
-        ("spec_functions.html", "functions"),
+        ("spec.html", "overview", "Overview"),
+        ("spec_features.html", "entities", "Features"),
+        ("spec_entities.html", "entities", "Entities"),
+        ("spec_datasets.html", "datasets", "Datasets"),
+        ("spec_dimensions.html", "dimensions", "Dimensions"),
+        ("spec_functions.html", "functions", "Functions"),
     ],
 )
 def test_specification_pages_render_only_their_section(
-    tmp_path: Path, filename: str, section_id: str
+    tmp_path: Path, filename: str, section_id: str, title: str
 ) -> None:
     specification = Specification.from_json(SPEC_PATH)
     Documentation(specification).create_html(tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
-    for candidate in ("overview", "entities", "dimensions", "functions"):
+    for candidate in ("overview", "entities", "datasets", "dimensions", "functions"):
         assert (f'<section id="{candidate}"' in document) == (candidate == section_id)
     assert 'aria-label="Specification sections"' in document
     assert 'aria-label="Documentation sections"' not in document
     headings = re.findall(r'<h1 class="([^"]+)">([^<]+)</h1>', document)
     assert len(headings) == 1
     assert headings[0][0] == "font-display text-3xl font-semibold tracking-tight text-white"
-    assert (
-        headings[0][1]
-        == {
-            "overview": "Overview",
-            "entities": "Features",
-            "dimensions": "Dimensions",
-            "functions": "Functions",
-        }[section_id]
-    )
+    assert headings[0][1] == title
     assert "sm:text-6xl" not in document
 
 

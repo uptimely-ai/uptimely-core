@@ -16,6 +16,8 @@ PAGES = {
     "index.html",
     "spec.html",
     "spec_features.html",
+    "spec_entities.html",
+    "spec_datasets.html",
     "spec_dimensions.html",
     "spec_functions.html",
     "feature_graph_2d.html",
