@@ -20,6 +20,7 @@ PAGES = {
     "spec_functions.html",
     "feature_graph.html",
     "execution_plan.html",
+    "execution_plan_stages.html",
 }
 
 

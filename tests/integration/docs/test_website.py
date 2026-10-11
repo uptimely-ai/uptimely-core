@@ -19,6 +19,7 @@ REPORTS = {
     "spec_functions.html": "functions",
     "feature_graph.html": "graph",
     "execution_plan.html": "plan",
+    "execution_plan_stages.html": "stages",
 }
 
 
@@ -123,6 +124,27 @@ def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: Path) -
     assert all((index.parent / filename).is_file() for filename in REPORTS)
 
 
+@pytest.mark.parametrize(
+    ("filename", "title"),
+    [("execution_plan.html", "Overview"), ("execution_plan_stages.html", "Stages")],
+)
+def test_execution_plan_pages_render_only_their_section(
+    tmp_path: Path, filename: str, title: str
+) -> None:
+    specification = Specification.from_json(SPEC_PATH)
+    Documentation(specification).create_html(tmp_path / "index.html")
+    document = (tmp_path / filename).read_text(encoding="utf-8")
+
+    assert 'aria-label="Execution plan sections"' in document
+    assert re.findall(r'<h1 class="[^"]+">([^<]+)</h1>', document) == [title]
+    assert ('id="plan-overview"' in document) == (title == "Overview")
+    assert ('id="callable-graph"' in document) == (title == "Overview")
+    assert ("const callableGraphData" in document) == (title == "Overview")
+    assert ('id="operations"' in document) == (title == "Stages")
+    assert (">Argument</th>" in document) == (title == "Stages")
+    assert ("3d-force-graph.min.js" in document) == (title == "Overview")
+
+
 def test_website_without_timestamp_is_deterministic(tmp_path: Path) -> None:
     specification = Specification.from_json(SPEC_PATH)
     first = Documentation(specification).create_html(tmp_path / "first" / "index.html")
@@ -161,6 +183,11 @@ def test_standalone_exports_have_no_website_navigation(tmp_path: Path) -> None:
         f'<section id="{section}"' in standalone_spec
         for section in ("overview", "entities", "dimensions", "functions")
     )
+    standalone_plan = paths[2].read_text(encoding="utf-8")
+    assert 'id="plan-overview"' in standalone_plan
+    assert 'id="callable-graph"' in standalone_plan
+    assert 'id="operations"' in standalone_plan
+    assert not (paths[2].parent / "execution_plan_stages.html").exists()
 
 
 def test_website_propagates_compilation_errors_without_writing_reports(tmp_path: Path) -> None:

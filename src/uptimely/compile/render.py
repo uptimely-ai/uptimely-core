@@ -1,4 +1,4 @@
-"""Render a compiled execution plan as a standalone HTML report."""
+"""Render a compiled execution plan as standalone or linked HTML reports."""
 
 import json
 import os
@@ -10,6 +10,7 @@ from uptimely.render import html_environment
 from .compiler import ExecutionPlan
 
 OUTPUT_PATH = Path("_generated") / "compile" / "execution_plan.html"
+PLAN_PAGES = {"overview": "execution_plan.html", "stages": "execution_plan_stages.html"}
 
 
 def _render_execution_plan(
@@ -23,7 +24,7 @@ def _render_execution_plan(
     Args:
         plan: The compiled execution plan to render.
         output_path: Where to write the report file.
-        include_navigation: Link to sibling documentation website pages.
+        include_navigation: Generate Overview and Stages pages with website navigation.
 
     Returns:
         The path the report was written to.
@@ -80,20 +81,29 @@ def _render_execution_plan(
             )
 
     environment = html_environment()
-    document = environment.get_template("plan/index.html.j2").render(
-        spec_path=plan_data["spec_path"],
-        spec_version=plan_data["spec_version"],
-        callable_count=plan_data["callable_count"],
-        function_count=len({step["function"] for step in steps}),
-        entity_count=len({operation.entity_id for operation in plan.execution_order}),
-        feature_count=len({operation.feature for operation in plan.execution_order}),
-        stages=stages,
-        callable_graph_data=callable_graph_data,
-        graph_style=GraphStyle(),
-        include_navigation=include_navigation,
-        active_page="plan",
-    )
+    context = {
+        "spec_path": plan_data["spec_path"],
+        "spec_version": plan_data["spec_version"],
+        "callable_count": plan_data["callable_count"],
+        "function_count": len({step["function"] for step in steps}),
+        "entity_count": len({operation.entity_id for operation in plan.execution_order}),
+        "feature_count": len({operation.feature for operation in plan.execution_order}),
+        "stages": stages,
+        "callable_graph_data": callable_graph_data,
+        "graph_style": GraphStyle(),
+        "include_navigation": include_navigation,
+        "active_page": "plan",
+    }
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(document, encoding="utf-8")
+    if include_navigation:
+        for section, filename in PLAN_PAGES.items():
+            page_target = target if section == "overview" else target.parent / filename
+            document = environment.get_template(f"plan/{section}.html.j2").render(
+                **context, active_section=section
+            )
+            page_target.write_text(document, encoding="utf-8")
+    else:
+        document = environment.get_template("plan/index.html.j2").render(**context)
+        target.write_text(document, encoding="utf-8")
     return target
