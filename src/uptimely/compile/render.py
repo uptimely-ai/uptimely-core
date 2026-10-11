@@ -6,6 +6,7 @@ from collections import Counter
 from pathlib import Path
 
 from uptimely.analytics.render import GraphStyle
+from uptimely.plan import Operation
 from uptimely.render import html_environment
 
 from .compiler import ExecutionPlan
@@ -17,6 +18,33 @@ PLAN_PAGES = {
     "graph_3d": "execution_plan_graph_3d.html",
     "stages": "execution_plan_stages.html",
 }
+
+
+def _callable_label(operation: Operation) -> str:
+    """Format a callable identifier with its actual bound arguments."""
+    arguments = ", ".join(
+        f"{name}={json.dumps(value, ensure_ascii=False, separators=(',', ':'))}"
+        for name, value in operation.arguments.items()
+    )
+    return f"{operation.function_id}({arguments})"
+
+
+def _callable_label_lines(operation: Operation) -> list[str]:
+    """Return a multiline callable signature with indented bound arguments."""
+    if not operation.arguments:
+        return [f"{operation.function_id}()"]
+
+    arguments = list(operation.arguments.items())
+    lines = [f"{operation.function_id}("]
+    for index, (name, value) in enumerate(arguments):
+        value_lines = json.dumps(value, ensure_ascii=False, indent=2).splitlines()
+        argument_lines = [f"  {name}={value_lines[0]}"]
+        argument_lines.extend(f"  {line}" for line in value_lines[1:])
+        if index < len(arguments) - 1:
+            argument_lines[-1] += ","
+        lines.extend(argument_lines)
+    lines.append(")")
+    return lines
 
 
 def _render_execution_plan(
@@ -45,7 +73,8 @@ def _render_execution_plan(
             "node_type": "callable",
             "operation_type": operation.kind,
             "callable_type": operation.kind,
-            "label": f"{operation.function_id}({operation.entity_id})",
+            "label": _callable_label(operation),
+            "label_lines": _callable_label_lines(operation),
             "function_id": operation.function_id,
             "entity": operation.entity_id,
             "dataset_id": operation.dataset_id,
