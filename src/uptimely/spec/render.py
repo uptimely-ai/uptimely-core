@@ -56,8 +56,8 @@ def _write_document_data(context: DocumentationContext, output_path: Path) -> di
 def _render_document(
     context: dict[str, Any], output_path: Path, include_navigation: bool = False
 ) -> Path:
-    environment = html_environment("spec/templates")
-    document = environment.get_template("spec.html.j2").render(
+    environment = html_environment()
+    document = environment.get_template("spec/index.html.j2").render(
         configuration=context["configuration"],
         summary=context["summary"],
         feature_dependencies=context["feature_dependencies"],

@@ -79,8 +79,8 @@ def _render_execution_plan(
                 else None
             )
 
-    environment = html_environment("compile/templates")
-    document = environment.get_template("report.html.j2").render(
+    environment = html_environment()
+    document = environment.get_template("plan/index.html.j2").render(
         spec_path=plan_data["spec_path"],
         spec_version=plan_data["spec_version"],
         callable_count=plan_data["callable_count"],

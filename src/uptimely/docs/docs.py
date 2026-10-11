@@ -69,7 +69,7 @@ class Documentation:
         graph.export_html(target.parent / "feature_graph.html", include_navigation=True)
         plan.export_html(target.parent / "execution_plan.html", include_navigation=True)
         document = (
-            html_environment("docs/templates")
+            html_environment()
             .get_template("index.html.j2")
             .render(
                 specification=self.spec,

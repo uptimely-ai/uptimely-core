@@ -66,14 +66,14 @@ def render_graph_html(
         The complete HTML document.
     """
     style = style or GraphStyle()
-    environment = html_environment("analytics/templates")
+    environment = html_environment()
     graph_data = json.dumps(
         {
             "nodes": sorted(nodes, key=lambda node: node["id"]),
             "links": sorted(links, key=lambda link: (link["source"], link["target"])),
         }
     ).replace("</script>", r"<\/script>")
-    template = environment.get_template("graph.html.j2")
+    template = environment.get_template("graph/feature_graph.html.j2")
     return template.render(
         style=style,
         graph_data=graph_data,
