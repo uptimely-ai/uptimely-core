@@ -13,10 +13,10 @@
 {% block body %}
 	<div class="panel">
 		<div class="legend" aria-label="3D graph legend">
-			<span style="--color:{{ style.feature_color }}">Feature sphere</span>
+			<span style="--color:{{ style.feature_color }}">Feature</span>
 			<span class="legend-separator" aria-hidden="true"></span>
 			{% for function_type, color in style.function_colors.items() %}
-			<span class="function" style="--color:{{ color }}">{{ function_type|title }} octahedron</span>
+			<span class="function" style="--color:{{ color }}">{{ function_type|title }} function</span>
 			{% endfor %}
 		</div>
 	</div>

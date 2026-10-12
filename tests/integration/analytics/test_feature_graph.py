@@ -116,13 +116,13 @@ def test_system_graph_can_export_html(tmp_path: pathlib.Path) -> None:
     assert "<strong>Node type:</strong> Function" in html
     assert "<strong>Function:</strong> ${label}" in html
     assert "<strong>Produces:</strong> ${formatDetailValue(feature)}" in html
-    assert "Feature sphere</span>" in html
-    assert "Read octahedron</span>" in html
-    assert "Vectorize octahedron</span>" in html
-    assert "Collapse octahedron</span>" in html
-    assert "Conform octahedron</span>" in html
-    assert "Expand octahedron</span>" in html
-    assert "Write octahedron</span>" in html
+    assert "Feature</span>" in html
+    assert "Read function</span>" in html
+    assert "Vectorize function</span>" in html
+    assert "Collapse function</span>" in html
+    assert "Conform function</span>" in html
+    assert "Expand function</span>" in html
+    assert "Write function</span>" in html
     assert "input_color" not in html
 
     subset_output = tmp_path / "subset.html"
