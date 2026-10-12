@@ -14,18 +14,18 @@ from uptimely.plan import models
 
 SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
 REPORTS = {
-    "spec.html": "spec",
-    "spec_features.html": "features",
-    "spec_entities.html": "entities",
-    "spec_datasets.html": "datasets",
-    "spec_dimensions.html": "dimensions",
-    "spec_functions.html": "functions",
-    "feature_graph_2d.html": "graph",
-    "feature_graph_3d.html": "graph",
-    "execution_plan.html": "plan",
-    "execution_plan_graph_2d.html": "plan",
-    "execution_plan_graph_3d.html": "plan",
-    "execution_plan_stages.html": "stages",
+    "spec/overview.html": "spec",
+    "spec/features.html": "features",
+    "spec/entities.html": "entities",
+    "spec/datasets.html": "datasets",
+    "spec/dimensions.html": "dimensions",
+    "spec/functions.html": "functions",
+    "graph/2d.html": "graph",
+    "graph/3d.html": "graph",
+    "plan/overview.html": "plan",
+    "plan/2d.html": "plan",
+    "plan/3d.html": "plan",
+    "plan/stages.html": "stages",
 }
 
 
@@ -64,19 +64,25 @@ def test_website_exports_all_reports_with_relative_navigation(
     index = docs.Documentation(specification).create_html()
 
     assert index == pathlib.Path("_generated/docs/index.html")
-    assert {path.name for path in index.parent.iterdir()} == {"index.html", *REPORTS}
+    assert {path.name for path in index.parent.iterdir()} == {"index.html", "spec", "graph", "plan"}
     for filename in ("index.html", *REPORTS):
+        page_file = index.parent / filename
         parser = NavigationCollector()
-        document = (index.parent / filename).read_text(encoding="utf-8")
+        document = page_file.read_text(encoding="utf-8")
         parser.feed(document)
         assert parser.html_count == 1
-        assert set(parser.links) == set(REPORTS)
+        expected_links = {
+            "index.html" if filename == "index.html" else "../index.html",
+            *(REPORTS if filename == "index.html" else {f"../{r}" for r in REPORTS}),
+        }
+        assert set(parser.links) == expected_links
         for href in parser.links:
-            assert (index.parent / href).is_file()
-        assert parser.active_links == ([] if filename == "index.html" else [filename])
+            assert (page_file.parent / href).resolve().is_file()
+        expected_active = [] if filename == "index.html" else [f"../{filename}"]
+        assert parser.active_links == expected_active
         assert "<iframe" not in document
-    assert "Pump telemetry" in (index.parent / "spec_features.html").read_text(encoding="utf-8")
-    features = (index.parent / "spec_features.html").read_text(encoding="utf-8")
+    assert "Pump telemetry" in (index.parent / "spec/features.html").read_text(encoding="utf-8")
+    features = (index.parent / "spec/features.html").read_text(encoding="utf-8")
     assert "Entity:" in features
     assert "Dataset name" in features
     assert features.index("Dataset name:") < features.index(
@@ -86,37 +92,37 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "read · read_pump_telemetry" in features
     assert "vectorize · health_signal_normalized" in features
     assert "Row context:" not in features
-    entities = (index.parent / "spec_entities.html").read_text(encoding="utf-8")
+    entities = (index.parent / "spec/entities.html").read_text(encoding="utf-8")
     assert "pump_telemetry" in entities
     assert "Pump telemetry" in entities
-    datasets = (index.parent / "spec_datasets.html").read_text(encoding="utf-8")
+    datasets = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     assert "One row per pump and timestamp" in datasets
     assert "read · read_pump_telemetry" in datasets
-    assert "Pump analytics" in (index.parent / "spec.html").read_text(encoding="utf-8")
-    graph_2d = (index.parent / "feature_graph_2d.html").read_text(encoding="utf-8")
+    assert "Pump analytics" in (index.parent / "spec/overview.html").read_text(encoding="utf-8")
+    graph_2d = (index.parent / "graph/2d.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_2d
     assert "force-graph@1.52.0/dist/force-graph.min.js" in graph_2d
     assert ".height(graphContainer.clientHeight)" in graph_2d
-    graph_3d = (index.parent / "feature_graph_3d.html").read_text(encoding="utf-8")
+    graph_3d = (index.parent / "graph/3d.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_3d
     assert "3d-force-graph" in graph_3d
-    for filename in ("feature_graph_2d.html", "feature_graph_3d.html"):
+    for filename in ("graph/2d.html", "graph/3d.html"):
         graph_page = (index.parent / filename).read_text(encoding="utf-8")
         assert 'aria-label="Feature graph views"' in graph_page
-        assert 'href="feature_graph_2d.html"' in graph_page
-        assert 'href="feature_graph_3d.html"' in graph_page
+        assert 'href="../graph/2d.html"' in graph_page
+        assert 'href="../graph/3d.html"' in graph_page
     for document, filename in (
-        (graph_2d, "feature_graph_2d.html"),
-        (graph_3d, "feature_graph_3d.html"),
+        (graph_2d, "../graph/2d.html"),
+        (graph_3d, "../graph/3d.html"),
     ):
         assert re.search(
-            rf'href="{filename}" aria-current="page"><i class="nav-icon" '
+            rf'href="{re.escape(filename)}" aria-current="page"><i class="nav-icon" '
             r'data-lucide="git-fork"',
             document,
         )
     assert ".onEngineStop(" in graph_2d
     assert "graph.zoomToFit(0, Math.max(140, layout.laneLabelWidth + 24))" in graph_2d
-    plan = (index.parent / "execution_plan_graph_3d.html").read_text(encoding="utf-8")
+    plan = (index.parent / "plan/3d.html").read_text(encoding="utf-8")
     assert 'id="callable-graph"' in plan
     assert "normalize_health_signal" in plan
     assert not pathlib.Path("_generated/spec").exists()
@@ -126,12 +132,12 @@ def test_website_exports_all_reports_with_relative_navigation(
 @pytest.mark.parametrize(
     ("filename", "section_id", "title"),
     [
-        ("spec.html", "overview", "Overview"),
-        ("spec_features.html", "entities", "Features"),
-        ("spec_entities.html", "entities", "Entities"),
-        ("spec_datasets.html", "datasets", "Datasets"),
-        ("spec_dimensions.html", "dimensions", "Dimensions"),
-        ("spec_functions.html", "functions", "Functions"),
+        ("spec/overview.html", "overview", "Overview"),
+        ("spec/features.html", "entities", "Features"),
+        ("spec/entities.html", "entities", "Entities"),
+        ("spec/datasets.html", "datasets", "Datasets"),
+        ("spec/dimensions.html", "dimensions", "Dimensions"),
+        ("spec/functions.html", "functions", "Functions"),
     ],
 )
 def test_specification_pages_render_only_their_section(
@@ -155,7 +161,7 @@ def test_specification_pages_render_only_their_section(
 def test_specification_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
     docs.Documentation(specification).create_html(tmp_path / "index.html")
-    document = (tmp_path / "spec.html").read_text(encoding="utf-8")
+    document = (tmp_path / "spec/overview.html").read_text(encoding="utf-8")
 
     assert "Pump analytics" in document
     assert 'data-source-name="python_api" data-generated="true"' in document
@@ -181,10 +187,10 @@ def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: pathlib
 @pytest.mark.parametrize(
     ("filename", "title"),
     [
-        ("execution_plan.html", "Overview"),
-        ("execution_plan_graph_2d.html", "2D graph"),
-        ("execution_plan_graph_3d.html", "3D graph"),
-        ("execution_plan_stages.html", "Stages"),
+        ("plan/overview.html", "Overview"),
+        ("plan/2d.html", "2D graph"),
+        ("plan/3d.html", "3D graph"),
+        ("plan/stages.html", "Stages"),
     ],
 )
 def test_execution_plan_pages_render_only_their_section(
@@ -280,8 +286,8 @@ def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> N
 
 def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -> None:
     plan = compile.Compiler(spec.Specification.from_json(SPEC_PATH)).compile()
-    plan.export_html(tmp_path / "execution_plan.html", include_navigation=True)
-    document = (tmp_path / "execution_plan.html").read_text(encoding="utf-8")
+    plan.export_html(tmp_path / "plan" / "overview.html", include_navigation=True)
+    document = (tmp_path / "plan" / "overview.html").read_text(encoding="utf-8")
     cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
     assert cards == {
         "Callables": str(len(plan.operations)),
@@ -354,7 +360,7 @@ def test_standalone_exports_have_no_website_navigation(tmp_path: pathlib.Path) -
     assert 'id="plan-overview"' in standalone_plan
     assert 'id="callable-graph"' in standalone_plan
     assert 'id="operations"' in standalone_plan
-    assert not (paths[2].parent / "execution_plan_stages.html").exists()
+    assert not (paths[2].parent / "stages.html").exists()
 
 
 def test_website_propagates_compilation_errors_without_writing_reports(
@@ -374,10 +380,10 @@ def test_website_propagates_compilation_errors_without_writing_reports(
 @pytest.mark.parametrize(
     ("filename", "variable"),
     [
-        ("feature_graph_2d.html", "data"),
-        ("feature_graph_3d.html", "data"),
-        ("execution_plan_graph_2d.html", "callableGraphData"),
-        ("execution_plan_graph_3d.html", "callableGraphData"),
+        ("graph/2d.html", "data"),
+        ("graph/3d.html", "data"),
+        ("plan/2d.html", "callableGraphData"),
+        ("plan/3d.html", "callableGraphData"),
     ],
 )
 def test_website_graph_links_reference_exported_nodes(
@@ -405,7 +411,7 @@ def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pa
     docs.Documentation(specification).create_html(tmp_path / "index.html")
     payloads = []
     for dimension in ("2d", "3d"):
-        document = (tmp_path / f"execution_plan_graph_{dimension}.html").read_text(encoding="utf-8")
+        document = (tmp_path / "plan" / f"{dimension}.html").read_text(encoding="utf-8")
         match = re.search(r"const callableGraphData = (.+);", document)
         assert match is not None
         payloads.append(json.loads(match.group(1)))
@@ -442,5 +448,5 @@ def test_website_can_include_specification_timestamp(tmp_path: pathlib.Path) -> 
 
     assert re.search(
         r"generated \d{4}-\d{2}-\d{2}T",
-        (tmp_path / "spec.html").read_text(encoding="utf-8"),
+        (tmp_path / "spec/overview.html").read_text(encoding="utf-8"),
     )

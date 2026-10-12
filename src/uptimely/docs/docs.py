@@ -58,21 +58,29 @@ class Documentation:
         target = target.with_suffix(".html")
         if target.name in {
             *spec_render.SPECIFICATION_PAGES.values(),
-            "feature_graph_2d.html",
-            "feature_graph_3d.html",
+            "2d.html",
+            "3d.html",
             *render.PLAN_PAGES.values(),
         }:
             raise ValueError("The website index path must not overwrite a report page.")
         plan = compile.Compiler(self.spec).compile()
         graph = analytics.FeatureGraph(self.spec)
-        spec_render.create_website_pages(self.spec, target.parent, include_generated_at)
+        spec_dir = target.parent / "spec"
+        graph_dir = target.parent / "graph"
+        plan_dir = target.parent / "plan"
+        spec_render.create_website_pages(self.spec, spec_dir, include_generated_at, root_path="../")
         for dimension in ("2d", "3d"):
             graph.export_html(
-                target.parent / f"feature_graph_{dimension}.html",
+                graph_dir / f"{dimension}.html",
                 dimension=dimension,
                 include_navigation=True,
+                root_path="../",
             )
-        plan.export_html(target.parent / "execution_plan.html", include_navigation=True)
+        plan.export_html(
+            plan_dir / "overview.html",
+            include_navigation=True,
+            root_path="../",
+        )
         document = (
             uptimely_render.html_environment()
             .get_template("index.html.j2")
@@ -80,6 +88,7 @@ class Documentation:
                 specification=self.spec,
                 include_navigation=True,
                 active_page="home",
+                root_path="",
             )
         )
         target.write_text(document, encoding="utf-8")

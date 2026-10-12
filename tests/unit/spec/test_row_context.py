@@ -526,7 +526,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     assert "Row context:" in html
     assert json.dumps(original_feature.row_context.to_dict(), sort_keys=True) in html
     render.create_website_pages(specification, tmp_path)
-    features_html = (tmp_path / "spec_features.html").read_text(encoding="utf-8")
+    features_html = (tmp_path / "features.html").read_text(encoding="utf-8")
     assert "result" in features_html
     assert "Row context:" not in features_html
     html = plan.export_html(tmp_path / "plan.html").read_text(encoding="utf-8")

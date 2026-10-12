@@ -14,18 +14,18 @@ REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 SPEC_PATH = REPOSITORY_ROOT / "examples/example_1/_generated/spec/spec.json"
 PAGES = {
     "index.html",
-    "spec.html",
-    "spec_features.html",
-    "spec_entities.html",
-    "spec_datasets.html",
-    "spec_dimensions.html",
-    "spec_functions.html",
-    "feature_graph_2d.html",
-    "feature_graph_3d.html",
-    "execution_plan.html",
-    "execution_plan_graph_2d.html",
-    "execution_plan_graph_3d.html",
-    "execution_plan_stages.html",
+    "spec/overview.html",
+    "spec/features.html",
+    "spec/entities.html",
+    "spec/datasets.html",
+    "spec/dimensions.html",
+    "spec/functions.html",
+    "graph/2d.html",
+    "graph/3d.html",
+    "plan/overview.html",
+    "plan/2d.html",
+    "plan/3d.html",
+    "plan/stages.html",
 }
 
 
@@ -38,7 +38,7 @@ def test_docs_build_defaults(
     cli.main()
 
     output = tmp_path / "_generated/docs"
-    assert {path.name for path in output.iterdir()} == PAGES
+    assert {p.relative_to(output).as_posix() for p in output.rglob("*.html")} == PAGES
     result = capsys.readouterr()
     assert "Documentation website built at _generated/docs/index.html" in result.out
     assert not result.err
@@ -65,8 +65,8 @@ def test_docs_build_custom_output_and_timestamp(
 
     cli.main()
 
-    assert {path.name for path in output.iterdir()} == PAGES
-    assert "generated 20" in (output / "spec.html").read_text(encoding="utf-8")
+    assert {p.relative_to(output).as_posix() for p in output.rglob("*.html")} == PAGES
+    assert "generated 20" in (output / "spec/overview.html").read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize(
@@ -210,5 +210,5 @@ def test_docs_build_imports_project_functions_in_fresh_process(
     )
 
     assert result.returncode == 0, result.stderr
-    assert {path.name for path in output.iterdir()} == PAGES
+    assert {p.relative_to(output).as_posix() for p in output.rglob("*.html")} == PAGES
     assert "Documentation website built at" in result.stdout

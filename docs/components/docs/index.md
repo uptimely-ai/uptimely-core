@@ -29,29 +29,33 @@ The command exports this directory:
 ```text
 _generated/docs/
 ├── index.html
-├── spec.html
-├── spec_features.html
-├── spec_entities.html
-├── spec_datasets.html
-├── spec_dimensions.html
-├── spec_functions.html
-├── feature_graph_2d.html
-├── feature_graph_3d.html
-├── execution_plan.html
-├── execution_plan_graph_2d.html
-├── execution_plan_graph_3d.html
-└── execution_plan_stages.html
+├── graph/
+│   ├── 2d.html
+│   └── 3d.html
+├── plan/
+│   ├── 2d.html
+│   ├── 3d.html
+│   ├── overview.html
+│   └── stages.html
+└── spec/
+    ├── datasets.html
+    ├── dimensions.html
+    ├── entities.html
+    ├── features.html
+    ├── functions.html
+    └── overview.html
 ```
 
-Start at `index.html`. `spec.html` contains the specification overview; the other
-specification pages contain only their respective sections. The Specification
-sidebar group provides subnavigation and highlights the current section. The
-Features page summarizes features by dataset and identifies the producing
-mapping; the Entities and Datasets pages provide focused views of those
-specification resources.
-Feature graph provides separate 2D and 3D lineage views in its sidebar
-subnavigation.
-Execution plan has Overview, 2D graph, 3D graph, and Stages subnavigation.
+Start at `index.html`. `spec/overview.html` contains the specification overview;
+the other specification pages under `spec/` contain only their respective
+sections. The Specification sidebar group provides subnavigation and highlights
+the current section. The Features page summarizes features by dataset and
+identifies the producing mapping; the Entities and Datasets pages provide
+focused views of those specification resources.
+Feature graph provides separate 2D and 3D lineage views under `graph/` (`2d.html`
+and `3d.html`).
+Execution plan has Overview, 2D graph, 3D graph, and Stages subnavigation under
+`plan/` (`overview.html`, `2d.html`, `3d.html`, and `stages.html`).
 Overview contains summary counts; the 2D graph groups callable operations into
 vertical lanes by dependency stage, and the graph pages show compiled callable
 operations and their dependencies rather than feature-lineage nodes.
