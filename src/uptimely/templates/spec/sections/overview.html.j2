@@ -32,7 +32,7 @@
     {% endfor %}
   </div>
   {% set feature_chart = [("input", summary.feature_buckets.input, "bg-cyan-400"), ("intermediate", summary.feature_buckets.intermediate, "bg-cyan-400"), ("output", summary.feature_buckets.output, "bg-cyan-400")] %}
-  {% set function_chart = [("read", summary.function_buckets.read, "bg-cyan-400"), ("write", summary.function_buckets.write, "bg-cyan-400"), ("vectorize", summary.function_buckets.vectorize, "bg-cyan-400"), ("aggregate", summary.function_buckets.aggregate, "bg-cyan-400")] %}
+  {% set function_chart = [("read", summary.function_buckets.read, "bg-cyan-400"), ("write", summary.function_buckets.write, "bg-cyan-400"), ("vectorize", summary.function_buckets.vectorize, "bg-cyan-400"), ("collapse", summary.function_buckets.collapse, "bg-cyan-400"), ("expand", summary.function_buckets.expand, "bg-cyan-400"), ("conform", summary.function_buckets.conform, "bg-cyan-400")] %}
   <div class="mt-5 grid gap-5 lg:grid-cols-2">
     {% for chart_title, chart in [("Features", feature_chart), ("Functions", function_chart)] %}
     {% set chart_max = chart|map(attribute=1)|max %}

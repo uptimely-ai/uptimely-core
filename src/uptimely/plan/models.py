@@ -26,9 +26,13 @@ class Operation:
     row_context: RowContext | None = None
 
     def __post_init__(self) -> None:
-        """Validate context metadata, including operations loaded from JSON."""
+        """Validate grouped execution and context contracts when constructing an operation."""
         if len(set(self.output_features)) != len(self.output_features):
             raise ValueError("Operation output_features must be unique")
+        if not isinstance(self.entrypoint, str) or not self.entrypoint:
+            raise ValueError("Callable operations must declare an entrypoint")
+        if self.kind == "collapse" and not self.output_features:
+            raise ValueError("Collapse must declare output_features")
         if self.row_context is not None:
             if self.kind != "vectorize":
                 raise ValueError("Only vectorize operations can declare row context")

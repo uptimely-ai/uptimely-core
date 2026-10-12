@@ -233,21 +233,8 @@ def test_execution_plan_pages_render_only_their_section(
             ]
             assert f'"label_lines": {json.dumps(expected_list_lines)}' in document
             expected_object_lines = [
-                "aggregate_by_dimension(",
-                '  dataset="pump_telemetry_dataset",',
-                "  dimensions=[",
-                '    "plant",',
-                '    "production_line",',
-                '    "pump"',
-                "  ],",
-                "  aggregations={",
-                '    "bearing_temperature_max": {',
-                '      "function": "maximum",',
-                '      "args": {',
-                '        "feature": "bearing_temperature"',
-                "      }",
-                "    }",
-                "  }",
+                "maximum(",
+                '  feature="bearing_temperature"',
                 ")",
             ]
             assert f'"label_lines": {json.dumps(expected_object_lines)}' in document
@@ -273,6 +260,10 @@ def test_execution_plan_pages_render_only_their_section(
     assert ("const callableGraphData" in document) == (title in ("2D graph", "3D graph"))
     assert ('id="operations"' in document) == (title == "Stages")
     assert (">Argument</th>" in document) == (title == "Stages")
+    if title == "Stages":
+        assert "Source dataset:" not in document
+        assert "Group by target entity dimensions:" not in document
+        assert "bearing_temperature_max" in document
     assert ("3d-force-graph.min.js" in document) == (title == "3D graph")
     assert ("force-graph@1.52.0" in document) == (title == "2D graph")
 

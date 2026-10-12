@@ -15,7 +15,7 @@ def test_system_graph_connects_functions_to_feature_outputs() -> None:
     system = FeatureGraph(specification)
 
     function_nodes = {function.id: function for function in system.functions}
-    assert "aggregate_by_dimension" in function_nodes
+    assert "maximum" in function_nodes
     assert "normalize_health_signal" in function_nodes
     assert "extract_recommendation_value" in function_nodes
 
@@ -30,7 +30,7 @@ def test_system_graph_connects_functions_to_feature_outputs() -> None:
         if isinstance(neighbor_node.reference, FeatureNode)
     }
 
-    assert ("aggregate_by_dimension", "bearing_temperature_max") in actual_edges
+    assert ("maximum", "bearing_temperature_max") in actual_edges
     assert ("normalize_health_signal", "health_signal_normalized") in actual_edges
     assert ("extract_recommendation_value", "recommended_flow_rate") in actual_edges
 
@@ -49,7 +49,7 @@ def test_system_graph_contains_function_nodes() -> None:
     analytics_function_ids = {function.id for function in system.functions}
 
     assert function_nodes
-    assert any(function.name == "aggregate_by_dimension" for function in function_nodes)
+    assert any(function.name == "maximum" for function in function_nodes)
     assert all(function.name in analytics_function_ids for function in function_nodes)
     assert all(function.name != "non_analytics_function" for function in function_nodes)
     assert "bearing_temperature" in system.input_names
@@ -57,7 +57,7 @@ def test_system_graph_contains_function_nodes() -> None:
 
     graph_text = system.print_graph()
     assert "Function(" not in graph_text
-    assert "aggregate_by_dimension" in graph_text
+    assert "maximum" in graph_text
 
 
 def test_subset_raises_helpful_error_for_missing_output() -> None:

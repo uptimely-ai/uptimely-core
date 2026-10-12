@@ -91,9 +91,9 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert "pump_telemetry_dataset" in document
     assert "Manufacturing plant identifier" in document
     assert "discharge_pressure" in document
-    assert "aggregate_by_dimension" in document
+    assert "maximum" in document
     assert "normalize_health_signal" in document
-    assert "examples.example_1.functions.calculation:aggregate_by_dimension" in document
+    assert "examples.example_1.functions.calculation:maximum" in document
     assert "examples/example_1/functions/calculation.py" in document
     assert "file:///" in document
     assert "-&gt; LazyFrame" in document
@@ -116,11 +116,11 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert "Vectorize" in document
     assert "Read" in document
     assert "Write" in document
-    assert 'data-function-group="collapse-aggregate"' in document
+    assert 'data-function-group="collapse"' in document
     assert 'data-function-group="aggregate"' not in document
-    assert "Collapse &amp; Aggregation" in document
+    assert "Collapse" in document
     assert "Collapse function" in document
-    assert "Aggregation function" in document
+    assert "Aggregation function" not in document
 
 
 def test_generate_json_docs_from_in_memory_spec_is_deterministic(tmp_path: Path) -> None:

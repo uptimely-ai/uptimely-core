@@ -6,7 +6,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from .aggregation import Aggregation
 from .ref import Reference
 from .row_context import RowContextBinding
 
@@ -55,9 +54,9 @@ def _binding_value(value: Any) -> Any:
         return _binding_value(value.value)
     if isinstance(value, Reference):
         return value.to_model()
-    if isinstance(value, Aggregation):
+    if isinstance(value, Bind):
         return {
-            "function": value.id,
+            "function": _operation_id(value, None),
             "args": {name: _binding_value(argument) for name, argument in value.args.items()},
         }
     if isinstance(value, list):
@@ -75,8 +74,6 @@ def _argument_definition(value: Any) -> dict[str, Any]:
         return _argument_definition(value.value)
     if isinstance(value, Reference):
         return {"type": "dataframe" if value.type == "dataset" else "string"}
-    if isinstance(value, Aggregation):
-        return {"type": "aggregation"}
     if isinstance(value, (list, tuple)):
         item_definitions = [_argument_definition(item) for item in value]
         if item_definitions and all(item == item_definitions[0] for item in item_definitions[1:]):

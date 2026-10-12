@@ -1,6 +1,6 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
 {% macro mapping_category(mapping, functions) -%}
-  {%- for category in ["read", "conform", "expand", "collapse", "vectorize"] -%}
+  {%- for category in ["read", "conform", "expand", "collapse", "vectorize", "write"] -%}
     {%- if mapping.binding.function in functions.get(category, {}) -%}{{- category -}}{%- endif -%}
   {%- endfor -%}
 {%- endmacro %}
@@ -52,6 +52,12 @@
           <div class="flex flex-wrap gap-2">
             {% for mapping_id, mapping in dataset.mappings.items() if mapping_category(mapping, configuration.functions) != "vectorize" %}
               <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ mapping_category(mapping, configuration.functions) }} · {{ mapping_id }}</span>
+              {% if mapping_category(mapping, configuration.functions) == "collapse" %}
+              <div class="w-full font-mono text-xs text-slate-400">
+                Input dataset inferred from bound features · Group by entity dimensions: {{ entity.dimensions | tojson }}
+                <p>{{ mapping.binding.function }}({{ mapping.binding.args | tojson }})</p>
+              </div>
+              {% endif %}
             {% endfor %}
           </div>
         </div>

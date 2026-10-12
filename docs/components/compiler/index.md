@@ -121,7 +121,7 @@ Each operation represents one callable invocation:
 | --- | --- |
 | `id` | Stable identifier for the operation in the plan. |
 | `kind` | Operation category: `read`, `conform`, `expand`, `collapse`, `vectorize`, or `write`. |
-| `entrypoint` | Implementation location used by the selected engine. |
+| `entrypoint` | Required callable implementation location, including for collapse functions. |
 | `entity_id` | Entity whose dimensions and datasets scope the operation. |
 | `dataset_id` | Dataset receiving or supplying the operation's dataframe state. |
 | `output` | Operation output identifier, such as a calculated feature. |

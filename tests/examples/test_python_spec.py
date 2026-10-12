@@ -50,7 +50,6 @@ def test_example_manifest_parses_complete_specification() -> None:
         "read",
         "write",
         "vectorize",
-        "aggregate",
         "collapse",
         "expand",
         "conform",
@@ -61,9 +60,10 @@ def test_example_manifest_parses_complete_specification() -> None:
     assert len(specification.resolved_functions) == 8
 
     pump_dataset = specification.entities["pump"].datasets[0]
-    aggregate = pump_dataset.mappings["bearing_temperature_by_pump"]
-    assert aggregate.binding.function == "aggregate_by_dimension"
-    assert "bearing_temperature_max" in aggregate.features
+    collapse = pump_dataset.mappings["bearing_temperature_by_pump"]
+    assert not hasattr(collapse, "source")
+    assert collapse.binding.function == "maximum"
+    assert "bearing_temperature_max" in collapse.features
 
 
 def test_spec_from_entities_python_api(tmp_path: Path) -> None:
@@ -117,7 +117,7 @@ def test_spec_from_python_models_and_json_export(tmp_path: Path) -> None:
     assert payload["name"] == "example_2"
     assert payload["version"] == "0.1.0"
     assert payload["source"] == {"name": "python_api", "generated": True}
-    assert set(payload["functions"]) == {"read", "write", "vectorize", "aggregate"}
+    assert set(payload["functions"]) == {"read", "write", "vectorize"}
     assert payload["functions"]["read"]["read"]["entrypoint"].endswith(":read_data")
     assert payload["functions"]["write"]["write"]["entrypoint"].endswith(":write_data")
     assert payload["functions"]["vectorize"]["sum_features"]["entrypoint"].endswith(":sum_features")
@@ -145,7 +145,7 @@ def test_spec_from_python_models_and_json_export(tmp_path: Path) -> None:
 
 
 def test_sources_and_transforms_python_spec(tmp_path: Path) -> None:
-    from examples.example_1.functions.calculation import aggregate_by_dimension, maximum
+    from examples.example_1.functions.calculation import maximum
     from examples.example_2.functions import functions
 
     source_op = mapping.Read(
@@ -167,15 +167,8 @@ def test_sources_and_transforms_python_spec(tmp_path: Path) -> None:
     collapse_op = mapping.Collapse(
         id="collapse_data",
         bind=bind.bind(
-            aggregate_by_dimension,
-            dataset=ref.dataset("transformed_dataset"),
-            dimensions=[],
-            aggregations={
-                "collapsed_feature": mapping.aggregation(
-                    maximum,
-                    feature=ref.feature("input_1"),
-                )
-            },
+            maximum,
+            feature=ref.feature("input_2"),
         ),
         features=[
             feature.Feature(
@@ -187,13 +180,13 @@ def test_sources_and_transforms_python_spec(tmp_path: Path) -> None:
 
     dataset_obj = dataset.Dataset(
         id="transformed_dataset",
-        mappings=[source_op, transform_op, collapse_op],
+        mappings=[source_op, transform_op],
     )
+    summary = dataset.Dataset(id="summary", mappings=[collapse_op])
 
-    functions_cat = dataset_obj.function_catalog()
     spec = Specification.from_python(
-        datasets=[dataset_obj],
-        functions=functions_cat,
+        datasets=[dataset_obj, summary],
+        functions=None,
         name="transforms_test",
     )
 
@@ -203,14 +196,13 @@ def test_sources_and_transforms_python_spec(tmp_path: Path) -> None:
     ds_model = spec.entities["transforms_test"].datasets[0]
     assert "read" in ds_model.mappings
     assert "expand_data" in ds_model.mappings
-    assert "collapse_data" in ds_model.mappings
+    assert "collapse_data" in spec.entities["transforms_test"].datasets[1].mappings
     assert "input_1" in ds_model.all_features
     assert "input_2" in ds_model.all_features
-    aggregation_binding = ds_model.mappings["collapse_data"].binding.args["aggregations"][
-        "collapsed_feature"
-    ]
-    assert aggregation_binding == {
+    summary_mapping = spec.entities["transforms_test"].datasets[1].mappings["collapse_data"]
+    collapse_binding = summary_mapping.binding
+    assert collapse_binding.model_dump() == {
         "function": "maximum",
-        "args": {"feature": "$features.input_1"},
+        "args": {"feature": "$features.input_2"},
     }
-    assert "maximum" in spec.functions.aggregate
+    assert "maximum" in spec.functions.collapse

@@ -270,22 +270,40 @@ verify that implementation code honors the declared grain and filtering.
 Consequently, omitted keys are preserved by the full join and exposed as nulls
 rather than rejected as row-scope violations.
 
-The function catalog determines which callable category a dataframe-producing
-mapping uses. These categories produce runtime fragments:
+The function catalog defines operation categories, including collapse. The
+engine wraps collapse function expressions in a backend grouping statement,
+such as `group_by(...).agg(...)`. These operations produce runtime fragments:
 
 | Type | Meaning |
 | --- | --- |
 | `read` | Reads another dataset from an external source such as a file or database and returns it as a fragment. |
-| `collapse` | Retrieves another dataset and aggregates it into a fragment, usually at a different grain. |
+| `collapse` | Groups the dataset inferred from bound input features and evaluates reducer expressions together, usually at a different grain. |
 | `expand` | Retrieves another dataset and returns it at expanded dimensional coverage. |
 | `conform` | Retrieves another dataset in the same entity and reconciles or narrows it to the target dataset's row scope. |
 
 All dataframe-producing mappings produce data for the dataset that declares
 them. For
-`conform`, `expand`, and `collapse`, the binding usually identifies
+`conform` and `expand`, the binding usually identifies
 another dataset explicitly; the operation function performs the required pull,
 transformation, or reconciliation before returning the fragment. The returned
 fragment must conform to the target dataset's dimensions and row scope.
+
+Collapse declares only a normal function `binding` and its output features.
+The compiler infers its input dataset from the bound feature references and
+connects the producing operations as dependencies. The engine identifies the
+input dataset from those dependency producers, without a separate source field.
+All input features must
+belong to that same dataset; collapse does not join different datasets.
+Combining inputs from different datasets requires an explicit `expand` operation.
+Its function has a required entrypoint in `functions.collapse` and receives
+only its bound analytical arguments. The engine derives grouping keys from the
+target dataset's owning entity dimensions, so no `group_by` field is needed.
+It needs no user-defined dataframe wrapper function. The engine wraps the
+collapse expressions in the backend's `group_by(...).agg(...)` statement,
+aliases each reducer expression to its output feature,
+and returns the grouping dimensions alongside the reduced features. An entity
+without dimensions uses a global reduction. A function producing several
+reduced features returns a mapping of feature identifiers to expressions.
 
 Fragments are combined by the owning entity's complete dimension key. The
 engine never combines fragments by row position, so differing row order is safe.

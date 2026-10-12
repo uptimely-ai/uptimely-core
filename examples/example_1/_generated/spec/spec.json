@@ -180,31 +180,12 @@
         "partitioning": null
       }
     },
-    "aggregate": {
+    "collapse": {
       "maximum": {
         "entrypoint": "examples.example_1.functions.calculation:maximum",
         "args": {
           "feature": {
             "type": "string",
-            "comment": null
-          }
-        }
-      }
-    },
-    "collapse": {
-      "aggregate_by_dimension": {
-        "entrypoint": "examples.example_1.functions.calculation:aggregate_by_dimension",
-        "args": {
-          "dataset": {
-            "type": "dataframe",
-            "comment": null
-          },
-          "dimensions": {
-            "type": "array[string]",
-            "comment": null
-          },
-          "aggregations": {
-            "type": "object{str: aggregation}",
             "comment": null
           }
         }
@@ -588,22 +569,9 @@
           "mappings": {
             "bearing_temperature_by_pump": {
               "binding": {
-                "function": "aggregate_by_dimension",
+                "function": "maximum",
                 "args": {
-                  "dataset": "$datasets.pump_telemetry_dataset",
-                  "dimensions": [
-                    "$dimensions.plant",
-                    "$dimensions.production_line",
-                    "$dimensions.pump"
-                  ],
-                  "aggregations": {
-                    "bearing_temperature_max": {
-                      "function": "maximum",
-                      "args": {
-                        "feature": "$features.bearing_temperature"
-                      }
-                    }
-                  }
+                  "feature": "$features.bearing_temperature"
                 }
               },
               "features": [

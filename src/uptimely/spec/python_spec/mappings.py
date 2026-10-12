@@ -7,15 +7,12 @@ from typing import Any
 
 from uptimely.spec.json_spec import json_model
 
-from .aggregation import Aggregation, aggregation
 from .bind import Bind, _binding_args, _operation_id
 from .feature import Feature as _Feature
 from .ref import Reference
 from .row_context import RowContext, RowContextBinding, _context
 
 __all__ = [
-    "Aggregation",
-    "aggregation",
     "Vectorize",
     "Read",
     "Conform",
@@ -33,19 +30,11 @@ class _Mapping:
     id: str | None = None
     features: list[_Feature | Reference | str] = field(default_factory=list)
     description: str | None = None
-    aggregations: dict[str, Any] = field(default_factory=dict)
 
     def to_model(self) -> json_model.FeatureMapping:
         """Convert this mapping declaration to its canonical model."""
         identifier = _operation_id(self.bind, self.id)
         arguments = _binding_args(self.bind)
-        if isinstance(self, Collapse):
-            aggregations = self.aggregations or self.bind.args.get("aggregations", {})
-            if aggregations or "aggregations" in self.bind.args:
-                arguments["aggregations"] = {
-                    feature_id: _aggregation_binding(value).model_dump(exclude_none=True)
-                    for feature_id, value in aggregations.items()
-                }
         return json_model.FeatureMapping(
             id=identifier,
             binding=json_model.Binding(
@@ -84,7 +73,13 @@ class Expand(_Mapping):
 
 @dataclass(frozen=True)
 class Collapse(_Mapping):
-    """A mapping that groups input data and applies per-feature aggregations."""
+    """Bind a collapse function with input data inferred from bound features.
+
+    Args:
+        bind: The reducer callable and its analytical arguments.
+        id: Optional mapping identifier.
+        features: Declared outputs, including the target entity's grouping dimensions.
+    """
 
 
 @dataclass(frozen=True)
@@ -116,24 +111,3 @@ def _feature_id(feature: _Feature | Reference | str) -> str:
     if feature.startswith("$features."):
         return feature.removeprefix("$features.")
     return feature
-
-
-def _aggregation_binding(value: Aggregation | dict[str, Any]) -> json_model.Binding:
-    """Convert a Python or canonical aggregation binding to its model."""
-    if isinstance(value, Aggregation):
-        return json_model.Binding(
-            function=value.id,
-            args=_binding_args(
-                Bind(
-                    function=value.function,
-                    args=value.args,
-                    function_id=value.function_id,
-                )
-            ),
-        )
-    return json_model.Binding.model_validate(
-        {
-            "function": value["function"],
-            "args": value.get("args", {}),
-        }
-    )

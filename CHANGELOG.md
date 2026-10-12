@@ -30,6 +30,14 @@ Initial public release.
 
 ### Changed
 
+- Collapse mappings now use a normal function `binding`, without `source` or
+  `group_by`. The compiler infers the input dataset from bound features;
+  inputs spanning datasets require an explicit expand first.
+  The engine infers grouping from the target entity dimensions and wraps
+  the function expressions in backend grouping. Reducers are cataloged
+  under `functions.collapse`. Removed dataframe collapse wrapper functions,
+  `functions.aggregate`, and the Python `Aggregation` / `aggregation` API.
+  Old specifications and collapse plans are not supported.
 - Removed legacy portable-plan serialization fields and API aliases, engine
   runtime-state accessors, and pre-row-scope specification input normalization.
   Portable plans now serialize and load only their canonical schema; execution

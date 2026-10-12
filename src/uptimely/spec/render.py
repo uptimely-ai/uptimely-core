@@ -199,7 +199,7 @@ def _build_context(
         group_name: len(function_groups.get(group_name, {}))
         if isinstance(function_groups.get(group_name, {}), dict)
         else 0
-        for group_name in ("read", "write", "vectorize", "aggregate")
+        for group_name in ("read", "write", "vectorize", "collapse", "expand", "conform")
     }
     dataset_count = sum(len(entity.get("datasets", [])) for entity in entities.values())
     mapping_count = sum(

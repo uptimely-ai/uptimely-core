@@ -11,7 +11,6 @@ from . import mappings as mapping_declarations
 from .bind import _argument_definition, _entrypoint
 from .feature import Feature
 from .mappings import (
-    Aggregation,
     Collapse,
     Conform,
     Expand,
@@ -171,8 +170,8 @@ class Dataset:
             function = {
                 "read": json_model.ReadFunction,
                 "vectorize": json_model.VectorizeFunction,
-                "collapse": json_model.CollapseFunction,
                 "expand": json_model.ExpandFunction,
+                "collapse": json_model.CollapseFunction,
                 "conform": json_model.ConformFunction,
             }.get(operation_type)
             if function is None:
@@ -180,23 +179,13 @@ class Dataset:
             catalog = {
                 "read": read,
                 "vectorize": vectorize,
-                "collapse": collapse,
                 "expand": expand,
+                "collapse": collapse,
                 "conform": conform,
             }[operation_type]
             arguments = {
-                name: argument(name, value)
-                for name, value in declaration.bind.args.items()
-                if not (
-                    isinstance(declaration, mapping_declarations.Collapse)
-                    and name == "aggregations"
-                )
+                name: argument(name, value) for name, value in declaration.bind.args.items()
             }
-            if isinstance(declaration, mapping_declarations.Collapse):
-                aggregation_values = declaration.aggregations or declaration.bind.args.get(
-                    "aggregations", {}
-                )
-                arguments["aggregations"] = argument("aggregations", aggregation_values)
             catalog[function_id] = function(
                 id=function_id,
                 entrypoint=_entrypoint(declaration.bind.function),
@@ -206,34 +195,10 @@ class Dataset:
         for declaration in self.mappings:
             register(declaration)
 
-        aggregate: dict[str, json_model.AggregateFunction] = {}
-
-        def register_aggregations(value: Any) -> None:
-            if isinstance(value, Aggregation):
-                aggregate[value.id] = json_model.AggregateFunction(
-                    id=value.id,
-                    entrypoint=_entrypoint(value.function),
-                    args={name: argument(name, item) for name, item in value.args.items()},
-                )
-                return
-            if isinstance(value, (list, tuple)):
-                for item in value:
-                    register_aggregations(item)
-            elif isinstance(value, dict):
-                for item in value.values():
-                    register_aggregations(item)
-
-        for declaration in self.mappings:
-            if isinstance(declaration, mapping_declarations.Collapse):
-                register_aggregations(
-                    declaration.aggregations or declaration.bind.args.get("aggregations", {})
-                )
-
         return json_model.FunctionCatalog(
             read=read,
             write=write,
             vectorize=vectorize,
-            aggregate=aggregate,
             collapse=collapse,
             expand=expand,
             conform=conform,

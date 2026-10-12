@@ -110,6 +110,8 @@ class SpecificationParser:
         for entity_id, entity in self.entities.items():
             for dataset in entity.datasets:
                 for mapping in dataset.mappings.values():
+                    if mapping.binding.function in self.function_catalog.collapse:
+                        continue
                     function_name = mapping.binding.function
                     template = self.function_catalog.vectorize.get(function_name)
                     if template is None:
@@ -255,6 +257,8 @@ class SpecificationParser:
         for entity in self.entities.values():
             for dataset in entity.datasets:
                 for mapping in dataset.mappings.values():
+                    if mapping.binding.function in self.function_catalog.collapse:
+                        continue
                     if mapping.binding.function in self.function_catalog.vectorize:
                         collisions = sorted(set(mapping.features) & dimension_names)
                         if collisions:
@@ -286,6 +290,8 @@ class SpecificationParser:
                     for feature_id in mapping.features
                 }
                 for mapping in dataset.mappings.values():
+                    if mapping.binding.function in self.function_catalog.collapse:
+                        continue
                     if mapping.binding.function not in self.function_catalog.write:
                         continue
                     sink_features = set(self._resolve_feature_dependencies(mapping.binding.args))

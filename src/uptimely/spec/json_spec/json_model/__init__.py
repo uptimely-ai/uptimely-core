@@ -19,7 +19,6 @@ from .dataset import (
 from .functions import (
     FUNCTION_CATEGORIES,
     FUNCTION_TYPES,
-    AggregateFunction,
     CollapseFunction,
     ConformFunction,
     ExpandFunction,
@@ -36,7 +35,6 @@ __all__ = [
     "FUNCTION_CATEGORIES",
     "FUNCTION_TYPES",
     "SUPPORTED_SPECIFICATION_VERSION",
-    "AggregateFunction",
     "Argument",
     "Binding",
     "BindingArgument",

@@ -13,7 +13,6 @@ FUNCTION_CATEGORIES = (
     "read",
     "write",
     "vectorize",
-    "aggregate",
     "collapse",
     "expand",
     "conform",
@@ -43,12 +42,8 @@ class VectorizeFunction(FunctionTemplate):
     partitioning: Literal["none", "by_entity_dimensions", "custom"] | None = None
 
 
-class AggregateFunction(FunctionTemplate):
-    """A function template evaluated within a collapse operation."""
-
-
 class CollapseFunction(FunctionTemplate):
-    """A function that creates a fragment by collapsing data."""
+    """A reducer returning one expression or a mapping of output expressions."""
 
 
 class ExpandFunction(FunctionTemplate):
@@ -68,7 +63,6 @@ class FunctionCatalog(StrictModel):
     read: dict[str, ReadFunction] = Field(default_factory=dict)
     write: dict[str, WriteFunction] = Field(default_factory=dict)
     vectorize: dict[str, VectorizeFunction] = Field(default_factory=dict)
-    aggregate: dict[str, AggregateFunction] = Field(default_factory=dict)
     collapse: dict[str, CollapseFunction] = Field(default_factory=dict)
     expand: dict[str, ExpandFunction] = Field(default_factory=dict)
     conform: dict[str, ConformFunction] = Field(default_factory=dict)

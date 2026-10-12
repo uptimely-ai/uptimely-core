@@ -3,15 +3,6 @@
 import polars as pl
 
 
-def aggregate_by_dimension(
-    dataset: pl.LazyFrame,
-    dimensions: list[str],
-    aggregations: dict[str, pl.Expr],
-) -> pl.LazyFrame:
-    """Collapse a dataset by dimensions using generated feature expressions."""
-    return dataset.group_by(dimensions).agg(list(aggregations.values()))
-
-
 def maximum(feature: str) -> pl.Expr:
     """Generate a maximum expression from a source feature."""
     return pl.col(feature).max()

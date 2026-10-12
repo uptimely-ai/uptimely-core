@@ -5,7 +5,7 @@ from graphable import graphable
 
 from uptimely.spec import Specification
 
-from ..spec.json_spec.bindings import aggregation_bindings
+from ..spec.json_spec.bindings import collapse_input_dataset, mapping_category
 from .node import CallableNode
 
 Node = graphable.Graphable
@@ -42,7 +42,7 @@ class CallableGraph:
             for dataset in entity.datasets:
                 dataset_key = (entity_id, dataset.id)
                 for mapping in dataset.mappings.values():
-                    operation_type = self._mapping_category(mapping.binding.function)
+                    operation_type = mapping_category(mapping, self.specification.functions)
                     primary_feature = mapping.features[0] if mapping.features else None
                     call = next(
                         (
@@ -62,7 +62,6 @@ class CallableGraph:
                         operation_id=mapping.id,
                         output_features=tuple(mapping.features),
                         args=mapping.binding.args,
-                        aggregations=aggregation_bindings(mapping.binding.args),
                         callable=call,
                         row_context=(
                             dataset.features[primary_feature].row_context
@@ -93,11 +92,19 @@ class CallableGraph:
         for graph_node in list(nodes.values()):
             consumer = graph_node.reference
             references = self._feature_references(consumer.args)
-            references.extend(
-                feature
-                for binding in consumer.aggregations.values()
-                for feature in self._feature_references(binding.args)
-            )
+            if consumer.operation_type == "collapse":
+                source_id = self.collapse_input_dataset_id(consumer)
+                for source_node in nodes.values():
+                    source = source_node.reference
+                    if source.dataset_id == source_id and (
+                        source.operation_type in {"read", "collapse", "expand", "conform"}
+                        or (
+                            source.operation_type == "vectorize"
+                            and set(references).intersection(source.output_features)
+                        )
+                    ):
+                        graph.add_edge(source_node, graph_node)
+                continue
             for feature in references:
                 producer = self._feature_producers.get(feature)
                 if producer is not None and producer != consumer:
@@ -134,17 +141,14 @@ class CallableGraph:
 
         return graph
 
-    def _mapping_category(self, function_id: str) -> str:
-        """Infer a mapping operation category from its function catalog entry."""
-        categories = ("read", "conform", "expand", "collapse", "vectorize", "write")
-        matches = [
-            category
-            for category in categories
-            if function_id in getattr(self.specification.functions, category)
-        ]
-        if len(matches) != 1:
-            raise ValueError(f"Mapping function {function_id} must resolve to exactly one category")
-        return matches[0]
+    def collapse_input_dataset_id(self, node: CallableNode) -> str:
+        """Infer the input dataset from a collapse node's specification binding."""
+        if node.operation_type != "collapse" or node.operation_id is None:
+            raise ValueError(f"Expected a collapse mapping node: {node.node_id}")
+        entity = self.specification.entities[node.entity]
+        dataset = next(dataset for dataset in entity.datasets if dataset.id == node.dataset_id)
+        mapping = dataset.mappings[node.operation_id]
+        return collapse_input_dataset(self.specification, mapping)[1].id
 
     def _dataset_id(self, entity_id: str, feature: str) -> str | None:
         """Return the dataset that owns a feature."""
@@ -248,43 +252,11 @@ class CallableGraph:
 
     def dependencies(self, node: CallableNode) -> list[CallableNode]:
         """Return callables that directly produce the node's dependencies."""
-        graph_nodes = set(self.callables)
-        dataset_key = (node.entity, node.dataset_id)
-        if node.operation_type == "read":
-            return []
-        if node.operation_type in ("sink", "write"):
-            sources = [
-                source
-                for source in self._dataset_sources.get(dataset_key, [])
-                if source in graph_nodes
-            ]
-            referenced = set(self._feature_references(node.args))
-            calculations = [
-                producer
-                for feature in referenced
-                if (producer := self._feature_producers.get(feature)) in graph_nodes
-            ]
-            return [*sources, *calculations]
-
-        dependencies = [
-            source
-            for source in self._dataset_sources.get(dataset_key, [])
-            if source != node and source in graph_nodes
-        ]
-        if node.operation_type == "vectorize":
-            dependencies.extend(
-                producer
-                for feature in self._feature_references(node.args)
-                if (producer := self._feature_producers.get(feature)) in graph_nodes
-            )
-        else:
-            dependencies.extend(
-                producer
-                for binding in node.aggregations.values()
-                for feature in self._feature_references(binding.args)
-                if (producer := self._feature_producers.get(feature)) in graph_nodes
-            )
-        return list(dict.fromkeys(dependencies))
+        graph_node = self._node_by_key(node.node_id)
+        return sorted(
+            (dependency.reference for dependency in graph_node.depends_on),
+            key=lambda dependency: dependency.node_id,
+        )
 
     def get_callable_order(self) -> list[CallableNode]:
         """Return callables in execution order (topological sort)."""

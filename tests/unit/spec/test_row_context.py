@@ -10,7 +10,6 @@ from uptimely.engine import Engine
 from uptimely.plan import ExecutionPlan, Plan
 from uptimely.row_context import ContextExtent, RowContext, duration_nanoseconds
 from uptimely.spec import Specification
-from uptimely.spec.json_spec.bindings import is_aggregation_entry
 from uptimely.spec.json_spec.json_model import (
     Binding,
     Call,
@@ -363,24 +362,18 @@ def test_features_have_no_context_field() -> None:
         feature.Feature(id="result", row_context=row_context.current())
 
 
-@pytest.mark.parametrize("constructor", [mapping.aggregation, mapping.Aggregation])
-def test_aggregation_unwraps_annotations_without_registering_context(constructor) -> None:
+def test_collapse_binding_unwraps_annotations_without_registering_context() -> None:
     args = {"configuration": {"windows": [row_context.time("8h", before="8h")]}}
-    aggregation = (
-        constructor(calculate, args)
-        if constructor is mapping.Aggregation
-        else constructor(calculate, **args)
-    )
-    entry = _binding_value({"items": [aggregation]})["items"][0]
+    binding = bind.bind(calculate, **args)
+    entry = _binding_value({"items": [binding]})["items"][0]
     assert entry == {
         "function": "calculate",
         "args": {"configuration": {"windows": ["8h"]}},
     }
-    assert "row_context" not in mapping.Aggregation.__dataclass_fields__
-    assert is_aggregation_entry(entry)
-    assert not is_aggregation_entry({**entry, "row_context": {}})
+    assert "row_context" not in bind.Bind.__dataclass_fields__
     collapse = mapping.Collapse(
-        bind=bind.bind(calculate, aggregations={"result": aggregation})
+        id="summary",
+        bind=binding,
     ).to_model()
     assert not hasattr(collapse, "row_context")
 
@@ -433,7 +426,7 @@ def test_shared_binding_supports_distinct_feature_contexts() -> None:
 
 @pytest.mark.parametrize(
     "operation_type",
-    [mapping.Read, mapping.Conform, mapping.Expand, mapping.Collapse],
+    [mapping.Read, mapping.Conform, mapping.Expand],
 )
 def test_mappings_unwrap_annotations_without_context(operation_type) -> None:
     declaration = operation_type(
@@ -454,7 +447,8 @@ def test_mappings_unwrap_annotations_without_context(operation_type) -> None:
 def test_mapping_module_exposes_only_current_mapping_declarations() -> None:
     assert not hasattr(mapping, "_Operation")
     assert not hasattr(mapping, "Mapping")
-    assert mapping.Aggregation
+    assert not hasattr(mapping, "Aggregation")
+    assert not hasattr(mapping, "aggregation")
     assert mapping.Vectorize
     assert feature.Feature
 
@@ -544,14 +538,13 @@ def test_plan_context_is_present_in_portable_operations() -> None:
     assert operation.row_context == row_context.current()
 
 
-def test_aggregations_execute_without_row_context() -> None:
-    from examples.example_1.functions.calculation import aggregate_by_dimension, maximum
+def test_collapse_functions_execute_without_row_context() -> None:
+    from examples.example_1.functions.calculation import maximum
 
-    annotated = mapping.aggregation(
+    annotated = bind.bind(
         maximum,
         feature=ref.feature("temperature"),
     )
-    assert _argument_definition(annotated) == {"type": "aggregation"}
     specification = Specification.from_python(
         datasets=[
             dataset.Dataset(
@@ -562,12 +555,8 @@ def test_aggregations_execute_without_row_context() -> None:
                 id="summary",
                 mappings=[
                     mapping.Collapse(
-                        bind=bind.bind(
-                            aggregate_by_dimension,
-                            dataset=ref.dataset("input"),
-                            dimensions=[ref.dimension("id")],
-                            aggregations={"temperature_max": annotated},
-                        ),
+                        id="summary",
+                        bind=annotated,
                         features=[
                             feature.Feature(id="id", type="integer"),
                             feature.Feature(id="temperature_max", type="integer"),
@@ -581,15 +570,14 @@ def test_aggregations_execute_without_row_context() -> None:
     plan = Compiler(specification).compile()
     operation = next(item for item in plan.operations if item.kind == "collapse")
     assert operation.row_context is None
-    entry = operation.arguments["aggregations"]["temperature_max"]
-    assert set(entry) == {"function", "args"}
-    assert entry["args"] == {"feature": "temperature"}
+    assert operation.entrypoint.endswith(":maximum")
+    assert operation.arguments == {"feature": "temperature"}
     output_dataset = specification.entities["entity"].datasets[1]
-    output = output_dataset.mappings["aggregate_by_dimension"]
+    output = output_dataset.mappings["summary"]
     assert output_dataset.features["temperature_max"].row_context is None
     payload = output.model_dump()
+    assert "group_by" not in payload
     assert "row_context" not in payload["binding"]
-    assert "row_context" not in payload["binding"]["args"]["aggregations"]["temperature_max"]
     restored = Plan.from_dict(json.loads(json.dumps(plan.plan.to_dict())))
     assert restored == plan.plan
     assert not Engine(ExecutionPlan(restored)).execute().failures

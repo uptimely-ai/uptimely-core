@@ -167,6 +167,7 @@ def test_dataset_mappings_are_supported_in_entity_specs(tmp_path: Path) -> None:
     for entity in configuration["entities"].values():
         for dataset in entity.get("datasets", []):
             for mapping in dataset["mappings"].values():
+                assert "source" not in mapping
                 binding = mapping["binding"]
                 assert all(
                     not (isinstance(arg, dict) and arg.get("type") == "dataset_ref")
@@ -184,12 +185,9 @@ def test_system_and_subset_support_multiple_variables() -> None:
     specification = Specification.from_json(SPEC_PATH)
     assert len(specification.resolved_functions) == 8
     collapse = specification.entities["pump"].datasets[0].mappings["bearing_temperature_by_pump"]
-    assert collapse.binding.function == "aggregate_by_dimension"
-    assert collapse.binding.args["dataset"] == "$datasets.pump_telemetry_dataset"
-    assert (
-        collapse.binding.args["aggregations"]["bearing_temperature_max"]["args"]["feature"]
-        == "$features.bearing_temperature"
-    )
+    assert not hasattr(collapse, "source")
+    assert collapse.binding.function == "maximum"
+    assert collapse.binding.args["feature"] == "$features.bearing_temperature"
     system = FeatureGraph(specification)
 
     assert system.feature_names == {
