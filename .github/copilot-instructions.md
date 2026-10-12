@@ -16,6 +16,7 @@ This is an open source Python package for declarative numerical analytics in ind
 
 * Write Python docstrings in Google style, using sections such as `Args:`, `Returns:`, and `Raises:` where applicable
 * Update docstrings and add type hints when code changes
+* Import modules and use them as namespaces for variables and functions
 
 ## File organization
 
