@@ -22,7 +22,9 @@ class CallableNode:
     operation_type: str = "vectorize"
     dataset_id: str | None = None
     operation_id: str | None = None
+    output_features: tuple[str, ...] = ()
     args: dict[str, object] = field(default_factory=dict, compare=False, hash=False)
+    aggregations: dict[str, object] = field(default_factory=dict, compare=False, hash=False)
     callable: Call | None = field(default=None, compare=False, hash=False)
     callable_type_override: str | None = field(default=None, compare=False, hash=False)
     row_context: RowContext | None = field(default=None, compare=False, hash=False)
@@ -41,7 +43,7 @@ class CallableNode:
     @property
     def node_id(self) -> str:
         """Stable graph identifier for this callable invocation."""
-        identifier = self.feature or self.operation_id or self.function_id
+        identifier = self.operation_id or self.feature or self.function_id
         return (
             f"callable:{self.operation_type}:{self.function_id}:"
             f"{self.entity}:{self.dataset_id}:{identifier}"
@@ -64,6 +66,7 @@ class CallableNode:
             entity=self.entity,
             dataset_id=self.dataset_id,
             feature=self.feature,
+            output_features=list(self.output_features),
             depends_on_features=(
                 self.callable.depends_on_features if self.callable is not None else None
             ),

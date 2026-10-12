@@ -50,7 +50,7 @@ plan = Compiler("_generated/spec/spec.json").compile()
 
 The compiler can produce a feature subset. The requested features form the
 starting points of a dependency closure, so the plan includes their required
-fragment operations, calculated-feature dependencies, and writes for the
+dataframe-producing mappings, calculated-feature dependencies, and writes for the
 selected datasets.
 
 ```python

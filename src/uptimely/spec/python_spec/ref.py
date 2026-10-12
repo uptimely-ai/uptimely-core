@@ -8,7 +8,6 @@ __all__ = [
     "Reference",
     "current_dataset",
     "dataset",
-    "fragment",
     "source",
     "sink",
     "feature",
@@ -36,11 +35,6 @@ def current_dataset() -> Reference:
 def dataset(name: str) -> Reference:
     """Reference a dataset by name."""
     return Reference(type="dataset", value=f"$datasets.{name}")
-
-
-def fragment(name: str) -> Reference:
-    """Reference a dataframe fragment by name."""
-    return Reference(type="fragment", value=f"$fragments.{name}")
 
 
 def source(name: str, attribute: str = "path") -> str:

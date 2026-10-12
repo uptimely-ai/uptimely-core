@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from uptimely.spec import Specification
-from uptimely.spec.python_spec import bind, dataset, feature, fragment, ref
+from uptimely.spec.python_spec import bind, dataset, feature, mapping, ref
 from uptimely.spec.python_spec.bind import _argument_definition
 
 SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
@@ -61,7 +61,7 @@ def test_example_manifest_parses_complete_specification() -> None:
     assert len(specification.resolved_functions) == 8
 
     pump_dataset = specification.entities["pump"].datasets[0]
-    aggregate = pump_dataset.collapse["bearing_temperature_by_pump"]
+    aggregate = pump_dataset.mappings["bearing_temperature_by_pump"]
     assert aggregate.binding.function == "aggregate_by_dimension"
     assert "bearing_temperature_max" in aggregate.features
 
@@ -126,54 +126,59 @@ def test_spec_from_python_models_and_json_export(tmp_path: Path) -> None:
         "description",
         "row_scope",
         "order",
-        "read",
-        "conform",
-        "expand",
-        "collapse",
-        "vectorize",
+        "features",
+        "mappings",
         "write",
     }
     assert dataset_payload["description"]
-    assert dataset_payload["read"]["read"]["binding"]["function"] == "read"
+    assert dataset_payload["mappings"]["read"]["binding"]["function"] == "read"
     assert dataset_payload["write"]["write"]["binding"]["args"]["df"] == "$datasets.@"
-    assert dataset_payload["vectorize"]["column_3"]["binding"]["args"] == {
+    assert any(isinstance(declaration, mapping.Write) for declaration in dataset_.mappings)
+    assert dataset_payload["mappings"]["column_3"]["binding"]["args"] == {
         "left_feature": "$features.input_1",
         "right_feature": "$features.input_2",
         "output": "$features.column_3",
     }
-    assert dataset_payload["vectorize"]["column_3"]["unit"] is None
-    assert "type" not in dataset_payload["vectorize"]["column_3"]
-    assert "entrypoint" not in dataset_payload["vectorize"]["column_3"]
+    assert dataset_payload["features"]["column_3"]["unit"] is None
+    assert dataset_payload["features"]["column_3"]["type"] is None
+    assert "entrypoint" not in dataset_payload["features"]["column_3"]
 
 
 def test_sources_and_transforms_python_spec(tmp_path: Path) -> None:
+    from examples.example_1.functions.calculation import aggregate_by_dimension, maximum
     from examples.example_2.functions import functions
 
-    source_op = fragment.Read(
+    source_op = mapping.Read(
         id="read",
         bind=bind.bind(functions.read_data),
-        features=[feature.Raw(id="input_1", description="Input feature: input_1")],
+        features=[feature.Feature(id="input_1", description="Input feature: input_1")],
     )
 
-    transform_op = fragment.Expand(
+    transform_op = mapping.Expand(
         id="expand_data",
-        bind=bind.bind(functions.read_data),
-        features=[feature.Raw(id="input_2", description="Input feature: input_2")],
+        bind=bind.bind(
+            functions.expand_data,
+            df1=ref.dataset("transformed_dataset"),
+            df2=ref.dataset("transformed_dataset"),
+        ),
+        features=[feature.Feature(id="input_2", description="Input feature: input_2")],
     )
 
-    collapse_op = fragment.Collapse(
+    collapse_op = mapping.Collapse(
         id="collapse_data",
         bind=bind.bind(
-            functions.read_data,
+            aggregate_by_dimension,
+            dataset=ref.dataset("transformed_dataset"),
+            dimensions=[],
             aggregations={
                 "collapsed_feature": feature.aggregation(
-                    functions.tag_first_item,
-                    id_column=ref.feature("input_1"),
+                    maximum,
+                    feature=ref.feature("input_1"),
                 )
             },
         ),
         features=[
-            feature.Raw(
+            feature.Feature(
                 id="collapsed_feature",
                 description="Feature generated while collapsing data",
             )
@@ -198,16 +203,12 @@ def test_sources_and_transforms_python_spec(tmp_path: Path) -> None:
     spec.to_json(out_json)
 
     ds_model = spec.entities["transforms_test"].datasets[0]
-    assert "read" in ds_model.read
-    assert "expand_data" in ds_model.expand
-    assert "collapse_data" in ds_model.collapse
+    assert "read" in ds_model.mappings
+    assert "expand_data" in ds_model.mappings
+    assert "collapse_data" in ds_model.mappings
     assert "input_1" in ds_model.all_features
     assert "input_2" in ds_model.all_features
-    aggregation_binding = ds_model.collapse["collapse_data"].binding.args["aggregations"][
-        "collapsed_feature"
-    ]
-    assert aggregation_binding == {
-        "function": "tag_first_item",
-        "args": {"id_column": "$features.input_1"},
-    }
-    assert "tag_first_item" in spec.functions.aggregate
+    aggregation_binding = ds_model.mappings["collapse_data"].aggregations["collapsed_feature"]
+    assert aggregation_binding.function == "maximum"
+    assert aggregation_binding.args == {"feature": "$features.input_1"}
+    assert "maximum" in spec.functions.aggregate

@@ -77,7 +77,7 @@ def _argument_definition(value: Any) -> dict[str, Any]:
     if isinstance(value, RowContextBinding):
         return _argument_definition(value.value)
     if isinstance(value, Reference):
-        return {"type": "dataframe" if value.type in {"dataset", "fragment"} else "string"}
+        return {"type": "dataframe" if value.type == "dataset" else "string"}
     if isinstance(value, Aggregation):
         return {"type": "aggregation"}
     if isinstance(value, (list, tuple)):

@@ -13,15 +13,13 @@ from uptimely.spec import Specification
 from uptimely.spec.json_spec.bindings import is_aggregation_entry
 from uptimely.spec.json_spec.json_model import (
     Binding,
-    Calculation,
     Call,
-    Input,
+    Feature,
+    FeatureMapping,
     Sink,
-    Source,
-    Transform,
     VectorizeFunction,
 )
-from uptimely.spec.python_spec import bind, dataset, dimension, feature, fragment, ref, row_context
+from uptimely.spec.python_spec import bind, dataset, dimension, feature, mapping, ref, row_context
 from uptimely.spec.python_spec.bind import _argument_definition, _binding_value
 from uptimely.spec.render import create_website_pages
 
@@ -30,12 +28,12 @@ def read_observations() -> pl.DataFrame:
     return pl.DataFrame({"id": [3, 1, 2], "temperature": [10, 20, 30]})
 
 
-def _read() -> fragment.Read:
-    return fragment.Read(
+def _read() -> mapping.Read:
+    return mapping.Read(
         bind=bind.bind(read_observations),
         features=[
-            feature.Raw(id="id", type="integer"),
-            feature.Raw(id="temperature", type="integer"),
+            feature.Feature(id="id", type="integer"),
+            feature.Feature(id="temperature", type="integer"),
         ],
     )
 
@@ -136,7 +134,11 @@ def test_feature_consolidates_directional_maxima() -> None:
         "after": {"time": "2h"},
     }
     model = declaration.to_model()
-    assert model.binding.args["configuration"] == {"period": "8h", "counts": [8]}
+    mapping = (
+        dataset.Dataset(id="observations", vectorize=[declaration]).to_model().mappings["result"]
+    )
+    assert mapping.binding.args["configuration"] == {"period": "8h", "counts": [8]}
+    assert model.row_context == declaration.row_context
 
 
 @pytest.mark.parametrize(
@@ -204,7 +206,7 @@ def test_specification_rejects_mixed_measurements(tmp_path: Path) -> None:
     path = tmp_path / "spec.json"
     specification.to_json(path)
     payload = json.loads(path.read_text())
-    calculation = payload["entities"]["entity"]["datasets"][0]["vectorize"]["result"]
+    calculation = payload["entities"]["entity"]["datasets"][0]["features"]["result"]
     calculation["row_context"] = {"before": {"time": "8h", "rows": 10}}
     path.write_text(json.dumps(payload))
     with pytest.raises(ValidationError, match="one measurement"):
@@ -239,7 +241,10 @@ def test_helpers_work_as_direct_feature_context(annotation, expected) -> None:
     )
     model = declaration.to_model()
     assert model.row_context.before.model_dump(exclude_none=True) == expected
-    assert model.binding.args == {"column": "$features.temperature"}
+    mapping = (
+        dataset.Dataset(id="observations", vectorize=[declaration]).to_model().mappings["result"]
+    )
+    assert mapping.binding.args == {"column": "$features.temperature"}
 
 
 def test_direct_binding_declarations_collect_context() -> None:
@@ -249,13 +254,14 @@ def test_direct_binding_declarations_collect_context() -> None:
     assert feature.Vectorize(id="result", bind=binding).row_context == argument.row_context
 
 
-@pytest.mark.parametrize("model_type", [Source, Transform])
-def test_nested_raw_features_reject_context(model_type) -> None:
-    with pytest.raises(ValidationError):
-        model_type(
+def test_mapping_model_does_not_own_feature_context() -> None:
+    assert "row_context" not in FeatureMapping.model_fields
+    with pytest.raises(ValidationError, match="row_context"):
+        FeatureMapping(
             id="summary",
             binding=Binding(function="calculate"),
-            features={"maximum": {"id": "maximum", "row_context": {"before": {"rows": 7}}}},
+            features=["maximum"],
+            row_context={"before": {"rows": 7}},
         )
 
 
@@ -307,7 +313,7 @@ def test_unknown_current_partition_and_dataset_are_distinct() -> None:
 )
 def test_canonical_context_rejects_invalid_metadata(payload: dict) -> None:
     with pytest.raises(ValidationError):
-        Calculation(id="result", binding=Binding(function="calculate"), row_context=payload)
+        Feature(id="result", row_context=payload)
 
 
 @pytest.mark.parametrize(
@@ -315,7 +321,8 @@ def test_canonical_context_rejects_invalid_metadata(payload: dict) -> None:
     [
         (Binding, {"function": "calculate"}),
         (Call, {"function": "calculate", "entity": "entity", "feature": "result"}),
-        (Input, {"id": "result"}),
+        (FeatureMapping, {"id": "result", "binding": Binding(function="calculate")}),
+        (Sink, {"id": "result", "binding": Binding(function="calculate")}),
     ],
 )
 def test_non_vectorized_models_reject_context(model_type, fields: dict) -> None:
@@ -324,10 +331,10 @@ def test_non_vectorized_models_reject_context(model_type, fields: dict) -> None:
         model_type(**fields, row_context={})
 
 
-def test_raw_features_have_no_context_field() -> None:
-    assert "row_context" not in feature.Raw.__dataclass_fields__
+def test_features_have_no_context_field() -> None:
+    assert "row_context" not in feature.Feature.__dataclass_fields__
     with pytest.raises(TypeError, match="row_context"):
-        feature.Raw(id="result", row_context=row_context.current())
+        feature.Feature(id="result", row_context=row_context.current())
 
 
 @pytest.mark.parametrize("constructor", [feature.aggregation, feature.Aggregation])
@@ -346,7 +353,7 @@ def test_aggregation_unwraps_annotations_without_registering_context(constructor
     assert "row_context" not in feature.Aggregation.__dataclass_fields__
     assert is_aggregation_entry(entry)
     assert not is_aggregation_entry({**entry, "row_context": {}})
-    collapse = fragment.Collapse(
+    collapse = mapping.Collapse(
         bind=bind.bind(calculate, aggregations={"result": aggregation})
     ).to_model()
     assert not hasattr(collapse, "row_context")
@@ -382,7 +389,7 @@ def test_shared_binding_supports_distinct_feature_contexts() -> None:
     assert contexts == {"first": "8h", "second": "12h"}
     assert not hasattr(shared, "row_context")
     # Compilation uses the feature's current metadata, not a stale derived call.
-    calculation = baseline.entities["entity"].datasets[0].vectorize["result"]
+    calculation = baseline.entities["entity"].datasets[0].features["result"]
     calculation.row_context = RowContext(before=ContextExtent(time="16h"))
     operation = next(
         item for item in Compiler(baseline).compile().operations if item.kind == "vectorize"
@@ -391,32 +398,24 @@ def test_shared_binding_supports_distinct_feature_contexts() -> None:
 
 
 @pytest.mark.parametrize(
-    ("operation_type", "model_type"),
-    [
-        (fragment.Read, Source),
-        (fragment.Write, Sink),
-        (fragment.Conform, Transform),
-        (fragment.Expand, Transform),
-        (fragment.Collapse, Transform),
-    ],
+    "operation_type",
+    [mapping.Read, mapping.Conform, mapping.Expand, mapping.Collapse],
 )
-def test_fragments_unwrap_annotations_without_context(operation_type, model_type) -> None:
+def test_mappings_unwrap_annotations_without_context(operation_type) -> None:
     declaration = operation_type(
         bind=bind.bind(calculate, configuration={"windows": [row_context.time("8h", before="8h")]})
     )
     model = declaration.to_model()
     assert "row_context" not in operation_type.__dataclass_fields__
-    assert "row_context" not in model_type.model_fields
+    assert "row_context" not in FeatureMapping.model_fields
     assert "row_context" not in model.model_dump()
     assert model.binding.args == {"configuration": {"windows": ["8h"]}}
     assert "row_context" not in model.binding.model_dump()
     operation_name = operation_type.__name__.lower()
     copied = dataset.Dataset(id="observations", **{operation_name: [declaration]}).to_model()
-    assert "row_context" not in next(iter(getattr(copied, operation_name).values())).model_dump()
+    assert "row_context" not in next(iter(copied.mappings.values())).model_dump()
     with pytest.raises(TypeError, match="row_context"):
         operation_type(bind=bind.bind(calculate), row_context=row_context.rows(1, before=1))
-    with pytest.raises(ValidationError, match="row_context"):
-        model_type(id="result", binding=Binding(function="calculate"), row_context={})
 
 
 def test_input_scope_is_removed_from_function_templates() -> None:
@@ -437,15 +436,22 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(tmp_path: 
     spec_path = tmp_path / "spec.json"
     specification.to_json(spec_path)
     restored_specification = Specification.from_json(spec_path)
-    original_feature = specification.entities["entity"].datasets[0].vectorize["result"]
-    restored_feature = restored_specification.entities["entity"].datasets[0].vectorize["result"]
+    original_feature = specification.entities["entity"].datasets[0].features["result"]
+    restored_feature = restored_specification.entities["entity"].datasets[0].features["result"]
     assert restored_feature.row_context == original_feature.row_context
-    assert "row_context" not in original_feature.binding.model_dump()
+    assert (
+        "row_context"
+        not in specification.entities["entity"].datasets[0].mappings["result"].binding.model_dump()
+    )
     assert "row_context" not in specification.calls[0].model_dump()
     exported = json.loads(spec_path.read_text())
-    exported_feature = exported["entities"]["entity"]["datasets"][0]["vectorize"]["result"]
+    exported_feature = exported["entities"]["entity"]["datasets"][0]["features"]["result"]
     assert exported_feature["row_context"] == original_feature.row_context.to_dict()
-    assert "row_context" not in exported_feature["binding"]
+    assert "binding" not in exported_feature
+    assert (
+        "row_context"
+        not in exported["entities"]["entity"]["datasets"][0]["mappings"]["result"]["binding"]
+    )
     assert specification.functions.vectorize["calculate"].args["window"].type == "string"
 
     plan = Compiler(restored_specification).compile()
@@ -514,7 +520,7 @@ def test_aggregations_execute_without_row_context() -> None:
             dataset.Dataset(
                 id="summary",
                 collapse=[
-                    fragment.Collapse(
+                    mapping.Collapse(
                         bind=bind.bind(
                             aggregate_by_dimension,
                             dataset=ref.dataset("input"),
@@ -522,8 +528,8 @@ def test_aggregations_execute_without_row_context() -> None:
                             aggregations={"temperature_max": annotated},
                         ),
                         features=[
-                            feature.Raw(id="id", type="integer"),
-                            feature.Raw(id="temperature_max", type="integer"),
+                            feature.Feature(id="id", type="integer"),
+                            feature.Feature(id="temperature_max", type="integer"),
                         ],
                     )
                 ],
@@ -537,11 +543,12 @@ def test_aggregations_execute_without_row_context() -> None:
     entry = operation.arguments["aggregations"]["temperature_max"]
     assert set(entry) == {"function", "args"}
     assert entry["args"] == {"feature": "temperature"}
-    output = specification.entities["entity"].datasets[1].collapse["aggregate_by_dimension"]
-    assert not hasattr(output.features["temperature_max"], "row_context")
+    output_dataset = specification.entities["entity"].datasets[1]
+    output = output_dataset.mappings["aggregate_by_dimension"]
+    assert output_dataset.features["temperature_max"].row_context is None
     payload = output.model_dump()
     assert "row_context" not in payload["binding"]
-    assert "row_context" not in payload["binding"]["args"]["aggregations"]["temperature_max"]
+    assert "row_context" not in payload["aggregations"]["temperature_max"]
     restored = Plan.from_dict(json.loads(json.dumps(plan.plan.to_dict())))
     assert restored == plan.plan
     assert not Engine(ExecutionPlan(restored)).execute().failures

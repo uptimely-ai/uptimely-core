@@ -1,18 +1,43 @@
 """Pump-level dataset declarations for example 1."""
 
-from uptimely.spec.python_spec import bind, dataset, feature, fragment, ref
+from uptimely.spec.python_spec import bind, dataset, feature, mapping, ref
 
 from ...functions import calculation
 
-pump_collapse = fragment.Collapse(
-    id="bearing_temperature_by_pump",
-    bind=bind.bind(
-        calculation.aggregate_by_dimension,
-        dataset=ref.dataset("pump_telemetry_dataset"),
-        dimensions=[
-            ref.dimension("plant"),
-            ref.dimension("production_line"),
-            ref.dimension("pump"),
+pump_features = [
+    feature.Feature(id="plant", type="string", description="Manufacturing plant identifier"),
+    feature.Feature(id="production_line", type="string", description="Production line identifier"),
+    feature.Feature(id="pump", type="string", description="Centrifugal pump asset identifier"),
+    feature.Feature(
+        id="bearing_temperature_max",
+        type="float",
+        unit="C",
+        description="Maximum observed bearing temperature",
+    ),
+    feature.Feature(
+        id="health_signal_normalized",
+        type="float",
+        description="Normalized bearing-temperature health signal by pump.",
+    ),
+]
+
+pump_mappings = [
+    mapping.Collapse(
+        id="bearing_temperature_by_pump",
+        bind=bind.bind(
+            calculation.aggregate_by_dimension,
+            dataset=ref.dataset("pump_telemetry_dataset"),
+            dimensions=[
+                ref.dimension("plant"),
+                ref.dimension("production_line"),
+                ref.dimension("pump"),
+            ],
+        ),
+        features=[
+            ref.feature("plant"),
+            ref.feature("production_line"),
+            ref.feature("pump"),
+            ref.feature("bearing_temperature_max"),
         ],
         aggregations={
             "bearing_temperature_max": feature.aggregation(
@@ -21,18 +46,18 @@ pump_collapse = fragment.Collapse(
             )
         },
     ),
-    features=[
-        feature.Raw(id="plant", type="string", description="Manufacturing plant identifier"),
-        feature.Raw(id="production_line", type="string", description="Production line identifier"),
-        feature.Raw(id="pump", type="string", description="Centrifugal pump asset identifier"),
-        feature.Raw(
-            id="bearing_temperature_max",
-            type="float",
-            unit="C",
-            description="Maximum observed bearing temperature",
+    mapping.Vectorize(
+        id="health_signal_normalized",
+        bind=bind.bind(
+            calculation.normalize_health_signal,
+            scale_feature=ref.feature("bearing_temperature_max"),
+            lower_bound=-1.0,
+            upper_bound=1.0,
+            scaling_features=[ref.feature("bearing_temperature_max")],
         ),
-    ],
-)
+        features=[ref.feature("health_signal_normalized")],
+    ),
+]
 
 pump_dataset = dataset.Dataset(
     id="pump_dataset",
@@ -41,18 +66,6 @@ pump_dataset = dataset.Dataset(
         grain="One row per pump",
         filtering="Telemetry available to the source dataset",
     ),
-    collapse=[pump_collapse],
-    vectorize=[
-        feature.Vectorize(
-            id="health_signal_normalized",
-            description="Normalized bearing-temperature health signal by pump.",
-            bind=bind.bind(
-                calculation.normalize_health_signal,
-                scale_feature=ref.feature("bearing_temperature_max"),
-                lower_bound=-1.0,
-                upper_bound=1.0,
-                scaling_features=[ref.feature("bearing_temperature_max")],
-            ),
-        )
-    ],
+    features=pump_features,
+    mappings=pump_mappings,
 )

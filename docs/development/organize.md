@@ -111,4 +111,4 @@ and execution environments. Keep their function declarations in sync with the
 implementations and validate the assembled specification and compiled plan in CI.
 Centralizing the definitions does not require moving all analytical source code
 into the master repository.
-The engine consumes the resulting plan, not the separate specification fragments.
+The engine consumes the resulting plan, not the source specification documents.

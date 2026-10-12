@@ -81,7 +81,7 @@ def resolve_structural_reference(
     """Return the identifier represented by a structural binding reference."""
     if value == "$features.@":
         return feature_id if feature_id is not None else value
-    for prefix in ("$features.", "$datasets.", "$dimensions.", "$fragments."):
+    for prefix in ("$features.", "$datasets.", "$dimensions."):
         if value.startswith(prefix):
             identifier = value.removeprefix(prefix)
             return (

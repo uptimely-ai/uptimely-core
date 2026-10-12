@@ -155,14 +155,16 @@ class GraphBase:
     def feature_names(self) -> set[str]:
         """Names of all features produced by graph functions."""
         return {
-            node.reference.feature
+            node.reference.name
             for node in self.graph
-            if isinstance(node.reference, FunctionNode) and node.reference.feature is not None
+            if isinstance(node.reference, FeatureNode)
+            and node.reference.is_output
+            and not node.reference.is_source_input
         }
 
 
 class FeatureGraph(GraphBase):
-    """Global dependency graph built from all analytics function calls."""
+    """Global dependency graph built from all feature mappings."""
 
     def __init__(self, specs: Specification) -> None:
         """Load analytics function calls and build the complete dependency graph."""
@@ -170,41 +172,60 @@ class FeatureGraph(GraphBase):
             function for function in specs.resolved_functions if function.role == "analytics"
         ]
         self._graph_operations: list[tuple[Function, str, str, list[str], list[str]]] = []
-        for function in self.functions:
-            for call in function.callables:
-                self._graph_operations.append(
-                    (function, call.entity, call.feature, [call.feature], call.depends_on_features)
-                )
+        vectorize_functions = {function.id: function for function in self.functions}
 
         for entity_id, entity in specs.entities.items():
             for dataset in entity.datasets:
-                for operation_type in ("read", "conform", "expand", "collapse"):
-                    catalog = getattr(specs.functions, operation_type)
-                    for operation_id, fragment in getattr(dataset, operation_type).items():
-                        template = catalog[fragment.binding.function]
-                        function = Function(
-                            id=fragment.binding.function,
+                for operation_id, mapping in dataset.mappings.items():
+                    operation_type = next(
+                        (
+                            category
+                            for category in ("read", "conform", "expand", "collapse", "vectorize")
+                            if mapping.binding.function in getattr(specs.functions, category)
+                        ),
+                        None,
+                    )
+                    if operation_type is None:
+                        continue
+                    template = getattr(specs.functions, operation_type)[mapping.binding.function]
+                    function = (
+                        vectorize_functions.get(mapping.binding.function)
+                        if operation_type == "vectorize"
+                        else Function(
+                            id=mapping.binding.function,
                             type="python_function",
                             return_type="dataframe",
                             info={"description": getattr(template, "description", None)},
                             entrypoint=template.entrypoint,
                             role=operation_type,
                         )
-                        outputs = [
-                            feature_id
-                            for feature_id in fragment.features
-                            if feature_id not in specs.dimensions
-                        ]
-                        self.functions.append(function)
-                        self._graph_operations.append(
-                            (
-                                function,
-                                entity_id,
-                                operation_id,
-                                outputs,
-                                feature_dependencies(fragment.binding.args),
-                            )
+                    )
+                    if function is None:
+                        raise ValueError(
+                            f"Mapping '{operation_id}' references vectorize function "
+                            f"'{mapping.binding.function}' without a resolved function"
                         )
+                    dependencies = feature_dependencies(mapping.binding.args)
+                    dependencies.extend(
+                        feature
+                        for binding in mapping.aggregations.values()
+                        for feature in feature_dependencies(binding.args)
+                    )
+                    if all(existing.id != function.id for existing in self.functions):
+                        self.functions.append(function)
+                    self._graph_operations.append(
+                        (
+                            function,
+                            entity_id,
+                            operation_id,
+                            [
+                                feature_id
+                                for feature_id in mapping.features
+                                if feature_id not in specs.dimensions
+                            ],
+                            list(dict.fromkeys(dependencies)),
+                        )
+                    )
 
                 for operation_id, sink in dataset.write.items():
                     template = specs.functions.write[sink.binding.function]
@@ -267,6 +288,7 @@ class FeatureGraph(GraphBase):
             output
             for _function, _entity, _operation_id, outputs, _dependencies in self._graph_operations
             for output in outputs
+            if output not in self.specification.dimensions
         }
         dependency_names = {
             parent
@@ -296,13 +318,24 @@ class FeatureGraph(GraphBase):
 
         for entity_id, entity in self.specification.entities.items():
             for dataset in entity.datasets:
-                for operation_type, operation in dataset.fragment_operations:
-                    for name, feature in operation.features.items():
+                for mapping in dataset.mappings.values():
+                    operation_type = next(
+                        (
+                            category
+                            for category in ("read", "conform", "expand", "collapse", "vectorize")
+                            if mapping.binding.function
+                            in getattr(self.specification.functions, category)
+                        ),
+                        None,
+                    )
+                    for name in mapping.features:
+                        feature = dataset.features[name]
                         register_feature_metadata(
                             name,
                             feature.type,
                             entity_id,
-                            is_source_input=operation_type != "collapse",
+                            is_source_input=operation_type != "collapse"
+                            and operation_type != "vectorize",
                         )
         for function, entity, _operation_id, outputs, _dependencies in self._graph_operations:
             for output in outputs:
@@ -326,7 +359,7 @@ class FeatureGraph(GraphBase):
                 name=name,
                 data_type=(
                     function.return_type
-                    if function is not None
+                    if function is not None and function.role == "analytics"
                     else data_type or (metadata.data_type if metadata else None)
                 ),
                 entity=entity or (metadata.entity if metadata else None),
@@ -339,7 +372,14 @@ class FeatureGraph(GraphBase):
             function_node = node(
                 FunctionNode(
                     name=function.id,
-                    feature=outputs[0] if len(outputs) == 1 else None,
+                    feature=next(
+                        (
+                            output
+                            for output in outputs
+                            if output not in self.specification.dimensions
+                        ),
+                        None,
+                    ),
                     entity=entity,
                     function=function,
                     operation_id=operation_id,

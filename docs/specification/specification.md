@@ -31,12 +31,16 @@ A feature is a named piece of information that describes an entity. The term inc
 
 | Concept | Meaning | Declared under | Has a binding? |
 | --- | --- | --- | --- |
-| Retrieved feature | A source value returned unchanged by `read`, `conform`, or `expand`. | The corresponding operation map | Through its fragment binding. |
-| Collapsed feature | New information generated while aggregating source features. | `collapse` | Through an aggregation. |
-| Vectorized feature | One column produced by a vectorize operation. | `vectorize` | Yes. |
+| Feature | A named column in a dataset, with optional descriptive metadata. | `features` | No. |
+| Mapping | An association between one function binding and one or more produced features. | `mappings` | Yes. |
+| Aggregation | A reducer binding for one output feature of a collapse mapping. | The mapping's `aggregations` | Yes. |
 | Write | An operation that persists, prints, or evaluates dataset information. | `write` | Yes. |
 
-Features use one shared identifier namespace, except that declared dimension columns may be repeated in dataframe fragments. Bindings use structural reference strings for features, dimensions, datasets, and fragments; the compiler resolves them to their identifiers.
+Dimension columns may appear in multiple dataset feature registries. Other
+feature identifiers MUST have one producer. Bindings use structural reference
+strings for features, dimensions, and datasets; the compiler resolves them to
+their identifiers. A mapping is a logical association, not an execution
+fragment; the compiler may group mappings into physical fragments.
 
 ## Entities
 
@@ -51,9 +55,14 @@ An entity represents a real-world analytical subject, such as a pump, production
 
 ## Datasets
 
-A dataset is a conceptual data container for an entity.
-
-`read`, `conform`, `expand`, and `collapse` contain dataframe-producing fragment operations. `vectorize` contains single-feature calculations. `write` contains evaluation or persistence operations.
+A dataset is a conceptual data container for an entity. `features` declares
+its columns; `mappings` associates those features with executable function
+bindings. The operation category is inferred from the function's catalog
+entry. `write` remains a dataset-level set of persistence or evaluation
+bindings in the canonical JSON schema. In the Python authoring API, declare
+`mapping.Write` in the same `Dataset.mappings` list as reads and
+transformations; conversion lowers it to the canonical dataset-level `write`
+field.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -61,20 +70,24 @@ A dataset is a conceptual data container for an entity.
 | `description` | string | Yes | Human-readable explanation. |
 | `row_scope` | object | Yes | Conceptual row subset with `grain`, `filtering`, and `coverage` descriptions. |
 | `order` | array of objects | No | Logical ordering by entity dimensions, in key-precedence order. Does not require physical sorting. |
-| `read` | object | Yes | Read bindings keyed by fragment identifier. |
-| `conform` | object | Yes | Conform bindings keyed by fragment identifier. |
-| `expand` | object | Yes | Expand bindings keyed by fragment identifier. |
-| `collapse` | object | Yes | Collapse bindings keyed by fragment identifier. |
-| `vectorize` | object | Yes | Single-feature calculations keyed by output feature identifier. |
+| `features` | object | Yes | Feature metadata keyed by feature identifier. |
+| `mappings` | object | Yes | Function-to-feature mappings keyed by mapping identifier. |
 | `write` | object | Yes | Write bindings keyed by operation identifier. |
 
-### Binding Identifiers
+### Feature and Mapping Identifiers
 
-Every key under `read`, `conform`, `expand`, `collapse`, and `write`, and every feature key under `vectorize`, is a binding identifier. It names one binding: a function reference together with its concrete arguments, distinct from the function template identifier it invokes. A binding identifier is how a specification, a compiled plan, and a runtime engine each address one operation instance rather than the reusable function it calls.
+Each key under `features` names one feature. Each key under `mappings` or
+`write` names one binding instance: a function reference together with its
+concrete arguments, distinct from the reusable function template it invokes.
+A mapping declares its output feature identifiers in `features`.
 
-An entry in a collapse binding's `aggregations` object is also a binding: it invokes one `functions.aggregate` template with concrete arguments and produces exactly one feature. Like the other categories, `aggregations` is an object; each key is the identifier of the feature the entry produces, so the framework supplies it to the function automatically instead of the function declaring its own output-naming argument.
+For collapse mappings, each entry in `aggregations` is a binding to one
+`functions.aggregate` template. Its key names the feature it computes. The
+shared collapse binding defines input and grouping behavior; reducer bindings
+remain separate and are combined with it when the compiler builds execution
+operations.
 
-Binding identifiers MUST be unique across the entire specification, not merely within their declaring dataset or entity. Tooling that addresses an operation by this identifier alone cannot resolve it unambiguously otherwise.
+Mapping and write identifiers MUST be unique within their declaring dataset.
 
 ### Row Scope
 
@@ -84,7 +97,7 @@ Presented in the `row_scope` key of a dataset. A row scope describes the concept
 | --- | --- | --- | --- |
 | `grain` | string | Yes | Meaning of one row. |
 | `filtering` | string | Yes | Selection criteria applied to the rows. Use an empty string when unfiltered. |
-| `coverage` | string | Yes | Expected completeness of the fragment across its dimension keys, for example dense or sparse. Use an empty string when unspecified. |
+| `coverage` | string | Yes | Expected completeness of the dataset across its dimension keys, for example dense or sparse. Use an empty string when unspecified. |
 
 ### Logical Order
 
@@ -138,9 +151,13 @@ At dataset boundaries, data is represented as a dataframe containing the entity 
 
 ## Dimensions
 
-Dimensions identify observations and establish an entity's grain. They are reusable: a dimension may appear in multiple entities. In the physical model, dimensions and features are usually columns, but dimensions are identifiers whereas features are analytical values.
+Dimensions identify observations and establish an entity's grain. They are
+reusable: a dimension may appear in multiple entities. A mapping's output
+feature list includes dimension columns when it produces a dataframe. Dataset
+feature metadata may therefore use the same identifier as a declared
+dimension; the two identifiers belong to distinct namespaces.
 
-`dimensions` is an object keyed by dimension identifier. Dimension identifiers MUST NOT duplicate feature identifiers.
+`dimensions` is an object keyed by dimension identifier.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -154,12 +171,12 @@ Dimensions identify observations and establish an entity's grain. They are reusa
 
 | Operation type | Purpose | Input | Output | Purity |
 | --- | --- | --- | --- | --- |
-| `read` | Read another dataset from an external source such as a file or database. | Source and literal arguments | Dataframe fragment | No |
-| `conform` | Retrieve another dataset in the same entity and return a fragment that conforms to the target dataset's row scope. | Dataset and conform arguments | Dataframe fragment | No |
-| `expand` | Retrieve another dataset at expanded dimensional coverage. | Dataset and expansion arguments | Dataframe fragment | No |
-| `collapse` | Retrieve another dataset and materialize aggregated features, usually at a different grain. | Dataset and one or more aggregations | Dataframe fragment | Yes |
+| `read` | Read data from an external source such as a file or database. | Source and literal arguments | Dataframe | No |
+| `conform` | Return data that conforms to the target dataset's row scope. | Dataset and conform arguments | Dataframe | No |
+| `expand` | Return data at expanded dimensional coverage. | Dataset and expansion arguments | Dataframe | No |
+| `collapse` | Group source data and materialize aggregated features, usually at a different grain. | Dataset, grouping arguments, and reducer bindings | Dataframe | Yes |
 | `aggregate` | Define one feature value derived within a collapse operation. | Feature references and literals | One aggregation expression | Yes |
-| `vectorize` | Calculate one new feature from one or more feature references. | Feature references and literals | One feature element | Yes |
+| `vectorize` | Calculate one or more features from feature references and literals. | Feature references and literals | One element or a mapping of elements | Yes |
 | `write` | Persist, print, or otherwise evaluate selected information. | Dataset, feature references, and literals | Implementation-specific | No |
 
 ### Function Templates
@@ -202,55 +219,60 @@ Argument types may use compact recursive expressions for homogeneous collections
 }
 ```
 
-These expressions describe the function argument contract. Structural feature and dimension references map to `string`; structural dataset and fragment references map to `dataframe`. Use plain `array` or `object` when the element or value types are heterogeneous, empty, or otherwise unspecified.
+These expressions describe the function argument contract. Structural feature and dimension references map to `string`; structural dataset references map to `dataframe`. Use plain `array` or `object` when the element or value types are heterogeneous, empty, or otherwise unspecified.
 
-## Dataframe Fragment Operations
+## Feature Mappings
 
-A fragment groups columns produced by one operation with one set of arguments. Its `read`, `collapse`, `expand`, or `conform` function MUST return a dataframe. A fragment contains dimension columns, which identify observations, and feature columns, which contain values describing those observations.
+A mapping binds one function template to one or more output features. Its
+operation category is inferred by looking up the bound function in the
+function catalogs. A mapping using `read`, `collapse`, `expand`, or `conform`
+MUST return a dataframe. The compiler and engine may combine compatible
+mapping executions into physical fragments; those fragments are not declared
+in the logical specification.
 
-`features` is the fragment schema object. Despite its name, it declares both kinds of returned columns. Every fragment MUST include all dimensions declared by the owning entity so fragments can be combined without positional assumptions. The remaining entries declare the features produced by the fragment.
-
-Every fragment item has a `binding` containing exactly the function reference and its arguments. Columns that need different bindings belong in different fragment items.
+The dataset's `features` registry declares metadata once. A mapping's
+`features` array references the registry entries it produces. Every
+dataframe-producing mapping MUST include all entity dimensions in its outputs.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `binding` | object | Yes | The matching function identifier and concrete arguments. |
-| `features` | object | Yes | Schema of returned dimension and feature columns, keyed by column name. All entity dimensions MUST be included. |
+| `binding` | object | Yes | The function identifier and concrete arguments. |
+| `features` | array of strings | Yes | Feature identifiers produced by this mapping. |
+| `aggregations` | object | Collapse only | Per-output reducer bindings for collapse mappings. |
 
-For example, a read operation binds a source identifier:
+For example, a mapping assigns source-provided columns to one read binding:
 
 ```json
-"read": {
+"features": {
+    "pump": {"type": "string"},
+    "timestamp": {"type": "datetime"},
+    "bearing_temperature": {
+        "type": "float",
+        "unit": "C",
+        "description": "Drive-end bearing temperature"
+    }
+},
+"mappings": {
     "telemetry": {
         "binding": {
             "function": "read_pump_telemetry",
-            "args": {
-                "source": "?storage.telemetry_source.path"
-            }
+            "args": {"source": "?storage.telemetry_source.path"}
         },
-        "features": {
-            "pump": {"type": "string"},
-            "timestamp": {"type": "datetime"},
-            "bearing_temperature": {
-                "type": "float",
-                "unit": "C",
-                "description": "Drive-end bearing temperature"
-            }
-        }
+        "features": ["pump", "timestamp", "bearing_temperature"]
     }
 }
 ```
 
 ### Dimension-Keyed Alignment
 
-The engine aligns dataframe fragments, not individual features. Every fragment
-MUST contain all dimensions declared by its owning entity. When fragments are
-combined, the engine joins them by that complete dimension key, never by row
-position. This places feature values for matching observations in the same
-dataset rows so vectorize operations can reference them together. Fragment row
-order may differ and fragments may arrive from separate resources. Duplicate
-dimension keys within one fragment are invalid because they make alignment
-ambiguous.
+The engine aligns dataframe fragments, not individual features. Every
+dataframe-producing mapping MUST produce all dimensions declared by its owning
+entity. When mappings are combined, the engine joins their results by that
+complete dimension key, never by row position. This places values for matching
+observations in the same dataset rows so vectorize mappings can reference them
+together. Returned row order may differ and mappings may use separate
+resources. Duplicate dimension keys within one result are invalid because they
+make alignment ambiguous.
 
 A write binding receives the current dataset and the features it evaluates:
 
@@ -282,53 +304,69 @@ def write(dataset, features, sink):
 
 ## Collapse Aggregations
 
-Collapse is the only dataframe fragment operation that derives new feature values. `read`, `expand`, and `conform` return existing feature values, although they may join, filter, reconcile, sort, or otherwise change row coverage and arrangement. Fragment operations obtain their input through their bindings: `read` reads an external source such as a file or database, while `conform`, `expand`, and `collapse` retrieve another dataset through `$datasets.<id>`. Collapse accepts one or more `aggregation` values, keyed by the feature identifier each one produces. Each aggregation references a function in `functions.aggregate`; the enclosing `functions.collapse` function evaluates those aggregations over the source dataset and returns the complete dataframe fragment for the target dataset. Each aggregation is itself a binding whose [binding identifier](#binding-identifiers) is its object key.
+Collapse is the dataframe-producing mapping that derives new feature values by
+grouping a source dataset. `read`, `expand`, and `conform` mappings may load,
+join, filter, reconcile, or otherwise change row coverage and arrangement.
+Their function category is determined by the mapping binding's function
+catalog entry. A collapse mapping has two layers: its `binding` supplies the
+shared input and grouping arguments, and its `aggregations` bind one reducer
+per output feature. Reducers reference templates in `functions.aggregate`;
+the collapse function applies those expressions and returns the complete
+dataframe for its declared output features.
 
 ```json
-"collapse": {
+"features": {
+    "pump": {"type": "string"},
+    "bearing_temperature_max": {"type": "float"}
+},
+"mappings": {
     "pump_summary": {
         "binding": {
             "function": "collapse_features",
             "args": {
-                "dataset": "$datasets.@",
-                "aggregations": {
-                    "bearing_temperature_max": {
-                        "function": "maximum",
-                        "args": {
-                            "feature": "$features.bearing_temperature"
-                        }
-                    }
-                }
+                "dataset": "$datasets.telemetry",
+                "dimensions": ["$dimensions.pump"]
             }
         },
-        "features": {
-            "pump": {"type": "string"},
-            "bearing_temperature_max": {"type": "float"}
+        "features": ["pump", "bearing_temperature_max"],
+        "aggregations": {
+            "bearing_temperature_max": {
+                "function": "maximum",
+                "args": {"feature": "$features.bearing_temperature"}
+            }
         }
     }
 }
 ```
 
-The aggregate function itself does not declare an output-naming argument; the engine binds the produced value's identifier from the `aggregations` object key before returning the fragment.
+The aggregate function itself does not declare an output-naming argument. The
+aggregation key associates its result with a feature declared by the mapping.
 
 ## Vectorized Features
 
-A feature is any dataframe column that describes an entity. Fragment columns are declared in each operation's `features` object; calculated features are declared in the dataset's `vectorize` object.
-
-`vectorize` is keyed by output feature identifier. Each item invokes one vectorize function, consumes one or more `$features.<id>` values, and adds exactly one output feature.
+A feature is any dataframe column that describes an entity. All feature
+metadata is declared once in the dataset's `features` registry. A mapping may
+produce one or more outputs, including vectorized features.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `description` | string | No | Human-readable explanation. |
+| `type` | string | No | Type of a source-provided feature; vectorized types may be inferred from function annotations. |
 | `unit` | string | No | Unit of measure, for example `bar`, `kW`, or `mm/s`. |
-| `binding` | object | Yes | The vectorize function and concrete arguments that produce the output feature. |
-| `row_context` | object | No | Consolidated input-observation requirements for this feature. Omission means unknown. |
+| `row_context` | object | No | Input-observation requirements for a vectorized feature. Omission means unknown. |
 
-Calculated features do not declare a `type`. System reads the type automatically from the return annotation of the function referenced by `binding.function`.
+Feature metadata does not contain function bindings. The function and concrete
+arguments belong to a mapping. A vectorized mapping may list multiple output
+features; when it does, its function MUST return a mapping from declared
+feature identifiers to values. A one-output vectorized mapping may return a
+single value directly.
 
 ### Vectorize Binding
 
-A vectorize binding calls one `functions.vectorize` template to create its output feature. It is also the source of feature lineage. The framework translates binding values into concrete function arguments before execution.
+A mapping whose binding function is declared under `functions.vectorize`
+creates its listed output features. This category-based interpretation also
+applies to the other operation function catalogs; the mapping itself does not
+repeat a type field.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -395,15 +433,18 @@ coarser. `"0s"` is zero time context.
 Python authoring can annotate the existing argument directly:
 
 ```python
-from uptimely.spec.python_spec import bind, feature, ref, row_context
+from uptimely.spec.python_spec import bind, feature, mapping, ref, row_context
 
-calculation = feature.Vectorize(
+features = [feature.Feature(id="temperature_mean", type="float")]
+
+calculation = mapping.Vectorize(
     id="temperature_mean",
     bind=bind.bind(
         rolling_mean,
         column=ref.feature("temperature"),
         window=row_context.time("8h", before="8h"),
     ),
+    features=[ref.feature("temperature_mean")],
 )
 
 lag = row_context.rows(
@@ -419,35 +460,36 @@ row count. For an eight-row window including the current row, declare seven
 preceding rows; an eight-row lag requires eight.
 
 Annotations nested in arrays and objects are unwrapped recursively. Their
-requirements consolidate into one feature-level context using the maximum
+requirements consolidate into one mapping context using the maximum
 extent in each direction. All contributing annotations and direct declarations
 use the same measurement.
 Unbounded dominates bounded values of the same measure. Declare the full extent
 required by a calculation: an eight-hour window ending two hours ago requires
 ten hours of preceding context.
 
-Context can also be declared directly on the feature using
-`feature.Vectorize(..., row_context=row_context.current())`,
+Context can also be declared directly on the mapping using
+`mapping.Vectorize(..., row_context=row_context.current())`,
 `row_context.partition()`, or `row_context.dataset()`. Custom directional
 declarations use the same `time`, `steps`, and `rows` helpers:
 
 ```python
-calculation = feature.Vectorize(
+calculation = mapping.Vectorize(
     id="temperature_delta",
     bind=bind.bind(
         temperature_delta,
         column=ref.feature("temperature"),
     ),
+    features=[ref.feature("temperature_delta")],
     row_context=row_context.rows(1, before=1),
 )
 ```
 
 Direct metadata and argument annotations are merged using the same rules.
-When a helper is supplied directly as feature context, its context extent is
+When a helper is supplied directly as mapping context, its context extent is
 registered; its positional value is only passed to a function when the helper
 is used in that function's bound arguments.
 
-The compiler reads the feature's context and preserves it on the corresponding
+The compiler reads the output feature's context and preserves it on the corresponding
 portable operation. When context is declared, the plan also includes planned
 datasets' logical ordering and row-scope metadata. Each requirement describes
 the operation's immediate input extent. The engine executes the function with
@@ -466,12 +508,14 @@ The binding itself does not declare a type; only a function template's `args` sc
 | Reference | Resolves to | Meaning |
 | --- | --- | --- |
 | `$datasets.<id>` or `$datasets.@` | Dataset ID | A function template declares this argument as `dataframe`; the engine binds the live dataframe. |
-| `$fragments.<id>` | Fragment ID | A function template declares this argument as `dataframe`; the engine binds the live dataframe. |
 | `$features.<id>` or `$features.@` | Feature ID | A function template declares this argument as `string`. |
 | `$dimensions.<id>` | Dimension ID | A function template declares this argument as `string`. |
 | Primitive types | JSON scalar, object, or array | Literal values passed through to the function, such as `string`, `float`, `integer`, `boolean`, `object`, or `array`. |
 
-An aggregation entry is not a structural reference; it is a bare object with `function` and `args` keys, passed only within a collapse binding's `aggregations` object. Its `args` MUST include one or more source feature structural references.
+An aggregation entry is not a structural reference; it is a binding object with
+`function` and `args` keys, declared in the collapse mapping's `aggregations`
+object. Its `args` MUST include one or more source feature structural
+references.
 
 `$`-prefixed references are resolved once, by the compiler, into the compiled plan; they define the dependency graph and never change after compilation. A binding argument may instead hold a literal string starting with `?`, of the form `?<namespace>.<object>.<attribute>` (for example `?storage.telemetry_source.path`). The compiler leaves this form untouched — it is not a structural reference and does not participate in the dependency graph. Only the executing engine resolves it, against runtime resources supplied when the engine is constructed, so the same compiled plan can run against different physical locations in different environments without recompiling the specification.
 
@@ -484,6 +528,9 @@ Use a feature placeholder when a reusable vectorize function needs its output fe
 ```
 
 The parser replaces this value with the vectorize output feature id before invoking the function.
+Because the placeholder denotes one output, it is only valid for a single-output
+mapping. Multi-output mappings should use explicit feature references where an
+output identifier is needed.
 
 ```json
 "binding": {
@@ -501,13 +548,17 @@ The parser replaces this value with the vectorize output feature id before invok
 
 ### Vectorize Function Contract
 
-Each vectorize function receives feature elements from one dataset and scalar configuration and returns exactly one element for its calculated feature. An element may be a lazy column expression, a materialized series, or another scalar or column value supported by the executing backend.
+Each vectorize function receives feature elements from one dataset and scalar
+configuration. A one-output mapping returns one element; a multi-output mapping
+returns a mapping from feature identifiers to elements. An element may be a
+lazy column expression, a materialized series, or another scalar or column
+value supported by the executing backend.
 
 Vectorize functions MUST NOT receive, filter, join, or otherwise mutate dataset dataframes. They should not perform I/O. Read and write functions may perform I/O.
 
 ## Dependency Semantics
 
-Bindings for dataframe fragment, vectorize, and write operations form one
+Bindings for dataframe-producing mappings, vectorize mappings, and write operations form one
 dependency graph. Typed references connect consumers to the operations that
 produce their required datasets and features; aggregations contribute feature
 dependencies to their enclosing collapse operation. Implementations MUST

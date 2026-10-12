@@ -124,7 +124,9 @@ def create_server(state: ServerState) -> FastMCP:
                 feature_id
                 for entity in specification.entities.values()
                 for dataset in entity.datasets
-                for feature_id in dataset.vectorize
+                for mapping in dataset.mappings.values()
+                if mapping.binding.function in specification.functions.vectorize
+                for feature_id in mapping.features
             }
         )
         return _to_json(payload)

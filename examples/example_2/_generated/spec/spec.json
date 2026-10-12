@@ -51,7 +51,7 @@
             "comment": null
           }
         },
-        "description": "Vectorized feature: column_3",
+        "description": null,
         "partitioning": null
       },
       "column_4": {
@@ -66,7 +66,7 @@
             "comment": null
           }
         },
-        "description": "Vectorized feature: column_4",
+        "description": null,
         "partitioning": null
       }
     },
@@ -87,38 +87,52 @@
             "filtering": "",
             "coverage": ""
           },
-          "read": {
+          "features": {
+            "input_1": {
+              "description": "Input feature: input_1",
+              "type": null,
+              "unit": null,
+              "row_context": null
+            },
+            "input_2": {
+              "description": "Input feature: input_2",
+              "type": null,
+              "unit": null,
+              "row_context": null
+            },
+            "id": {
+              "description": "Stable identifier for each input row",
+              "type": "integer",
+              "unit": null,
+              "row_context": null
+            },
+            "column_3": {
+              "description": "Vectorized feature: column_3",
+              "type": null,
+              "unit": null,
+              "row_context": null
+            },
+            "column_4": {
+              "description": "Vectorized feature: column_4",
+              "type": null,
+              "unit": null,
+              "row_context": null
+            }
+          },
+          "mappings": {
             "read": {
               "binding": {
                 "function": "read",
                 "args": {}
               },
-              "features": {
-                "input_1": {
-                  "description": "Input feature: input_1",
-                  "type": "object",
-                  "unit": null
-                },
-                "input_2": {
-                  "description": "Input feature: input_2",
-                  "type": "object",
-                  "unit": null
-                },
-                "id": {
-                  "description": "Stable identifier for each input row",
-                  "type": "object",
-                  "unit": null
-                }
-              }
-            }
-          },
-          "conform": {},
-          "expand": {},
-          "collapse": {},
-          "vectorize": {
+              "features": [
+                "input_1",
+                "input_2",
+                "id"
+              ],
+              "aggregations": {}
+            },
             "column_3": {
-              "description": "Vectorized feature: column_3",
-              "unit": null,
               "binding": {
                 "function": "sum_features",
                 "args": {
@@ -127,11 +141,12 @@
                   "output": "$features.column_3"
                 }
               },
-              "row_context": null
+              "features": [
+                "column_3"
+              ],
+              "aggregations": {}
             },
             "column_4": {
-              "description": "Vectorized feature: column_4",
-              "unit": null,
               "binding": {
                 "function": "column_4",
                 "args": {
@@ -139,7 +154,10 @@
                   "id_column": "$dimensions.id"
                 }
               },
-              "row_context": null
+              "features": [
+                "column_4"
+              ],
+              "aggregations": {}
             }
           },
           "write": {

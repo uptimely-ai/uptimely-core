@@ -11,6 +11,7 @@ from uptimely.spec.json_spec.json_model import (
     CollapseFunction,
     ConformFunction,
     ExpandFunction,
+    FeatureMapping,
     FunctionCatalog,
     ReadFunction,
     VectorizeFunction,
@@ -25,19 +26,17 @@ from uptimely.spec.json_spec.json_model import (
 from uptimely.spec.json_spec.json_model import (
     RowScope as RowScopeModel,
 )
-from uptimely.spec.json_spec.json_model import (
-    Source as SourceModel,
-)
-from uptimely.spec.json_spec.json_model import (
-    Transform as TransformModel,
-)
 
-from .bind import _argument_definition, _entrypoint, _models_by_id
+from . import mappings as mapping_declarations
+from .bind import _argument_definition, _entrypoint
+from .feature import Feature
+from .mappings import Mapping, Write
 from .ref import Reference
+from .row_context import _context
 
 if TYPE_CHECKING:
-    from .feature import Vectorize
-    from .fragment import Collapse, Conform, Expand, Read, Write, _Operation
+    from .feature import Vectorize as LegacyVectorize
+    from .mappings import Collapse, Conform, Expand, Read
 
 __all__ = [
     "Dataset",
@@ -48,7 +47,7 @@ __all__ = [
 
 @dataclass(frozen=True)
 class RowScope:
-    """The conceptual row subset shared by dataset fragments."""
+    """The conceptual row subset represented by a dataset."""
 
     grain: str = ""
     filtering: str = ""
@@ -90,51 +89,89 @@ class Order:
 
 @dataclass(frozen=True)
 class Dataset:
-    """A Python declaration of one dataset and its operations."""
+    """A Python declaration of one dataset, its features, and mappings."""
 
     id: str
+    features: list[Feature] = field(default_factory=list)
+    mappings: list[Mapping | Write] = field(default_factory=list)
     read: list[Read] = field(default_factory=list)
     conform: list[Conform] = field(default_factory=list)
     expand: list[Expand] = field(default_factory=list)
     collapse: list[Collapse] = field(default_factory=list)
-    vectorize: list[Vectorize] = field(default_factory=list)
-    write: list[Write] = field(default_factory=list)
+    vectorize: list[LegacyVectorize] = field(default_factory=list)
     description: str | None = None
     row_scope: RowScope = field(default_factory=RowScope)
     order: list[Order] = field(default_factory=list)
 
     def to_model(self) -> DatasetModel:
         """Convert this declaration to the canonical Pydantic dataset model."""
-
-        def fragment_models(
-            operation_type: str,
-            declarations: list[Read | _Operation],
-        ) -> dict[str, SourceModel | TransformModel]:
-            model_type = SourceModel if operation_type == "read" else TransformModel
-            models = []
-            for declaration in declarations:
+        mappings: dict[str, FeatureMapping] = {}
+        writes: dict[str, Any] = {}
+        feature_models = {feature.id: feature.to_model() for feature in self.features}
+        for calculated_feature in self.vectorize:
+            feature_models.setdefault(calculated_feature.id, calculated_feature.to_model())
+        declarations = self._mapping_declarations()
+        for declaration in declarations:
+            if isinstance(declaration, Write):
                 model = declaration.to_model()
-                models.append(
-                    model_type(
-                        id=model.id,
-                        binding=model.binding,
-                        features=model.features,
+                writes[model.id] = model
+                continue
+            model = declaration.to_model()
+            mappings[model.id] = model
+            for output in declaration.features:
+                if isinstance(output, Feature):
+                    feature_models.setdefault(output.id, output.to_model())
+                elif isinstance(output, Reference):
+                    feature_id = output.value.removeprefix("$features.")
+                    if feature_id not in feature_models:
+                        raise ValueError(
+                            f"Mapping '{model.id}' references undeclared feature '{feature_id}'"
+                        )
+                elif output.startswith("$features."):
+                    feature_id = output.removeprefix("$features.")
+                    if feature_id not in feature_models:
+                        raise ValueError(
+                            f"Mapping '{model.id}' references undeclared feature '{feature_id}'"
+                        )
+                elif output not in feature_models:
+                    raise ValueError(
+                        f"Mapping '{model.id}' references undeclared feature '{output}'"
                     )
-                )
-            return {model.id: model for model in models}
+            if isinstance(declaration, mapping_declarations.Vectorize):
+                context = _context(None, declaration.row_context)
+                if context is not None:
+                    for feature_id in model.features:
+                        if feature_id in feature_models:
+                            feature_models[feature_id] = feature_models[feature_id].model_copy(
+                                update={"row_context": context}
+                            )
 
         return DatasetModel(
             id=self.id,
             description=self.description,
             row_scope=self.row_scope.to_model(),
             order=[key.to_model() for key in self.order],
-            read=fragment_models("read", self.read),
-            conform=fragment_models("conform", self.conform),
-            expand=fragment_models("expand", self.expand),
-            collapse=fragment_models("collapse", self.collapse),
-            vectorize={feature.id: feature.to_model() for feature in self.vectorize},
-            write=_models_by_id(self.write),
+            features=feature_models,
+            mappings=mappings,
+            write=writes,
         )
+
+    def _mapping_declarations(self) -> list[Mapping | Write]:
+        """Return declared mappings followed by legacy operation adapters."""
+        declarations = list(self.mappings)
+        for operation_type in ("read", "conform", "expand", "collapse"):
+            declarations.extend(getattr(self, operation_type))
+        for calculated_feature in self.vectorize:
+            feature_model = calculated_feature.to_model()
+            declarations.append(
+                mapping_declarations.Vectorize(
+                    id=calculated_feature.id,
+                    bind=calculated_feature.bind,
+                    features=[feature_model.id],
+                    row_context=feature_model.row_context,
+                )
+            )
+        return declarations
 
     def function_catalog(self) -> FunctionCatalog:
         """Build the function templates required by this dataset declaration."""
@@ -144,61 +181,74 @@ class Dataset:
             return Argument(id=name, **_argument_definition(value))
 
         read: dict[str, ReadFunction] = {}
+        vectorize: dict[str, VectorizeFunction] = {}
         collapse: dict[str, CollapseFunction] = {}
         expand: dict[str, ExpandFunction] = {}
         conform: dict[str, ConformFunction] = {}
 
-        def register(
-            operation_type: str,
-            fragment: Read | _Operation,
-        ) -> None:
-            function_id = fragment.bind.function_id or fragment.bind.function.__name__
+        write: dict[str, WriteFunction] = {}
+
+        def register(declaration: Mapping | Write) -> None:
+            if isinstance(declaration, Write):
+                function_id = declaration.bind.function_id or declaration.bind.function.__name__
+                write[function_id] = WriteFunction(
+                    id=function_id,
+                    entrypoint=_entrypoint(declaration.bind.function),
+                    args={
+                        name: argument(name, value) for name, value in declaration.bind.args.items()
+                    },
+                )
+                return
+            operation_type = {
+                mapping_declarations.Read: "read",
+                mapping_declarations.Conform: "conform",
+                mapping_declarations.Expand: "expand",
+                mapping_declarations.Collapse: "collapse",
+                mapping_declarations.Vectorize: "vectorize",
+            }.get(type(declaration))
+            if operation_type is None:
+                raise ValueError(
+                    f"Mapping '{declaration.id or declaration.bind.function.__name__}' "
+                    "must use a category-specific mapping declaration"
+                )
+            function_id = declaration.bind.function_id or declaration.bind.function.__name__
             function = {
                 "read": ReadFunction,
+                "vectorize": VectorizeFunction,
                 "collapse": CollapseFunction,
                 "expand": ExpandFunction,
                 "conform": ConformFunction,
             }.get(operation_type)
             if function is None:
-                raise ValueError(f"Unsupported fragment operation type: {operation_type}")
+                raise ValueError(f"Unsupported mapping operation type: {operation_type}")
             catalog = {
                 "read": read,
+                "vectorize": vectorize,
                 "collapse": collapse,
                 "expand": expand,
                 "conform": conform,
             }[operation_type]
+            arguments = {
+                name: argument(name, value)
+                for name, value in declaration.bind.args.items()
+                if not (
+                    isinstance(declaration, mapping_declarations.Collapse)
+                    and name == "aggregations"
+                )
+            }
+            if isinstance(declaration, mapping_declarations.Collapse):
+                aggregation_values = declaration.aggregations or declaration.bind.args.get(
+                    "aggregations", {}
+                )
+                arguments["aggregations"] = argument("aggregations", aggregation_values)
             catalog[function_id] = function(
                 id=function_id,
-                entrypoint=_entrypoint(fragment.bind.function),
-                args={name: argument(name, value) for name, value in fragment.bind.args.items()},
+                entrypoint=_entrypoint(declaration.bind.function),
+                args=arguments,
             )
 
-        for operation_type in ("read", "conform", "expand", "collapse"):
-            for fragment in getattr(self, operation_type):
-                register(operation_type, fragment)
-
-        write = {
-            write_fragment.bind.function_id or write_fragment.bind.function.__name__: WriteFunction(
-                id=write_fragment.bind.function_id or write_fragment.bind.function.__name__,
-                entrypoint=_entrypoint(write_fragment.bind.function),
-                args={
-                    name: argument(name, value) for name, value in write_fragment.bind.args.items()
-                },
-            )
-            for write_fragment in self.write
-        }
-        vectorize = {
-            vectorized_feature.bind.function_id
-            or vectorized_feature.bind.function.__name__: VectorizeFunction(
-                id=vectorized_feature.bind.function_id or vectorized_feature.bind.function.__name__,
-                entrypoint=_entrypoint(vectorized_feature.bind.function),
-                args={
-                    name: argument(name, value)
-                    for name, value in vectorized_feature.bind.args.items()
-                },
-            )
-            for vectorized_feature in self.vectorize
-        }
+        for declaration in self._mapping_declarations():
+            register(declaration)
 
         aggregate: dict[str, AggregateFunction] = {}
 
@@ -217,8 +267,9 @@ class Dataset:
                 for item in value.values():
                     register_aggregations(item)
 
-        for fragment in self.collapse:
-            register_aggregations(fragment.bind.args)
+        for declaration in self._mapping_declarations():
+            if isinstance(declaration, mapping_declarations.Collapse):
+                register_aggregations(declaration.aggregations or declaration.bind.args)
 
         return FunctionCatalog(
             read=read,

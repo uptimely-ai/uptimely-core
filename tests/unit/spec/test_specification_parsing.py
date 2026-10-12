@@ -110,7 +110,7 @@ def test_specification_rejects_unknown_write_function(tmp_path: Path) -> None:
 
 def test_specification_rejects_undeclared_binding_arguments(tmp_path: Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    binding_args = configuration["entities"]["pump_telemetry"]["datasets"][0]["read"][
+    binding_args = configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"][
         "read_pump_telemetry"
     ]["binding"]["args"]
     binding_args["unexpected"] = "value"
@@ -152,50 +152,42 @@ def test_structural_references_compile_to_identifiers() -> None:
     args = {
         "current": "$datasets.@",
         "specific": "$datasets.pump_units",
-        "fragment": "$fragments.pump_read",
         "dimension": "$dimensions.pump",
     }
 
     assert SpecificationParser._replace_arg_placeholders(args, "pump_telemetry_dataset") == {
         "current": "pump_telemetry_dataset",
         "specific": "pump_units",
-        "fragment": "pump_read",
         "dimension": "pump",
     }
 
 
-def test_dataset_collections_are_supported_in_entity_specs() -> None:
+def test_dataset_mappings_are_supported_in_entity_specs(tmp_path: Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     for entity in configuration["entities"].values():
         for dataset in entity.get("datasets", []):
-            for calculation in dataset["vectorize"].values():
-                binding = calculation.get("binding")
-                if not isinstance(binding, dict):
-                    continue
+            for mapping in dataset["mappings"].values():
+                binding = mapping["binding"]
                 assert all(
                     not (isinstance(arg, dict) and arg.get("type") == "dataset_ref")
                     for arg in binding.get("args", {}).values()
                 )
 
-    spec_path = SPEC_PATH.with_name("spec_dataset_test.json")
+    spec_path = tmp_path / "spec_dataset_test.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     specification = Specification.from_json(spec_path)
     assert specification.entities["pump_telemetry"].datasets
 
-    spec_path.unlink(missing_ok=True)
-
 
 def test_system_and_subset_support_multiple_variables() -> None:
     specification = Specification.from_json(SPEC_PATH)
     assert len(specification.resolved_functions) == 8
-    collapse = specification.entities["pump"].datasets[0].collapse["bearing_temperature_by_pump"]
+    collapse = specification.entities["pump"].datasets[0].mappings["bearing_temperature_by_pump"]
     assert collapse.binding.function == "aggregate_by_dimension"
     assert collapse.binding.args["dataset"] == "$datasets.pump_telemetry_dataset"
-    aggregations = collapse.binding.args["aggregations"]
-    aggregations = aggregations.value if hasattr(aggregations, "value") else aggregations
     assert (
-        aggregations["bearing_temperature_max"]["args"]["feature"]
+        collapse.aggregations["bearing_temperature_max"].args["feature"]
         == "$features.bearing_temperature"
     )
     system = FeatureGraph(specification)
@@ -254,9 +246,8 @@ def test_specification_validation_rejects_missing_output_variables() -> None:
 
 def test_specification_validation_rejects_duplicate_feature_names(tmp_path: Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    duplicate = configuration["entities"]["pump_telemetry"]["datasets"][0]["vectorize"][
-        "pressure_flow_efficiency"
-    ]
+    dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]
+    duplicate = dataset["mappings"]["pressure_flow_efficiency"]
     configuration["entities"]["duplicate"] = {
         "name": "Duplicate feature owner",
         "dimensions": ["pump"],
@@ -264,11 +255,10 @@ def test_specification_validation_rejects_duplicate_feature_names(tmp_path: Path
             {
                 "id": "duplicate_dataset",
                 "row_scope": {"grain": "", "filtering": "", "coverage": ""},
-                "read": {},
-                "conform": {},
-                "expand": {},
-                "collapse": {},
-                "vectorize": {"pressure_flow_efficiency": duplicate},
+                "features": {
+                    "pressure_flow_efficiency": dataset["features"]["pressure_flow_efficiency"]
+                },
+                "mappings": {"pressure_flow_efficiency": duplicate},
                 "write": {},
             }
         ],
@@ -284,24 +274,27 @@ def test_specification_validation_rejects_duplicate_fragment_input_names(
     tmp_path: Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["entities"]["pump_telemetry"]["datasets"][0]["read"]["duplicate_input"] = {
+    configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"]["duplicate_input"] = {
         "binding": {"function": "read_pump_telemetry", "args": {}},
-        "features": {"bearing_temperature": {"type": "float"}},
+        "features": ["bearing_temperature"],
     }
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="Duplicate input name: bearing_temperature"):
+    with pytest.raises(
+        ValueError,
+        match="Feature bearing_temperature is produced by multiple mappings",
+    ):
         Specification.from_json(spec_path)
 
 
-def test_specification_validation_requires_dimensions_in_every_fragment(
+def test_specification_validation_requires_dimensions_in_every_mapping(
     tmp_path: Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    del configuration["entities"]["pump_telemetry"]["datasets"][0]["read"]["read_pump_telemetry"][
+    configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"]["read_pump_telemetry"][
         "features"
-    ]["plant"]
+    ].remove("plant")
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -311,29 +304,34 @@ def test_specification_validation_requires_dimensions_in_every_fragment(
 
 def test_specification_validation_rejects_unknown_vectorize_template(tmp_path: Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["entities"]["pump_telemetry"]["datasets"][0]["vectorize"][
-        "recommended_flow_rate"
-    ]["binding"]["function"] = "missing_vectorize_template"
+    configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"]["recommended_flow_rate"][
+        "binding"
+    ]["function"] = "missing_vectorize_template"
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="Unknown vectorize function: missing_vectorize_template"):
+    with pytest.raises(
+        ValueError,
+        match="mappings reference unknown functions: missing_vectorize_template",
+    ):
         Specification.from_json(spec_path)
 
 
 def test_specification_validation_rejects_feature_dimension_name_collision(tmp_path: Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["entities"]["pump_telemetry"]["datasets"][0]["vectorize"]["pump"] = {
-        "description": "Invalid feature name that collides with a dimension id",
-        "binding": {
-            "function": "pressure_flow_efficiency",
-            "args": {"pressure_features": ["$features.discharge_pressure"]},
-        },
+    dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]
+    collision = json.loads(json.dumps(dataset["mappings"]["converged"]))
+    dataset["mappings"]["pump_collision"] = {
+        **collision,
+        "features": ["pump"],
     }
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="Feature name duplicates dimension name: pump"):
+    with pytest.raises(
+        ValueError,
+        match="Calculated feature names cannot duplicate entity dimensions: pump",
+    ):
         Specification.from_json(spec_path)
 
 
@@ -341,7 +339,11 @@ def test_specification_validation_rejects_cross_dataset_feature_dependency(
     tmp_path: Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    calculation = configuration["entities"]["pump"]["datasets"][0]["vectorize"].pop(
+    calculation = configuration["entities"]["pump"]["datasets"][0]["mappings"].pop(
+        "health_signal_normalized"
+    )
+    calculation["features"] = ["health_signal_normalized_copy"]
+    copied_feature = configuration["entities"]["pump"]["datasets"][0]["features"].pop(
         "health_signal_normalized"
     )
     configuration["entities"]["pump_copy"] = {
@@ -351,11 +353,8 @@ def test_specification_validation_rejects_cross_dataset_feature_dependency(
             {
                 "id": "pump_copy_dataset",
                 "row_scope": {"grain": "", "filtering": "", "coverage": ""},
-                "read": {},
-                "conform": {},
-                "expand": {},
-                "collapse": {},
-                "vectorize": {"health_signal_normalized": calculation},
+                "features": {"health_signal_normalized_copy": copied_feature},
+                "mappings": {"health_signal_normalized_copy": calculation},
                 "write": {},
             }
         ],

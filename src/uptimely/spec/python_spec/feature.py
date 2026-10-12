@@ -7,20 +7,14 @@ from dataclasses import dataclass
 from typing import Any
 
 from uptimely.spec.json_spec.json_model import (
-    Binding,
-)
-from uptimely.spec.json_spec.json_model import (
-    Calculation as CalculationModel,
-)
-from uptimely.spec.json_spec.json_model import (
-    Input as InputModel,
+    Feature as FeatureModel,
 )
 
-from .bind import Bind, _binding_args, _operation_id
+from .bind import Bind
 from .row_context import RowContext, RowContextBinding, _context
 
 __all__ = [
-    "Raw",
+    "Feature",
     "Vectorize",
     "Aggregation",
     "aggregation",
@@ -66,17 +60,17 @@ def aggregation(
 
 
 @dataclass(frozen=True)
-class Raw:
-    """A source-provided dataset feature."""
+class Feature:
+    """Metadata for a dataset feature, independent of how it is produced."""
 
     id: str
     description: str | None = None
-    type: str = "object"
+    type: str | None = None
     unit: str | None = None
 
-    def to_model(self) -> InputModel:
-        """Convert this input declaration to its JSON model."""
-        return InputModel(
+    def to_model(self) -> FeatureModel:
+        """Convert this feature declaration to its JSON model."""
+        return FeatureModel(
             id=self.id,
             description=self.description,
             type=self.type,
@@ -98,20 +92,11 @@ class Vectorize:
         """Consolidate requirements on the calculated feature, not its binding."""
         object.__setattr__(self, "row_context", _context(self.bind.args, self.row_context))
 
-    def to_model(self) -> CalculationModel:
-        """Convert this vectorized feature declaration to its JSON model."""
-        return CalculationModel(
+    def to_model(self) -> FeatureModel:
+        """Convert this vectorized feature metadata to its JSON model."""
+        return FeatureModel(
             id=self.id,
             description=self.description,
             unit=self.unit,
             row_context=_context(None, self.row_context),
-            binding=Binding(
-                function=_operation_id(self.bind, None),
-                args=_binding_args(self.bind),
-            ),
         )
-
-
-def _feature_models(features: list[Raw]) -> dict[str, InputModel]:
-    """Convert feature declarations to canonical models keyed by identifier."""
-    return {feature.id: feature.to_model() for feature in features}
