@@ -2,7 +2,7 @@
 
 This is an open source Python package for declarative numerical analytics in industrial use cases.
 
-## Coding guidelines
+## Development principles
 
 * Write clean and simple code
 * Make code modular
@@ -12,11 +12,11 @@ This is an open source Python package for declarative numerical analytics in ind
 * Use declarative configuration instead of in-script parameters
 * Do not just add new code but remove redundant sections
 
-## Coding style
+## Formal coding style
 
 * Write Python docstrings in Google style, using sections such as `Args:`, `Returns:`, and `Raises:` where applicable
 * Update docstrings and add type hints when code changes
-* Import modules and use them as namespaces for variables and functions
+* Prefer importing like Python modules like `from a.b.c import module` rather than `import a.b.c.module` or `from a.b.c.module import func1, func2`
 
 ## File organization
 
