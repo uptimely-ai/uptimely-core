@@ -179,7 +179,11 @@ class ExecutionPlan:
         return cls(Plan.from_dict(payload))
 
     def export_html(
-        self, path: str | pathlib.Path | None = None, *, include_navigation: bool = False
+        self,
+        path: str | pathlib.Path | None = None,
+        *,
+        include_navigation: bool = False,
+        root_path: str = "",
     ) -> pathlib.Path:
         """Export an execution plan report as HTML.
 
@@ -189,12 +193,17 @@ class ExecutionPlan:
                 and Stages pages. The overview uses ``path``; callable graph and
                 stage pages are written alongside it. Without navigation, the
                 summary, 3D callable graph, and stages remain in a single report.
+            root_path: Relative path to website root.
 
         Returns:
             The path to the rendered report.
         """
         return (
-            render._render_execution_plan(self, path, include_navigation=include_navigation)
+            render._render_execution_plan(
+                self, path, include_navigation=include_navigation, root_path=root_path
+            )
             if path is not None
-            else render._render_execution_plan(self, include_navigation=include_navigation)
+            else render._render_execution_plan(
+                self, include_navigation=include_navigation, root_path=root_path
+            )
         )

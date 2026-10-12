@@ -54,6 +54,7 @@ def render_graph_html(
     *,
     dimension: typing.Literal["2d", "3d"] = "3d",
     include_navigation: bool = False,
+    root_path: str = "",
 ) -> str:
     """Render the dependency graph as interactive 2D or 3D HTML.
 
@@ -63,6 +64,7 @@ def render_graph_html(
         style: Optional graph appearance settings.
         dimension: Graph layout to render.
         include_navigation: Link to sibling documentation website pages.
+        root_path: Relative path to website root.
 
     Returns:
         The complete HTML document.
@@ -90,6 +92,7 @@ def render_graph_html(
         include_navigation=include_navigation,
         active_page="graph",
         active_section=dimension,
+        root_path=root_path,
     )
 
 
@@ -128,6 +131,7 @@ def export_graph_html(
     *,
     dimension: typing.Literal["2d", "3d"] = "3d",
     include_navigation: bool = False,
+    root_path: str = "",
 ) -> pathlib.Path:
     """Export a feature dependency graph as an interactive 2D or 3D HTML document.
 
@@ -137,6 +141,7 @@ def export_graph_html(
         style: Optional graph appearance settings.
         dimension: Graph layout to render. The default preserves the 3D view.
         include_navigation: Link to sibling documentation website pages.
+        root_path: Relative path to website root.
 
     Returns:
         The path to the rendered graph.
@@ -154,6 +159,7 @@ def export_graph_html(
         style,
         dimension=dimension,
         include_navigation=include_navigation,
+        root_path=root_path,
     )
     target.write_text(document, encoding="utf-8")
     return target

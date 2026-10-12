@@ -90,6 +90,7 @@ class GraphBase:
         *,
         dimension: typing.Literal["2d", "3d"] = "3d",
         include_navigation: bool = False,
+        root_path: str = "",
     ) -> pathlib.Path:
         """Export the graph as an interactive 2D or 3D HTML document.
 
@@ -98,6 +99,7 @@ class GraphBase:
             style: Optional graph appearance settings.
             dimension: Graph layout to render. The default preserves the 3D view.
             include_navigation: Link to sibling documentation website pages.
+            root_path: Relative path to website root.
 
         Returns:
             The path to the rendered graph.
@@ -108,6 +110,7 @@ class GraphBase:
             style,
             dimension=dimension,
             include_navigation=include_navigation,
+            root_path=root_path,
         )
 
     def _node_type(self, reference: NodeMeta) -> str:

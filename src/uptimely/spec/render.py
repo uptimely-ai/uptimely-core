@@ -15,12 +15,12 @@ from uptimely.spec.json_spec import bindings
 
 OUTPUT_DIR = pathlib.Path("_generated") / "spec"
 SPECIFICATION_PAGES = {
-    "overview": "spec.html",
-    "features": "spec_features.html",
-    "entities": "spec_entities.html",
-    "datasets": "spec_datasets.html",
-    "dimensions": "spec_dimensions.html",
-    "functions": "spec_functions.html",
+    "overview": "overview.html",
+    "features": "features.html",
+    "entities": "entities.html",
+    "datasets": "datasets.html",
+    "dimensions": "dimensions.html",
+    "functions": "functions.html",
 }
 
 
@@ -67,6 +67,7 @@ def _render_document(
     output_path: pathlib.Path,
     include_navigation: bool = False,
     section: str | None = None,
+    root_path: str = "",
 ) -> pathlib.Path:
     environment = render.html_environment()
     template = f"spec/{section}.html.j2" if section else "spec/index.html.j2"
@@ -78,6 +79,7 @@ def _render_document(
         include_navigation=include_navigation,
         active_page="spec",
         active_section=section,
+        root_path=root_path,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(document, encoding="utf-8")
@@ -88,6 +90,7 @@ def create_website_pages(
     specification: spec.Specification,
     output_directory: pathlib.Path,
     include_generated_at: bool = False,
+    root_path: str = "../",
 ) -> None:
     """Export separate specification sections with shared website navigation.
 
@@ -95,10 +98,11 @@ def create_website_pages(
         specification: The canonical analytics specification.
         output_directory: Directory shared by all website pages.
         include_generated_at: Include a timestamp on each specification page.
+        root_path: Relative path to website root from output_directory.
     """
     context = dataclasses.asdict(_build_context(specification, include_generated_at))
     for section, filename in SPECIFICATION_PAGES.items():
-        _render_document(context, output_directory / filename, True, section)
+        _render_document(context, output_directory / filename, True, section, root_path=root_path)
 
 
 def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], list[dict], set[str]]:

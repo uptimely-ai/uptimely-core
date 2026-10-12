@@ -16,10 +16,10 @@ from . import compiler
 
 OUTPUT_PATH = pathlib.Path("_generated") / "compile" / "execution_plan.html"
 PLAN_PAGES = {
-    "overview": "execution_plan.html",
-    "graph_2d": "execution_plan_graph_2d.html",
-    "graph_3d": "execution_plan_graph_3d.html",
-    "stages": "execution_plan_stages.html",
+    "overview": "overview.html",
+    "graph_2d": "2d.html",
+    "graph_3d": "3d.html",
+    "stages": "stages.html",
 }
 
 
@@ -113,6 +113,7 @@ def _render_execution_plan(
     output_path: str | pathlib.Path = OUTPUT_PATH,
     *,
     include_navigation: bool = False,
+    root_path: str = "",
 ) -> pathlib.Path:
     """Render an execution plan as an HTML report and return the written path.
 
@@ -120,6 +121,7 @@ def _render_execution_plan(
         plan: The compiled execution plan to render.
         output_path: Where to write the report file.
         include_navigation: Generate summary, callable graph, and stage pages with navigation.
+        root_path: Relative path to website root.
 
     Returns:
         The path the report was written to.
@@ -221,6 +223,7 @@ def _render_execution_plan(
         "graph_style": render.GraphStyle(),
         "include_navigation": include_navigation,
         "active_page": "plan",
+        "root_path": root_path,
     }
 
     target.parent.mkdir(parents=True, exist_ok=True)
