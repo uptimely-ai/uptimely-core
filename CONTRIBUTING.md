@@ -14,7 +14,7 @@ Contributions are welcome via pull requests.
 3. Install the git hooks:
 
    ```sh
-   poetry run pre-commit install
+   poetry run pre-commit install --hook-type pre-commit --hook-type pre-push
    ```
 
 The devcontainer image installs Python tooling through
@@ -109,6 +109,14 @@ Use this workflow as the site's only deployment mechanism.
    ```sh
    poetry run pre-commit run --all-files
    poetry run pytest
+   ```
+
+   Commit hooks run lint, formatting, and file checks. The pre-push hook runs
+   the full pytest suite using the Poetry environment; CI also runs tests with
+   coverage. To run the pre-push test hook manually:
+
+   ```sh
+   poetry run pre-commit run pytest --hook-stage pre-push --all-files
    ```
 
 4. Open a pull request against `main`. Describe the motivation and link any

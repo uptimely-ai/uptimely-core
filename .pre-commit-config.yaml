@@ -1,3 +1,5 @@
+default_stages: [pre-commit]
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.10
@@ -18,3 +20,12 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=500]
       - id: check-case-conflict
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: poetry run pytest
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
