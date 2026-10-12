@@ -16,7 +16,6 @@ from uptimely.spec.json_spec.json_model import (
     Call,
     Feature,
     FeatureMapping,
-    Sink,
     VectorizeFunction,
 )
 from uptimely.spec.python_spec import bind, dataset, dimension, feature, mapping, ref, row_context
@@ -78,6 +77,7 @@ def test_dataset_authoring_uses_mappings_for_all_operation_types() -> None:
         "expand",
         "collapse",
         "vectorize",
+        "write",
     }.isdisjoint(dataset.Dataset.__dataclass_fields__)
 
 
@@ -349,7 +349,6 @@ def test_canonical_context_rejects_invalid_metadata(payload: dict) -> None:
         (Binding, {"function": "calculate"}),
         (Call, {"function": "calculate", "entity": "entity", "feature": "result"}),
         (FeatureMapping, {"id": "result", "binding": Binding(function="calculate")}),
-        (Sink, {"id": "result", "binding": Binding(function="calculate")}),
     ],
 )
 def test_non_vectorized_models_reject_context(model_type, fields: dict) -> None:

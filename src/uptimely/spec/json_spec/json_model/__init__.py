@@ -15,7 +15,6 @@ from .dataset import (
     FeatureMapping,
     Order,
     RowScope,
-    Sink,
 )
 from .functions import (
     FUNCTION_CATEGORIES,
@@ -56,7 +55,6 @@ __all__ = [
     "Order",
     "ReadFunction",
     "RowScope",
-    "Sink",
     "Specification",
     "SpecificationSource",
     "StrictModel",

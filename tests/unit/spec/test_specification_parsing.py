@@ -102,9 +102,9 @@ def test_specification_errors_expose_stable_code_and_path(tmp_path: Path) -> Non
 def test_specification_rejects_unknown_write_function(tmp_path: Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]
-    dataset["write"]["write_pump_telemetry"]["binding"]["function"] = "missing_write"
+    dataset["mappings"]["write_pump_telemetry"]["binding"]["function"] = "missing_write"
 
-    with pytest.raises(ValueError, match="Write write_pump_telemetry references unknown function"):
+    with pytest.raises(ValueError, match="mappings reference unknown functions: missing_write"):
         Specification.from_json(_write_configuration(tmp_path, configuration, "write.json"))
 
 
@@ -259,7 +259,6 @@ def test_specification_validation_rejects_duplicate_feature_names(tmp_path: Path
                     "pressure_flow_efficiency": dataset["features"]["pressure_flow_efficiency"]
                 },
                 "mappings": {"pressure_flow_efficiency": duplicate},
-                "write": {},
             }
         ],
     }
@@ -355,7 +354,6 @@ def test_specification_validation_rejects_cross_dataset_feature_dependency(
                 "row_scope": {"grain": "", "filtering": "", "coverage": ""},
                 "features": {"health_signal_normalized_copy": copied_feature},
                 "mappings": {"health_signal_normalized_copy": calculation},
-                "write": {},
             }
         ],
     }

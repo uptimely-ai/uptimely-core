@@ -128,11 +128,11 @@ def test_spec_from_python_models_and_json_export(tmp_path: Path) -> None:
         "order",
         "features",
         "mappings",
-        "write",
     }
     assert dataset_payload["description"]
     assert dataset_payload["mappings"]["read"]["binding"]["function"] == "read"
-    assert dataset_payload["write"]["write"]["binding"]["args"]["df"] == "$datasets.@"
+    assert dataset_payload["mappings"]["write"]["binding"]["args"]["df"] == "$datasets.@"
+    assert dataset_payload["mappings"]["write"]["features"] == []
     assert any(isinstance(declaration, mapping.Write) for declaration in dataset_.mappings)
     assert dataset_payload["mappings"]["column_3"]["binding"]["args"] == {
         "left_feature": "$features.input_1",

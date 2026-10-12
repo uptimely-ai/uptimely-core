@@ -104,11 +104,9 @@ def _validate_calculation_bindings(entity: Any, categories: dict[str, dict[str, 
     for dataset in entity.datasets:
         owners: dict[str, str] = {}
         for mapping_id, mapping in dataset.mappings.items():
-            if not mapping.features:
-                raise ValueError(f"Mapping {mapping_id} must declare one or more features")
             matches = [
                 category
-                for category in ("read", "conform", "expand", "collapse", "vectorize")
+                for category in ("read", "conform", "expand", "collapse", "vectorize", "write")
                 if mapping.binding.function in categories[category]
             ]
             if not matches:
@@ -121,6 +119,14 @@ def _validate_calculation_bindings(entity: Any, categories: dict[str, dict[str, 
                     f"Mapping {mapping_id} function {mapping.binding.function} must resolve "
                     "to exactly one operation category"
                 )
+            if matches[0] == "write":
+                if mapping.features:
+                    raise ValueError(f"Write mapping {mapping_id} cannot produce features")
+                if mapping.aggregations:
+                    raise ValueError(f"Write mapping {mapping_id} cannot use aggregations")
+                continue
+            if not mapping.features:
+                raise ValueError(f"Mapping {mapping_id} must declare one or more features")
             if matches[0] == "vectorize":
                 collisions = sorted(set(mapping.features) & dimensions)
                 if collisions:
@@ -249,21 +255,13 @@ def _validate_operation_functions(entity: Any, categories: dict[str, dict[str, A
             for mapping in dataset.mappings.values()
             if not any(
                 mapping.binding.function in categories[category]
-                for category in ("read", "conform", "expand", "collapse", "vectorize")
+                for category in ("read", "conform", "expand", "collapse", "vectorize", "write")
             )
         )
         if missing:
             raise ValueError(
                 f"Dataset {dataset.id} mappings reference unknown functions: " + ", ".join(missing)
             )
-        for operation_id, operation in dataset.write.items():
-            if operation.binding.function not in categories["write"]:
-                raise SpecificationError(
-                    f"Write {operation_id} references unknown function: "
-                    f"{operation.binding.function}",
-                    code="unknown_write_function",
-                    path=("datasets", dataset.id, "write", operation_id, "binding", "function"),
-                )
 
 
 def _validate_binding_contract(
@@ -300,7 +298,7 @@ def _validate_binding_contracts(model: Any, categories: dict[str, dict[str, Any]
                     (
                         functions[mapping.binding.function]
                         for category, functions in categories.items()
-                        if category != "write" and mapping.binding.function in functions
+                        if mapping.binding.function in functions
                     ),
                     None,
                 )
@@ -346,23 +344,6 @@ def _validate_binding_contracts(model: Any, categories: dict[str, dict[str, Any]
                                     "args",
                                 ),
                             )
-            for operation_id, operation in dataset.write.items():
-                function = categories["write"].get(operation.binding.function)
-                if function is not None:
-                    _validate_binding_contract(
-                        operation.binding,
-                        function,
-                        path=(
-                            "entities",
-                            entity_id,
-                            "datasets",
-                            dataset.id,
-                            "write",
-                            operation_id,
-                            "binding",
-                            "args",
-                        ),
-                    )
 
 
 def _feature_names(model: Any) -> set[str]:

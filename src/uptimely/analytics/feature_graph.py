@@ -180,7 +180,14 @@ class FeatureGraph(GraphBase):
                     operation_type = next(
                         (
                             category
-                            for category in ("read", "conform", "expand", "collapse", "vectorize")
+                            for category in (
+                                "read",
+                                "conform",
+                                "expand",
+                                "collapse",
+                                "vectorize",
+                                "write",
+                            )
                             if mapping.binding.function in getattr(specs.functions, category)
                         ),
                         None,
@@ -224,27 +231,6 @@ class FeatureGraph(GraphBase):
                                 if feature_id not in specs.dimensions
                             ],
                             list(dict.fromkeys(dependencies)),
-                        )
-                    )
-
-                for operation_id, sink in dataset.write.items():
-                    template = specs.functions.write[sink.binding.function]
-                    function = Function(
-                        id=sink.binding.function,
-                        type="python_function",
-                        return_type=None,
-                        info={"description": None},
-                        entrypoint=template.entrypoint,
-                        role="write",
-                    )
-                    self.functions.append(function)
-                    self._graph_operations.append(
-                        (
-                            function,
-                            entity_id,
-                            operation_id,
-                            [],
-                            feature_dependencies(sink.binding.args),
                         )
                     )
 

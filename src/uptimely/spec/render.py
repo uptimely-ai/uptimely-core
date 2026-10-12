@@ -114,7 +114,14 @@ def _feature_data(configuration: dict[str, Any]) -> tuple[list[dict], list[dict]
                 category = next(
                     (
                         name
-                        for name in ("read", "conform", "expand", "collapse", "vectorize")
+                        for name in (
+                            "read",
+                            "conform",
+                            "expand",
+                            "collapse",
+                            "vectorize",
+                            "write",
+                        )
                         if function_id in functions.get(name, {})
                     ),
                     None,

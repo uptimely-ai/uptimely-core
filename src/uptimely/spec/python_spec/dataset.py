@@ -87,13 +87,8 @@ class Dataset:
     def to_model(self) -> json_model.Dataset:
         """Convert this declaration to the canonical Pydantic dataset model."""
         mappings: dict[str, json_model.FeatureMapping] = {}
-        writes: dict[str, json_model.Sink] = {}
         feature_models = {item.id: item.to_model() for item in self.features}
         for declaration in self.mappings:
-            if isinstance(declaration, Write):
-                model = declaration.to_model()
-                writes[model.id] = model
-                continue
             model = declaration.to_model()
             mappings[model.id] = model
             for output in declaration.features:
@@ -131,7 +126,6 @@ class Dataset:
             order=[key.to_model() for key in self.order],
             features=feature_models,
             mappings=mappings,
-            write=writes,
         )
 
     def function_catalog(self) -> json_model.FunctionCatalog:

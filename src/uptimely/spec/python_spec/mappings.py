@@ -89,17 +89,18 @@ class Collapse(_Mapping):
 
 @dataclass(frozen=True)
 class Write(_Mapping):
-    """The callable that persists a dataset."""
+    """The output-free mapping that persists or evaluates a dataset."""
 
-    def to_model(self) -> json_model.Sink:
-        """Convert this write declaration to its JSON model."""
+    def to_model(self) -> json_model.FeatureMapping:
+        """Convert this write declaration to an output-free mapping model."""
         identifier = _operation_id(self.bind, self.id)
-        return json_model.Sink(
+        return json_model.FeatureMapping(
             id=identifier,
             binding=json_model.Binding(
                 function=_operation_id(self.bind, None),
                 args=_binding_args(self.bind),
             ),
+            features=[],
         )
 
 

@@ -70,7 +70,9 @@ class CallableGraph:
                         ),
                     )
                     nodes[node.node_id] = graphable.Graphable(node)
-                    if operation_type != "vectorize":
+                    if operation_type == "write":
+                        self._dataset_sinks.setdefault(dataset_key, []).append(node)
+                    elif operation_type != "vectorize":
                         self._dataset_sources.setdefault(dataset_key, []).append(node)
                     for feature in mapping.features:
                         if feature in self.specification.dimensions:
@@ -78,18 +80,6 @@ class CallableGraph:
                         self._feature_producers[feature] = node
                         if operation_type == "vectorize":
                             self._callable_index[(node.function_id, entity_id, feature)] = node
-                for sink in dataset.write.values():
-                    node = CallableNode(
-                        function_id=sink.binding.function,
-                        entity=entity_id,
-                        operation_type="write",
-                        dataset_id=dataset.id,
-                        operation_id=sink.id,
-                        args=sink.binding.args,
-                    )
-                    nodes[node.node_id] = graphable.Graphable(node)
-                    self._dataset_sinks.setdefault(dataset_key, []).append(node)
-
         # First pass: create all callable nodes and register feature producers
         for fragments in self._dataset_sources.values():
             reads = [fragment for fragment in fragments if fragment.operation_type == "read"]
@@ -145,7 +135,7 @@ class CallableGraph:
 
     def _mapping_category(self, function_id: str) -> str:
         """Infer a mapping operation category from its function catalog entry."""
-        categories = ("read", "conform", "expand", "collapse", "vectorize")
+        categories = ("read", "conform", "expand", "collapse", "vectorize", "write")
         matches = [
             category
             for category in categories

@@ -177,7 +177,6 @@ def test_docs_generate_imports_project_functions_in_fresh_process(
                                         "features": ["value"],
                                     }
                                 },
-                                "write": {},
                             }
                         ],
                     }

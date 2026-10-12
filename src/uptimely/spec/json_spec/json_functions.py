@@ -308,7 +308,7 @@ def _static_function_catalog(
 
     for dataset in datasets.values():
         operations = []
-        if category in {"read", "collapse", "expand", "conform", "vectorize"}:
+        if category in {"read", "collapse", "expand", "conform", "vectorize", "write"}:
             registered = (
                 functions.get(category, {})
                 if isinstance(functions, dict)
@@ -319,8 +319,6 @@ def _static_function_catalog(
                 for mapping in dataset.mappings.values()
                 if mapping.binding.function in registered
             ]
-        elif category == "write":
-            operations.extend(dataset.write.values())
         for operation in operations:
             if not operation.binding.function:
                 continue
