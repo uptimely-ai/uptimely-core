@@ -30,6 +30,9 @@ markdown_extensions:
 extra_javascript:
   - assets/javascripts/mermaid.mjs
 
+extra_css:
+  - assets/stylesheets/infographic.css
+
 exclude_docs: |
   /vendor/
   /_site/
@@ -46,6 +49,7 @@ nav:
   - Home: index.md
   - Overview:
       - The problem: overview/problem.md
+      - Infographic: overview/infographic.md
       - Architecture: overview/architecture.md
   - Specification:
       - About Specification: specification/index.md
