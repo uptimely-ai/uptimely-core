@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from .aggregation import Aggregation
 from .ref import Reference
 from .row_context import RowContextBinding
 
@@ -50,8 +51,6 @@ def _entrypoint(function: Callable[..., object]) -> str:
 
 def _binding_value(value: Any) -> Any:
     """Convert Python references recursively to canonical binding values."""
-    from .feature import Aggregation
-
     if isinstance(value, RowContextBinding):
         return _binding_value(value.value)
     if isinstance(value, Reference):
@@ -72,8 +71,6 @@ def _binding_value(value: Any) -> Any:
 
 def _argument_definition(value: Any) -> dict[str, Any]:
     """Infer a recursive function-argument schema from a bound value."""
-    from .feature import Aggregation
-
     if isinstance(value, RowContextBinding):
         return _argument_definition(value.value)
     if isinstance(value, Reference):

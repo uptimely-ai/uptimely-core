@@ -171,7 +171,7 @@ def test_sources_and_transforms_python_spec(tmp_path: Path) -> None:
             dataset=ref.dataset("transformed_dataset"),
             dimensions=[],
             aggregations={
-                "collapsed_feature": feature.aggregation(
+                "collapsed_feature": mapping.aggregation(
                     maximum,
                     feature=ref.feature("input_1"),
                 )

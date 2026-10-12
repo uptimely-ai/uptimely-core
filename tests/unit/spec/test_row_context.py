@@ -144,26 +144,22 @@ def test_feature_consolidates_directional_maxima() -> None:
             "counts": [row_context.time(8, before="3h", after="2h")],
         },
     )
-    declaration = feature.Vectorize(id="result", bind=binding)
+    declaration = mapping.Vectorize(
+        id="result",
+        bind=binding,
+        features=[feature.Feature(id="result")],
+    )
     assert declaration.row_context.to_dict() == {
         "extent": "bounded",
         "before": {"time": "500m"},
         "after": {"time": "2h"},
     }
-    model = declaration.to_model()
-    vectorize_mapping = mapping.Vectorize(
-        id=declaration.id,
-        bind=declaration.bind,
-        features=[feature.Feature(id=declaration.id)],
-        row_context=declaration.row_context,
-    )
-    model_mapping = (
-        dataset.Dataset(id="observations", mappings=[vectorize_mapping])
-        .to_model()
-        .mappings["result"]
-    )
+    model_mapping = declaration.to_model()
     assert model_mapping.binding.args["configuration"] == {"period": "8h", "counts": [8]}
-    assert model.row_context == declaration.row_context
+    model_feature = (
+        dataset.Dataset(id="observations", mappings=[declaration]).to_model().features["result"]
+    )
+    assert model_feature.row_context == declaration.row_context
 
 
 @pytest.mark.parametrize(
@@ -177,7 +173,7 @@ def test_feature_consolidates_directional_maxima() -> None:
 )
 def test_feature_rejects_mixed_annotation_measurements(left, right) -> None:
     with pytest.raises(ValueError, match="one measurement"):
-        feature.Vectorize(
+        mapping.Vectorize(
             id="result",
             bind=bind.bind(calculate, configuration={"first": left, "nested": [right]}),
         )
@@ -185,7 +181,7 @@ def test_feature_rejects_mixed_annotation_measurements(left, right) -> None:
 
 def test_feature_rejects_mixed_direct_context_and_annotation() -> None:
     with pytest.raises(ValueError, match="one measurement"):
-        feature.Vectorize(
+        mapping.Vectorize(
             id="result",
             row_context=RowContext(after=ContextExtent(rows=1)),
             bind=bind.bind(calculate, window=row_context.time("8h", before="8h")),
@@ -242,12 +238,16 @@ def test_specification_rejects_mixed_measurements(tmp_path: Path) -> None:
     "context", [RowContext(before=ContextExtent(rows=10)), row_context.rows(10, before=10)]
 )
 def test_explicit_context_is_merged_with_annotations(context) -> None:
-    declaration = feature.Vectorize(
+    declaration = mapping.Vectorize(
         id="result",
         row_context=context,
         bind=bind.bind(calculate, window=row_context.rows("8h", before=7)),
+        features=[feature.Feature(id="result")],
     )
-    assert declaration.to_model().row_context.before.rows == 10
+    model_feature = (
+        dataset.Dataset(id="observations", mappings=[declaration]).to_model().features["result"]
+    )
+    assert model_feature.row_context.before.rows == 10
 
 
 @pytest.mark.parametrize(
@@ -259,23 +259,17 @@ def test_explicit_context_is_merged_with_annotations(context) -> None:
     ],
 )
 def test_helpers_work_as_direct_feature_context(annotation, expected) -> None:
-    declaration = feature.Vectorize(
+    declaration = mapping.Vectorize(
         id="result",
         bind=bind.bind(calculate, column=ref.feature("temperature")),
         row_context=annotation,
+        features=[feature.Feature(id="result")],
     )
-    model = declaration.to_model()
-    assert model.row_context.before.model_dump(exclude_none=True) == expected
-    vectorize_mapping = mapping.Vectorize(
-        id=declaration.id,
-        bind=declaration.bind,
-        features=[feature.Feature(id=declaration.id)],
-        row_context=declaration.row_context,
-    )
-    model_mapping = (
-        dataset.Dataset(id="observations", mappings=[vectorize_mapping])
-        .to_model()
-        .mappings["result"]
+    model_dataset = dataset.Dataset(id="observations", mappings=[declaration]).to_model()
+    model_mapping = model_dataset.mappings["result"]
+    assert (
+        model_dataset.features["result"].row_context.before.model_dump(exclude_none=True)
+        == expected
     )
     assert model_mapping.binding.args == {"column": "$features.temperature"}
 
@@ -284,7 +278,7 @@ def test_direct_binding_declarations_collect_context() -> None:
     argument = row_context.rows(8, before=7)
     binding = bind.Bind(calculate, {"count": argument})
     assert not hasattr(binding, "row_context")
-    assert feature.Vectorize(id="result", bind=binding).row_context == argument.row_context
+    assert mapping.Vectorize(id="result", bind=binding).row_context == argument.row_context
 
 
 def test_mapping_model_does_not_own_feature_context() -> None:
@@ -304,7 +298,7 @@ def test_unbounded_is_explicit_and_dominates_bounded_values() -> None:
         window=row_context.rows("unbounded preceding", before=row_context.UNBOUNDED),
         count=row_context.rows(8, before=7, after=2),
     )
-    declaration = feature.Vectorize(id="result", bind=binding)
+    declaration = mapping.Vectorize(id="result", bind=binding)
     assert declaration.row_context.before.rows == "unbounded"
     assert declaration.row_context.after.rows == 2
     restored = RowContext.model_validate(declaration.row_context.to_dict())
@@ -315,7 +309,7 @@ def test_unbounded_is_explicit_and_dominates_bounded_values() -> None:
 
 
 def test_unknown_current_partition_and_dataset_are_distinct() -> None:
-    assert feature.Vectorize(id="result", bind=bind.bind(calculate)).row_context is None
+    assert mapping.Vectorize(id="result", bind=bind.bind(calculate)).row_context is None
     current = row_context.current()
     assert current.to_dict() == {"extent": "bounded", "before": {}, "after": {}}
     assert RowContext.model_validate(current.to_dict()) == current
@@ -370,12 +364,12 @@ def test_features_have_no_context_field() -> None:
         feature.Feature(id="result", row_context=row_context.current())
 
 
-@pytest.mark.parametrize("constructor", [feature.aggregation, feature.Aggregation])
+@pytest.mark.parametrize("constructor", [mapping.aggregation, mapping.Aggregation])
 def test_aggregation_unwraps_annotations_without_registering_context(constructor) -> None:
     args = {"configuration": {"windows": [row_context.time("8h", before="8h")]}}
     aggregation = (
         constructor(calculate, args)
-        if constructor is feature.Aggregation
+        if constructor is mapping.Aggregation
         else constructor(calculate, **args)
     )
     entry = _binding_value({"items": [aggregation]})["items"][0]
@@ -383,7 +377,7 @@ def test_aggregation_unwraps_annotations_without_registering_context(constructor
         "function": "calculate",
         "args": {"configuration": {"windows": ["8h"]}},
     }
-    assert "row_context" not in feature.Aggregation.__dataclass_fields__
+    assert "row_context" not in mapping.Aggregation.__dataclass_fields__
     assert is_aggregation_entry(entry)
     assert not is_aggregation_entry({**entry, "row_context": {}})
     collapse = mapping.Collapse(
@@ -398,10 +392,15 @@ def test_shared_binding_supports_distinct_feature_contexts() -> None:
         column=ref.feature("temperature"),
         window=row_context.time("8h", before="8h"),
     )
-    first = feature.Vectorize(id="first", bind=shared)
-    second = feature.Vectorize(
+    first = mapping.Vectorize(
+        id="first",
+        bind=shared,
+        features=[feature.Feature(id="first")],
+    )
+    second = mapping.Vectorize(
         id="second",
         bind=shared,
+        features=[feature.Feature(id="second")],
         row_context=RowContext(before=ContextExtent(time="12h")),
     )
     baseline = _specification(shared)
@@ -409,18 +408,8 @@ def test_shared_binding_supports_distinct_feature_contexts() -> None:
         id="observations",
         mappings=[
             _read(),
-            mapping.Vectorize(
-                id=first.id,
-                bind=first.bind,
-                features=[feature.Feature(id=first.id)],
-                row_context=first.row_context,
-            ),
-            mapping.Vectorize(
-                id=second.id,
-                bind=second.bind,
-                features=[feature.Feature(id=second.id)],
-                row_context=second.row_context,
-            ),
+            first,
+            second,
         ],
     )
     specification = Specification.from_python(
@@ -461,6 +450,14 @@ def test_mappings_unwrap_annotations_without_context(operation_type) -> None:
     assert "row_context" not in next(iter(copied.mappings.values())).model_dump()
     with pytest.raises(TypeError, match="row_context"):
         operation_type(bind=bind.bind(calculate), row_context=row_context.rows(1, before=1))
+
+
+def test_mapping_module_exposes_only_current_mapping_declarations() -> None:
+    assert not hasattr(mapping, "_Operation")
+    assert not hasattr(mapping, "Mapping")
+    assert mapping.Aggregation
+    assert mapping.Vectorize
+    assert feature.Feature
 
 
 def test_input_scope_is_removed_from_function_templates() -> None:
@@ -551,7 +548,7 @@ def test_plan_context_is_present_in_portable_operations() -> None:
 def test_aggregations_execute_without_row_context() -> None:
     from examples.example_1.functions.calculation import aggregate_by_dimension, maximum
 
-    annotated = feature.aggregation(
+    annotated = mapping.aggregation(
         maximum,
         feature=ref.feature("temperature"),
     )

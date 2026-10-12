@@ -40,7 +40,7 @@ pump_mappings = [
             ref.feature("bearing_temperature_max"),
         ],
         aggregations={
-            "bearing_temperature_max": feature.aggregation(
+            "bearing_temperature_max": mapping.aggregation(
                 calculation.maximum,
                 feature=ref.feature("bearing_temperature"),
             )

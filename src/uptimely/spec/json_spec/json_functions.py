@@ -2,7 +2,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from ..python_spec.bind import _argument_definition
+from ..python_spec import mappings
+from ..python_spec.aggregation import Aggregation
+from ..python_spec.bind import _argument_definition, _entrypoint
 from .json_model import Dimension
 
 
@@ -116,10 +118,6 @@ def _configured_function(functions: Any, category: str, function_name: str) -> A
 
 def _auto_function_catalog(declarations: object) -> dict[str, Any]:
     """Build an automatic function catalog from original Python declarations."""
-    from uptimely.spec.python_spec import mappings
-    from uptimely.spec.python_spec.bind import _argument_definition, _entrypoint
-    from uptimely.spec.python_spec.feature import Aggregation
-
     merged: dict[str, dict[str, Any]] = {
         "read": {},
         "write": {},

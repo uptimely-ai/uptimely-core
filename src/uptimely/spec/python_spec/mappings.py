@@ -7,30 +7,31 @@ from typing import Any
 
 from uptimely.spec.json_spec import json_model
 
+from .aggregation import Aggregation, aggregation
 from .bind import Bind, _binding_args, _operation_id
-from .feature import Aggregation, Feature
+from .feature import Feature as _Feature
 from .ref import Reference
 from .row_context import RowContext, RowContextBinding, _context
 
 __all__ = [
-    "Mapping",
+    "Aggregation",
+    "aggregation",
     "Vectorize",
     "Read",
     "Conform",
     "Expand",
     "Collapse",
     "Write",
-    "_Operation",
 ]
 
 
 @dataclass(frozen=True)
-class Mapping:
+class _Mapping:
     """A function binding that produces one or more declared dataset features."""
 
     bind: Bind
     id: str | None = None
-    features: list[Feature | Reference | str] = field(default_factory=list)
+    features: list[_Feature | Reference | str] = field(default_factory=list)
     description: str | None = None
     aggregations: dict[str, Any] = field(default_factory=dict)
 
@@ -56,7 +57,7 @@ class Mapping:
 
 
 @dataclass(frozen=True)
-class Vectorize(Mapping):
+class Vectorize(_Mapping):
     """A mapping that calculates feature values while preserving dataset rows."""
 
     row_context: RowContext | RowContextBinding[Any] | None = None
@@ -67,27 +68,27 @@ class Vectorize(Mapping):
 
 
 @dataclass(frozen=True)
-class Read(Mapping):
+class Read(_Mapping):
     """A mapping that reads features from an external source."""
 
 
 @dataclass(frozen=True)
-class Conform(Mapping):
+class Conform(_Mapping):
     """A mapping that conforms input data to the target dataset's row scope."""
 
 
 @dataclass(frozen=True)
-class Expand(Mapping):
+class Expand(_Mapping):
     """A mapping that expands input data to the target dimensional coverage."""
 
 
 @dataclass(frozen=True)
-class Collapse(Mapping):
+class Collapse(_Mapping):
     """A mapping that groups input data and applies per-feature aggregations."""
 
 
 @dataclass(frozen=True)
-class Write(Mapping):
+class Write(_Mapping):
     """The callable that persists a dataset."""
 
     def to_model(self) -> json_model.Sink:
@@ -102,15 +103,15 @@ class Write(Mapping):
         )
 
 
-def _feature_id(feature: Feature | Reference | str) -> str:
+def _feature_id(feature: _Feature | Reference | str) -> str:
     """Return a mapping output's feature identifier."""
-    if isinstance(feature, Feature):
-        return feature.id
     if isinstance(feature, Reference):
         prefix, _, identifier = feature.value.rpartition(".")
         if prefix != "$features":
             raise ValueError(f"Mapping output must reference a feature, got {feature.value!r}")
         return identifier
+    if not isinstance(feature, str):
+        return feature.id
     if feature.startswith("$features."):
         return feature.removeprefix("$features.")
     return feature
@@ -135,6 +136,3 @@ def _aggregation_binding(value: Aggregation | dict[str, Any]) -> json_model.Bind
             "args": value.get("args", {}),
         }
     )
-
-
-_Operation = Mapping
