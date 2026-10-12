@@ -1,14 +1,14 @@
 import json
-from pathlib import Path
+import pathlib
 
 import pytest
 
-from uptimely.spec import Specification
+from uptimely import spec
 
-SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
 
 
-def test_mapping_validation(tmp_path: Path) -> None:
+def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand"] = {
         "expand_telemetry": {
@@ -31,7 +31,7 @@ def test_mapping_validation(tmp_path: Path) -> None:
 
     spec_path = tmp_path / "valid_mappings_spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
-    parsed_spec = Specification.from_json(spec_path)
+    parsed_spec = spec.Specification.from_json(spec_path)
     ds = parsed_spec.entities["pump_telemetry"].datasets[0]
 
     assert "read_pump_telemetry" in ds.mappings
@@ -49,7 +49,7 @@ def test_mapping_validation(tmp_path: Path) -> None:
     bad_source_path = tmp_path / "bad_source.json"
     bad_source_path.write_text(json.dumps(bad_source_config), encoding="utf-8")
     with pytest.raises(ValueError, match="mappings reference unknown functions"):
-        Specification.from_json(bad_source_path)
+        spec.Specification.from_json(bad_source_path)
 
     bad_transform_config = json.loads(json.dumps(configuration))
     bad_transform_config["entities"]["pump_telemetry"]["datasets"][0]["features"][
@@ -64,11 +64,11 @@ def test_mapping_validation(tmp_path: Path) -> None:
     bad_transform_path = tmp_path / "bad_transform.json"
     bad_transform_path.write_text(json.dumps(bad_transform_config), encoding="utf-8")
     with pytest.raises(ValueError, match="mappings reference unknown functions"):
-        Specification.from_json(bad_transform_path)
+        spec.Specification.from_json(bad_transform_path)
 
 
 @pytest.mark.parametrize("mapping_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
-def test_mapping_rejects_explicit_source(tmp_path: Path, mapping_id: str) -> None:
+def test_mapping_rejects_explicit_source(tmp_path: pathlib.Path, mapping_id: str) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["entities"]["pump"]["datasets"][0]["mappings"][mapping_id]["source"] = (
         "$datasets.pump_telemetry_dataset"
@@ -77,7 +77,7 @@ def test_mapping_rejects_explicit_source(tmp_path: Path, mapping_id: str) -> Non
     invalid_operation_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(ValueError, match="source"):
-        Specification.from_json(invalid_operation_path)
+        spec.Specification.from_json(invalid_operation_path)
 
 
 @pytest.mark.parametrize(
@@ -90,7 +90,7 @@ def test_mapping_rejects_explicit_source(tmp_path: Path, mapping_id: str) -> Non
     ],
 )
 def test_collapse_validates_source_grouping_and_output_contract(
-    tmp_path: Path, field: str, value: object, message: str
+    tmp_path: pathlib.Path, field: str, value: object, message: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
@@ -100,7 +100,7 @@ def test_collapse_validates_source_grouping_and_output_contract(
     path = tmp_path / "invalid.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
-        Specification.from_json(path)
+        spec.Specification.from_json(path)
 
 
 @pytest.mark.parametrize(
@@ -125,7 +125,7 @@ def test_collapse_validates_source_grouping_and_output_contract(
     ],
 )
 def test_collapse_validates_reducer_bindings(
-    tmp_path: Path, function: str, args: dict, message: str
+    tmp_path: pathlib.Path, function: str, args: dict, message: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
@@ -135,11 +135,13 @@ def test_collapse_validates_reducer_bindings(
     path = tmp_path / "invalid.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
-        Specification.from_json(path)
+        spec.Specification.from_json(path)
 
 
 @pytest.mark.parametrize("legacy", ["catalog", "source", "group_by", "operations", "aggregations"])
-def test_removed_aggregation_and_wrapper_schemas_are_rejected(tmp_path: Path, legacy: str) -> None:
+def test_removed_aggregation_and_wrapper_schemas_are_rejected(
+    tmp_path: pathlib.Path, legacy: str
+) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
         "bearing_temperature_by_pump"
@@ -151,29 +153,31 @@ def test_removed_aggregation_and_wrapper_schemas_are_rejected(tmp_path: Path, le
     path = tmp_path / "legacy.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError):
-        Specification.from_json(path)
+        spec.Specification.from_json(path)
 
 
-def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: Path) -> None:
+def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["entities"]["pump_telemetry"]["dimensions"].remove("pump")
     path = tmp_path / "invalid_dimensions.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="grouping dimensions must exist in source"):
-        Specification.from_json(path)
+        spec.Specification.from_json(path)
 
 
-def test_collapse_catalog_requires_function_entrypoint(tmp_path: Path) -> None:
+def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["collapse"]["maximum"].pop("entrypoint")
     path = tmp_path / "missing_entrypoint.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="entrypoint"):
-        Specification.from_json(path)
+        spec.Specification.from_json(path)
 
 
 @pytest.mark.parametrize("container", ["object", "array"])
-def test_collapse_rejects_inputs_from_multiple_datasets(tmp_path: Path, container: str) -> None:
+def test_collapse_rejects_inputs_from_multiple_datasets(
+    tmp_path: pathlib.Path, container: str
+) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     references = ["$features.bearing_temperature", "$features.health_signal_normalized"]
     value = {"inputs": references} if container == "object" else references
@@ -184,10 +188,12 @@ def test_collapse_rejects_inputs_from_multiple_datasets(tmp_path: Path, containe
     path = tmp_path / "mixed_inputs.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="one dataset; use expand"):
-        Specification.from_json(path)
+        spec.Specification.from_json(path)
 
 
-def test_collapse_dimensions_alone_do_not_identify_input_dataset(tmp_path: Path) -> None:
+def test_collapse_dimensions_alone_do_not_identify_input_dataset(
+    tmp_path: pathlib.Path,
+) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
         "bearing_temperature_by_pump"
@@ -196,4 +202,4 @@ def test_collapse_dimensions_alone_do_not_identify_input_dataset(tmp_path: Path)
     path = tmp_path / "dimension_input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="must reference a source feature"):
-        Specification.from_json(path)
+        spec.Specification.from_json(path)

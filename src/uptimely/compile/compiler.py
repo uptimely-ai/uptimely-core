@@ -1,22 +1,25 @@
 """Compile specifications into portable execution plans."""
 
+from __future__ import annotations
+
 import logging
-from collections.abc import Collection
-from pathlib import Path
-from typing import Any
+import pathlib
+import typing
+from collections import abc
 
-from uptimely.plan import ExecutionPlan, Operation, Plan
-from uptimely.spec import Specification
-from uptimely.spec.json_spec.bindings import resolve_binding_args
+from uptimely import plan as uptimely_plan
+from uptimely import spec as uptimely_spec
+from uptimely.spec.json_spec import bindings
 
-from .entrypoint import read_signature
-from .execution_graph import CallableGraph
-from .node import CallableNode
+from . import entrypoint, execution_graph
+from . import node as node_module
 
 logger = logging.getLogger(__name__)
 
+ExecutionPlan = uptimely_plan.ExecutionPlan
 
-def _resolve_function(specification: Specification, node: CallableNode):
+
+def _resolve_function(specification: uptimely_spec.Specification, node: node_module.CallableNode):
     """Return the function definition for an operation node."""
     catalog = specification.function_catalog
     function_catalog = getattr(catalog, node.callable_type, None)
@@ -45,7 +48,7 @@ def _portable_value(value: object) -> object:
     return value
 
 
-def _resource_models(specification: Specification) -> dict[str, Any]:
+def _resource_models(specification: uptimely_spec.Specification) -> dict[str, typing.Any]:
     """Export the specification data required by the engine at runtime."""
     return {
         "specification_version": specification.version,
@@ -66,27 +69,27 @@ class Compiler:
 
     def __init__(
         self,
-        spec: str | Path | Specification,
-        features: Collection[str] | None = None,
+        spec: str | pathlib.Path | uptimely_spec.Specification,
+        features: abc.Collection[str] | None = None,
     ) -> None:
         """Initialize the compiler with a specification or JSON path."""
-        self.spec_path: Path | None = None
-        self.specification: Specification | None = None
+        self.spec_path: pathlib.Path | None = None
+        self.specification: uptimely_spec.Specification | None = None
         self.features = self._validate_features(features)
-        if isinstance(spec, Specification):
+        if isinstance(spec, uptimely_spec.Specification):
             self.specification = spec
-            self.spec_path = Path(spec.path) if spec.path else None
+            self.spec_path = pathlib.Path(spec.path) if spec.path else None
         else:
-            self.spec_path = Path(spec)
+            self.spec_path = pathlib.Path(spec)
 
-    def compile(self) -> ExecutionPlan:
+    def compile(self) -> uptimely_plan.ExecutionPlan:
         """Build and serialize the dependency graph into a portable plan."""
         if self.specification is None:
             if self.spec_path is None:
                 raise ValueError("No specification or specification path provided.")
-            self.specification = Specification.from_json(self.spec_path)
+            self.specification = uptimely_spec.Specification.from_json(self.spec_path)
 
-        callable_graph = CallableGraph(self.specification)
+        callable_graph = execution_graph.CallableGraph(self.specification)
         if self.features is not None:
             logger.debug("Compiling feature subset: %s", sorted(self.features))
             callable_graph = callable_graph.subset(self.features)
@@ -113,7 +116,7 @@ class Compiler:
                 for dataset in entity.datasets
                 if dataset.id in planned_datasets
             }
-        plan = Plan(
+        plan = uptimely_plan.Plan(
             plan_version="1.0.0",
             specification_version=self.specification.version,
             required_backend="polars",
@@ -122,14 +125,16 @@ class Compiler:
             stages=stages,
         )
         logger.info("Compiled plan: %d operations in %d stages", len(operations), len(stages))
-        return ExecutionPlan(plan)
+        return uptimely_plan.ExecutionPlan(plan)
 
-    def _operation(self, graph: CallableGraph, node: CallableNode) -> Operation:
+    def _operation(
+        self, graph: execution_graph.CallableGraph, node: node_module.CallableNode
+    ) -> uptimely_plan.Operation:
         """Convert one live graph node into a portable operation DTO."""
         function = _resolve_function(self.specification, node)
         if function is None or not function.entrypoint:
             raise ValueError(f"Missing entrypoint for function: {node.function_id}")
-        arguments = resolve_binding_args(
+        arguments = bindings.resolve_binding_args(
             node.args,
             node.dataset_id,
             (
@@ -144,7 +149,7 @@ class Compiler:
                 else None
             ),
         )
-        return Operation(
+        return uptimely_plan.Operation(
             id=node.node_id,
             kind=node.operation_type,
             entrypoint=function.entrypoint,
@@ -158,7 +163,7 @@ class Compiler:
         )
 
     @staticmethod
-    def _validate_features(features: Collection[str] | None) -> list[str] | None:
+    def _validate_features(features: abc.Collection[str] | None) -> list[str] | None:
         """Return requested feature identifiers in their supplied order."""
         if features is None:
             return None
@@ -166,7 +171,7 @@ class Compiler:
             raise ValueError("features must be a collection of feature identifiers")
         return list(dict.fromkeys(features))
 
-    def _read_signatures(self, callable_graph: CallableGraph) -> dict[str, object]:
+    def _read_signatures(self, callable_graph: execution_graph.CallableGraph) -> dict[str, object]:
         """Read callable signatures for compiler diagnostics."""
         signatures: dict[str, object] = {}
         for node in callable_graph.callables:
@@ -174,7 +179,9 @@ class Compiler:
             if function is None or not function.entrypoint:
                 continue
             try:
-                signatures[node.node_id] = read_signature(function.entrypoint, Path.cwd())
+                signatures[node.node_id] = entrypoint.read_signature(
+                    function.entrypoint, pathlib.Path.cwd()
+                )
             except (ImportError, AttributeError, ValueError, TypeError) as error:
                 raise ValueError(
                     f"Could not read signature of function {function.id} "

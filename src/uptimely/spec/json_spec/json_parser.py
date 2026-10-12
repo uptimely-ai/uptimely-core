@@ -1,47 +1,31 @@
 """Specification parser and JSON specification loading helpers."""
 
+from __future__ import annotations
+
 import json
-from pathlib import Path
+import pathlib
 
-from uptimely.compile.entrypoint import read_signature
+from uptimely.compile import entrypoint as compile_entrypoint
 
-from ..storage import Storage as SpecificationStorage
-from ..validation import validate_dataset_ids, validate_specification
-from .bindings import (
-    feature_dependencies,
-    resolve_binding_args,
-)
-from .json_functions import python_to_spec_dict
-from .json_model import (
-    FUNCTION_TYPES,
-    Binding,
-    Call,
-    Dimension,
-    Entity,
-    Feature,
-    Function,
-    FunctionCatalog,
-    Specification,
-    VectorizeFunction,
-)
-from .json_serializer import SpecificationSerializer
+from .. import storage, validation
+from . import bindings, json_functions, json_model, json_serializer
 
 
 class SpecificationParser:
     """Parse, resolve, validate, and export a JSON specification."""
 
-    def __init__(self, path: str | Path | None = None):
+    def __init__(self, path: str | pathlib.Path | None = None):
         """Initialize an empty specification and optionally parse ``path``."""
         self.path: str | None = None
-        self.model = Specification()
-        self.functions: list[Function] = []
-        self.calls: list[Call] = []
+        self.model = json_model.Specification()
+        self.functions: list[json_model.Function] = []
+        self.calls: list[json_model.Call] = []
 
         if path is not None:
             self.parse(path)
 
     @classmethod
-    def from_json(cls, path: str | Path) -> Specification:
+    def from_json(cls, path: str | pathlib.Path) -> json_model.Specification:
         """Create a specification from a JSON file."""
         specification = cls()
         return specification.parse(path)
@@ -52,31 +36,31 @@ class SpecificationParser:
         datasets: object | None = None,
         functions: object | None = None,
         name: str | None = None,
-        dimensions: dict[str, Dimension] | list[Dimension] | None = None,
+        dimensions: dict[str, json_model.Dimension] | list[json_model.Dimension] | None = None,
         *,
         entities: object | None = None,
-    ) -> Specification:
+    ) -> json_model.Specification:
         """Create a specification from Python authoring models."""
         specification = cls()
-        spec = python_to_spec_dict(
+        spec = json_functions.python_to_spec_dict(
             datasets=datasets,
             functions=functions,
             name=name,
             dimensions=dimensions,
             entities=entities,
         )
-        specification._apply_model(Specification.model_validate(spec))
+        specification._apply_model(json_model.Specification.model_validate(spec))
         specification._resolve_functions()
         specification.validate()
         return specification.model
 
-    def to_json(self, path: str | Path) -> str:
+    def to_json(self, path: str | pathlib.Path) -> str:
         """Write the current specification to disk and return its path."""
-        result = SpecificationSerializer.to_json(self.model, path)
+        result = json_serializer.SpecificationSerializer.to_json(self.model, path)
         self.path = self.model.path
         return result
 
-    def _apply_model(self, spec: Specification) -> None:
+    def _apply_model(self, spec: json_model.Specification) -> None:
         """Apply a validated specification model."""
         self.model = spec
         self.functions = spec.resolved_functions
@@ -88,24 +72,24 @@ class SpecificationParser:
         return self.model.version
 
     @property
-    def dimensions(self) -> dict[str, Dimension]:
+    def dimensions(self) -> dict[str, json_model.Dimension]:
         """Return the document dimensions."""
         return self.model.dimensions
 
     @property
-    def function_catalog(self) -> FunctionCatalog:
+    def function_catalog(self) -> json_model.FunctionCatalog:
         """Return the declared function catalog."""
         return self.model.functions
 
     @property
-    def entities(self) -> dict[str, Entity]:
+    def entities(self) -> dict[str, json_model.Entity]:
         """Return the document entities."""
         return self.model.entities
 
     def _resolve_functions(self) -> None:
         """Derive resolved functions and calls from bound calculations."""
-        functions_by_id: dict[str, Function] = {}
-        calls: list[Call] = []
+        functions_by_id: dict[str, json_model.Function] = {}
+        calls: list[json_model.Call] = []
 
         for entity_id, entity in self.entities.items():
             for dataset in entity.datasets:
@@ -142,15 +126,15 @@ class SpecificationParser:
     @staticmethod
     def _build_function(
         function_name: str,
-        template: VectorizeFunction | None,
-        calculation: Feature,
-    ) -> Function:
+        template: json_model.VectorizeFunction | None,
+        calculation: json_model.Feature,
+    ) -> json_model.Function:
         """Build a deduplicated function entry from its first calculation."""
-        return Function(
+        return json_model.Function(
             id=function_name,
             type="python_function",
             return_type=(
-                read_signature(template.entrypoint, Path.cwd()).returns
+                compile_entrypoint.read_signature(template.entrypoint, pathlib.Path.cwd()).returns
                 if template is not None
                 else None
             ),
@@ -166,15 +150,15 @@ class SpecificationParser:
         entity_id: str,
         feature_name: str,
         dataset_id: str,
-        binding: Binding,
-    ) -> Call:
+        binding: json_model.Binding,
+    ) -> json_model.Call:
         """Build a call, resolving dependencies and dataset placeholders."""
         if SpecificationParser._contains_dataset_reference(binding.args):
             raise ValueError(
                 f"Analytics calculation {feature_name} cannot bind a dataset; "
                 "bind its input features or dimensions instead"
             )
-        return Call(
+        return json_model.Call(
             function=function_name,
             entity=entity_id,
             feature=feature_name,
@@ -200,7 +184,7 @@ class SpecificationParser:
     @staticmethod
     def _resolve_feature_dependencies(args: dict | None) -> list[str]:
         """Return unique feature names consumed by a binding."""
-        return feature_dependencies(args)
+        return bindings.feature_dependencies(args)
 
     @staticmethod
     def _replace_arg_placeholders(
@@ -209,36 +193,36 @@ class SpecificationParser:
         feature_id: str | None = None,
     ) -> dict:
         """Resolve typed binding references in callable arguments."""
-        return resolve_binding_args(args, dataset_id, feature_id)
+        return bindings.resolve_binding_args(args, dataset_id, feature_id)
 
-    def parse(self, path: str | Path | None = None) -> Specification:
+    def parse(self, path: str | pathlib.Path | None = None) -> json_model.Specification:
         """Load, resolve, and validate a specification from JSON."""
         spec_path = self._spec_path(path)
         spec = self._load_spec(spec_path)
         self.path = spec_path
-        self._apply_model(Specification.model_validate(spec))
+        self._apply_model(json_model.Specification.model_validate(spec))
         self.model.path = spec_path
         self._resolve_functions()
         self.validate()
         return self.model
 
     @staticmethod
-    def _load_spec(path: str | Path) -> dict:
+    def _load_spec(path: str | pathlib.Path) -> dict:
         """Load a single JSON specification file."""
-        spec = json.loads(SpecificationStorage.read(path))
+        spec = json.loads(storage.Storage.read(path))
         if spec.get("includes", []) or spec.get("external_specs", []):
             raise ValueError("A specification must be defined in a single JSON file")
         return spec
 
     def validate(
         self,
-        functions: list[Function] | None = None,
-        calls: list[Call] | None = None,
+        functions: list[json_model.Function] | None = None,
+        calls: list[json_model.Call] | None = None,
     ) -> None:
         """Validate that resolved functions and calls define a usable graph."""
         functions = self.functions if functions is None else functions
         calls = self.calls if calls is None else calls
-        validate_dataset_ids(self.model)
+        validation.validate_dataset_ids(self.model)
         seen_function_ids: set[str] = set()
         seen_feature_names: set[str] = set()
         dataset_of_feature: dict[str, tuple[str, str]] = {}
@@ -313,7 +297,7 @@ class SpecificationParser:
                         )
 
         for function in functions:
-            if not isinstance(function, Function):
+            if not isinstance(function, json_model.Function):
                 raise ValueError(
                     f"Function definition must be a Function object, got {type(function).__name__}"
                 )
@@ -328,7 +312,7 @@ class SpecificationParser:
             operation_type = function.type
             if not isinstance(operation_type, str) or not operation_type.strip():
                 raise ValueError(f"Function '{function_id}' must define a type")
-            if operation_type not in FUNCTION_TYPES:
+            if operation_type not in json_model.FUNCTION_TYPES:
                 raise ValueError(
                     f"Function '{function_id}' uses unsupported operation type: {operation_type}"
                 )
@@ -344,7 +328,7 @@ class SpecificationParser:
 
         seen_output_features: set[str] = set()
         for call in calls:
-            if not isinstance(call, Call):
+            if not isinstance(call, json_model.Call):
                 raise ValueError(
                     f"Call definition must be a Callable object, got {type(call).__name__}"
                 )
@@ -359,21 +343,21 @@ class SpecificationParser:
                     f"unknown function: {call.function}"
                 )
 
-        validate_specification(self.model, calls)
+        validation.validate_specification(self.model, calls)
 
-    def _spec_path(self, path: str | Path | None) -> str:
+    def _spec_path(self, path: str | pathlib.Path | None) -> str:
         """Resolve a supplied path to the JSON specification file."""
         if path is None:
             if self.path is None:
                 raise ValueError("A specification path is required")
             return self.path
         target = str(path)
-        if SpecificationStorage.is_dir(target):
-            candidate = SpecificationStorage.join(target, "spec.json")
-            if SpecificationStorage.exists(candidate):
+        if storage.Storage.is_dir(target):
+            candidate = storage.Storage.join(target, "spec.json")
+            if storage.Storage.exists(candidate):
                 return candidate
             raise FileNotFoundError(f"No spec.json found in {target}")
-        if not SpecificationStorage.exists(target):
+        if not storage.Storage.exists(target):
             raise FileNotFoundError(target)
         return target
 

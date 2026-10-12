@@ -1,41 +1,41 @@
 import json
-from pathlib import Path
+import pathlib
 
 import pytest
 
-from uptimely.docs.docs import Documentation
-from uptimely.spec import Specification
+from uptimely import spec
+from uptimely.docs import docs
 
-SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
 
 
 @pytest.mark.parametrize("output_format", ["json", "html"])
 def test_reference_exports_to_default_directory(
-    tmp_path: Path, monkeypatch, output_format: str
+    tmp_path: pathlib.Path, monkeypatch, output_format: str
 ) -> None:
-    specification = Specification.from_json(SPEC_PATH)
+    specification = spec.Specification.from_json(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
-    documentation = Documentation(specification)
+    documentation = docs.Documentation(specification)
 
     document_path = (
         documentation.create_json() if output_format == "json" else specification.create_html()
     )
 
     expected = (
-        Path("_generated/docs/docs.json")
+        pathlib.Path("_generated/docs/docs.json")
         if output_format == "json"
-        else Path("_generated/spec/spec.html")
+        else pathlib.Path("_generated/spec/spec.html")
     )
     assert document_path == expected
     assert document_path.is_file()
-    assert not Path("generated").exists()
+    assert not pathlib.Path("generated").exists()
 
 
-def test_generate_json_docs(tmp_path: Path, monkeypatch) -> None:
-    specification = Specification.from_json(SPEC_PATH)
+def test_generate_json_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
     monkeypatch.setattr("uptimely.docs.docs.OUTPUT_DIR", tmp_path / "_generated")
 
-    data_path = Documentation(specification).create_json()
+    data_path = docs.Documentation(specification).create_json()
     data = json.loads(data_path.read_text(encoding="utf-8"))
 
     assert data_path.name == "docs.json"
@@ -54,8 +54,8 @@ def test_generate_json_docs(tmp_path: Path, monkeypatch) -> None:
     assert not data_path.with_suffix(".html").exists()
 
 
-def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
-    specification = Specification.from_json(SPEC_PATH)
+def test_generate_html_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
     monkeypatch.setattr("uptimely.spec.render.OUTPUT_DIR", tmp_path / "_generated" / "spec")
 
     document_path = specification.create_html()
@@ -104,22 +104,22 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert "Collapse function" in document
 
 
-def test_generate_json_docs_from_in_memory_spec_is_deterministic(tmp_path: Path) -> None:
-    specification = Specification.from_json(SPEC_PATH)
+def test_generate_json_docs_from_in_memory_spec_is_deterministic(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
     specification.path = None
 
-    first_path = Documentation(specification).create_json(
+    first_path = docs.Documentation(specification).create_json(
         output_path=tmp_path / "first" / "docs.json",
     )
-    second_path = Documentation(specification).create_json(
+    second_path = docs.Documentation(specification).create_json(
         output_path=tmp_path / "second" / "docs.json",
     )
 
     assert first_path.read_bytes() == second_path.read_bytes()
 
 
-def test_generate_html_docs_from_in_memory_spec_is_deterministic(tmp_path: Path) -> None:
-    specification = Specification.from_json(SPEC_PATH)
+def test_generate_html_docs_from_in_memory_spec_is_deterministic(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
     specification.path = None
 
     first_path = specification.create_html(

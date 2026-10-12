@@ -1,16 +1,16 @@
 """Serialization helpers for portable execution plans."""
 
-from pathlib import Path
+import pathlib
 
-from .models import ExecutionPlan, Plan
+from . import models
 
 
-def export_json(plan: Plan | ExecutionPlan, path: str | Path) -> Path:
+def export_json(plan: models.Plan | models.ExecutionPlan, path: str | pathlib.Path) -> pathlib.Path:
     """Serialize a plan to JSON."""
-    execution_plan = plan if isinstance(plan, ExecutionPlan) else ExecutionPlan(plan)
+    execution_plan = plan if isinstance(plan, models.ExecutionPlan) else models.ExecutionPlan(plan)
     return execution_plan.export_json(path)
 
 
-def from_json(path: str | Path) -> ExecutionPlan:
+def from_json(path: str | pathlib.Path) -> models.ExecutionPlan:
     """Deserialize an execution plan from JSON."""
-    return ExecutionPlan.from_json(path)
+    return models.ExecutionPlan.from_json(path)

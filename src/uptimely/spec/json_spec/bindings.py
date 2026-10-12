@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import typing
 
-from pydantic import BaseModel
+import pydantic
 
-if TYPE_CHECKING:
-    from .json_model import Dataset, Entity, FeatureMapping, FunctionCatalog, Specification
+if typing.TYPE_CHECKING:
+    from . import json_model
 
 
-def mapping_category(mapping: FeatureMapping, catalog: FunctionCatalog) -> str:
+def mapping_category(
+    mapping: json_model.FeatureMapping, catalog: json_model.FunctionCatalog
+) -> str:
     """Return the execution kind of a canonical mapping."""
     matches = [
         category
@@ -26,8 +28,8 @@ def mapping_category(mapping: FeatureMapping, catalog: FunctionCatalog) -> str:
 
 
 def collapse_input_dataset(
-    specification: Specification, mapping: FeatureMapping
-) -> tuple[Entity, Dataset]:
+    specification: json_model.Specification, mapping: json_model.FeatureMapping
+) -> tuple[json_model.Entity, json_model.Dataset]:
     """Infer one input dataset from a collapse's bound non-dimension features.
 
     Args:
@@ -47,7 +49,7 @@ def collapse_input_dataset(
     ]
     if not inputs:
         raise ValueError(f"Collapse {mapping.id} must reference a source feature")
-    owners: dict[str, tuple[Entity, Dataset]] = {}
+    owners: dict[str, tuple[json_model.Entity, json_model.Dataset]] = {}
     for feature in inputs:
         matches = [
             (entity, dataset)
@@ -69,7 +71,7 @@ def collapse_input_dataset(
     return next(iter(owners.values()))
 
 
-def feature_dependencies(args: dict[str, Any] | None) -> list[str]:
+def feature_dependencies(args: dict[str, typing.Any] | None) -> list[str]:
     """Return unique feature identifiers consumed by binding arguments."""
     if not isinstance(args, dict):
         return []
@@ -92,10 +94,10 @@ def feature_dependencies(args: dict[str, Any] | None) -> list[str]:
 
 
 def resolve_binding_args(
-    args: dict[str, Any] | None,
+    args: dict[str, typing.Any] | None,
     dataset_id: str,
     feature_id: str | None = None,
-) -> dict[str, Any]:
+) -> dict[str, typing.Any]:
     """Resolve structural references to identifiers used by the execution plan."""
     if not isinstance(args, dict):
         return args or {}
@@ -130,4 +132,4 @@ def resolve_structural_reference(
 
 def _as_plain(value: object) -> object:
     """Convert Pydantic binding models before recursively inspecting them."""
-    return value.model_dump() if isinstance(value, BaseModel) else value
+    return value.model_dump() if isinstance(value, pydantic.BaseModel) else value

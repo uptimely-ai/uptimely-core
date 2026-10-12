@@ -1,28 +1,27 @@
 """HTML templates for interactive dependency graphs."""
 
+import dataclasses
+import datetime
 import json
+import pathlib
 import typing
-from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
-from typing import Literal
 
-from graphable.views import CytoscapeStylingConfig, create_topology_cytoscape
+from graphable import views
 
-from uptimely.render import html_environment
+from uptimely import render
 
 if typing.TYPE_CHECKING:
-    from .feature_graph import GraphBase
+    from . import feature_graph
 
 
-@dataclass
+@dataclasses.dataclass
 class GraphStyle:
     """Visual appearance settings for the dependency graph."""
 
     function_color: str = "#d62828"
     input_color: str = "#64c7a8"
     feature_color: str = "#6ebcf4"
-    function_colors: dict[str, str] = field(
+    function_colors: dict[str, str] = dataclasses.field(
         default_factory=lambda: {
             "read": "#4c78a8",
             "vectorize": "#f58518",
@@ -53,7 +52,7 @@ def render_graph_html(
     links: list[dict[str, str]],
     style: GraphStyle | None = None,
     *,
-    dimension: Literal["2d", "3d"] = "3d",
+    dimension: typing.Literal["2d", "3d"] = "3d",
     include_navigation: bool = False,
 ) -> str:
     """Render the dependency graph as interactive 2D or 3D HTML.
@@ -75,7 +74,7 @@ def render_graph_html(
         raise ValueError(f"Unsupported graph dimension: {dimension!r}. Choose '2d' or '3d'.")
 
     style = style or GraphStyle()
-    environment = html_environment()
+    environment = render.html_environment()
     graph_data = json.dumps(
         {
             "nodes": sorted(nodes, key=lambda node: node["id"]),
@@ -87,7 +86,7 @@ def render_graph_html(
         style=style,
         dimension=dimension,
         graph_data=graph_data,
-        generated_at=datetime.now().astimezone().isoformat(timespec="seconds"),
+        generated_at=datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
         include_navigation=include_navigation,
         active_page="graph",
         active_section=dimension,
@@ -95,14 +94,14 @@ def render_graph_html(
 
 
 def graph_payload_from_cytoscape(
-    graph: "GraphBase",
+    graph: "feature_graph.GraphBase",
 ) -> tuple[list[dict[str, typing.Any]], list[dict[str, str]]]:
     """Normalize Cytoscape graph elements into node and link payloads."""
-    config = CytoscapeStylingConfig(
+    config = views.CytoscapeStylingConfig(
         node_data_fnc=lambda node: graph._node_data(node.reference),
         reference_fnc=lambda node: graph._node_key(node.reference),
     )
-    elements = json.loads(create_topology_cytoscape(graph.graph, config))
+    elements = json.loads(views.create_topology_cytoscape(graph.graph, config))
 
     nodes: list[dict[str, typing.Any]] = []
     links: list[dict[str, str]] = []
@@ -123,13 +122,13 @@ def graph_payload_from_cytoscape(
 
 
 def export_graph_html(
-    graph: "GraphBase",
-    output_path: str | Path,
+    graph: "feature_graph.GraphBase",
+    output_path: str | pathlib.Path,
     style: GraphStyle | None = None,
     *,
-    dimension: Literal["2d", "3d"] = "3d",
+    dimension: typing.Literal["2d", "3d"] = "3d",
     include_navigation: bool = False,
-) -> Path:
+) -> pathlib.Path:
     """Export a feature dependency graph as an interactive 2D or 3D HTML document.
 
     Args:
@@ -142,7 +141,7 @@ def export_graph_html(
     Returns:
         The path to the rendered graph.
     """
-    target = Path(output_path)
+    target = pathlib.Path(output_path)
     if target.suffix.lower() != ".html":
         target = target.with_suffix(".html")
     target.parent.mkdir(parents=True, exist_ok=True)

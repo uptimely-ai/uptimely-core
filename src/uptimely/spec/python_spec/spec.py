@@ -2,40 +2,41 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any
+import dataclasses
+import typing
 
-from uptimely.spec.json_spec import json_model
+from uptimely.spec import json_spec
+from uptimely.spec.json_spec import json_functions
 
-from .dataset import Dataset
-from .dimension import Dimension
-from .entity import Entity
+from . import dataset as dataset_module
+from . import dimension
+from . import entity as entity_module
 
 __all__ = [
     "PythonSpecification",
 ]
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class PythonSpecification:
     """Build a canonical specification from Python authoring declarations."""
 
-    entities: list[Entity] = field(default_factory=list)
-    dimensions: list[Dimension] | dict[str, Dimension] | None = None
+    entities: list[entity_module.Entity] = dataclasses.field(default_factory=list)
+    dimensions: list[dimension.Dimension] | dict[str, dimension.Dimension] | None = None
     name: str | None = None
 
-    def iter_datasets(self) -> list[Dataset]:
+    def iter_datasets(self) -> list[dataset_module.Dataset]:
         """Yield all dataset declarations owned by this specification."""
         if not self.entities:
             return []
-        datasets: list[Dataset] = []
+        datasets: list[dataset_module.Dataset] = []
         for entity in self.entities:
             datasets.extend(entity.datasets)
         return datasets
 
-    def function_catalog(self) -> json_model.FunctionCatalog:
+    def function_catalog(self) -> json_spec.json_model.FunctionCatalog:
         """Collect and merge the function catalog across all entities."""
-        catalog = json_model.FunctionCatalog()
+        catalog = json_spec.json_model.FunctionCatalog()
         for dataset in self.iter_datasets():
             dataset_catalog = dataset.function_catalog()
             for category in (
@@ -63,11 +64,9 @@ class PythonSpecification:
                 setattr(catalog, category, existing)
         return catalog
 
-    def to_spec_dict(self) -> dict[str, Any]:
+    def to_spec_dict(self) -> dict[str, typing.Any]:
         """Return the canonical specification dictionary for the configured entities."""
-        from uptimely.spec.json_spec.json_functions import python_to_spec_dict
-
-        return python_to_spec_dict(
+        return json_functions.python_to_spec_dict(
             entities=self.entities,
             functions=self.function_catalog(),
             name=self.name,

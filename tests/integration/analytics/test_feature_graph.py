@@ -1,18 +1,17 @@
-from pathlib import Path
-from typing import Literal, cast
+import pathlib
+import typing
 
 import pytest
 
-from uptimely.analytics import FeatureGraph
-from uptimely.analytics.models import FeatureNode, FunctionNode
-from uptimely.spec import Specification
+from uptimely import analytics, spec
+from uptimely.analytics import models
 
-SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
 
 
 def test_system_graph_connects_functions_to_feature_outputs() -> None:
-    specification = Specification.from_json(SPEC_PATH)
-    system = FeatureGraph(specification)
+    specification = spec.Specification.from_json(SPEC_PATH)
+    system = analytics.FeatureGraph(specification)
 
     function_nodes = {function.id: function for function in system.functions}
     assert "maximum" in function_nodes
@@ -25,9 +24,9 @@ def test_system_graph_connects_functions_to_feature_outputs() -> None:
             neighbor_node.reference.name,
         )
         for source in system.graph
-        if isinstance(source.reference, FunctionNode)
+        if isinstance(source.reference, models.FunctionNode)
         for neighbor_node, _attrs in system.graph.neighbors(source)
-        if isinstance(neighbor_node.reference, FeatureNode)
+        if isinstance(neighbor_node.reference, models.FeatureNode)
     }
 
     assert ("maximum", "bearing_temperature_max") in actual_edges
@@ -36,15 +35,15 @@ def test_system_graph_connects_functions_to_feature_outputs() -> None:
 
 
 def test_system_graph_contains_function_nodes() -> None:
-    specification = Specification.from_json(SPEC_PATH)
+    specification = spec.Specification.from_json(SPEC_PATH)
     non_analytics = specification.resolved_functions[0].model_copy(
         update={"id": "non_analytics_function", "role": "serving"}
     )
     specification.resolved_functions.append(non_analytics)
-    system = FeatureGraph(specification)
+    system = analytics.FeatureGraph(specification)
 
     function_nodes = [
-        node.reference for node in system.graph if isinstance(node.reference, FunctionNode)
+        node.reference for node in system.graph if isinstance(node.reference, models.FunctionNode)
     ]
     analytics_function_ids = {function.id for function in system.functions}
 
@@ -61,27 +60,27 @@ def test_system_graph_contains_function_nodes() -> None:
 
 
 def test_subset_raises_helpful_error_for_missing_output() -> None:
-    specification = Specification.from_json(SPEC_PATH)
-    system = FeatureGraph(specification)
+    specification = spec.Specification.from_json(SPEC_PATH)
+    system = analytics.FeatureGraph(specification)
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): temperature_3"):
         system.subset(["temperature_3"])
 
 
 def test_system_graph_builds_from_entity_feature_bindings() -> None:
-    specification = Specification.from_json(SPEC_PATH)
-    system = FeatureGraph(specification)
+    specification = spec.Specification.from_json(SPEC_PATH)
+    system = analytics.FeatureGraph(specification)
 
     assert "bearing_temperature_max" in system.feature_names
     assert "health_signal_normalized" in system.feature_names
 
 
 def test_dependency_features_keep_their_producer_entity_without_becoming_source_inputs() -> None:
-    system = FeatureGraph(Specification.from_json(SPEC_PATH))
+    system = analytics.FeatureGraph(spec.Specification.from_json(SPEC_PATH))
     features = {
         node.reference.name: node.reference
         for node in system.graph
-        if isinstance(node.reference, FeatureNode)
+        if isinstance(node.reference, models.FeatureNode)
     }
 
     assert features["bearing_temperature_max"].entity == "pump"
@@ -90,9 +89,9 @@ def test_dependency_features_keep_their_producer_entity_without_becoming_source_
     assert features["operating_point_recommendation"].is_source_input is False
 
 
-def test_system_graph_can_export_html(tmp_path: Path) -> None:
-    specification = Specification.from_json(SPEC_PATH)
-    system = FeatureGraph(specification)
+def test_system_graph_can_export_html(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
+    system = analytics.FeatureGraph(specification)
 
     output = tmp_path / "graph.html"
     saved = system.export_html(output)
@@ -132,9 +131,9 @@ def test_system_graph_can_export_html(tmp_path: Path) -> None:
     assert '"node_type": "feature"' in subset_html
 
 
-def test_system_graph_can_export_2d_lineage_html(tmp_path: Path) -> None:
-    specification = Specification.from_json(SPEC_PATH)
-    system = FeatureGraph(specification)
+def test_system_graph_can_export_2d_lineage_html(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
+    system = analytics.FeatureGraph(specification)
 
     output = tmp_path / "lineage.html"
     saved = system.export_html(output, dimension="2d")
@@ -186,9 +185,11 @@ def test_system_graph_can_export_2d_lineage_html(tmp_path: Path) -> None:
     assert "3d-force-graph" not in html
 
 
-def test_system_graph_rejects_unsupported_html_dimension(tmp_path: Path) -> None:
-    specification = Specification.from_json(SPEC_PATH)
-    system = FeatureGraph(specification)
+def test_system_graph_rejects_unsupported_html_dimension(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
+    system = analytics.FeatureGraph(specification)
 
     with pytest.raises(ValueError, match="Unsupported graph dimension"):
-        system.export_html(tmp_path / "graph.html", dimension=cast(Literal["2d", "3d"], "4d"))
+        system.export_html(
+            tmp_path / "graph.html", dimension=typing.cast(typing.Literal["2d", "3d"], "4d")
+        )

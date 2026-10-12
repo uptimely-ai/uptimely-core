@@ -1,19 +1,23 @@
-from pathlib import Path
+import pathlib
 
 import pytest
 
-from uptimely.compile import Compiler
-from uptimely.compile.entrypoint import load_callable
-from uptimely.spec import Specification
+from uptimely import compile, spec
+from uptimely.compile import entrypoint as compile_entrypoint
 
 SPEC_PATH = (
-    Path(__file__).parents[3] / "examples" / "example_1" / "_generated" / "spec" / "spec.json"
+    pathlib.Path(__file__).parents[3]
+    / "examples"
+    / "example_1"
+    / "_generated"
+    / "spec"
+    / "spec.json"
 )
 
 
 def test_compiler_rejects_string_feature_selection() -> None:
     with pytest.raises(ValueError, match="features must be a collection"):
-        Compiler(SPEC_PATH, features="health_signal_normalized")
+        compile.Compiler(SPEC_PATH, features="health_signal_normalized")
 
 
 @pytest.mark.parametrize(
@@ -21,19 +25,19 @@ def test_compiler_rejects_string_feature_selection() -> None:
     [("vectorize", "pressure_flow_efficiency"), ("collapse", "maximum")],
 )
 def test_compiler_rejects_missing_function_entrypoints(category: str, function_id: str) -> None:
-    specification = Specification.from_json(SPEC_PATH)
+    specification = spec.Specification.from_json(SPEC_PATH)
     getattr(specification.functions, category)[function_id].entrypoint = ""
 
     with pytest.raises(ValueError, match=f"Missing entrypoint for function: {function_id}"):
-        Compiler(specification).compile()
+        compile.Compiler(specification).compile()
 
 
 def test_compiler_reports_unreadable_function_signatures() -> None:
-    specification = Specification.from_json(SPEC_PATH)
+    specification = spec.Specification.from_json(SPEC_PATH)
     specification.functions.vectorize["pressure_flow_efficiency"].entrypoint = "invalid-entrypoint"
 
     with pytest.raises(ValueError, match="Could not read signature.*Invalid entrypoint"):
-        Compiler(specification).compile()
+        compile.Compiler(specification).compile()
 
 
 @pytest.mark.parametrize(
@@ -48,4 +52,4 @@ def test_load_callable_rejects_invalid_entrypoints(
     error: type[Exception],
 ) -> None:
     with pytest.raises(error):
-        load_callable(entrypoint)
+        compile_entrypoint.load_callable(entrypoint)

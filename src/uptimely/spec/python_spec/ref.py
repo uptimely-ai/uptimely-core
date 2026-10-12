@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import dataclasses
 
 __all__ = [
     "Reference",
@@ -15,7 +15,7 @@ __all__ = [
 ]
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class Reference:
     """A Python declaration reference resolved to a structural binding value."""
 

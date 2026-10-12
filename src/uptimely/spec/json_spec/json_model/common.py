@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+import typing
 
-from pydantic import BaseModel, ConfigDict, Field
+import pydantic
 
 
-class StrictModel(BaseModel):
+class StrictModel(pydantic.BaseModel):
     """Base model that rejects fields outside the specification contract."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = pydantic.ConfigDict(extra="forbid")
 
 
 class SpecificationSource(StrictModel):
@@ -23,7 +23,7 @@ class SpecificationSource(StrictModel):
 class Dimension(StrictModel):
     """A globally defined grain under `dimensions`."""
 
-    id: str = Field(exclude=True)
+    id: str = pydantic.Field(exclude=True)
     type: str
     description: str | None = None
     parent: str | None = None
@@ -32,16 +32,16 @@ class Dimension(StrictModel):
 class Argument(StrictModel):
     """A single argument entry under a function template's `args`."""
 
-    id: str = Field(exclude=True)
+    id: str = pydantic.Field(exclude=True)
     type: str
     comment: str | None = None
 
 
-BindingArgument = dict[str, Any] | list[Any] | str | int | float | bool | None
+BindingArgument = dict[str, typing.Any] | list[typing.Any] | str | int | float | bool | None
 
 
 class Binding(StrictModel):
     """Wires an operation to a catalog function and its arguments."""
 
     function: str
-    args: dict[str, BindingArgument] = Field(default_factory=dict)
+    args: dict[str, BindingArgument] = pydantic.Field(default_factory=dict)

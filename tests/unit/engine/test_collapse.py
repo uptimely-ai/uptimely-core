@@ -1,18 +1,15 @@
 import json
-from collections.abc import Sequence
-from pathlib import Path
+import pathlib
+from collections import abc
 
 import polars as pl
 import pytest
 
-from uptimely.analytics import FeatureGraph
-from uptimely.compile import Compiler
-from uptimely.compile.execution_graph import CallableGraph
-from uptimely.compile.render import _render_step
-from uptimely.engine import Engine, PolarsBackend
-from uptimely.plan import ExecutionPlan, Plan
-from uptimely.spec import Specification
-from uptimely.spec.python_spec import bind, dataset, dimension, entity, feature, mapping, ref
+from uptimely import analytics, compile, engine, spec
+from uptimely import plan as plan_module
+from uptimely.compile import execution_graph, render
+from uptimely.spec import python_spec
+from uptimely.spec.python_spec import bind, dataset, dimension, entity, feature, ref
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -74,19 +71,19 @@ def unaggregated(column: str) -> pl.Expr:
     return pl.col(column)
 
 
-def _specification(*, lazy: bool = False, empty: bool = False) -> Specification:
+def _specification(*, lazy: bool = False, empty: bool = False) -> spec.Specification:
     source = dataset.Dataset(
         id="observations",
         mappings=[
-            mapping.Read(
+            python_spec.mapping.Read(
                 bind=bind.bind(read_values, lazy=lazy, empty=empty),
                 features=[feature.Feature(id=name) for name in ("group", "id", "value")],
             ),
-            mapping.Vectorize(
+            python_spec.mapping.Vectorize(
                 bind=bind.bind(double, column=ref.feature("value")),
                 features=[feature.Feature(id="doubled")],
             ),
-            mapping.Vectorize(
+            python_spec.mapping.Vectorize(
                 id="unneeded",
                 bind=bind.bind(double, column=ref.feature("value")),
                 features=[feature.Feature(id="unneeded")],
@@ -96,7 +93,7 @@ def _specification(*, lazy: bool = False, empty: bool = False) -> Specification:
     summary = dataset.Dataset(
         id="summary",
         mappings=[
-            mapping.Collapse(
+            python_spec.mapping.Collapse(
                 id="group_summary",
                 bind=bind.bind(
                     summarize, column=ref.feature("value"), calculated=ref.feature("doubled")
@@ -110,19 +107,19 @@ def _specification(*, lazy: bool = False, empty: bool = False) -> Specification:
     global_summary = dataset.Dataset(
         id="global",
         mappings=[
-            mapping.Collapse(
+            python_spec.mapping.Collapse(
                 id="global_total",
                 bind=bind.bind(total, column=ref.feature("maximum")),
                 features=[feature.Feature(id="total")],
             ),
-            mapping.Collapse(
+            python_spec.mapping.Collapse(
                 id="global_maximum",
                 bind=bind.bind(maximum, column=ref.feature("maximum")),
                 features=[feature.Feature(id="global_max")],
             ),
         ],
     )
-    return Specification.from_python(
+    return spec.Specification.from_python(
         entities=[
             entity.Entity(
                 id="observation",
@@ -140,11 +137,13 @@ def _specification(*, lazy: bool = False, empty: bool = False) -> Specification:
     )
 
 
-class CountingBackend(PolarsBackend):
+class CountingBackend(engine.PolarsBackend):
     def __init__(self) -> None:
         self.groups: list[tuple[list[str], int]] = []
 
-    def collapse(self, frame: object, keys: Sequence[str], columns: Sequence[object]) -> object:
+    def collapse(
+        self, frame: object, keys: abc.Sequence[str], columns: abc.Sequence[object]
+    ) -> object:
         self.groups.append((list(keys), len(columns)))
         return super().collapse(frame, keys, columns)
 
@@ -152,15 +151,15 @@ class CountingBackend(PolarsBackend):
 @pytest.mark.parametrize("lazy", [False, True])
 def test_grouped_reducers_execute_together_with_calculated_inputs_and_aliases(lazy: bool) -> None:
     specification = _specification(lazy=lazy)
-    graph = CallableGraph(specification)
+    graph = execution_graph.CallableGraph(specification)
     assert all(not hasattr(node, "source") for node in graph.callables)
-    plan = Compiler(specification, features=["average"]).compile()
+    plan = compile.Compiler(specification, features=["average"]).compile()
     assert not any("unneeded" in operation.output_features for operation in plan.operations)
     collapse = next(operation for operation in plan.operations if operation.kind == "collapse")
     mapping_model = specification.entities["group"].datasets[0].mappings["group_summary"]
     assert "source" not in mapping_model.model_dump()
     assert all("source" not in operation for operation in plan.to_dict()["operations"])
-    display = _render_step(1, collapse, plan)
+    display = render._render_step(1, collapse, plan)
     assert "source" not in display
     assert "grouping_dimensions" not in display
     assert collapse.entrypoint == f"{__name__}:summarize"
@@ -172,7 +171,7 @@ def test_grouped_reducers_execute_together_with_calculated_inputs_and_aliases(la
     assert "aggregate" not in plan.plan.resources["functions"]
     assert set(specification.functions.collapse) == {"summarize", "maximum", "total"}
     backend = CountingBackend()
-    result = Engine(plan, backend=backend).execute()
+    result = engine.Engine(plan, backend=backend).execute()
     assert not result.failures
     assert backend.groups == [(["group"], 3)]
     frame = result.datasets["group", "summary"]
@@ -187,20 +186,24 @@ def test_grouped_reducers_execute_together_with_calculated_inputs_and_aliases(la
 
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("empty", [False, True])
-def test_chained_and_global_collapses_round_trip(lazy: bool, empty: bool, tmp_path: Path) -> None:
+def test_chained_and_global_collapses_round_trip(
+    lazy: bool, empty: bool, tmp_path: pathlib.Path
+) -> None:
     specification = _specification(lazy=lazy, empty=empty)
     path = tmp_path / "spec.json"
     specification.to_json(path)
-    restored_spec = Specification.from_json(path)
-    plan = Compiler(restored_spec).compile()
-    restored_plan = ExecutionPlan(Plan.from_dict(json.loads(json.dumps(plan.to_dict()))))
-    result = Engine(restored_plan).execute()
+    restored_spec = spec.Specification.from_json(path)
+    plan = compile.Compiler(restored_spec).compile()
+    restored_plan = plan_module.ExecutionPlan(
+        plan_module.Plan.from_dict(json.loads(json.dumps(plan.to_dict())))
+    )
+    result = engine.Engine(restored_plan).execute()
     assert not result.failures
     frame = result.datasets["global", "global"]
     if lazy:
         frame = frame.collect()
     assert frame.to_dicts() == [{"total": 0 if empty else 10, "global_max": None if empty else 6}]
-    assert "total" in FeatureGraph(restored_spec).feature_names
+    assert "total" in analytics.FeatureGraph(restored_spec).feature_names
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -208,11 +211,11 @@ def test_collapse_infers_assembled_dataset_from_nested_expanded_inputs(lazy: boo
     source = dataset.Dataset(
         id="observations",
         mappings=[
-            mapping.Read(
+            python_spec.mapping.Read(
                 bind=bind.bind(read_values, lazy=lazy),
                 features=[feature.Feature(id=name) for name in ("group", "id", "value")],
             ),
-            mapping.Expand(
+            python_spec.mapping.Expand(
                 bind=bind.bind(expanded_values, dataframe=ref.dataset("observations")),
                 features=[feature.Feature(id=name) for name in ("group", "id", "expanded")],
             ),
@@ -221,7 +224,7 @@ def test_collapse_infers_assembled_dataset_from_nested_expanded_inputs(lazy: boo
     summary = dataset.Dataset(
         id="summary",
         mappings=[
-            mapping.Collapse(
+            python_spec.mapping.Collapse(
                 bind=bind.bind(
                     nested_maximum,
                     inputs={"columns": [ref.feature("value"), ref.feature("expanded")]},
@@ -230,7 +233,7 @@ def test_collapse_infers_assembled_dataset_from_nested_expanded_inputs(lazy: boo
             )
         ],
     )
-    specification = Specification.from_python(
+    specification = spec.Specification.from_python(
         entities=[
             entity.Entity(
                 id="observation", name="Observation", dimensions=["group", "id"], datasets=[source]
@@ -242,12 +245,12 @@ def test_collapse_infers_assembled_dataset_from_nested_expanded_inputs(lazy: boo
             dimension.Dimension(id="id", type="integer"),
         ],
     )
-    plan = Compiler(specification, features=["combined_maximum"]).compile()
+    plan = compile.Compiler(specification, features=["combined_maximum"]).compile()
     collapse = next(operation for operation in plan.operations if operation.kind == "collapse")
     assert not hasattr(collapse, "source")
     assert {operation.kind for operation in plan.operations} == {"read", "expand", "collapse"}
     assert "source" not in summary.to_model().mappings["nested_maximum"].model_dump()
-    result = Engine(plan).execute()
+    result = engine.Engine(plan).execute()
     assert not result.failures
     frame = result.datasets["group", "summary"]
     if lazy:
@@ -261,7 +264,7 @@ def test_collapse_infers_assembled_dataset_from_nested_expanded_inputs(lazy: boo
 def test_collapse_rejects_materialized_series_and_skips_dependents() -> None:
     specification = _specification()
     specification.functions.collapse["total"].entrypoint = f"{__name__}:invalid_reducer"
-    result = Engine(Compiler(specification).compile()).execute()
+    result = engine.Engine(compile.Compiler(specification).compile()).execute()
     assert len(result.failures) == 1
     assert "must return an aggregation expression" in next(iter(result.failures.values()))
     assert all(
@@ -284,7 +287,7 @@ def test_collapse_rejects_materialized_series_and_skips_dependents() -> None:
 def test_multi_output_collapse_rejects_invalid_returns(
     monkeypatch: pytest.MonkeyPatch, shape: str, message: str
 ) -> None:
-    plan = Compiler(_specification(), features=["average"]).compile()
+    plan = compile.Compiler(_specification(), features=["average"]).compile()
     result: dict[object, object] = dict(summarize("value", "doubled"))
     if shape == "missing":
         result.pop("average")
@@ -299,7 +302,7 @@ def test_multi_output_collapse_rejects_invalid_returns(
         return maximum(column) if shape == "expression" else result
 
     monkeypatch.setattr(f"{__name__}.summarize", invalid_summary)
-    execution = Engine(plan).execute()
+    execution = engine.Engine(plan).execute()
     assert len(execution.failures) == 1
     assert message in next(iter(execution.failures.values()))
     assert ("group", "summary") not in execution.datasets
@@ -308,13 +311,13 @@ def test_multi_output_collapse_rejects_invalid_returns(
 def test_global_collapse_rejects_multiple_rows() -> None:
     specification = _specification()
     specification.functions.collapse["total"].entrypoint = f"{__name__}:unaggregated"
-    result = Engine(Compiler(specification).compile()).execute()
+    result = engine.Engine(compile.Compiler(specification).compile()).execute()
     assert "dimensionless datasets allow at most one row" in next(iter(result.failures.values()))
 
 
 @pytest.mark.parametrize("invalid", ["missing", "multiple"])
 def test_collapse_rejects_unresolved_input_dataset(invalid: str) -> None:
-    plan = Compiler(_specification(), features=["average"]).compile().to_dict()
+    plan = compile.Compiler(_specification(), features=["average"]).compile().to_dict()
     operation = next(item for item in plan["operations"] if item["kind"] == "collapse")
     if invalid == "missing":
         operation["dependency_ids"] = []
@@ -325,7 +328,7 @@ def test_collapse_rejects_unresolved_input_dataset(invalid: str) -> None:
         plan["operations"].append(producer)
         plan["stages"][0].append(producer["id"])
         operation["dependency_ids"].append(producer["id"])
-    result = Engine(ExecutionPlan(Plan.from_dict(plan))).execute()
+    result = engine.Engine(plan_module.ExecutionPlan(plan_module.Plan.from_dict(plan))).execute()
     message = next(iter(result.failures.values()))
     assert "dependencies must identify one input dataset" in message
 
@@ -334,7 +337,9 @@ def test_collapse_rejects_unresolved_input_dataset(invalid: str) -> None:
 def test_collapse_preserves_null_group_keys(lazy: bool) -> None:
     specification = _specification(lazy=lazy)
     specification.functions.read["read_values"].entrypoint = f"{__name__}:read_null_groups"
-    result = Engine(Compiler(specification, features=["maximum"]).compile()).execute()
+    result = engine.Engine(
+        compile.Compiler(specification, features=["maximum"]).compile()
+    ).execute()
     assert not result.failures
     frame = result.datasets["group", "summary"]
     if lazy:
@@ -353,7 +358,7 @@ def test_dimensionless_alignment_preserves_empty_fragments_and_user_column_names
         right = right.clear()
     if lazy:
         left, right = left.lazy(), right.lazy()
-    result = PolarsBackend().join(left, right, [])
+    result = engine.PolarsBackend().join(left, right, [])
     if lazy:
         result = result.collect()
     assert result.to_dicts() == [{"__uptimely_global_key": 7, "right": None if empty else 8}]

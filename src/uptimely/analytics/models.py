@@ -1,6 +1,6 @@
-from dataclasses import dataclass, field
+import dataclasses
 
-from uptimely.spec import Function
+from uptimely import spec
 
 
 def _filled_fields(**fields: object) -> dict:
@@ -8,14 +8,14 @@ def _filled_fields(**fields: object) -> dict:
     return {key: value for key, value in fields.items() if value is not None}
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class FunctionNode:
     """Display metadata for one function node and its resolved function template."""
 
     name: str
     feature: str | None
     entity: str
-    function: Function | None = field(default=None, compare=False, hash=False)
+    function: spec.Function | None = dataclasses.field(default=None, compare=False, hash=False)
     operation_id: str | None = None
 
     @property
@@ -53,7 +53,7 @@ class FunctionNode:
         )
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class FeatureNode:
     """Display metadata for a feature name and its logical metadata."""
 

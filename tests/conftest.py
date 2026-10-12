@@ -1,9 +1,9 @@
 """Shared test setup: make example modules importable from the repository root."""
 
+import pathlib
 import sys
-from pathlib import Path
 
-REPOSITORY_ROOT = Path(__file__).parent.parent
+REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
 EXAMPLE_SPEC_DIRS = [
     REPOSITORY_ROOT / "examples" / "example_1" / "spec",
     REPOSITORY_ROOT / "examples" / "example_2" / "spec",

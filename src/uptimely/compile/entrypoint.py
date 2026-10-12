@@ -3,10 +3,10 @@
 import dataclasses
 import importlib
 import inspect
+import pathlib
 import sys
 import types
 import typing
-from pathlib import Path
 
 
 @dataclasses.dataclass
@@ -17,7 +17,7 @@ class FunctionSignature:
     returns: str | None = None
 
 
-def load_callable(entrypoint: str, root: Path | None = None) -> typing.Callable:
+def load_callable(entrypoint: str, root: pathlib.Path | None = None) -> typing.Callable:
     """Import the callable addressed by an entrypoint.
 
     Args:
@@ -53,7 +53,7 @@ def load_callable(entrypoint: str, root: Path | None = None) -> typing.Callable:
     return getattr(module, function_name)
 
 
-def read_signature(entrypoint: str, root: Path | None = None) -> FunctionSignature:
+def read_signature(entrypoint: str, root: pathlib.Path | None = None) -> FunctionSignature:
     """Read the annotated argument and return types of an entrypoint.
 
     Args:

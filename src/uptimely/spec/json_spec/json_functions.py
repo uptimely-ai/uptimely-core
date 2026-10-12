@@ -1,24 +1,26 @@
-from typing import Any
+from __future__ import annotations
 
-from pydantic import BaseModel
+import typing
 
-from ..python_spec.bind import _argument_definition
-from .json_model import Dimension
+import pydantic
+
+from ..python_spec import bind
+from . import json_model
 
 
-def _argument_metadata(argument: Any) -> dict[str, Any]:
+def _argument_metadata(argument: typing.Any) -> dict[str, typing.Any]:
     """Serialize an argument definition."""
     return {"type": argument.type, "comment": argument.comment}
 
 
 def python_to_spec_dict(
     datasets: object | None = None,
-    functions: Any = None,
+    functions: typing.Any = None,
     name: str | None = None,
-    dimensions: dict[str, Dimension] | list[Dimension] | None = None,
+    dimensions: dict[str, json_model.Dimension] | list[json_model.Dimension] | None = None,
     *,
     entities: object | None = None,
-) -> dict[str, Any]:
+) -> dict[str, typing.Any]:
     """Convert Python authoring models into the canonical JSON dialect."""
     if entities is not None:
         if datasets is not None:
@@ -52,7 +54,7 @@ def python_to_spec_dict(
             }
             entity_values = None
 
-    if not all(isinstance(dataset, BaseModel) for dataset in dataset_values.values()):
+    if not all(isinstance(dataset, pydantic.BaseModel) for dataset in dataset_values.values()):
         raise TypeError("datasets must contain Pydantic models")
 
     resolved_functions = functions
@@ -68,7 +70,9 @@ def python_to_spec_dict(
     )
 
 
-def _resources_by_id(resources: dict[str, Any] | list[Any] | None) -> dict[str, Any]:
+def _resources_by_id(
+    resources: dict[str, typing.Any] | list[typing.Any] | None,
+) -> dict[str, typing.Any]:
     """Normalize Python resource declarations to their canonical ID-keyed form."""
     if resources is None:
         return {}
@@ -83,9 +87,11 @@ def _resources_by_id(resources: dict[str, Any] | list[Any] | None) -> dict[str, 
     }
 
 
-def _configured_entrypoint(functions: Any, category: str, function_name: str, fallback: str) -> str:
+def _configured_entrypoint(
+    functions: typing.Any, category: str, function_name: str, fallback: str
+) -> str:
     """Return the configured entrypoint or the declared fallback."""
-    if isinstance(functions, BaseModel):
+    if isinstance(functions, pydantic.BaseModel):
         lookup = getattr(functions, category, {})
     elif isinstance(functions, dict):
         lookup = functions.get(category, {})
@@ -94,7 +100,7 @@ def _configured_entrypoint(functions: Any, category: str, function_name: str, fa
 
     if isinstance(lookup, dict):
         configured = lookup.get(function_name)
-        if isinstance(configured, BaseModel):
+        if isinstance(configured, pydantic.BaseModel):
             return str(configured.entrypoint)
         if isinstance(configured, dict):
             entrypoint = configured.get("entrypoint")
@@ -103,9 +109,9 @@ def _configured_entrypoint(functions: Any, category: str, function_name: str, fa
     return fallback
 
 
-def _configured_function(functions: Any, category: str, function_name: str) -> Any:
+def _configured_function(functions: typing.Any, category: str, function_name: str) -> typing.Any:
     """Return a configured function model or mapping entry, when available."""
-    if isinstance(functions, BaseModel):
+    if isinstance(functions, pydantic.BaseModel):
         lookup = getattr(functions, category, {})
         return lookup.get(function_name) if isinstance(lookup, dict) else None
     if isinstance(functions, dict):
@@ -114,9 +120,9 @@ def _configured_function(functions: Any, category: str, function_name: str) -> A
     return None
 
 
-def _auto_function_catalog(declarations: object) -> dict[str, Any]:
+def _auto_function_catalog(declarations: object) -> dict[str, typing.Any]:
     """Build an automatic function catalog from original Python declarations."""
-    merged: dict[str, dict[str, Any]] = {
+    merged: dict[str, dict[str, typing.Any]] = {
         "read": {},
         "write": {},
         "vectorize": {},
@@ -129,7 +135,7 @@ def _auto_function_catalog(declarations: object) -> dict[str, Any]:
         list(declarations.values()) if isinstance(declarations, dict) else list(declarations or [])
     )
 
-    def register_dataset(dataset: Any) -> None:
+    def register_dataset(dataset: typing.Any) -> None:
         for category, functions in dataset.function_catalog().model_dump().items():
             for function_id, function in functions.items():
                 existing = merged[category].get(function_id)
@@ -148,15 +154,15 @@ def _auto_function_catalog(declarations: object) -> dict[str, Any]:
 
 
 def _static_datasets_to_spec(
-    datasets: dict[str, BaseModel],
+    datasets: dict[str, pydantic.BaseModel],
     name: str | None,
-    functions: dict[str, Any],
-    dimensions: dict[str, Dimension],
-    entities: dict[str, BaseModel] | None = None,
-) -> dict[str, Any]:
+    functions: dict[str, typing.Any],
+    dimensions: dict[str, json_model.Dimension],
+    entities: dict[str, pydantic.BaseModel] | None = None,
+) -> dict[str, typing.Any]:
     """Convert specification-layer dataset models into a specification."""
     entity_id = name or "entity"
-    dataset_entries: list[dict[str, Any]] = []
+    dataset_entries: list[dict[str, typing.Any]] = []
 
     for dataset in datasets.values():
         entry = dataset.model_dump(exclude_none=False)
@@ -205,11 +211,11 @@ def _static_datasets_to_spec(
 
 
 def _static_function_catalog(
-    datasets: dict[str, BaseModel], functions: dict[str, Any], category: str
-) -> dict[str, Any]:
+    datasets: dict[str, pydantic.BaseModel], functions: dict[str, typing.Any], category: str
+) -> dict[str, typing.Any]:
     """Build the function catalog for a given operation category."""
-    catalog: dict[str, Any] = {}
-    if isinstance(functions, BaseModel):
+    catalog: dict[str, typing.Any] = {}
+    if isinstance(functions, pydantic.BaseModel):
         by_category = getattr(functions, category, {})
         if isinstance(by_category, dict):
             catalog.update(
@@ -281,7 +287,7 @@ def _static_function_catalog(
                         functions, category, function_id, function_id
                     ),
                     "args": {
-                        name: {**_argument_definition(value), "comment": None}
+                        name: {**bind._argument_definition(value), "comment": None}
                         for name, value in operation.binding.args.items()
                     },
                 }

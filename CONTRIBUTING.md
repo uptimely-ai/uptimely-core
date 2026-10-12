@@ -123,6 +123,28 @@ Use this workflow as the site's only deployment mechanism.
    related issue. CI must pass (lint, format, tests, coverage gate) before
    merge.
 
+### Python imports
+
+Import modules rather than individual classes, functions, or constants in
+implementation code and tests. For nested modules, use `from parent import module`
+and qualify references through that module:
+
+```python
+from uptimely import plan
+from uptimely.engine import backend
+
+operation = plan.Operation(...)
+dataframe_backend = backend.PolarsBackend()
+```
+
+Use a module alias when its name would conflict with a parameter or local variable.
+Place imports at the top of each module, not inside functions. Use postponed
+annotations to avoid evaluating types during circular module initialization.
+Type-only imports may be guarded by `typing.TYPE_CHECKING`, and optional
+dependencies should use guarded module-level imports with an explicit error
+when the unavailable feature is requested. Public API re-exports in
+package `__init__.py` files are an exception; preserve those exported names.
+
 ### Changelog entries
 
 For each pull request that changes behavior or adds something users can see,

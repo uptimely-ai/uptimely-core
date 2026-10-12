@@ -1,7 +1,8 @@
-from dataclasses import dataclass, field
+from __future__ import annotations
 
-from uptimely.row_context import RowContext
-from uptimely.spec import Call
+import dataclasses
+
+from uptimely import row_context, spec
 
 FRAGMENT_OPERATION_TYPES = frozenset({"read", "collapse", "expand", "conform"})
 SOURCE_OPERATION_TYPES = FRAGMENT_OPERATION_TYPES
@@ -12,7 +13,7 @@ def _filled_fields(**fields: object) -> dict:
     return {key: value for key, value in fields.items() if value is not None}
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class CallableNode:
     """One fragment, calculation, or sink function invocation."""
 
@@ -23,10 +24,12 @@ class CallableNode:
     dataset_id: str | None = None
     operation_id: str | None = None
     output_features: tuple[str, ...] = ()
-    args: dict[str, object] = field(default_factory=dict, compare=False, hash=False)
-    callable: Call | None = field(default=None, compare=False, hash=False)
-    callable_type_override: str | None = field(default=None, compare=False, hash=False)
-    row_context: RowContext | None = field(default=None, compare=False, hash=False)
+    args: dict[str, object] = dataclasses.field(default_factory=dict, compare=False, hash=False)
+    callable: spec.Call | None = dataclasses.field(default=None, compare=False, hash=False)
+    callable_type_override: str | None = dataclasses.field(default=None, compare=False, hash=False)
+    row_context: row_context.RowContext | None = dataclasses.field(
+        default=None, compare=False, hash=False
+    )
 
     @property
     def callable_type(self) -> str:

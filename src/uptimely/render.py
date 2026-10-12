@@ -1,15 +1,15 @@
 """Shared template loading for standalone reports and the documentation website."""
 
-from jinja2 import Environment, PackageLoader, select_autoescape
+import jinja2
 
 
-def html_environment() -> Environment:
+def html_environment() -> jinja2.Environment:
     """Load the centralized report templates and shared website layout.
 
     Returns:
         An HTML-autoescaping environment with access to the shared base template.
     """
-    return Environment(
-        loader=PackageLoader("uptimely", "templates"),
-        autoescape=select_autoescape(["html", "j2"]),
+    return jinja2.Environment(
+        loader=jinja2.PackageLoader("uptimely", "templates"),
+        autoescape=jinja2.select_autoescape(["html", "j2"]),
     )

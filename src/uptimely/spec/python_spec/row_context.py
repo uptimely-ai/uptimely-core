@@ -1,9 +1,11 @@
 """Annotate bound values with observation requirements, not function types."""
 
-from dataclasses import dataclass
-from typing import Any
+from __future__ import annotations
 
-from uptimely.row_context import UNBOUNDED, ContextExtent, CountExtent, RowContext
+import dataclasses
+import typing
+
+from uptimely import row_context
 
 __all__ = [
     "UNBOUNDED",
@@ -18,13 +20,17 @@ __all__ = [
     "dataset",
 ]
 
+UNBOUNDED = row_context.UNBOUNDED
+RowContext = row_context.RowContext
+ContextExtent = row_context.ContextExtent
 
-@dataclass(frozen=True)
+
+@dataclasses.dataclass(frozen=True)
 class RowContextBinding[T]:
     """A function argument preserved unchanged alongside its row context."""
 
     value: T
-    row_context: RowContext
+    row_context: row_context.RowContext
 
 
 def time[T](value: T, *, before: str = "0s", after: str = "0s") -> RowContextBinding[T]:
@@ -43,11 +49,19 @@ def time[T](value: T, *, before: str = "0s", after: str = "0s") -> RowContextBin
     """
     return RowContextBinding(
         value,
-        RowContext(before=ContextExtent(time=before), after=ContextExtent(time=after)),
+        row_context.RowContext(
+            before=row_context.ContextExtent(time=before),
+            after=row_context.ContextExtent(time=after),
+        ),
     )
 
 
-def steps[T](value: T, *, before: CountExtent = 0, after: CountExtent = 0) -> RowContextBinding[T]:
+def steps[T](
+    value: T,
+    *,
+    before: row_context.CountExtent = 0,
+    after: row_context.CountExtent = 0,
+) -> RowContextBinding[T]:
     """Bind a value with integer-coordinate distances, not observation counts.
 
     Args:
@@ -63,11 +77,19 @@ def steps[T](value: T, *, before: CountExtent = 0, after: CountExtent = 0) -> Ro
     """
     return RowContextBinding(
         value,
-        RowContext(before=ContextExtent(steps=before), after=ContextExtent(steps=after)),
+        row_context.RowContext(
+            before=row_context.ContextExtent(steps=before),
+            after=row_context.ContextExtent(steps=after),
+        ),
     )
 
 
-def rows[T](value: T, *, before: CountExtent = 0, after: CountExtent = 0) -> RowContextBinding[T]:
+def rows[T](
+    value: T,
+    *,
+    before: row_context.CountExtent = 0,
+    after: row_context.CountExtent = 0,
+) -> RowContextBinding[T]:
     """Bind a value with ordered observation-count requirements.
 
     Args:
@@ -83,27 +105,30 @@ def rows[T](value: T, *, before: CountExtent = 0, after: CountExtent = 0) -> Row
     """
     return RowContextBinding(
         value,
-        RowContext(before=ContextExtent(rows=before), after=ContextExtent(rows=after)),
+        row_context.RowContext(
+            before=row_context.ContextExtent(rows=before),
+            after=row_context.ContextExtent(rows=after),
+        ),
     )
 
 
-def current() -> RowContext:
+def current() -> row_context.RowContext:
     """Declare that only the current observation is required."""
-    return RowContext()
+    return row_context.RowContext()
 
 
-def partition() -> RowContext:
+def partition() -> row_context.RowContext:
     """Declare that the entire input partition is required."""
-    return RowContext(extent="partition")
+    return row_context.RowContext(extent="partition")
 
 
 def dataset() -> RowContext:
     """Declare that the entire input dataset is required."""
-    return RowContext(extent="dataset")
+    return row_context.RowContext(extent="dataset")
 
 
 def _context(
-    value: Any, explicit: RowContext | RowContextBinding[Any] | None = None
+    value: typing.Any, explicit: RowContext | RowContextBinding[typing.Any] | None = None
 ) -> RowContext | None:
     """Consolidate argument annotations and explicit feature/operation metadata."""
     annotated = _collect(value)
@@ -117,7 +142,7 @@ def _context(
     return context.merge(annotated) if annotated is not None else context
 
 
-def _collect(value: Any) -> RowContext | None:
+def _collect(value: typing.Any) -> RowContext | None:
     """Collect annotations recursively within one binding's arguments."""
     context = None
     if isinstance(value, RowContextBinding):

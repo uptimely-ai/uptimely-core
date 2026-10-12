@@ -9,18 +9,18 @@ The server exposes two layers of tools:
 """
 
 import argparse
+import dataclasses
 import json
 import logging
+import pathlib
 import sys
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any
+import typing
 
-from fastmcp import FastMCP
+import fastmcp
+import polars as pl
 
-from uptimely.compile import Compiler, read_signature
-from uptimely.engine import Engine
-from uptimely.spec import Specification
+from uptimely import compile, spec
+from uptimely import engine as uptimely_engine
 
 logger = logging.getLogger(__name__)
 
@@ -34,19 +34,21 @@ FUNCTION_CATEGORIES = (
 )
 
 
-@dataclass
+@dataclasses.dataclass
 class ServerState:
     """Runtime configuration and cached specification for the MCP server."""
 
-    spec_path: Path
-    project_root: Path
-    runtime_resources: dict[str, dict[str, dict[str, Any]]] = field(default_factory=dict)
-    specification: Specification | None = field(default=None, repr=False)
+    spec_path: pathlib.Path
+    project_root: pathlib.Path
+    runtime_resources: dict[str, dict[str, dict[str, typing.Any]]] = dataclasses.field(
+        default_factory=dict
+    )
+    specification: spec.Specification | None = dataclasses.field(default=None, repr=False)
 
-    def load_specification(self, *, reload: bool = False) -> Specification:
+    def load_specification(self, *, reload: bool = False) -> spec.Specification:
         """Return the specification, parsing it on first use or when reloaded."""
         if self.specification is None or reload:
-            self.specification = Specification.from_json(self.spec_path)
+            self.specification = spec.Specification.from_json(self.spec_path)
         return self.specification
 
 
@@ -55,22 +57,20 @@ def _to_json(payload: object) -> str:
     return json.dumps(payload, indent=2)
 
 
-def _collect_frame(value: object) -> Any:
+def _collect_frame(value: object) -> typing.Any:
     """Collect a Polars result into a concrete frame; pass other values through."""
-    import polars as pl
-
     if isinstance(value, pl.LazyFrame):
         return value.collect()
     return value
 
 
-def create_server(state: ServerState) -> FastMCP:
+def create_server(state: ServerState) -> fastmcp.FastMCP:
     """Create the MCP server with tools bound to the given server state."""
     project_root = str(state.project_root.resolve())
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
-    mcp = FastMCP("uptimely")
+    mcp = fastmcp.FastMCP("uptimely")
 
     @mcp.tool()
     def list_functions() -> str:
@@ -97,7 +97,7 @@ def create_server(state: ServerState) -> FastMCP:
         template = getattr(catalog, category).get(function_id)
         if template is None:
             raise ValueError(f"Unknown {category} function: {function_id}")
-        signature = read_signature(template.entrypoint, root=state.project_root)
+        signature = compile.read_signature(template.entrypoint, root=state.project_root)
         return _to_json(
             {
                 "id": function_id,
@@ -186,7 +186,7 @@ def create_server(state: ServerState) -> FastMCP:
                 compiles the full specification when omitted.
         """
         specification = state.load_specification()
-        plan = Compiler(specification, features=feature_ids).compile()
+        plan = compile.Compiler(specification, features=feature_ids).compile()
         return _to_json(
             {
                 "features": feature_ids,
@@ -221,8 +221,8 @@ def create_server(state: ServerState) -> FastMCP:
             raise ValueError("max_rows must be a positive integer")
 
         specification = state.load_specification()
-        plan = Compiler(specification, features=[feature_id]).compile()
-        engine = Engine(
+        plan = compile.Compiler(specification, features=[feature_id]).compile()
+        engine = uptimely_engine.Engine(
             plan,
             runtime_resources=state.runtime_resources,
         )
@@ -248,7 +248,7 @@ def create_server(state: ServerState) -> FastMCP:
         ]
         view = frame.select(columns) if columns else frame
         rows = view.head(max_rows).to_dicts()
-        payload: dict[str, Any] = {
+        payload: dict[str, typing.Any] = {
             "status": "ok",
             "feature": feature_id,
             "entity": entity_id,
@@ -281,7 +281,9 @@ def create_server(state: ServerState) -> FastMCP:
     return mcp
 
 
-def _load_runtime_resources(path: Path | None) -> dict[str, dict[str, dict[str, Any]]]:
+def _load_runtime_resources(
+    path: pathlib.Path | None,
+) -> dict[str, dict[str, dict[str, typing.Any]]]:
     """Load a runtime resources mapping from a JSON file."""
     if path is None:
         return {}
@@ -291,16 +293,18 @@ def _load_runtime_resources(path: Path | None) -> dict[str, dict[str, dict[str, 
 def main() -> None:
     """Launch the uptimely MCP server over stdio."""
     parser = argparse.ArgumentParser(description="Uptimely MCP server")
-    parser.add_argument("--spec", required=True, type=Path, help="Path to the JSON specification")
+    parser.add_argument(
+        "--spec", required=True, type=pathlib.Path, help="Path to the JSON specification"
+    )
     parser.add_argument(
         "--project-root",
-        type=Path,
-        default=Path.cwd(),
+        type=pathlib.Path,
+        default=pathlib.Path.cwd(),
         help="Root added to sys.path so function entrypoints are importable",
     )
     parser.add_argument(
         "--runtime-resources",
-        type=Path,
+        type=pathlib.Path,
         default=None,
         help="JSON file with runtime resource values for ?storage-style placeholders",
     )

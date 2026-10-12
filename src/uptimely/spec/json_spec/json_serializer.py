@@ -1,20 +1,20 @@
 """JSON serialization helpers for specification models."""
 
 import json
-from pathlib import Path
-from typing import TYPE_CHECKING
+import pathlib
+import typing
 
-if TYPE_CHECKING:
-    from .json_model import Specification
+if typing.TYPE_CHECKING:
+    from . import json_model
 
 
 class SpecificationSerializer:
     """Serialize specification models to JSON documents."""
 
     @staticmethod
-    def to_json(specification: "Specification", path: str | Path) -> str:
+    def to_json(specification: "json_model.Specification", path: str | pathlib.Path) -> str:
         """Write the specification document to disk and return its path."""
-        target = Path(path)
+        target = pathlib.Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         payload = specification.model_dump(exclude_none=False)
         for category in ("collapse", "expand", "conform"):

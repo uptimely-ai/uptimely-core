@@ -1,14 +1,14 @@
 import json
+import pathlib
 import re
-from pathlib import Path
 
-from uptimely.compile import Compiler
+from uptimely import compile
 
-SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
 
 
-def test_compiled_plan_export_omits_generated_timestamp(tmp_path: Path) -> None:
-    plan = Compiler(SPEC_PATH).compile()
+def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) -> None:
+    plan = compile.Compiler(SPEC_PATH).compile()
 
     output_path = plan.export_json(tmp_path / "execution_plan.json")
     metadata = json.loads(output_path.read_text(encoding="utf-8"))
@@ -42,8 +42,8 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: Path) -> None:
     ]
 
 
-def test_execution_plan_report_shows_topology_stages(tmp_path: Path) -> None:
-    plan = Compiler(SPEC_PATH).compile()
+def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> None:
+    plan = compile.Compiler(SPEC_PATH).compile()
 
     report_path = plan.export_html(tmp_path / "report.html")
     report = report_path.read_text(encoding="utf-8")
@@ -93,11 +93,11 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: Path) -> None:
     assert (report_path.parent / source_match.group(1)).resolve().is_file()
 
 
-def test_execution_plan_exports_html_to_default_path(tmp_path: Path, monkeypatch) -> None:
-    plan = Compiler(SPEC_PATH).compile()
+def test_execution_plan_exports_html_to_default_path(tmp_path: pathlib.Path, monkeypatch) -> None:
+    plan = compile.Compiler(SPEC_PATH).compile()
     monkeypatch.chdir(tmp_path)
 
     report_path = plan.export_html()
 
-    assert report_path == Path("_generated/compile/execution_plan.html")
+    assert report_path == pathlib.Path("_generated/compile/execution_plan.html")
     assert report_path.is_file()

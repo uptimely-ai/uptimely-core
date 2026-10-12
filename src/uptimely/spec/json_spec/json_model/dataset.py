@@ -2,41 +2,41 @@
 
 from __future__ import annotations
 
-from typing import Literal
+import typing
 
-from pydantic import Field
+import pydantic
 
-from uptimely.row_context import RowContext
+from uptimely import row_context as uptimely_row_context
 
-from .common import Binding, StrictModel
+from . import common
 
 
-class Feature(StrictModel):
+class Feature(common.StrictModel):
     """A dataset feature's logical metadata."""
 
-    id: str = Field(exclude=True)
+    id: str = pydantic.Field(exclude=True)
     description: str | None = None
     type: str | None = None
     unit: str | None = None
-    row_context: RowContext | None = None
+    row_context: uptimely_row_context.RowContext | None = None
 
 
-class FeatureMapping(StrictModel):
+class FeatureMapping(common.StrictModel):
     """A shared function binding that produces one or more dataset features."""
 
-    id: str = Field(exclude=True)
-    binding: Binding
-    features: list[str] = Field(default_factory=list)
+    id: str = pydantic.Field(exclude=True)
+    binding: common.Binding
+    features: list[str] = pydantic.Field(default_factory=list)
 
 
-class Order(StrictModel):
+class Order(common.StrictModel):
     """One logical dataset ordering key, without a physical row-order guarantee."""
 
-    dimension: str = Field(pattern=r"^\$dimensions\..+$")
-    direction: Literal["asc", "desc"]
+    dimension: str = pydantic.Field(pattern=r"^\$dimensions\..+$")
+    direction: typing.Literal["asc", "desc"]
 
 
-class RowScope(StrictModel):
+class RowScope(common.StrictModel):
     """The conceptual row subset represented by a dataset."""
 
     grain: str = ""
@@ -44,15 +44,15 @@ class RowScope(StrictModel):
     coverage: str = ""
 
 
-class Dataset(StrictModel):
+class Dataset(common.StrictModel):
     """An entry under an entity's `datasets` list."""
 
-    id: str = Field(exclude=True)
+    id: str = pydantic.Field(exclude=True)
     description: str | None = None
-    row_scope: RowScope = Field(default_factory=RowScope)
-    features: dict[str, Feature] = Field(default_factory=dict)
-    mappings: dict[str, FeatureMapping] = Field(default_factory=dict)
-    order: list[Order] = Field(default_factory=list)
+    row_scope: RowScope = pydantic.Field(default_factory=RowScope)
+    features: dict[str, Feature] = pydantic.Field(default_factory=dict)
+    mappings: dict[str, FeatureMapping] = pydantic.Field(default_factory=dict)
+    order: list[Order] = pydantic.Field(default_factory=list)
 
     @property
     def all_features(self) -> dict[str, Feature]:
@@ -60,11 +60,11 @@ class Dataset(StrictModel):
         return self.features
 
 
-class Entity(StrictModel):
+class Entity(common.StrictModel):
     """An entry under the top-level `entities` block."""
 
-    id: str = Field(exclude=True)
+    id: str = pydantic.Field(exclude=True)
     name: str
     description: str | None = None
-    dimensions: list[str] = Field(default_factory=list)
-    datasets: list[Dataset] = Field(default_factory=list)
+    dimensions: list[str] = pydantic.Field(default_factory=list)
+    datasets: list[Dataset] = pydantic.Field(default_factory=list)

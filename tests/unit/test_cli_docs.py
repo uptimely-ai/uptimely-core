@@ -1,16 +1,16 @@
 """Tests for generating analytics documentation from the command line."""
 
 import json
+import pathlib
 import subprocess
 import sys
-from pathlib import Path
 
+import jinja2
 import pytest
-from jinja2 import TemplateError
 
 from uptimely.cli import cli
 
-REPOSITORY_ROOT = Path(__file__).parents[2]
+REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 SPEC_PATH = REPOSITORY_ROOT / "examples/example_1/_generated/spec/spec.json"
 PAGES = {
     "index.html",
@@ -30,7 +30,7 @@ PAGES = {
 
 
 def test_docs_generate_defaults(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "generate", "--spec", str(SPEC_PATH)])
@@ -45,7 +45,7 @@ def test_docs_generate_defaults(
 
 
 def test_docs_generate_custom_output_and_timestamp(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     output = tmp_path / "public/analytics"
     monkeypatch.setattr(
@@ -92,13 +92,13 @@ def test_docs_requires_valid_arguments(
         ModuleNotFoundError("Missing function module"),
         AttributeError("Missing function"),
         TypeError("Invalid callable signature"),
-        TemplateError("Invalid HTML template"),
+        jinja2.TemplateError("Invalid HTML template"),
     ],
 )
 def test_docs_generation_errors_are_reported(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], failure: Exception
 ) -> None:
-    def fail(*args: object, **kwargs: object) -> Path:
+    def fail(*args: object, **kwargs: object) -> pathlib.Path:
         raise failure
 
     monkeypatch.setattr(cli, "generate_docs", fail)
@@ -115,7 +115,7 @@ def test_docs_generation_errors_are_reported(
 
 @pytest.mark.parametrize("content", [None, "not JSON", '{"version": "unsupported"}'])
 def test_docs_rejects_missing_or_invalid_specification(
-    tmp_path: Path,
+    tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     content: str | None,
@@ -148,7 +148,7 @@ def test_docs_rejects_missing_or_invalid_specification(
 
 @pytest.mark.parametrize("explicit_project_root", [False, True])
 def test_docs_generate_imports_project_functions_in_fresh_process(
-    tmp_path: Path, explicit_project_root: bool
+    tmp_path: pathlib.Path, explicit_project_root: bool
 ) -> None:
     project = tmp_path / "project"
     project.mkdir()

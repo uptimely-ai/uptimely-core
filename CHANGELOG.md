@@ -30,6 +30,10 @@ Initial public release.
 
 ### Changed
 
+- Standardized implementation and test imports on module-qualified references,
+  preserving package-level public API re-exports and leaving examples unchanged.
+- Moved function-local imports to module scope while keeping S3 dependencies
+  optional and reporting the required extra when unavailable.
 - Collapse mappings now use a normal function `binding`, without `source` or
   `group_by`. The compiler infers the input dataset from bound features;
   inputs spanning datasets require an explicit expand first.
@@ -42,6 +46,12 @@ Initial public release.
   runtime-state accessors, and pre-row-scope specification input normalization.
   Portable plans now serialize and load only their canonical schema; execution
   results expose runtime outputs.
+
+### Fixed
+
+- Corrected stale symbol references in specification models, compilation,
+  feature graphs, the engine, and tests that prevented pytest collection and
+  blocked the pre-push hook.
 
 ## [0.0.1] - 2026-08-16
 
