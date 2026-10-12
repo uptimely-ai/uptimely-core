@@ -10,7 +10,15 @@ from uptimely.spec.json_spec import json_model
 from . import mappings as mapping_declarations
 from .bind import _argument_definition, _entrypoint
 from .feature import Feature
-from .mappings import Mapping, Write
+from .mappings import (
+    Aggregation,
+    Collapse,
+    Conform,
+    Expand,
+    Read,
+    Vectorize,
+    Write,
+)
 from .ref import Reference
 from .row_context import _context
 
@@ -69,7 +77,9 @@ class Dataset:
 
     id: str
     features: list[Feature] = field(default_factory=list)
-    mappings: list[Mapping] = field(default_factory=list)
+    mappings: list[Vectorize | Read | Conform | Expand | Collapse | Write] = field(
+        default_factory=list
+    )
     description: str | None = None
     row_scope: RowScope = field(default_factory=RowScope)
     order: list[Order] = field(default_factory=list)
@@ -78,7 +88,7 @@ class Dataset:
         """Convert this declaration to the canonical Pydantic dataset model."""
         mappings: dict[str, json_model.FeatureMapping] = {}
         writes: dict[str, json_model.Sink] = {}
-        feature_models = {feature.id: feature.to_model() for feature in self.features}
+        feature_models = {item.id: item.to_model() for item in self.features}
         for declaration in self.mappings:
             if isinstance(declaration, Write):
                 model = declaration.to_model()
@@ -126,7 +136,6 @@ class Dataset:
 
     def function_catalog(self) -> json_model.FunctionCatalog:
         """Build the function templates required by this dataset declaration."""
-        from .feature import Aggregation
 
         def argument(name: str, value: Any) -> json_model.Argument:
             return json_model.Argument(id=name, **_argument_definition(value))
@@ -139,7 +148,9 @@ class Dataset:
 
         write: dict[str, json_model.WriteFunction] = {}
 
-        def register(declaration: Mapping | Write) -> None:
+        def register(
+            declaration: Vectorize | Read | Conform | Expand | Collapse | Write,
+        ) -> None:
             if isinstance(declaration, Write):
                 function_id = declaration.bind.function_id or declaration.bind.function.__name__
                 write[function_id] = json_model.WriteFunction(

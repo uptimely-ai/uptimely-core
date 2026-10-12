@@ -119,15 +119,11 @@ def _context(
 
 def _collect(value: Any) -> RowContext | None:
     """Collect annotations recursively within one binding's arguments."""
-    from .feature import Aggregation
-
     context = None
     if isinstance(value, RowContextBinding):
         context = value.row_context
         nested = _collect(value.value)
         return context.merge(nested) if nested is not None else context
-    if isinstance(value, Aggregation):
-        return None
     if isinstance(value, dict):
         children = value.values()
     elif isinstance(value, (list, tuple)):
