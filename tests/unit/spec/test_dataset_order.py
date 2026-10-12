@@ -186,10 +186,12 @@ def test_dataset_order_appears_in_reference_json_and_html(tmp_path: Path) -> Non
 
     standalone = specification.create_html(tmp_path / "standalone.html")
     create_website_pages(specification, tmp_path)
-    for path in (standalone, tmp_path / "spec_features.html"):
+    for path in (standalone, tmp_path / "spec_datasets.html"):
         html = path.read_text(encoding="utf-8")
         assert "Logical order (not a physical row-order guarantee)" in html
         assert html.index("$dimensions.machine asc") < html.index("$dimensions.timestamp desc")
+    assert 'href="#datasets"' in standalone.read_text(encoding="utf-8")
+    assert "Logical order" not in (tmp_path / "spec_features.html").read_text(encoding="utf-8")
 
 
 def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:

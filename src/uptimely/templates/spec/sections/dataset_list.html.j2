@@ -28,7 +28,7 @@
         {% endif %}
         {% if dataset.order %}
         <div class="mt-4">
-          <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Logical order</p>
+          <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Logical order (not a physical row-order guarantee)</p>
           <ul class="mt-1 flex flex-wrap gap-2">
             {% for key in dataset.order %}
             <li class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ key.dimension }} {{ key.direction }}</li>

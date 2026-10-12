@@ -10,7 +10,7 @@
         <nav class="lg:sticky lg:top-8" aria-label="Documentation sections">
           <p class="mb-3 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Contents</p>
           <div class="flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
-            {% for anchor, label, icon in [("overview", "Overview", "layout-dashboard"), ("entities", "Features", "boxes"), ("dimensions", "Dimensions", "layers-3"), ("functions", "Functions", "braces")] %}
+            {% for anchor, label, icon in [("overview", "Overview", "layout-dashboard"), ("entities", "Features", "boxes"), ("datasets", "Datasets", "database"), ("dimensions", "Dimensions", "layers-3"), ("functions", "Functions", "braces")] %}
             <a href="#{{ anchor }}" class="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 font-mono text-xs text-slate-400 transition hover:bg-slate-900 hover:text-cyan-200"><i data-lucide="{{ icon }}" class="h-3.5 w-3.5 text-slate-400" aria-hidden="true"></i>{{ label }}</a>
             {% endfor %}
           </div>
@@ -21,6 +21,7 @@
         {% block specification_sections %}
         {% include "spec/sections/overview.html.j2" %}
         {% include "spec/sections/entities.html.j2" %}
+        {% include "spec/sections/dataset_list.html.j2" %}
         {% include "spec/sections/dimensions.html.j2" %}
         {% include "spec/sections/functions.html.j2" %}
         {% endblock %}
