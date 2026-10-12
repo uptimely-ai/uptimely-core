@@ -28,15 +28,17 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: Path) -> None:
         "vectorize",
         "write",
     }
-    aggregate_operation = next(
+    collapse_operation = next(
         operation for operation in metadata["operations"] if operation["kind"] == "collapse"
     )
-    assert aggregate_operation["entity_id"] == "pump"
-    assert aggregate_operation["arguments"]["dataset"] == "pump_telemetry_dataset"
-    assert aggregate_operation["arguments"]["dimensions"] == [
+    assert collapse_operation["entity_id"] == "pump"
+    assert collapse_operation["entrypoint"].endswith(":maximum")
+    assert collapse_operation["arguments"] == {"feature": "bearing_temperature"}
+    assert collapse_operation["output_features"] == [
         "plant",
         "production_line",
         "pump",
+        "bearing_temperature_max",
     ]
 
 
