@@ -9,7 +9,7 @@ from graphable import graphable
 from graphable.views import texttree
 
 from uptimely.spec import Function, Specification
-from uptimely.spec.json_spec.bindings import feature_dependencies
+from uptimely.spec.json_spec.bindings import aggregation_bindings, feature_dependencies
 
 from . import render
 from .models import FeatureNode, FunctionNode
@@ -215,7 +215,7 @@ class FeatureGraph(GraphBase):
                     dependencies = feature_dependencies(mapping.binding.args)
                     dependencies.extend(
                         feature
-                        for binding in mapping.aggregations.values()
+                        for binding in aggregation_bindings(mapping.binding.args).values()
                         for feature in feature_dependencies(binding.args)
                     )
                     if all(existing.id != function.id for existing in self.functions):

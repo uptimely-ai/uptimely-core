@@ -589,7 +589,7 @@ def test_aggregations_execute_without_row_context() -> None:
     assert output_dataset.features["temperature_max"].row_context is None
     payload = output.model_dump()
     assert "row_context" not in payload["binding"]
-    assert "row_context" not in payload["aggregations"]["temperature_max"]
+    assert "row_context" not in payload["binding"]["args"]["aggregations"]["temperature_max"]
     restored = Plan.from_dict(json.loads(json.dumps(plan.plan.to_dict())))
     assert restored == plan.plan
     assert not Engine(ExecutionPlan(restored)).execute().failures

@@ -5,6 +5,7 @@ from graphable import graphable
 
 from uptimely.spec import Specification
 
+from ..spec.json_spec.bindings import aggregation_bindings
 from .node import CallableNode
 
 Node = graphable.Graphable
@@ -61,7 +62,7 @@ class CallableGraph:
                         operation_id=mapping.id,
                         output_features=tuple(mapping.features),
                         args=mapping.binding.args,
-                        aggregations=mapping.aggregations,
+                        aggregations=aggregation_bindings(mapping.binding.args),
                         callable=call,
                         row_context=(
                             dataset.features[primary_feature].row_context

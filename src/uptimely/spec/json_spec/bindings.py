@@ -31,6 +31,18 @@ def aggregation_entries(value: object) -> list[dict[str, Any]]:
     return []
 
 
+def aggregation_bindings(args: dict[str, Any] | None) -> dict[str, Any]:
+    """Parse collapse reducer bindings from a function binding's arguments."""
+    from .json_model.common import Binding
+
+    if not isinstance(args, dict):
+        return {}
+    value = args.get("aggregations", {})
+    if not isinstance(value, dict):
+        raise ValueError("Collapse binding argument 'aggregations' must be an object")
+    return {feature_id: Binding.model_validate(binding) for feature_id, binding in value.items()}
+
+
 def feature_dependencies(args: dict[str, Any] | None) -> list[str]:
     """Return unique feature identifiers consumed by binding arguments."""
     if not isinstance(args, dict):

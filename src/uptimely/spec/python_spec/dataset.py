@@ -225,7 +225,9 @@ class Dataset:
 
         for declaration in self.mappings:
             if isinstance(declaration, mapping_declarations.Collapse):
-                register_aggregations(declaration.aggregations or declaration.bind.args)
+                register_aggregations(
+                    declaration.aggregations or declaration.bind.args.get("aggregations", {})
+                )
 
         return json_model.FunctionCatalog(
             read=read,

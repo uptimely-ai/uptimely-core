@@ -77,11 +77,10 @@ arguments, distinct from the reusable function template it invokes. Feature
 mappings declare their output feature identifiers in `features`; write
 mappings have an empty `features` list.
 
-For collapse mappings, each entry in `aggregations` is a binding to one
-`functions.aggregate` template. Its key names the feature it computes. The
-shared collapse binding defines input and grouping behavior; reducer bindings
-remain separate and are combined with it when the compiler builds execution
-operations.
+For collapse mappings, `binding.args.aggregations` contains bindings to
+`functions.aggregate` templates, keyed by the feature each reducer computes.
+The collapse function receives those reducer bindings alongside its other
+arguments.
 
 Mapping identifiers MUST be unique within their declaring dataset.
 
