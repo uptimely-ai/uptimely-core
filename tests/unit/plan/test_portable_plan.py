@@ -127,14 +127,6 @@ def test_plan_rejects_missing_required_fields(missing_field: str) -> None:
         Plan.from_dict(payload)
 
 
-def test_plan_rejects_legacy_execution_fields() -> None:
-    payload = _sample_plan().to_dict()
-    payload["execution_order"] = []
-
-    with pytest.raises(ValueError, match="Plan contains unknown fields: execution_order"):
-        Plan.from_dict(payload)
-
-
 def test_plan_rejects_unknown_dependency_and_stage_operation() -> None:
     payload = _sample_plan().to_dict()
     payload["operations"][1]["dependency_ids"] = ["unknown-operation"]

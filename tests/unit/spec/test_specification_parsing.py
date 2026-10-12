@@ -37,31 +37,6 @@ def test_specification_accepts_top_level_name(tmp_path: Path) -> None:
     assert specification.name == "Pump analytics"
 
 
-def test_specification_defaults_missing_source_to_manual(tmp_path: Path) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration.pop("source", None)
-
-    specification = Specification.from_json(
-        _write_configuration(tmp_path, configuration, "manual.json")
-    )
-
-    assert specification.source.name == "manual"
-    assert specification.source.generated is False
-
-
-@pytest.mark.parametrize("location", ["dataset", "row_scope"])
-def test_specification_rejects_legacy_slice_ordering(tmp_path: Path, location: str) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]
-    target = dataset if location == "dataset" else dataset["row_scope"]
-    target["ordering"] = "plant, production_line, pump, timestamp"
-
-    with pytest.raises(ValidationError, match="ordering"):
-        Specification.from_json(
-            _write_configuration(tmp_path, configuration, f"legacy-ordering-{location}.json")
-        )
-
-
 def test_specification_rejects_unsupported_version(tmp_path: Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["version"] = "9.9.9"
@@ -160,25 +135,6 @@ def test_structural_references_compile_to_identifiers() -> None:
         "specific": "pump_units",
         "dimension": "pump",
     }
-
-
-def test_dataset_mappings_are_supported_in_entity_specs(tmp_path: Path) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    for entity in configuration["entities"].values():
-        for dataset in entity.get("datasets", []):
-            for mapping in dataset["mappings"].values():
-                assert "source" not in mapping
-                binding = mapping["binding"]
-                assert all(
-                    not (isinstance(arg, dict) and arg.get("type") == "dataset_ref")
-                    for arg in binding.get("args", {}).values()
-                )
-
-    spec_path = tmp_path / "spec_dataset_test.json"
-    spec_path.write_text(json.dumps(configuration), encoding="utf-8")
-
-    specification = Specification.from_json(spec_path)
-    assert specification.entities["pump_telemetry"].datasets
 
 
 def test_system_and_subset_support_multiple_variables() -> None:

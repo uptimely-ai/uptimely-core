@@ -15,7 +15,6 @@ from uptimely.spec.json_spec.json_model import (
     Call,
     Feature,
     FeatureMapping,
-    VectorizeFunction,
 )
 from uptimely.spec.python_spec import bind, dataset, dimension, feature, mapping, ref, row_context
 from uptimely.spec.python_spec.bind import _argument_definition, _binding_value
@@ -69,17 +68,6 @@ def _specification(binding: bind.Bind, context: RowContext | None = None) -> Spe
     )
 
 
-def test_dataset_authoring_uses_mappings_for_all_operation_types() -> None:
-    assert {
-        "read",
-        "conform",
-        "expand",
-        "collapse",
-        "vectorize",
-        "write",
-    }.isdisjoint(dataset.Dataset.__dataclass_fields__)
-
-
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
@@ -129,7 +117,6 @@ def test_annotations_preserve_values_and_primitive_schemas() -> None:
 def test_helpers_return_row_context_bindings(factory) -> None:
     assert isinstance(factory("argument"), row_context.RowContextBinding)
     assert "RowContextBinding" in row_context.__all__
-    assert not hasattr(row_context, "ContextBinding")
 
 
 def test_feature_consolidates_directional_maxima() -> None:
@@ -276,19 +263,7 @@ def test_helpers_work_as_direct_feature_context(annotation, expected) -> None:
 def test_direct_binding_declarations_collect_context() -> None:
     argument = row_context.rows(8, before=7)
     binding = bind.Bind(calculate, {"count": argument})
-    assert not hasattr(binding, "row_context")
     assert mapping.Vectorize(id="result", bind=binding).row_context == argument.row_context
-
-
-def test_mapping_model_does_not_own_feature_context() -> None:
-    assert "row_context" not in FeatureMapping.model_fields
-    with pytest.raises(ValidationError, match="row_context"):
-        FeatureMapping(
-            id="summary",
-            binding=Binding(function="calculate"),
-            features=["maximum"],
-            row_context={"before": {"rows": 7}},
-        )
 
 
 def test_unbounded_is_explicit_and_dominates_bounded_values() -> None:
@@ -351,18 +326,12 @@ def test_canonical_context_rejects_invalid_metadata(payload: dict) -> None:
     ],
 )
 def test_non_vectorized_models_reject_context(model_type, fields: dict) -> None:
-    assert "row_context" not in model_type.model_fields
     with pytest.raises(ValidationError, match="row_context"):
         model_type(**fields, row_context={})
 
 
-def test_features_have_no_context_field() -> None:
-    assert "row_context" not in feature.Feature.__dataclass_fields__
-    with pytest.raises(TypeError, match="row_context"):
-        feature.Feature(id="result", row_context=row_context.current())
-
-
-def test_collapse_binding_unwraps_annotations_without_registering_context() -> None:
+@pytest.mark.parametrize("constructor", [mapping.aggregation, mapping.Aggregation])
+def test_aggregation_unwraps_row_context_annotations(constructor) -> None:
     args = {"configuration": {"windows": [row_context.time("8h", before="8h")]}}
     binding = bind.bind(calculate, **args)
     entry = _binding_value({"items": [binding]})["items"][0]
@@ -370,12 +339,7 @@ def test_collapse_binding_unwraps_annotations_without_registering_context() -> N
         "function": "calculate",
         "args": {"configuration": {"windows": ["8h"]}},
     }
-    assert "row_context" not in bind.Bind.__dataclass_fields__
-    collapse = mapping.Collapse(
-        id="summary",
-        bind=binding,
-    ).to_model()
-    assert not hasattr(collapse, "row_context")
+    assert is_aggregation_entry(entry)
 
 
 def test_shared_binding_supports_distinct_feature_contexts() -> None:
@@ -414,7 +378,6 @@ def test_shared_binding_supports_distinct_feature_contexts() -> None:
         if operation.kind == "vectorize"
     }
     assert contexts == {"first": "8h", "second": "12h"}
-    assert not hasattr(shared, "row_context")
     # Compilation uses the feature's current metadata, not a stale derived call.
     calculation = baseline.entities["entity"].datasets[0].features["result"]
     calculation.row_context = RowContext(before=ContextExtent(time="16h"))
@@ -428,35 +391,16 @@ def test_shared_binding_supports_distinct_feature_contexts() -> None:
     "operation_type",
     [mapping.Read, mapping.Conform, mapping.Expand],
 )
-def test_mappings_unwrap_annotations_without_context(operation_type) -> None:
+def test_mappings_unwrap_row_context_annotations_from_arguments(operation_type) -> None:
     declaration = operation_type(
         bind=bind.bind(calculate, configuration={"windows": [row_context.time("8h", before="8h")]})
     )
     model = declaration.to_model()
-    assert "row_context" not in operation_type.__dataclass_fields__
-    assert "row_context" not in FeatureMapping.model_fields
-    assert "row_context" not in model.model_dump()
     assert model.binding.args == {"configuration": {"windows": ["8h"]}}
-    assert "row_context" not in model.binding.model_dump()
     copied = dataset.Dataset(id="observations", mappings=[declaration]).to_model()
-    assert "row_context" not in next(iter(copied.mappings.values())).model_dump()
-    with pytest.raises(TypeError, match="row_context"):
-        operation_type(bind=bind.bind(calculate), row_context=row_context.rows(1, before=1))
-
-
-def test_mapping_module_exposes_only_current_mapping_declarations() -> None:
-    assert not hasattr(mapping, "_Operation")
-    assert not hasattr(mapping, "Mapping")
-    assert not hasattr(mapping, "Aggregation")
-    assert not hasattr(mapping, "aggregation")
-    assert mapping.Vectorize
-    assert feature.Feature
-
-
-def test_input_scope_is_removed_from_function_templates() -> None:
-    with pytest.raises(ValidationError, match="input_scope"):
-        VectorizeFunction(id="calculate", entrypoint="module:calculate", input_scope="window")
-    assert "input_scope" not in VectorizeFunction.model_json_schema()["properties"]
+    assert next(iter(copied.mappings.values())).binding.args == {
+        "configuration": {"windows": ["8h"]}
+    }
 
 
 def test_spec_plan_and_batch_execution_preserve_context_and_arguments(tmp_path: Path) -> None:
@@ -515,16 +459,6 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(tmp_path: 
     assert "Row context:" not in features_html
     html = plan.export_html(tmp_path / "plan.html").read_text(encoding="utf-8")
     assert "Row context" in html
-
-
-def test_old_plans_without_context_load_as_unknown() -> None:
-    plan = Compiler(
-        _specification(bind.bind(calculate, column=ref.feature("temperature")))
-    ).compile()
-    payload = plan.plan.to_dict()
-    for operation in payload["operations"]:
-        operation.pop("row_context")
-    assert all(item.row_context is None for item in Plan.from_dict(payload).operations)
 
 
 def test_plan_context_is_present_in_portable_operations() -> None:

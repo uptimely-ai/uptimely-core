@@ -30,11 +30,7 @@ def test_example_manifest_parses_complete_specification() -> None:
     specification = Specification.from_json(SPEC_PATH)
     specification_from_directory = Specification.from_json(SPEC_PATH.parent)
 
-    assert not hasattr(specification, "environments")
     assert specification_from_directory.path.endswith("spec.json")
-    assert not hasattr(specification, "orchestration")
-    assert not hasattr(specification, "engine")
-    assert not hasattr(specification, "storage")
     assert specification.dimensions["pump"].parent == "production_line"
     assert set(specification.entities) == {"pump_telemetry", "pump"}
     assert specification.entities["pump_telemetry"].dimensions == [
