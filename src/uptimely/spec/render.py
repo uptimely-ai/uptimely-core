@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-import importlib.util
+import dataclasses
+import datetime
 import json
-from dataclasses import asdict, dataclass
-from datetime import datetime
-from pathlib import Path
-from typing import Any
+import pathlib
+import typing
+from importlib import util
 
-from uptimely.compile.entrypoint import read_signature
-from uptimely.render import html_environment
-from uptimely.spec import Specification
-from uptimely.spec.json_spec.bindings import feature_dependencies
+from uptimely import render, spec
+from uptimely.compile import entrypoint as compile_entrypoint
+from uptimely.spec.json_spec import bindings
 
-OUTPUT_DIR = Path("_generated") / "spec"
+OUTPUT_DIR = pathlib.Path("_generated") / "spec"
 SPECIFICATION_PAGES = {
     "overview": "spec.html",
     "features": "spec_features.html",
@@ -25,7 +24,7 @@ SPECIFICATION_PAGES = {
 }
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class DocumentationSummary:
     """Typed summary values displayed in the documentation overview."""
 
@@ -41,18 +40,20 @@ class DocumentationSummary:
     function_buckets: dict[str, int]
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class DocumentationContext:
     """Complete template context for one documentation build."""
 
-    configuration: dict[str, Any]
+    configuration: dict[str, typing.Any]
     summary: DocumentationSummary
-    feature_dependencies: list[dict[str, Any]]
+    feature_dependencies: list[dict[str, typing.Any]]
     generated_at: str | None = None
 
 
-def _write_document_data(context: DocumentationContext, output_path: Path) -> dict[str, Any]:
-    data = asdict(context)
+def _write_document_data(
+    context: DocumentationContext, output_path: pathlib.Path
+) -> dict[str, typing.Any]:
+    data = dataclasses.asdict(context)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
         json.dumps(data, indent=2, sort_keys=True) + "\n",
@@ -62,12 +63,12 @@ def _write_document_data(context: DocumentationContext, output_path: Path) -> di
 
 
 def _render_document(
-    context: dict[str, Any],
-    output_path: Path,
+    context: dict[str, typing.Any],
+    output_path: pathlib.Path,
     include_navigation: bool = False,
     section: str | None = None,
-) -> Path:
-    environment = html_environment()
+) -> pathlib.Path:
+    environment = render.html_environment()
     template = f"spec/{section}.html.j2" if section else "spec/index.html.j2"
     document = environment.get_template(template).render(
         configuration=context["configuration"],
@@ -84,8 +85,8 @@ def _render_document(
 
 
 def create_website_pages(
-    specification: Specification,
-    output_directory: Path,
+    specification: spec.Specification,
+    output_directory: pathlib.Path,
     include_generated_at: bool = False,
 ) -> None:
     """Export separate specification sections with shared website navigation.
@@ -95,12 +96,12 @@ def create_website_pages(
         output_directory: Directory shared by all website pages.
         include_generated_at: Include a timestamp on each specification page.
     """
-    context = asdict(_build_context(specification, include_generated_at))
+    context = dataclasses.asdict(_build_context(specification, include_generated_at))
     for section, filename in SPECIFICATION_PAGES.items():
         _render_document(context, output_directory / filename, True, section)
 
 
-def _feature_data(configuration: dict[str, Any]) -> tuple[list[dict], list[dict], set[str]]:
+def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], list[dict], set[str]]:
     """Collect mapped feature metadata and calculated feature references."""
     entities = configuration.get("entities", {})
     functions = configuration.get("functions", {})
@@ -142,13 +143,15 @@ def _feature_data(configuration: dict[str, Any]) -> tuple[list[dict], list[dict]
     referenced_features = {
         dependency
         for calculation in calculated_features
-        for dependency in feature_dependencies((calculation.get("binding") or {}).get("args"))
+        for dependency in bindings.feature_dependencies(
+            (calculation.get("binding") or {}).get("args")
+        )
     }
     return fragment_features, calculated_features, referenced_features
 
 
 def _build_context(
-    specification: Specification, include_generated_at: bool
+    specification: spec.Specification, include_generated_at: bool
 ) -> DocumentationContext:
     """Build the typed template context from a canonical specification model."""
     configuration = specification.model_dump(mode="json", exclude_none=True)
@@ -174,13 +177,15 @@ def _build_context(
                 continue
             module_name = entrypoint.split(":", 1)[0]
             try:
-                module_spec = importlib.util.find_spec(module_name)
+                module_spec = util.find_spec(module_name)
             except (ModuleNotFoundError, ValueError):
                 module_spec = None
             if module_spec is not None and module_spec.origin not in (None, "built-in", "frozen"):
-                function["entrypoint_file"] = Path(module_spec.origin).resolve().as_uri()
+                function["entrypoint_file"] = pathlib.Path(module_spec.origin).resolve().as_uri()
             try:
-                return_type = read_signature(entrypoint, Path.cwd()).returns
+                return_type = compile_entrypoint.read_signature(
+                    entrypoint, pathlib.Path.cwd()
+                ).returns
             except (AttributeError, ImportError, ModuleNotFoundError, TypeError, ValueError):
                 return_type = None
             if return_type:
@@ -230,12 +235,14 @@ def _build_context(
         {
             "function": call.function,
             "feature": call.feature,
-            "dependencies": feature_dependencies(call.args),
+            "dependencies": bindings.feature_dependencies(call.args),
         }
         for call in specification.calls
     ]
     generated_at = (
-        datetime.now().astimezone().isoformat(timespec="seconds") if include_generated_at else None
+        datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+        if include_generated_at
+        else None
     )
     return DocumentationContext(
         configuration=configuration,
@@ -246,10 +253,10 @@ def _build_context(
 
 
 def create_json(
-    specification: Specification,
-    output_path: str | Path | None = None,
+    specification: spec.Specification,
+    output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
-) -> Path:
+) -> pathlib.Path:
     """Export specification reference data as JSON.
 
     Args:
@@ -260,7 +267,7 @@ def create_json(
     Returns:
         The path to the written JSON document.
     """
-    target = Path(output_path) if output_path is not None else OUTPUT_DIR / "docs.json"
+    target = pathlib.Path(output_path) if output_path is not None else OUTPUT_DIR / "docs.json"
     context = _build_context(specification, include_generated_at)
     target = target.with_suffix(".json")
     _write_document_data(context, target)
@@ -268,12 +275,12 @@ def create_json(
 
 
 def create_html(
-    specification: Specification,
-    output_path: str | Path | None = None,
+    specification: spec.Specification,
+    output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
     *,
     include_navigation: bool = False,
-) -> Path:
+) -> pathlib.Path:
     """Render specification reference HTML with optional website navigation.
 
     Args:
@@ -285,6 +292,6 @@ def create_html(
     Returns:
         The path to the rendered reference page.
     """
-    target = Path(output_path) if output_path is not None else OUTPUT_DIR / "spec.html"
-    context = asdict(_build_context(specification, include_generated_at))
+    target = pathlib.Path(output_path) if output_path is not None else OUTPUT_DIR / "spec.html"
+    context = dataclasses.asdict(_build_context(specification, include_generated_at))
     return _render_document(context, target.with_suffix(".html"), include_navigation)

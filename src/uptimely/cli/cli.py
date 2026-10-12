@@ -1,27 +1,31 @@
 """Command-line tools for working with Uptimely."""
 
 import argparse
+import functools
+import pathlib
 import re
 import shutil
 import stat
 import sys
-from functools import partial
-from http.client import HTTPException
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from importlib.metadata import PackageNotFoundError, metadata
-from pathlib import Path
-from tempfile import TemporaryDirectory, TemporaryFile
-from urllib.error import URLError
-from urllib.parse import quote, urlsplit
-from urllib.request import urlopen
-from zipfile import BadZipFile, ZipFile
+import tempfile
+import zipfile
+from http import client
+from http import server as http_server
+from importlib import metadata
+from urllib import error as urllib_error
+from urllib import parse, request
+
+import jinja2
+
+from uptimely import spec as spec_module
+from uptimely.docs import docs as docs_module
 
 EXAMPLES_FOLDER: str = "examples"
 
 
 def _repository_url() -> str:
     """Read the repository URL from the installed distribution metadata."""
-    for entry in metadata("uptimely-core").get_all("Project-URL", []):
+    for entry in metadata.metadata("uptimely-core").get_all("Project-URL", []):
         label, separator, url = entry.partition(",")
         if separator and label.strip().lower() == "repository":
             return url.strip()
@@ -30,7 +34,7 @@ def _repository_url() -> str:
 
 def _archive_url(repository: str, ref: str) -> str:
     """Build a GitHub archive URL for a repository and revision."""
-    parsed = urlsplit(repository)
+    parsed = parse.urlsplit(repository)
     match = re.fullmatch(r"/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?", parsed.path)
     if (
         parsed.scheme != "https"
@@ -43,10 +47,10 @@ def _archive_url(repository: str, ref: str) -> str:
     if not ref.strip():
         raise ValueError("The Git revision must not be empty")
     owner, name = match.groups()
-    return f"https://codeload.github.com/{owner}/{name}/zip/{quote(ref, safe='')}"
+    return f"https://codeload.github.com/{owner}/{name}/zip/{parse.quote(ref, safe='')}"
 
 
-def _extract_examples(archive: ZipFile, destination: Path) -> None:
+def _extract_examples(archive: zipfile.ZipFile, destination: pathlib.Path) -> None:
     """Copy regular files under EXAMPLES_FOLDER relative to the repository root."""
     source_parts = EXAMPLES_FOLDER.split("/")
     prefix_length = 1 + len(source_parts)
@@ -76,7 +80,7 @@ def _extract_examples(archive: ZipFile, destination: Path) -> None:
         raise ValueError("The repository archive contains no example files")
 
 
-def download_examples(output: Path, ref: str = "HEAD") -> Path:
+def download_examples(output: pathlib.Path, ref: str = "HEAD") -> pathlib.Path:
     """Download the public repository's examples into a new directory.
 
     Args:
@@ -99,14 +103,14 @@ def download_examples(output: Path, ref: str = "HEAD") -> Path:
         raise FileExistsError(f"Destination already exists: {output}")
     url = _archive_url(_repository_url(), ref)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with TemporaryDirectory(prefix=".uptimely-", dir=output.parent) as temporary:
-        staging = Path(temporary) / "examples"
+    with tempfile.TemporaryDirectory(prefix=".uptimely-", dir=output.parent) as temporary:
+        staging = pathlib.Path(temporary) / "examples"
         staging.mkdir()
-        with TemporaryFile() as downloaded:
-            with urlopen(url, timeout=30) as response:
+        with tempfile.TemporaryFile() as downloaded:
+            with request.urlopen(url, timeout=30) as response:
                 shutil.copyfileobj(response, downloaded)
             downloaded.seek(0)
-            with ZipFile(downloaded) as archive:
+            with zipfile.ZipFile(downloaded) as archive:
                 _extract_examples(archive, staging)
         if output.exists() or output.is_symlink():
             raise FileExistsError(f"Destination already exists: {output}")
@@ -115,11 +119,11 @@ def download_examples(output: Path, ref: str = "HEAD") -> Path:
 
 
 def generate_docs(
-    spec: Path,
-    output: Path,
-    project_root: Path,
+    spec: pathlib.Path,
+    output: pathlib.Path,
+    project_root: pathlib.Path,
     include_generated_at: bool = False,
-) -> Path:
+) -> pathlib.Path:
     """Generate the static analytics documentation website.
 
     Args:
@@ -131,19 +135,16 @@ def generate_docs(
     Returns:
         The path to the website index.
     """
-    from uptimely.docs.docs import Documentation
-    from uptimely.spec import Specification
-
     root = str(project_root.resolve())
     if root not in sys.path:
         sys.path.insert(0, root)
-    specification = Specification.from_json(spec)
-    return Documentation(specification).create_html(
+    specification = spec_module.Specification.from_json(spec)
+    return docs_module.Documentation(specification).create_html(
         output / "index.html", include_generated_at=include_generated_at
     )
 
 
-def serve_docs(directory: Path, host: str = "127.0.0.1", port: int = 8001) -> None:
+def serve_docs(directory: pathlib.Path, host: str = "127.0.0.1", port: int = 8001) -> None:
     """Serve an existing documentation website for local preview.
 
     Args:
@@ -167,8 +168,8 @@ def serve_docs(directory: Path, host: str = "127.0.0.1", port: int = 8001) -> No
         )
     if not 0 <= port <= 65535:
         raise ValueError("Port must be between 0 and 65535.")
-    handler = partial(SimpleHTTPRequestHandler, directory=str(directory))
-    with ThreadingHTTPServer((host, port), handler) as server:
+    handler = functools.partial(http_server.SimpleHTTPRequestHandler, directory=str(directory))
+    with http_server.ThreadingHTTPServer((host, port), handler) as server:
         print(
             f"Serving documentation from {directory} at "
             f"http://{host}:{server.server_port}/ (Ctrl+C to stop)",
@@ -200,8 +201,8 @@ def main() -> None:
     download = actions.add_parser("download", help="Download examples from public GitHub")
     download.add_argument(
         "--output",
-        type=Path,
-        default=Path("examples"),
+        type=pathlib.Path,
+        default=pathlib.Path("examples"),
         help="Destination directory (default: examples)",
     )
     download.add_argument(
@@ -214,17 +215,19 @@ def main() -> None:
     generate = doc_actions.add_parser(
         "generate", help="Generate the specification, feature graph, and execution plan website"
     )
-    generate.add_argument("--spec", type=Path, required=True, help="JSON specification path")
+    generate.add_argument(
+        "--spec", type=pathlib.Path, required=True, help="JSON specification path"
+    )
     generate.add_argument(
         "--output",
-        type=Path,
-        default=Path("_generated/docs"),
+        type=pathlib.Path,
+        default=pathlib.Path("_generated/docs"),
         help="Website directory (default: _generated/docs)",
     )
     generate.add_argument(
         "--project-root",
-        type=Path,
-        default=Path.cwd(),
+        type=pathlib.Path,
+        default=pathlib.Path.cwd(),
         help="Root for importing function entrypoints (default: working directory)",
     )
     generate.add_argument(
@@ -235,8 +238,8 @@ def main() -> None:
     serve = doc_actions.add_parser("serve", help="Serve the generated website for local preview")
     serve.add_argument(
         "--directory",
-        type=Path,
-        default=Path("_generated/docs"),
+        type=pathlib.Path,
+        default=pathlib.Path("_generated/docs"),
         help="Website directory (default: _generated/docs)",
     )
     serve.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
@@ -251,8 +254,6 @@ def main() -> None:
             parser.exit(1, f"uptimely: error: {error}\n")
         return
     if args.command == "docs":
-        from jinja2 import TemplateError
-
         try:
             index = generate_docs(
                 args.spec, args.output, args.project_root, args.include_generated_at
@@ -263,7 +264,7 @@ def main() -> None:
             ImportError,
             AttributeError,
             TypeError,
-            TemplateError,
+            jinja2.TemplateError,
         ) as error:
             parser.exit(1, f"uptimely: error: {error}\n")
         print(f"Documentation website generated at {index}")
@@ -272,11 +273,11 @@ def main() -> None:
         destination = download_examples(args.output, args.ref)
     except (
         OSError,
-        URLError,
-        HTTPException,
-        BadZipFile,
+        urllib_error.URLError,
+        client.HTTPException,
+        zipfile.BadZipFile,
         ValueError,
-        PackageNotFoundError,
+        metadata.PackageNotFoundError,
     ) as error:
         parser.exit(1, f"uptimely: error: {error}\n")
     print(f"Downloaded examples to {destination}")

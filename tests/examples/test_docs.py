@@ -1,14 +1,14 @@
 import json
-from html.parser import HTMLParser
-from pathlib import Path
+import pathlib
+from html import parser as html_parser
 
-from uptimely.docs.docs import Documentation
-from uptimely.spec import Specification
+from uptimely import spec
+from uptimely.docs import docs
 
-SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
 
 
-class TextCollector(HTMLParser):
+class TextCollector(html_parser.HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.parts: list[str] = []
@@ -23,7 +23,7 @@ class TextCollector(HTMLParser):
         return " ".join(self.parts)
 
 
-def _documentation_counts(specification: Specification) -> dict[str, int]:
+def _documentation_counts(specification: spec.Specification) -> dict[str, int]:
     datasets = [
         dataset for entity in specification.entities.values() for dataset in entity.datasets
     ]
@@ -41,10 +41,10 @@ def _documentation_counts(specification: Specification) -> dict[str, int]:
     }
 
 
-def test_json_docs_have_expected_keys(tmp_path: Path) -> None:
-    specification = Specification.from_json(SPEC_PATH)
+def test_json_docs_have_expected_keys(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
 
-    output_path = Documentation(specification).create_json(tmp_path / "docs.json")
+    output_path = docs.Documentation(specification).create_json(tmp_path / "docs.json")
     document = json.loads(output_path.read_text(encoding="utf-8"))
 
     assert set(document) == {
@@ -70,11 +70,11 @@ def test_json_docs_have_expected_keys(tmp_path: Path) -> None:
     }
 
 
-def test_json_docs_counts_match_specification(tmp_path: Path) -> None:
-    specification = Specification.from_json(SPEC_PATH)
+def test_json_docs_counts_match_specification(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
     expected_counts = _documentation_counts(specification)
 
-    output_path = Documentation(specification).create_json(tmp_path / "docs.json")
+    output_path = docs.Documentation(specification).create_json(tmp_path / "docs.json")
     document = json.loads(output_path.read_text(encoding="utf-8"))
     configuration = document["configuration"]
 
@@ -88,8 +88,8 @@ def test_json_docs_counts_match_specification(tmp_path: Path) -> None:
     assert len(document["feature_dependencies"]) == len(specification.calls)
 
 
-def test_html_docs_overview_counts_match_specification(tmp_path: Path) -> None:
-    specification = Specification.from_json(SPEC_PATH)
+def test_html_docs_overview_counts_match_specification(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
     specification.name = "Pump analytics"
     expected_counts = _documentation_counts(specification)
 

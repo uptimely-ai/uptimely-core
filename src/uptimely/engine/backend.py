@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
-from pathlib import Path
-from typing import Any, Protocol
+import pathlib
+import typing
+from collections import abc
 
 import polars as pl
 
+from uptimely.compile import entrypoint as entrypoint_module
 
-class DataFrameBackend(Protocol):
+
+class DataFrameBackend(typing.Protocol):
     """Operations required by the engine from a dataframe backend."""
 
     name: str
@@ -18,11 +20,11 @@ class DataFrameBackend(Protocol):
 
     def column_names(self, frame: object) -> list[str]: ...
 
-    def select(self, frame: object, columns: Sequence[str]) -> object: ...
+    def select(self, frame: object, columns: abc.Sequence[str]) -> object: ...
 
     def lazy(self, frame: object) -> object: ...
 
-    def join(self, left: object, right: object, keys: Sequence[str]) -> object: ...
+    def join(self, left: object, right: object, keys: abc.Sequence[str]) -> object: ...
 
     def collect(self, frame: object) -> object: ...
 
@@ -32,7 +34,9 @@ class DataFrameBackend(Protocol):
 
     def with_columns(self, frame: object, column: object) -> object: ...
 
-    def collapse(self, frame: object, keys: Sequence[str], columns: Sequence[object]) -> object: ...
+    def collapse(
+        self, frame: object, keys: abc.Sequence[str], columns: abc.Sequence[object]
+    ) -> object: ...
 
     def is_expression(self, value: object) -> bool: ...
 
@@ -45,16 +49,16 @@ class DataFrameBackend(Protocol):
     def is_column(self, value: object) -> bool: ...
 
 
-class ResourceResolver(Protocol):
+class ResourceResolver(typing.Protocol):
     """Resolve plan resources needed during execution."""
 
     def entity_dimensions(self, entity_id: str) -> list[str]: ...
 
 
-class CallableLoader(Protocol):
+class CallableLoader(typing.Protocol):
     """Load an executable callable from a plan entrypoint."""
 
-    def load(self, entrypoint: str) -> Callable[..., Any]: ...
+    def load(self, entrypoint: str) -> abc.Callable[..., typing.Any]: ...
 
 
 class PolarsBackend:
@@ -70,13 +74,13 @@ class PolarsBackend:
             return frame.collect_schema().names()
         return list(frame.columns)
 
-    def select(self, frame: object, columns: Sequence[str]) -> object:
+    def select(self, frame: object, columns: abc.Sequence[str]) -> object:
         return frame.select(*columns)
 
     def lazy(self, frame: object) -> object:
         return frame.lazy()
 
-    def join(self, left: object, right: object, keys: Sequence[str]) -> object:
+    def join(self, left: object, right: object, keys: abc.Sequence[str]) -> object:
         if not keys:
             key = "__uptimely_global_key"
             columns = set(self.column_names(left)) | set(self.column_names(right))
@@ -113,7 +117,9 @@ class PolarsBackend:
     def with_columns(self, frame: object, column: object) -> object:
         return frame.with_columns(column)
 
-    def collapse(self, frame: object, keys: Sequence[str], columns: Sequence[object]) -> object:
+    def collapse(
+        self, frame: object, keys: abc.Sequence[str], columns: abc.Sequence[object]
+    ) -> object:
         """Evaluate all reducer expressions together at the requested grain."""
         if keys:
             return frame.group_by(list(keys)).agg(list(columns))
@@ -138,7 +144,7 @@ class PolarsBackend:
 class PlanResourceResolver:
     """Resolve resources from the portable plan resource mapping."""
 
-    def __init__(self, resources: Mapping[str, Any]) -> None:
+    def __init__(self, resources: abc.Mapping[str, typing.Any]) -> None:
         self.resources = resources
 
     def entity_dimensions(self, entity_id: str) -> list[str]:
@@ -151,7 +157,5 @@ class PlanResourceResolver:
 class EntrypointLoader:
     """Default callable loader using the package entrypoint implementation."""
 
-    def load(self, entrypoint: str) -> Callable[..., Any]:
-        from uptimely.compile.entrypoint import load_callable
-
-        return load_callable(entrypoint, Path.cwd())
+    def load(self, entrypoint: str) -> abc.Callable[..., typing.Any]:
+        return entrypoint_module.load_callable(entrypoint, pathlib.Path.cwd())

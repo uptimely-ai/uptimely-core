@@ -1,13 +1,13 @@
 """Tests for the installed command and GitHub example downloads."""
 
 import io
+import pathlib
 import stat
 import sys
 import tomllib
-from email.message import Message
-from pathlib import Path
-from urllib.error import HTTPError, URLError
-from zipfile import ZipFile, ZipInfo
+import zipfile
+from email import message
+from urllib import error as urllib_error
 
 import pytest
 
@@ -17,7 +17,7 @@ from uptimely.cli import cli
 def _archive(files: dict[str, str]) -> bytes:
     """Create an in-memory repository archive."""
     buffer = io.BytesIO()
-    with ZipFile(buffer, "w") as archive:
+    with zipfile.ZipFile(buffer, "w") as archive:
         for name, content in files.items():
             archive.writestr(name, content)
     return buffer.getvalue()
@@ -26,10 +26,10 @@ def _archive(files: dict[str, str]) -> bytes:
 @pytest.fixture()
 def github(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """Replace metadata and HTTP access with a public repository fixture."""
-    package_metadata = Message()
+    package_metadata = message.Message()
     package_metadata["Project-URL"] = "Documentation, https://example.com/docs"
     package_metadata["Project-URL"] = "Repository, https://github.com/example/project"
-    monkeypatch.setattr(cli, "metadata", lambda name: package_metadata)
+    monkeypatch.setattr(cli.metadata, "metadata", lambda name: package_metadata)
     urls: list[str] = []
     archive = _archive(
         {
@@ -49,11 +49,11 @@ def github(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         urls.append(url)
         return io.BytesIO(archive)
 
-    monkeypatch.setattr(cli, "urlopen", open_url)
+    monkeypatch.setattr(cli.request, "urlopen", open_url)
     return urls
 
 
-def test_download_examples(tmp_path: Path, github: list[str]) -> None:
+def test_download_examples(tmp_path: pathlib.Path, github: list[str]) -> None:
     output = tmp_path / "nested" / "examples"
     assert cli.download_examples(output) == output
     assert github == ["https://codeload.github.com/example/project/zip/HEAD"]
@@ -69,14 +69,14 @@ def test_download_examples(tmp_path: Path, github: list[str]) -> None:
     assert list(output.parent.iterdir()) == [output]
 
 
-def test_download_revision(tmp_path: Path, github: list[str]) -> None:
+def test_download_revision(tmp_path: pathlib.Path, github: list[str]) -> None:
     cli.download_examples(tmp_path / "examples", "feature/demo")
     assert github == ["https://codeload.github.com/example/project/zip/feature%2Fdemo"]
 
 
 @pytest.mark.parametrize("source_path", ["samples", "demos/examples"])
 def test_configured_examples_source(
-    tmp_path: Path,
+    tmp_path: pathlib.Path,
     github: list[str],
     monkeypatch: pytest.MonkeyPatch,
     source_path: str,
@@ -88,7 +88,7 @@ def test_configured_examples_source(
         }
     )
     monkeypatch.setattr(cli, "EXAMPLES_FOLDER", source_path)
-    monkeypatch.setattr(cli, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
+    monkeypatch.setattr(cli.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
     output = tmp_path / "examples"
     cli.download_examples(output)
     assert (output / "run.py").read_text() == "configured example"
@@ -96,7 +96,9 @@ def test_configured_examples_source(
 
 
 @pytest.mark.parametrize("kind", ["directory", "file", "symlink"])
-def test_existing_destination_is_preserved(tmp_path: Path, github: list[str], kind: str) -> None:
+def test_existing_destination_is_preserved(
+    tmp_path: pathlib.Path, github: list[str], kind: str
+) -> None:
     output = tmp_path / "examples"
     if kind == "directory":
         output.mkdir()
@@ -128,25 +130,29 @@ def test_existing_destination_is_preserved(tmp_path: Path, github: list[str], ki
     ],
 )
 def test_unsafe_paths_leave_no_output(
-    tmp_path: Path, github: list[str], monkeypatch: pytest.MonkeyPatch, path: str
+    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch, path: str
 ) -> None:
     data = _archive({"project/examples/ok.txt": "ok", path: "unsafe"})
-    monkeypatch.setattr(cli, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
+    monkeypatch.setattr(cli.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
     with pytest.raises(ValueError, match="Unsafe"):
         cli.download_examples(tmp_path / "examples")
     assert list(tmp_path.iterdir()) == []
 
 
 def test_symlinks_are_rejected(
-    tmp_path: Path, github: list[str], monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     buffer = io.BytesIO()
-    with ZipFile(buffer, "w") as archive:
-        link = ZipInfo("project/examples/link")
+    with zipfile.ZipFile(buffer, "w") as archive:
+        link = zipfile.ZipInfo("project/examples/link")
         link.create_system = 3
         link.external_attr = (stat.S_IFLNK | 0o777) << 16
         archive.writestr(link, "../../escape")
-    monkeypatch.setattr(cli, "urlopen", lambda *args, **kwargs: io.BytesIO(buffer.getvalue()))
+    monkeypatch.setattr(
+        cli.request,
+        "urlopen",
+        lambda *args, **kwargs: io.BytesIO(buffer.getvalue()),
+    )
     with pytest.raises(ValueError, match="Unsupported"):
         cli.download_examples(tmp_path / "examples")
     assert list(tmp_path.iterdir()) == []
@@ -154,13 +160,13 @@ def test_symlinks_are_rejected(
 
 @pytest.mark.parametrize("data", [b"not a zip", _archive({"project/readme.md": "no examples"})])
 def test_invalid_archives_are_reported(
-    tmp_path: Path,
+    tmp_path: pathlib.Path,
     github: list[str],
     monkeypatch: pytest.MonkeyPatch,
     data: bytes,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(cli, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
+    monkeypatch.setattr(cli.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
     monkeypatch.setattr(
         sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "examples")]
     )
@@ -172,19 +178,23 @@ def test_invalid_archives_are_reported(
 
 
 @pytest.mark.parametrize(
-    "error", [URLError("offline"), HTTPError("https://example.com", 404, "Not found", {}, None)]
+    "error",
+    [
+        urllib_error.URLError("offline"),
+        urllib_error.HTTPError("https://example.com", 404, "Not found", {}, None),
+    ],
 )
 def test_network_errors_are_reported(
-    tmp_path: Path,
+    tmp_path: pathlib.Path,
     github: list[str],
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
-    error: URLError,
+    error: urllib_error.URLError,
 ) -> None:
     def fail(*args: object, **kwargs: object) -> None:
         raise error
 
-    monkeypatch.setattr(cli, "urlopen", fail)
+    monkeypatch.setattr(cli.request, "urlopen", fail)
     monkeypatch.setattr(
         sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "examples")]
     )
@@ -196,7 +206,7 @@ def test_network_errors_are_reported(
 
 
 def test_missing_repository_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(cli, "metadata", lambda name: Message())
+    monkeypatch.setattr(cli.metadata, "metadata", lambda name: message.Message())
     with pytest.raises(ValueError, match="no Repository URL"):
         cli._repository_url()
 
@@ -225,7 +235,7 @@ def test_git_suffix_and_empty_revision() -> None:
 
 
 def test_cli_success(
-    tmp_path: Path,
+    tmp_path: pathlib.Path,
     github: list[str],
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -238,7 +248,7 @@ def test_cli_success(
 
 
 def test_cli_output_and_revision(
-    tmp_path: Path, github: list[str], monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     output = tmp_path / "demo" / "examples"
     monkeypatch.setattr(
@@ -252,33 +262,33 @@ def test_cli_output_and_revision(
 
 
 def test_write_failure_cleans_staging(
-    tmp_path: Path, github: list[str], monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    original_open = Path.open
+    original_open = pathlib.Path.open
 
-    def open_path(path: Path, mode: str = "r", *args: object, **kwargs: object) -> object:
+    def open_path(path: pathlib.Path, mode: str = "r", *args: object, **kwargs: object) -> object:
         if mode == "xb":
             raise PermissionError("Cannot write examples")
         return original_open(path, mode, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "open", open_path)
+    monkeypatch.setattr(pathlib.Path, "open", open_path)
     with pytest.raises(PermissionError, match="Cannot write"):
         cli.download_examples(tmp_path / "examples")
     assert list(tmp_path.iterdir()) == []
 
 
 def test_destination_created_during_download_is_preserved(
-    tmp_path: Path, github: list[str], monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     output = tmp_path / "examples"
-    open_url = cli.urlopen
+    open_url = cli.request.urlopen
 
     def download(url: str, *, timeout: int) -> object:
         output.mkdir()
         (output / "keep.txt").write_text("keep")
         return open_url(url, timeout=timeout)
 
-    monkeypatch.setattr(cli, "urlopen", download)
+    monkeypatch.setattr(cli.request, "urlopen", download)
     with pytest.raises(FileExistsError, match="already exists"):
         cli.download_examples(output)
     assert (output / "keep.txt").read_text() == "keep"
@@ -296,7 +306,7 @@ def test_cli_requires_valid_subcommands(
 
 
 def test_console_script_registration() -> None:
-    root = Path(__file__).parents[2]
+    root = pathlib.Path(__file__).parents[2]
     config = tomllib.loads((root / "pyproject.toml").read_text())
     assert config["project"]["scripts"]["uptimely"] == "uptimely.cli.cli:main"
     assert config["project"]["scripts"]["uptimely-mcp"] == "uptimely.mcp.server:main"

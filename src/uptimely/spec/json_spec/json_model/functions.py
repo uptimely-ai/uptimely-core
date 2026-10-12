@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Literal
+import typing
 
-from pydantic import Field
+import pydantic
 
-from .common import Argument, StrictModel
+from . import common
 
 FUNCTION_TYPES = ["sql_query", "python_function"]
 FUNCTION_CATEGORIES = (
@@ -19,12 +19,12 @@ FUNCTION_CATEGORIES = (
 )
 
 
-class FunctionTemplate(StrictModel):
+class FunctionTemplate(common.StrictModel):
     """Common declaration fields for a catalog function template."""
 
-    id: str = Field(exclude=True)
+    id: str = pydantic.Field(exclude=True)
     entrypoint: str
-    args: dict[str, Argument] = Field(default_factory=dict)
+    args: dict[str, common.Argument] = pydantic.Field(default_factory=dict)
 
 
 class ReadFunction(FunctionTemplate):
@@ -39,7 +39,7 @@ class VectorizeFunction(FunctionTemplate):
     """A function template under `functions.vectorize`."""
 
     description: str | None = None
-    partitioning: Literal["none", "by_entity_dimensions", "custom"] | None = None
+    partitioning: typing.Literal["none", "by_entity_dimensions", "custom"] | None = None
 
 
 class CollapseFunction(FunctionTemplate):
@@ -57,12 +57,12 @@ class ConformFunction(FunctionTemplate):
     """
 
 
-class FunctionCatalog(StrictModel):
+class FunctionCatalog(common.StrictModel):
     """The top-level `functions` block."""
 
-    read: dict[str, ReadFunction] = Field(default_factory=dict)
-    write: dict[str, WriteFunction] = Field(default_factory=dict)
-    vectorize: dict[str, VectorizeFunction] = Field(default_factory=dict)
-    collapse: dict[str, CollapseFunction] = Field(default_factory=dict)
-    expand: dict[str, ExpandFunction] = Field(default_factory=dict)
-    conform: dict[str, ConformFunction] = Field(default_factory=dict)
+    read: dict[str, ReadFunction] = pydantic.Field(default_factory=dict)
+    write: dict[str, WriteFunction] = pydantic.Field(default_factory=dict)
+    vectorize: dict[str, VectorizeFunction] = pydantic.Field(default_factory=dict)
+    collapse: dict[str, CollapseFunction] = pydantic.Field(default_factory=dict)
+    expand: dict[str, ExpandFunction] = pydantic.Field(default_factory=dict)
+    conform: dict[str, ConformFunction] = pydantic.Field(default_factory=dict)

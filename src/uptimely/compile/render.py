@@ -1,18 +1,20 @@
 """Render a compiled execution plan as standalone or linked HTML reports."""
 
+from __future__ import annotations
+
+import collections
 import json
 import os
-from collections import Counter
-from pathlib import Path
-from typing import Any
+import pathlib
+import typing
 
-from uptimely.analytics.render import GraphStyle
-from uptimely.plan import Operation
-from uptimely.render import html_environment
+from uptimely import plan as uptimely_plan
+from uptimely import render as uptimely_render
+from uptimely.analytics import render
 
-from .compiler import ExecutionPlan
+from . import compiler
 
-OUTPUT_PATH = Path("_generated") / "compile" / "execution_plan.html"
+OUTPUT_PATH = pathlib.Path("_generated") / "compile" / "execution_plan.html"
 PLAN_PAGES = {
     "overview": "execution_plan.html",
     "graph_2d": "execution_plan_graph_2d.html",
@@ -21,7 +23,7 @@ PLAN_PAGES = {
 }
 
 
-def _callable_label(operation: Operation) -> str:
+def _callable_label(operation: uptimely_plan.Operation) -> str:
     """Format a callable identifier with its actual bound arguments."""
     arguments = ", ".join(
         f"{name}={json.dumps(value, ensure_ascii=False, separators=(',', ':'))}"
@@ -30,7 +32,7 @@ def _callable_label(operation: Operation) -> str:
     return f"{operation.function_id}({arguments})"
 
 
-def _callable_label_lines(operation: Operation) -> list[str]:
+def _callable_label_lines(operation: uptimely_plan.Operation) -> list[str]:
     """Return a multiline callable signature with indented bound arguments."""
     if not operation.arguments:
         return [f"{operation.function_id}()"]
@@ -48,7 +50,9 @@ def _callable_label_lines(operation: Operation) -> list[str]:
     return lines
 
 
-def _render_step(position: int, operation: Operation, plan: ExecutionPlan) -> dict[str, Any]:
+def _render_step(
+    position: int, operation: uptimely_plan.Operation, plan: compiler.ExecutionPlan
+) -> dict[str, typing.Any]:
     """Build the display model used by the execution-plan HTML templates."""
 
     def display_value(value: object) -> object:
@@ -105,11 +109,11 @@ def _render_step(position: int, operation: Operation, plan: ExecutionPlan) -> di
 
 
 def _render_execution_plan(
-    plan: ExecutionPlan,
-    output_path: str | Path = OUTPUT_PATH,
+    plan: compiler.ExecutionPlan,
+    output_path: str | pathlib.Path = OUTPUT_PATH,
     *,
     include_navigation: bool = False,
-) -> Path:
+) -> pathlib.Path:
     """Render an execution plan as an HTML report and return the written path.
 
     Args:
@@ -120,7 +124,7 @@ def _render_execution_plan(
     Returns:
         The path the report was written to.
     """
-    target = Path(output_path)
+    target = pathlib.Path(output_path)
     operations_by_stage = plan.execution_stages
     operations_in_order = [operation for stage in operations_by_stage for operation in stage]
     position_by_operation = {
@@ -187,12 +191,12 @@ def _render_execution_plan(
             if source_path and not source_path.endswith(".py"):
                 source_path = source_path.replace(".", "/") + ".py"
             step["source_href"] = (
-                Path(os.path.relpath(source_path, start=target.parent)).as_posix()
+                pathlib.Path(os.path.relpath(source_path, start=target.parent)).as_posix()
                 if source_path
                 else None
             )
 
-    environment = html_environment()
+    environment = uptimely_render.html_environment()
     context = {
         "spec_path": None,
         "spec_version": plan.plan.specification_version,
@@ -210,11 +214,11 @@ def _render_execution_plan(
         "dependency_count": len(graph_links),
         "max_parallel_operations": max((len(stage["steps"]) for stage in stages), default=0),
         "operation_counts": sorted(
-            Counter(operation.kind for operation in plan.operations).items()
+            collections.Counter(operation.kind for operation in plan.operations).items()
         ),
         "stages": stages,
         "callable_graph_data": callable_graph_data,
-        "graph_style": GraphStyle(),
+        "graph_style": render.GraphStyle(),
         "include_navigation": include_navigation,
         "active_page": "plan",
     }

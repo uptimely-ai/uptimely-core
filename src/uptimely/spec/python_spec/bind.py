@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Any
+import dataclasses
+import typing
+from collections import abc
 
-from .ref import Reference
-from .row_context import RowContextBinding
+from . import ref, row_context
 
 __all__ = [
     "Bind",
@@ -15,20 +14,20 @@ __all__ = [
 ]
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class Bind:
     """A callable and its Python-friendly argument bindings."""
 
-    function: Callable[..., object]
-    args: dict[str, Any]
+    function: abc.Callable[..., object]
+    args: dict[str, typing.Any]
     function_id: str | None = None
 
 
 def bind(
-    function: Callable[..., object],
+    function: abc.Callable[..., object],
     /,
     function_id: str | None = None,
-    **args: Any,
+    **args: typing.Any,
 ) -> Bind:
     """Bind named arguments to a plain function.
 
@@ -43,16 +42,16 @@ def bind(
     return Bind(function=function, args=args, function_id=function_id)
 
 
-def _entrypoint(function: Callable[..., object]) -> str:
+def _entrypoint(function: abc.Callable[..., object]) -> str:
     """Return the importable entrypoint for a declared Python function."""
     return f"{function.__module__}:{function.__name__}"
 
 
-def _binding_value(value: Any) -> Any:
+def _binding_value(value: typing.Any) -> typing.Any:
     """Convert Python references recursively to canonical binding values."""
-    if isinstance(value, RowContextBinding):
+    if isinstance(value, row_context.RowContextBinding):
         return _binding_value(value.value)
-    if isinstance(value, Reference):
+    if isinstance(value, ref.Reference):
         return value.to_model()
     if isinstance(value, Bind):
         return {
@@ -68,11 +67,11 @@ def _binding_value(value: Any) -> Any:
     return value
 
 
-def _argument_definition(value: Any) -> dict[str, Any]:
+def _argument_definition(value: typing.Any) -> dict[str, typing.Any]:
     """Infer a recursive function-argument schema from a bound value."""
-    if isinstance(value, RowContextBinding):
+    if isinstance(value, row_context.RowContextBinding):
         return _argument_definition(value.value)
-    if isinstance(value, Reference):
+    if isinstance(value, ref.Reference):
         return {"type": "dataframe" if value.type == "dataset" else "string"}
     if isinstance(value, (list, tuple)):
         item_definitions = [_argument_definition(item) for item in value]
@@ -103,12 +102,12 @@ def _operation_id(bind: Bind, identifier: str | None) -> str:
     return identifier or bind.function_id or bind.function.__name__
 
 
-def _binding_args(bind: Bind) -> dict[str, Any]:
+def _binding_args(bind: Bind) -> dict[str, typing.Any]:
     """Convert a Python binding's arguments to canonical binding values."""
     return {name: _binding_value(value) for name, value in bind.args.items()}
 
 
-def _models_by_id(declarations: list[Any]) -> dict[str, Any]:
+def _models_by_id(declarations: list[typing.Any]) -> dict[str, typing.Any]:
     """Convert declarations once and return their canonical models keyed by ID."""
     models = [declaration.to_model() for declaration in declarations]
     return {model.id: model for model in models}

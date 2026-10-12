@@ -2,21 +2,14 @@
 
 from __future__ import annotations
 
+import decimal
 import re
-from decimal import Decimal
-from typing import Annotated, Literal
+import typing
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    field_validator,
-    model_serializer,
-    model_validator,
-)
+import pydantic
 
-UNBOUNDED: Literal["unbounded"] = "unbounded"
-CountExtent = Annotated[int, Field(strict=True, ge=0)] | Literal["unbounded"]
+UNBOUNDED: typing.Literal["unbounded"] = "unbounded"
+CountExtent = typing.Annotated[int, pydantic.Field(strict=True, ge=0)] | typing.Literal["unbounded"]
 TimeExtent = str
 
 _UNITS = {
@@ -53,7 +46,7 @@ def duration_nanoseconds(value: str) -> int:
         if match.start() != position or unit in seen:
             raise ValueError(f"Invalid fixed duration: {value!r}")
         # Integer arithmetic avoids Decimal context rounding on large durations.
-        numerator, denominator = Decimal(amount).as_integer_ratio()
+        numerator, denominator = decimal.Decimal(amount).as_integer_ratio()
         nanoseconds, remainder = divmod(numerator * _UNITS[unit], denominator)
         if remainder:
             raise ValueError(f"Duration has sub-nanosecond precision: {value!r}")
@@ -65,16 +58,16 @@ def duration_nanoseconds(value: str) -> int:
     return total
 
 
-class ContextExtent(BaseModel):
+class ContextExtent(pydantic.BaseModel):
     """Context in one direction, expressed using a single measurement."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = pydantic.ConfigDict(extra="forbid", frozen=True)
 
     time: TimeExtent | None = None
     steps: CountExtent | None = None
     rows: CountExtent | None = None
 
-    @field_validator("time")
+    @pydantic.field_validator("time")
     @classmethod
     def validate_time(cls, value: str | None) -> str | None:
         """Require a fixed duration or the explicit unbounded marker."""
@@ -82,7 +75,7 @@ class ContextExtent(BaseModel):
             duration_nanoseconds(value)
         return value
 
-    @model_validator(mode="before")
+    @pydantic.model_validator(mode="before")
     @classmethod
     def reject_null_extents(cls, value: object) -> object:
         """Distinguish omitted measurements from invalid explicit nulls."""
@@ -90,7 +83,7 @@ class ContextExtent(BaseModel):
             raise ValueError("Context measurements cannot be null; omit them instead")
         return value
 
-    @model_validator(mode="after")
+    @pydantic.model_validator(mode="after")
     def validate_measurement(self) -> ContextExtent:
         """Require at most one measurement within a directional extent."""
         if len(self.model_dump(exclude_none=True)) > 1:
@@ -120,7 +113,7 @@ class ContextExtent(BaseModel):
         return ContextExtent.model_validate(values)
 
 
-class RowContext(BaseModel):
+class RowContext(pydantic.BaseModel):
     """Required input observations, interpreted using the dataset's logical order.
 
     An empty bounded context explicitly means current-row-only input. An absent
@@ -128,13 +121,13 @@ class RowContext(BaseModel):
     dataset extents require their entire respective input scopes.
     """
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = pydantic.ConfigDict(extra="forbid", frozen=True)
 
-    extent: Literal["bounded", "partition", "dataset"] = "bounded"
-    before: ContextExtent = Field(default_factory=ContextExtent)
-    after: ContextExtent = Field(default_factory=ContextExtent)
+    extent: typing.Literal["bounded", "partition", "dataset"] = "bounded"
+    before: ContextExtent = pydantic.Field(default_factory=ContextExtent)
+    after: ContextExtent = pydantic.Field(default_factory=ContextExtent)
 
-    @model_validator(mode="after")
+    @pydantic.model_validator(mode="after")
     def validate_extent(self) -> RowContext:
         """Require one measurement across both directions of bounded context."""
         measurements = (
@@ -149,7 +142,7 @@ class RowContext(BaseModel):
             raise ValueError("Partition/dataset context cannot also declare before or after")
         return self
 
-    @model_serializer
+    @pydantic.model_serializer
     def to_dict(self) -> dict[str, object]:
         """Return JSON-compatible metadata without unspecified measurements."""
         return {

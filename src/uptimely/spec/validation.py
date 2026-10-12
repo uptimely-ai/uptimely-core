@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+import typing
 
-from .json_spec.bindings import collapse_input_dataset
+from .json_spec import bindings
 
 
 class SpecificationError(ValueError):
@@ -17,7 +17,7 @@ class SpecificationError(ValueError):
         super().__init__(f"{location}: {message}" if location else message)
 
 
-def _structural_references(value: Any, prefix: str) -> list[str]:
+def _structural_references(value: typing.Any, prefix: str) -> list[str]:
     """Return identifiers from nested structural reference strings."""
     if hasattr(value, "model_dump"):
         value = value.model_dump()
@@ -36,7 +36,7 @@ def _structural_references(value: Any, prefix: str) -> list[str]:
     return []
 
 
-def _function_categories(model: Any) -> dict[str, dict[str, Any]]:
+def _function_categories(model: typing.Any) -> dict[str, dict[str, typing.Any]]:
     """Return function implementations indexed by their catalog category."""
     catalog = model.functions
     return {
@@ -49,7 +49,7 @@ def _function_categories(model: Any) -> dict[str, dict[str, Any]]:
     }
 
 
-def _validate_dimensions(model: Any) -> set[str]:
+def _validate_dimensions(model: typing.Any) -> set[str]:
     """Validate dimension parents and return declared dimension identifiers."""
     dimensions = set(model.dimensions)
     for dimension_id, dimension in model.dimensions.items():
@@ -73,7 +73,7 @@ def _validate_dimensions(model: Any) -> set[str]:
     return dimensions
 
 
-def validate_dataset_ids(model: Any) -> None:
+def validate_dataset_ids(model: typing.Any) -> None:
     """Require dataset identifiers to be globally unambiguous."""
     owners: dict[str, str] = {}
     for entity_id, entity in model.entities.items():
@@ -88,7 +88,7 @@ def validate_dataset_ids(model: Any) -> None:
             owners[dataset.id] = entity_id
 
 
-def _validate_entity_dimensions(model: Any, dimensions: set[str]) -> None:
+def _validate_entity_dimensions(model: typing.Any, dimensions: set[str]) -> None:
     """Validate that entities refer only to declared dimensions."""
     for entity_id, entity in model.entities.items():
         unknown_dimensions = sorted(set(entity.dimensions) - dimensions)
@@ -99,7 +99,9 @@ def _validate_entity_dimensions(model: Any, dimensions: set[str]) -> None:
             )
 
 
-def _validate_calculation_bindings(entity: Any, categories: dict[str, dict[str, Any]]) -> None:
+def _validate_calculation_bindings(
+    entity: typing.Any, categories: dict[str, dict[str, typing.Any]]
+) -> None:
     """Require mappings to reference registered features and unique outputs."""
     dimensions = set(entity.dimensions)
     for dataset in entity.datasets:
@@ -182,7 +184,7 @@ def _validate_calculation_bindings(entity: Any, categories: dict[str, dict[str, 
             raise ValueError("Features have no producer mapping: " + ", ".join(missing))
 
 
-def _validate_dataset_order(model: Any) -> None:
+def _validate_dataset_order(model: typing.Any) -> None:
     """Require distinct ordering keys belonging to the dataset's entity."""
     for entity_id, entity in model.entities.items():
         dimensions = set(entity.dimensions)
@@ -207,7 +209,7 @@ def _validate_dataset_order(model: Any) -> None:
                 seen.add(dimension)
 
 
-def _validate_collapses(model: Any) -> None:
+def _validate_collapses(model: typing.Any) -> None:
     """Validate inferred input datasets, grouping keys, and reducer inputs."""
     for entity in model.entities.values():
         for dataset in entity.datasets:
@@ -220,7 +222,7 @@ def _validate_collapses(model: Any) -> None:
                         f"Collapse function {binding.function} cannot bind a dataset; "
                         "bind its input features or dimensions instead"
                     )
-                source_entity, source = collapse_input_dataset(model, mapping)
+                source_entity, source = bindings.collapse_input_dataset(model, mapping)
                 source_id = source.id
                 if source_id == dataset.id:
                     raise ValueError(
@@ -253,7 +255,9 @@ def _validate_collapses(model: Any) -> None:
                     )
 
 
-def _validate_operation_functions(entity: Any, categories: dict[str, dict[str, Any]]) -> None:
+def _validate_operation_functions(
+    entity: typing.Any, categories: dict[str, dict[str, typing.Any]]
+) -> None:
     """Validate operation references against their function catalog categories."""
     for dataset in entity.datasets:
         missing = sorted(
@@ -271,8 +275,8 @@ def _validate_operation_functions(entity: Any, categories: dict[str, dict[str, A
 
 
 def _validate_binding_contract(
-    binding: Any,
-    function: Any,
+    binding: typing.Any,
+    function: typing.Any,
     *,
     path: tuple[str | int, ...],
     additional_arguments: set[str] | None = None,
@@ -295,7 +299,9 @@ def _validate_binding_contract(
         )
 
 
-def _validate_binding_contracts(model: Any, categories: dict[str, dict[str, Any]]) -> None:
+def _validate_binding_contracts(
+    model: typing.Any, categories: dict[str, dict[str, typing.Any]]
+) -> None:
     """Validate argument names for every declared operation binding."""
     for entity_id, entity in model.entities.items():
         for dataset in entity.datasets:
@@ -325,7 +331,7 @@ def _validate_binding_contracts(model: Any, categories: dict[str, dict[str, Any]
                     )
 
 
-def _feature_names(model: Any) -> set[str]:
+def _feature_names(model: typing.Any) -> set[str]:
     """Collect declared feature identifiers."""
     return {
         feature_id
@@ -336,7 +342,7 @@ def _feature_names(model: Any) -> set[str]:
 
 
 def _validate_feature_dependencies(
-    calls: list[Any], feature_names: set[str], dimensions: set[str]
+    calls: list[typing.Any], feature_names: set[str], dimensions: set[str]
 ) -> None:
     """Validate that calculation dependencies resolve to features or dimensions."""
     for call in calls:
@@ -347,7 +353,7 @@ def _validate_feature_dependencies(
                 )
 
 
-def validate_specification(model: Any, calls: list[Any]) -> None:
+def validate_specification(model: typing.Any, calls: list[typing.Any]) -> None:
     """Validate references and invariants after the structural model is parsed."""
     dimensions = _validate_dimensions(model)
     validate_dataset_ids(model)

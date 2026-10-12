@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import dataclasses
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class ExecutionResult:
     """Immutable summary and outputs produced by one engine execution."""
 

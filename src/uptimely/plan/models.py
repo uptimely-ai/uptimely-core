@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any
+import pathlib
+import typing
 
-from uptimely.row_context import RowContext
+from uptimely import row_context as uptimely_row_context
+from uptimely.compile import render
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class Operation:
     """One executable operation in a portable plan."""
 
@@ -20,10 +21,10 @@ class Operation:
     entity_id: str
     dataset_id: str | None
     output: str | None
-    arguments: dict[str, Any] = field(default_factory=dict)
-    dependency_ids: list[str] = field(default_factory=list)
-    output_features: list[str] = field(default_factory=list)
-    row_context: RowContext | None = None
+    arguments: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
+    dependency_ids: list[str] = dataclasses.field(default_factory=list)
+    output_features: list[str] = dataclasses.field(default_factory=list)
+    row_context: uptimely_row_context.RowContext | None = None
 
     def __post_init__(self) -> None:
         """Validate grouped execution and context contracts when constructing an operation."""
@@ -36,7 +37,11 @@ class Operation:
         if self.row_context is not None:
             if self.kind != "vectorize":
                 raise ValueError("Only vectorize operations can declare row context")
-            object.__setattr__(self, "row_context", RowContext.model_validate(self.row_context))
+            object.__setattr__(
+                self,
+                "row_context",
+                uptimely_row_context.RowContext.model_validate(self.row_context),
+            )
 
     @property
     def function_id(self) -> str:
@@ -45,18 +50,18 @@ class Operation:
         return parts[2] if len(parts) > 2 and parts[0] == "callable" else self.id
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class Plan:
     """Portable, JSON-serializable execution plan."""
 
     plan_version: str
     specification_version: str | None
     required_backend: str
-    resources: dict[str, Any]
+    resources: dict[str, typing.Any]
     operations: list[Operation]
     stages: list[list[str]]
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, typing.Any]:
         """Return the plan as JSON-compatible data."""
         return {
             "plan_version": self.plan_version,
@@ -86,7 +91,7 @@ class Plan:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> Plan:
+    def from_dict(cls, payload: dict[str, typing.Any]) -> Plan:
         """Load a portable plan from a decoded JSON object."""
         required = {
             "plan_version",
@@ -139,7 +144,7 @@ class Plan:
         )
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class ExecutionPlan:
     """Portable execution plan with JSON round-trip support."""
 
@@ -156,26 +161,26 @@ class ExecutionPlan:
         by_id = {operation.id: operation for operation in self.operations}
         return [[by_id[operation_id] for operation_id in stage] for stage in self.plan.stages]
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, typing.Any]:
         """Return the portable plan as plain JSON-compatible data."""
         return self.plan.to_dict()
 
-    def export_json(self, path: str | Path) -> Path:
+    def export_json(self, path: str | pathlib.Path) -> pathlib.Path:
         """Write the portable plan to JSON."""
-        target = Path(path)
+        target = pathlib.Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
         return target
 
     @classmethod
-    def from_json(cls, path: str | Path) -> ExecutionPlan:
+    def from_json(cls, path: str | pathlib.Path) -> ExecutionPlan:
         """Load a portable plan without loading or recompiling its specification."""
-        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        payload = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
         return cls(Plan.from_dict(payload))
 
     def export_html(
-        self, path: str | Path | None = None, *, include_navigation: bool = False
-    ) -> Path:
+        self, path: str | pathlib.Path | None = None, *, include_navigation: bool = False
+    ) -> pathlib.Path:
         """Export an execution plan report as HTML.
 
         Args:
@@ -188,10 +193,8 @@ class ExecutionPlan:
         Returns:
             The path to the rendered report.
         """
-        from uptimely.compile.render import _render_execution_plan
-
         return (
-            _render_execution_plan(self, path, include_navigation=include_navigation)
+            render._render_execution_plan(self, path, include_navigation=include_navigation)
             if path is not None
-            else _render_execution_plan(self, include_navigation=include_navigation)
+            else render._render_execution_plan(self, include_navigation=include_navigation)
         )

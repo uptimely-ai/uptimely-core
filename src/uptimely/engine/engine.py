@@ -1,30 +1,23 @@
 """Execution engine for portable analytics plans."""
 
+import dataclasses
 import logging
-from collections.abc import Mapping
-from dataclasses import dataclass
-from pathlib import Path
-from time import perf_counter
-from typing import Any
+import pathlib
+import time
+import typing
+from collections import abc
 
-from uptimely.compile import Compiler
-from uptimely.plan import ExecutionPlan, Operation
-from uptimely.spec.json_spec.json_model import Specification
+from uptimely import compile
+from uptimely import plan as plan_module
+from uptimely.spec.json_spec import json_model
 
-from .backend import (
-    CallableLoader,
-    DataFrameBackend,
-    EntrypointLoader,
-    PlanResourceResolver,
-    PolarsBackend,
-    ResourceResolver,
-)
-from .result import ExecutionResult
+from . import backend as backend_module
+from . import result as result_module
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class EngineConfig:
     """Runtime configuration supplied to an execution engine."""
 
@@ -57,24 +50,26 @@ class Engine:
 
     def __init__(
         self,
-        plan: ExecutionPlan | str | Path | Specification,
-        resources: dict[str, Any] | None = None,
+        plan: plan_module.ExecutionPlan | str | pathlib.Path | json_model.Specification,
+        resources: dict[str, typing.Any] | None = None,
         *,
         config: EngineConfig | None = None,
-        backend: DataFrameBackend | None = None,
-        resource_resolver: ResourceResolver | None = None,
-        callable_loader: CallableLoader | None = None,
-        runtime_resources: dict[str, dict[str, dict[str, Any]]] | None = None,
+        backend: backend_module.DataFrameBackend | None = None,
+        resource_resolver: backend_module.ResourceResolver | None = None,
+        callable_loader: backend_module.CallableLoader | None = None,
+        runtime_resources: dict[str, dict[str, dict[str, typing.Any]]] | None = None,
     ) -> None:
         """Prepare an engine from a plan, with specification convenience support."""
-        self._specification: Specification | None = None
-        if isinstance(plan, ExecutionPlan):
+        self._specification: json_model.Specification | None = None
+        if isinstance(plan, plan_module.ExecutionPlan):
             self.plan = plan
-        elif isinstance(plan, (str, Path, Specification)):
+        elif isinstance(plan, (str, pathlib.Path, json_model.Specification)):
             self._specification = (
-                Specification.from_json(plan) if isinstance(plan, (str, Path)) else plan
+                json_model.Specification.from_json(plan)
+                if isinstance(plan, (str, pathlib.Path))
+                else plan
             )
-            self.plan = Compiler(self._specification).compile()
+            self.plan = compile.Compiler(self._specification).compile()
         else:
             raise ValueError("plan must be an ExecutionPlan, specification, or specification path")
 
@@ -84,9 +79,11 @@ class Engine:
                 raise TypeError("resources must be a dictionary of plan resource overrides")
             self.resources.update(resources)
         self.config = config or EngineConfig()
-        self.backend = backend or PolarsBackend()
-        self.resource_resolver = resource_resolver or PlanResourceResolver(self.resources)
-        self.callable_loader = callable_loader or EntrypointLoader()
+        self.backend = backend or backend_module.PolarsBackend()
+        self.resource_resolver = resource_resolver or backend_module.PlanResourceResolver(
+            self.resources
+        )
+        self.callable_loader = callable_loader or backend_module.EntrypointLoader()
         self._runtime_datasets: dict[tuple[str, str], object] = {}
         self._runtime_fragments: dict[tuple[str, str], object] = {}
         self._runtime_calculations: dict[tuple[str, str, str], object] = {}
@@ -96,19 +93,19 @@ class Engine:
     @classmethod
     def from_specification(
         cls,
-        specification: str | Path | Specification,
+        specification: str | pathlib.Path | json_model.Specification,
         features: list[str] | None = None,
         *,
         config: EngineConfig | None = None,
     ) -> "Engine":
         """Compile a specification and return an engine for the resulting plan."""
         return cls(
-            Compiler(specification, features=features).compile(),
+            compile.Compiler(specification, features=features).compile(),
             config=config,
         )
 
     @property
-    def specification(self) -> Specification:
+    def specification(self) -> json_model.Specification:
         """Return the convenience specification when one was supplied."""
         if self._specification is None:
             raise AttributeError("Portable-plan engines do not retain a Specification")
@@ -132,7 +129,7 @@ class Engine:
                 f"plan={self.plan.plan.specification_version!r}, resources={version!r}"
             )
 
-    def execute(self) -> ExecutionResult:
+    def execute(self) -> result_module.ExecutionResult:
         """Execute plan stages and return explicit runtime state and statuses."""
         datasets: dict[tuple[str, str], object] = {}
         fragments: dict[tuple[str, str], object] = {}
@@ -152,7 +149,7 @@ class Engine:
         logger.info("Executing plan: %d stages", len(self.plan.execution_stages))
         for stage in self.plan.execution_stages:
             for operation in stage:
-                started = perf_counter()
+                started = time.perf_counter()
                 logger.debug("Running %s operation %s", operation.kind, operation.id)
                 try:
                     if operation.kind == "collapse":
@@ -168,17 +165,17 @@ class Engine:
                 except Exception as error:
                     statuses[operation.id] = "failed"
                     failures[operation.id] = str(error)
-                    durations[operation.id] = perf_counter() - started
+                    durations[operation.id] = time.perf_counter() - started
                     logger.warning("Operation %s failed: %s", operation.id, error)
                     break
                 statuses[operation.id] = "succeeded"
-                durations[operation.id] = perf_counter() - started
+                durations[operation.id] = time.perf_counter() - started
             if failures:
                 break
 
         _mark_unrun_operations_skipped()
 
-        return ExecutionResult(
+        return result_module.ExecutionResult(
             datasets=dict(datasets),
             calculated_outputs=dict(calculations),
             operation_statuses=statuses,
@@ -187,7 +184,7 @@ class Engine:
             plan_version=self.plan.plan.plan_version,
         )
 
-    def _execute_source(self, operation: Operation) -> None:
+    def _execute_source(self, operation: plan_module.Operation) -> None:
         """Run a fragment operation and merge its columns into the dataset."""
         frame = self._runtime_datasets.get((operation.entity_id, operation.dataset_id))
         kwargs = self._resolve_args(operation, dataset_frame=frame)
@@ -197,7 +194,7 @@ class Engine:
             operation, result
         )
 
-    def _execute_collapse(self, operation: Operation) -> None:
+    def _execute_collapse(self, operation: plan_module.Operation) -> None:
         """Invoke the collapse function and group by the target entity dimensions."""
         input_datasets = {
             dependency.dataset_id
@@ -239,7 +236,7 @@ class Engine:
             operation, result
         )
 
-    def _merge_fragment(self, operation: Operation, fragment: object) -> object:
+    def _merge_fragment(self, operation: plan_module.Operation, fragment: object) -> object:
         """Validate and merge a fragment using its entity dimension keys."""
         if not self.backend.is_frame(fragment):
             raise ValueError(
@@ -271,7 +268,7 @@ class Engine:
         return self.backend.join(left, right, dimensions)
 
     def _validate_fragment_keys(
-        self, operation: Operation, fragment: object, dimensions: list[str]
+        self, operation: plan_module.Operation, fragment: object, dimensions: list[str]
     ) -> None:
         """Validate the dimension-key contract of one dataframe fragment."""
         columns = set(self.backend.column_names(fragment))
@@ -294,7 +291,7 @@ class Engine:
         if self.backend.is_duplicated(keys):
             raise ValueError(f"Fragment {operation.function_id} contains duplicate dimension keys")
 
-    def _execute_vectorize(self, operation: Operation) -> None:
+    def _execute_vectorize(self, operation: plan_module.Operation) -> None:
         """Run a vectorize mapping and append its output columns to the dataset."""
         dataset_key = (operation.entity_id, operation.dataset_id)
         kwargs = self._resolve_args(operation, dataset_key=dataset_key)
@@ -310,13 +307,13 @@ class Engine:
 
     @staticmethod
     def _output_values(
-        operation: Operation, result: object, outputs: list[str]
-    ) -> Mapping[str, object]:
+        operation: plan_module.Operation, result: object, outputs: list[str]
+    ) -> abc.Mapping[str, object]:
         """Validate a function's return value against its declared analytical outputs."""
         label = operation.kind.capitalize()
         if len(outputs) == 1:
             return {outputs[0]: result}
-        if isinstance(result, Mapping):
+        if isinstance(result, abc.Mapping):
             if not all(isinstance(name, str) for name in result):
                 raise ValueError(
                     f"{label} mapping {operation.id} returned non-string output identifiers"
@@ -339,7 +336,7 @@ class Engine:
             "feature IDs to values when it produces multiple features"
         )
 
-    def _execute_sink(self, operation: Operation) -> None:
+    def _execute_sink(self, operation: plan_module.Operation) -> None:
         """Persist the selected columns of the accumulated dataset."""
         frame = self._runtime_datasets[(operation.entity_id, operation.dataset_id)]
         kwargs = self._resolve_args(
@@ -349,7 +346,7 @@ class Engine:
 
     def _resolve_args(
         self,
-        operation: Operation,
+        operation: plan_module.Operation,
         dataset_frame: object = None,
         dataset_key: tuple[str, str] | None = None,
     ) -> dict[str, object]:

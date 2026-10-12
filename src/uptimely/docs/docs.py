@@ -1,29 +1,26 @@
 """Build a static documentation website from an analytics specification."""
 
-from pathlib import Path
+import pathlib
 
-from uptimely.analytics import FeatureGraph
-from uptimely.compile import Compiler
-from uptimely.compile.render import PLAN_PAGES
-from uptimely.render import html_environment
-from uptimely.spec import Specification
-from uptimely.spec.render import SPECIFICATION_PAGES, create_website_pages
-from uptimely.spec.render import create_json as create_specification_json
+from uptimely import analytics, compile, spec
+from uptimely import render as uptimely_render
+from uptimely.compile import render
+from uptimely.spec import render as spec_render
 
-OUTPUT_DIR = Path("_generated") / "docs"
+OUTPUT_DIR = pathlib.Path("_generated") / "docs"
 
 
 class Documentation:
     """Generate a linked specification, feature graph, and execution plan website."""
 
-    def __init__(self, specification: Specification) -> None:
+    def __init__(self, specification: spec.Specification) -> None:
         self.spec = specification
 
     def create_json(
         self,
-        output_path: str | Path | None = None,
+        output_path: str | pathlib.Path | None = None,
         include_generated_at: bool = False,
-    ) -> Path:
+    ) -> pathlib.Path:
         """Export specification reference data as JSON.
 
         Args:
@@ -33,14 +30,14 @@ class Documentation:
         Returns:
             The path to the JSON document.
         """
-        target = Path(output_path) if output_path is not None else OUTPUT_DIR / "docs.json"
-        return create_specification_json(self.spec, target, include_generated_at)
+        target = pathlib.Path(output_path) if output_path is not None else OUTPUT_DIR / "docs.json"
+        return spec_render.create_json(self.spec, target, include_generated_at)
 
     def create_html(
         self,
-        output_path: str | Path | None = None,
+        output_path: str | pathlib.Path | None = None,
         include_generated_at: bool = False,
-    ) -> Path:
+    ) -> pathlib.Path:
         """Export a static website with navigation between generated reports.
 
         Compilation inspects function signatures but does not execute analytics.
@@ -57,18 +54,18 @@ class Documentation:
         Raises:
             ValueError: If the index path conflicts with a report filename.
         """
-        target = Path(output_path) if output_path is not None else OUTPUT_DIR / "index.html"
+        target = pathlib.Path(output_path) if output_path is not None else OUTPUT_DIR / "index.html"
         target = target.with_suffix(".html")
         if target.name in {
-            *SPECIFICATION_PAGES.values(),
+            *spec_render.SPECIFICATION_PAGES.values(),
             "feature_graph_2d.html",
             "feature_graph_3d.html",
-            *PLAN_PAGES.values(),
+            *render.PLAN_PAGES.values(),
         }:
             raise ValueError("The website index path must not overwrite a report page.")
-        plan = Compiler(self.spec).compile()
-        graph = FeatureGraph(self.spec)
-        create_website_pages(self.spec, target.parent, include_generated_at)
+        plan = compile.Compiler(self.spec).compile()
+        graph = analytics.FeatureGraph(self.spec)
+        spec_render.create_website_pages(self.spec, target.parent, include_generated_at)
         for dimension in ("2d", "3d"):
             graph.export_html(
                 target.parent / f"feature_graph_{dimension}.html",
@@ -77,7 +74,7 @@ class Documentation:
             )
         plan.export_html(target.parent / "execution_plan.html", include_navigation=True)
         document = (
-            html_environment()
+            uptimely_render.html_environment()
             .get_template("index.html.j2")
             .render(
                 specification=self.spec,
@@ -90,18 +87,18 @@ class Documentation:
 
 
 def create_json(
-    specification: Specification,
-    output_path: str | Path | None = None,
+    specification: spec.Specification,
+    output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
-) -> Path:
+) -> pathlib.Path:
     """Export specification reference data as JSON."""
     return Documentation(specification).create_json(output_path, include_generated_at)
 
 
 def create_html(
-    specification: Specification,
-    output_path: str | Path | None = None,
+    specification: spec.Specification,
+    output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
-) -> Path:
+) -> pathlib.Path:
     """Export the linked documentation website and return its index path."""
     return Documentation(specification).create_html(output_path, include_generated_at)

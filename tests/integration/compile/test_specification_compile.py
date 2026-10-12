@@ -1,16 +1,15 @@
 import json
-from pathlib import Path
+import pathlib
 
 import pytest
 
-from uptimely.compile import CallableGraph, Compiler
-from uptimely.spec import Specification
+from uptimely import compile, spec
 
-SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
 
 
 def test_compiler_creates_callable_graph_subset_for_requested_features() -> None:
-    plan = Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
+    plan = compile.Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
 
     assert [
         operation.output
@@ -30,10 +29,10 @@ def test_compiler_creates_callable_graph_subset_for_requested_features() -> None
     }
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
-        Compiler(SPEC_PATH, features=["missing"]).compile()
+        compile.Compiler(SPEC_PATH, features=["missing"]).compile()
 
 
-def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: Path) -> None:
+def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
     specification = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     dataset = specification["entities"]["pump"]["datasets"][0]
     mapping = dataset["mappings"]["health_signal_normalized"]
@@ -42,7 +41,7 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: Path) -
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(specification), encoding="utf-8")
 
-    plan = Compiler(spec_path, features=["health_signal_normalized"]).compile()
+    plan = compile.Compiler(spec_path, features=["health_signal_normalized"]).compile()
     vectorize_operations = [
         operation for operation in plan.operations if operation.kind == "vectorize"
     ]
@@ -55,7 +54,7 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: Path) -
 
 
 def test_callable_graph_subset_contains_requested_output_and_ancestors() -> None:
-    graph = CallableGraph(Specification.from_json(SPEC_PATH))
+    graph = compile.CallableGraph(spec.Specification.from_json(SPEC_PATH))
 
     subset = graph.subset(["health_signal_normalized"])
     normalized = next(

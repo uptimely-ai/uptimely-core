@@ -1,18 +1,21 @@
-from pathlib import Path
+import pathlib
 
 import polars as pl
 import pytest
+from examples.example_1 import run_engine
+from examples.example_1.functions import calculation
+from examples.example_1.spec import spec
 
-from uptimely.compile import Compiler
-from uptimely.engine import Engine
+from uptimely import compile
+from uptimely import engine as uptimely_engine
 
-SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
 
 
 def test_engine_returns_calculated_features_without_writing_output() -> None:
-    from examples.example_1.spec.spec import storage_resources
-
-    engine = Engine(SPEC_PATH, runtime_resources={"storage": storage_resources})
+    engine = uptimely_engine.Engine(
+        SPEC_PATH, runtime_resources={"storage": spec.storage_resources}
+    )
 
     result = engine.execute()
 
@@ -46,9 +49,7 @@ def test_engine_returns_calculated_features_without_writing_output() -> None:
 
 
 def test_engine_runner_returns_calculated_feature_ids() -> None:
-    from examples.example_1.run_engine import main
-
-    assert main(verbose=False) == [
+    assert run_engine.main(verbose=False) == [
         "bearing_temperature_delta",
         "converged",
         "energy_cost_score",
@@ -63,7 +64,7 @@ def test_engine_runner_returns_calculated_feature_ids() -> None:
 
 
 def test_engine_rejects_unknown_runtime_namespace() -> None:
-    engine = Engine(SPEC_PATH, runtime_resources={})
+    engine = uptimely_engine.Engine(SPEC_PATH, runtime_resources={})
 
     result = engine.execute()
 
@@ -73,7 +74,7 @@ def test_engine_rejects_unknown_runtime_namespace() -> None:
 
 
 def test_engine_rejects_unknown_runtime_object() -> None:
-    engine = Engine(SPEC_PATH, runtime_resources={"storage": {}})
+    engine = uptimely_engine.Engine(SPEC_PATH, runtime_resources={"storage": {}})
 
     result = engine.execute()
 
@@ -84,7 +85,9 @@ def test_engine_rejects_unknown_runtime_object() -> None:
 
 
 def test_engine_rejects_unknown_runtime_attribute() -> None:
-    engine = Engine(SPEC_PATH, runtime_resources={"storage": {"telemetry_source": {}}})
+    engine = uptimely_engine.Engine(
+        SPEC_PATH, runtime_resources={"storage": {"telemetry_source": {}}}
+    )
 
     result = engine.execute()
 
@@ -95,7 +98,7 @@ def test_engine_rejects_unknown_runtime_attribute() -> None:
 
 
 def test_engine_merges_fragments_by_entity_dimensions() -> None:
-    engine = Engine(SPEC_PATH)
+    engine = uptimely_engine.Engine(SPEC_PATH)
     engine._runtime_datasets = {
         ("pump", "pump_dataset"): pl.LazyFrame(
             {
@@ -146,7 +149,7 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
     ],
 )
 def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> None:
-    engine = Engine(SPEC_PATH)
+    engine = uptimely_engine.Engine(SPEC_PATH)
     operation = next(
         operation
         for operation in engine.plan.operations
@@ -158,7 +161,7 @@ def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> Non
 
 
 def test_engine_rejects_ambiguous_dataset_references() -> None:
-    engine = Engine(SPEC_PATH)
+    engine = uptimely_engine.Engine(SPEC_PATH)
     engine._runtime_datasets = {
         ("first", "shared"): pl.LazyFrame({"id": [1]}),
         ("second", "shared"): pl.LazyFrame({"id": [2]}),
@@ -169,11 +172,6 @@ def test_engine_rejects_ambiguous_dataset_references() -> None:
 
 
 def test_example_deltas_are_partitioned_and_ordered() -> None:
-    from examples.example_1.functions.calculation import (
-        bearing_temperature_delta,
-        vibration_delta_from_previous,
-    )
-
     frame = pl.DataFrame(
         {
             "pump": ["PUMP-101", "PUMP-201", "PUMP-101", "PUMP-201"],
@@ -184,12 +182,12 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
     )
 
     result = frame.with_columns(
-        bearing_temperature_delta(
+        calculation.bearing_temperature_delta(
             "bearing_temperature",
             ["pump"],
             "timestamp",
         ).alias("temperature_delta"),
-        vibration_delta_from_previous(
+        calculation.vibration_delta_from_previous(
             "vibration_rms",
             ["pump"],
             "timestamp",
@@ -208,11 +206,9 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
     assert result["vibration_delta"].drop_nulls().to_list() == pytest.approx([0.2, 0.4])
 
 
-def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: Path) -> None:
-    from examples.example_1.spec.spec import storage_resources
-
-    plan = Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
-    engine = Engine(plan, runtime_resources={"storage": storage_resources})
+def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathlib.Path) -> None:
+    plan = compile.Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
+    engine = uptimely_engine.Engine(plan, runtime_resources={"storage": spec.storage_resources})
     assert [
         operation.output
         for stage in engine.plan.execution_stages

@@ -1,21 +1,23 @@
 """Describe callable invocation dependencies and resolve call ordering."""
 
-from graphable import graph as graphable_graph
-from graphable import graphable
+from __future__ import annotations
 
-from uptimely.spec import Specification
+import graphable as graphable_
+from graphable.views import texttree
 
-from ..spec.json_spec.bindings import collapse_input_dataset, mapping_category
-from .node import CallableNode
+from uptimely import spec
 
-Node = graphable.Graphable
-NodeMeta = CallableNode
+from ..spec.json_spec import bindings
+from . import node as node_module
+
+Node = graphable_.graphable.Graphable
+NodeMeta = node_module.CallableNode
 
 
 class CallableGraph:
     """Dependency graph built from callable invocations and their feature dependencies."""
 
-    def __init__(self, specs: Specification) -> None:
+    def __init__(self, specs: spec.Specification) -> None:
         """Load analytics functions and build the callable dependency graph.
 
         Args:
@@ -26,23 +28,25 @@ class CallableGraph:
             function for function in specs.resolved_functions if function.role == "analytics"
         ]
         # Index all callables by (function_id, entity, feature) to resolve dependencies
-        self._callable_index: dict[tuple[str, str, str], CallableNode] = {}
+        self._callable_index: dict[tuple[str, str, str], node_module.CallableNode] = {}
         # Map feature names to the callables that produce them
-        self._feature_producers: dict[str, CallableNode] = {}
-        self._dataset_sources: dict[tuple[str, str], list[CallableNode]] = {}
-        self._dataset_sinks: dict[tuple[str, str], list[CallableNode]] = {}
+        self._feature_producers: dict[str, node_module.CallableNode] = {}
+        self._dataset_sources: dict[tuple[str, str], list[node_module.CallableNode]] = {}
+        self._dataset_sinks: dict[tuple[str, str], list[node_module.CallableNode]] = {}
         self.graph = self._create_graph()
 
-    def _create_graph(self) -> graphable_graph.Graph:
+    def _create_graph(self) -> graphable_.graph.Graph:
         """Build a graph where nodes are callables and edges represent feature dependencies."""
-        graph = graphable_graph.Graph()
+        graph = graphable_.graph.Graph()
         nodes: dict[str, Node] = {}
 
         for entity_id, entity in self.specification.entities.items():
             for dataset in entity.datasets:
                 dataset_key = (entity_id, dataset.id)
                 for mapping in dataset.mappings.values():
-                    operation_type = mapping_category(mapping, self.specification.functions)
+                    operation_type = bindings.mapping_category(
+                        mapping, self.specification.functions
+                    )
                     primary_feature = mapping.features[0] if mapping.features else None
                     call = next(
                         (
@@ -52,7 +56,7 @@ class CallableGraph:
                         ),
                         None,
                     )
-                    node = CallableNode(
+                    node = node_module.CallableNode(
                         function_id=mapping.binding.function,
                         entity=entity_id,
                         feature=primary_feature,
@@ -69,7 +73,7 @@ class CallableGraph:
                             else None
                         ),
                     )
-                    nodes[node.node_id] = graphable.Graphable(node)
+                    nodes[node.node_id] = graphable_.graphable.Graphable(node)
                     if operation_type == "write":
                         self._dataset_sinks.setdefault(dataset_key, []).append(node)
                     elif operation_type != "vectorize":
@@ -141,14 +145,14 @@ class CallableGraph:
 
         return graph
 
-    def collapse_input_dataset_id(self, node: CallableNode) -> str:
+    def collapse_input_dataset_id(self, node: node_module.CallableNode) -> str:
         """Infer the input dataset from a collapse node's specification binding."""
         if node.operation_type != "collapse" or node.operation_id is None:
             raise ValueError(f"Expected a collapse mapping node: {node.node_id}")
         entity = self.specification.entities[node.entity]
         dataset = next(dataset for dataset in entity.datasets if dataset.id == node.dataset_id)
         mapping = dataset.mappings[node.operation_id]
-        return collapse_input_dataset(self.specification, mapping)[1].id
+        return bindings.collapse_input_dataset(self.specification, mapping)[1].id
 
     def _dataset_id(self, entity_id: str, feature: str) -> str | None:
         """Return the dataset that owns a feature."""
@@ -184,23 +188,21 @@ class CallableGraph:
         return []
 
     @staticmethod
-    def _node_key(node: CallableNode) -> str:
+    def _node_key(node: node_module.CallableNode) -> str:
         """Return a stable node key for a callable."""
         return node.node_id
 
-    def _node_data(self, node: CallableNode) -> dict:
+    def _node_data(self, node: node_module.CallableNode) -> dict:
         """Build display metadata for a graph node."""
         return node.to_render_data()
 
-    def topology(self) -> list[list[CallableNode]]:
+    def topology(self) -> list[list[node_module.CallableNode]]:
         """Return callables grouped by dependency level (topological order)."""
         levels = self.graph.parallelized_topological_order()
         return [[level_node.reference for level_node in level] for level in levels]
 
     def print_graph(self) -> str:
         """Return a text representation of the callable dependency graph."""
-        from graphable.views import texttree
-
         graph_text = texttree.create_topology_tree_txt(self.graph)
         print(graph_text)
         return graph_text
@@ -209,7 +211,7 @@ class CallableGraph:
         """Print the callable dependency graph."""
         self.print_graph()
 
-    def subset(self, features: list[str]) -> "CallableGraph":
+    def subset(self, features: list[str]) -> CallableGraph:
         """Return the dependency closure needed to produce selected features."""
         missing = sorted(set(features) - set(self._feature_producers))
         if missing:
@@ -235,7 +237,7 @@ class CallableGraph:
         for dataset_key in selected_dataset_keys:
             for sink in self._dataset_sinks.get(dataset_key, []):
                 nodes.add(self._node_by_key(sink.node_id))
-        subset.graph = graphable_graph.Graph(nodes, discover=False).clone(include_edges=True)
+        subset.graph = graphable_.graph.Graph(nodes, discover=False).clone(include_edges=True)
         return subset
 
     def _node_by_key(self, node_key: str) -> Node:
@@ -246,11 +248,11 @@ class CallableGraph:
         raise ValueError(f"Callable node not found: {node_key}")
 
     @property
-    def callables(self) -> list[CallableNode]:
+    def callables(self) -> list[node_module.CallableNode]:
         """All callable nodes in the graph."""
         return [node.reference for node in self.graph]
 
-    def dependencies(self, node: CallableNode) -> list[CallableNode]:
+    def dependencies(self, node: node_module.CallableNode) -> list[node_module.CallableNode]:
         """Return callables that directly produce the node's dependencies."""
         graph_node = self._node_by_key(node.node_id)
         return sorted(
@@ -258,7 +260,7 @@ class CallableGraph:
             key=lambda dependency: dependency.node_id,
         )
 
-    def get_callable_order(self) -> list[CallableNode]:
+    def get_callable_order(self) -> list[node_module.CallableNode]:
         """Return callables in execution order (topological sort)."""
         all_callables = []
         for level in self.topology():

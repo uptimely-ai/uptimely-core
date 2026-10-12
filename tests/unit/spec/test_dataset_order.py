@@ -1,19 +1,17 @@
+import dataclasses
 import json
-from dataclasses import replace
-from pathlib import Path
-from typing import Any
+import pathlib
+import typing
 
 import polars as pl
+import pydantic
 import pytest
-from pydantic import ValidationError
+from examples.example_2.functions import functions
+from examples.example_2.spec import spec as spec_module
 
-from uptimely.compile import Compiler
-from uptimely.docs.docs import Documentation
-from uptimely.engine import Engine
-from uptimely.spec import Dataset, Order, Specification
-from uptimely.spec.python_spec import bind, dataset, dimension, entity, feature, mapping, ref
-from uptimely.spec.render import create_website_pages
-from uptimely.spec.validation import SpecificationError
+from uptimely import compile, engine, spec
+from uptimely.docs import docs
+from uptimely.spec import python_spec, render, validation
 
 ORDER = [
     {"dimension": "$dimensions.machine", "direction": "asc"},
@@ -21,7 +19,7 @@ ORDER = [
 ]
 
 
-def _configuration() -> dict[str, Any]:
+def _configuration() -> dict[str, typing.Any]:
     return {
         "version": "0.1.0",
         "dimensions": {
@@ -40,39 +38,42 @@ def _configuration() -> dict[str, Any]:
     }
 
 
-def _parse(tmp_path: Path, order: object) -> Specification:
+def _parse(tmp_path: pathlib.Path, order: object) -> spec.Specification:
     configuration = _configuration()
     configuration["entities"]["telemetry"]["datasets"][0]["order"] = order
     path = tmp_path / "input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    return Specification.from_json(path)
+    return spec.Specification.from_json(path)
 
 
-def test_dataset_order_json_round_trip_preserves_precedence(tmp_path: Path) -> None:
+def test_dataset_order_json_round_trip_preserves_precedence(tmp_path: pathlib.Path) -> None:
     specification = _parse(tmp_path, ORDER)
     keys = specification.entities["telemetry"].datasets[0].order
-    assert keys == [Order(**key) for key in ORDER]
+    assert keys == [spec.Order(**key) for key in ORDER]
 
     path = tmp_path / "export.json"
     specification.to_json(path)
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["entities"]["telemetry"]["datasets"][0]["order"] == ORDER
-    assert Specification.from_json(path).entities["telemetry"].datasets[0].order == keys
+    assert spec.Specification.from_json(path).entities["telemetry"].datasets[0].order == keys
 
 
-def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: Path) -> None:
+def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.Path) -> None:
     assert _parse(tmp_path, []).entities["telemetry"].datasets[0].order == []
     configuration = _configuration()
     del configuration["entities"]["telemetry"]["datasets"][0]["order"]
     path = tmp_path / "omitted.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    assert Specification.from_json(path).entities["telemetry"].datasets[0].order == []
+    assert spec.Specification.from_json(path).entities["telemetry"].datasets[0].order == []
 
-    first = Dataset(id="first")
-    second = Dataset(id="second")
-    first.order.append(Order(**ORDER[0]))
+    first = spec.Dataset(id="first")
+    second = spec.Dataset(id="second")
+    first.order.append(spec.Order(**ORDER[0]))
     assert second.order == []
-    assert dataset.Dataset(id="first").order is not dataset.Dataset(id="second").order
+    assert (
+        python_spec.dataset.Dataset(id="first").order
+        is not python_spec.dataset.Dataset(id="second").order
+    )
 
 
 @pytest.mark.parametrize(
@@ -93,14 +94,16 @@ def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: Path) ->
         [{"dimension": "$dimensions.machine", "direction": "asc", "nulls": "first"}],
     ],
 )
-def test_dataset_order_rejects_invalid_structure(tmp_path: Path, order: object) -> None:
-    with pytest.raises(ValidationError):
+def test_dataset_order_rejects_invalid_structure(tmp_path: pathlib.Path, order: object) -> None:
+    with pytest.raises(pydantic.ValidationError):
         _parse(tmp_path, order)
 
 
 @pytest.mark.parametrize("identifier", ["missing", "external", "@"])
-def test_dataset_order_requires_owning_entity_dimensions(tmp_path: Path, identifier: str) -> None:
-    with pytest.raises(SpecificationError) as error:
+def test_dataset_order_requires_owning_entity_dimensions(
+    tmp_path: pathlib.Path, identifier: str
+) -> None:
+    with pytest.raises(validation.SpecificationError) as error:
         _parse(tmp_path, [{"dimension": f"$dimensions.{identifier}", "direction": "asc"}])
 
     assert error.value.code == "invalid_order_dimension"
@@ -116,8 +119,8 @@ def test_dataset_order_requires_owning_entity_dimensions(tmp_path: Path, identif
 
 
 @pytest.mark.parametrize("direction", ["asc", "desc"])
-def test_dataset_order_rejects_repeated_dimensions(tmp_path: Path, direction: str) -> None:
-    with pytest.raises(SpecificationError) as error:
+def test_dataset_order_rejects_repeated_dimensions(tmp_path: pathlib.Path, direction: str) -> None:
+    with pytest.raises(validation.SpecificationError) as error:
         _parse(tmp_path, [ORDER[0], {"dimension": "$dimensions.machine", "direction": direction}])
 
     assert error.value.code == "duplicate_order_dimension"
@@ -125,22 +128,26 @@ def test_dataset_order_rejects_repeated_dimensions(tmp_path: Path, direction: st
 
 
 @pytest.mark.parametrize("use_entities", [True, False])
-def test_dataset_order_python_authoring_matches_json(tmp_path: Path, use_entities: bool) -> None:
-    declaration = dataset.Dataset(
+def test_dataset_order_python_authoring_matches_json(
+    tmp_path: pathlib.Path, use_entities: bool
+) -> None:
+    declaration = python_spec.dataset.Dataset(
         id="observations",
         order=[
-            dataset.Order(dimension=ref.dimension("machine"), direction="asc"),
-            dataset.Order(dimension="$dimensions.timestamp", direction="desc"),
+            python_spec.dataset.Order(
+                dimension=python_spec.ref.dimension("machine"), direction="asc"
+            ),
+            python_spec.dataset.Order(dimension="$dimensions.timestamp", direction="desc"),
         ],
     )
     dimensions = [
-        dimension.Dimension(id="machine", type="string"),
-        dimension.Dimension(id="timestamp", type="datetime"),
+        python_spec.dimension.Dimension(id="machine", type="string"),
+        python_spec.dimension.Dimension(id="timestamp", type="datetime"),
     ]
     if use_entities:
-        specification = Specification.from_python(
+        specification = spec.Specification.from_python(
             entities=[
-                entity.Entity(
+                python_spec.entity.Entity(
                     id="telemetry",
                     name="Telemetry",
                     dimensions=["machine", "timestamp"],
@@ -150,7 +157,7 @@ def test_dataset_order_python_authoring_matches_json(tmp_path: Path, use_entitie
             dimensions=dimensions,
         )
     else:
-        specification = Specification.from_python(
+        specification = spec.Specification.from_python(
             datasets=[declaration], dimensions=dimensions, name="telemetry"
         )
     assert specification.entities["telemetry"].datasets[0].order == (
@@ -158,34 +165,41 @@ def test_dataset_order_python_authoring_matches_json(tmp_path: Path, use_entitie
     )
     path = tmp_path / "python.json"
     specification.to_json(path)
-    assert Specification.from_json(path).entities["telemetry"].datasets[0].order == [
-        Order(**key) for key in ORDER
+    assert spec.Specification.from_json(path).entities["telemetry"].datasets[0].order == [
+        spec.Order(**key) for key in ORDER
     ]
 
 
 def test_dataset_order_python_authoring_validates_references() -> None:
-    with pytest.raises(ValidationError):
-        dataset.Order(dimension=ref.feature("machine"), direction="asc").to_model()
+    with pytest.raises(pydantic.ValidationError):
+        python_spec.dataset.Order(
+            dimension=python_spec.ref.feature("machine"), direction="asc"
+        ).to_model()
 
-    with pytest.raises(SpecificationError, match="not declared by entity"):
-        Specification.from_python(
+    with pytest.raises(validation.SpecificationError, match="not declared by entity"):
+        spec.Specification.from_python(
             datasets=[
-                dataset.Dataset(
+                python_spec.dataset.Dataset(
                     id="observations",
-                    order=[dataset.Order(dimension=ref.dimension("missing"), direction="asc")],
+                    order=[
+                        python_spec.dataset.Order(
+                            dimension=python_spec.ref.dimension("missing"),
+                            direction="asc",
+                        )
+                    ],
                 )
             ]
         )
 
 
-def test_dataset_order_appears_in_reference_json_and_html(tmp_path: Path) -> None:
+def test_dataset_order_appears_in_reference_json_and_html(tmp_path: pathlib.Path) -> None:
     specification = _parse(tmp_path, ORDER)
-    path = Documentation(specification).create_json(tmp_path / "docs.json")
+    path = docs.Documentation(specification).create_json(tmp_path / "docs.json")
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["configuration"]["entities"]["telemetry"]["datasets"][0]["order"] == ORDER
 
     standalone = specification.create_html(tmp_path / "standalone.html")
-    create_website_pages(specification, tmp_path)
+    render.create_website_pages(specification, tmp_path)
     for path in (standalone, tmp_path / "spec_datasets.html"):
         html = path.read_text(encoding="utf-8")
         assert "Logical order (not a physical row-order guarantee)" in html
@@ -195,54 +209,57 @@ def test_dataset_order_appears_in_reference_json_and_html(tmp_path: Path) -> Non
 
 
 def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
-    from examples.example_2.functions.functions import read_data, sum_features
-    from examples.example_2.spec.spec import dataset_, dimensions
-
-    declaration = dataset.Dataset(
-        id=dataset_.id,
+    declaration = python_spec.dataset.Dataset(
+        id=spec_module.dataset_.id,
         features=[
-            feature.Feature(id="input_1"),
-            feature.Feature(id="input_2"),
-            feature.Feature(id="id", type="integer"),
-            feature.Feature(id="sum"),
+            python_spec.feature.Feature(id="input_1"),
+            python_spec.feature.Feature(id="input_2"),
+            python_spec.feature.Feature(id="id", type="integer"),
+            python_spec.feature.Feature(id="sum"),
         ],
         mappings=[
-            mapping.Read(
+            python_spec.mapping.Read(
                 id="read",
-                bind=bind.bind(read_data),
+                bind=python_spec.bind.bind(functions.read_data),
                 features=[
-                    ref.feature("input_1"),
-                    ref.feature("input_2"),
-                    ref.feature("id"),
+                    python_spec.ref.feature("input_1"),
+                    python_spec.ref.feature("input_2"),
+                    python_spec.ref.feature("id"),
                 ],
             ),
-            mapping.Vectorize(
+            python_spec.mapping.Vectorize(
                 id="sum",
-                bind=bind.bind(
-                    sum_features,
-                    left_feature=ref.feature("input_1"),
-                    right_feature=ref.feature("input_2"),
+                bind=python_spec.bind.bind(
+                    functions.sum_features,
+                    left_feature=python_spec.ref.feature("input_1"),
+                    right_feature=python_spec.ref.feature("input_2"),
                     output="sum",
                 ),
-                features=[ref.feature("sum")],
+                features=[python_spec.ref.feature("sum")],
             ),
         ],
     )
-    unordered = Specification.from_python(datasets=[declaration], dimensions=dimensions)
-    ordered = Specification.from_python(
+    unordered = spec.Specification.from_python(
+        datasets=[declaration], dimensions=spec_module.dimensions
+    )
+    ordered = spec.Specification.from_python(
         datasets=[
-            replace(
+            dataclasses.replace(
                 declaration,
-                order=[dataset.Order(dimension=ref.dimension("id"), direction="desc")],
+                order=[
+                    python_spec.dataset.Order(
+                        dimension=python_spec.ref.dimension("id"), direction="desc"
+                    )
+                ],
             )
         ],
-        dimensions=dimensions,
+        dimensions=spec_module.dimensions,
     )
-    assert Compiler(ordered).compile().plan == Compiler(unordered).compile().plan
+    assert compile.Compiler(ordered).compile().plan == compile.Compiler(unordered).compile().plan
 
-    result = Engine(ordered).execute()
+    result = engine.Engine(ordered).execute()
     assert result.failures == {}
     frame = result.datasets[("entity", declaration.id)]
     assert isinstance(frame, pl.DataFrame)
-    assert frame.select(read_data().columns).rows() == read_data().rows()
+    assert frame.select(functions.read_data().columns).rows() == functions.read_data().rows()
     assert frame["id"].to_list() != frame.sort("id", descending=True)["id"].to_list()

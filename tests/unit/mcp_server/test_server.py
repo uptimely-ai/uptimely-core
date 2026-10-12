@@ -1,17 +1,17 @@
 """In-memory client tests for the uptimely MCP server."""
 
 import json
-from pathlib import Path
+import pathlib
 
 import pytest
 
 fastmcp = pytest.importorskip("fastmcp", reason="fastmcp extra is not installed")
 
-from fastmcp import Client  # noqa: E402
+import fastmcp as fastmcp_  # noqa: E402
 
-from uptimely.mcp.server import ServerState, create_server  # noqa: E402
+from uptimely.mcp import server  # noqa: E402
 
-REPOSITORY_ROOT = Path(__file__).parents[3]
+REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
 SPEC_PATH = REPOSITORY_ROOT / "examples" / "example_1" / "_generated" / "spec" / "spec.json"
 RUNTIME_RESOURCES_PATH = REPOSITORY_ROOT / "examples" / "example_1" / "runtime-resources.json"
 
@@ -19,26 +19,26 @@ pytestmark = pytest.mark.skipif(not SPEC_PATH.exists(), reason="example spec is 
 
 
 @pytest.fixture()
-def state() -> ServerState:
+def state() -> server.ServerState:
     """Provide server state bound to the example 1 specification."""
-    return ServerState(
+    return server.ServerState(
         spec_path=SPEC_PATH,
         project_root=REPOSITORY_ROOT,
         runtime_resources=json.loads(RUNTIME_RESOURCES_PATH.read_text(encoding="utf-8")),
     )
 
 
-async def _call(state: ServerState, tool: str, arguments: dict | None = None) -> dict:
+async def _call(state: server.ServerState, tool: str, arguments: dict | None = None) -> dict:
     """Call one tool over the in-memory transport and decode its JSON payload."""
-    async with Client(create_server(state)) as client:
+    async with fastmcp_.Client(server.create_server(state)) as client:
         result = await client.call_tool(tool, arguments or {})
     return json.loads(result.content[0].text)
 
 
 @pytest.mark.anyio
-async def test_lists_all_tools(state: ServerState) -> None:
+async def test_lists_all_tools(state: server.ServerState) -> None:
     """The server exposes the expected tool names."""
-    async with Client(create_server(state)) as client:
+    async with fastmcp_.Client(server.create_server(state)) as client:
         tools = {tool.name for tool in await client.list_tools()}
     assert {
         "list_functions",
@@ -52,7 +52,7 @@ async def test_lists_all_tools(state: ServerState) -> None:
 
 
 @pytest.mark.anyio
-async def test_list_functions_groups_catalog(state: ServerState) -> None:
+async def test_list_functions_groups_catalog(state: server.ServerState) -> None:
     """list_functions groups function ids by category."""
     payload = await _call(state, "list_functions")
     assert "pump_health_score" in payload["vectorize"]
@@ -62,7 +62,7 @@ async def test_list_functions_groups_catalog(state: ServerState) -> None:
 
 
 @pytest.mark.anyio
-async def test_describe_function_resolves_signature(state: ServerState) -> None:
+async def test_describe_function_resolves_signature(state: server.ServerState) -> None:
     """describe_function returns declared args and the resolved Python signature."""
     payload = await _call(
         state, "describe_function", {"category": "vectorize", "function_id": "pump_health_score"}
@@ -73,9 +73,11 @@ async def test_describe_function_resolves_signature(state: ServerState) -> None:
 
 
 @pytest.mark.anyio
-async def test_describe_function_rejects_unknown_ids(state: ServerState) -> None:
+async def test_describe_function_rejects_unknown_ids(
+    state: server.ServerState,
+) -> None:
     """describe_function fails with a clear error for unknown categories or functions."""
-    async with Client(create_server(state)) as client:
+    async with fastmcp_.Client(server.create_server(state)) as client:
         with pytest.raises(Exception, match="Unknown category"):
             await client.call_tool(
                 "describe_function", {"category": "nope", "function_id": "pump_health_score"}
@@ -87,7 +89,7 @@ async def test_describe_function_rejects_unknown_ids(state: ServerState) -> None
 
 
 @pytest.mark.anyio
-async def test_list_calculated_features(state: ServerState) -> None:
+async def test_list_calculated_features(state: server.ServerState) -> None:
     """list_calculated_features returns sorted calculated feature ids."""
     payload = await _call(state, "list_calculated_features")
     assert payload == [
@@ -105,7 +107,9 @@ async def test_list_calculated_features(state: ServerState) -> None:
 
 
 @pytest.mark.anyio
-async def test_describe_feature_reports_dependencies(state: ServerState) -> None:
+async def test_describe_feature_reports_dependencies(
+    state: server.ServerState,
+) -> None:
     """describe_feature reports direct, transitive, and input dependencies."""
     payload = await _call(state, "describe_feature", {"feature_id": "pump_health_score"})
     assert payload["function"] == "pump_health_score"
@@ -121,15 +125,17 @@ async def test_describe_feature_reports_dependencies(state: ServerState) -> None
 
 
 @pytest.mark.anyio
-async def test_describe_feature_rejects_unknown_feature(state: ServerState) -> None:
+async def test_describe_feature_rejects_unknown_feature(
+    state: server.ServerState,
+) -> None:
     """describe_feature fails with a clear error for unknown features."""
-    async with Client(create_server(state)) as client:
+    async with fastmcp_.Client(server.create_server(state)) as client:
         with pytest.raises(Exception, match="Unknown calculated feature"):
             await client.call_tool("describe_feature", {"feature_id": "nope"})
 
 
 @pytest.mark.anyio
-async def test_compile_plan_subset(state: ServerState) -> None:
+async def test_compile_plan_subset(state: server.ServerState) -> None:
     """compile_plan compiles a feature subset into staged operations."""
     payload = await _call(state, "compile_plan", {"feature_ids": ["pump_health_score"]})
     assert payload["operation_count"] > 0
@@ -139,7 +145,7 @@ async def test_compile_plan_subset(state: ServerState) -> None:
 
 
 @pytest.mark.anyio
-async def test_compile_plan_empty_subset_is_empty(state: ServerState) -> None:
+async def test_compile_plan_empty_subset_is_empty(state: server.ServerState) -> None:
     """An explicit empty feature subset does not compile the full specification."""
     payload = await _call(state, "compile_plan", {"feature_ids": []})
     assert payload["features"] == []
@@ -148,7 +154,7 @@ async def test_compile_plan_empty_subset_is_empty(state: ServerState) -> None:
 
 
 @pytest.mark.anyio
-async def test_execute_feature_returns_rows(state: ServerState) -> None:
+async def test_execute_feature_returns_rows(state: server.ServerState) -> None:
     """execute_feature returns dimension-keyed rows for a calculated feature."""
     payload = await _call(
         state, "execute_feature", {"feature_id": "pump_health_score", "max_rows": 3}
@@ -167,9 +173,11 @@ async def test_execute_feature_returns_rows(state: ServerState) -> None:
 
 
 @pytest.mark.anyio
-async def test_execute_feature_rejects_nonpositive_row_limit(state: ServerState) -> None:
+async def test_execute_feature_rejects_nonpositive_row_limit(
+    state: server.ServerState,
+) -> None:
     """execute_feature rejects limits that cannot produce a useful row response."""
-    async with Client(create_server(state)) as client:
+    async with fastmcp_.Client(server.create_server(state)) as client:
         with pytest.raises(Exception, match="max_rows must be a positive integer"):
             await client.call_tool(
                 "execute_feature", {"feature_id": "pump_health_score", "max_rows": 0}
@@ -177,7 +185,7 @@ async def test_execute_feature_rejects_nonpositive_row_limit(state: ServerState)
 
 
 @pytest.mark.anyio
-async def test_reload_specification(state: ServerState) -> None:
+async def test_reload_specification(state: server.ServerState) -> None:
     """reload_specification re-parses the spec and reports its contents."""
     payload = await _call(state, "reload_specification")
     assert payload["entities"] == ["pump", "pump_telemetry"]

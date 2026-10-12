@@ -1,17 +1,17 @@
-from dataclasses import replace
-from pathlib import Path
+import dataclasses
+import pathlib
 
 import polars as pl
 import pytest
 
-from uptimely.engine import Engine, EngineConfig
-from uptimely.plan import ExecutionPlan, Operation, Plan
+from uptimely import engine as uptimely_engine
+from uptimely import plan as uptimely_plan
 
-PLAN_PATH = Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
+PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
 
 
-def _plan() -> ExecutionPlan:
-    return ExecutionPlan.from_json(PLAN_PATH)
+def _plan() -> uptimely_plan.ExecutionPlan:
+    return uptimely_plan.ExecutionPlan.from_json(PLAN_PATH)
 
 
 def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
@@ -28,7 +28,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
         written["dataset"] = dataset
         written["features"] = features
 
-    engine = Engine(
+    engine = uptimely_engine.Engine(
         _plan(),
         runtime_resources={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
         callable_loader=_Loader({"test:read": read, "test:double": double, "test:write": write}),
@@ -58,7 +58,7 @@ def test_execute_stops_after_a_failed_operation() -> None:
         nonlocal called
         called = True
 
-    engine = Engine(
+    engine = uptimely_engine.Engine(
         _plan(),
         runtime_resources={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
         callable_loader=_Loader({"test:read": read, "test:write": write}),
@@ -78,10 +78,14 @@ def test_engine_validates_plan_backend_and_specification_version() -> None:
     plan = _plan().plan
 
     with pytest.raises(ValueError, match="Unsupported plan backend"):
-        Engine(ExecutionPlan(Plan(**{**plan.__dict__, "required_backend": "pandas"})))
+        uptimely_engine.Engine(
+            uptimely_plan.ExecutionPlan(
+                uptimely_plan.Plan(**{**plan.__dict__, "required_backend": "pandas"})
+            )
+        )
 
     with pytest.raises(ValueError, match="Specification version mismatch"):
-        Engine(
+        uptimely_engine.Engine(
             _plan(),
             resources={"specification_version": "2025.01"},
         )
@@ -89,19 +93,19 @@ def test_engine_validates_plan_backend_and_specification_version() -> None:
 
 def test_engine_rejects_execution_plan_as_resource_override() -> None:
     with pytest.raises(TypeError, match="resources must be a dictionary"):
-        Engine(_plan(), _plan())
+        uptimely_engine.Engine(_plan(), _plan())
 
 
 @pytest.mark.parametrize("reference", ["?", "?storage.source", "?storage.source.path.extra"])
 def test_engine_rejects_malformed_runtime_references(reference: str) -> None:
-    engine = Engine(_plan())
+    engine = uptimely_engine.Engine(_plan())
 
     with pytest.raises(ValueError, match="Malformed runtime reference"):
         engine._resolve_runtime_reference(reference)
 
 
 def test_engine_rejects_ambiguous_fragment_references() -> None:
-    engine = Engine(_plan())
+    engine = uptimely_engine.Engine(_plan())
     engine._runtime_fragments = {
         ("first", "shared"): pl.DataFrame({"asset_id": ["A"]}),
         ("second", "shared"): pl.DataFrame({"asset_id": ["B"]}),
@@ -113,10 +117,12 @@ def test_engine_rejects_ambiguous_fragment_references() -> None:
 
 def test_execute_reports_unsupported_operation_types() -> None:
     plan = _plan().plan
-    invalid_operation = replace(plan.operations[0], kind="unsupported")
-    engine = Engine(
-        ExecutionPlan(
-            Plan(**{**plan.__dict__, "operations": [invalid_operation, *plan.operations[1:]]})
+    invalid_operation = dataclasses.replace(plan.operations[0], kind="unsupported")
+    engine = uptimely_engine.Engine(
+        uptimely_plan.ExecutionPlan(
+            uptimely_plan.Plan(
+                **{**plan.__dict__, "operations": [invalid_operation, *plan.operations[1:]]}
+            )
         )
     )
 
@@ -133,7 +139,7 @@ def test_execute_converts_scalar_calculations_to_columns() -> None:
     def constant(column: str) -> int:
         return 10
 
-    engine = Engine(
+    engine = uptimely_engine.Engine(
         _plan(),
         runtime_resources={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
         callable_loader=_Loader(
@@ -161,7 +167,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
             "reading_times_two": pl.col("reading") * 2,
         }
 
-    read_operation = Operation(
+    read_operation = uptimely_plan.Operation(
         id="callable:read:load:asset:telemetry:load",
         kind="read",
         entrypoint="test:read",
@@ -170,7 +176,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
         output="load",
         output_features=["asset_id", "reading"],
     )
-    vectorize_operation = Operation(
+    vectorize_operation = uptimely_plan.Operation(
         id="callable:vectorize:calculate:asset:telemetry:reading_plus_one",
         kind="vectorize",
         entrypoint="test:calculate",
@@ -180,8 +186,8 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
         output_features=["reading_plus_one", "reading_times_two"],
         dependency_ids=[read_operation.id],
     )
-    plan = ExecutionPlan(
-        Plan(
+    plan = uptimely_plan.ExecutionPlan(
+        uptimely_plan.Plan(
             plan_version="1.0.0",
             specification_version="0.1.0",
             required_backend="polars",
@@ -197,7 +203,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
             stages=[[read_operation.id], [vectorize_operation.id]],
         )
     )
-    engine = Engine(
+    engine = uptimely_engine.Engine(
         plan,
         callable_loader=_Loader({"test:read": read, "test:calculate": calculate}),
     )
@@ -218,13 +224,13 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
 @pytest.mark.parametrize("batch_size", [0, -1, True, "100"])
 def test_engine_config_rejects_invalid_batch_size(batch_size: object) -> None:
     with pytest.raises(ValueError, match="batch_size"):
-        EngineConfig(batch_size=batch_size)
+        uptimely_engine.EngineConfig(batch_size=batch_size)
 
 
 @pytest.mark.parametrize("dataframe", ["pandas", "", None])
 def test_engine_config_rejects_unsupported_dataframe_backend(dataframe: object) -> None:
     with pytest.raises(ValueError, match="Unsupported dataframe backend"):
-        EngineConfig(dataframe=dataframe)  # type: ignore[arg-type]
+        uptimely_engine.EngineConfig(dataframe=dataframe)  # type: ignore[arg-type]
 
 
 class _Loader:

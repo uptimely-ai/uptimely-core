@@ -2,36 +2,36 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import dataclasses
 
-from uptimely.spec.json_spec import json_model
+from uptimely.spec import json_spec
 
-from .dataset import Dataset
+from . import dataset as dataset_module
 
 __all__ = [
     "Entity",
 ]
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class Entity:
     """A named entity containing datasets and their dimensions."""
 
     id: str
     name: str
     dimensions: list[str]
-    datasets: list[Dataset]
+    datasets: list[dataset_module.Dataset]
     description: str | None = None
 
-    def to_model(self) -> json_model.Entity:
+    def to_model(self) -> json_spec.json_model.Entity:
         """Convert this entity declaration to its JSON model."""
-        return json_model.Entity(
+        return json_spec.json_model.Entity(
             id=self.id,
             name=self.name,
             description=self.description,
             dimensions=self.dimensions,
             datasets=[
-                json_model.Dataset(
+                json_spec.json_model.Dataset(
                     id=dataset.id,
                     description=model.description,
                     row_scope=model.row_scope,

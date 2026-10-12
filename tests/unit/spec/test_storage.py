@@ -1,21 +1,24 @@
+import pathlib
+import subprocess
 import sys
 import types
-from pathlib import Path
 
 import pytest
 
-from uptimely.spec.storage import Storage
+from uptimely.spec import storage
 
 
-def test_storage_reads_and_inspects_local_paths(tmp_path: Path) -> None:
+def test_storage_reads_and_inspects_local_paths(tmp_path: pathlib.Path) -> None:
     file_path = tmp_path / "spec.json"
     file_path.write_text('{"version": "0.1.0"}', encoding="utf-8")
 
-    assert Storage.read(file_path) == '{"version": "0.1.0"}'
-    assert Storage.exists(file_path)
-    assert Storage.is_dir(tmp_path)
-    assert Storage.join(tmp_path, "nested", "spec.json") == str(tmp_path / "nested" / "spec.json")
-    assert Storage.parent(file_path) == str(tmp_path)
+    assert storage.Storage.read(file_path) == '{"version": "0.1.0"}'
+    assert storage.Storage.exists(file_path)
+    assert storage.Storage.is_dir(tmp_path)
+    assert storage.Storage.join(tmp_path, "nested", "spec.json") == str(
+        tmp_path / "nested" / "spec.json"
+    )
+    assert storage.Storage.parent(file_path) == str(tmp_path)
 
 
 def test_storage_reads_and_checks_s3_paths_with_mocked_client(monkeypatch) -> None:
@@ -45,24 +48,21 @@ def test_storage_reads_and_checks_s3_paths_with_mocked_client(monkeypatch) -> No
     client = Client()
     boto3 = types.ModuleType("boto3")
     boto3.client = lambda service: client
-    botocore = types.ModuleType("botocore")
     exceptions = types.ModuleType("botocore.exceptions")
     exceptions.ClientError = ClientError
-    botocore.exceptions = exceptions
-    monkeypatch.setitem(sys.modules, "boto3", boto3)
-    monkeypatch.setitem(sys.modules, "botocore", botocore)
-    monkeypatch.setitem(sys.modules, "botocore.exceptions", exceptions)
+    monkeypatch.setattr(storage, "boto3", boto3)
+    monkeypatch.setattr(storage, "exceptions", exceptions)
 
-    assert Storage.read("s3://bucket/spec.json") == '{"version": "0.1.0"}'
-    assert Storage.exists("s3://bucket/spec.json")
+    assert storage.Storage.read("s3://bucket/spec.json") == '{"version": "0.1.0"}'
+    assert storage.Storage.exists("s3://bucket/spec.json")
     client.exists = False
-    assert not Storage.exists("s3://bucket/missing.json")
-    assert Storage.is_dir("s3://bucket/prefix/")
+    assert not storage.Storage.exists("s3://bucket/missing.json")
+    assert storage.Storage.is_dir("s3://bucket/prefix/")
     assert (
-        Storage.join("s3://bucket/prefix/", "nested", "spec.json")
+        storage.Storage.join("s3://bucket/prefix/", "nested", "spec.json")
         == "s3://bucket/prefix/nested/spec.json"
     )
-    assert Storage.parent("s3://bucket/prefix/spec.json") == "s3://bucket/prefix/"
+    assert storage.Storage.parent("s3://bucket/prefix/spec.json") == "s3://bucket/prefix/"
     assert client.requests == [
         ("get", "bucket", "spec.json"),
         ("head", "bucket", "spec.json"),
@@ -85,13 +85,46 @@ def test_storage_s3_exists_propagates_non_404_errors(monkeypatch) -> None:
     client = Client()
     boto3 = types.ModuleType("boto3")
     boto3.client = lambda service: client
-    botocore = types.ModuleType("botocore")
     exceptions = types.ModuleType("botocore.exceptions")
     exceptions.ClientError = ClientError
-    botocore.exceptions = exceptions
-    monkeypatch.setitem(sys.modules, "boto3", boto3)
-    monkeypatch.setitem(sys.modules, "botocore", botocore)
-    monkeypatch.setitem(sys.modules, "botocore.exceptions", exceptions)
+    monkeypatch.setattr(storage, "boto3", boto3)
+    monkeypatch.setattr(storage, "exceptions", exceptions)
 
     with pytest.raises(ClientError):
-        Storage.exists("s3://bucket/spec.json")
+        storage.Storage.exists("s3://bucket/spec.json")
+
+
+@pytest.mark.parametrize("method", ["read", "exists"])
+def test_storage_s3_reports_missing_optional_dependencies(monkeypatch, method: str) -> None:
+    monkeypatch.setattr(storage, "boto3", None)
+    monkeypatch.setattr(storage, "exceptions", None)
+
+    with pytest.raises(ModuleNotFoundError, match=r"uptimely-core\[s3\]"):
+        getattr(storage.Storage, method)("s3://bucket/spec.json")
+
+
+def test_core_imports_without_s3_dependencies() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            """
+import sys
+
+class BlockS3:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split(".")[0] in {"boto3", "botocore"}:
+            raise ModuleNotFoundError(name=fullname)
+
+sys.meta_path.insert(0, BlockS3())
+from uptimely.spec import storage
+assert storage.boto3 is None
+assert storage.exceptions is None
+assert storage.Storage.exists("pyproject.toml")
+""",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr

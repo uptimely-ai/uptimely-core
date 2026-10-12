@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import dataclasses
 
-from uptimely.spec.json_spec import json_model
+from uptimely.spec import json_spec
 
 __all__ = ["Feature"]
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class Feature:
     """Metadata for a dataset feature, independent of how it is produced."""
 
@@ -18,9 +18,9 @@ class Feature:
     type: str | None = None
     unit: str | None = None
 
-    def to_model(self) -> json_model.Feature:
+    def to_model(self) -> json_spec.json_model.Feature:
         """Convert this feature declaration to its JSON model."""
-        return json_model.Feature(
+        return json_spec.json_model.Feature(
             id=self.id,
             description=self.description,
             type=self.type,

@@ -1,30 +1,27 @@
 """Describe the feature dependency graph and resolve dependencies for requested outputs."""
 
+import pathlib
 import re
-from pathlib import Path
-from typing import Literal
+import typing
 
-from graphable import graph as graphable_graph
-from graphable import graphable
-from graphable.views import texttree
+import graphable as graphable_
+from graphable import views
 
-from uptimely.spec import Function, Specification
-from uptimely.spec.json_spec.bindings import feature_dependencies, mapping_category
+from uptimely import spec
+from uptimely.spec.json_spec import bindings
 
-from . import render
-from .models import FeatureNode, FunctionNode
-from .render import GraphStyle
+from . import models, render
 
-Node = graphable.Graphable
-NodeMeta = FunctionNode | FeatureNode
+Node = graphable_.graphable.Graphable
+NodeMeta = models.FunctionNode | models.FeatureNode
 
 
 class GraphBase:
     """Shared helpers for system and subset feature dependency graphs."""
 
-    graph: graphable_graph.Graph
+    graph: graphable_.graph.Graph
     _node_index: dict[str, Node]
-    _function_catalog: dict[str, Function]
+    _function_catalog: dict[str, spec.Function]
     _explicit_output_names: list[str] | None
 
     @staticmethod
@@ -43,16 +40,24 @@ class GraphBase:
     ) -> list[str | NodeMeta | Node]:
         """Project one topology level into requested item representation."""
         if item_type == "feature_ref":
-            return [node.reference for node in level if isinstance(node.reference, FeatureNode)]
+            return [
+                node.reference for node in level if isinstance(node.reference, models.FeatureNode)
+            ]
         if item_type == "feature_name":
             return [
-                node.reference.name for node in level if isinstance(node.reference, FeatureNode)
+                node.reference.name
+                for node in level
+                if isinstance(node.reference, models.FeatureNode)
             ]
         if item_type == "function":
-            return [node.reference for node in level if isinstance(node.reference, FunctionNode)]
+            return [
+                node.reference for node in level if isinstance(node.reference, models.FunctionNode)
+            ]
         if item_type == "function_name":
             return [
-                node.reference.name for node in level if isinstance(node.reference, FunctionNode)
+                node.reference.name
+                for node in level
+                if isinstance(node.reference, models.FunctionNode)
             ]
         if item_type == "node":
             return level
@@ -71,7 +76,7 @@ class GraphBase:
 
     def print_graph(self) -> str:
         """Visualize the feature dependency graph."""
-        graph_text = texttree.create_topology_tree_txt(self.graph)
+        graph_text = views.texttree.create_topology_tree_txt(self.graph)
         print(graph_text)
         return graph_text
 
@@ -80,12 +85,12 @@ class GraphBase:
 
     def export_html(
         self,
-        output_path: str | Path,
-        style: GraphStyle | None = None,
+        output_path: str | pathlib.Path,
+        style: render.GraphStyle | None = None,
         *,
-        dimension: Literal["2d", "3d"] = "3d",
+        dimension: typing.Literal["2d", "3d"] = "3d",
         include_navigation: bool = False,
-    ) -> Path:
+    ) -> pathlib.Path:
         """Export the graph as an interactive 2D or 3D HTML document.
 
         Args:
@@ -115,7 +120,7 @@ class GraphBase:
         return sorted(
             node.reference.name
             for node in self.graph
-            if isinstance(node.reference, FeatureNode) and node.reference.is_source_input
+            if isinstance(node.reference, models.FeatureNode) and node.reference.is_source_input
         )
 
     @property
@@ -143,7 +148,7 @@ class GraphBase:
         return {
             node.reference.name
             for node in self.graph
-            if isinstance(node.reference, FeatureNode) and node.reference.is_intermediate
+            if isinstance(node.reference, models.FeatureNode) and node.reference.is_intermediate
         }
 
     @property
@@ -157,7 +162,7 @@ class GraphBase:
         return {
             node.reference.name
             for node in self.graph
-            if isinstance(node.reference, FeatureNode)
+            if isinstance(node.reference, models.FeatureNode)
             and node.reference.is_output
             and not node.reference.is_source_input
         }
@@ -166,23 +171,23 @@ class GraphBase:
 class FeatureGraph(GraphBase):
     """Global dependency graph built from all feature mappings."""
 
-    def __init__(self, specs: Specification) -> None:
+    def __init__(self, specs: spec.Specification) -> None:
         """Load analytics function calls and build the complete dependency graph."""
         self.functions = [
             function for function in specs.resolved_functions if function.role == "analytics"
         ]
-        self._graph_operations: list[tuple[Function, str, str, list[str], list[str]]] = []
+        self._graph_operations: list[tuple[spec.Function, str, str, list[str], list[str]]] = []
         vectorize_functions = {function.id: function for function in self.functions}
 
         for entity_id, entity in specs.entities.items():
             for dataset in entity.datasets:
                 for operation_id, mapping in dataset.mappings.items():
-                    operation_type = mapping_category(mapping, specs.functions)
+                    operation_type = bindings.mapping_category(mapping, specs.functions)
                     template = getattr(specs.functions, operation_type)[mapping.binding.function]
                     function = (
                         vectorize_functions.get(mapping.binding.function)
                         if operation_type == "vectorize"
-                        else Function(
+                        else spec.Function(
                             id=mapping.binding.function,
                             type="python_function",
                             return_type="expression"
@@ -198,7 +203,7 @@ class FeatureGraph(GraphBase):
                             f"Mapping '{operation_id}' references vectorize function "
                             f"'{mapping.binding.function}' without a resolved function"
                         )
-                    dependencies = feature_dependencies(mapping.binding.args)
+                    dependencies = bindings.feature_dependencies(mapping.binding.args)
                     if all(existing.id != function.id for existing in self.functions):
                         self.functions.append(function)
                     self._graph_operations.append(
@@ -225,7 +230,7 @@ class FeatureGraph(GraphBase):
         self,
         function_name: str,
         dependencies: list[str],
-        function: Function | None = None,
+        function: spec.Function | None = None,
     ) -> set[str]:
         """Return direct parent feature names for a bound feature."""
         function = function or self._function_catalog.get(function_name)
@@ -246,9 +251,9 @@ class FeatureGraph(GraphBase):
         """Extract identifier-like names from an expression string."""
         return set(re.findall(r"\b[A-Za-z_]\w*\b", expression))
 
-    def _create_graph(self) -> graphable_graph.Graph:
+    def _create_graph(self) -> graphable_.graph.Graph:
         """Build a graph from the loaded function call dependencies."""
-        graph = graphable_graph.Graph()
+        graph = graphable_.graph.Graph()
         nodes: dict[str, Node] = {}
 
         output_names = {
@@ -262,7 +267,7 @@ class FeatureGraph(GraphBase):
             for function, _entity, _operation_id, _outputs, dependencies in self._graph_operations
             for parent in self._feature_parents(function.id, dependencies, function)
         }
-        feature_metadata: dict[str, FeatureNode] = {}
+        feature_metadata: dict[str, models.FeatureNode] = {}
 
         def register_feature_metadata(
             name: str,
@@ -272,7 +277,7 @@ class FeatureGraph(GraphBase):
             is_source_input: bool = False,
         ) -> None:
             existing = feature_metadata.get(name)
-            feature_metadata[name] = FeatureNode(
+            feature_metadata[name] = models.FeatureNode(
                 name=name,
                 data_type=(
                     existing.data_type if existing and existing.data_type is not None else data_type
@@ -286,7 +291,9 @@ class FeatureGraph(GraphBase):
         for entity_id, entity in self.specification.entities.items():
             for dataset in entity.datasets:
                 for mapping in dataset.mappings.values():
-                    operation_type = mapping_category(mapping, self.specification.functions)
+                    operation_type = bindings.mapping_category(
+                        mapping, self.specification.functions
+                    )
                     for name in mapping.features:
                         feature = dataset.features[name]
                         register_feature_metadata(
@@ -305,16 +312,18 @@ class FeatureGraph(GraphBase):
                 )
 
         def node(reference: NodeMeta) -> Node:
-            return nodes.setdefault(self._node_key(reference), graphable.Graphable(reference))
+            return nodes.setdefault(
+                self._node_key(reference), graphable_.graphable.Graphable(reference)
+            )
 
         def feature_meta(
             name: str,
-            function: Function | None = None,
+            function: spec.Function | None = None,
             entity: str | None = None,
             data_type: str | None = None,
-        ) -> FeatureNode:
+        ) -> models.FeatureNode:
             metadata = feature_metadata.get(name)
-            return FeatureNode(
+            return models.FeatureNode(
                 name=name,
                 data_type=(
                     function.return_type
@@ -329,7 +338,7 @@ class FeatureGraph(GraphBase):
 
         for function, entity, operation_id, outputs, dependencies in self._graph_operations:
             function_node = node(
-                FunctionNode(
+                models.FunctionNode(
                     name=function.id,
                     feature=next(
                         (
@@ -378,7 +387,7 @@ class FeatureGraph(GraphBase):
 
         # Requested output nodes, intermediate nodes and input nodes
         nodes = self._get_ancestor_nodes(output_names)
-        g = graphable_graph.Graph(nodes, discover=False).clone(include_edges=True)
+        g = graphable_.graph.Graph(nodes, discover=False).clone(include_edges=True)
         return SubGraph(graph=g, output_names=output_names)
 
 
@@ -387,7 +396,7 @@ class SubGraph(GraphBase):
 
     def __init__(
         self,
-        graph: graphable_graph.Graph,
+        graph: graphable_.graph.Graph,
         output_names: list[str] | None,
     ) -> None:
         """Initialize a function call subset graph and explicit output targets."""
