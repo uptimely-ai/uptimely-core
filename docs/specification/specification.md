@@ -32,9 +32,8 @@ A feature is a named piece of information that describes an entity. The term inc
 | Concept | Meaning | Declared under | Has a binding? |
 | --- | --- | --- | --- |
 | Feature | A named column in a dataset, with optional descriptive metadata. | `features` | No. |
-| Mapping | An association between one function binding and one or more produced features. | `mappings` | Yes. |
+| Mapping | An executable operation binding associated with zero or more output features. | `mappings` | Yes. |
 | Aggregation | A reducer binding for one output feature of a collapse mapping. | The mapping's `aggregations` | Yes. |
-| Write | An operation that persists, prints, or evaluates dataset information. | `write` | Yes. |
 
 Dimension columns may appear in multiple dataset feature registries. Other
 feature identifiers MUST have one producer. Bindings use structural reference
@@ -58,11 +57,8 @@ An entity represents a real-world analytical subject, such as a pump, production
 A dataset is a conceptual data container for an entity. `features` declares
 its columns; `mappings` associates those features with executable function
 bindings. The operation category is inferred from the function's catalog
-entry. `write` remains a dataset-level set of persistence or evaluation
-bindings in the canonical JSON schema. In the Python authoring API, declare
-`mapping.Write` in the same `Dataset.mappings` list as reads and
-transformations; conversion lowers it to the canonical dataset-level `write`
-field.
+entry. Write bindings are output-free mappings in the same `mappings` object
+as reads and transformations.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -71,15 +67,15 @@ field.
 | `row_scope` | object | Yes | Conceptual row subset with `grain`, `filtering`, and `coverage` descriptions. |
 | `order` | array of objects | No | Logical ordering by entity dimensions, in key-precedence order. Does not require physical sorting. |
 | `features` | object | Yes | Feature metadata keyed by feature identifier. |
-| `mappings` | object | Yes | Function-to-feature mappings keyed by mapping identifier. |
-| `write` | object | Yes | Write bindings keyed by operation identifier. |
+| `mappings` | object | Yes | Function bindings keyed by mapping identifier. |
 
 ### Feature and Mapping Identifiers
 
-Each key under `features` names one feature. Each key under `mappings` or
-`write` names one binding instance: a function reference together with its
-concrete arguments, distinct from the reusable function template it invokes.
-A mapping declares its output feature identifiers in `features`.
+Each key under `features` names one feature. Each key under `mappings` names
+one binding instance: a function reference together with its concrete
+arguments, distinct from the reusable function template it invokes. Feature
+mappings declare their output feature identifiers in `features`; write
+mappings have an empty `features` list.
 
 For collapse mappings, each entry in `aggregations` is a binding to one
 `functions.aggregate` template. Its key names the feature it computes. The
@@ -87,7 +83,7 @@ shared collapse binding defines input and grouping behavior; reducer bindings
 remain separate and are combined with it when the compiler builds execution
 operations.
 
-Mapping and write identifiers MUST be unique within their declaring dataset.
+Mapping identifiers MUST be unique within their declaring dataset.
 
 ### Row Scope
 

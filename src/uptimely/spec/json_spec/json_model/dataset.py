@@ -30,13 +30,6 @@ class FeatureMapping(StrictModel):
     aggregations: dict[str, Binding] = Field(default_factory=dict)
 
 
-class Sink(StrictModel):
-    """A write operation declared by a dataset."""
-
-    id: str = Field(exclude=True)
-    binding: Binding
-
-
 class Order(StrictModel):
     """One logical dataset ordering key, without a physical row-order guarantee."""
 
@@ -60,7 +53,6 @@ class Dataset(StrictModel):
     row_scope: RowScope = Field(default_factory=RowScope)
     features: dict[str, Feature] = Field(default_factory=dict)
     mappings: dict[str, FeatureMapping] = Field(default_factory=dict)
-    write: dict[str, Sink] = Field(default_factory=dict)
     order: list[Order] = Field(default_factory=list)
 
     @property

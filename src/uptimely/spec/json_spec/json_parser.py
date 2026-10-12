@@ -285,8 +285,10 @@ class SpecificationParser:
                     if mapping.binding.function in self.function_catalog.vectorize
                     for feature_id in mapping.features
                 }
-                for sink in dataset.write.values():
-                    sink_features = set(self._resolve_feature_dependencies(sink.binding.args))
+                for mapping in dataset.mappings.values():
+                    if mapping.binding.function not in self.function_catalog.write:
+                        continue
+                    sink_features = set(self._resolve_feature_dependencies(mapping.binding.args))
                     foreign_features = sorted(
                         feature
                         for feature in sink_features
@@ -294,13 +296,13 @@ class SpecificationParser:
                     )
                     if foreign_features:
                         raise ValueError(
-                            f"Sink {sink.id} cannot read features from another dataset: "
-                            + ", ".join(foreign_features)
+                            f"Write mapping {mapping.id} cannot read features from "
+                            "another dataset: " + ", ".join(foreign_features)
                         )
                     missing_features = sorted(expected_features - sink_features)
                     if missing_features:
                         raise ValueError(
-                            f"Sink {sink.id} must bind all analytics features: "
+                            f"Write mapping {mapping.id} must bind all analytics features: "
                             + ", ".join(missing_features)
                         )
 

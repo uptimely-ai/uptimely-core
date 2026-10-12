@@ -515,9 +515,7 @@
                 "operating_point_recommendation"
               ],
               "aggregations": {}
-            }
-          },
-          "write": {
+            },
             "write_pump_telemetry": {
               "binding": {
                 "function": "write_pump_telemetry",
@@ -535,7 +533,9 @@
                     "$features.operating_point_recommendation"
                   ]
                 }
-              }
+              },
+              "features": [],
+              "aggregations": {}
             }
           },
           "order": [
@@ -642,7 +642,6 @@
               "aggregations": {}
             }
           },
-          "write": {},
           "order": [],
           "id": "pump_dataset"
         }

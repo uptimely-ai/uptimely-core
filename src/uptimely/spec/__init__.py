@@ -15,7 +15,6 @@ from .json_spec.json_model import (
     FunctionCatalog,
     Order,
     RowScope,
-    Sink,
     Specification,
 )
 from .json_spec.json_parser import SpecificationParser
@@ -36,7 +35,6 @@ __all__ = [
     "Order",
     "RowScope",
     "RowContext",
-    "Sink",
     "Specification",
     "SpecificationParser",
     "SpecificationSerializer",

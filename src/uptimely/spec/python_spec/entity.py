@@ -38,7 +38,6 @@ class Entity:
                     order=model.order,
                     features=model.features,
                     mappings=model.mappings,
-                    write=model.write,
                 )
                 for dataset in self.datasets
                 for model in [dataset.to_model()]

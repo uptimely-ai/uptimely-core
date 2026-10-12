@@ -143,5 +143,4 @@ class Specification(StrictModel):
                 if isinstance(dataset, dict):
                     dataset["features"] = _with_mapping_ids(dataset.get("features", {}) or {})
                     dataset["mappings"] = _with_mapping_ids(dataset.get("mappings", {}) or {})
-                    dataset["write"] = _with_mapping_ids(dataset.get("write", {}) or {})
         return normalized
