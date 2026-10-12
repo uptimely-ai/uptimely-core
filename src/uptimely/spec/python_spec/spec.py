@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from uptimely.spec.json_spec.json_model import FunctionCatalog
+from uptimely.spec.json_spec import json_model
 
 from .dataset import Dataset
 from .dimension import Dimension
@@ -33,9 +33,9 @@ class PythonSpecification:
             datasets.extend(entity.datasets)
         return datasets
 
-    def function_catalog(self) -> FunctionCatalog:
+    def function_catalog(self) -> json_model.FunctionCatalog:
         """Collect and merge the function catalog across all entities."""
-        catalog = FunctionCatalog()
+        catalog = json_model.FunctionCatalog()
         for dataset in self.iter_datasets():
             dataset_catalog = dataset.function_catalog()
             for category in (

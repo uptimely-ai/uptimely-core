@@ -5,27 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from uptimely.spec.json_spec.json_model import (
-    AggregateFunction,
-    Argument,
-    CollapseFunction,
-    ConformFunction,
-    ExpandFunction,
-    FeatureMapping,
-    FunctionCatalog,
-    ReadFunction,
-    VectorizeFunction,
-    WriteFunction,
-)
-from uptimely.spec.json_spec.json_model import (
-    Dataset as DatasetModel,
-)
-from uptimely.spec.json_spec.json_model import (
-    Order as OrderModel,
-)
-from uptimely.spec.json_spec.json_model import (
-    RowScope as RowScopeModel,
-)
+from uptimely.spec.json_spec import json_model
 
 from . import mappings as mapping_declarations
 from .bind import _argument_definition, _entrypoint
@@ -53,9 +33,9 @@ class RowScope:
     filtering: str = ""
     coverage: str = ""
 
-    def to_model(self) -> RowScopeModel:
+    def to_model(self) -> json_model.RowScope:
         """Convert this row scope definition to its canonical model."""
-        return RowScopeModel(
+        return json_model.RowScope(
             grain=self.grain,
             filtering=self.filtering,
             coverage=self.coverage,
@@ -75,9 +55,9 @@ class Order:
     dimension: Reference | str
     direction: Literal["asc", "desc"]
 
-    def to_model(self) -> OrderModel:
+    def to_model(self) -> json_model.Order:
         """Convert this ordering key to its canonical model."""
-        return OrderModel(
+        return json_model.Order(
             dimension=(
                 self.dimension.to_model()
                 if isinstance(self.dimension, Reference)
@@ -103,9 +83,9 @@ class Dataset:
     row_scope: RowScope = field(default_factory=RowScope)
     order: list[Order] = field(default_factory=list)
 
-    def to_model(self) -> DatasetModel:
+    def to_model(self) -> json_model.Dataset:
         """Convert this declaration to the canonical Pydantic dataset model."""
-        mappings: dict[str, FeatureMapping] = {}
+        mappings: dict[str, json_model.FeatureMapping] = {}
         writes: dict[str, Any] = {}
         feature_models = {feature.id: feature.to_model() for feature in self.features}
         for calculated_feature in self.vectorize:
@@ -146,7 +126,7 @@ class Dataset:
                                 update={"row_context": context}
                             )
 
-        return DatasetModel(
+        return json_model.Dataset(
             id=self.id,
             description=self.description,
             row_scope=self.row_scope.to_model(),
@@ -173,25 +153,25 @@ class Dataset:
             )
         return declarations
 
-    def function_catalog(self) -> FunctionCatalog:
+    def function_catalog(self) -> json_model.FunctionCatalog:
         """Build the function templates required by this dataset declaration."""
         from .feature import Aggregation
 
-        def argument(name: str, value: Any) -> Argument:
-            return Argument(id=name, **_argument_definition(value))
+        def argument(name: str, value: Any) -> json_model.Argument:
+            return json_model.Argument(id=name, **_argument_definition(value))
 
-        read: dict[str, ReadFunction] = {}
-        vectorize: dict[str, VectorizeFunction] = {}
-        collapse: dict[str, CollapseFunction] = {}
-        expand: dict[str, ExpandFunction] = {}
-        conform: dict[str, ConformFunction] = {}
+        read: dict[str, json_model.ReadFunction] = {}
+        vectorize: dict[str, json_model.VectorizeFunction] = {}
+        collapse: dict[str, json_model.CollapseFunction] = {}
+        expand: dict[str, json_model.ExpandFunction] = {}
+        conform: dict[str, json_model.ConformFunction] = {}
 
-        write: dict[str, WriteFunction] = {}
+        write: dict[str, json_model.WriteFunction] = {}
 
         def register(declaration: Mapping | Write) -> None:
             if isinstance(declaration, Write):
                 function_id = declaration.bind.function_id or declaration.bind.function.__name__
-                write[function_id] = WriteFunction(
+                write[function_id] = json_model.WriteFunction(
                     id=function_id,
                     entrypoint=_entrypoint(declaration.bind.function),
                     args={
@@ -213,11 +193,11 @@ class Dataset:
                 )
             function_id = declaration.bind.function_id or declaration.bind.function.__name__
             function = {
-                "read": ReadFunction,
-                "vectorize": VectorizeFunction,
-                "collapse": CollapseFunction,
-                "expand": ExpandFunction,
-                "conform": ConformFunction,
+                "read": json_model.ReadFunction,
+                "vectorize": json_model.VectorizeFunction,
+                "collapse": json_model.CollapseFunction,
+                "expand": json_model.ExpandFunction,
+                "conform": json_model.ConformFunction,
             }.get(operation_type)
             if function is None:
                 raise ValueError(f"Unsupported mapping operation type: {operation_type}")
@@ -250,11 +230,11 @@ class Dataset:
         for declaration in self._mapping_declarations():
             register(declaration)
 
-        aggregate: dict[str, AggregateFunction] = {}
+        aggregate: dict[str, json_model.AggregateFunction] = {}
 
         def register_aggregations(value: Any) -> None:
             if isinstance(value, Aggregation):
-                aggregate[value.id] = AggregateFunction(
+                aggregate[value.id] = json_model.AggregateFunction(
                     id=value.id,
                     entrypoint=_entrypoint(value.function),
                     args={name: argument(name, item) for name, item in value.args.items()},
@@ -271,7 +251,7 @@ class Dataset:
             if isinstance(declaration, mapping_declarations.Collapse):
                 register_aggregations(declaration.aggregations or declaration.bind.args)
 
-        return FunctionCatalog(
+        return json_model.FunctionCatalog(
             read=read,
             write=write,
             vectorize=vectorize,
