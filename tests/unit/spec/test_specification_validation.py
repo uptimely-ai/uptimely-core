@@ -72,7 +72,7 @@ def test_aggregations_are_restricted_to_collapse(tmp_path: Path) -> None:
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
         "bearing_temperature_by_pump"
     ]
-    collapse["aggregations"] = {}
+    collapse["binding"]["args"]["aggregations"] = {}
     missing_aggregation_path = tmp_path / "missing_aggregation.json"
     missing_aggregation_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -80,12 +80,9 @@ def test_aggregations_are_restricted_to_collapse(tmp_path: Path) -> None:
         Specification.from_json(missing_aggregation_path)
 
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    aggregate_bindings = configuration["entities"]["pump"]["datasets"][0]["mappings"][
-        "bearing_temperature_by_pump"
-    ]["aggregations"]
     configuration["entities"]["pump"]["datasets"][0]["mappings"]["health_signal_normalized"][
-        "aggregations"
-    ] = aggregate_bindings
+        "binding"
+    ]["args"]["aggregations"] = {"invalid": {"function": "maximum", "args": {}}}
     invalid_operation_path = tmp_path / "invalid_aggregation_operation.json"
     invalid_operation_path.write_text(json.dumps(configuration), encoding="utf-8")
 

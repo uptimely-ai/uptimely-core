@@ -374,8 +374,7 @@
                 "bearing_temperature",
                 "vibration_rms",
                 "motor_power"
-              ],
-              "aggregations": {}
+              ]
             },
             "recommended_flow_rate": {
               "binding": {
@@ -387,8 +386,7 @@
               },
               "features": [
                 "recommended_flow_rate"
-              ],
-              "aggregations": {}
+              ]
             },
             "recommended_discharge_pressure": {
               "binding": {
@@ -400,8 +398,7 @@
               },
               "features": [
                 "recommended_discharge_pressure"
-              ],
-              "aggregations": {}
+              ]
             },
             "energy_cost_score": {
               "binding": {
@@ -413,8 +410,7 @@
               },
               "features": [
                 "energy_cost_score"
-              ],
-              "aggregations": {}
+              ]
             },
             "converged": {
               "binding": {
@@ -427,8 +423,7 @@
               },
               "features": [
                 "converged"
-              ],
-              "aggregations": {}
+              ]
             },
             "pressure_flow_efficiency": {
               "binding": {
@@ -443,8 +438,7 @@
               },
               "features": [
                 "pressure_flow_efficiency"
-              ],
-              "aggregations": {}
+              ]
             },
             "bearing_temperature_delta": {
               "binding": {
@@ -461,8 +455,7 @@
               },
               "features": [
                 "bearing_temperature_delta"
-              ],
-              "aggregations": {}
+              ]
             },
             "vibration_delta": {
               "binding": {
@@ -479,8 +472,7 @@
               },
               "features": [
                 "vibration_delta"
-              ],
-              "aggregations": {}
+              ]
             },
             "pump_health_score": {
               "binding": {
@@ -495,8 +487,7 @@
               },
               "features": [
                 "pump_health_score"
-              ],
-              "aggregations": {}
+              ]
             },
             "operating_point_recommendation": {
               "binding": {
@@ -513,8 +504,7 @@
               },
               "features": [
                 "operating_point_recommendation"
-              ],
-              "aggregations": {}
+              ]
             },
             "write_pump_telemetry": {
               "binding": {
@@ -534,8 +524,7 @@
                   ]
                 }
               },
-              "features": [],
-              "aggregations": {}
+              "features": []
             }
           },
           "order": [
@@ -606,7 +595,15 @@
                     "$dimensions.plant",
                     "$dimensions.production_line",
                     "$dimensions.pump"
-                  ]
+                  ],
+                  "aggregations": {
+                    "bearing_temperature_max": {
+                      "function": "maximum",
+                      "args": {
+                        "feature": "$features.bearing_temperature"
+                      }
+                    }
+                  }
                 }
               },
               "features": [
@@ -614,15 +611,7 @@
                 "production_line",
                 "pump",
                 "bearing_temperature_max"
-              ],
-              "aggregations": {
-                "bearing_temperature_max": {
-                  "function": "maximum",
-                  "args": {
-                    "feature": "$features.bearing_temperature"
-                  }
-                }
-              }
+              ]
             },
             "health_signal_normalized": {
               "binding": {
@@ -638,8 +627,7 @@
               },
               "features": [
                 "health_signal_normalized"
-              ],
-              "aggregations": {}
+              ]
             }
           },
           "order": [],

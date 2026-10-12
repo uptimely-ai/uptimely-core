@@ -129,8 +129,7 @@
                 "input_1",
                 "input_2",
                 "id"
-              ],
-              "aggregations": {}
+              ]
             },
             "column_3": {
               "binding": {
@@ -143,8 +142,7 @@
               },
               "features": [
                 "column_3"
-              ],
-              "aggregations": {}
+              ]
             },
             "column_4": {
               "binding": {
@@ -156,8 +154,7 @@
               },
               "features": [
                 "column_4"
-              ],
-              "aggregations": {}
+              ]
             },
             "write": {
               "binding": {
@@ -170,8 +167,7 @@
                   ]
                 }
               },
-              "features": [],
-              "aggregations": {}
+              "features": []
             }
           },
           "order": [],

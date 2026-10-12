@@ -27,7 +27,6 @@ class FeatureMapping(StrictModel):
     id: str = Field(exclude=True)
     binding: Binding
     features: list[str] = Field(default_factory=list)
-    aggregations: dict[str, Binding] = Field(default_factory=dict)
 
 
 class Order(StrictModel):

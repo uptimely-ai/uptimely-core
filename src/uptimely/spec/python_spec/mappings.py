@@ -39,9 +39,13 @@ class _Mapping:
         """Convert this mapping declaration to its canonical model."""
         identifier = _operation_id(self.bind, self.id)
         arguments = _binding_args(self.bind)
-        aggregations = self.aggregations
-        if isinstance(self, Collapse) and not aggregations:
-            aggregations = arguments.pop("aggregations", {})
+        if isinstance(self, Collapse):
+            aggregations = self.aggregations or self.bind.args.get("aggregations", {})
+            if aggregations or "aggregations" in self.bind.args:
+                arguments["aggregations"] = {
+                    feature_id: _aggregation_binding(value).model_dump(exclude_none=True)
+                    for feature_id, value in aggregations.items()
+                }
         return json_model.FeatureMapping(
             id=identifier,
             binding=json_model.Binding(
@@ -49,10 +53,6 @@ class _Mapping:
                 args=arguments,
             ),
             features=[_feature_id(feature) for feature in self.features],
-            aggregations={
-                feature_id: _aggregation_binding(aggregation)
-                for feature_id, aggregation in aggregations.items()
-            },
         )
 
 

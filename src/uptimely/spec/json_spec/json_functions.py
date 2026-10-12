@@ -178,7 +178,9 @@ def _auto_function_catalog(declarations: object) -> dict[str, Any]:
             function_id = operation.bind.function_id or operation.bind.function.__name__
             register_bind(function_id, operation.bind, category)
             if isinstance(operation, mappings.Collapse):
-                register_aggregations(operation.aggregations or operation.bind.args)
+                register_aggregations(
+                    operation.aggregations or operation.bind.args.get("aggregations", {})
+                )
                 if operation.aggregations:
                     merged["collapse"][function_id]["args"]["aggregations"] = {
                         **_argument_definition(operation.aggregations),

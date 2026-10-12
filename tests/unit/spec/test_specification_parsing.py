@@ -187,7 +187,7 @@ def test_system_and_subset_support_multiple_variables() -> None:
     assert collapse.binding.function == "aggregate_by_dimension"
     assert collapse.binding.args["dataset"] == "$datasets.pump_telemetry_dataset"
     assert (
-        collapse.aggregations["bearing_temperature_max"].args["feature"]
+        collapse.binding.args["aggregations"]["bearing_temperature_max"]["args"]["feature"]
         == "$features.bearing_temperature"
     )
     system = FeatureGraph(specification)

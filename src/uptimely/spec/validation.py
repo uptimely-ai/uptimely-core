@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .json_spec.bindings import aggregation_bindings
+
 
 class SpecificationError(ValueError):
     """A semantic specification error with a stable code and resource path."""
@@ -122,7 +124,7 @@ def _validate_calculation_bindings(entity: Any, categories: dict[str, dict[str, 
             if matches[0] == "write":
                 if mapping.features:
                     raise ValueError(f"Write mapping {mapping_id} cannot produce features")
-                if mapping.aggregations:
+                if "aggregations" in mapping.binding.args:
                     raise ValueError(f"Write mapping {mapping_id} cannot use aggregations")
                 continue
             if not mapping.features:
@@ -134,7 +136,7 @@ def _validate_calculation_bindings(entity: Any, categories: dict[str, dict[str, 
                         "Calculated feature names cannot duplicate entity dimensions: "
                         + ", ".join(collisions)
                     )
-            if matches[0] != "collapse" and mapping.aggregations:
+            if matches[0] != "collapse" and "aggregations" in mapping.binding.args:
                 raise ValueError(f"{matches[0]} mapping {mapping_id} cannot use aggregations")
             for feature_id in mapping.features:
                 if feature_id not in dataset.features:
@@ -161,13 +163,14 @@ def _validate_calculation_bindings(entity: Any, categories: dict[str, dict[str, 
                 if not references:
                     raise ValueError(f"Vectorize mapping {mapping_id} must reference features")
             elif matches[0] == "collapse":
-                unknown_aggregations = sorted(set(mapping.aggregations) - set(mapping.features))
+                aggregations = aggregation_bindings(mapping.binding.args)
+                unknown_aggregations = sorted(set(aggregations) - set(mapping.features))
                 if unknown_aggregations:
                     raise ValueError(
                         f"Collapse mapping {mapping_id} aggregates features it does not produce: "
                         + ", ".join(unknown_aggregations)
                     )
-                if not mapping.aggregations:
+                if not aggregations:
                     raise ValueError(f"Collapse mapping {mapping_id} must define aggregations")
             if matches[0] in {"read", "conform", "expand", "collapse"}:
                 missing_dimensions = sorted(dimensions - set(mapping.features))
@@ -224,7 +227,7 @@ def _validate_aggregations(model: Any) -> None:
             for mapping in dataset.mappings.values():
                 if mapping.binding.function not in model.functions.collapse:
                     continue
-                for output_feature, binding in mapping.aggregations.items():
+                for output_feature, binding in aggregation_bindings(mapping.binding.args).items():
                     function_id = binding.function
                     if function_id not in model.functions.aggregate:
                         raise ValueError(
@@ -316,17 +319,9 @@ def _validate_binding_contracts(model: Any, categories: dict[str, dict[str, Any]
                             "binding",
                             "args",
                         ),
-                        additional_arguments=(
-                            {"aggregations"}
-                            if (
-                                mapping.aggregations
-                                and mapping.binding.function in categories["collapse"]
-                            )
-                            else None
-                        ),
                     )
                 if mapping.binding.function in categories["collapse"]:
-                    for feature_id, binding in mapping.aggregations.items():
+                    for feature_id, binding in aggregation_bindings(mapping.binding.args).items():
                         aggregate = categories["aggregate"].get(binding.function)
                         if aggregate is not None:
                             _validate_binding_contract(
@@ -339,6 +334,8 @@ def _validate_binding_contracts(model: Any, categories: dict[str, dict[str, Any]
                                     dataset.id,
                                     "mappings",
                                     mapping_id,
+                                    "binding",
+                                    "args",
                                     "aggregations",
                                     feature_id,
                                     "args",

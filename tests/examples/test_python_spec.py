@@ -206,7 +206,11 @@ def test_sources_and_transforms_python_spec(tmp_path: Path) -> None:
     assert "collapse_data" in ds_model.mappings
     assert "input_1" in ds_model.all_features
     assert "input_2" in ds_model.all_features
-    aggregation_binding = ds_model.mappings["collapse_data"].aggregations["collapsed_feature"]
-    assert aggregation_binding.function == "maximum"
-    assert aggregation_binding.args == {"feature": "$features.input_1"}
+    aggregation_binding = ds_model.mappings["collapse_data"].binding.args["aggregations"][
+        "collapsed_feature"
+    ]
+    assert aggregation_binding == {
+        "function": "maximum",
+        "args": {"feature": "$features.input_1"},
+    }
     assert "maximum" in spec.functions.aggregate
