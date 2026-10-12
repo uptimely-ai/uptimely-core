@@ -99,10 +99,9 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert "Vectorize" in document
     assert "Read" in document
     assert "Write" in document
-    assert 'data-function-group="collapse-aggregate"' in document
-    assert "Collapse &amp; Aggregation" in document
+    assert 'data-function-group="collapse"' in document
+    assert "Functions wrapped in grouping by the target entity dimensions" in document
     assert "Collapse function" in document
-    assert "Aggregation function" not in document
 
 
 def test_generate_json_docs_from_in_memory_spec_is_deterministic(tmp_path: Path) -> None:

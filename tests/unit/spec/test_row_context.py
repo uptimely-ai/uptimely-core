@@ -68,6 +68,28 @@ def _specification(binding: bind.Bind, context: RowContext | None = None) -> Spe
     )
 
 
+def _aggregation_specification(aggregation: bind.Bind) -> Specification:
+    return Specification.from_python(
+        datasets=[
+            dataset.Dataset(id="input", mappings=[_read()]),
+            dataset.Dataset(
+                id="summary",
+                mappings=[
+                    mapping.Collapse(
+                        id="summary",
+                        bind=aggregation,
+                        features=[
+                            feature.Feature(id="id", type="integer"),
+                            feature.Feature(id="temperature_max", type="integer"),
+                        ],
+                    )
+                ],
+            ),
+        ],
+        dimensions=[dimension.Dimension(id="id", type="integer")],
+    )
+
+
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
@@ -330,18 +352,6 @@ def test_non_vectorized_models_reject_context(model_type, fields: dict) -> None:
         model_type(**fields, row_context={})
 
 
-@pytest.mark.parametrize("constructor", [mapping.aggregation, mapping.Aggregation])
-def test_aggregation_unwraps_row_context_annotations(constructor) -> None:
-    args = {"configuration": {"windows": [row_context.time("8h", before="8h")]}}
-    binding = bind.bind(calculate, **args)
-    entry = _binding_value({"items": [binding]})["items"][0]
-    assert entry == {
-        "function": "calculate",
-        "args": {"configuration": {"windows": ["8h"]}},
-    }
-    assert is_aggregation_entry(entry)
-
-
 def test_shared_binding_supports_distinct_feature_contexts() -> None:
     shared = bind.bind(
         calculate,
@@ -479,28 +489,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         maximum,
         feature=ref.feature("temperature"),
     )
-    specification = Specification.from_python(
-        datasets=[
-            dataset.Dataset(
-                id="input",
-                mappings=[_read()],
-            ),
-            dataset.Dataset(
-                id="summary",
-                mappings=[
-                    mapping.Collapse(
-                        id="summary",
-                        bind=annotated,
-                        features=[
-                            feature.Feature(id="id", type="integer"),
-                            feature.Feature(id="temperature_max", type="integer"),
-                        ],
-                    )
-                ],
-            ),
-        ],
-        dimensions=[dimension.Dimension(id="id", type="integer")],
-    )
+    specification = _aggregation_specification(annotated)
     plan = Compiler(specification).compile()
     operation = next(item for item in plan.operations if item.kind == "collapse")
     assert operation.row_context is None

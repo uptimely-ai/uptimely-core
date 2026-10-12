@@ -94,29 +94,35 @@ def test_example_timestamp_order_matches_python_declaration() -> None:
 def test_spec_from_python_models_and_json_export(tmp_path: Path) -> None:
     from examples.example_2.spec.spec import dataset_, dimensions
 
-    functions = dataset_.function_catalog()
-
     specification = Specification.from_python(
         datasets=[dataset_],
-        functions=functions,
+        functions=dataset_.function_catalog(),
         name="example_2",
         dimensions=dimensions,
     )
     output_path = tmp_path / "spec.json"
     specification.to_json(output_path)
 
-    assert specification.entities
-    assert specification.entities["example_2"].datasets[0].id
-    assert output_path.exists()
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     dataset_payload = payload["entities"]["example_2"]["datasets"][0]
-    assert payload["name"] == "example_2"
-    assert payload["version"] == "0.1.0"
-    assert payload["source"] == {"name": "python_api", "generated": True}
+    assert {key: payload[key] for key in ("name", "version", "source")} == {
+        "name": "example_2",
+        "version": "0.1.0",
+        "source": {"name": "python_api", "generated": True},
+    }
     assert set(payload["functions"]) == {"read", "write", "vectorize"}
-    assert payload["functions"]["read"]["read"]["entrypoint"].endswith(":read_data")
-    assert payload["functions"]["write"]["write"]["entrypoint"].endswith(":write_data")
-    assert payload["functions"]["vectorize"]["sum_features"]["entrypoint"].endswith(":sum_features")
+    assert {
+        name: payload["functions"][category][name]["entrypoint"].rsplit(":", 1)[-1]
+        for category, name in (
+            ("read", "read"),
+            ("write", "write"),
+            ("vectorize", "sum_features"),
+        )
+    } == {
+        "read": "read_data",
+        "write": "write_data",
+        "sum_features": "sum_features",
+    }
     assert set(dataset_payload) == {
         "id",
         "description",
@@ -125,80 +131,66 @@ def test_spec_from_python_models_and_json_export(tmp_path: Path) -> None:
         "features",
         "mappings",
     }
-    assert dataset_payload["description"]
-    assert dataset_payload["mappings"]["read"]["binding"]["function"] == "read"
-    assert dataset_payload["mappings"]["write"]["binding"]["args"]["df"] == "$datasets.@"
-    assert dataset_payload["mappings"]["write"]["features"] == []
-    assert any(isinstance(declaration, mapping.Write) for declaration in dataset_.mappings)
-    assert dataset_payload["mappings"]["column_3"]["binding"]["args"] == {
+    mappings = dataset_payload["mappings"]
+    assert mappings["read"]["binding"]["function"] == "read"
+    assert mappings["write"]["binding"]["args"]["df"] == "$datasets.@"
+    assert mappings["write"]["features"] == []
+    assert mappings["column_3"]["binding"]["args"] == {
         "left_feature": "$features.input_1",
         "right_feature": "$features.input_2",
         "output": "$features.column_3",
     }
-    assert dataset_payload["features"]["column_3"]["unit"] is None
-    assert dataset_payload["features"]["column_3"]["type"] is None
-    assert "entrypoint" not in dataset_payload["features"]["column_3"]
+    assert dataset_payload["features"]["column_3"] == {
+        "description": "Vectorized feature: column_3",
+        "type": None,
+        "unit": None,
+        "row_context": None,
+    }
 
 
-def test_sources_and_transforms_python_spec(tmp_path: Path) -> None:
+def test_sources_and_transforms_python_spec() -> None:
     from examples.example_1.functions.calculation import maximum
     from examples.example_2.functions import functions
 
-    source_op = mapping.Read(
-        id="read",
-        bind=bind.bind(functions.read_data),
-        features=[feature.Feature(id="input_1", description="Input feature: input_1")],
+    declaration = dataset.Dataset(
+        id="transformed_dataset",
+        mappings=[
+            mapping.Read(
+                id="read",
+                bind=bind.bind(functions.read_data),
+                features=[feature.Feature(id="input_1")],
+            ),
+            mapping.Expand(
+                id="expand_data",
+                bind=bind.bind(
+                    functions.expand_data,
+                    df1=ref.dataset("transformed_dataset"),
+                    df2=ref.dataset("transformed_dataset"),
+                ),
+                features=[feature.Feature(id="input_2")],
+            ),
+        ],
     )
-
-    transform_op = mapping.Expand(
-        id="expand_data",
-        bind=bind.bind(
-            functions.expand_data,
-            df1=ref.dataset("transformed_dataset"),
-            df2=ref.dataset("transformed_dataset"),
-        ),
-        features=[feature.Feature(id="input_2", description="Input feature: input_2")],
-    )
-
-    collapse_op = mapping.Collapse(
-        id="collapse_data",
-        bind=bind.bind(
-            maximum,
-            feature=ref.feature("input_2"),
-        ),
-        features=[
-            feature.Feature(
-                id="collapsed_feature",
-                description="Feature generated while collapsing data",
+    summary = dataset.Dataset(
+        id="summary",
+        mappings=[
+            mapping.Collapse(
+                id="collapse_data",
+                bind=bind.bind(maximum, feature=ref.feature("input_1")),
+                features=[feature.Feature(id="collapsed_feature")],
             )
         ],
     )
-
-    dataset_obj = dataset.Dataset(
-        id="transformed_dataset",
-        mappings=[source_op, transform_op],
-    )
-    summary = dataset.Dataset(id="summary", mappings=[collapse_op])
-
     spec = Specification.from_python(
-        datasets=[dataset_obj, summary],
-        functions=None,
+        datasets=[declaration, summary],
         name="transforms_test",
     )
 
-    out_json = tmp_path / "spec.json"
-    spec.to_json(out_json)
-
     ds_model = spec.entities["transforms_test"].datasets[0]
-    assert "read" in ds_model.mappings
-    assert "expand_data" in ds_model.mappings
-    assert "collapse_data" in spec.entities["transforms_test"].datasets[1].mappings
-    assert "input_1" in ds_model.all_features
-    assert "input_2" in ds_model.all_features
-    summary_mapping = spec.entities["transforms_test"].datasets[1].mappings["collapse_data"]
-    collapse_binding = summary_mapping.binding
-    assert collapse_binding.model_dump() == {
-        "function": "maximum",
-        "args": {"feature": "$features.input_2"},
-    }
+    assert set(ds_model.mappings) == {"read", "expand_data"}
+    assert {"input_1", "input_2"} <= set(ds_model.all_features)
+    collapse = spec.entities["transforms_test"].datasets[1].mappings["collapse_data"]
+    assert collapse.binding.function == "maximum"
+    assert collapse.binding.args == {"feature": "$features.input_1"}
+    assert collapse.features == ["collapsed_feature"]
     assert "maximum" in spec.functions.collapse
