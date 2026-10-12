@@ -47,6 +47,8 @@ validation:
 
 nav:
   - Home: index.md
+  - Demo:
+      - Pump Analytics: /uptimely-core/examples/example_1/index.html
   - Overview:
       - The problem: overview/problem.md
       - Infographic: overview/infographic.md

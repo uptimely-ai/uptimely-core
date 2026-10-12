@@ -21,8 +21,13 @@ jobs:
           python-version: "3.13"
           cache: poetry
           cache-dependency-path: poetry.lock
-      - run: poetry install --only docs
+      - run: poetry install --without dev,test --with docs
       - run: poetry run mkdocs build --strict
+      - name: Build Example 1 analytics docs
+        run: |
+          poetry run uptimely docs build \
+            --spec examples/example_1/_generated/spec/spec.json \
+            --output site/examples/example_1
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:
