@@ -112,6 +112,7 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert "mt-5 border-t border-slate-800 pt-4" in document
     for group_name in ("vectorize", "read", "write"):
         assert f'data-function-group="{group_name}"' in document
+    assert "data-function-illustration" not in document
     assert "Vectorize" in document
     assert "Read" in document
     assert "Write" in document
