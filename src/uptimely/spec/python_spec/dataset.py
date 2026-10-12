@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 from uptimely.spec.json_spec import json_model
 
@@ -13,10 +13,6 @@ from .feature import Feature
 from .mappings import Mapping, Write
 from .ref import Reference
 from .row_context import _context
-
-if TYPE_CHECKING:
-    from .feature import Vectorize as LegacyVectorize
-    from .mappings import Collapse, Conform, Expand, Read
 
 __all__ = [
     "Dataset",
@@ -73,12 +69,7 @@ class Dataset:
 
     id: str
     features: list[Feature] = field(default_factory=list)
-    mappings: list[Mapping | Write] = field(default_factory=list)
-    read: list[Read] = field(default_factory=list)
-    conform: list[Conform] = field(default_factory=list)
-    expand: list[Expand] = field(default_factory=list)
-    collapse: list[Collapse] = field(default_factory=list)
-    vectorize: list[LegacyVectorize] = field(default_factory=list)
+    mappings: list[Mapping] = field(default_factory=list)
     description: str | None = None
     row_scope: RowScope = field(default_factory=RowScope)
     order: list[Order] = field(default_factory=list)
@@ -86,12 +77,9 @@ class Dataset:
     def to_model(self) -> json_model.Dataset:
         """Convert this declaration to the canonical Pydantic dataset model."""
         mappings: dict[str, json_model.FeatureMapping] = {}
-        writes: dict[str, Any] = {}
+        writes: dict[str, json_model.Sink] = {}
         feature_models = {feature.id: feature.to_model() for feature in self.features}
-        for calculated_feature in self.vectorize:
-            feature_models.setdefault(calculated_feature.id, calculated_feature.to_model())
-        declarations = self._mapping_declarations()
-        for declaration in declarations:
+        for declaration in self.mappings:
             if isinstance(declaration, Write):
                 model = declaration.to_model()
                 writes[model.id] = model
@@ -135,23 +123,6 @@ class Dataset:
             mappings=mappings,
             write=writes,
         )
-
-    def _mapping_declarations(self) -> list[Mapping | Write]:
-        """Return declared mappings followed by legacy operation adapters."""
-        declarations = list(self.mappings)
-        for operation_type in ("read", "conform", "expand", "collapse"):
-            declarations.extend(getattr(self, operation_type))
-        for calculated_feature in self.vectorize:
-            feature_model = calculated_feature.to_model()
-            declarations.append(
-                mapping_declarations.Vectorize(
-                    id=calculated_feature.id,
-                    bind=calculated_feature.bind,
-                    features=[feature_model.id],
-                    row_context=feature_model.row_context,
-                )
-            )
-        return declarations
 
     def function_catalog(self) -> json_model.FunctionCatalog:
         """Build the function templates required by this dataset declaration."""
@@ -227,7 +198,7 @@ class Dataset:
                 args=arguments,
             )
 
-        for declaration in self._mapping_declarations():
+        for declaration in self.mappings:
             register(declaration)
 
         aggregate: dict[str, json_model.AggregateFunction] = {}
@@ -247,7 +218,7 @@ class Dataset:
                 for item in value.values():
                     register_aggregations(item)
 
-        for declaration in self._mapping_declarations():
+        for declaration in self.mappings:
             if isinstance(declaration, mapping_declarations.Collapse):
                 register_aggregations(declaration.aggregations or declaration.bind.args)
 
