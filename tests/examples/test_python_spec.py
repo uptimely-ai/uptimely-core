@@ -187,9 +187,7 @@ def test_sources_and_transforms_python_spec(tmp_path: Path) -> None:
 
     dataset_obj = dataset.Dataset(
         id="transformed_dataset",
-        read=[source_op],
-        expand=[transform_op],
-        collapse=[collapse_op],
+        mappings=[source_op, transform_op, collapse_op],
     )
 
     functions_cat = dataset_obj.function_catalog()

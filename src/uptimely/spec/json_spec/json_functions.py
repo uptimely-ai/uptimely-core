@@ -166,7 +166,7 @@ def _auto_function_catalog(declarations: object) -> dict[str, Any]:
             mappings.Collapse: "collapse",
             mappings.Vectorize: "vectorize",
         }
-        for operation in dataset._mapping_declarations():
+        for operation in dataset.mappings:
             category = (
                 "write"
                 if isinstance(operation, mappings.Write)
@@ -191,9 +191,7 @@ def _auto_function_catalog(declarations: object) -> dict[str, Any]:
         if hasattr(declaration, "datasets"):
             for dataset in getattr(declaration, "datasets", []) or []:
                 register_dataset(dataset)
-        elif hasattr(declaration, "read") and (
-            hasattr(declaration, "vectorize") or hasattr(declaration, "vectorize")
-        ):
+        elif hasattr(declaration, "mappings"):
             register_dataset(declaration)
 
     return merged

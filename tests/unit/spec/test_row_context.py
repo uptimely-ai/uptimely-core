@@ -56,12 +56,29 @@ def _specification(binding: bind.Bind, context: RowContext | None = None) -> Spe
             dataset.Dataset(
                 id="observations",
                 order=[dataset.Order(dimension=ref.dimension("id"), direction="asc")],
-                read=[_read()],
-                vectorize=[feature.Vectorize(id="result", bind=binding, row_context=context)],
+                mappings=[
+                    _read(),
+                    mapping.Vectorize(
+                        id="result",
+                        bind=binding,
+                        features=[feature.Feature(id="result")],
+                        row_context=context,
+                    ),
+                ],
             )
         ],
         dimensions=[dimension.Dimension(id="id", type="integer")],
     )
+
+
+def test_dataset_authoring_uses_mappings_for_all_operation_types() -> None:
+    assert {
+        "read",
+        "conform",
+        "expand",
+        "collapse",
+        "vectorize",
+    }.isdisjoint(dataset.Dataset.__dataclass_fields__)
 
 
 @pytest.mark.parametrize(
@@ -134,10 +151,18 @@ def test_feature_consolidates_directional_maxima() -> None:
         "after": {"time": "2h"},
     }
     model = declaration.to_model()
-    mapping = (
-        dataset.Dataset(id="observations", vectorize=[declaration]).to_model().mappings["result"]
+    vectorize_mapping = mapping.Vectorize(
+        id=declaration.id,
+        bind=declaration.bind,
+        features=[feature.Feature(id=declaration.id)],
+        row_context=declaration.row_context,
     )
-    assert mapping.binding.args["configuration"] == {"period": "8h", "counts": [8]}
+    model_mapping = (
+        dataset.Dataset(id="observations", mappings=[vectorize_mapping])
+        .to_model()
+        .mappings["result"]
+    )
+    assert model_mapping.binding.args["configuration"] == {"period": "8h", "counts": [8]}
     assert model.row_context == declaration.row_context
 
 
@@ -241,10 +266,18 @@ def test_helpers_work_as_direct_feature_context(annotation, expected) -> None:
     )
     model = declaration.to_model()
     assert model.row_context.before.model_dump(exclude_none=True) == expected
-    mapping = (
-        dataset.Dataset(id="observations", vectorize=[declaration]).to_model().mappings["result"]
+    vectorize_mapping = mapping.Vectorize(
+        id=declaration.id,
+        bind=declaration.bind,
+        features=[feature.Feature(id=declaration.id)],
+        row_context=declaration.row_context,
     )
-    assert mapping.binding.args == {"column": "$features.temperature"}
+    model_mapping = (
+        dataset.Dataset(id="observations", mappings=[vectorize_mapping])
+        .to_model()
+        .mappings["result"]
+    )
+    assert model_mapping.binding.args == {"column": "$features.temperature"}
 
 
 def test_direct_binding_declarations_collect_context() -> None:
@@ -374,8 +407,21 @@ def test_shared_binding_supports_distinct_feature_contexts() -> None:
     baseline = _specification(shared)
     declaration = dataset.Dataset(
         id="observations",
-        read=[_read()],
-        vectorize=[first, second],
+        mappings=[
+            _read(),
+            mapping.Vectorize(
+                id=first.id,
+                bind=first.bind,
+                features=[feature.Feature(id=first.id)],
+                row_context=first.row_context,
+            ),
+            mapping.Vectorize(
+                id=second.id,
+                bind=second.bind,
+                features=[feature.Feature(id=second.id)],
+                row_context=second.row_context,
+            ),
+        ],
     )
     specification = Specification.from_python(
         datasets=[declaration],
@@ -411,8 +457,7 @@ def test_mappings_unwrap_annotations_without_context(operation_type) -> None:
     assert "row_context" not in model.model_dump()
     assert model.binding.args == {"configuration": {"windows": ["8h"]}}
     assert "row_context" not in model.binding.model_dump()
-    operation_name = operation_type.__name__.lower()
-    copied = dataset.Dataset(id="observations", **{operation_name: [declaration]}).to_model()
+    copied = dataset.Dataset(id="observations", mappings=[declaration]).to_model()
     assert "row_context" not in next(iter(copied.mappings.values())).model_dump()
     with pytest.raises(TypeError, match="row_context"):
         operation_type(bind=bind.bind(calculate), row_context=row_context.rows(1, before=1))
@@ -515,11 +560,11 @@ def test_aggregations_execute_without_row_context() -> None:
         datasets=[
             dataset.Dataset(
                 id="input",
-                read=[_read()],
+                mappings=[_read()],
             ),
             dataset.Dataset(
                 id="summary",
-                collapse=[
+                mappings=[
                     mapping.Collapse(
                         bind=bind.bind(
                             aggregate_by_dimension,
