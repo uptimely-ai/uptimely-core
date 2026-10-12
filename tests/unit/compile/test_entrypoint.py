@@ -16,13 +16,15 @@ def test_compiler_rejects_string_feature_selection() -> None:
         Compiler(SPEC_PATH, features="health_signal_normalized")
 
 
-def test_compiler_rejects_missing_function_entrypoints() -> None:
+@pytest.mark.parametrize(
+    ("category", "function_id"),
+    [("vectorize", "pressure_flow_efficiency"), ("collapse", "maximum")],
+)
+def test_compiler_rejects_missing_function_entrypoints(category: str, function_id: str) -> None:
     specification = Specification.from_json(SPEC_PATH)
-    specification.functions.vectorize["pressure_flow_efficiency"].entrypoint = ""
+    getattr(specification.functions, category)[function_id].entrypoint = ""
 
-    with pytest.raises(
-        ValueError, match="Missing entrypoint for function: pressure_flow_efficiency"
-    ):
+    with pytest.raises(ValueError, match=f"Missing entrypoint for function: {function_id}"):
         Compiler(specification).compile()
 
 

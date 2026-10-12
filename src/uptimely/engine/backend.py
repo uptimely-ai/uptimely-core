@@ -28,7 +28,13 @@ class DataFrameBackend(Protocol):
 
     def is_duplicated(self, frame: object) -> bool: ...
 
+    def row_count(self, frame: object) -> int: ...
+
     def with_columns(self, frame: object, column: object) -> object: ...
+
+    def collapse(self, frame: object, keys: Sequence[str], columns: Sequence[object]) -> object: ...
+
+    def is_expression(self, value: object) -> bool: ...
 
     def feature_column(self, name: str) -> object: ...
 
@@ -43,8 +49,6 @@ class ResourceResolver(Protocol):
     """Resolve plan resources needed during execution."""
 
     def entity_dimensions(self, entity_id: str) -> list[str]: ...
-
-    def function_entrypoint(self, category: str, function_id: str) -> str: ...
 
 
 class CallableLoader(Protocol):
@@ -73,6 +77,22 @@ class PolarsBackend:
         return frame.lazy()
 
     def join(self, left: object, right: object, keys: Sequence[str]) -> object:
+        if not keys:
+            key = "__uptimely_global_key"
+            columns = set(self.column_names(left)) | set(self.column_names(right))
+            while key in columns:
+                key += "_"
+            return (
+                left.with_columns(pl.lit(0).alias(key))
+                .join(
+                    right.with_columns(pl.lit(0).alias(key)),
+                    on=key,
+                    how="full",
+                    coalesce=True,
+                    validate="1:1",
+                )
+                .drop(key)
+            )
         return left.join(right, on=list(keys), how="full", coalesce=True, validate="1:1")
 
     def collect(self, frame: object) -> object:
@@ -83,8 +103,24 @@ class PolarsBackend:
             frame = frame.collect()
         return bool(frame.is_duplicated().any())
 
+    def row_count(self, frame: object) -> int:
+        """Return the row count without materializing all columns of a lazy frame."""
+        count = frame.select(pl.len())
+        if isinstance(count, pl.LazyFrame):
+            count = count.collect()
+        return count.item()
+
     def with_columns(self, frame: object, column: object) -> object:
         return frame.with_columns(column)
+
+    def collapse(self, frame: object, keys: Sequence[str], columns: Sequence[object]) -> object:
+        """Evaluate all reducer expressions together at the requested grain."""
+        if keys:
+            return frame.group_by(list(keys)).agg(list(columns))
+        return frame.select(list(columns))
+
+    def is_expression(self, value: object) -> bool:
+        return isinstance(value, pl.Expr)
 
     def feature_column(self, name: str) -> object:
         return pl.col(name)
@@ -110,12 +146,6 @@ class PlanResourceResolver:
         if entity is None:
             raise ValueError(f"Unknown entity: {entity_id}")
         return list(entity.get("dimensions", []))
-
-    def function_entrypoint(self, category: str, function_id: str) -> str:
-        function = self.resources.get("functions", {}).get(category, {}).get(function_id)
-        if function is None:
-            raise ValueError(f"Unknown {category} function: {function_id}")
-        return function["entrypoint"]
 
 
 class EntrypointLoader:

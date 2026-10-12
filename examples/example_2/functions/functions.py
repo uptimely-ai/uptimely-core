@@ -1,5 +1,3 @@
-from collections.abc import Callable
-
 import polars as pl
 from examples.example_2.data.data import DATA
 
@@ -26,21 +24,6 @@ def expand_data(df1: pl.DataFrame, df2: pl.DataFrame) -> pl.DataFrame:
 
     # Start with the first dataset as the base
     return df1.join(df2, on="id", how="inner")
-
-
-def agg(
-    df: pl.DataFrame,
-    dimension: str,
-    features: list[str],
-    aggregation: Callable[[pl.Expr], pl.Expr] | None = None,
-) -> pl.DataFrame:
-    """Aggregate feature columns by a dimension.
-
-    ``aggregation`` receives each feature expression and must return the
-    expression to use for that feature. It defaults to ``implode``.
-    """
-    aggregate = aggregation or pl.Expr.implode
-    return df.group_by(dimension).agg([aggregate(pl.col(feature)) for feature in features])
 
 
 def filter_data(df: pl.DataFrame, filter: str) -> pl.DataFrame:

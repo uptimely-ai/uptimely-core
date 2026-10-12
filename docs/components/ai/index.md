@@ -21,7 +21,7 @@ By looking at the mcp example in source code, it is almost trivial to define you
 
 ## What the server exposes
 
-Vectorize and aggregate functions build Polars expressions inside the
+Vectorize and collapse functions build Polars expressions inside the
 dependency graph, so the meaningful execution unit is a function **bound to
 features**, not the raw function. The server therefore offers two layers:
 

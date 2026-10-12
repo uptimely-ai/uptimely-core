@@ -57,7 +57,7 @@ async def test_list_functions_groups_catalog(state: ServerState) -> None:
     payload = await _call(state, "list_functions")
     assert "pump_health_score" in payload["vectorize"]
     assert sorted(payload) == sorted(
-        ["read", "write", "vectorize", "aggregate", "collapse", "expand", "conform"]
+        ["read", "write", "vectorize", "collapse", "expand", "conform"]
     )
 
 

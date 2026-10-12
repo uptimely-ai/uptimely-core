@@ -132,16 +132,18 @@ class Compiler:
         arguments = resolve_binding_args(
             node.args,
             node.dataset_id,
-            node.feature if node.operation_type == "vectorize" else None,
+            (
+                next(
+                    feature
+                    for feature in node.output_features
+                    if feature not in self.specification.entities[node.entity].dimensions
+                )
+                if node.operation_type == "collapse"
+                else node.feature
+                if node.operation_type == "vectorize"
+                else None
+            ),
         )
-        if node.operation_type == "collapse":
-            arguments["aggregations"] = {
-                feature: {
-                    "function": binding.function,
-                    "args": resolve_binding_args(binding.args, node.dataset_id),
-                }
-                for feature, binding in node.aggregations.items()
-            }
         return Operation(
             id=node.node_id,
             kind=node.operation_type,

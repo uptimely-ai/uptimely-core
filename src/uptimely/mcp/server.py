@@ -28,7 +28,6 @@ FUNCTION_CATEGORIES = (
     "read",
     "write",
     "vectorize",
-    "aggregate",
     "collapse",
     "expand",
     "conform",
@@ -87,7 +86,7 @@ def create_server(state: ServerState) -> FastMCP:
 
         Args:
             category: Function category, one of: read, write, vectorize,
-                aggregate, collapse, expand, conform.
+                collapse, expand, conform.
             function_id: The function id from `list_functions`.
         """
         catalog = state.load_specification().function_catalog
@@ -125,6 +124,7 @@ def create_server(state: ServerState) -> FastMCP:
                 for entity in specification.entities.values()
                 for dataset in entity.datasets
                 for mapping in dataset.mappings.values()
+                if hasattr(mapping, "binding")
                 if mapping.binding.function in specification.functions.vectorize
                 for feature_id in mapping.features
             }

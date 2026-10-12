@@ -2,45 +2,71 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-
-def is_aggregation_entry(value: object) -> bool:
-    """Return whether a value is shaped like one aggregate-function binding."""
-    value = _as_plain(value)
-    return (
-        isinstance(value, dict)
-        and set(value) == {"function", "args"}
-        and isinstance(value.get("function"), str)
-        and isinstance(value.get("args"), dict)
-    )
+if TYPE_CHECKING:
+    from .json_model import Dataset, Entity, FeatureMapping, FunctionCatalog, Specification
 
 
-def aggregation_entries(value: object) -> list[dict[str, Any]]:
-    """Return aggregation-shaped bindings found anywhere within a value."""
-    value = _as_plain(value)
-    if isinstance(value, dict):
-        matches = [value] if is_aggregation_entry(value) else []
-        return matches + [
-            match for nested in value.values() for match in aggregation_entries(nested)
+def mapping_category(mapping: FeatureMapping, catalog: FunctionCatalog) -> str:
+    """Return the execution kind of a canonical mapping."""
+    matches = [
+        category
+        for category in ("read", "conform", "expand", "collapse", "vectorize", "write")
+        if mapping.binding.function in getattr(catalog, category)
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"Mapping {mapping.id} function {mapping.binding.function} must resolve "
+            "to exactly one operation category"
+        )
+    return matches[0]
+
+
+def collapse_input_dataset(
+    specification: Specification, mapping: FeatureMapping
+) -> tuple[Entity, Dataset]:
+    """Infer one input dataset from a collapse's bound non-dimension features.
+
+    Args:
+        specification: Canonical specification containing feature ownership.
+        mapping: Collapse binding whose inputs determine the dataset.
+
+    Returns:
+        The owning entity and the single inferred input dataset.
+
+    Raises:
+        ValueError: Inputs are missing, unknown, ambiguous, or span datasets.
+    """
+    inputs = [
+        feature
+        for feature in feature_dependencies(mapping.binding.args)
+        if feature != "@" and feature not in specification.dimensions
+    ]
+    if not inputs:
+        raise ValueError(f"Collapse {mapping.id} must reference a source feature")
+    owners: dict[str, tuple[Entity, Dataset]] = {}
+    for feature in inputs:
+        matches = [
+            (entity, dataset)
+            for entity in specification.entities.values()
+            for dataset in entity.datasets
+            if feature in dataset.features
         ]
-    if isinstance(value, list):
-        return [match for nested in value for match in aggregation_entries(nested)]
-    return []
-
-
-def aggregation_bindings(args: dict[str, Any] | None) -> dict[str, Any]:
-    """Parse collapse reducer bindings from a function binding's arguments."""
-    from .json_model.common import Binding
-
-    if not isinstance(args, dict):
-        return {}
-    value = args.get("aggregations", {})
-    if not isinstance(value, dict):
-        raise ValueError("Collapse binding argument 'aggregations' must be an object")
-    return {feature_id: Binding.model_validate(binding) for feature_id, binding in value.items()}
+        if not matches:
+            raise ValueError(f"Collapse {mapping.id} references unknown input feature: {feature}")
+        if len(matches) != 1:
+            raise ValueError(f"Collapse {mapping.id} has ambiguous input feature: {feature}")
+        entity, dataset = matches[0]
+        owners[dataset.id] = (entity, dataset)
+    if len(owners) != 1:
+        raise ValueError(
+            f"Collapse {mapping.id} input features must belong to one dataset; "
+            "use expand to combine inputs from different datasets"
+        )
+    return next(iter(owners.values()))
 
 
 def feature_dependencies(args: dict[str, Any] | None) -> list[str]:

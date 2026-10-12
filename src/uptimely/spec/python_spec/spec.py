@@ -42,7 +42,6 @@ class PythonSpecification:
                 "read",
                 "write",
                 "vectorize",
-                "aggregate",
                 "collapse",
                 "expand",
                 "conform",

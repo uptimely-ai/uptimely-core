@@ -9,7 +9,7 @@ from graphable import graphable
 from graphable.views import texttree
 
 from uptimely.spec import Function, Specification
-from uptimely.spec.json_spec.bindings import aggregation_bindings, feature_dependencies
+from uptimely.spec.json_spec.bindings import feature_dependencies, mapping_category
 
 from . import render
 from .models import FeatureNode, FunctionNode
@@ -177,23 +177,7 @@ class FeatureGraph(GraphBase):
         for entity_id, entity in specs.entities.items():
             for dataset in entity.datasets:
                 for operation_id, mapping in dataset.mappings.items():
-                    operation_type = next(
-                        (
-                            category
-                            for category in (
-                                "read",
-                                "conform",
-                                "expand",
-                                "collapse",
-                                "vectorize",
-                                "write",
-                            )
-                            if mapping.binding.function in getattr(specs.functions, category)
-                        ),
-                        None,
-                    )
-                    if operation_type is None:
-                        continue
+                    operation_type = mapping_category(mapping, specs.functions)
                     template = getattr(specs.functions, operation_type)[mapping.binding.function]
                     function = (
                         vectorize_functions.get(mapping.binding.function)
@@ -201,7 +185,9 @@ class FeatureGraph(GraphBase):
                         else Function(
                             id=mapping.binding.function,
                             type="python_function",
-                            return_type="dataframe",
+                            return_type="expression"
+                            if operation_type == "collapse"
+                            else "dataframe",
                             info={"description": getattr(template, "description", None)},
                             entrypoint=template.entrypoint,
                             role=operation_type,
@@ -213,11 +199,6 @@ class FeatureGraph(GraphBase):
                             f"'{mapping.binding.function}' without a resolved function"
                         )
                     dependencies = feature_dependencies(mapping.binding.args)
-                    dependencies.extend(
-                        feature
-                        for binding in aggregation_bindings(mapping.binding.args).values()
-                        for feature in feature_dependencies(binding.args)
-                    )
                     if all(existing.id != function.id for existing in self.functions):
                         self.functions.append(function)
                     self._graph_operations.append(
@@ -305,15 +286,7 @@ class FeatureGraph(GraphBase):
         for entity_id, entity in self.specification.entities.items():
             for dataset in entity.datasets:
                 for mapping in dataset.mappings.values():
-                    operation_type = next(
-                        (
-                            category
-                            for category in ("read", "conform", "expand", "collapse", "vectorize")
-                            if mapping.binding.function
-                            in getattr(self.specification.functions, category)
-                        ),
-                        None,
-                    )
+                    operation_type = mapping_category(mapping, self.specification.functions)
                     for name in mapping.features:
                         feature = dataset.features[name]
                         register_feature_metadata(

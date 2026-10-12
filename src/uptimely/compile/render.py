@@ -69,7 +69,13 @@ def _render_step(position: int, operation: Operation, plan: ExecutionPlan) -> di
         "entrypoint": operation.entrypoint,
         "entity": operation.entity_id,
         "dataset": operation.dataset_id,
-        "feature": operation.output if operation.kind == "vectorize" else None,
+        "feature": (
+            ", ".join(operation.output_features)
+            if operation.kind == "collapse"
+            else operation.output
+            if operation.kind == "vectorize"
+            else None
+        ),
         "row_context": operation.row_context.to_dict() if operation.row_context else None,
         "depends_on_callables": [
             {
@@ -168,7 +174,7 @@ def _render_execution_plan(
     for stage in stages:
         stage["steps"].sort(
             key=lambda step: (
-                step["entrypoint"],
+                step["entrypoint"] or "",
                 step["entity"],
                 step["dataset"] or "",
                 step["feature"] or "",

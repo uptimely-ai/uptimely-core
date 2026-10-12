@@ -24,7 +24,6 @@ class CallableNode:
     operation_id: str | None = None
     output_features: tuple[str, ...] = ()
     args: dict[str, object] = field(default_factory=dict, compare=False, hash=False)
-    aggregations: dict[str, object] = field(default_factory=dict, compare=False, hash=False)
     callable: Call | None = field(default=None, compare=False, hash=False)
     callable_type_override: str | None = field(default=None, compare=False, hash=False)
     row_context: RowContext | None = field(default=None, compare=False, hash=False)

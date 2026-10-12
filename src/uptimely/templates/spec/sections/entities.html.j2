@@ -1,6 +1,6 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
 {% macro mapping_category(mapping, functions) -%}
-  {%- for category in ["read", "conform", "expand", "collapse", "vectorize"] -%}
+  {%- for category in ["read", "conform", "expand", "collapse", "vectorize", "write"] -%}
     {%- if mapping.binding.function in functions.get(category, {}) -%}{{- category -}}{%- endif -%}
   {%- endfor -%}
 {%- endmacro %}

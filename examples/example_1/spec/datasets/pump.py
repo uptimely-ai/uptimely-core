@@ -25,13 +25,8 @@ pump_mappings = [
     mapping.Collapse(
         id="bearing_temperature_by_pump",
         bind=bind.bind(
-            calculation.aggregate_by_dimension,
-            dataset=ref.dataset("pump_telemetry_dataset"),
-            dimensions=[
-                ref.dimension("plant"),
-                ref.dimension("production_line"),
-                ref.dimension("pump"),
-            ],
+            calculation.maximum,
+            feature=ref.feature("bearing_temperature"),
         ),
         features=[
             ref.feature("plant"),
@@ -39,12 +34,6 @@ pump_mappings = [
             ref.feature("pump"),
             ref.feature("bearing_temperature_max"),
         ],
-        aggregations={
-            "bearing_temperature_max": mapping.aggregation(
-                calculation.maximum,
-                feature=ref.feature("bearing_temperature"),
-            )
-        },
     ),
     mapping.Vectorize(
         id="health_signal_normalized",

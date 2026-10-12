@@ -70,7 +70,7 @@ def test_callable_graph_subset_contains_requested_output_and_ancestors() -> None
     assert {
         (node.operation_type, node.function_id) for node in subset.dependencies(normalized)
     } == {
-        ("collapse", "aggregate_by_dimension"),
+        ("collapse", "maximum"),
     }
     assert len(graph.callables) == 13
 

@@ -13,7 +13,6 @@ def _sample_plan() -> Plan:
         resources={
             "signatures": {
                 "callable:read:load:pump:pump_dataset:pressure": "DataFrame",
-                "callable:collapse:aggregate:pump:pump_dataset:pressure_by_pump": "DataFrame",
                 "callable:write:save:pump:pump_dataset:pressure_by_pump": "None",
             }
         },
@@ -29,13 +28,14 @@ def _sample_plan() -> Plan:
                 dependency_ids=[],
             ),
             Operation(
-                id="callable:collapse:aggregate:pump:pump_dataset:pressure_by_pump",
+                id="callable:collapse:maximum:pump:pump_dataset:pressure_by_pump",
                 kind="collapse",
-                entrypoint="example.functions:aggregate",
+                entrypoint="example.functions:maximum",
                 entity_id="pump",
                 dataset_id="pump_dataset",
                 output="pressure_by_pump",
-                arguments={"dimensions": {"type": "literal", "value": ["plant", "pump"]}},
+                arguments={"feature": "pressure"},
+                output_features=["plant", "pump", "maximum"],
                 dependency_ids=["callable:read:load:pump:pump_dataset:pressure"],
             ),
             Operation(
@@ -46,12 +46,12 @@ def _sample_plan() -> Plan:
                 dataset_id="pump_dataset",
                 output="pressure_by_pump",
                 arguments={},
-                dependency_ids=["callable:collapse:aggregate:pump:pump_dataset:pressure_by_pump"],
+                dependency_ids=["callable:collapse:maximum:pump:pump_dataset:pressure_by_pump"],
             ),
         ],
         stages=[
             ["callable:read:load:pump:pump_dataset:pressure"],
-            ["callable:collapse:aggregate:pump:pump_dataset:pressure_by_pump"],
+            ["callable:collapse:maximum:pump:pump_dataset:pressure_by_pump"],
             ["callable:write:save:pump:pump_dataset:pressure_by_pump"],
         ],
     )
@@ -64,7 +64,10 @@ def test_plan_round_trip_preserves_operation_metadata() -> None:
     restored = Plan.from_dict(payload)
 
     assert restored == plan
-    assert restored.operations[1].function_id == "aggregate"
+    assert restored.operations[1].function_id == "maximum"
+    assert not hasattr(restored.operations[1], "source")
+    assert all("source" not in operation for operation in payload["operations"])
+    assert restored.operations[1].entrypoint == "example.functions:maximum"
     assert restored.operations[1].entity_id == "pump"
     assert restored.operations[1].output == "pressure_by_pump"
     assert restored.operations[0].dataset_id == "pump_dataset"
@@ -76,12 +79,12 @@ def test_plan_stages_track_operation_order() -> None:
 
     assert plan.stages == [
         ["callable:read:load:pump:pump_dataset:pressure"],
-        ["callable:collapse:aggregate:pump:pump_dataset:pressure_by_pump"],
+        ["callable:collapse:maximum:pump:pump_dataset:pressure_by_pump"],
         ["callable:write:save:pump:pump_dataset:pressure_by_pump"],
     ]
     assert [
         [operation.function_id for operation in stage] for stage in execution_plan.execution_stages
-    ] == [["load"], ["aggregate"], ["save"]]
+    ] == [["load"], ["maximum"], ["save"]]
 
     restored = Plan.from_dict(plan.to_dict())
     assert restored.stages == plan.stages
@@ -160,4 +163,27 @@ def test_plan_rejects_dependencies_scheduled_after_consumers() -> None:
     payload["stages"][0], payload["stages"][1] = payload["stages"][1], payload["stages"][0]
 
     with pytest.raises(ValueError, match="must be scheduled before"):
+        Plan.from_dict(payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("entrypoint", None, "must declare an entrypoint"),
+        ("entrypoint", "", "must declare an entrypoint"),
+        ("output_features", [], "must declare output_features"),
+    ],
+)
+def test_plan_rejects_invalid_collapse_metadata(field: str, value: object, message: str) -> None:
+    payload = _sample_plan().to_dict()
+    payload["operations"][1][field] = value
+    with pytest.raises(ValueError, match=message):
+        Plan.from_dict(payload)
+
+
+@pytest.mark.parametrize("field", ["source", "group_by", "operations"])
+def test_plan_rejects_removed_collapse_fields(field: str) -> None:
+    payload = _sample_plan().to_dict()
+    payload["operations"][1][field] = []
+    with pytest.raises(TypeError, match=field):
         Plan.from_dict(payload)

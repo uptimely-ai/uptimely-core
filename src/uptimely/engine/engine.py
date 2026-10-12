@@ -9,7 +9,6 @@ from typing import Any
 
 from uptimely.compile import Compiler
 from uptimely.plan import ExecutionPlan, Operation
-from uptimely.spec.json_spec.bindings import is_aggregation_entry
 from uptimely.spec.json_spec.json_model import Specification
 
 from .backend import (
@@ -156,10 +155,12 @@ class Engine:
                 started = perf_counter()
                 logger.debug("Running %s operation %s", operation.kind, operation.id)
                 try:
-                    if operation.kind in {"read", "collapse", "expand", "conform"}:
+                    if operation.kind == "collapse":
+                        self._execute_collapse(operation)
+                    elif operation.kind in {"read", "expand", "conform"}:
                         self._execute_source(operation)
                     elif operation.kind == "vectorize":
-                        self._execute_calculation(operation)
+                        self._execute_vectorize(operation)
                     elif operation.kind == "write":
                         self._execute_sink(operation)
                     else:
@@ -191,6 +192,48 @@ class Engine:
         frame = self._runtime_datasets.get((operation.entity_id, operation.dataset_id))
         kwargs = self._resolve_args(operation, dataset_frame=frame)
         result = self.callable_loader.load(operation.entrypoint)(**kwargs)
+        self._runtime_fragments[(operation.entity_id, operation.output or operation.id)] = result
+        self._runtime_datasets[(operation.entity_id, operation.dataset_id)] = self._merge_fragment(
+            operation, result
+        )
+
+    def _execute_collapse(self, operation: Operation) -> None:
+        """Invoke the collapse function and group by the target entity dimensions."""
+        input_datasets = {
+            dependency.dataset_id
+            for dependency in self.plan.operations
+            if dependency.id in operation.dependency_ids
+            and dependency.dataset_id != operation.dataset_id
+            and dependency.kind in {"read", "conform", "expand", "collapse", "vectorize"}
+            and dependency.dataset_id is not None
+        }
+        if len(input_datasets) != 1:
+            raise ValueError(
+                f"Collapse {operation.id} dependencies must identify one input dataset"
+            )
+        source_id = next(iter(input_datasets))
+        source = self._dataset_by_id(source_id)
+        if source is None or not self.backend.is_frame(source):
+            raise ValueError(f"Collapse source dataset is unavailable: {source_id}")
+        dimensions = self.resource_resolver.entity_dimensions(operation.entity_id)
+        if not set(dimensions).issubset(operation.output_features):
+            raise ValueError("Collapse output_features must include target entity dimensions")
+        outputs = [output for output in operation.output_features if output not in dimensions]
+        if not outputs:
+            raise ValueError("Collapse must produce a non-dimension feature")
+        kwargs = self._resolve_args(operation, dataset_frame=source)
+        result = self.callable_loader.load(operation.entrypoint)(**kwargs)
+        results = self._output_values(operation, result, outputs)
+        expressions: list[object] = []
+        for identifier in outputs:
+            expression = results[identifier]
+            if not self.backend.is_expression(expression):
+                raise ValueError(
+                    f"Collapse function {operation.function_id} must return "
+                    f"an aggregation expression for {identifier}"
+                )
+            expressions.append(self.backend.alias(expression, identifier))
+        result = self.backend.collapse(source, dimensions, expressions)
         self._runtime_fragments[(operation.entity_id, operation.output or operation.id)] = result
         self._runtime_datasets[(operation.entity_id, operation.dataset_id)] = self._merge_fragment(
             operation, result
@@ -238,24 +281,45 @@ class Engine:
                 f"Fragment {operation.function_id} is missing dimension columns: "
                 + ", ".join(missing)
             )
+        if not dimensions:
+            if self.backend.row_count(fragment) > 1:
+                raise ValueError(
+                    f"Fragment {operation.function_id} contains duplicate dimension keys "
+                    "(dimensionless datasets allow at most one row)"
+                )
+            return
         keys = self.backend.select(fragment, dimensions)
         if not isinstance(keys, type(fragment)):
             keys = self.backend.collect(keys)
         if self.backend.is_duplicated(keys):
             raise ValueError(f"Fragment {operation.function_id} contains duplicate dimension keys")
 
-    def _execute_calculation(self, operation: Operation) -> None:
-        """Run a calculation mapping and append its output columns to the dataset."""
+    def _execute_vectorize(self, operation: Operation) -> None:
+        """Run a vectorize mapping and append its output columns to the dataset."""
         dataset_key = (operation.entity_id, operation.dataset_id)
         kwargs = self._resolve_args(operation, dataset_key=dataset_key)
         result = self.callable_loader.load(operation.entrypoint)(**kwargs)
         outputs = operation.output_features or [operation.output or operation.function_id]
+        results = self._output_values(operation, result, outputs)
+        elements = [self._as_column(results[output], output) for output in outputs]
+        self._runtime_datasets[dataset_key] = self.backend.with_columns(
+            self._runtime_datasets[dataset_key], elements
+        )
+        for output, element in zip(outputs, elements, strict=True):
+            self._runtime_calculations[(*dataset_key, output)] = element
+
+    @staticmethod
+    def _output_values(
+        operation: Operation, result: object, outputs: list[str]
+    ) -> Mapping[str, object]:
+        """Validate a function's return value against its declared analytical outputs."""
+        label = operation.kind.capitalize()
         if len(outputs) == 1:
-            results = {outputs[0]: result}
-        elif isinstance(result, Mapping):
+            return {outputs[0]: result}
+        if isinstance(result, Mapping):
             if not all(isinstance(name, str) for name in result):
                 raise ValueError(
-                    f"Vectorize mapping {operation.id} returned non-string output identifiers"
+                    f"{label} mapping {operation.id} returned non-string output identifiers"
                 )
             unknown = sorted(set(result) - set(outputs))
             missing = sorted(set(outputs) - set(result))
@@ -266,21 +330,14 @@ class Engine:
                 if unknown:
                     details.append("unexpected outputs: " + ", ".join(unknown))
                 raise ValueError(
-                    f"Vectorize mapping {operation.id} returned invalid outputs "
+                    f"{label} mapping {operation.id} returned invalid outputs "
                     f"({'; '.join(details)})"
                 )
-            results = result
-        else:
-            raise ValueError(
-                f"Vectorize mapping {operation.id} must return a mapping of "
-                "feature IDs to values when it produces multiple features"
-            )
-        elements = [self._as_column(results[output], output) for output in outputs]
-        self._runtime_datasets[dataset_key] = self.backend.with_columns(
-            self._runtime_datasets[dataset_key], elements
+            return result
+        raise ValueError(
+            f"{label} mapping {operation.id} must return a mapping of "
+            "feature IDs to values when it produces multiple features"
         )
-        for output, element in zip(outputs, elements, strict=True):
-            self._runtime_calculations[(*dataset_key, output)] = element
 
     def _execute_sink(self, operation: Operation) -> None:
         """Persist the selected columns of the accumulated dataset."""
@@ -330,13 +387,6 @@ class Engine:
                 if item is not None
             ]
         if isinstance(value, dict):
-            if value and all(is_aggregation_entry(item) for item in value.values()):
-                return {
-                    identifier: self._as_column(
-                        self._resolve_aggregation(item, dataset_frame, dataset_key), identifier
-                    )
-                    for identifier, item in value.items()
-                }
             return {
                 name: self._resolve_value(item, dataset_frame, dataset_key)
                 for name, item in value.items()
@@ -358,22 +408,6 @@ class Engine:
         if attribute not in object_resources:
             raise ValueError(f"{namespace} object {object_id} has no attribute: {attribute}")
         return object_resources[attribute]
-
-    def _resolve_aggregation(
-        self, value: object, dataset_frame: object, dataset_key: tuple[str, str] | None
-    ) -> object:
-        """Resolve and invoke an aggregate binding used by a collapse operation."""
-        if not isinstance(value, dict) or not isinstance(value.get("function"), str):
-            raise ValueError("aggregation must contain function and args")
-        entrypoint = self.resource_resolver.function_entrypoint("aggregate", value["function"])
-        arguments = self.resources["functions"]["aggregate"][value["function"]].get("args", {})
-        kwargs = {
-            name: self._resolve_value(
-                argument, dataset_frame, dataset_key, arguments.get(name, {}).get("type")
-            )
-            for name, argument in value.get("args", {}).items()
-        }
-        return self.callable_loader.load(entrypoint)(**kwargs)
 
     def _feature_value(
         self, feature: str, dataset_frame: object, dataset_key: tuple[str, str] | None

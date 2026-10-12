@@ -29,17 +29,12 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: Path) -> None:
         "write",
     }
     aggregate_operation = next(
-        operation
-        for operation in metadata["operations"]
-        if operation["id"].split(":")[2] == "aggregate_by_dimension"
+        operation for operation in metadata["operations"] if operation["kind"] == "collapse"
     )
     assert aggregate_operation["entity_id"] == "pump"
-    assert aggregate_operation["arguments"]["dataset"] == "pump_telemetry_dataset"
-    assert aggregate_operation["arguments"]["dimensions"] == [
-        "plant",
-        "production_line",
-        "pump",
-    ]
+    assert aggregate_operation["entrypoint"].endswith(":maximum")
+    assert "source" not in aggregate_operation
+    assert aggregate_operation["arguments"] == {"feature": "bearing_temperature"}
     assert "spec_type" not in json.dumps(metadata)
     assert "runtime_type" not in json.dumps(metadata)
 
@@ -65,10 +60,10 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: Path) -> None:
     assert ">health_signal_normalized</dd>" in report
     assert "md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]" in report
     assert "md:col-span-4" in report
-    assert ">Aggregate by dimension</h3>" in report
+    assert ">Maximum</h3>" in report
     assert "Open Python module" in report
     assert "No callable dependencies" in report
-    assert "aggregate_by_dimension</span>" in report
+    assert "maximum</span>" in report
     assert 'id="callable-graph"' in report
     assert "3d-force-graph" in report
     assert "Callable details" in report
@@ -84,7 +79,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: Path) -> None:
     assert "Vectorize</span>" in report
     assert "Write</span>" in report
     assert (
-        '"source": "callable:collapse:aggregate_by_dimension:'
+        '"source": "callable:collapse:maximum:'
         'pump:pump_dataset:bearing_temperature_by_pump"' in report
     )
     assert (

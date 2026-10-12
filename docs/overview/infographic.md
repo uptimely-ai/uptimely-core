@@ -70,7 +70,7 @@ Other datasets could represent:
       <div><dt><span class="cv-swatch cv-key" aria-hidden="true"></span>Blue</dt><dd><strong>Dimension keys</strong><span>pump + timestamp identify an observation, not a measured value.</span></dd></div>
       <div><dt><span class="cv-swatch cv-teal" aria-hidden="true"></span>Teal</dt><dd><strong>Telemetry features</strong><span>pressure and flow are outputs of mapping A.</span></dd></div>
       <div><dt><span class="cv-swatch cv-violet" aria-hidden="true"></span>Violet</dt><dd><strong>Limit features</strong><span>limit is an output of mapping B and keeps its color when aligned or expanded.</span></dd></div>
-      <div><dt><span class="cv-swatch cv-amber" aria-hidden="true"></span>Amber</dt><dd><strong>Calculated features</strong><span>ratio and max_pressure are produced by vectorize or aggregate functions.</span></dd></div>
+      <div><dt><span class="cv-swatch cv-amber" aria-hidden="true"></span>Amber</dt><dd><strong>Calculated features</strong><span>ratio and max_pressure are produced by vectorize or collapse functions.</span></dd></div>
     </dl>
     <p class="cv-detail">Colors identify column roles throughout the page, not which cells changed. Headers and labels carry the same meaning without color. Neutral cells describe arguments or operations.</p>
   </div>
@@ -174,13 +174,13 @@ the dataset legend above, including on both sides of each transformation.
   </div>
 </div>
 
-### Collapse and Aggregate
+### Collapse
 
 <p class="cv-function-subtitle">Move to a coarser grain</p>
 
 `collapse` is the operation that groups source observations and returns a
-dataset at the target grain. It uses `aggregate` analytical functions to
-calculate output features within each group.
+dataset at the target grain. The engine runs the grouping; `collapse`
+analytical functions calculate output features within each group.
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -190,7 +190,7 @@ calculate output features within each group.
         <span class="cv-tag">COLLAPSE OPERATION</span>
         <p>Group by <span class="cv-key">pump</span></p>
         <div class="cv-aggregate-function">
-          <strong>Aggregate function</strong>
+          <strong>Collapse function</strong>
           <code>maximum(pressure)</code>
           <p><span class="cv-teal">6, 8, 4</span> &#8594; <span class="cv-amber">8</span></p>
         </div>
@@ -198,7 +198,7 @@ calculate output features within each group.
       </div>
       <div><span class="cv-tag">TARGET / pump grain</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-amber">max_pressure</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-amber">8</td></tr></tbody></table><p class="cv-detail">One row summarizes the three moments.</p></div>
     </div>
-    <p class="cv-takeaway">Each aggregate binding produces one feature per group within collapse, not a separate mapping. Multiple bindings can calculate multiple summary features.</p>
+    <p class="cv-takeaway">Each collapse function binding produces one feature per group. The engine evaluates multiple bindings together to calculate multiple summary features.</p>
   </div>
 </div>
 

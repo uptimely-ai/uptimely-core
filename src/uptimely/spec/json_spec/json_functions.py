@@ -2,9 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from ..python_spec import mappings
-from ..python_spec.aggregation import Aggregation
-from ..python_spec.bind import _argument_definition, _entrypoint
+from ..python_spec.bind import _argument_definition
 from .json_model import Dimension
 
 
@@ -122,7 +120,6 @@ def _auto_function_catalog(declarations: object) -> dict[str, Any]:
         "read": {},
         "write": {},
         "vectorize": {},
-        "aggregate": {},
         "collapse": {},
         "expand": {},
         "conform": {},
@@ -132,60 +129,13 @@ def _auto_function_catalog(declarations: object) -> dict[str, Any]:
         list(declarations.values()) if isinstance(declarations, dict) else list(declarations or [])
     )
 
-    def register_bind(function_id: str, bind: Any, category: str) -> None:
-        if bind is None or getattr(bind, "function", None) is None:
-            return
-        function = bind.function
-        entrypoint = _entrypoint(function) if callable(function) else function_id
-        merged[category][function_id] = {
-            "entrypoint": entrypoint,
-            "args": {
-                name: {**_argument_definition(value), "comment": None}
-                for name, value in getattr(bind, "args", {}).items()
-            },
-        }
-
-    def register_aggregations(value: Any) -> None:
-        if isinstance(value, Aggregation):
-            register_bind(value.id, value, "aggregate")
-            return
-        if isinstance(value, (list, tuple)):
-            for item in value:
-                register_aggregations(item)
-        elif isinstance(value, dict):
-            for item in value.values():
-                register_aggregations(item)
-
     def register_dataset(dataset: Any) -> None:
-        mapping_categories = {
-            mappings.Read: "read",
-            mappings.Conform: "conform",
-            mappings.Expand: "expand",
-            mappings.Collapse: "collapse",
-            mappings.Vectorize: "vectorize",
-        }
-        for operation in dataset.mappings:
-            category = (
-                "write"
-                if isinstance(operation, mappings.Write)
-                else mapping_categories.get(type(operation))
-            )
-            if category is None:
-                raise ValueError(
-                    f"Mapping '{operation.id or operation.bind.function.__name__}' "
-                    "must use a category-specific mapping declaration"
-                )
-            function_id = operation.bind.function_id or operation.bind.function.__name__
-            register_bind(function_id, operation.bind, category)
-            if isinstance(operation, mappings.Collapse):
-                register_aggregations(
-                    operation.aggregations or operation.bind.args.get("aggregations", {})
-                )
-                if operation.aggregations:
-                    merged["collapse"][function_id]["args"]["aggregations"] = {
-                        **_argument_definition(operation.aggregations),
-                        "comment": None,
-                    }
+        for category, functions in dataset.function_catalog().model_dump().items():
+            for function_id, function in functions.items():
+                existing = merged[category].get(function_id)
+                if existing is not None and existing["entrypoint"] != function["entrypoint"]:
+                    raise ValueError(f"Conflicting function id '{function_id}' for {category}")
+                merged[category][function_id] = function
 
     for declaration in declaration_list:
         if hasattr(declaration, "datasets"):
@@ -246,7 +196,6 @@ def _static_datasets_to_spec(
             "vectorize": {
                 **_static_function_catalog(datasets, functions, "vectorize"),
             },
-            "aggregate": _static_function_catalog(datasets, functions, "aggregate"),
             "collapse": _static_function_catalog(datasets, functions, "collapse"),
             "expand": _static_function_catalog(datasets, functions, "expand"),
             "conform": _static_function_catalog(datasets, functions, "conform"),
@@ -310,7 +259,7 @@ def _static_function_catalog(
 
     for dataset in datasets.values():
         operations = []
-        if category in {"read", "collapse", "expand", "conform", "vectorize", "write"}:
+        if category in {"read", "expand", "conform", "vectorize", "write"}:
             registered = (
                 functions.get(category, {})
                 if isinstance(functions, dict)
@@ -319,6 +268,7 @@ def _static_function_catalog(
             operations = [
                 mapping
                 for mapping in dataset.mappings.values()
+                if hasattr(mapping, "binding")
                 if mapping.binding.function in registered
             ]
         for operation in operations:

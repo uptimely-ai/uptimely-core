@@ -22,7 +22,7 @@ The root document MUST be a JSON object in one file. Object keys that identify r
 | `version` | string | Yes | Open Analytics specification version used by parsers and validators. |
 | `source` | object | No | Authoring source metadata. `name` identifies the source (for example, `python_api`, `web_app`, or `manual`); `generated` is `true` when a framework generated the document and `false` when it was hand-written. If omitted, parsers treat the document as manually authored. |
 | `dimensions` | object | No | Reusable identifiers and their hierarchies. |
-| `functions` | object | Yes | Reusable `read`, `collapse`, `expand`, `conform`, `write`, `vectorize`, and `aggregate` function templates. |
+| `functions` | object | Yes | Reusable `read`, `collapse`, `expand`, `conform`, `write`, and `vectorize` function templates. |
 | `entities` | object | Yes | Analytical entities, datasets, and operation bindings. |
 
 ## Feature Terminology
@@ -32,8 +32,7 @@ A feature is a named piece of information that describes an entity. The term inc
 | Concept | Meaning | Declared under | Has a binding? |
 | --- | --- | --- | --- |
 | Feature | A named column in a dataset, with optional descriptive metadata. | `features` | No. |
-| Mapping | An executable operation binding associated with zero or more output features. | `mappings` | Yes. |
-| Aggregation | A reducer binding for one output feature of a collapse mapping. | The mapping's `aggregations` | Yes. |
+| Mapping | An operation associated with output features, or an output-free write operation. | `mappings` | Yes, under `binding`. |
 
 Dimension columns may appear in multiple dataset feature registries. Other
 feature identifiers MUST have one producer. Bindings use structural reference
@@ -56,8 +55,9 @@ An entity represents a real-world analytical subject, such as a pump, production
 
 A dataset is a conceptual data container for an entity. `features` declares
 its columns; `mappings` associates those features with executable function
-bindings. The operation category is inferred from the function's catalog
-entry. Write bindings are output-free mappings in the same `mappings` object
+bindings. The function's registration under `functions` determines the operation
+type.
+Write bindings are output-free mappings in the same `mappings` object
 as reads and transformations.
 
 | Field | Type | Required | Description |
@@ -76,11 +76,6 @@ one binding instance: a function reference together with its concrete
 arguments, distinct from the reusable function template it invokes. Feature
 mappings declare their output feature identifiers in `features`; write
 mappings have an empty `features` list.
-
-For collapse mappings, `binding.args.aggregations` contains bindings to
-`functions.aggregate` templates, keyed by the feature each reducer computes.
-The collapse function receives those reducer bindings alongside its other
-arguments.
 
 Mapping identifiers MUST be unique within their declaring dataset.
 
@@ -169,14 +164,13 @@ dimension; the two identifiers belong to distinct namespaces.
 | `read` | Read data from an external source such as a file or database. | Source and literal arguments | Dataframe | No |
 | `conform` | Return data that conforms to the target dataset's row scope. | Dataset and conform arguments | Dataframe | No |
 | `expand` | Return data at expanded dimensional coverage. | Dataset and expansion arguments | Dataframe | No |
-| `collapse` | Group source data and materialize aggregated features, usually at a different grain. | Dataset, grouping arguments, and reducer bindings | Dataframe | Yes |
-| `aggregate` | Define one feature value derived within a collapse operation. | Feature references and literals | One aggregation expression | Yes |
+| `collapse` | Define one reduced feature value within each group of a collapse mapping. | Source feature references and literals | One aggregation expression | Yes |
 | `vectorize` | Calculate one or more features from feature references and literals. | Feature references and literals | One element or a mapping of elements | Yes |
 | `write` | Persist, print, or otherwise evaluate selected information. | Dataset, feature references, and literals | Implementation-specific | No |
 
 ### Function Templates
 
-Each category under `functions` (`read`, `write`, `vectorize`, `aggregate`, `collapse`, `expand`, `conform`) contains reusable function templates keyed by function identifier.
+Each category under `functions` (`read`, `write`, `vectorize`, `collapse`, `expand`, `conform`) contains reusable function templates keyed by function identifier.
 
 | Field | Type | Required | Applies to | Description |
 | --- | --- | --- | --- | --- |
@@ -218,10 +212,11 @@ These expressions describe the function argument contract. Structural feature an
 
 ## Feature Mappings
 
-A mapping binds one function template to one or more output features. Its
-operation category is inferred by looking up the bound function in the
-function catalogs. A mapping using `read`, `collapse`, `expand`, or `conform`
-MUST return a dataframe. The compiler and engine may combine compatible
+Mappings bind functions from the operation catalogs to their output features.
+Functions bound by `read`, `expand`, and `conform` mappings MUST return a
+dataframe. Collapse is also an operation: its functions return reducer
+expressions, which the engine wraps in a grouping statement to produce the
+output dataframe. The compiler and engine may combine compatible
 mapping executions into physical fragments; those fragments are not declared
 in the logical specification.
 
@@ -231,9 +226,8 @@ dataframe-producing mapping MUST include all entity dimensions in its outputs.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `binding` | object | Yes | The function identifier and concrete arguments. |
+| `binding` | object | Yes | The function identifier and concrete analytical arguments. |
 | `features` | array of strings | Yes | Feature identifiers produced by this mapping. |
-| `aggregations` | object | Collapse only | Per-output reducer bindings for collapse mappings. |
 
 For example, a mapping assigns source-provided columns to one read binding:
 
@@ -297,17 +291,37 @@ def write(dataset, features, sink):
     dataset.collect().write_json(sink)
 ```
 
-## Collapse Aggregations
+## Collapse Mappings
 
-Collapse is the dataframe-producing mapping that derives new feature values by
-grouping a source dataset. `read`, `expand`, and `conform` mappings may load,
-join, filter, reconcile, or otherwise change row coverage and arrangement.
-Their function category is determined by the mapping binding's function
-catalog entry. A collapse mapping has two layers: its `binding` supplies the
-shared input and grouping arguments, and its `aggregations` bind one reducer
-per output feature. Reducers reference templates in `functions.aggregate`;
-the collapse function applies those expressions and returns the complete
-dataframe for its declared output features.
+Collapse summarizes rows into groups. For example, it can calculate the highest
+bearing temperature for each pump from timestamped readings.
+
+The function defines the calculation. The engine groups the rows and applies
+it. With Polars, a maximum function can be:
+
+```python
+import polars as pl
+
+
+def maximum(feature: str) -> pl.Expr:
+    return pl.col(feature).max()
+```
+
+Register the function under `functions.collapse`, including its entrypoint:
+
+```json
+"functions": {
+    "collapse": {
+        "maximum": {
+            "entrypoint": "project.calculations:maximum",
+            "args": {"feature": {"type": "string"}}
+        }
+    }
+}
+```
+
+Then bind it in the dataset that will hold the results. In this example, that
+dataset's entity has `pump` as its only dimension:
 
 ```json
 "features": {
@@ -316,26 +330,52 @@ dataframe for its declared output features.
 },
 "mappings": {
     "pump_summary": {
-        "binding": {
-            "function": "collapse_features",
-            "args": {
-                "dataset": "$datasets.telemetry",
-                "dimensions": ["$dimensions.pump"]
-            }
-        },
         "features": ["pump", "bearing_temperature_max"],
-        "aggregations": {
-            "bearing_temperature_max": {
-                "function": "maximum",
-                "args": {"feature": "$features.bearing_temperature"}
-            }
+        "binding": {
+            "function": "maximum",
+            "args": {"feature": "$features.bearing_temperature"}
         }
     }
 }
 ```
 
-The aggregate function itself does not declare an output-naming argument. The
-aggregation key associates its result with a feature declared by the mapping.
+The engine finds the input dataset from `$features.bearing_temperature` and
+groups its rows by `pump`. It names the result column `bearing_temperature_max`.
+Neither `source` nor `group_by` is declared in the mapping.
+
+### Inputs and Groups
+
+- Bind input features using `$features.<id>`, not whole datasets. At least one
+  input must be a feature other than a dimension.
+- All input features MUST belong to one dataset, different from the result
+  dataset. To combine data from different datasets, use `expand` first.
+- The result entity's dimensions determine the groups. Those dimensions MUST
+  also exist in the input entity. With no dimensions, collapse summarizes the
+  entire input into one row.
+- The mapping's `features` MUST include all result entity dimensions and at
+  least one calculated output.
+
+### Function Results
+
+For one calculated output, return an expression such as `pl.col(feature).max()`.
+For several outputs, return a dictionary whose keys match the declared output
+feature identifiers and whose values are expressions.
+
+Do not return a dataframe or a series of calculated values. The engine evaluates
+the expressions for each group and names the output columns. Each output is one
+value per group; that value can also be a list or a struct.
+
+### Python Declaration
+
+The equivalent Python mapping is:
+
+```python
+mapping.Collapse(
+    id="pump_summary",
+    bind=bind.bind(maximum, feature=ref.feature("bearing_temperature")),
+    features=[ref.feature("pump"), ref.feature("bearing_temperature_max")],
+)
+```
 
 ## Vectorized Features
 
@@ -507,11 +547,6 @@ The binding itself does not declare a type; only a function template's `args` sc
 | `$dimensions.<id>` | Dimension ID | A function template declares this argument as `string`. |
 | Primitive types | JSON scalar, object, or array | Literal values passed through to the function, such as `string`, `float`, `integer`, `boolean`, `object`, or `array`. |
 
-An aggregation entry is not a structural reference; it is a binding object with
-`function` and `args` keys, declared in the collapse mapping's `aggregations`
-object. Its `args` MUST include one or more source feature structural
-references.
-
 `$`-prefixed references are resolved once, by the compiler, into the compiled plan; they define the dependency graph and never change after compilation. A binding argument may instead hold a literal string starting with `?`, of the form `?<namespace>.<object>.<attribute>` (for example `?storage.telemetry_source.path`). The compiler leaves this form untouched — it is not a structural reference and does not participate in the dependency graph. Only the executing engine resolves it, against runtime resources supplied when the engine is constructed, so the same compiled plan can run against different physical locations in different environments without recompiling the specification.
 
 Arrays can contain structural reference strings when an argument needs multiple references. Argument names SHOULD communicate the function's engine contract. Prefer specific names such as `pressure_features`, `health_features`, `optimization_features`, or `source` over generic names such as `columns` when the function expects a particular role.
@@ -555,8 +590,8 @@ Vectorize functions MUST NOT receive, filter, join, or otherwise mutate dataset 
 
 Bindings for dataframe-producing mappings, vectorize mappings, and write operations form one
 dependency graph. Typed references connect consumers to the operations that
-produce their required datasets and features; aggregations contribute feature
-dependencies to their enclosing collapse operation. Implementations MUST
+produce their required datasets and features. Collapse waits for the operations
+that produce its input features. Implementations MUST
 evaluate every prerequisite before its consumers. Independent operations MAY be
 evaluated in parallel.
 

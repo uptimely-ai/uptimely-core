@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .json_spec.bindings import aggregation_bindings
+from .json_spec.bindings import collapse_input_dataset
 
 
 class SpecificationError(ValueError):
@@ -43,7 +43,6 @@ def _function_categories(model: Any) -> dict[str, dict[str, Any]]:
         "read": catalog.read,
         "write": catalog.write,
         "vectorize": catalog.vectorize,
-        "aggregate": catalog.aggregate,
         "collapse": catalog.collapse,
         "expand": catalog.expand,
         "conform": catalog.conform,
@@ -124,8 +123,6 @@ def _validate_calculation_bindings(entity: Any, categories: dict[str, dict[str, 
             if matches[0] == "write":
                 if mapping.features:
                     raise ValueError(f"Write mapping {mapping_id} cannot produce features")
-                if "aggregations" in mapping.binding.args:
-                    raise ValueError(f"Write mapping {mapping_id} cannot use aggregations")
                 continue
             if not mapping.features:
                 raise ValueError(f"Mapping {mapping_id} must declare one or more features")
@@ -136,8 +133,6 @@ def _validate_calculation_bindings(entity: Any, categories: dict[str, dict[str, 
                         "Calculated feature names cannot duplicate entity dimensions: "
                         + ", ".join(collisions)
                     )
-            if matches[0] != "collapse" and "aggregations" in mapping.binding.args:
-                raise ValueError(f"{matches[0]} mapping {mapping_id} cannot use aggregations")
             for feature_id in mapping.features:
                 if feature_id not in dataset.features:
                     raise ValueError(
@@ -163,15 +158,18 @@ def _validate_calculation_bindings(entity: Any, categories: dict[str, dict[str, 
                 if not references:
                     raise ValueError(f"Vectorize mapping {mapping_id} must reference features")
             elif matches[0] == "collapse":
-                aggregations = aggregation_bindings(mapping.binding.args)
-                unknown_aggregations = sorted(set(aggregations) - set(mapping.features))
-                if unknown_aggregations:
+                outputs = set(mapping.features) - dimensions
+                if not outputs:
                     raise ValueError(
-                        f"Collapse mapping {mapping_id} aggregates features it does not produce: "
-                        + ", ".join(unknown_aggregations)
+                        f"Collapse mapping {mapping_id} must produce a non-dimension feature"
                     )
-                if not aggregations:
-                    raise ValueError(f"Collapse mapping {mapping_id} must define aggregations")
+                if len(outputs) > 1 and "@" in _structural_references(
+                    mapping.binding.args, "$features."
+                ):
+                    raise ValueError(
+                        f"Collapse mapping {mapping_id} cannot use $features.@ "
+                        "when it produces multiple features"
+                    )
             if matches[0] in {"read", "conform", "expand", "collapse"}:
                 missing_dimensions = sorted(dimensions - set(mapping.features))
                 if missing_dimensions:
@@ -209,45 +207,50 @@ def _validate_dataset_order(model: Any) -> None:
                 seen.add(dimension)
 
 
-def _validate_aggregations(model: Any) -> None:
-    """Require collapse reducers to reference declared non-collapse source features."""
-    source_features = {
-        feature_id
-        for entity in model.entities.values()
-        for dataset in entity.datasets
-        for mapping in dataset.mappings.values()
-        if any(
-            mapping.binding.function in getattr(model.functions, category)
-            for category in ("read", "conform", "expand")
-        )
-        for feature_id in mapping.features
-    }
+def _validate_collapses(model: Any) -> None:
+    """Validate inferred input datasets, grouping keys, and reducer inputs."""
     for entity in model.entities.values():
         for dataset in entity.datasets:
             for mapping in dataset.mappings.values():
                 if mapping.binding.function not in model.functions.collapse:
                     continue
-                for output_feature, binding in aggregation_bindings(mapping.binding.args).items():
-                    function_id = binding.function
-                    if function_id not in model.functions.aggregate:
-                        raise ValueError(
-                            f"Aggregation in collapse {mapping.id} references "
-                            f"unknown aggregate function: {function_id}"
-                        )
-                    references = _structural_references(binding.args, "$features.")
-                    if not references:
-                        raise ValueError(
-                            f"Aggregation in collapse {mapping.id} must reference a source feature"
-                        )
-                    unknown = sorted(
-                        reference for reference in references if reference not in source_features
+                binding = mapping.binding
+                if _structural_references(binding.args, "$datasets."):
+                    raise ValueError(
+                        f"Collapse function {binding.function} cannot bind a dataset; "
+                        "bind its input features or dimensions instead"
                     )
-                    if unknown:
-                        message = (
-                            f"Aggregation for {output_feature} in collapse {mapping.id} "
-                            "references non-source features: " + ", ".join(unknown)
-                        )
-                        raise ValueError(message)
+                source_entity, source = collapse_input_dataset(model, mapping)
+                source_id = source.id
+                if source_id == dataset.id:
+                    raise ValueError(
+                        f"Collapse {mapping.id} cannot use its target dataset as source"
+                    )
+                keys = entity.dimensions
+                if not set(keys).issubset(source_entity.dimensions):
+                    raise ValueError(
+                        f"Collapse {mapping.id} grouping dimensions must exist "
+                        f"in source {source_id}"
+                    )
+                source_features = set(source.features) | set(source_entity.dimensions)
+                references = _structural_references(binding.args, "$features.")
+                inputs = [reference for reference in references if reference != "@"]
+                if not inputs:
+                    raise ValueError(f"Collapse {mapping.id} must reference a source feature")
+                unknown = sorted(set(inputs) - source_features)
+                if unknown:
+                    raise ValueError(
+                        f"Collapse {mapping.id} references features outside source {source_id}: "
+                        + ", ".join(unknown)
+                    )
+                unknown_dimensions = set(
+                    _structural_references(binding.args, "$dimensions.")
+                ) - set(source_entity.dimensions)
+                if unknown_dimensions:
+                    raise ValueError(
+                        f"Collapse {mapping.id} references unknown source dimensions: "
+                        + ", ".join(sorted(unknown_dimensions))
+                    )
 
 
 def _validate_operation_functions(entity: Any, categories: dict[str, dict[str, Any]]) -> None:
@@ -320,27 +323,6 @@ def _validate_binding_contracts(model: Any, categories: dict[str, dict[str, Any]
                             "args",
                         ),
                     )
-                if mapping.binding.function in categories["collapse"]:
-                    for feature_id, binding in aggregation_bindings(mapping.binding.args).items():
-                        aggregate = categories["aggregate"].get(binding.function)
-                        if aggregate is not None:
-                            _validate_binding_contract(
-                                binding,
-                                aggregate,
-                                path=(
-                                    "entities",
-                                    entity_id,
-                                    "datasets",
-                                    dataset.id,
-                                    "mappings",
-                                    mapping_id,
-                                    "binding",
-                                    "args",
-                                    "aggregations",
-                                    feature_id,
-                                    "args",
-                                ),
-                            )
 
 
 def _feature_names(model: Any) -> set[str]:
@@ -377,6 +359,6 @@ def validate_specification(model: Any, calls: list[Any]) -> None:
         _validate_calculation_bindings(entity, categories)
         _validate_operation_functions(entity, categories)
 
-    _validate_aggregations(model)
+    _validate_collapses(model)
     _validate_binding_contracts(model, categories)
     _validate_feature_dependencies(calls, _feature_names(model), dimensions)
