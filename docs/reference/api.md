@@ -39,7 +39,7 @@ the declarative contract.
 
 ::: uptimely.spec.python_spec.feature
 
-::: uptimely.spec.python_spec.fragment
+::: uptimely.spec.python_spec.mappings
 
 ::: uptimely.spec.python_spec.bind
 

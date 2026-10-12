@@ -1,6 +1,7 @@
 """Execution engine for portable analytics plans."""
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
@@ -244,16 +245,42 @@ class Engine:
             raise ValueError(f"Fragment {operation.function_id} contains duplicate dimension keys")
 
     def _execute_calculation(self, operation: Operation) -> None:
-        """Run a calculation and append its resulting column to the dataset."""
+        """Run a calculation mapping and append its output columns to the dataset."""
         dataset_key = (operation.entity_id, operation.dataset_id)
         kwargs = self._resolve_args(operation, dataset_key=dataset_key)
         result = self.callable_loader.load(operation.entrypoint)(**kwargs)
-        output = operation.output or operation.function_id
-        element = self._as_column(result, output)
+        outputs = operation.output_features or [operation.output or operation.function_id]
+        if len(outputs) == 1:
+            results = {outputs[0]: result}
+        elif isinstance(result, Mapping):
+            if not all(isinstance(name, str) for name in result):
+                raise ValueError(
+                    f"Vectorize mapping {operation.id} returned non-string output identifiers"
+                )
+            unknown = sorted(set(result) - set(outputs))
+            missing = sorted(set(outputs) - set(result))
+            if unknown or missing:
+                details = []
+                if missing:
+                    details.append("missing outputs: " + ", ".join(missing))
+                if unknown:
+                    details.append("unexpected outputs: " + ", ".join(unknown))
+                raise ValueError(
+                    f"Vectorize mapping {operation.id} returned invalid outputs "
+                    f"({'; '.join(details)})"
+                )
+            results = result
+        else:
+            raise ValueError(
+                f"Vectorize mapping {operation.id} must return a mapping of "
+                "feature IDs to values when it produces multiple features"
+            )
+        elements = [self._as_column(results[output], output) for output in outputs]
         self._runtime_datasets[dataset_key] = self.backend.with_columns(
-            self._runtime_datasets[dataset_key], element
+            self._runtime_datasets[dataset_key], elements
         )
-        self._runtime_calculations[(*dataset_key, output)] = element
+        for output, element in zip(outputs, elements, strict=True):
+            self._runtime_calculations[(*dataset_key, output)] = element
 
     def _execute_sink(self, operation: Operation) -> None:
         """Persist the selected columns of the accumulated dataset."""

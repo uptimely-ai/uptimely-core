@@ -89,7 +89,7 @@
               "comment": null
             }
           },
-          "description": "Estimated energy-cost score for the recommended operating point",
+          "description": null,
           "partitioning": null
         },
         "extract_convergence_flag": {
@@ -100,7 +100,7 @@
               "comment": null
             }
           },
-          "description": "Whether the optimization converged",
+          "description": null,
           "partitioning": null
         },
         "pressure_flow_efficiency": {
@@ -111,7 +111,7 @@
               "comment": null
             }
           },
-          "description": "Hydraulic efficiency proxy from pressure, flow, and motor power",
+          "description": null,
           "partitioning": null
         },
         "bearing_temperature_delta": {
@@ -130,7 +130,7 @@
               "comment": null
             }
           },
-          "description": "Bearing-temperature change from the previous pump reading.",
+          "description": null,
           "partitioning": null
         },
         "vibration_delta_from_previous": {
@@ -149,7 +149,7 @@
               "comment": null
             }
           },
-          "description": "Vibration change from the previous pump reading.",
+          "description": null,
           "partitioning": null
         },
         "pump_health_score": {
@@ -160,7 +160,7 @@
               "comment": null
             }
           },
-          "description": "Composite pump health score from bearing-temperature trend, vibration trend, and efficiency.",
+          "description": null,
           "partitioning": null
         },
         "optimize_pump_operating_point": {
@@ -171,7 +171,7 @@
               "comment": null
             }
           },
-          "description": "Recommended pump operating point based on process demand and energy use",
+          "description": null,
           "partitioning": null
         },
         "normalize_health_signal": {
@@ -194,7 +194,7 @@
               "comment": null
             }
           },
-          "description": "Normalized bearing-temperature health signal by pump.",
+          "description": null,
           "partitioning": null
         }
       },
@@ -233,16 +233,16 @@
     },
     "signatures": {
       "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry": "LazyFrame",
-      "callable:vectorize:pressure_flow_efficiency:pump_telemetry:pump_telemetry_dataset:pressure_flow_efficiency": "Expr",
-      "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation": "Expr",
       "callable:collapse:aggregate_by_dimension:pump:pump_dataset:bearing_temperature_by_pump": "LazyFrame",
+      "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation": "Expr",
+      "callable:vectorize:pressure_flow_efficiency:pump_telemetry:pump_telemetry_dataset:pressure_flow_efficiency": "Expr",
       "callable:vectorize:bearing_temperature_delta:pump_telemetry:pump_telemetry_dataset:bearing_temperature_delta": "Expr",
       "callable:vectorize:vibration_delta_from_previous:pump_telemetry:pump_telemetry_dataset:vibration_delta": "Expr",
-      "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_flow_rate": "Expr",
-      "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_discharge_pressure": "Expr",
-      "callable:vectorize:extract_convergence_flag:pump_telemetry:pump_telemetry_dataset:converged": "Expr",
-      "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:energy_cost_score": "Expr",
       "callable:vectorize:normalize_health_signal:pump:pump_dataset:health_signal_normalized": "Expr",
+      "callable:vectorize:extract_convergence_flag:pump_telemetry:pump_telemetry_dataset:converged": "Expr",
+      "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_discharge_pressure": "Expr",
+      "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:energy_cost_score": "Expr",
+      "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_flow_rate": "Expr",
       "callable:vectorize:pump_health_score:pump_telemetry:pump_telemetry_dataset:pump_health_score": "Expr",
       "callable:write:write_pump_telemetry:pump_telemetry:pump_telemetry_dataset:write_pump_telemetry": "None"
     },
@@ -277,30 +277,56 @@
       "entrypoint": "examples.example_1.functions.source:read_pump_telemetry",
       "entity_id": "pump_telemetry",
       "dataset_id": "pump_telemetry_dataset",
-      "output": "read_pump_telemetry",
+      "output": "plant",
       "arguments": {
         "source": "?storage.telemetry_source.path",
         "environment": "development"
       },
       "dependency_ids": [],
+      "output_features": [
+        "plant",
+        "production_line",
+        "pump",
+        "timestamp",
+        "discharge_pressure",
+        "flow_rate",
+        "bearing_temperature",
+        "vibration_rms",
+        "motor_power"
+      ],
       "row_context": null
     },
     {
-      "id": "callable:vectorize:pressure_flow_efficiency:pump_telemetry:pump_telemetry_dataset:pressure_flow_efficiency",
-      "kind": "vectorize",
-      "entrypoint": "examples.example_1.functions.calculation:pressure_flow_efficiency",
-      "entity_id": "pump_telemetry",
-      "dataset_id": "pump_telemetry_dataset",
-      "output": "pressure_flow_efficiency",
+      "id": "callable:collapse:aggregate_by_dimension:pump:pump_dataset:bearing_temperature_by_pump",
+      "kind": "collapse",
+      "entrypoint": "examples.example_1.functions.calculation:aggregate_by_dimension",
+      "entity_id": "pump",
+      "dataset_id": "pump_dataset",
+      "output": "plant",
       "arguments": {
-        "pressure_features": [
-          "discharge_pressure",
-          "flow_rate",
-          "motor_power"
-        ]
+        "dataset": "pump_telemetry_dataset",
+        "dimensions": [
+          "plant",
+          "production_line",
+          "pump"
+        ],
+        "aggregations": {
+          "bearing_temperature_max": {
+            "function": "maximum",
+            "args": {
+              "feature": "bearing_temperature"
+            }
+          }
+        }
       },
       "dependency_ids": [
         "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry"
+      ],
+      "output_features": [
+        "plant",
+        "production_line",
+        "pump",
+        "bearing_temperature_max"
       ],
       "row_context": null
     },
@@ -323,32 +349,31 @@
       "dependency_ids": [
         "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry"
       ],
+      "output_features": [
+        "operating_point_recommendation"
+      ],
       "row_context": null
     },
     {
-      "id": "callable:collapse:aggregate_by_dimension:pump:pump_dataset:bearing_temperature_by_pump",
-      "kind": "collapse",
-      "entrypoint": "examples.example_1.functions.calculation:aggregate_by_dimension",
-      "entity_id": "pump",
-      "dataset_id": "pump_dataset",
-      "output": "bearing_temperature_by_pump",
+      "id": "callable:vectorize:pressure_flow_efficiency:pump_telemetry:pump_telemetry_dataset:pressure_flow_efficiency",
+      "kind": "vectorize",
+      "entrypoint": "examples.example_1.functions.calculation:pressure_flow_efficiency",
+      "entity_id": "pump_telemetry",
+      "dataset_id": "pump_telemetry_dataset",
+      "output": "pressure_flow_efficiency",
       "arguments": {
-        "dataset": "pump_telemetry_dataset",
-        "dimensions": [
-          "plant",
-          "production_line",
-          "pump"
-        ],
-        "aggregations": {
-          "bearing_temperature_max": {
-            "function": "maximum",
-            "args": {
-              "feature": "bearing_temperature"
-            }
-          }
-        }
+        "pressure_features": [
+          "discharge_pressure",
+          "flow_rate",
+          "motor_power"
+        ]
       },
-      "dependency_ids": [],
+      "dependency_ids": [
+        "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry"
+      ],
+      "output_features": [
+        "pressure_flow_efficiency"
+      ],
       "row_context": null
     },
     {
@@ -369,6 +394,9 @@
       },
       "dependency_ids": [
         "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry"
+      ],
+      "output_features": [
+        "bearing_temperature_delta"
       ],
       "row_context": {
         "extent": "bounded",
@@ -399,6 +427,9 @@
       "dependency_ids": [
         "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry"
       ],
+      "output_features": [
+        "vibration_delta"
+      ],
       "row_context": {
         "extent": "bounded",
         "before": {
@@ -410,36 +441,25 @@
       }
     },
     {
-      "id": "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_flow_rate",
+      "id": "callable:vectorize:normalize_health_signal:pump:pump_dataset:health_signal_normalized",
       "kind": "vectorize",
-      "entrypoint": "examples.example_1.functions.calculation:extract_recommendation_value",
-      "entity_id": "pump_telemetry",
-      "dataset_id": "pump_telemetry_dataset",
-      "output": "recommended_flow_rate",
+      "entrypoint": "examples.example_1.functions.calculation:normalize_health_signal",
+      "entity_id": "pump",
+      "dataset_id": "pump_dataset",
+      "output": "health_signal_normalized",
       "arguments": {
-        "optimization_attribute": "recommended_flow_rate",
-        "column": "operating_point_recommendation"
+        "scale_feature": "bearing_temperature_max",
+        "lower_bound": -1.0,
+        "upper_bound": 1.0,
+        "scaling_features": [
+          "bearing_temperature_max"
+        ]
       },
       "dependency_ids": [
-        "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry",
-        "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation"
+        "callable:collapse:aggregate_by_dimension:pump:pump_dataset:bearing_temperature_by_pump"
       ],
-      "row_context": null
-    },
-    {
-      "id": "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_discharge_pressure",
-      "kind": "vectorize",
-      "entrypoint": "examples.example_1.functions.calculation:extract_recommendation_value",
-      "entity_id": "pump_telemetry",
-      "dataset_id": "pump_telemetry_dataset",
-      "output": "recommended_discharge_pressure",
-      "arguments": {
-        "optimization_attribute": "recommended_discharge_pressure",
-        "column": "operating_point_recommendation"
-      },
-      "dependency_ids": [
-        "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry",
-        "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation"
+      "output_features": [
+        "health_signal_normalized"
       ],
       "row_context": null
     },
@@ -459,6 +479,29 @@
         "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry",
         "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation"
       ],
+      "output_features": [
+        "converged"
+      ],
+      "row_context": null
+    },
+    {
+      "id": "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_discharge_pressure",
+      "kind": "vectorize",
+      "entrypoint": "examples.example_1.functions.calculation:extract_recommendation_value",
+      "entity_id": "pump_telemetry",
+      "dataset_id": "pump_telemetry_dataset",
+      "output": "recommended_discharge_pressure",
+      "arguments": {
+        "optimization_attribute": "recommended_discharge_pressure",
+        "column": "operating_point_recommendation"
+      },
+      "dependency_ids": [
+        "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry",
+        "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation"
+      ],
+      "output_features": [
+        "recommended_discharge_pressure"
+      ],
       "row_context": null
     },
     {
@@ -476,25 +519,28 @@
         "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry",
         "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation"
       ],
+      "output_features": [
+        "energy_cost_score"
+      ],
       "row_context": null
     },
     {
-      "id": "callable:vectorize:normalize_health_signal:pump:pump_dataset:health_signal_normalized",
+      "id": "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_flow_rate",
       "kind": "vectorize",
-      "entrypoint": "examples.example_1.functions.calculation:normalize_health_signal",
-      "entity_id": "pump",
-      "dataset_id": "pump_dataset",
-      "output": "health_signal_normalized",
+      "entrypoint": "examples.example_1.functions.calculation:extract_recommendation_value",
+      "entity_id": "pump_telemetry",
+      "dataset_id": "pump_telemetry_dataset",
+      "output": "recommended_flow_rate",
       "arguments": {
-        "scale_feature": "bearing_temperature_max",
-        "lower_bound": -1.0,
-        "upper_bound": 1.0,
-        "scaling_features": [
-          "bearing_temperature_max"
-        ]
+        "optimization_attribute": "recommended_flow_rate",
+        "column": "operating_point_recommendation"
       },
       "dependency_ids": [
-        "callable:collapse:aggregate_by_dimension:pump:pump_dataset:bearing_temperature_by_pump"
+        "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry",
+        "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation"
+      ],
+      "output_features": [
+        "recommended_flow_rate"
       ],
       "row_context": null
     },
@@ -517,6 +563,9 @@
         "callable:vectorize:bearing_temperature_delta:pump_telemetry:pump_telemetry_dataset:bearing_temperature_delta",
         "callable:vectorize:vibration_delta_from_previous:pump_telemetry:pump_telemetry_dataset:vibration_delta",
         "callable:vectorize:pressure_flow_efficiency:pump_telemetry:pump_telemetry_dataset:pressure_flow_efficiency"
+      ],
+      "output_features": [
+        "pump_health_score"
       ],
       "row_context": null
     },
@@ -543,16 +592,17 @@
       },
       "dependency_ids": [
         "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry",
-        "callable:vectorize:extract_convergence_flag:pump_telemetry:pump_telemetry_dataset:converged",
-        "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_discharge_pressure",
-        "callable:vectorize:pump_health_score:pump_telemetry:pump_telemetry_dataset:pump_health_score",
-        "callable:vectorize:vibration_delta_from_previous:pump_telemetry:pump_telemetry_dataset:vibration_delta",
-        "callable:vectorize:bearing_temperature_delta:pump_telemetry:pump_telemetry_dataset:bearing_temperature_delta",
-        "callable:vectorize:pressure_flow_efficiency:pump_telemetry:pump_telemetry_dataset:pressure_flow_efficiency",
-        "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:energy_cost_score",
         "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_flow_rate",
-        "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation"
+        "callable:vectorize:pressure_flow_efficiency:pump_telemetry:pump_telemetry_dataset:pressure_flow_efficiency",
+        "callable:vectorize:extract_convergence_flag:pump_telemetry:pump_telemetry_dataset:converged",
+        "callable:vectorize:pump_health_score:pump_telemetry:pump_telemetry_dataset:pump_health_score",
+        "callable:vectorize:bearing_temperature_delta:pump_telemetry:pump_telemetry_dataset:bearing_temperature_delta",
+        "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation",
+        "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:energy_cost_score",
+        "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_discharge_pressure",
+        "callable:vectorize:vibration_delta_from_previous:pump_telemetry:pump_telemetry_dataset:vibration_delta"
       ],
+      "output_features": [],
       "row_context": null
     }
   ],
@@ -561,19 +611,19 @@
       "callable:read:read_pump_telemetry:pump_telemetry:pump_telemetry_dataset:read_pump_telemetry"
     ],
     [
-      "callable:vectorize:pressure_flow_efficiency:pump_telemetry:pump_telemetry_dataset:pressure_flow_efficiency",
-      "callable:vectorize:bearing_temperature_delta:pump_telemetry:pump_telemetry_dataset:bearing_temperature_delta",
       "callable:collapse:aggregate_by_dimension:pump:pump_dataset:bearing_temperature_by_pump",
+      "callable:vectorize:bearing_temperature_delta:pump_telemetry:pump_telemetry_dataset:bearing_temperature_delta",
       "callable:vectorize:vibration_delta_from_previous:pump_telemetry:pump_telemetry_dataset:vibration_delta",
-      "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation"
+      "callable:vectorize:optimize_pump_operating_point:pump_telemetry:pump_telemetry_dataset:operating_point_recommendation",
+      "callable:vectorize:pressure_flow_efficiency:pump_telemetry:pump_telemetry_dataset:pressure_flow_efficiency"
     ],
     [
-      "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_flow_rate",
+      "callable:vectorize:normalize_health_signal:pump:pump_dataset:health_signal_normalized",
       "callable:vectorize:extract_convergence_flag:pump_telemetry:pump_telemetry_dataset:converged",
       "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_discharge_pressure",
-      "callable:vectorize:pump_health_score:pump_telemetry:pump_telemetry_dataset:pump_health_score",
-      "callable:vectorize:normalize_health_signal:pump:pump_dataset:health_signal_normalized",
-      "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:energy_cost_score"
+      "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:energy_cost_score",
+      "callable:vectorize:extract_recommendation_value:pump_telemetry:pump_telemetry_dataset:recommended_flow_rate",
+      "callable:vectorize:pump_health_score:pump_telemetry:pump_telemetry_dataset:pump_health_score"
     ],
     [
       "callable:write:write_pump_telemetry:pump_telemetry:pump_telemetry_dataset:write_pump_telemetry"

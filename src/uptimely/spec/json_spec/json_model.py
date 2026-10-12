@@ -134,40 +134,23 @@ class Call(StrictModel):
         return self.function
 
 
-class Input(StrictModel):
-    """A source-provided column that contributes to an entity's features."""
+class Feature(StrictModel):
+    """A dataset feature's logical metadata."""
 
     id: str = Field(exclude=True)
     description: str | None = None
     type: str | None = None
     unit: str | None = None
-
-
-class Calculation(StrictModel):
-    """A vectorized feature declaration under a dataset's features map."""
-
-    id: str = Field(exclude=True)
-    description: str | None = None
-    unit: str | None = None
-    binding: Binding | None = None
     row_context: RowContext | None = None
-    callable: Call | None = Field(default=None, repr=False, exclude=True)
 
 
-class FragmentOperation(StrictModel):
-    """An operation that returns a dataframe fragment and its feature columns."""
+class FeatureMapping(StrictModel):
+    """A shared function binding that produces one or more dataset features."""
 
     id: str = Field(exclude=True)
     binding: Binding
-    features: dict[str, Input] = Field(default_factory=dict)
-
-
-class Source(FragmentOperation):
-    """A read operation that returns a dataframe fragment."""
-
-
-class Transform(FragmentOperation):
-    """A conform, expand, or collapse operation returning a fragment."""
+    features: list[str] = Field(default_factory=list)
+    aggregations: dict[str, Binding] = Field(default_factory=dict)
 
 
 class Sink(StrictModel):
@@ -190,34 +173,19 @@ class Dataset(StrictModel):
     id: str = Field(exclude=True)
     description: str | None = None
     row_scope: RowScope = Field(default_factory=lambda: RowScope())
-    read: dict[str, Source] = Field(default_factory=dict)
-    conform: dict[str, Transform] = Field(default_factory=dict)
-    expand: dict[str, Transform] = Field(default_factory=dict)
-    collapse: dict[str, Transform] = Field(default_factory=dict)
-    vectorize: dict[str, Calculation] = Field(default_factory=dict)
+    features: dict[str, Feature] = Field(default_factory=dict)
+    mappings: dict[str, FeatureMapping] = Field(default_factory=dict)
     write: dict[str, Sink] = Field(default_factory=dict)
     order: list[Order] = Field(default_factory=list)
 
     @property
-    def fragment_operations(self) -> list[tuple[str, FragmentOperation]]:
-        """Return fragment operations paired with their operation category."""
-        return [
-            (operation_type, fragment)
-            for operation_type in ("read", "conform", "expand", "collapse")
-            for fragment in getattr(self, operation_type).values()
-        ]
-
-    @property
-    def all_features(self) -> dict[str, Input | Calculation]:
-        """Return fragment-provided and calculated features declared by this dataset."""
-        fragment_features: dict[str, Input] = {}
-        for _, fragment in self.fragment_operations:
-            fragment_features.update(fragment.features)
-        return {**fragment_features, **self.vectorize}
+    def all_features(self) -> dict[str, Feature]:
+        """Return the declared feature metadata for this dataset."""
+        return self.features
 
 
 class RowScope(StrictModel):
-    """The conceptual row subset shared by all dataset fragments."""
+    """The conceptual row subset represented by a dataset."""
 
     grain: str = ""
     filtering: str = ""
@@ -244,7 +212,7 @@ class Function(StrictModel):
     entrypoint: str | None = None
     args: list[Argument] = Field(default_factory=list)
     role: str | None = None
-    calculations: list[Calculation] = Field(default_factory=list, repr=False, exclude=True)
+    calculations: list[Feature] = Field(default_factory=list, repr=False, exclude=True)
     callables: list[Call] = Field(default_factory=list, repr=False, exclude=True)
 
     def __str__(self) -> str:
@@ -381,17 +349,7 @@ class Specification(StrictModel):
                 continue
             for dataset in entity.get("datasets", []) or []:
                 if isinstance(dataset, dict):
-                    for operation_type in ("read", "conform", "expand", "collapse"):
-                        dataset[operation_type] = _with_mapping_ids(
-                            dataset.get(operation_type, {}) or {}
-                        )
-                        for fragment in dataset[operation_type].values():
-                            if isinstance(fragment, dict):
-                                fragment["features"] = _with_mapping_ids(
-                                    fragment.get("features", {}) or {}
-                                )
-                    dataset["vectorize"] = _with_mapping_ids(
-                        dataset.get("vectorize", dataset.get("vectorize", {})) or {}
-                    )
+                    dataset["features"] = _with_mapping_ids(dataset.get("features", {}) or {})
+                    dataset["mappings"] = _with_mapping_ids(dataset.get("mappings", {}) or {})
                     dataset["write"] = _with_mapping_ids(dataset.get("write", {}) or {})
         return normalized

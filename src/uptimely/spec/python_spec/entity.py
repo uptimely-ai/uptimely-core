@@ -41,11 +41,8 @@ class Entity:
                     description=model.description,
                     row_scope=model.row_scope,
                     order=model.order,
-                    read=model.read,
-                    conform=model.conform,
-                    expand=model.expand,
-                    collapse=model.collapse,
-                    vectorize=model.vectorize,
+                    features=model.features,
+                    mappings=model.mappings,
                     write=model.write,
                 )
                 for dataset in self.datasets

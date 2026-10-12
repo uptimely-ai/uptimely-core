@@ -5,7 +5,7 @@ from graphable import graphable
 
 from uptimely.spec import Specification
 
-from .node import SOURCE_OPERATION_TYPES, CallableNode
+from .node import CallableNode
 
 Node = graphable.Graphable
 NodeMeta = CallableNode
@@ -40,21 +40,44 @@ class CallableGraph:
         for entity_id, entity in self.specification.entities.items():
             for dataset in entity.datasets:
                 dataset_key = (entity_id, dataset.id)
-                for operation_type, source in dataset.fragment_operations:
+                for mapping in dataset.mappings.values():
+                    operation_type = self._mapping_category(mapping.binding.function)
+                    primary_feature = mapping.features[0] if mapping.features else None
+                    call = next(
+                        (
+                            call
+                            for call in self.specification.calls
+                            if call.entity == entity_id and call.feature in mapping.features
+                        ),
+                        None,
+                    )
                     node = CallableNode(
-                        function_id=source.binding.function,
+                        function_id=mapping.binding.function,
                         entity=entity_id,
+                        feature=primary_feature,
                         operation_type=operation_type,
                         callable_type_override=operation_type,
                         dataset_id=dataset.id,
-                        operation_id=source.id,
-                        args=source.binding.args,
+                        operation_id=mapping.id,
+                        output_features=tuple(mapping.features),
+                        args=mapping.binding.args,
+                        aggregations=mapping.aggregations,
+                        callable=call,
+                        row_context=(
+                            dataset.features[primary_feature].row_context
+                            if operation_type == "vectorize" and primary_feature
+                            else None
+                        ),
                     )
                     nodes[node.node_id] = graphable.Graphable(node)
-                    self._dataset_sources.setdefault(dataset_key, []).append(node)
-                    for feature in source.features:
-                        if feature not in self.specification.dimensions:
-                            self._feature_producers[feature] = node
+                    if operation_type != "vectorize":
+                        self._dataset_sources.setdefault(dataset_key, []).append(node)
+                    for feature in mapping.features:
+                        if feature in self.specification.dimensions:
+                            continue
+                        self._feature_producers[feature] = node
+                        if operation_type == "vectorize":
+                            self._callable_index[(node.function_id, entity_id, feature)] = node
                 for sink in dataset.write.values():
                     node = CallableNode(
                         function_id=sink.binding.function,
@@ -75,65 +98,43 @@ class CallableGraph:
                 for read in reads:
                     graph.add_edge(nodes[read.node_id], nodes[fragment.node_id])
 
-        for fragments in self._dataset_sources.values():
-            for fragment in fragments:
-                for feature in self._feature_references(fragment.args):
-                    producer = self._feature_producers.get(feature)
-                    if producer is not None and producer != fragment:
-                        graph.add_edge(nodes[producer.node_id], nodes[fragment.node_id])
+        # Mapping inputs create feature-level prerequisites.
+        for graph_node in list(nodes.values()):
+            consumer = graph_node.reference
+            references = self._feature_references(consumer.args)
+            references.extend(
+                feature
+                for binding in consumer.aggregations.values()
+                for feature in self._feature_references(binding.args)
+            )
+            for feature in references:
+                producer = self._feature_producers.get(feature)
+                if producer is not None and producer != consumer:
+                    graph.add_edge(nodes[producer.node_id], graph_node)
 
-        for function in self.functions:
-            for call in function.callables:
-                callable_node = CallableNode(
-                    function_id=function.id,
-                    entity=call.entity,
-                    feature=call.feature,
-                    operation_type="vectorize",
-                    dataset_id=self._dataset_id(call.entity, call.feature),
-                    args=call.args,
-                    callable=call,
-                    row_context=next(
-                        dataset.vectorize[call.feature].row_context
-                        for dataset in self.specification.entities[call.entity].datasets
-                        if call.feature in dataset.vectorize
-                    ),
-                )
-                node_key = self._node_key(callable_node)
-                nodes[node_key] = graphable.Graphable(callable_node)
-                self._callable_index[(function.id, call.entity, call.feature)] = callable_node
-                self._feature_producers[call.feature] = callable_node
-
-        # Second pass: create edges based on feature dependencies
-        for function in self.functions:
-            for call in function.callables:
-                callable_node = self._callable_index[(function.id, call.entity, call.feature)]
-                consumer_node = nodes[self._node_key(callable_node)]
-
-                dataset_key = (call.entity, callable_node.dataset_id)
-                for source in self._dataset_sources.get(dataset_key, []):
-                    graph.add_edge(nodes[source.node_id], consumer_node)
-
-                # Add edges from producer callables to this consumer callable
-                for parent_feature in call.depends_on_features:
-                    if parent_feature in self._feature_producers:
-                        producer_callable = self._feature_producers[parent_feature]
-                        producer_node = nodes[self._node_key(producer_callable)]
-                        graph.add_edge(producer_node, consumer_node)
+        # Vectorize mappings consume the assembled dataset frame.
+        for callable_node in set(self._callable_index.values()):
+            consumer_node = nodes[callable_node.node_id]
+            dataset_key = (callable_node.entity, callable_node.dataset_id)
+            for source in self._dataset_sources.get(dataset_key, []):
+                graph.add_edge(nodes[source.node_id], consumer_node)
 
         for dataset_key, sinks in self._dataset_sinks.items():
             sources = self._dataset_sources.get(dataset_key, [])
-            calculations = [
-                node
-                for node in self._callable_index.values()
-                if (node.entity, node.dataset_id) == dataset_key
-            ]
+            calculations = list(
+                dict.fromkeys(
+                    node
+                    for node in self._callable_index.values()
+                    if (node.entity, node.dataset_id) == dataset_key
+                )
+            )
             for sink in sinks:
                 sink_node = nodes[sink.node_id]
                 for source in sources:
                     graph.add_edge(nodes[source.node_id], sink_node)
                 referenced = set(self._feature_references(sink.args))
                 dependencies = (
-                    [node for node in calculations if node.feature in referenced]
+                    [node for node in calculations if referenced.intersection(node.output_features)]
                     if referenced
                     else calculations
                 )
@@ -142,13 +143,29 @@ class CallableGraph:
 
         return graph
 
+    def _mapping_category(self, function_id: str) -> str:
+        """Infer a mapping operation category from its function catalog entry."""
+        categories = ("read", "conform", "expand", "collapse", "vectorize")
+        matches = [
+            category
+            for category in categories
+            if function_id in getattr(self.specification.functions, category)
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"Mapping function {function_id} must resolve to exactly one category")
+        return matches[0]
+
     def _dataset_id(self, entity_id: str, feature: str) -> str | None:
         """Return the dataset that owns a feature."""
         entity = self.specification.entities.get(entity_id)
         if entity is None:
             return None
         for dataset in entity.datasets:
-            if feature in dataset.vectorize:
+            if any(
+                mapping.binding.function in self.specification.functions.vectorize
+                and feature in mapping.features
+                for mapping in dataset.mappings.values()
+            ):
                 return dataset.id
         return None
 
@@ -242,7 +259,7 @@ class CallableGraph:
         """Return callables that directly produce the node's dependencies."""
         graph_nodes = set(self.callables)
         dataset_key = (node.entity, node.dataset_id)
-        if node.operation_type in SOURCE_OPERATION_TYPES:
+        if node.operation_type == "read":
             return []
         if node.operation_type in ("sink", "write"):
             sources = [
@@ -259,12 +276,21 @@ class CallableGraph:
             return [*sources, *calculations]
 
         dependencies = [
-            source for source in self._dataset_sources.get(dataset_key, []) if source in graph_nodes
+            source
+            for source in self._dataset_sources.get(dataset_key, [])
+            if source != node and source in graph_nodes
         ]
-        if node.callable is not None:
+        if node.operation_type == "vectorize":
             dependencies.extend(
                 producer
-                for feature in node.callable.depends_on_features
+                for feature in self._feature_references(node.args)
+                if (producer := self._feature_producers.get(feature)) in graph_nodes
+            )
+        else:
+            dependencies.extend(
+                producer
+                for binding in node.aggregations.values()
+                for feature in self._feature_references(binding.args)
                 if (producer := self._feature_producers.get(feature)) in graph_nodes
             )
         return list(dict.fromkeys(dependencies))

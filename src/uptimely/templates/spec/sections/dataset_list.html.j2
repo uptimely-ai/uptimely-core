@@ -1,6 +1,11 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
+{% macro mapping_category(mapping, functions) -%}
+  {%- for category in ["read", "conform", "expand", "collapse", "vectorize"] -%}
+    {%- if mapping.binding.function in functions.get(category, {}) -%}{{- category -}}{%- endif -%}
+  {%- endfor -%}
+{%- endmacro %}
 <section id="datasets" class="mb-16">
-  {{ section_header("Datasets", "Inspect each dataset's row scope, logical order, and producing fragments.", count=summary.dataset_count, count_label="datasets") }}
+  {{ section_header("Datasets", "Inspect each dataset's row scope, logical order, and feature mappings.", count=summary.dataset_count, count_label="datasets") }}
   <div class="space-y-4">
     {% for entity_id, entity in configuration.entities.items() %}
       {% for dataset in entity.datasets %}
@@ -11,7 +16,7 @@
             {% set dataset_heading = "h2" if include_navigation else "h3" %}
             <{{ dataset_heading }} class="mt-1 font-display text-lg font-semibold text-white">{{ dataset.id }}</{{ dataset_heading }}>
           </div>
-          <span class="font-mono text-xs text-slate-400">{{ dataset.vectorize|length }} calculated features</span>
+          <span class="font-mono text-xs text-slate-400">{{ dataset.features|length }} declared features</span>
         </header>
         {% if dataset.description %}<p class="mt-3 text-sm leading-6 text-slate-400">{{ dataset.description }}</p>{% endif %}
         {% if dataset.row_scope %}
@@ -36,17 +41,17 @@
           </ul>
         </div>
         {% endif %}
-        {% set ns = namespace(fragment_count=0) %}
-        {% for operation_type in ["read", "conform", "expand", "collapse"] %}
-          {% set ns.fragment_count = ns.fragment_count + dataset.get(operation_type, {})|length %}
+        {% set ns = namespace(mapping_count=0) %}
+        {% for mapping in dataset.mappings.values() %}
+          {% if mapping_category(mapping, configuration.functions) != "vectorize" %}
+            {% set ns.mapping_count = ns.mapping_count + 1 %}
+          {% endif %}
         {% endfor %}
         <div class="mt-4 border-t border-slate-800 pt-3">
-          <p class="mb-2 font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ ns.fragment_count }} fragments</p>
+          <p class="mb-2 font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ ns.mapping_count }} dataframe mappings</p>
           <div class="flex flex-wrap gap-2">
-            {% for operation_type in ["read", "conform", "expand", "collapse"] %}
-              {% for fragment_id in dataset.get(operation_type, {}) %}
-              <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ operation_type }} · {{ fragment_id }}</span>
-              {% endfor %}
+            {% for mapping_id, mapping in dataset.mappings.items() if mapping_category(mapping, configuration.functions) != "vectorize" %}
+              <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ mapping_category(mapping, configuration.functions) }} · {{ mapping_id }}</span>
             {% endfor %}
           </div>
         </div>

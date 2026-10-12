@@ -1,87 +1,156 @@
 """Pump telemetry dataset declarations for example 1."""
 
-from uptimely.spec.python_spec import bind, dataset, feature, fragment, ref, row_context
+from uptimely.spec.python_spec import bind, dataset, feature, mapping, ref, row_context
 
 from ...functions import calculation, sink, source
 
-telemetry_read = fragment.Read(
-    id="read_pump_telemetry",
-    bind=bind.bind(
-        source.read_pump_telemetry,
-        source=ref.source("telemetry_source"),
-        environment="development",
+telemetry_features = [
+    feature.Feature(id="plant", type="string", description="Manufacturing plant identifier"),
+    feature.Feature(id="production_line", type="string", description="Production line identifier"),
+    feature.Feature(id="pump", type="string", description="Centrifugal pump asset identifier"),
+    feature.Feature(id="timestamp", type="datetime", description="UTC telemetry timestamp"),
+    feature.Feature(
+        id="discharge_pressure",
+        type="float",
+        unit="bar",
+        description="Pump discharge pressure",
     ),
-    features=[
-        feature.Raw(id="plant", type="string", description="Manufacturing plant identifier"),
-        feature.Raw(id="production_line", type="string", description="Production line identifier"),
-        feature.Raw(id="pump", type="string", description="Centrifugal pump asset identifier"),
-        feature.Raw(id="timestamp", type="datetime", description="UTC telemetry timestamp"),
-        feature.Raw(
-            id="discharge_pressure", type="float", unit="bar", description="Pump discharge pressure"
-        ),
-        feature.Raw(
-            id="flow_rate", type="float", unit="m3/h", description="Pump discharge flow rate"
-        ),
-        feature.Raw(
-            id="bearing_temperature",
-            type="float",
-            unit="C",
-            description="Drive-end bearing temperature",
-        ),
-        feature.Raw(
-            id="vibration_rms", type="float", unit="mm/s", description="Overall pump vibration RMS"
-        ),
-        feature.Raw(
-            id="motor_power",
-            type="float",
-            unit="kW",
-            description="Electric motor active power consumption",
-        ),
-    ],
-)
-
-telemetry_calculations = [
-    feature.Vectorize(
+    feature.Feature(
+        id="flow_rate",
+        type="float",
+        unit="m3/h",
+        description="Pump discharge flow rate",
+    ),
+    feature.Feature(
+        id="bearing_temperature",
+        type="float",
+        unit="C",
+        description="Drive-end bearing temperature",
+    ),
+    feature.Feature(
+        id="vibration_rms",
+        type="float",
+        unit="mm/s",
+        description="Overall pump vibration RMS",
+    ),
+    feature.Feature(
+        id="motor_power",
+        type="float",
+        unit="kW",
+        description="Electric motor active power consumption",
+    ),
+    feature.Feature(
         id="recommended_flow_rate",
+        type="float",
         unit="m3/h",
         description="Recommended flow rate for efficient operation",
+    ),
+    feature.Feature(
+        id="recommended_discharge_pressure",
+        type="float",
+        unit="bar",
+        description="Recommended discharge pressure for efficient operation",
+    ),
+    feature.Feature(
+        id="energy_cost_score",
+        type="float",
+        description="Estimated energy-cost score for the recommended operating point",
+    ),
+    feature.Feature(
+        id="converged",
+        type="boolean",
+        description="Whether the optimization converged",
+    ),
+    feature.Feature(
+        id="pressure_flow_efficiency",
+        type="float",
+        description="Hydraulic efficiency proxy from pressure, flow, and motor power",
+    ),
+    feature.Feature(
+        id="bearing_temperature_delta",
+        type="float",
+        unit="C",
+        description="Bearing-temperature change from the previous pump reading.",
+    ),
+    feature.Feature(
+        id="vibration_delta",
+        type="float",
+        unit="mm/s",
+        description="Vibration change from the previous pump reading.",
+    ),
+    feature.Feature(
+        id="pump_health_score",
+        type="float",
+        description=(
+            "Composite pump health score from bearing-temperature trend, "
+            "vibration trend, and efficiency."
+        ),
+    ),
+    feature.Feature(
+        id="operating_point_recommendation",
+        type="object",
+        description="Recommended pump operating point based on process demand and energy use",
+    ),
+]
+
+telemetry_mappings = [
+    mapping.Read(
+        id="read_pump_telemetry",
+        bind=bind.bind(
+            source.read_pump_telemetry,
+            source=ref.source("telemetry_source"),
+            environment="development",
+        ),
+        features=[
+            ref.feature("plant"),
+            ref.feature("production_line"),
+            ref.feature("pump"),
+            ref.feature("timestamp"),
+            ref.feature("discharge_pressure"),
+            ref.feature("flow_rate"),
+            ref.feature("bearing_temperature"),
+            ref.feature("vibration_rms"),
+            ref.feature("motor_power"),
+        ],
+    ),
+    mapping.Vectorize(
+        id="recommended_flow_rate",
         bind=bind.bind(
             calculation.extract_recommendation_value,
             optimization_attribute="recommended_flow_rate",
             column=ref.feature("operating_point_recommendation"),
         ),
+        features=[ref.feature("recommended_flow_rate")],
     ),
-    feature.Vectorize(
+    mapping.Vectorize(
         id="recommended_discharge_pressure",
-        unit="bar",
-        description="Recommended discharge pressure for efficient operation",
         bind=bind.bind(
             calculation.extract_recommendation_value,
             optimization_attribute="recommended_discharge_pressure",
             column=ref.feature("operating_point_recommendation"),
         ),
+        features=[ref.feature("recommended_discharge_pressure")],
     ),
-    feature.Vectorize(
+    mapping.Vectorize(
         id="energy_cost_score",
-        description="Estimated energy-cost score for the recommended operating point",
         bind=bind.bind(
             calculation.extract_recommendation_value,
             optimization_attribute="energy_cost_score",
             column=ref.feature("operating_point_recommendation"),
         ),
+        features=[ref.feature("energy_cost_score")],
     ),
-    feature.Vectorize(
+    mapping.Vectorize(
         id="converged",
-        description="Whether the optimization converged",
         bind=bind.bind(
             calculation.converged,
             function_id="extract_convergence_flag",
             recommendation_features=[ref.feature("operating_point_recommendation")],
         ),
+        features=[ref.feature("converged")],
     ),
-    feature.Vectorize(
+    mapping.Vectorize(
         id="pressure_flow_efficiency",
-        description="Hydraulic efficiency proxy from pressure, flow, and motor power",
         bind=bind.bind(
             calculation.pressure_flow_efficiency,
             pressure_features=[
@@ -90,12 +159,11 @@ telemetry_calculations = [
                 ref.feature("motor_power"),
             ],
         ),
+        features=[ref.feature("pressure_flow_efficiency")],
     ),
-    feature.Vectorize(
+    mapping.Vectorize(
         id="bearing_temperature_delta",
         row_context=row_context.rows(1, before=1),
-        unit="C",
-        description="Bearing-temperature change from the previous pump reading.",
         bind=bind.bind(
             calculation.bearing_temperature_delta,
             temperature=ref.feature("bearing_temperature"),
@@ -106,12 +174,11 @@ telemetry_calculations = [
             ],
             order_by=ref.dimension("timestamp"),
         ),
+        features=[ref.feature("bearing_temperature_delta")],
     ),
-    feature.Vectorize(
+    mapping.Vectorize(
         id="vibration_delta",
         row_context=row_context.rows(1, before=1),
-        unit="mm/s",
-        description="Vibration change from the previous pump reading.",
         bind=bind.bind(
             calculation.vibration_delta_from_previous,
             function_id="vibration_delta_from_previous",
@@ -123,13 +190,10 @@ telemetry_calculations = [
             ],
             order_by=ref.dimension("timestamp"),
         ),
+        features=[ref.feature("vibration_delta")],
     ),
-    feature.Vectorize(
+    mapping.Vectorize(
         id="pump_health_score",
-        description=(
-            "Composite pump health score from bearing-temperature trend, "
-            "vibration trend, and efficiency."
-        ),
         bind=bind.bind(
             calculation.pump_health_score,
             health_features=[
@@ -138,10 +202,10 @@ telemetry_calculations = [
                 ref.feature("pressure_flow_efficiency"),
             ],
         ),
+        features=[ref.feature("pump_health_score")],
     ),
-    feature.Vectorize(
+    mapping.Vectorize(
         id="operating_point_recommendation",
-        description="Recommended pump operating point based on process demand and energy use",
         bind=bind.bind(
             calculation.optimize_pump_operating_point,
             optimization_features=[
@@ -152,27 +216,27 @@ telemetry_calculations = [
                 ref.feature("vibration_rms"),
             ],
         ),
+        features=[ref.feature("operating_point_recommendation")],
+    ),
+    mapping.Write(
+        id="write_pump_telemetry",
+        bind=bind.bind(
+            sink.write_pump_telemetry,
+            dataset=ref.current_dataset(),
+            features=[
+                ref.feature("recommended_flow_rate"),
+                ref.feature("recommended_discharge_pressure"),
+                ref.feature("energy_cost_score"),
+                ref.feature("converged"),
+                ref.feature("pressure_flow_efficiency"),
+                ref.feature("bearing_temperature_delta"),
+                ref.feature("vibration_delta"),
+                ref.feature("pump_health_score"),
+                ref.feature("operating_point_recommendation"),
+            ],
+        ),
     ),
 ]
-
-telemetry_write = fragment.Write(
-    id="write_pump_telemetry",
-    bind=bind.bind(
-        sink.write_pump_telemetry,
-        dataset=ref.current_dataset(),
-        features=[
-            ref.feature("recommended_flow_rate"),
-            ref.feature("recommended_discharge_pressure"),
-            ref.feature("energy_cost_score"),
-            ref.feature("converged"),
-            ref.feature("pressure_flow_efficiency"),
-            ref.feature("bearing_temperature_delta"),
-            ref.feature("vibration_delta"),
-            ref.feature("pump_health_score"),
-            ref.feature("operating_point_recommendation"),
-        ],
-    ),
-)
 
 telemetry_dataset = dataset.Dataset(
     id="pump_telemetry_dataset",
@@ -181,8 +245,7 @@ telemetry_dataset = dataset.Dataset(
         grain="One row per pump and timestamp",
         filtering="Development telemetry selected by the read function",
     ),
+    features=telemetry_features,
+    mappings=telemetry_mappings,
     order=[dataset.Order(dimension=ref.dimension("timestamp"), direction="asc")],
-    read=[telemetry_read],
-    vectorize=telemetry_calculations,
-    write=[telemetry_write],
 )

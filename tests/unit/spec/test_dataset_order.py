@@ -11,7 +11,7 @@ from uptimely.compile import Compiler
 from uptimely.docs.docs import Documentation
 from uptimely.engine import Engine
 from uptimely.spec import Dataset, Order, Specification
-from uptimely.spec.python_spec import bind, dataset, dimension, entity, feature, ref
+from uptimely.spec.python_spec import bind, dataset, dimension, entity, feature, mapping, ref
 from uptimely.spec.render import create_website_pages
 from uptimely.spec.validation import SpecificationError
 
@@ -200,9 +200,23 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
 
     declaration = dataset.Dataset(
         id=dataset_.id,
-        read=dataset_.read,
-        vectorize=[
-            feature.Vectorize(
+        features=[
+            feature.Feature(id="input_1"),
+            feature.Feature(id="input_2"),
+            feature.Feature(id="id", type="integer"),
+            feature.Feature(id="sum"),
+        ],
+        mappings=[
+            mapping.Read(
+                id="read",
+                bind=bind.bind(read_data),
+                features=[
+                    ref.feature("input_1"),
+                    ref.feature("input_2"),
+                    ref.feature("id"),
+                ],
+            ),
+            mapping.Vectorize(
                 id="sum",
                 bind=bind.bind(
                     sum_features,
@@ -210,7 +224,8 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
                     right_feature=ref.feature("input_2"),
                     output="sum",
                 ),
-            )
+                features=[ref.feature("sum")],
+            ),
         ],
     )
     unordered = Specification.from_python(datasets=[declaration], dimensions=dimensions)

@@ -129,6 +129,19 @@ class Compiler:
         function = _resolve_function(self.specification, node)
         if function is None or not function.entrypoint:
             raise ValueError(f"Missing entrypoint for function: {node.function_id}")
+        arguments = resolve_binding_args(
+            node.args,
+            node.dataset_id,
+            node.feature if node.operation_type == "vectorize" else None,
+        )
+        if node.operation_type == "collapse":
+            arguments["aggregations"] = {
+                feature: {
+                    "function": binding.function,
+                    "args": resolve_binding_args(binding.args, node.dataset_id),
+                }
+                for feature, binding in node.aggregations.items()
+            }
         return Operation(
             id=node.node_id,
             kind=node.operation_type,
@@ -136,13 +149,8 @@ class Compiler:
             entity_id=node.entity,
             dataset_id=node.dataset_id,
             output=node.feature or node.operation_id,
-            arguments=_portable_value(
-                resolve_binding_args(
-                    node.args,
-                    node.dataset_id,
-                    node.feature if node.operation_type == "vectorize" else None,
-                )
-            ),
+            output_features=list(node.output_features),
+            arguments=_portable_value(arguments),
             dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
             row_context=node.row_context,
         )

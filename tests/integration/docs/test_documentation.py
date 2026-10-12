@@ -69,7 +69,7 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert 'href="#functions"' in document
     assert ">Features<" in document
     assert "Datasets" in document
-    assert "Fragments" in document
+    assert "Mappings" in document
     assert ">source<" in document
     assert "space-y-5" in document
     assert 'href="#engines"' not in document

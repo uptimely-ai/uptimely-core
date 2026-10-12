@@ -15,10 +15,10 @@ from .json_functions import python_to_spec_dict
 from .json_model import (
     FUNCTION_TYPES,
     Binding,
-    Calculation,
     Call,
     Dimension,
     Entity,
+    Feature,
     Function,
     FunctionCatalog,
     Specification,
@@ -109,34 +109,28 @@ class SpecificationParser:
 
         for entity_id, entity in self.entities.items():
             for dataset in entity.datasets:
-                for feature_name, calculation in (
-                    dataset.vectorize if hasattr(dataset, "vectorize") else dataset.vectorize
-                ).items():
-                    if calculation.binding is None:
+                for mapping in dataset.mappings.values():
+                    function_name = mapping.binding.function
+                    template = self.function_catalog.vectorize.get(function_name)
+                    if template is None:
                         continue
-
-                    function_name = calculation.binding.function
                     if function_name not in functions_by_id:
-                        template = self.function_catalog.vectorize.get(function_name)
-                        if template is None:
-                            raise ValueError(f"Unknown vectorize function: {function_name}")
                         functions_by_id[function_name] = self._build_function(
-                            function_name, template, calculation
+                            function_name, template, dataset.features[mapping.features[0]]
                         )
-
-                    call = self._build_call(
-                        function_name,
-                        entity_id,
-                        feature_name,
-                        dataset.id,
-                        calculation.binding,
-                    )
-                    calls.append(call)
-
                     function = functions_by_id[function_name]
-                    calculation.callable = call
-                    function.callables.append(call)
-                    function.calculations.append(calculation)
+                    for feature_name in mapping.features:
+                        feature = dataset.features[feature_name]
+                        call = self._build_call(
+                            function_name,
+                            entity_id,
+                            feature_name,
+                            dataset.id,
+                            mapping.binding,
+                        )
+                        calls.append(call)
+                        function.callables.append(call)
+                        function.calculations.append(feature)
 
         self.model.resolved_functions = list(functions_by_id.values())
         self.model.calls = calls
@@ -147,7 +141,7 @@ class SpecificationParser:
     def _build_function(
         function_name: str,
         template: VectorizeFunction | None,
-        calculation: Calculation,
+        calculation: Feature,
     ) -> Function:
         """Build a deduplicated function entry from its first calculation."""
         return Function(
@@ -245,36 +239,34 @@ class SpecificationParser:
         validate_dataset_ids(self.model)
         seen_function_ids: set[str] = set()
         seen_feature_names: set[str] = set()
-        seen_input_names: set[str] = set()
         dataset_of_feature: dict[str, tuple[str, str]] = {}
         dimension_names = set(self.dimensions)
 
         for entity_id, entity in self.entities.items():
             for dataset in entity.datasets:
-                for _, operation in dataset.fragment_operations:
-                    for input_name in operation.features:
-                        if input_name in dimension_names:
-                            continue
-                        if input_name in seen_input_names:
-                            raise ValueError(f"Duplicate input name: {input_name}")
-                        seen_input_names.add(input_name)
-                        dataset_of_feature[input_name] = (entity_id, dataset.id)
-                for calculation_name in (
-                    dataset.vectorize if hasattr(dataset, "vectorize") else dataset.vectorize
-                ):
-                    if calculation_name in seen_feature_names:
-                        raise ValueError(f"Duplicate feature name: {calculation_name}")
-                    if calculation_name in dimension_names:
-                        raise ValueError(
-                            f"Feature name duplicates dimension name: {calculation_name}"
-                        )
-                    if calculation_name in seen_input_names:
-                        raise ValueError(f"Feature name duplicates input name: {calculation_name}")
-                    seen_feature_names.add(calculation_name)
-                    dataset_of_feature[calculation_name] = (entity_id, dataset.id)
+                for feature_name in dataset.features:
+                    if feature_name in dimension_names:
+                        continue
+                    if feature_name in seen_feature_names:
+                        raise ValueError(f"Duplicate feature name: {feature_name}")
+                    seen_feature_names.add(feature_name)
+                    dataset_of_feature[feature_name] = (entity_id, dataset.id)
+
+        for entity in self.entities.values():
+            for dataset in entity.datasets:
+                for mapping in dataset.mappings.values():
+                    if mapping.binding.function in self.function_catalog.vectorize:
+                        collisions = sorted(set(mapping.features) & dimension_names)
+                        if collisions:
+                            raise ValueError(
+                                "Calculated feature names cannot duplicate entity dimensions: "
+                                + ", ".join(collisions)
+                            )
 
         for call in calls:
             owner = dataset_of_feature.get(call.feature)
+            if owner is None and call.feature in dimension_names:
+                continue
             for dependency in call.depends_on_features:
                 dependency_owner = dataset_of_feature.get(dependency)
                 if dependency_owner is not None and dependency_owner != owner:
@@ -287,9 +279,12 @@ class SpecificationParser:
         for entity_id, entity in self.entities.items():
             for dataset in entity.datasets:
                 dataset_key = (entity_id, dataset.id)
-                expected_features = set(
-                    dataset.vectorize if hasattr(dataset, "vectorize") else dataset.vectorize
-                )
+                expected_features = {
+                    feature_id
+                    for mapping in dataset.mappings.values()
+                    if mapping.binding.function in self.function_catalog.vectorize
+                    for feature_id in mapping.features
+                }
                 for sink in dataset.write.values():
                     sink_features = set(self._resolve_feature_dependencies(sink.binding.args))
                     foreign_features = sorted(

@@ -270,7 +270,8 @@ verify that implementation code honors the declared grain and filtering.
 Consequently, omitted keys are preserved by the full join and exposed as nulls
 rather than rejected as row-scope violations.
 
-Fragment resources may be produced by these callable operation types:
+The function catalog determines which callable category a dataframe-producing
+mapping uses. These categories produce runtime fragments:
 
 | Type | Meaning |
 | --- | --- |
@@ -279,7 +280,8 @@ Fragment resources may be produced by these callable operation types:
 | `expand` | Retrieves another dataset and returns it at expanded dimensional coverage. |
 | `conform` | Retrieves another dataset in the same entity and reconciles or narrows it to the target dataset's row scope. |
 
-All fragment operations produce data for the dataset that declares them. For
+All dataframe-producing mappings produce data for the dataset that declares
+them. For
 `conform`, `expand`, and `collapse`, the binding usually identifies
 another dataset explicitly; the operation function performs the required pull,
 transformation, or reconciliation before returning the fragment. The returned

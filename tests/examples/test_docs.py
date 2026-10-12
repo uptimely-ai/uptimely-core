@@ -6,7 +6,6 @@ from uptimely.docs.docs import Documentation
 from uptimely.spec import Specification
 
 SPEC_PATH = Path("examples/example_1/_generated/spec/spec.json")
-FRAGMENT_OPERATIONS = ("read", "conform", "expand", "collapse")
 
 
 class TextCollector(HTMLParser):
@@ -28,12 +27,7 @@ def _documentation_counts(specification: Specification) -> dict[str, int]:
     datasets = [
         dataset for entity in specification.entities.values() for dataset in entity.datasets
     ]
-    feature_count = sum(
-        len(fragment.features)
-        for dataset in datasets
-        for operation in FRAGMENT_OPERATIONS
-        for fragment in getattr(dataset, operation).values()
-    ) + sum(len(dataset.vectorize) for dataset in datasets)
+    feature_count = sum(len(dataset.features) for dataset in datasets)
     function_count = sum(
         len(functions)
         for functions in specification.functions.model_dump(exclude_none=True).values()
@@ -65,7 +59,7 @@ def test_json_docs_have_expected_keys(tmp_path: Path) -> None:
     assert set(document["summary"]) == {
         "entity_count",
         "dataset_count",
-        "fragment_count",
+        "mapping_count",
         "dimension_count",
         "feature_count",
         "bound_feature_count",

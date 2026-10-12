@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from .json_spec.bindings import aggregation_entries
-
 
 class SpecificationError(ValueError):
     """A semantic specification error with a stable code and resource path."""
@@ -100,16 +98,81 @@ def _validate_entity_dimensions(model: Any, dimensions: set[str]) -> None:
             )
 
 
-def _validate_calculation_bindings(entity: Any) -> None:
-    """Require every declared calculation to have an executable binding."""
+def _validate_calculation_bindings(entity: Any, categories: dict[str, dict[str, Any]]) -> None:
+    """Require mappings to reference registered features and unique outputs."""
+    dimensions = set(entity.dimensions)
     for dataset in entity.datasets:
-        calculations = dataset.vectorize if hasattr(dataset, "vectorize") else dataset.vectorize
-        for calculation_id, calculation in calculations.items():
-            if calculation.binding is None:
-                raise ValueError(f"Calculation {calculation_id} must define a binding")
-            references = _structural_references(calculation.binding.args, "$features.")
-            if not any(reference != "@" for reference in references):
-                raise ValueError(f"Vectorize {calculation_id} must reference one or more features")
+        owners: dict[str, str] = {}
+        for mapping_id, mapping in dataset.mappings.items():
+            if not mapping.features:
+                raise ValueError(f"Mapping {mapping_id} must declare one or more features")
+            matches = [
+                category
+                for category in ("read", "conform", "expand", "collapse", "vectorize")
+                if mapping.binding.function in categories[category]
+            ]
+            if not matches:
+                raise ValueError(
+                    f"Dataset {dataset.id} mappings reference unknown functions: "
+                    f"{mapping.binding.function}"
+                )
+            if len(matches) != 1:
+                raise ValueError(
+                    f"Mapping {mapping_id} function {mapping.binding.function} must resolve "
+                    "to exactly one operation category"
+                )
+            if matches[0] == "vectorize":
+                collisions = sorted(set(mapping.features) & dimensions)
+                if collisions:
+                    raise ValueError(
+                        "Calculated feature names cannot duplicate entity dimensions: "
+                        + ", ".join(collisions)
+                    )
+            if matches[0] != "collapse" and mapping.aggregations:
+                raise ValueError(f"{matches[0]} mapping {mapping_id} cannot use aggregations")
+            for feature_id in mapping.features:
+                if feature_id not in dataset.features:
+                    raise ValueError(
+                        f"Mapping {mapping_id} references unknown feature: {feature_id}"
+                    )
+                if feature_id in dimensions:
+                    continue
+                if feature_id in owners:
+                    raise ValueError(
+                        f"Feature {feature_id} is produced by multiple mappings: "
+                        f"{owners[feature_id]}, {mapping_id}"
+                    )
+                owners[feature_id] = mapping_id
+            if matches[0] == "vectorize":
+                if len(mapping.features) > 1 and "@" in _structural_references(
+                    mapping.binding.args, "$features."
+                ):
+                    raise ValueError(
+                        f"Vectorize mapping {mapping_id} cannot use $features.@ "
+                        "when it produces multiple features"
+                    )
+                references = _structural_references(mapping.binding.args, "$features.")
+                if not references:
+                    raise ValueError(f"Vectorize mapping {mapping_id} must reference features")
+            elif matches[0] == "collapse":
+                unknown_aggregations = sorted(set(mapping.aggregations) - set(mapping.features))
+                if unknown_aggregations:
+                    raise ValueError(
+                        f"Collapse mapping {mapping_id} aggregates features it does not produce: "
+                        + ", ".join(unknown_aggregations)
+                    )
+                if not mapping.aggregations:
+                    raise ValueError(f"Collapse mapping {mapping_id} must define aggregations")
+            if matches[0] in {"read", "conform", "expand", "collapse"}:
+                missing_dimensions = sorted(dimensions - set(mapping.features))
+                if missing_dimensions:
+                    raise ValueError(
+                        f"Mapping {mapping_id} must include dimension columns: "
+                        + ", ".join(missing_dimensions)
+                    )
+        missing = sorted(set(dataset.features) - set(owners) - dimensions)
+        if missing:
+            raise ValueError("Features have no producer mapping: " + ", ".join(missing))
 
 
 def _validate_dataset_order(model: Any) -> None:
@@ -138,67 +201,60 @@ def _validate_dataset_order(model: Any) -> None:
 
 
 def _validate_aggregations(model: Any) -> None:
-    """Allow aggregations only in collapse and require source references."""
+    """Require collapse reducers to reference declared non-collapse source features."""
     source_features = {
         feature_id
         for entity in model.entities.values()
         for dataset in entity.datasets
-        for operation_type, fragment in dataset.fragment_operations
-        if operation_type != "collapse"
-        for feature_id in fragment.features
+        for mapping in dataset.mappings.values()
+        if any(
+            mapping.binding.function in getattr(model.functions, category)
+            for category in ("read", "conform", "expand")
+        )
+        for feature_id in mapping.features
     }
     for entity in model.entities.values():
         for dataset in entity.datasets:
-            for operation_type, fragment in dataset.fragment_operations:
-                aggregations = aggregation_entries(fragment.binding.args)
-                if operation_type == "collapse" and not aggregations:
-                    raise ValueError(f"Collapse {fragment.id} must define one or more aggregations")
-                if operation_type != "collapse" and aggregations:
-                    raise ValueError(
-                        f"{operation_type} operation {fragment.id} cannot use aggregations"
-                    )
-                for value in aggregations:
-                    function_id = value.get("function")
+            for mapping in dataset.mappings.values():
+                if mapping.binding.function not in model.functions.collapse:
+                    continue
+                for output_feature, binding in mapping.aggregations.items():
+                    function_id = binding.function
                     if function_id not in model.functions.aggregate:
                         raise ValueError(
-                            f"Aggregation in collapse {fragment.id} references "
+                            f"Aggregation in collapse {mapping.id} references "
                             f"unknown aggregate function: {function_id}"
                         )
-                    references = _structural_references(value, "$features.")
+                    references = _structural_references(binding.args, "$features.")
                     if not references:
                         raise ValueError(
-                            f"Aggregation in collapse {fragment.id} must reference a source feature"
+                            f"Aggregation in collapse {mapping.id} must reference a source feature"
                         )
                     unknown = sorted(
                         reference for reference in references if reference not in source_features
                     )
                     if unknown:
                         message = (
-                            f"Aggregation in collapse {fragment.id} "
+                            f"Aggregation for {output_feature} in collapse {mapping.id} "
                             "references non-source features: " + ", ".join(unknown)
                         )
                         raise ValueError(message)
-            for calculation in (
-                dataset.vectorize if hasattr(dataset, "vectorize") else dataset.vectorize
-            ).values():
-                if aggregation_entries(calculation.binding.args):
-                    raise ValueError("Vectorize operations cannot use aggregations")
-            for operation in dataset.write.values():
-                if aggregation_entries(operation.binding.args):
-                    raise ValueError("Write operations cannot use aggregations")
 
 
 def _validate_operation_functions(entity: Any, categories: dict[str, dict[str, Any]]) -> None:
     """Validate operation references against their function catalog categories."""
     for dataset in entity.datasets:
         missing = sorted(
-            fragment.binding.function
-            for operation_type, fragment in dataset.fragment_operations
-            if fragment.binding.function not in categories[operation_type]
+            mapping.binding.function
+            for mapping in dataset.mappings.values()
+            if not any(
+                mapping.binding.function in categories[category]
+                for category in ("read", "conform", "expand", "collapse", "vectorize")
+            )
         )
         if missing:
             raise ValueError(
-                f"Dataset {dataset.id} fragments reference unknown functions: " + ", ".join(missing)
+                f"Dataset {dataset.id} mappings reference unknown functions: " + ", ".join(missing)
             )
         for operation_id, operation in dataset.write.items():
             if operation.binding.function not in categories["write"]:
@@ -215,10 +271,11 @@ def _validate_binding_contract(
     function: Any,
     *,
     path: tuple[str | int, ...],
+    additional_arguments: set[str] | None = None,
 ) -> None:
     """Require bound argument names to match the function template contract."""
     declared = set(function.args)
-    supplied = set(binding.args)
+    supplied = set(binding.args) | (additional_arguments or set())
     missing = sorted(declared - supplied)
     unknown = sorted(supplied - declared)
     if missing or unknown:
@@ -238,42 +295,57 @@ def _validate_binding_contracts(model: Any, categories: dict[str, dict[str, Any]
     """Validate argument names for every declared operation binding."""
     for entity_id, entity in model.entities.items():
         for dataset in entity.datasets:
-            for operation_type, fragment in dataset.fragment_operations:
-                function = categories[operation_type].get(fragment.binding.function)
+            for mapping_id, mapping in dataset.mappings.items():
+                function = next(
+                    (
+                        functions[mapping.binding.function]
+                        for category, functions in categories.items()
+                        if category != "write" and mapping.binding.function in functions
+                    ),
+                    None,
+                )
                 if function is not None:
                     _validate_binding_contract(
-                        fragment.binding,
+                        mapping.binding,
                         function,
                         path=(
                             "entities",
                             entity_id,
                             "datasets",
                             dataset.id,
-                            operation_type,
-                            fragment.id,
+                            "mappings",
+                            mapping_id,
                             "binding",
                             "args",
                         ),
-                    )
-            for calculation_id, calculation in (
-                dataset.vectorize if hasattr(dataset, "vectorize") else dataset.vectorize
-            ).items():
-                function = categories["vectorize"].get(calculation.binding.function)
-                if function is not None:
-                    _validate_binding_contract(
-                        calculation.binding,
-                        function,
-                        path=(
-                            "entities",
-                            entity_id,
-                            "datasets",
-                            dataset.id,
-                            "vectorize",
-                            calculation_id,
-                            "binding",
-                            "args",
+                        additional_arguments=(
+                            {"aggregations"}
+                            if (
+                                mapping.aggregations
+                                and mapping.binding.function in categories["collapse"]
+                            )
+                            else None
                         ),
                     )
+                if mapping.binding.function in categories["collapse"]:
+                    for feature_id, binding in mapping.aggregations.items():
+                        aggregate = categories["aggregate"].get(binding.function)
+                        if aggregate is not None:
+                            _validate_binding_contract(
+                                binding,
+                                aggregate,
+                                path=(
+                                    "entities",
+                                    entity_id,
+                                    "datasets",
+                                    dataset.id,
+                                    "mappings",
+                                    mapping_id,
+                                    "aggregations",
+                                    feature_id,
+                                    "args",
+                                ),
+                            )
             for operation_id, operation in dataset.write.items():
                 function = categories["write"].get(operation.binding.function)
                 if function is not None:
@@ -293,30 +365,14 @@ def _validate_binding_contracts(model: Any, categories: dict[str, dict[str, Any]
                     )
 
 
-def _validate_fragment_dimensions(entity: Any) -> None:
-    """Require every fragment dataframe contract to include entity dimensions."""
-    required_dimensions = set(entity.dimensions)
-    for dataset in entity.datasets:
-        for _, fragment in dataset.fragment_operations:
-            missing_dimensions = sorted(required_dimensions - set(fragment.features))
-            if missing_dimensions:
-                raise ValueError(
-                    f"Fragment {fragment.id} must include dimension columns: "
-                    + ", ".join(missing_dimensions)
-                )
-
-
 def _feature_names(model: Any) -> set[str]:
-    """Collect declared input and calculated feature identifiers."""
-    feature_names: set[str] = set()
-    for entity in model.entities.values():
-        for dataset in entity.datasets:
-            for _, fragment in dataset.fragment_operations:
-                feature_names.update(fragment.features)
-            feature_names.update(
-                dataset.vectorize if hasattr(dataset, "vectorize") else dataset.vectorize
-            )
-    return feature_names
+    """Collect declared feature identifiers."""
+    return {
+        feature_id
+        for entity in model.entities.values()
+        for dataset in entity.datasets
+        for feature_id in dataset.features
+    }
 
 
 def _validate_feature_dependencies(
@@ -340,9 +396,8 @@ def validate_specification(model: Any, calls: list[Any]) -> None:
     categories = _function_categories(model)
 
     for entity in model.entities.values():
-        _validate_calculation_bindings(entity)
+        _validate_calculation_bindings(entity, categories)
         _validate_operation_functions(entity, categories)
-        _validate_fragment_dimensions(entity)
 
     _validate_aggregations(model)
     _validate_binding_contracts(model, categories)

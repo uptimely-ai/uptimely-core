@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -30,6 +31,27 @@ def test_compiler_creates_callable_graph_subset_for_requested_features() -> None
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
         Compiler(SPEC_PATH, features=["missing"]).compile()
+
+
+def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: Path) -> None:
+    specification = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    dataset = specification["entities"]["pump"]["datasets"][0]
+    mapping = dataset["mappings"]["health_signal_normalized"]
+    mapping["features"].append("health_signal_secondary")
+    dataset["features"]["health_signal_secondary"] = {"type": "float"}
+    spec_path = tmp_path / "spec.json"
+    spec_path.write_text(json.dumps(specification), encoding="utf-8")
+
+    plan = Compiler(spec_path, features=["health_signal_normalized"]).compile()
+    vectorize_operations = [
+        operation for operation in plan.operations if operation.kind == "vectorize"
+    ]
+
+    assert len(vectorize_operations) == 1
+    assert vectorize_operations[0].output_features == [
+        "health_signal_normalized",
+        "health_signal_secondary",
+    ]
 
 
 def test_callable_graph_subset_contains_requested_output_and_ancestors() -> None:

@@ -1,6 +1,6 @@
 # Example 2: Python Specification Export
 
-`example_2` is a small, self-contained example of declaring a dataset in Python. It defines one `read` fragment with input features, two `vectorize` operations, one `write` operation, and an explicit row context.
+`example_2` is a small, self-contained example of declaring a dataset in Python. It lists feature metadata independently, then maps one read binding and two vectorize bindings to their output features before declaring a write mapping.
 
 ## How the specification is read
 

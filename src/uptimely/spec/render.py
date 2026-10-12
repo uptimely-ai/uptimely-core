@@ -31,7 +31,7 @@ class DocumentationSummary:
 
     entity_count: int
     dataset_count: int
-    fragment_count: int
+    mapping_count: int
     dimension_count: int
     feature_count: int
     bound_feature_count: int
@@ -101,22 +101,37 @@ def create_website_pages(
 
 
 def _feature_data(configuration: dict[str, Any]) -> tuple[list[dict], list[dict], set[str]]:
-    """Collect declared features and calculated feature references."""
+    """Collect mapped feature metadata and calculated feature references."""
     entities = configuration.get("entities", {})
-    fragment_features = [
-        feature
-        for entity in entities.values()
-        for dataset in entity.get("datasets", [])
-        for operation_type in ("read", "conform", "expand", "collapse")
-        for fragment in dataset.get(operation_type, {}).values()
-        for feature in fragment.get("features", {}).values()
-    ]
-    calculated_features = [
-        calculation
-        for entity in entities.values()
-        for dataset in entity.get("datasets", [])
-        for calculation in dataset.get("vectorize", {}).values()
-    ]
+    functions = configuration.get("functions", {})
+    fragment_features: list[dict] = []
+    calculated_features: list[dict] = []
+    seen_inputs: set[tuple[str, str]] = set()
+    for entity in entities.values():
+        for dataset in entity.get("datasets", []):
+            for mapping in dataset.get("mappings", {}).values():
+                function_id = mapping.get("binding", {}).get("function")
+                category = next(
+                    (
+                        name
+                        for name in ("read", "conform", "expand", "collapse", "vectorize")
+                        if function_id in functions.get(name, {})
+                    ),
+                    None,
+                )
+                for feature_id in mapping.get("features", []):
+                    feature = dict(dataset.get("features", {}).get(feature_id, {}))
+                    feature["id"] = feature_id
+                    if category == "vectorize":
+                        calculated_features.append(
+                            {
+                                **feature,
+                                "binding": mapping.get("binding", {}),
+                            }
+                        )
+                    elif (dataset.get("id", ""), feature_id) not in seen_inputs:
+                        fragment_features.append(feature)
+                        seen_inputs.add((dataset.get("id", ""), feature_id))
     referenced_features = {
         dependency
         for calculation in calculated_features
@@ -167,16 +182,10 @@ def _build_context(
     feature_buckets = {
         "input": len(fragment_features),
         "intermediate": sum(
-            calculation_id in referenced_features
-            for entity in entities.values()
-            for dataset in entity.get("datasets", [])
-            for calculation_id in dataset.get("vectorize", {})
+            calculation["id"] in referenced_features for calculation in calculated_features
         ),
         "output": sum(
-            calculation_id not in referenced_features
-            for entity in entities.values()
-            for dataset in entity.get("datasets", [])
-            for calculation_id in dataset.get("vectorize", {})
+            calculation["id"] not in referenced_features for calculation in calculated_features
         ),
     }
     function_buckets = {
@@ -186,16 +195,20 @@ def _build_context(
         for group_name in ("read", "write", "vectorize", "aggregate")
     }
     dataset_count = sum(len(entity.get("datasets", [])) for entity in entities.values())
-    fragment_count = sum(
-        len(dataset.get(operation_type, {}))
+    mapping_count = sum(
+        1
         for entity in entities.values()
         for dataset in entity.get("datasets", [])
-        for operation_type in ("read", "conform", "expand", "collapse")
+        for mapping in dataset.get("mappings", {}).values()
+        if any(
+            mapping.get("binding", {}).get("function") in function_groups.get(category, {})
+            for category in ("read", "conform", "expand", "collapse")
+        )
     )
     summary = DocumentationSummary(
         entity_count=len(entities),
         dataset_count=dataset_count,
-        fragment_count=fragment_count,
+        mapping_count=mapping_count,
         dimension_count=len(dimensions),
         feature_count=len([*fragment_features, *calculated_features]),
         bound_feature_count=len(calculated_features),

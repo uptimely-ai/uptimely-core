@@ -170,12 +170,14 @@ def test_docs_generate_imports_project_functions_in_fresh_process(
                         "datasets": [
                             {
                                 "id": "sample_dataset",
-                                "read": {
+                                "features": {"value": {"type": "float"}},
+                                "mappings": {
                                     "values": {
                                         "binding": {"function": "read_values"},
-                                        "features": {"value": {"type": "float"}},
+                                        "features": ["value"],
                                     }
                                 },
+                                "write": {},
                             }
                         ],
                     }

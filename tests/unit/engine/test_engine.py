@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 
 from uptimely.engine import Engine, EngineConfig
-from uptimely.plan import ExecutionPlan, Plan
+from uptimely.plan import ExecutionPlan, Operation, Plan
 
 PLAN_PATH = Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
 
@@ -145,6 +145,74 @@ def test_execute_converts_scalar_calculations_to_columns() -> None:
 
     assert result.failures == {}
     assert result.datasets["asset", "telemetry"].select("doubled").item() == 10
+
+
+def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
+    calls = 0
+
+    def read() -> pl.DataFrame:
+        return pl.DataFrame({"asset_id": ["A"], "reading": [3]})
+
+    def calculate() -> dict[str, pl.Expr]:
+        nonlocal calls
+        calls += 1
+        return {
+            "reading_plus_one": pl.col("reading") + 1,
+            "reading_times_two": pl.col("reading") * 2,
+        }
+
+    read_operation = Operation(
+        id="callable:read:load:asset:telemetry:load",
+        kind="read",
+        entrypoint="test:read",
+        entity_id="asset",
+        dataset_id="telemetry",
+        output="load",
+        output_features=["asset_id", "reading"],
+    )
+    vectorize_operation = Operation(
+        id="callable:vectorize:calculate:asset:telemetry:reading_plus_one",
+        kind="vectorize",
+        entrypoint="test:calculate",
+        entity_id="asset",
+        dataset_id="telemetry",
+        output="reading_plus_one",
+        output_features=["reading_plus_one", "reading_times_two"],
+        dependency_ids=[read_operation.id],
+    )
+    plan = ExecutionPlan(
+        Plan(
+            plan_version="1.0.0",
+            specification_version="0.1.0",
+            required_backend="polars",
+            resources={
+                "specification_version": "0.1.0",
+                "entities": {"asset": {"dimensions": ["asset_id"]}},
+                "functions": {
+                    "read": {"load": {"args": {}}},
+                    "vectorize": {"calculate": {"args": {}}},
+                },
+            },
+            operations=[read_operation, vectorize_operation],
+            stages=[[read_operation.id], [vectorize_operation.id]],
+        )
+    )
+    engine = Engine(
+        plan,
+        callable_loader=_Loader({"test:read": read, "test:calculate": calculate}),
+    )
+
+    result = engine.execute()
+
+    assert result.failures == {}
+    assert calls == 1
+    assert result.datasets["asset", "telemetry"].select(
+        "reading_plus_one", "reading_times_two"
+    ).rows() == [(4, 6)]
+    assert set(result.calculated_outputs) == {
+        ("asset", "telemetry", "reading_plus_one"),
+        ("asset", "telemetry", "reading_times_two"),
+    }
 
 
 @pytest.mark.parametrize("batch_size", [0, -1, True, "100"])

@@ -75,9 +75,10 @@ spec structure so that the result can be validated, documented, and compiled.
 The JSON specification document is the source of truth for the definitions.
 
 It is the portable contract for an analytics workflow. It describes entities,
-datasets, dimensions, function catalogs, fragments, features,
-results, bindings, and engine hints in a format that does not depend on Python authoring
-code.
+datasets, dimensions, function catalogs, feature registries, mappings,
+bindings, and engine hints in a format that does not depend on Python
+authoring code. Physical fragments are created by compilation and belong to
+the compiler and engine, not the logical specification.
 
 In fact, the specification uses primitive function and argument data type definitions, so it is agnostic of tools and programming languages.
 
@@ -100,7 +101,7 @@ The compiled plan should be portable. It should describe the intended execution
 without depending on one specific in-memory engine implementation.
 
 The compiler resolves structural references such as `$datasets.@`,
-`$features.<id>`, `$dimensions.<id>`, and `$fragments.<id>` into identifiers.
+`$features.<id>`, and `$dimensions.<id>` into identifiers.
 It does not resolve runtime values such as loaded dataframes or physical storage
 locations; those are left as `?<namespace>.<object>.<attribute>` placeholders for
 the engine to resolve. The engine binds physical implementation variables at

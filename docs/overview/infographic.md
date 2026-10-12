@@ -1,7 +1,7 @@
 # Infographic
 
 The examples below use pump measurements to show how entities, datasets,
-fragments, and functions describe an analytical system.
+features, mappings, and functions describe an analytical system.
 
 ## Entity
 
@@ -55,7 +55,7 @@ Other datasets could represent:
     <div class="cv-table-scroll">
       <table class="cv-table cv-model-table">
         <thead>
-          <tr class="cv-bands"><th colspan="2" class="cv-key">DIMENSIONS / observation keys</th><th colspan="2" class="cv-teal">TELEMETRY / fragment A</th><th class="cv-violet">LIMITS / fragment B</th><th class="cv-amber">CALCULATED</th></tr>
+          <tr class="cv-bands"><th colspan="2" class="cv-key">DIMENSIONS / observation keys</th><th colspan="2" class="cv-teal">TELEMETRY / mapping A</th><th class="cv-violet">LIMITS / mapping B</th><th class="cv-amber">CALCULATED</th></tr>
           <tr><th class="cv-key">pump</th><th class="cv-key">timestamp</th><th class="cv-teal">pressure</th><th class="cv-teal">flow</th><th class="cv-violet">limit</th><th class="cv-amber">ratio</th></tr>
         </thead>
         <tbody>
@@ -68,8 +68,8 @@ Other datasets could represent:
     <p class="cv-legend-title">Color key for all examples</p>
     <dl class="cv-legend">
       <div><dt><span class="cv-swatch cv-key" aria-hidden="true"></span>Blue</dt><dd><strong>Dimension keys</strong><span>pump + timestamp identify an observation, not a measured value.</span></dd></div>
-      <div><dt><span class="cv-swatch cv-teal" aria-hidden="true"></span>Teal</dt><dd><strong>Telemetry features</strong><span>pressure and flow are supplied together by fragment A.</span></dd></div>
-      <div><dt><span class="cv-swatch cv-violet" aria-hidden="true"></span>Violet</dt><dd><strong>Limit features</strong><span>limit is supplied by fragment B and keeps its color when aligned or expanded.</span></dd></div>
+      <div><dt><span class="cv-swatch cv-teal" aria-hidden="true"></span>Teal</dt><dd><strong>Telemetry features</strong><span>pressure and flow are outputs of mapping A.</span></dd></div>
+      <div><dt><span class="cv-swatch cv-violet" aria-hidden="true"></span>Violet</dt><dd><strong>Limit features</strong><span>limit is an output of mapping B and keeps its color when aligned or expanded.</span></dd></div>
       <div><dt><span class="cv-swatch cv-amber" aria-hidden="true"></span>Amber</dt><dd><strong>Calculated features</strong><span>ratio and max_pressure are produced by vectorize or aggregate functions.</span></dd></div>
     </dl>
     <p class="cv-detail">Colors identify column roles throughout the page, not which cells changed. Headers and labels carry the same meaning without color. Neutral cells describe arguments or operations.</p>
@@ -79,30 +79,30 @@ Other datasets could represent:
 The combined dataset is a conceptual view, not a requirement to store all
 intermediate columns in one physical table.
 
-## Fragment
+## Mapping
 
-<p class="cv-function-subtitle">A group of columns returned by one operation</p>
+<p class="cv-function-subtitle">A function binding associated with one or more output features</p>
 
-A dataset contains fragments that supply its dimension and feature columns.
-The two fragments below correspond to the teal and violet column groups in
-the dataset above.
+A mapping connects a function binding to the feature identifiers it produces.
+The two mappings below account for the teal and violet feature columns in the
+dataset above. This is a logical relationship; compilation may group mappings
+into physical fragments for execution.
 
 <div class="concepts-visual">
-  <div class="cv-fragments">
-    <p>A fragment is not a file or a slice of rows.</p>
-    <div class="cv-fragment-grid">
-      <div class="cv-mini-card cv-fragment-a">
-        <span class="cv-tag">FRAGMENT A / telemetry</span>
-        <p>One operation returns pressure and flow together.</p>
+  <div class="cv-mappings">
+    <div class="cv-mapping-grid">
+      <div class="cv-mini-card cv-mapping-a">
+        <span class="cv-tag">MAPPING A / telemetry</span>
+        <p>One function binding is associated with pressure and flow.</p>
         <table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-key">time</th><th class="cv-teal">pressure</th><th class="cv-teal">flow</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-teal">12</td></tr></tbody></table>
       </div>
-      <div class="cv-mini-card cv-fragment-b">
-        <span class="cv-tag">FRAGMENT B / limits</span>
-        <p>Another operation supplies the matching limit.</p>
+      <div class="cv-mini-card cv-mapping-b">
+        <span class="cv-tag">MAPPING B / limits</span>
+        <p>Another function binding is associated with the matching limit.</p>
         <table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-key">time</th><th class="cv-violet">limit</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-violet">8</td></tr></tbody></table>
       </div>
     </div>
-    <p class="cv-takeaway"><strong>Same keys, complementary features.</strong> Each fragment includes all entity dimensions. Values align by dimension keys.</p>
+    <p class="cv-takeaway"><strong>One binding, declared outputs.</strong> Mapping A produces multiple features; mapping B produces another feature. The compiler and engine determine how these outputs are physically grouped and aligned.</p>
   </div>
 </div>
 
@@ -179,7 +179,7 @@ the dataset legend above, including on both sides of each transformation.
 <p class="cv-function-subtitle">Move to a coarser grain</p>
 
 `collapse` is the operation that groups source observations and returns a
-fragment at the target grain. It uses `aggregate` analytical functions to
+dataset at the target grain. It uses `aggregate` analytical functions to
 calculate output features within each group.
 
 <div class="concepts-visual">
@@ -198,7 +198,7 @@ calculate output features within each group.
       </div>
       <div><span class="cv-tag">TARGET / pump grain</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-amber">max_pressure</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-amber">8</td></tr></tbody></table><p class="cv-detail">One row summarizes the three moments.</p></div>
     </div>
-    <p class="cv-takeaway">Each aggregate binding produces one feature per group within collapse, not a separate dataframe fragment. Multiple bindings can calculate multiple summary features.</p>
+    <p class="cv-takeaway">Each aggregate binding produces one feature per group within collapse, not a separate mapping. Multiple bindings can calculate multiple summary features.</p>
   </div>
 </div>
 
@@ -228,36 +228,39 @@ document. Author it directly or generate it from Python or another client.
     <div class="cv-spec-tree">
       <div><strong>dimensions</strong><span>Shared observation keys</span><code>pump, timestamp</code></div>
       <div><strong>functions</strong><span>Reusable implementations and argument types</span><code>vectorize.divide</code></div>
-      <div class="cv-spec-entity"><strong>entities</strong><span>Analytical subjects</span><div class="cv-spec-nested"><strong>pump_telemetry</strong><div class="cv-spec-nested"><strong>datasets</strong><span>Row scope, fragments, and feature bindings</span><code>read / conform / expand / collapse<br/>vectorize / write</code></div></div></div>
+      <div class="cv-spec-entity"><strong>entities</strong><span>Analytical subjects</span><div class="cv-spec-nested"><strong>pump_telemetry</strong><div class="cv-spec-nested"><strong>datasets</strong><span>Row scope, features, mappings, and writes</span><code>features / mappings / write</code></div></div></div>
     </div>
     <div class="cv-spec-example">
       <div class="cv-spec-code">
-        <span class="cv-tag">EXCERPT / A DATASET'S VECTORIZE OBJECT</span>
+        <span class="cv-tag">EXCERPT / A DATASET'S FEATURES AND MAPPINGS</span>
         <pre><code>{
-  <span class="cv-amber">"pressure_ratio"</span>: {
-    "binding": {
-      "function": "divide",
-      "args": {
-        "numerator": <span class="cv-teal">"$features.pressure"</span>,
-        "denominator": <span class="cv-violet">"$features.limit"</span>
-      }
-    },
-    "row_context": {
-      "extent": "bounded",
-      "before": {},
-      "after": {}
+  <span class="cv-teal">"features"</span>: {
+    <span class="cv-amber">"pressure_ratio"</span>: {
+      "type": "float"
+    }
+  },
+  <span class="cv-violet">"mappings"</span>: {
+    "pressure_ratio": {
+      "binding": {
+        "function": "divide",
+        "args": {
+          "numerator": "$features.pressure",
+          "denominator": "$features.limit"
+        }
+      },
+      "features": ["pressure_ratio"]
     }
   }
 }</code></pre>
       </div>
       <dl class="cv-spec-notes">
-        <div><dt class="cv-amber">Output feature</dt><dd>pressure_ratio names the feature to calculate, not its result.</dd></div>
-        <div><dt>Function binding</dt><dd>divide selects a declared reusable vectorize function.</dd></div>
-        <div><dt>Input references</dt><dd><span class="cv-teal">pressure</span> and <span class="cv-violet">limit</span> bind inputs to arguments and declare the feature's dependencies.</dd></div>
-        <div><dt>Row context</dt><dd>Bounded context with empty before and after objects declares current-observation-only input.</dd></div>
+        <div><dt class="cv-amber">Feature registry</dt><dd>pressure_ratio is declared once as a feature with metadata.</dd></div>
+        <div><dt>Function binding</dt><dd>divide selects the reusable function and binds its input references.</dd></div>
+        <div><dt class="cv-violet">Mapping outputs</dt><dd>The mapping associates its function binding with pressure_ratio.</dd></div>
+        <div><dt>Input references</dt><dd><span class="cv-teal">pressure</span> and <span class="cv-violet">limit</span> declare the mapping's dependencies.</dd></div>
       </dl>
     </div>
-    <p class="cv-takeaway">This excerpt assumes pressure, limit, and divide are declared elsewhere in the specification. The compiler resolves the references; the engine calculates the values.</p>
+    <p class="cv-takeaway">This excerpt assumes pressure, limit, and divide are declared elsewhere in the specification. The compiler resolves the references and may group mappings into physical fragments; the engine calculates the values.</p>
   </div>
 </div>
 

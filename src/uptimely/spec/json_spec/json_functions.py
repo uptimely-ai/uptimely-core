@@ -116,7 +116,8 @@ def _configured_function(functions: Any, category: str, function_name: str) -> A
 
 def _auto_function_catalog(declarations: object) -> dict[str, Any]:
     """Build an automatic function catalog from original Python declarations."""
-    from uptimely.spec.python_spec.bind import _entrypoint
+    from uptimely.spec.python_spec import mappings
+    from uptimely.spec.python_spec.bind import _argument_definition, _entrypoint
     from uptimely.spec.python_spec.feature import Aggregation
 
     merged: dict[str, dict[str, Any]] = {
@@ -158,22 +159,33 @@ def _auto_function_catalog(declarations: object) -> dict[str, Any]:
                 register_aggregations(item)
 
     def register_dataset(dataset: Any) -> None:
-        for category in ("read", "conform", "expand", "collapse"):
-            for operation in getattr(dataset, category, []) or []:
-                function_id = operation.bind.function_id or operation.bind.function.__name__
-                register_bind(function_id, operation.bind, category)
-                if category == "collapse":
-                    register_aggregations(operation.bind.args)
-        for sink in getattr(dataset, "write", []) or []:
-            function_id = sink.bind.function_id or sink.bind.function.__name__
-            register_bind(function_id, sink.bind, "write")
-        for calculation in (
-            getattr(dataset, "vectorize", getattr(dataset, "vectorize", []) or []) or []
-        ):
-            if calculation.bind is None:
-                continue
-            function_id = calculation.bind.function_id or calculation.bind.function.__name__
-            register_bind(function_id, calculation.bind, "vectorize")
+        mapping_categories = {
+            mappings.Read: "read",
+            mappings.Conform: "conform",
+            mappings.Expand: "expand",
+            mappings.Collapse: "collapse",
+            mappings.Vectorize: "vectorize",
+        }
+        for operation in dataset._mapping_declarations():
+            category = (
+                "write"
+                if isinstance(operation, mappings.Write)
+                else mapping_categories.get(type(operation))
+            )
+            if category is None:
+                raise ValueError(
+                    f"Mapping '{operation.id or operation.bind.function.__name__}' "
+                    "must use a category-specific mapping declaration"
+                )
+            function_id = operation.bind.function_id or operation.bind.function.__name__
+            register_bind(function_id, operation.bind, category)
+            if isinstance(operation, mappings.Collapse):
+                register_aggregations(operation.aggregations or operation.bind.args)
+                if operation.aggregations:
+                    merged["collapse"][function_id]["args"]["aggregations"] = {
+                        **_argument_definition(operation.aggregations),
+                        "comment": None,
+                    }
 
     for declaration in declaration_list:
         if hasattr(declaration, "datasets"):
@@ -196,44 +208,11 @@ def _static_datasets_to_spec(
 ) -> dict[str, Any]:
     """Convert specification-layer dataset models into a specification."""
     entity_id = name or "entity"
-    vectorize: dict[str, Any] = {}
     dataset_entries: list[dict[str, Any]] = []
 
     for dataset in datasets.values():
         entry = dataset.model_dump(exclude_none=False)
         entry["id"] = dataset.id
-        for calculation in (
-            dataset.vectorize if hasattr(dataset, "vectorize") else dataset.vectorize
-        ).values():
-            if calculation.binding is None:
-                continue
-            arguments = {
-                name: {
-                    "type": value.type if isinstance(value, BaseModel) else "object",
-                    "comment": None,
-                }
-                for name, value in calculation.binding.args.items()
-            }
-            configured_function = _configured_function(
-                functions, "vectorize", calculation.binding.function
-            )
-            if isinstance(configured_function, BaseModel) and configured_function.args:
-                arguments = {
-                    name: _argument_metadata(value)
-                    for name, value in configured_function.args.items()
-                }
-            elif isinstance(configured_function, dict) and configured_function.get("args"):
-                arguments = configured_function["args"]
-            vectorize[calculation.binding.function] = {
-                "entrypoint": _configured_entrypoint(
-                    functions,
-                    "vectorize",
-                    calculation.binding.function,
-                    calculation.binding.function,
-                ),
-                "description": calculation.description,
-                "args": arguments,
-            }
         dataset_entries.append(entry)
 
     if entities is None:
@@ -268,7 +247,6 @@ def _static_datasets_to_spec(
             "write": _static_function_catalog(datasets, functions, "write"),
             "vectorize": {
                 **_static_function_catalog(datasets, functions, "vectorize"),
-                **vectorize,
             },
             "aggregate": _static_function_catalog(datasets, functions, "aggregate"),
             "collapse": _static_function_catalog(datasets, functions, "collapse"),
@@ -334,8 +312,17 @@ def _static_function_catalog(
 
     for dataset in datasets.values():
         operations = []
-        if category in {"read", "collapse", "expand", "conform"}:
-            operations.extend(getattr(dataset, category).values())
+        if category in {"read", "collapse", "expand", "conform", "vectorize"}:
+            registered = (
+                functions.get(category, {})
+                if isinstance(functions, dict)
+                else getattr(functions, category, {})
+            )
+            operations = [
+                mapping
+                for mapping in dataset.mappings.values()
+                if mapping.binding.function in registered
+            ]
         elif category == "write":
             operations.extend(dataset.write.values())
         for operation in operations:
