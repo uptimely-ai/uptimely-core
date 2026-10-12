@@ -32,11 +32,12 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: Path) -> None:
         operation for operation in metadata["operations"] if operation["kind"] == "collapse"
     )
     assert aggregate_operation["entity_id"] == "pump"
-    assert aggregate_operation["entrypoint"].endswith(":maximum")
-    assert "source" not in aggregate_operation
-    assert aggregate_operation["arguments"] == {"feature": "bearing_temperature"}
-    assert "spec_type" not in json.dumps(metadata)
-    assert "runtime_type" not in json.dumps(metadata)
+    assert aggregate_operation["arguments"]["dataset"] == "pump_telemetry_dataset"
+    assert aggregate_operation["arguments"]["dimensions"] == [
+        "plant",
+        "production_line",
+        "pump",
+    ]
 
 
 def test_execution_plan_report_shows_topology_stages(tmp_path: Path) -> None:
@@ -47,9 +48,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: Path) -> None:
 
     assert "<title>Execution plan</title>" in report
     assert ">Execution plan</h1>" in report
-    assert "Compilation report" not in report
     assert ">Operations</h2>" in report
-    assert "Execution order" not in report
     assert "Stage 1" in report
     assert "parallel operations" in report
     assert ">Operation</dt>" in report

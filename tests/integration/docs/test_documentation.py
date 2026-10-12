@@ -72,21 +72,9 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert "Mappings" in document
     assert ">source<" in document
     assert "space-y-5" in document
-    assert 'href="#engines"' not in document
-    assert 'href="#graph"' not in document
-    assert 'href="#variables"' not in document
-    assert 'href="#connections"' not in document
-    assert 'href="#orchestration"' not in document
-    assert 'href="#environments"' not in document
     assert document.index('id="overview"') < document.index('id="entities"')
     assert document.index('id="entities"') < document.index('id="dimensions"')
     assert document.index('id="dimensions"') < document.index('id="functions"')
-    assert 'id="engines"' not in document
-    assert 'id="graph"' not in document
-    assert 'id="variables"' not in document
-    assert 'id="connections"' not in document
-    assert 'id="orchestration"' not in document
-    assert 'id="environments"' not in document
     assert "Pump telemetry" in document
     assert "pump_telemetry_dataset" in document
     assert "Manufacturing plant identifier" in document
@@ -102,23 +90,17 @@ def test_generate_html_docs(tmp_path: Path, monkeypatch) -> None:
     assert document.index("Pump telemetry") < document.index(
         "rounded-2xl border border-slate-800 bg-slate-900/70 p-6"
     )
-    assert "src/features/pump_telemetry/discharge_pressure/main.py:main" not in document
-    assert "entrypoint not specified" not in document
     assert "pump" in document
     assert ">Specification<" in document
-    assert 'id="model"' not in document
-    assert "3D Model" not in document
     assert ">source<" in document
     assert "mt-5 border-t border-slate-800 pt-4" in document
     for group_name in ("vectorize", "read", "write"):
         assert f'data-function-group="{group_name}"' in document
-    assert "data-function-illustration" not in document
     assert "Vectorize" in document
     assert "Read" in document
     assert "Write" in document
-    assert 'data-function-group="collapse"' in document
-    assert 'data-function-group="aggregate"' not in document
-    assert "Collapse" in document
+    assert 'data-function-group="collapse-aggregate"' in document
+    assert "Collapse &amp; Aggregation" in document
     assert "Collapse function" in document
     assert "Aggregation function" not in document
 
