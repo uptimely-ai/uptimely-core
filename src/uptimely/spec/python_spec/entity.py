@@ -4,12 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from uptimely.spec.json_spec.json_model import (
-    Dataset as DatasetModel,
-)
-from uptimely.spec.json_spec.json_model import (
-    Entity as EntityModel,
-)
+from uptimely.spec.json_spec import json_model
 
 from .dataset import Dataset
 
@@ -28,15 +23,15 @@ class Entity:
     datasets: list[Dataset]
     description: str | None = None
 
-    def to_model(self) -> EntityModel:
+    def to_model(self) -> json_model.Entity:
         """Convert this entity declaration to its JSON model."""
-        return EntityModel(
+        return json_model.Entity(
             id=self.id,
             name=self.name,
             description=self.description,
             dimensions=self.dimensions,
             datasets=[
-                DatasetModel(
+                json_model.Dataset(
                     id=dataset.id,
                     description=model.description,
                     row_scope=model.row_scope,

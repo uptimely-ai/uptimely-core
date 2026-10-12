@@ -6,9 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from uptimely.spec.json_spec.json_model import (
-    Feature as FeatureModel,
-)
+from uptimely.spec.json_spec import json_model
 
 from .bind import Bind
 from .row_context import RowContext, RowContextBinding, _context
@@ -68,9 +66,9 @@ class Feature:
     type: str | None = None
     unit: str | None = None
 
-    def to_model(self) -> FeatureModel:
+    def to_model(self) -> json_model.Feature:
         """Convert this feature declaration to its JSON model."""
-        return FeatureModel(
+        return json_model.Feature(
             id=self.id,
             description=self.description,
             type=self.type,
@@ -92,9 +90,9 @@ class Vectorize:
         """Consolidate requirements on the calculated feature, not its binding."""
         object.__setattr__(self, "row_context", _context(self.bind.args, self.row_context))
 
-    def to_model(self) -> FeatureModel:
+    def to_model(self) -> json_model.Feature:
         """Convert this vectorized feature metadata to its JSON model."""
-        return FeatureModel(
+        return json_model.Feature(
             id=self.id,
             description=self.description,
             unit=self.unit,

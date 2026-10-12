@@ -5,13 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from uptimely.spec.json_spec.json_model import (
-    Binding,
-)
-from uptimely.spec.json_spec.json_model import FeatureMapping as MappingModel
-from uptimely.spec.json_spec.json_model import (
-    Sink as SinkModel,
-)
+from uptimely.spec.json_spec import json_model
 
 from .bind import Bind, _binding_args, _operation_id
 from .feature import Aggregation, Feature
@@ -40,16 +34,16 @@ class Mapping:
     description: str | None = None
     aggregations: dict[str, Any] = field(default_factory=dict)
 
-    def to_model(self) -> MappingModel:
+    def to_model(self) -> json_model.FeatureMapping:
         """Convert this mapping declaration to its canonical model."""
         identifier = _operation_id(self.bind, self.id)
         arguments = _binding_args(self.bind)
         aggregations = self.aggregations
         if isinstance(self, Collapse) and not aggregations:
             aggregations = arguments.pop("aggregations", {})
-        return MappingModel(
+        return json_model.FeatureMapping(
             id=identifier,
-            binding=Binding(
+            binding=json_model.Binding(
                 function=_operation_id(self.bind, None),
                 args=arguments,
             ),
@@ -96,12 +90,12 @@ class Collapse(Mapping):
 class Write(Mapping):
     """The callable that persists a dataset."""
 
-    def to_model(self) -> SinkModel:
+    def to_model(self) -> json_model.Sink:
         """Convert this write declaration to its JSON model."""
         identifier = _operation_id(self.bind, self.id)
-        return SinkModel(
+        return json_model.Sink(
             id=identifier,
-            binding=Binding(
+            binding=json_model.Binding(
                 function=_operation_id(self.bind, None),
                 args=_binding_args(self.bind),
             ),
@@ -122,10 +116,10 @@ def _feature_id(feature: Feature | Reference | str) -> str:
     return feature
 
 
-def _aggregation_binding(value: Aggregation | dict[str, Any]) -> Binding:
+def _aggregation_binding(value: Aggregation | dict[str, Any]) -> json_model.Binding:
     """Convert a Python or canonical aggregation binding to its model."""
     if isinstance(value, Aggregation):
-        return Binding(
+        return json_model.Binding(
             function=value.id,
             args=_binding_args(
                 Bind(
@@ -135,7 +129,7 @@ def _aggregation_binding(value: Aggregation | dict[str, Any]) -> Binding:
                 )
             ),
         )
-    return Binding.model_validate(
+    return json_model.Binding.model_validate(
         {
             "function": value["function"],
             "args": value.get("args", {}),
