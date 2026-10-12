@@ -1,4 +1,4 @@
-"""Tests for generating analytics documentation from the command line."""
+"""Tests for building analytics documentation from the command line."""
 
 import json
 import pathlib
@@ -29,22 +29,22 @@ PAGES = {
 }
 
 
-def test_docs_generate_defaults(
+def test_docs_build_defaults(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "generate", "--spec", str(SPEC_PATH)])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "build", "--spec", str(SPEC_PATH)])
 
     cli.main()
 
     output = tmp_path / "_generated/docs"
     assert {path.name for path in output.iterdir()} == PAGES
     result = capsys.readouterr()
-    assert "Documentation website generated at _generated/docs/index.html" in result.out
+    assert "Documentation website built at _generated/docs/index.html" in result.out
     assert not result.err
 
 
-def test_docs_generate_custom_output_and_timestamp(
+def test_docs_build_custom_output_and_timestamp(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     output = tmp_path / "public/analytics"
@@ -54,7 +54,7 @@ def test_docs_generate_custom_output_and_timestamp(
         [
             "uptimely",
             "docs",
-            "generate",
+            "build",
             "--spec",
             str(SPEC_PATH),
             "--output",
@@ -71,7 +71,7 @@ def test_docs_generate_custom_output_and_timestamp(
 
 @pytest.mark.parametrize(
     "arguments",
-    [["docs"], ["docs", "unknown"], ["docs", "generate"], ["docs", "generate", "--unknown"]],
+    [["docs"], ["docs", "unknown"], ["docs", "build"], ["docs", "build", "--unknown"]],
 )
 def test_docs_requires_valid_arguments(
     monkeypatch: pytest.MonkeyPatch, arguments: list[str]
@@ -95,14 +95,14 @@ def test_docs_requires_valid_arguments(
         jinja2.TemplateError("Invalid HTML template"),
     ],
 )
-def test_docs_generation_errors_are_reported(
+def test_docs_build_errors_are_reported(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], failure: Exception
 ) -> None:
     def fail(*args: object, **kwargs: object) -> pathlib.Path:
         raise failure
 
-    monkeypatch.setattr(cli, "generate_docs", fail)
-    monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "generate", "--spec", "spec.json"])
+    monkeypatch.setattr(cli, "build_docs", fail)
+    monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "build", "--spec", "spec.json"])
 
     with pytest.raises(SystemExit) as error:
         cli.main()
@@ -130,7 +130,7 @@ def test_docs_rejects_missing_or_invalid_specification(
         [
             "uptimely",
             "docs",
-            "generate",
+            "build",
             "--spec",
             str(specification),
             "--output",
@@ -147,7 +147,7 @@ def test_docs_rejects_missing_or_invalid_specification(
 
 
 @pytest.mark.parametrize("explicit_project_root", [False, True])
-def test_docs_generate_imports_project_functions_in_fresh_process(
+def test_docs_build_imports_project_functions_in_fresh_process(
     tmp_path: pathlib.Path, explicit_project_root: bool
 ) -> None:
     project = tmp_path / "project"
@@ -191,7 +191,7 @@ def test_docs_generate_imports_project_functions_in_fresh_process(
         "-m",
         "uptimely.cli.cli",
         "docs",
-        "generate",
+        "build",
         "--spec",
         str(specification),
         "--output",
@@ -211,4 +211,4 @@ def test_docs_generate_imports_project_functions_in_fresh_process(
 
     assert result.returncode == 0, result.stderr
     assert {path.name for path in output.iterdir()} == PAGES
-    assert "Documentation website generated at" in result.stdout
+    assert "Documentation website built at" in result.stdout

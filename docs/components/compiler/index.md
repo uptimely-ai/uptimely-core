@@ -190,7 +190,7 @@ plan.export_html("_generated/compile/execution_plan.html")
 ```
 
 The standalone report includes the summary, 3D callable graph, and stages.
-`uptimely docs generate` separates these into Overview, 2D graph, 3D graph,
+`uptimely docs build` separates these into Overview, 2D graph, 3D graph,
 and Stages pages. Both graph views use compiled callable operations and their
 dependency edges; feature lineage is shown separately under Feature graph.
 

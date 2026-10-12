@@ -21,7 +21,7 @@ analytics project, not the Uptimely package itself.
 ### Command line
 
 ```sh
-uptimely docs generate --spec _generated/spec/spec.json
+uptimely docs build --spec _generated/spec/spec.json
 ```
 
 The command exports this directory:
@@ -74,7 +74,7 @@ The generation options are:
 For a project outside the working directory:
 
 ```sh
-uptimely docs generate \
+uptimely docs build \
   --spec analytics/_generated/spec/spec.json \
   --project-root analytics \
   --output public/analytics
@@ -142,7 +142,7 @@ existing files; it does not generate, watch, or rebuild the website.
 For the end-to-end example, run from the repository root:
 
 ```sh
-poetry run uptimely docs generate \
+poetry run uptimely docs build \
   --spec examples/example_1/_generated/spec/spec.json \
   --output examples/example_1/_generated/docs
 poetry run uptimely docs serve --directory examples/example_1/_generated/docs
@@ -255,7 +255,7 @@ data_path = documentation.create_json()  # _generated/docs/docs.json
 
 It contains the specification configuration, summary counts, feature
 dependencies, and optional generation timestamp. Neither `Documentation.create_html`
-nor `uptimely docs generate` automatically writes this JSON. The example's
+nor `uptimely docs build` automatically writes this JSON. The example's
 `run_docs.py` calls both exports.
 
 ![Specification feature reference](../../assets/img/open-analytics-specification-features.png)
