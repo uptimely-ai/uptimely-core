@@ -59,6 +59,9 @@
             <div>
               <span class="font-mono text-sm text-amber-200">{{ feature_id }}</span>
               {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
+              {% if not include_navigation and feature.row_context %}
+              <p class="mt-1 font-mono text-xs text-slate-400">Row context: {{ feature.row_context | tojson }}</p>
+              {% endif %}
             </div>
             <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
               <span class="font-mono text-xs text-slate-400">vectorize · {{ feature_id }}</span>

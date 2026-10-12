@@ -23,6 +23,7 @@ from uptimely.spec.json_spec.json_model import (
 )
 from uptimely.spec.python_spec import bind, dataset, dimension, feature, fragment, ref, row_context
 from uptimely.spec.python_spec.bind import _argument_definition, _binding_value
+from uptimely.spec.render import create_website_pages
 
 
 def read_observations() -> pl.DataFrame:
@@ -466,7 +467,11 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(tmp_path: 
 
     html = specification.create_html(tmp_path / "spec.html").read_text(encoding="utf-8")
     assert "Row context:" in html
-    assert "8h" in html
+    assert json.dumps(original_feature.row_context.to_dict(), sort_keys=True) in html
+    create_website_pages(specification, tmp_path)
+    features_html = (tmp_path / "spec_features.html").read_text(encoding="utf-8")
+    assert "result" in features_html
+    assert "Row context:" not in features_html
     html = plan.export_html(tmp_path / "plan.html").read_text(encoding="utf-8")
     assert "Row context" in html
 
