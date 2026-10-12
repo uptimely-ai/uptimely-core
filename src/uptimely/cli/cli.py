@@ -118,13 +118,13 @@ def download_examples(output: pathlib.Path, ref: str = "HEAD") -> pathlib.Path:
     return output
 
 
-def generate_docs(
+def build_docs(
     spec: pathlib.Path,
     output: pathlib.Path,
     project_root: pathlib.Path,
     include_generated_at: bool = False,
 ) -> pathlib.Path:
-    """Generate the static analytics documentation website.
+    """Build the static analytics documentation website.
 
     Args:
         spec: Path to the JSON specification.
@@ -163,8 +163,7 @@ def serve_docs(directory: pathlib.Path, host: str = "127.0.0.1", port: int = 800
         raise NotADirectoryError(f"Website directory does not exist: {directory}")
     if not (directory / "index.html").is_file():
         raise FileNotFoundError(
-            f"Website index not found: {directory / 'index.html'}. "
-            "Run 'uptimely docs generate' first."
+            f"Website index not found: {directory / 'index.html'}. Run 'uptimely docs build' first."
         )
     if not 0 <= port <= 65535:
         raise ValueError("Port must be between 0 and 65535.")
@@ -212,25 +211,23 @@ def main() -> None:
     )
     docs = commands.add_parser("docs", help="Manage analytics documentation")
     doc_actions = docs.add_subparsers(dest="action", required=True)
-    generate = doc_actions.add_parser(
-        "generate", help="Generate the specification, feature graph, and execution plan website"
+    build = doc_actions.add_parser(
+        "build", help="Build the specification, feature graph, and execution plan website"
     )
-    generate.add_argument(
-        "--spec", type=pathlib.Path, required=True, help="JSON specification path"
-    )
-    generate.add_argument(
+    build.add_argument("--spec", type=pathlib.Path, required=True, help="JSON specification path")
+    build.add_argument(
         "--output",
         type=pathlib.Path,
         default=pathlib.Path("_generated/docs"),
         help="Website directory (default: _generated/docs)",
     )
-    generate.add_argument(
+    build.add_argument(
         "--project-root",
         type=pathlib.Path,
         default=pathlib.Path.cwd(),
         help="Root for importing function entrypoints (default: working directory)",
     )
-    generate.add_argument(
+    build.add_argument(
         "--include-generated-at",
         action="store_true",
         help="Include a build timestamp on the specification page",
@@ -255,9 +252,7 @@ def main() -> None:
         return
     if args.command == "docs":
         try:
-            index = generate_docs(
-                args.spec, args.output, args.project_root, args.include_generated_at
-            )
+            index = build_docs(args.spec, args.output, args.project_root, args.include_generated_at)
         except (
             OSError,
             ValueError,
@@ -267,7 +262,7 @@ def main() -> None:
             jinja2.TemplateError,
         ) as error:
             parser.exit(1, f"uptimely: error: {error}\n")
-        print(f"Documentation website generated at {index}")
+        print(f"Documentation website built at {index}")
         return
     try:
         destination = download_examples(args.output, args.ref)
