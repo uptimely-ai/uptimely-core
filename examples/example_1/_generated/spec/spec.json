@@ -81,24 +81,6 @@
         },
         "description": null
       },
-      "extract_convergence_flag": {
-        "entrypoint": "examples.example_1.functions.calculation:converged",
-        "args": {
-          "recommendation_features": {
-            "type": "array[string]",
-            "comment": null
-          },
-          "dataset": {
-            "type": "dataframe",
-            "comment": null
-          },
-          "output": {
-            "type": "string",
-            "comment": null
-          }
-        },
-        "description": null
-      },
       "pressure_flow_efficiency": {
         "entrypoint": "examples.example_1.functions.calculation:pressure_flow_efficiency",
         "args": {
@@ -457,11 +439,10 @@
             },
             "converged": {
               "binding": {
-                "function": "extract_convergence_flag",
+                "function": "extract_recommendation_value",
                 "args": {
-                  "recommendation_features": [
-                    "$features.operating_point_recommendation"
-                  ],
+                  "optimization_attribute": "converged",
+                  "column": "$features.operating_point_recommendation",
                   "dataset": "$datasets.@.dataframe",
                   "output": "$features.converged.id"
                 }

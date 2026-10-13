@@ -35,6 +35,8 @@ def test_system_graph_connects_functions_to_feature_outputs() -> None:
     assert "maximum" in function_nodes
     assert "normalize_health_signal" in function_nodes
     assert "extract_recommendation_value" in function_nodes
+    assert "extract_converged_flag" not in function_nodes
+    assert "extract_convergence_flag" not in function_nodes
 
     actual_edges = {
         (
@@ -50,6 +52,7 @@ def test_system_graph_connects_functions_to_feature_outputs() -> None:
     assert ("maximum", "bearing_temperature_max") in actual_edges
     assert ("normalize_health_signal", "health_signal_normalized") in actual_edges
     assert ("extract_recommendation_value", "recommended_flow_rate") in actual_edges
+    assert ("extract_recommendation_value", "converged") in actual_edges
 
 
 def test_system_graph_contains_function_nodes() -> None:
