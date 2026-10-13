@@ -71,7 +71,13 @@ def test_docs_build_custom_output_and_timestamp(
 
 @pytest.mark.parametrize(
     "arguments",
-    [["docs"], ["docs", "unknown"], ["docs", "build"], ["docs", "build", "--unknown"]],
+    [
+        ["docs"],
+        ["docs", "unknown"],
+        ["docs", "build"],
+        ["docs", "build", "--unknown"],
+        ["docs", "generate", "--spec", str(SPEC_PATH)],
+    ],
 )
 def test_docs_requires_valid_arguments(
     monkeypatch: pytest.MonkeyPatch, arguments: list[str]
@@ -101,7 +107,7 @@ def test_docs_build_errors_are_reported(
     def fail(*args: object, **kwargs: object) -> pathlib.Path:
         raise failure
 
-    monkeypatch.setattr(cli, "build_docs", fail)
+    monkeypatch.setattr(cli, "generate_docs", fail)
     monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "build", "--spec", "spec.json"])
 
     with pytest.raises(SystemExit) as error:
@@ -210,5 +216,5 @@ def test_docs_build_imports_project_functions_in_fresh_process(
     )
 
     assert result.returncode == 0, result.stderr
-    assert {p.relative_to(output).as_posix() for p in output.rglob("*.html")} == PAGES
+    assert {path.name for path in output.iterdir()} == PAGES
     assert "Documentation website built at" in result.stdout

@@ -191,7 +191,7 @@ from uptimely.docs import docs
 index_path = docs.create_html(specification)
 ```
 
-`uptimely docs generate` provides the same website. Its execution-plan section
+`uptimely docs build` provides the same website. Its execution-plan section
 has Overview, 2D graph, 3D graph, and Stages pages. Both graph views use compiled callable operations and their
 dependency edges; feature lineage is shown separately under Feature graph.
 Standalone plan HTML export is not supported; portable-plan JSON export and
