@@ -96,6 +96,13 @@ def test_empty_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
     assert 'href="../execution/data_lineage.html" aria-current="page"' in document
 
 
+def test_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
+    docs.create_html(spec.Specification(), tmp_path / "index.html")
+    document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    assert "lineage-legend" not in document
+    assert "Data lineage color key" not in document
+
+
 def test_lineage_escapes_declared_row_scope(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
     dataset = next(iter(specification.entities.values())).datasets[0]
