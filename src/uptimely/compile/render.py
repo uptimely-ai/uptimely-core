@@ -1,4 +1,4 @@
-"""Render a compiled execution plan as standalone or linked HTML reports."""
+"""Render compiled execution-plan pages within the documentation website."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ from uptimely.analytics import render
 
 from . import compiler
 
-OUTPUT_PATH = pathlib.Path("_generated") / "compile" / "execution_plan.html"
 PLAN_PAGES = {
     "overview": "overview.html",
     "graph_2d": "2d.html",
@@ -108,25 +107,16 @@ def _render_step(
     }
 
 
-def _render_execution_plan(
+def _create_website_pages(
     plan: compiler.ExecutionPlan,
-    output_path: str | pathlib.Path = OUTPUT_PATH,
-    *,
-    include_navigation: bool = False,
-    root_path: str = "",
-) -> pathlib.Path:
-    """Render an execution plan as an HTML report and return the written path.
+    output_directory: pathlib.Path,
+) -> None:
+    """Write linked overview, callable graph, and stage pages for a plan.
 
     Args:
         plan: The compiled execution plan to render.
-        output_path: Where to write the report file.
-        include_navigation: Generate summary, callable graph, and stage pages with navigation.
-        root_path: Relative path to website root.
-
-    Returns:
-        The path the report was written to.
+        output_directory: Directory shared by all website pages.
     """
-    target = pathlib.Path(output_path)
     operations_by_stage = plan.execution_stages
     operations_in_order = [operation for stage in operations_by_stage for operation in stage]
     position_by_operation = {
@@ -193,7 +183,7 @@ def _render_execution_plan(
             if source_path and not source_path.endswith(".py"):
                 source_path = source_path.replace(".", "/") + ".py"
             step["source_href"] = (
-                pathlib.Path(os.path.relpath(source_path, start=target.parent)).as_posix()
+                pathlib.Path(os.path.relpath(source_path, start=output_directory)).as_posix()
                 if source_path
                 else None
             )
@@ -221,24 +211,18 @@ def _render_execution_plan(
         "stages": stages,
         "callable_graph_data": callable_graph_data,
         "graph_style": render.GraphStyle(),
-        "include_navigation": include_navigation,
+        "include_navigation": True,
         "active_page": "plan",
         "root_path": root_path,
     }
 
-    target.parent.mkdir(parents=True, exist_ok=True)
-    if include_navigation:
-        for section, filename in PLAN_PAGES.items():
-            page_target = target if section == "overview" else target.parent / filename
-            document = environment.get_template(f"plan/{section}.html.j2").render(
-                **context,
-                active_section=section,
-                section_title={"graph_2d": "2D graph", "graph_3d": "3D graph"}.get(
-                    section, section.title()
-                ),
-            )
-            page_target.write_text(document, encoding="utf-8")
-    else:
-        document = environment.get_template("plan/index.html.j2").render(**context)
-        target.write_text(document, encoding="utf-8")
-    return target
+    output_directory.mkdir(parents=True, exist_ok=True)
+    for section, filename in PLAN_PAGES.items():
+        document = environment.get_template(f"plan/{section}.html.j2").render(
+            **context,
+            active_section=section,
+            section_title={"graph_2d": "2D graph", "graph_3d": "3D graph"}.get(
+                section, section.title()
+            ),
+        )
+        (output_directory / filename).write_text(document, encoding="utf-8")

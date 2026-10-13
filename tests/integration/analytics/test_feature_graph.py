@@ -1,12 +1,30 @@
 import pathlib
-import typing
 
 import pytest
+from examples.example_1 import run_feature_graph
 
 from uptimely import analytics, spec
 from uptimely.analytics import models
+from uptimely.docs import docs
 
 SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+
+
+@pytest.mark.parametrize("verbose", [False, True])
+def test_feature_graph_runner_inspects_without_exporting(
+    tmp_path: pathlib.Path, monkeypatch, capsys, verbose: bool
+) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
+    monkeypatch.setattr(run_feature_graph, "load_specification", lambda: specification)
+    monkeypatch.chdir(tmp_path)
+
+    run_feature_graph.main(verbose=verbose)
+
+    output = capsys.readouterr().out
+    assert "Feature graph:" in output
+    assert "health signal subset:" in output
+    assert ("Health signal subset" in output) == verbose
+    assert not list(tmp_path.iterdir())
 
 
 def test_system_graph_connects_functions_to_feature_outputs() -> None:
@@ -89,15 +107,12 @@ def test_dependency_features_keep_their_producer_entity_without_becoming_source_
     assert features["operating_point_recommendation"].is_source_input is False
 
 
-def test_system_graph_can_export_html(tmp_path: pathlib.Path) -> None:
+def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
-    system = analytics.FeatureGraph(specification)
-
-    output = tmp_path / "graph.html"
-    saved = system.export_html(output)
+    docs.Documentation(specification).create_html(tmp_path / "index.html")
+    output = tmp_path / "feature_graph_3d.html"
     html = output.read_text(encoding="utf-8")
 
-    assert saved == output
     assert output.exists()
     assert "3d-force-graph" in html
     assert "SphereGeometry" in html
@@ -125,21 +140,13 @@ def test_system_graph_can_export_html(tmp_path: pathlib.Path) -> None:
     assert "Write function</span>" in html
     assert "input_color" not in html
 
-    subset_output = tmp_path / "subset.html"
-    system.subset(["health_signal_normalized"]).export_html(subset_output)
-    subset_html = subset_output.read_text(encoding="utf-8")
-    assert '"node_type": "feature"' in subset_html
 
-
-def test_system_graph_can_export_2d_lineage_html(tmp_path: pathlib.Path) -> None:
+def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
-    system = analytics.FeatureGraph(specification)
-
-    output = tmp_path / "lineage.html"
-    saved = system.export_html(output, dimension="2d")
+    docs.Documentation(specification).create_html(tmp_path / "index.html")
+    output = tmp_path / "feature_graph_2d.html"
     html = output.read_text(encoding="utf-8")
 
-    assert saved == output
     assert "force-graph@1.52.0/dist/force-graph.min.js" in html
     assert "ForceGraph()(graphContainer)" in html
     assert "graph-hint" not in html
@@ -183,13 +190,3 @@ def test_system_graph_can_export_2d_lineage_html(tmp_path: pathlib.Path) -> None
     assert ".onBackgroundClick(event => selectAtPointer(event))" in html
     assert "<h2>Node details</h2>" not in html
     assert "3d-force-graph" not in html
-
-
-def test_system_graph_rejects_unsupported_html_dimension(tmp_path: pathlib.Path) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
-    system = analytics.FeatureGraph(specification)
-
-    with pytest.raises(ValueError, match="Unsupported graph dimension"):
-        system.export_html(
-            tmp_path / "graph.html", dimension=typing.cast(typing.Literal["2d", "3d"], "4d")
-        )

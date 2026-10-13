@@ -1,7 +1,6 @@
 """HTML templates for interactive dependency graphs."""
 
 import dataclasses
-import datetime
 import json
 import pathlib
 import typing
@@ -47,14 +46,12 @@ class GraphStyle:
     link_distance: float = 30
 
 
-def render_graph_html(
+def _render_graph_html(
     nodes: list[dict[str, typing.Any]],
     links: list[dict[str, str]],
     style: GraphStyle | None = None,
     *,
-    dimension: typing.Literal["2d", "3d"] = "3d",
-    include_navigation: bool = False,
-    root_path: str = "",
+    dimension: typing.Literal["2d", "3d"],
 ) -> str:
     """Render the dependency graph as interactive 2D or 3D HTML.
 
@@ -63,8 +60,6 @@ def render_graph_html(
         links: Directed connections between node identifiers.
         style: Optional graph appearance settings.
         dimension: Graph layout to render.
-        include_navigation: Link to sibling documentation website pages.
-        root_path: Relative path to website root.
 
     Returns:
         The complete HTML document.
@@ -88,8 +83,7 @@ def render_graph_html(
         style=style,
         dimension=dimension,
         graph_data=graph_data,
-        generated_at=datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
-        include_navigation=include_navigation,
+        include_navigation=True,
         active_page="graph",
         active_section=dimension,
         root_path=root_path,
@@ -124,42 +118,19 @@ def graph_payload_from_cytoscape(
     return nodes, links
 
 
-def export_graph_html(
+def _create_website_pages(
     graph: "feature_graph.GraphBase",
-    output_path: str | pathlib.Path,
-    style: GraphStyle | None = None,
-    *,
-    dimension: typing.Literal["2d", "3d"] = "3d",
-    include_navigation: bool = False,
-    root_path: str = "",
-) -> pathlib.Path:
-    """Export a feature dependency graph as an interactive 2D or 3D HTML document.
+    output_directory: pathlib.Path,
+) -> None:
+    """Write both feature graph views within the documentation website.
 
     Args:
         graph: The feature dependency graph to export.
-        output_path: Destination for the HTML document.
-        style: Optional graph appearance settings.
-        dimension: Graph layout to render. The default preserves the 3D view.
-        include_navigation: Link to sibling documentation website pages.
-        root_path: Relative path to website root.
-
-    Returns:
-        The path to the rendered graph.
+        output_directory: Directory shared by all website pages.
     """
-    target = pathlib.Path(output_path)
-    if target.suffix.lower() != ".html":
-        target = target.with_suffix(".html")
-    target.parent.mkdir(parents=True, exist_ok=True)
-
+    output_directory.mkdir(parents=True, exist_ok=True)
     nodes, links = graph_payload_from_cytoscape(graph)
-
-    document = render_graph_html(
-        nodes,
-        links,
-        style,
-        dimension=dimension,
-        include_navigation=include_navigation,
-        root_path=root_path,
-    )
-    target.write_text(document, encoding="utf-8")
-    return target
+    for dimension in ("2d", "3d"):
+        document = _render_graph_html(nodes, links, dimension=dimension)
+        target = output_directory / f"feature_graph_{dimension}.html"
+        target.write_text(document, encoding="utf-8")

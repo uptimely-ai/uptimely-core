@@ -2,9 +2,20 @@ import json
 import pathlib
 import re
 
-from uptimely import compile
+from examples.example_1 import run_execution_plan
+
+from uptimely import compile, spec
+from uptimely.docs import docs
 
 SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+
+
+def test_execution_plan_runner_exports_only_json(tmp_path: pathlib.Path, monkeypatch) -> None:
+    monkeypatch.setattr(run_execution_plan, "GENERATED_DIR", tmp_path)
+
+    run_execution_plan.main(verbose=False)
+
+    assert {path.name for path in (tmp_path / "compile").iterdir()} == {"execution_plan.json"}
 
 
 def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) -> None:
@@ -48,14 +59,12 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
 
 
 def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> None:
-    plan = compile.Compiler(SPEC_PATH).compile()
-
-    report_path = plan.export_html(tmp_path / "report.html")
+    docs.Documentation(spec.Specification.from_json(SPEC_PATH)).create_html(tmp_path / "index.html")
+    report_path = tmp_path / "execution_plan_stages.html"
     report = report_path.read_text(encoding="utf-8")
 
-    assert "<title>Execution plan</title>" in report
-    assert ">Execution plan</h1>" in report
-    assert ">Operations</h2>" in report
+    assert "<title>Execution plan Stages</title>" in report
+    assert ">Stages</h1>" in report
     assert "Stage 1" in report
     assert "parallel operations" in report
     assert ">Operation</dt>" in report
@@ -70,6 +79,11 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert "Open Python module" in report
     assert "No callable dependencies" in report
     assert "maximum</span>" in report
+    source_match = re.search(r'href="([^"]*functions/calculation\.py)"', report)
+    assert source_match is not None
+    assert (report_path.parent / source_match.group(1)).resolve().is_file()
+
+    report = (tmp_path / "execution_plan_graph_3d.html").read_text(encoding="utf-8")
     assert 'id="callable-graph"' in report
     assert "3d-force-graph" in report
     assert "Callable details" in report
@@ -93,16 +107,20 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
         'pump:pump_dataset:health_signal_normalized"' in report
     )
     assert "OctahedronGeometry" in report
-    source_match = re.search(r'href="([^"]*functions/calculation\.py)"', report)
-    assert source_match is not None
-    assert (report_path.parent / source_match.group(1)).resolve().is_file()
 
 
-def test_execution_plan_exports_html_to_default_path(tmp_path: pathlib.Path, monkeypatch) -> None:
-    plan = compile.Compiler(SPEC_PATH).compile()
+def test_website_exports_plan_pages_to_default_path(tmp_path: pathlib.Path, monkeypatch) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
 
-    report_path = plan.export_html()
+    index = docs.Documentation(specification).create_html()
 
-    assert report_path == pathlib.Path("_generated/compile/execution_plan.html")
-    assert report_path.is_file()
+    assert index == pathlib.Path("_generated/docs/index.html")
+    for filename in (
+        "execution_plan.html",
+        "execution_plan_graph_2d.html",
+        "execution_plan_graph_3d.html",
+        "execution_plan_stages.html",
+    ):
+        assert (index.parent / filename).is_file()
+    assert not pathlib.Path("_generated/compile").exists()

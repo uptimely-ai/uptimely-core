@@ -4,6 +4,7 @@ import pathlib
 
 from uptimely import analytics, compile, spec
 from uptimely import render as uptimely_render
+from uptimely.analytics import render as graph_render
 from uptimely.compile import render
 from uptimely.spec import render as spec_render
 
@@ -38,10 +39,11 @@ class Documentation:
         output_path: str | pathlib.Path | None = None,
         include_generated_at: bool = False,
     ) -> pathlib.Path:
-        """Export a static website with navigation between generated reports.
+        """Export the complete static website with navigation between its pages.
 
         Compilation inspects function signatures but does not execute analytics.
-        Function entrypoints must be importable, as with standalone plan compilation.
+        Function entrypoints must be importable, as with plan compilation.
+        Individual HTML report and subset-graph exports are not supported.
 
         Args:
             output_path: Index file; defaults to ``_generated/docs/index.html``.
@@ -65,22 +67,9 @@ class Documentation:
             raise ValueError("The website index path must not overwrite a report page.")
         plan = compile.Compiler(self.spec).compile()
         graph = analytics.FeatureGraph(self.spec)
-        spec_dir = target.parent / "spec"
-        graph_dir = target.parent / "graph"
-        plan_dir = target.parent / "plan"
-        spec_render.create_website_pages(self.spec, spec_dir, include_generated_at, root_path="../")
-        for dimension in ("2d", "3d"):
-            graph.export_html(
-                graph_dir / f"{dimension}.html",
-                dimension=dimension,
-                include_navigation=True,
-                root_path="../",
-            )
-        plan.export_html(
-            plan_dir / "overview.html",
-            include_navigation=True,
-            root_path="../",
-        )
+        spec_render._create_website_pages(self.spec, target.parent, include_generated_at)
+        graph_render._create_website_pages(graph, target.parent)
+        render._create_website_pages(plan, target.parent)
         document = (
             uptimely_render.html_environment()
             .get_template("index.html.j2")
@@ -109,5 +98,14 @@ def create_html(
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
 ) -> pathlib.Path:
-    """Export the linked documentation website and return its index path."""
+    """Export the complete documentation website.
+
+    Args:
+        specification: The canonical analytics specification.
+        output_path: Index file; defaults to ``_generated/docs/index.html``.
+        include_generated_at: Include a timestamp on specification pages.
+
+    Returns:
+        The path to the website index.
+    """
     return Documentation(specification).create_html(output_path, include_generated_at)

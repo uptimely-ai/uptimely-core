@@ -1,4 +1,4 @@
-"""Export example 1's Python specification as JSON and standalone HTML."""
+"""Export example 1's Python specification as JSON."""
 
 from pathlib import Path
 
@@ -10,7 +10,7 @@ OUTPUT_PATH = Path(__file__).parent / "_generated" / "spec" / "spec.json"
 
 
 def main() -> None:
-    """Build the Python specification and export it as JSON and reference HTML."""
+    """Build the Python specification and export it as JSON."""
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     specification = Specification.from_python(
         entities=entities,
@@ -18,9 +18,7 @@ def main() -> None:
         name="Pump analytics",
     )
     output_path = specification.to_json(OUTPUT_PATH)
-    html_path = specification.create_html(OUTPUT_PATH.with_suffix(".html"))
     print(f"Specification written to {output_path}")
-    print(f"Specification report written to {html_path}")
 
 
 if __name__ == "__main__":

@@ -64,18 +64,17 @@ def _write_document_data(
 def _render_document(
     context: dict[str, typing.Any],
     output_path: pathlib.Path,
-    include_navigation: bool = False,
-    section: str | None = None,
-    root_path: str = "",
+    section: str,
 ) -> pathlib.Path:
+    """Write one specification section within the documentation website."""
     environment = render.html_environment()
-    template = f"spec/{section}.html.j2" if section else "spec/index.html.j2"
+    template = f"spec/{section}.html.j2"
     document = environment.get_template(template).render(
         configuration=context["configuration"],
         summary=context["summary"],
         feature_dependencies=context["feature_dependencies"],
         generated_at=context["generated_at"],
-        include_navigation=include_navigation,
+        include_navigation=True,
         active_page="spec",
         active_section=section,
         root_path=root_path,
@@ -85,7 +84,7 @@ def _render_document(
     return output_path
 
 
-def create_website_pages(
+def _create_website_pages(
     specification: spec.Specification,
     output_directory: pathlib.Path,
     include_generated_at: bool = False,
@@ -101,7 +100,7 @@ def create_website_pages(
     """
     context = dataclasses.asdict(_build_context(specification, include_generated_at))
     for section, filename in SPECIFICATION_PAGES.items():
-        _render_document(context, output_directory / filename, True, section, root_path=root_path)
+        _render_document(context, output_directory / filename, section)
 
 
 def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], list[dict], set[str]]:
@@ -277,26 +276,3 @@ def create_json(
     target = target.with_suffix(".json")
     _write_document_data(context, target)
     return target
-
-
-def create_html(
-    specification: spec.Specification,
-    output_path: str | pathlib.Path | None = None,
-    include_generated_at: bool = False,
-    *,
-    include_navigation: bool = False,
-) -> pathlib.Path:
-    """Render specification reference HTML with optional website navigation.
-
-    Args:
-        specification: The canonical analytics specification.
-        output_path: Output file; defaults to ``_generated/spec/spec.html``.
-        include_generated_at: Include a build timestamp.
-        include_navigation: Link to sibling documentation website pages.
-
-    Returns:
-        The path to the rendered reference page.
-    """
-    target = pathlib.Path(output_path) if output_path is not None else OUTPUT_DIR / "spec.html"
-    context = dataclasses.asdict(_build_context(specification, include_generated_at))
-    return _render_document(context, target.with_suffix(".html"), include_navigation)

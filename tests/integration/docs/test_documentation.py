@@ -53,13 +53,13 @@ def test_reference_exports_to_default_directory(
     documentation = docs.Documentation(specification)
 
     document_path = (
-        documentation.create_json() if output_format == "json" else specification.create_html()
+        documentation.create_json() if output_format == "json" else documentation.create_html()
     )
 
     expected = (
         pathlib.Path("_generated/docs/docs.json")
         if output_format == "json"
-        else pathlib.Path("_generated/spec/spec.html")
+        else pathlib.Path("_generated/docs/index.html")
     )
     assert document_path == expected
     assert document_path.is_file()
@@ -91,25 +91,37 @@ def test_generate_json_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
 
 def test_generate_html_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
-    monkeypatch.setattr("uptimely.spec.render.OUTPUT_DIR", tmp_path / "_generated" / "spec")
+    monkeypatch.setattr("uptimely.docs.docs.OUTPUT_DIR", tmp_path / "_generated" / "docs")
 
-    document_path = specification.create_html()
-    document = document_path.read_text(encoding="utf-8")
+    document_path = docs.Documentation(specification).create_html()
+    pages = {
+        filename: (document_path.parent / filename).read_text(encoding="utf-8")
+        for filename in (
+            "spec.html",
+            "spec_features.html",
+            "spec_datasets.html",
+            "spec_dimensions.html",
+            "spec_functions.html",
+        )
+    }
+    document = "\n".join(pages.values())
 
-    assert document_path.name == "spec.html"
+    assert document_path.name == "index.html"
     assert not document_path.with_suffix(".json").exists()
-    assert 'href="#overview"' in document
-    assert 'href="#entities"' in document
-    assert 'href="#dimensions"' in document
-    assert 'href="#functions"' in document
+    for filename in pages:
+        assert f'href="{filename}"' in document
     assert ">Features<" in document
     assert "Datasets" in document
     assert "Mappings" in document
     assert ">source<" in document
     assert "space-y-5" in document
-    assert document.index('id="overview"') < document.index('id="entities"')
-    assert document.index('id="entities"') < document.index('id="dimensions"')
-    assert document.index('id="dimensions"') < document.index('id="functions"')
+    for filename, section in (
+        ("spec.html", "overview"),
+        ("spec_features.html", "entities"),
+        ("spec_dimensions.html", "dimensions"),
+        ("spec_functions.html", "functions"),
+    ):
+        assert f'id="{section}"' in pages[filename]
     assert "Pump telemetry" in document
     assert "pump_telemetry_dataset" in document
     assert "Manufacturing plant identifier" in document
@@ -126,7 +138,7 @@ def test_generate_html_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
         "rounded-2xl border border-slate-800 bg-slate-900/70 p-6"
     )
     assert "pump" in document
-    assert ">Specification<" in document
+    assert ">Overview<" in document
     assert ">source<" in document
     assert "mt-5 border-t border-slate-800 pt-4" in document
     for group_name in ("vectorize", "read", "write"):
@@ -157,12 +169,13 @@ def test_generate_html_docs_from_in_memory_spec_is_deterministic(tmp_path: pathl
     specification = spec.Specification.from_json(SPEC_PATH)
     specification.path = None
 
-    first_path = specification.create_html(
-        output_path=tmp_path / "first" / "spec.html",
+    first_path = docs.Documentation(specification).create_html(
+        output_path=tmp_path / "first" / "index.html",
     )
-    second_path = specification.create_html(
-        output_path=tmp_path / "second" / "spec.html",
+    second_path = docs.Documentation(specification).create_html(
+        output_path=tmp_path / "second" / "index.html",
     )
 
-    assert first_path.read_bytes() == second_path.read_bytes()
-    assert "generated_at" not in first_path.read_text(encoding="utf-8")
+    for first_page in first_path.parent.glob("*.html"):
+        assert first_page.read_bytes() == (second_path.parent / first_page.name).read_bytes()
+        assert "generated_at" not in first_page.read_text(encoding="utf-8")

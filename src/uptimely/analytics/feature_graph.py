@@ -1,8 +1,6 @@
 """Describe the feature dependency graph and resolve dependencies for requested outputs."""
 
-import pathlib
 import re
-import typing
 
 import graphable as graphable_
 from graphable import views
@@ -10,7 +8,7 @@ from graphable import views
 from uptimely import spec
 from uptimely.spec.json_spec import bindings
 
-from . import models, render
+from . import models
 
 Node = graphable_.graphable.Graphable
 NodeMeta = models.FunctionNode | models.FeatureNode
@@ -82,36 +80,6 @@ class GraphBase:
 
     def print(self) -> None:
         self.print_graph()
-
-    def export_html(
-        self,
-        output_path: str | pathlib.Path,
-        style: render.GraphStyle | None = None,
-        *,
-        dimension: typing.Literal["2d", "3d"] = "3d",
-        include_navigation: bool = False,
-        root_path: str = "",
-    ) -> pathlib.Path:
-        """Export the graph as an interactive 2D or 3D HTML document.
-
-        Args:
-            output_path: Where to write the graph document.
-            style: Optional graph appearance settings.
-            dimension: Graph layout to render. The default preserves the 3D view.
-            include_navigation: Link to sibling documentation website pages.
-            root_path: Relative path to website root.
-
-        Returns:
-            The path to the rendered graph.
-        """
-        return render.export_graph_html(
-            self,
-            output_path,
-            style,
-            dimension=dimension,
-            include_navigation=include_navigation,
-            root_path=root_path,
-        )
 
     def _node_type(self, reference: NodeMeta) -> str:
         """Return the single presentation type used by the feature graph."""

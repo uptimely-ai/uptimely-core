@@ -8,7 +8,6 @@ import pathlib
 import typing
 
 from uptimely import row_context as uptimely_row_context
-from uptimely.compile import render
 
 
 @dataclasses.dataclass(frozen=True)
@@ -177,33 +176,3 @@ class ExecutionPlan:
         """Load a portable plan without loading or recompiling its specification."""
         payload = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
         return cls(Plan.from_dict(payload))
-
-    def export_html(
-        self,
-        path: str | pathlib.Path | None = None,
-        *,
-        include_navigation: bool = False,
-        root_path: str = "",
-    ) -> pathlib.Path:
-        """Export an execution plan report as HTML.
-
-        Args:
-            path: Output file; defaults to ``_generated/compile/execution_plan.html``.
-            include_navigation: Generate linked Overview, 2D graph, 3D graph,
-                and Stages pages. The overview uses ``path``; callable graph and
-                stage pages are written alongside it. Without navigation, the
-                summary, 3D callable graph, and stages remain in a single report.
-            root_path: Relative path to website root.
-
-        Returns:
-            The path to the rendered report.
-        """
-        return (
-            render._render_execution_plan(
-                self, path, include_navigation=include_navigation, root_path=root_path
-            )
-            if path is not None
-            else render._render_execution_plan(
-                self, include_navigation=include_navigation, root_path=root_path
-            )
-        )

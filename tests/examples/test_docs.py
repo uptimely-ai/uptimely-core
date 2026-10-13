@@ -2,10 +2,21 @@ import json
 import pathlib
 from html import parser as html_parser
 
+from examples.example_1 import run_export_spec
+
 from uptimely import spec
 from uptimely.docs import docs
 
 SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+
+
+def test_specification_runner_exports_only_json(tmp_path: pathlib.Path, monkeypatch) -> None:
+    monkeypatch.setattr(run_export_spec, "OUTPUT_PATH", tmp_path / "spec.json")
+
+    run_export_spec.main()
+
+    assert {path.name for path in tmp_path.iterdir()} == {"spec.json"}
+    assert spec.Specification.from_json(tmp_path / "spec.json").name == "Pump analytics"
 
 
 class TextCollector(html_parser.HTMLParser):
@@ -93,7 +104,8 @@ def test_html_docs_overview_counts_match_specification(tmp_path: pathlib.Path) -
     specification.name = "Pump analytics"
     expected_counts = _documentation_counts(specification)
 
-    output_path = specification.create_html(tmp_path / "spec.html")
+    docs.Documentation(specification).create_html(tmp_path / "index.html")
+    output_path = tmp_path / "spec.html"
     parser = TextCollector()
     parser.feed(output_path.read_text(encoding="utf-8"))
 

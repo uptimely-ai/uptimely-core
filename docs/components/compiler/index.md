@@ -181,18 +181,21 @@ plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
 result = Engine(plan).execute()
 ```
 
-`ExecutionPlan` exposes the serialized operations, resolved execution stages,
-and a flat execution-order view. It also supports exporting a human-readable
-HTML report for inspecting operation order and dependencies:
+`ExecutionPlan` exposes serialized operations and resolved execution stages.
+To inspect operation order and dependencies in HTML, generate the full website
+from the original specification:
 
 ```python
-plan.export_html("_generated/compile/execution_plan.html")
+from uptimely.docs import docs
+
+index_path = docs.create_html(specification)
 ```
 
-The standalone report includes the summary, 3D callable graph, and stages.
-`uptimely docs build` separates these into Overview, 2D graph, 3D graph,
-and Stages pages. Both graph views use compiled callable operations and their
+`uptimely docs generate` provides the same website. Its execution-plan section
+has Overview, 2D graph, 3D graph, and Stages pages. Both graph views use compiled callable operations and their
 dependency edges; feature lineage is shown separately under Feature graph.
+Standalone plan HTML export is not supported; portable-plan JSON export and
+loading do not require website generation.
 
 The overview summarizes callable, function, entity, and feature counts, along
 with stages, dependency edges, and the largest number of operations in a stage.

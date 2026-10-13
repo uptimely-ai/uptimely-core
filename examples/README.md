@@ -99,29 +99,30 @@ poetry run python -m examples.example_2.run_export_spec
 
 The execution plan, feature graph, and engine runners print a concise summary by default. Add `--verbose` to any of those commands when you need dependency graphs, execution stages, or dataset details.
 
+Only `run_docs.py` generates HTML, always as the complete website. Specification
+and execution-plan runners export JSON; the feature-graph runner inspects full
+and subset graphs without exporting files.
+
 Generated artifacts are written beneath each example's `_generated/` directory:
 
 | Output | Command |
 | --- | --- |
 | [`example_1/_generated/compile/execution_plan.json`](example_1/_generated/compile/execution_plan.json) | `run_execution_plan.py` |
-| [`example_1/_generated/compile/execution_plan.html`](example_1/_generated/compile/execution_plan.html) | `run_execution_plan.py` |
 | [`example_1/_generated/spec/spec.json`](example_1/_generated/spec/spec.json) | `run_export_spec.py` |
-| [`example_1/_generated/spec/spec.html`](example_1/_generated/spec/spec.html) | `run_export_spec.py` |
 | [`example_1/_generated/docs/docs.json`](example_1/_generated/docs/docs.json) | `run_docs.py` |
 | [`example_1/_generated/docs/index.html`](example_1/_generated/docs/index.html) | `run_docs.py` |
-| [`example_1/_generated/docs/spec/overview.html`](example_1/_generated/docs/spec/overview.html) | `run_docs.py` |
-| [`example_1/_generated/docs/spec/features.html`](example_1/_generated/docs/spec/features.html) | `run_docs.py` |
-| [`example_1/_generated/docs/spec/entities.html`](example_1/_generated/docs/spec/entities.html) | `run_docs.py` |
-| [`example_1/_generated/docs/spec/datasets.html`](example_1/_generated/docs/spec/datasets.html) | `run_docs.py` |
-| [`example_1/_generated/docs/spec/dimensions.html`](example_1/_generated/docs/spec/dimensions.html) | `run_docs.py` |
-| [`example_1/_generated/docs/spec/functions.html`](example_1/_generated/docs/spec/functions.html) | `run_docs.py` |
-| [`example_1/_generated/docs/graph/2d.html`](example_1/_generated/docs/graph/2d.html) | `run_docs.py` |
-| [`example_1/_generated/docs/graph/3d.html`](example_1/_generated/docs/graph/3d.html) | `run_docs.py` |
-| [`example_1/_generated/docs/plan/overview.html`](example_1/_generated/docs/plan/overview.html) | `run_docs.py` |
-| [`example_1/_generated/docs/plan/2d.html`](example_1/_generated/docs/plan/2d.html) | `run_docs.py` |
-| [`example_1/_generated/docs/plan/3d.html`](example_1/_generated/docs/plan/3d.html) | `run_docs.py` |
-| [`example_1/_generated/docs/plan/stages.html`](example_1/_generated/docs/plan/stages.html) | `run_docs.py` |
-| [`example_1/_generated/graph/feature_graph.html`](example_1/_generated/graph/feature_graph.html) | `run_feature_graph.py` |
+| [`example_1/_generated/docs/spec.html`](example_1/_generated/docs/spec.html) | `run_docs.py` |
+| [`example_1/_generated/docs/spec_features.html`](example_1/_generated/docs/spec_features.html) | `run_docs.py` |
+| [`example_1/_generated/docs/spec_entities.html`](example_1/_generated/docs/spec_entities.html) | `run_docs.py` |
+| [`example_1/_generated/docs/spec_datasets.html`](example_1/_generated/docs/spec_datasets.html) | `run_docs.py` |
+| [`example_1/_generated/docs/spec_dimensions.html`](example_1/_generated/docs/spec_dimensions.html) | `run_docs.py` |
+| [`example_1/_generated/docs/spec_functions.html`](example_1/_generated/docs/spec_functions.html) | `run_docs.py` |
+| [`example_1/_generated/docs/feature_graph_2d.html`](example_1/_generated/docs/feature_graph_2d.html) | `run_docs.py` |
+| [`example_1/_generated/docs/feature_graph_3d.html`](example_1/_generated/docs/feature_graph_3d.html) | `run_docs.py` |
+| [`example_1/_generated/docs/execution_plan.html`](example_1/_generated/docs/execution_plan.html) | `run_docs.py` |
+| [`example_1/_generated/docs/execution_plan_graph_2d.html`](example_1/_generated/docs/execution_plan_graph_2d.html) | `run_docs.py` |
+| [`example_1/_generated/docs/execution_plan_graph_3d.html`](example_1/_generated/docs/execution_plan_graph_3d.html) | `run_docs.py` |
+| [`example_1/_generated/docs/execution_plan_stages.html`](example_1/_generated/docs/execution_plan_stages.html) | `run_docs.py` |
 | [`example_2/_generated/spec/spec.json`](example_2/_generated/spec/spec.json) | `run_export_spec.py` |
 
 The scripts are intended to run from the repository root. Python 3.13 or newer is required. See each example's README for its specification model and workflow details.

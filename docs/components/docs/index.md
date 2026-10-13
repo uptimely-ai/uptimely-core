@@ -60,8 +60,6 @@ Overview contains summary counts; the 2D graph groups callable operations into
 vertical lanes by dependency stage, and the graph pages show compiled callable
 operations and their dependencies rather than feature-lineage nodes.
 Stages lists dependency-ordered operations with their arguments and return types.
-Standalone execution-plan exports keep the summary, 3D callable graph, and
-stages in one HTML document.
 Each report is a complete HTML page, with relative links to
 the other reports. The directory can be moved or hosted beneath a URL prefix
 without rebuilding its page navigation.
@@ -117,9 +115,13 @@ index_path = documentation.create_html(
 )
 ```
 
-All reports and specification section pages are written beside the index. The
-index filename cannot match any of the six report filenames shown above, because
-those names are reserved for the reports.
+All graph, execution-plan, and specification pages are written beside the index.
+The index filename cannot match any of their filenames shown above.
+HTML generation always produces the complete website; exporting an individual
+report or a graph subset as HTML is not supported.
+
+The module-level `uptimely.docs.docs.create_html(specification, output_path=...)`
+helper generates the same complete website and returns its index path.
 
 Timestamps are disabled by default for reproducible exports. Pass
 `include_generated_at=True` to display one on each specification section page.
@@ -201,15 +203,8 @@ calculations to downstream features. It keeps the standard layered node-card
 layout and directional links, with horizontal swim lanes labeled by
 specification entity. Nodes are stacked vertically within each lane and rank
 without overlapping. Nodes without an entity are grouped in an `Unassigned` lane.
-Both renderings include the same node details and can be exported with
-`FeatureGraph.export_html`:
-
-```python
-graph.export_html("_generated/graph/feature_graph_2d.html", dimension="2d")
-graph.export_html("_generated/graph/feature_graph_3d.html", dimension="3d")
-```
-
-The `dimension` argument defaults to `"3d"`, preserving the existing output.
+Both renderings include the same node details. Website generation includes
+both views; open their links under Feature graph in the sidebar.
 
 The feature graph explains logical lineage; the
 [execution plan](../compiler/index.md) separately shows callable dependencies and
@@ -217,39 +212,41 @@ execution stages.
 
 ### Focus on a feature
 
-The Python graph API can export the upstream dependency subset needed for a
-selected feature:
+The Python graph API can inspect the upstream dependency subset needed for a
+selected feature without exporting HTML:
 
 ```python
 from uptimely.analytics import FeatureGraph
 
 graph = FeatureGraph(specification)
 subset = graph.subset(["health_signal_normalized"])
-subset.export_html("_generated/graph/health_signal.html")
+subset.print_graph()
 ```
 
-This is useful for debugging, reviewing a calculation, or sharing a smaller
-lineage view. Website generation exports full 2D and 3D feature graphs; subset reports
-are created separately through the Python API.
+This is useful for debugging or reviewing a calculation. Subset analysis remains
+available in Python, while the website displays the full feature graph.
 
-## Standalone reports and reference data
+## Migrating from standalone HTML reports
 
-The individual HTML exporters remain available without website navigation:
+The standalone methods `Specification.create_html`, `FeatureGraph.export_html`
+(including subsets), and `ExecutionPlan.export_html` have been removed. Replace
+those calls with a single website-generation call using the original specification:
 
 ```python
-from uptimely.analytics import FeatureGraph
-from uptimely.compile import Compiler
+from uptimely.docs import docs
 
-specification.create_html()  # _generated/spec/spec.html
-FeatureGraph(specification).export_html("_generated/graph/feature_graph.html")
-Compiler(specification).compile().export_html()  # _generated/compile/execution_plan.html
+index_path = docs.create_html(
+    specification,
+    output_path="public/analytics/index.html",
+)
 ```
 
-Each exporter accepts an explicit output-file path.
-`Specification.create_html` is the standalone specification reference exporter
-previously provided by `Documentation.create_html`. The latter now exports the
-complete website and returns its index path. The standalone specification export
-remains a single HTML file containing all four sections and local anchor navigation.
+Publish or move the entire output directory, not just its index. A portable plan
+alone is not a website input: generation needs the specification and importable
+function entrypoints. Specification JSON export, plan JSON export, and graph
+analysis are unchanged.
+
+## Reference data
 
 Reference JSON is a separate export:
 
@@ -270,8 +267,8 @@ the documentation interface and the
 
 ## Template organization
 
-All HTML reports use Jinja templates in `src/uptimely/templates/`. The root
-`base.html.j2` provides the shared layout and optional website navigation.
+All website pages use Jinja templates in `src/uptimely/templates/`. The root
+`base.html.j2` provides the shared layout and website navigation.
 The root `index.html.j2` renders the website landing page. Subdirectories group
 the specification reference, individual page templates, and shared sections (`spec/`),
 feature graph (`graph/`), and
@@ -280,5 +277,6 @@ execution plan (`plan/`).
 Renderers stay in their component modules and share the package template loader
 in `uptimely.render`. Template inheritance and includes use paths relative to the
 central template directory, such as `spec/sections/entities.html.j2`. The
-templates are included in the installed Python package, so both standalone
-exports and website generation work outside a repository checkout.
+templates are included in the installed Python package, so website generation
+works outside a repository checkout. Component page renderers are internal
+implementation details, not alternative public HTML export APIs.
