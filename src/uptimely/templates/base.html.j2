@@ -43,7 +43,7 @@
   {% set rel_root = root_path or "" %}
   <nav class="site-nav" aria-label="Documentation pages">
     <a class="site-brand" href="{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>openanalytics/docs</a>
-    {% for page, href, label, icon in [("spec", "spec.html", "Specification", "book-open"), ("graph", "feature_graph_3d.html", "Feature graph", "git-fork"), ("plan", "execution_plan.html", "Execution plan", "workflow")] %}
+    {% for page, href, label, icon in [("spec", "spec.html", "Specification", "book-open"), ("graph", "feature_graph.html", "Feature graph", "git-fork"), ("plan", "execution_plan.html", "Execution plan", "workflow")] %}
     <a href="{{ href }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span></a>
     {% if page == "spec" %}
     <div class="site-subnav" role="group" aria-label="Specification sections">
@@ -61,21 +61,11 @@
     {% elif page == "plan" %}
     <div class="site-subnav" role="group" aria-label="Execution plan sections">
       {% for section, section_href, section_label, section_icon in [
-        ("overview", rel_root ~ "plan/overview.html", "Overview", "layout-dashboard"),
-        ("graph_2d", rel_root ~ "plan/2d.html", "2D graph", "git-fork"),
-        ("graph_3d", rel_root ~ "plan/3d.html", "3D graph", "git-fork"),
-        ("stages", rel_root ~ "plan/stages.html", "Stages", "layers-3")
+        ("overview", "execution_plan.html", "Overview", "layout-dashboard"),
+        ("graph", "execution_plan_graph.html", "Graph", "git-fork"),
+        ("stages", "execution_plan_stages.html", "Stages", "layers-3")
       ] %}
       <a href="{{ section_href }}"{% if active_page == "plan" and active_section == section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ section_icon }}" aria-hidden="true"></i><span>{{ section_label }}</span></a>
-      {% endfor %}
-    </div>
-    {% elif page == "graph" %}
-    <div class="site-subnav" role="group" aria-label="Feature graph views">
-      {% for section, section_href, section_label, section_icon in [
-        ("2d", rel_root ~ "graph/2d.html", "2D graph", "git-fork"),
-        ("3d", rel_root ~ "graph/3d.html", "3D graph", "git-fork")
-      ] %}
-      <a href="{{ section_href }}"{% if active_page == "graph" and active_section == section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ section_icon }}" aria-hidden="true"></i><span>{{ section_label }}</span></a>
       {% endfor %}
     </div>
     {% endif %}

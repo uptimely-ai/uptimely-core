@@ -1,29 +1,24 @@
-<section id="callable-graph" class="{% if full_page_graph %}absolute inset-0{% else %}mb-16{% endif %}">
-	{% if not full_page_graph %}
-	<div class="mb-6">
-		<h2 class="flex items-center gap-3 font-display text-3xl font-semibold text-white"><i data-lucide="git-fork" class="h-7 w-7 shrink-0 text-cyan-300" aria-hidden="true"></i>Callable graph</h2>
-	</div>
-	{% endif %}
-	<div class="{% if full_page_graph %}relative h-full w-full overflow-hidden{% else %}relative h-[34rem] overflow-hidden rounded-lg border border-slate-800 bg-slate-950 sm:h-[40rem]{% endif %}">
-		{% block callable_controls %}{% endblock %}
-		<div class="absolute left-4 top-4 z-10 rounded-lg border border-slate-700 bg-slate-900/90 px-4 py-3">
+<section id="callable-graph" class="absolute inset-0">
+		{% include "graph/view_controls.html.j2" %}
+		<div class="panel">
 			<div class="grid gap-2 font-mono text-xs text-slate-300">
 				<span><i class="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style="background: {{ graph_style.input_color }}"></i>Dataframe operation</span>
 				<span><i class="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style="background: {{ graph_style.function_color }}"></i>Vectorize</span>
 				<span><i class="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style="background: {{ graph_style.feature_color }}"></i>Write</span>
 			</div>
 		</div>
-		<div class="{% if full_page_graph %}details{% if active_section == 'graph_2d' %} details-2d{% endif %}{% else %}absolute bottom-4 right-4 z-10 w-[min(20rem,calc(100%-2rem))] rounded-lg border border-slate-700 bg-slate-900/90 p-4{% endif %}" id="callable-node-details">
+		<div class="details details-2d" id="callable-node-details">
 			<h3 class="mb-2 font-mono text-xs uppercase tracking-wider text-slate-400">Callable details</h3>
 			<div class="text-sm leading-6 text-slate-300">Select a callable to inspect its operation, entity, output feature, and callable dependencies.</div>
 		</div>
-		<div class="h-full w-full" id="callable-graph-canvas"></div>
-	</div>
+		<div id="graph">
+			<div id="graph-2d" class="graph-view"></div>
+			<div id="graph-3d" class="graph-view" hidden></div>
+		</div>
 </section>
 <script>
 	{
 		const callableGraphData = {{ callable_graph_data|safe }};
-		const callableGraphContainer = document.getElementById('callable-graph-canvas');
 		const callableNodeDetails = document.getElementById('callable-node-details');
 		const formatList = (values) => Array.isArray(values) && values.length ? values.join(', ') : 'none';
 		const updateCallableDetails = (node) => {
@@ -52,7 +47,8 @@
 			vectorize: '{{ graph_style.function_color }}',
 			write: '{{ graph_style.feature_color }}',
 		};
-		{% block callable_renderer %}
+		function create3D(callableGraphContainer, callableGraphData, updateCallableDetails) {
+		let initialFitComplete = false;
 		const callableGraph = ForceGraph3D()(callableGraphContainer)
 			.width(callableGraphContainer.clientWidth)
 			.height(callableGraphContainer.clientHeight)
@@ -69,6 +65,12 @@
 			.linkDirectionalParticleWidth(2)
 			.linkDirectionalParticleSpeed(0.003)
 			.onNodeClick(node => updateCallableDetails(node))
+			.onEngineStop(() => {
+				if (!initialFitComplete) {
+					callableGraph.zoomToFit(0, 60);
+					initialFitComplete = true;
+				}
+			})
 			.nodeThreeObject(node => {
 				const material = new THREE.MeshLambertMaterial({ color: callableColors[node.operation_type] });
 				const mesh = new THREE.Mesh(
@@ -87,10 +89,16 @@
 			});
 		callableGraph.d3Force('charge').strength({{ graph_style.charge_strength }}).distanceMax({{ graph_style.charge_distance_max }});
 		callableGraph.d3Force('link').distance({{ graph_style.link_distance }});
-		window.addEventListener('resize', () => callableGraph
-			.width(callableGraphContainer.clientWidth)
-			.height(callableGraphContainer.clientHeight));
-		{% endblock %}
-		updateCallableDetails(null);
+		const fit = () => callableGraph.zoomToFit(0, 60);
+		const resize = () => {
+			callableGraph.width(callableGraphContainer.clientWidth)
+				.height(callableGraphContainer.clientHeight);
+			fit();
+		};
+		return { graph: callableGraph, fit, resize };
+		}
+		{% include "plan/callable_renderer_2d.js.j2" %}
+		{% include "graph/view_controller.js.j2" %}
+		mountGraphViews(callableGraphData, create2D, create3D, updateCallableDetails, callableNodeDetails);
 	}
 </script>
