@@ -64,7 +64,7 @@ Each report is a complete HTML page, with relative links to
 the other reports. The directory can be moved or hosted beneath a URL prefix
 without rebuilding its page navigation.
 
-The generation options are:
+The build options are:
 
 | Option | Behavior |
 | --- | --- |
@@ -86,7 +86,7 @@ Specification and output paths are relative to the working directory, not to
 `--project-root`. The import root lets Uptimely inspect the declared function
 entrypoints when compiling the execution plan.
 
-Generation imports function modules and inspects signatures, but does not invoke
+Building imports function modules and inspects signatures, but does not invoke
 analytical functions or run the engine. Use trusted specifications and
 implementations, with their dependencies installed. Invalid specifications,
 compilation failures, and export errors produce an error message and a nonzero
