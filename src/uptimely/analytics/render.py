@@ -17,7 +17,7 @@ if typing.TYPE_CHECKING:
 class GraphStyle:
     """Visual appearance settings for the dependency graph."""
 
-    function_color: str = "#d62828"
+    function_color: str = "#b9c9d8"
     input_color: str = "#64c7a8"
     feature_color: str = "#6ebcf4"
     function_colors: dict[str, str] = dataclasses.field(

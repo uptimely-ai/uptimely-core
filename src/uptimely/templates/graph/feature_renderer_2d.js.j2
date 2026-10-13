@@ -28,67 +28,41 @@
 		}
 
 		function prepareGraphLayout(graphData) {
-			const entityNames = [...new Set(graphData.nodes.map(node => node.entity || 'Unassigned'))]
-				.sort((a, b) => a.localeCompare(b));
-			const laneLabelWidth = Math.min(
-				220,
-				Math.max(80, ...entityNames.map(entity => entity.length * 7))
-			);
 			const nodeRanks = rankNodes(graphData);
 			const rankGroups = new Map();
 			for (const node of graphData.nodes) {
 				node.rank = nodeRanks.get(node.id);
 				node.cardWidth = Math.min(280, Math.max(112, (node.label || node.id).length * 8 + 52));
 				node.cardHeight = 38;
-				if (!rankGroups.has(node.rank)) rankGroups.set(node.rank, new Map());
-				const entity = node.entity || 'Unassigned';
-				if (!rankGroups.get(node.rank).has(entity)) rankGroups.get(node.rank).set(entity, []);
-				rankGroups.get(node.rank).get(entity).push(node);
+				if (!rankGroups.has(node.rank)) rankGroups.set(node.rank, []);
+				rankGroups.get(node.rank).push(node);
 			}
-			for (const lanes of rankGroups.values()) {
-				for (const nodes of lanes.values()) {
-					nodes.sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
-				}
+			for (const nodes of rankGroups.values()) {
+				nodes.sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
 			}
-			const maxLaneNodes = Math.max(
-				1,
-				...entityNames.map(entity =>
-					Math.max(0, ...[...rankGroups.values()].map(lanes => lanes.get(entity)?.length || 0))
-				)
-			);
-			const laneHeight = Math.max(96, maxLaneNodes * 54 + 24);
-			const laneSpacing = laneHeight + 24;
-			const lanePositions = new Map(entityNames.map((entity, index) => [
-				entity,
-				(index - (entityNames.length - 1) / 2) * laneSpacing
-			]));
 			const ranksInOrder = [...rankGroups.keys()].sort((a, b) => a - b);
 			const rankWidths = new Map(ranksInOrder.map(rank => [
 				rank,
-				Math.max(...[...rankGroups.get(rank).values()].flat().map(node => node.cardWidth))
+				Math.max(...rankGroups.get(rank).map(node => node.cardWidth))
 			]));
 			const rankOffsets = new Map();
 			let graphWidth = 0;
 			for (const rank of ranksInOrder) {
 				rankOffsets.set(rank, graphWidth + rankWidths.get(rank) / 2);
-				graphWidth += rankWidths.get(rank) + 130;
+				graphWidth += rankWidths.get(rank) + 100;
 			}
 			for (const rank of ranksInOrder) {
-				for (const entity of entityNames) {
-					const nodes = rankGroups.get(rank).get(entity) || [];
-					nodes.forEach((node, index) => {
-						node.fx = rankOffsets.get(rank) - graphWidth / 2 + laneLabelWidth + 100;
-						node.fy = lanePositions.get(entity)
-							+ (index - (nodes.length - 1) / 2) * 54;
-						node.x = node.fx;
-						node.y = node.fy;
-					});
-				}
+				const nodes = rankGroups.get(rank);
+				nodes.forEach((node, index) => {
+					node.fx = rankOffsets.get(rank) - graphWidth / 2;
+					node.fy = (index - (nodes.length - 1) / 2) * 70;
+					node.x = node.fx;
+					node.y = node.fy;
+				});
 			}
-			return { entityNames, laneHeight, laneLabelWidth, lanePositions, graphWidth };
 		}
 
-		const layout = prepareGraphLayout(data);
+		prepareGraphLayout(data);
 		function selectAtPointer(event) {
 			const bounds = graphContainer.getBoundingClientRect();
 			const point = graph.screen2GraphCoords(
@@ -99,49 +73,10 @@
 			if (node) updateDetails(node);
 		}
 
-		function drawEntityLanes(ctx, globalScale) {
-			const scale = Math.max(globalScale, 0.01);
-			const laneLeft = data.nodes.length
-				? Math.min(...data.nodes.map(node => node.x - node.cardWidth / 2))
-					- layout.laneLabelWidth - 24
-				: -layout.laneLabelWidth - 24;
-			const laneRight = layout.graphWidth - layout.graphWidth / 2 + layout.laneLabelWidth + 100;
-			ctx.save();
-			ctx.font = `600 ${12 / scale}px "DM Sans", sans-serif`;
-			ctx.textAlign = 'right';
-			ctx.textBaseline = 'middle';
-			for (const [index, entity] of layout.entityNames.entries()) {
-				const centerY = layout.lanePositions.get(entity);
-				const top = centerY - layout.laneHeight / 2;
-				ctx.fillStyle = index % 2 === 0 ? 'rgba(143, 163, 181, .07)' : 'rgba(143, 163, 181, .03)';
-				ctx.fillRect(laneLeft, top, laneRight - laneLeft, layout.laneHeight);
-				ctx.strokeStyle = 'rgba(143, 163, 181, .4)';
-				ctx.lineWidth = 1 / scale;
-				ctx.beginPath();
-				ctx.moveTo(laneLeft, top);
-				ctx.lineTo(laneRight, top);
-				ctx.stroke();
-				ctx.fillStyle = '#9fb3c3';
-				ctx.fillText(entity, laneLeft + layout.laneLabelWidth, centerY, layout.laneLabelWidth);
-			}
-			if (layout.entityNames.length) {
-				const lastLaneY = layout.lanePositions.get(
-					layout.entityNames[layout.entityNames.length - 1]
-				);
-				ctx.beginPath();
-				ctx.moveTo(laneLeft, lastLaneY + layout.laneHeight / 2);
-				ctx.lineTo(laneRight, lastLaneY + layout.laneHeight / 2);
-				ctx.stroke();
-			}
-			ctx.restore();
-		}
-
 		function drawNode(node, ctx) {
 			const label = node.label || node.id;
 			const isFunction = node.is_function === true;
-			const color = isFunction
-				? functionColors[node.function_type] || '#b279a2'
-				: featureColor;
+			const color = isFunction ? functionColor : node.entityColor;
 			const width = node.cardWidth;
 			const left = node.x - width / 2;
 			ctx.save();
@@ -160,7 +95,7 @@
 			if (isFunction) {
 				ctx.roundRect(left + 12, node.y - 6, 12, 12, 3);
 			} else {
-				ctx.arc(left + 18, node.y, 6, 0, 2 * Math.PI);
+				ctx.roundRect(left + 13, node.y - 9, 4, 18, 2);
 			}
 			ctx.fillStyle = color;
 			ctx.fill();
@@ -172,6 +107,109 @@
 			ctx.restore();
 		}
 
+		function linkRoute(link) {
+			const source = link.source;
+			const target = link.target;
+			const direction = target.x >= source.x ? 1 : -1;
+			const start = [source.x + direction * source.cardWidth / 2, source.y];
+			const end = [target.x - direction * target.cardWidth / 2, target.y];
+			if (Math.abs(start[1] - end[1]) < 1) return [start, end];
+			const bendX = (start[0] + end[0]) / 2;
+			const corners = [[bendX, start[1]], [bendX, end[1]]];
+			const points = [start];
+			let current = start;
+			for (let index = 0; index < corners.length; index++) {
+				const corner = corners[index];
+				const next = index === 0 ? corners[1] : end;
+				const incomingLength = Math.hypot(corner[0] - current[0], corner[1] - current[1]);
+				const outgoingLength = Math.hypot(next[0] - corner[0], next[1] - corner[1]);
+				const radius = Math.min(14, incomingLength / 2, outgoingLength / 2);
+				const incoming = [
+					(corner[0] - current[0]) / incomingLength,
+					(corner[1] - current[1]) / incomingLength,
+				];
+				const outgoing = [
+					(next[0] - corner[0]) / outgoingLength,
+					(next[1] - corner[1]) / outgoingLength,
+				];
+				const before = [corner[0] - incoming[0] * radius, corner[1] - incoming[1] * radius];
+				const after = [corner[0] + outgoing[0] * radius, corner[1] + outgoing[1] * radius];
+				points.push(before);
+				for (let step = 1; step <= 8; step++) {
+					const t = step / 8;
+					const inverse = 1 - t;
+					points.push([
+						inverse * inverse * before[0] + 2 * inverse * t * corner[0] + t * t * after[0],
+						inverse * inverse * before[1] + 2 * inverse * t * corner[1] + t * t * after[1],
+					]);
+				}
+				current = after;
+			}
+			points.push(end);
+			return points;
+		}
+
+		function drawLink(link, ctx, globalScale) {
+			const points = linkRoute(link);
+			const scale = Math.max(globalScale, 0.01);
+			ctx.save();
+			ctx.strokeStyle = '{{ style.link_color }}';
+			ctx.lineWidth = 1.5 / scale;
+			ctx.lineCap = 'round';
+			ctx.lineJoin = 'round';
+			ctx.beginPath();
+			ctx.moveTo(points[0][0], points[0][1]);
+			for (const [x, y] of points.slice(1)) ctx.lineTo(x, y);
+			ctx.stroke();
+
+			const end = points[points.length - 1];
+			const previous = points[points.length - 2];
+			const angle = Math.atan2(end[1] - previous[1], end[0] - previous[0]);
+			const arrowLength = 8 / scale;
+			ctx.fillStyle = '{{ style.link_color }}';
+			ctx.beginPath();
+			ctx.moveTo(end[0], end[1]);
+			ctx.lineTo(
+				end[0] - arrowLength * Math.cos(angle - Math.PI / 6),
+				end[1] - arrowLength * Math.sin(angle - Math.PI / 6),
+			);
+			ctx.lineTo(
+				end[0] - arrowLength * Math.cos(angle + Math.PI / 6),
+				end[1] - arrowLength * Math.sin(angle + Math.PI / 6),
+			);
+			ctx.closePath();
+			ctx.fill();
+
+			const segmentLengths = points.slice(1).map((point, index) =>
+				Math.hypot(point[0] - points[index][0], point[1] - points[index][1])
+			);
+			const totalLength = segmentLengths.reduce((sum, length) => sum + length, 0);
+			const phase = (performance.now() / 2200 + link.flowOffset) % 1;
+			let distance = phase * totalLength;
+			let segmentIndex = 0;
+			while (segmentIndex < segmentLengths.length - 1 && distance > segmentLengths[segmentIndex]) {
+				distance -= segmentLengths[segmentIndex++];
+			}
+			const segmentStart = points[segmentIndex];
+			const segmentEnd = points[segmentIndex + 1];
+			const progress = distance / segmentLengths[segmentIndex];
+			ctx.fillStyle = '#e6f4ff';
+			ctx.beginPath();
+			ctx.arc(
+				segmentStart[0] + (segmentEnd[0] - segmentStart[0]) * progress,
+				segmentStart[1] + (segmentEnd[1] - segmentStart[1]) * progress,
+				2.5 / scale,
+				0,
+				2 * Math.PI,
+			);
+			ctx.fill();
+			ctx.restore();
+		}
+
+		data.links.forEach((link, index) => {
+			link.flowOffset = index / Math.max(1, data.links.length);
+		});
+
 		let initialFitComplete = false;
 		const graph = ForceGraph()(graphContainer)
 			.width(graphContainer.clientWidth)
@@ -180,8 +218,7 @@
 			.nodeLabel(node => `${node.is_function ? 'function' : 'feature'}: ${node.label}<br>entity: ${node.entity || 'n/a'}`)
 			.nodeRelSize(6)
 			.nodeVal(node => node.is_function ? 7 : 5)
-			.nodeColor(node => node.is_function ? functionColors[node.function_type] || '#b279a2' : featureColor)
-			.onRenderFramePre(drawEntityLanes)
+			.nodeColor(node => node.is_function ? functionColor : node.entityColor)
 			.nodeCanvasObjectMode(() => 'replace')
 			.nodeCanvasObject(drawNode)
 			.nodePointerAreaPaint((node, color, ctx) => {
@@ -191,25 +228,26 @@
 			})
 			.linkColor(() => '{{ style.link_color }}')
 			.linkWidth({{ style.link_width }})
-			.linkDirectionalArrowLength(5)
-			.linkDirectionalArrowRelPos(1)
-			.linkDirectionalParticles(2)
-			.linkDirectionalParticleWidth(2)
-			.linkDirectionalParticleSpeed(0.003)
+			.linkCanvasObjectMode(() => 'replace')
+			.linkCanvasObject(drawLink)
+			.linkDirectionalParticles(1)
+			.linkDirectionalParticleWidth(0.1)
+			.linkDirectionalParticleColor(() => 'rgba(0, 0, 0, 0)')
+			.linkDirectionalArrowLength(0)
 			.onNodeClick((_node, event) => selectAtPointer(event))
 			.onLinkClick((_link, event) => selectAtPointer(event))
 			.onBackgroundClick(event => selectAtPointer(event))
 			.cooldownTicks(1)
 			.onEngineStop(() => {
 				if (!initialFitComplete) {
-					graph.zoomToFit(0, Math.max(140, layout.laneLabelWidth + 24));
+					graph.zoomToFit(0, 80);
 					initialFitComplete = true;
 				}
 			})
 			.graphData(data);
 
 		function fitGraph() {
-			graph.zoomToFit(600, Math.max(140, layout.laneLabelWidth + 24));
+			graph.zoomToFit(600, 80);
 		}
 
 		function resizeGraph() {

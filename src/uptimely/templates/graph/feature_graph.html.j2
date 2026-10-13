@@ -4,10 +4,9 @@
 {% block body %}
 	<div class="panel">
 		<div class="legend" aria-label="Feature graph legend">
-			<span style="--color:{{ style.feature_color }}">Feature</span>
-			{% for function_type, color in style.function_colors.items() %}
-			<span class="function" style="--color:{{ color }}">{{ function_type|title }} function</span>
-			{% endfor %}
+			<span class="function" style="--color:{{ style.function_color }}">Function</span>
+			<span class="legend-heading">Entities</span>
+			<div class="entity-legend" id="entity-legend"></div>
 		</div>
 	</div>
 	{{ node_details_panel("details details-2d", "Selected item") }}
@@ -19,8 +18,28 @@
 	<script>
 	{
 		const data = {{ graph_data|safe }};
-		const functionColors = {{ style.function_colors|tojson }};
-		const featureColor = {{ style.feature_color|tojson }};
+		const functionColor = {{ style.function_color|tojson }};
+		const entityNames = [...new Set(data.nodes.map(node => node.entity || 'Unassigned'))]
+			.sort((a, b) => a.localeCompare(b));
+		const entityPalette = [
+			'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa',
+			'#facc15', '#60a5fa', '#f472b6', '#a3e635',
+			'#22d3ee', '#c084fc', '#4ade80', '#f87171',
+		];
+		const entityColors = new Map(entityNames.map(
+			(entity, index) => [entity, entityPalette[index % entityPalette.length]]
+		));
+		const entityLegend = document.getElementById('entity-legend');
+		for (const entity of entityNames) {
+			const item = document.createElement('span');
+			item.style.setProperty('--color', entityColors.get(entity));
+			item.textContent = entity;
+			entityLegend.append(item);
+		}
+		for (const node of data.nodes) {
+			node.entity = node.entity || 'Unassigned';
+			node.entityColor = entityColors.get(node.entity);
+		}
 		{{ node_details_script("Selected item") }}
 		{% include "graph/feature_renderer_2d.js.j2" %}
 		{% include "graph/feature_renderer_3d.js.j2" %}
