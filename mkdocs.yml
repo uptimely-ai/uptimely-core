@@ -53,6 +53,7 @@ nav:
       - The problem: overview/problem.md
       - Infographic: overview/infographic.md
       - Architecture: overview/architecture.md
+      - Modeling patterns: overview/patterns.md
   - Specification:
       - About Specification: specification/index.md
       - Open Analytics Specification: specification/specification.md

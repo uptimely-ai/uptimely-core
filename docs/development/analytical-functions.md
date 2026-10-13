@@ -72,6 +72,6 @@ The source filters and joins the data, and only the requested rows and columns a
 
 ## Read from production
 
-Fixing and degugging existing analytical solutions is often easiest by having 1:1 view for production data also during develpoment. This makes debugging much easier and prevents maintaining data in multiple environments manually.
+Fixing and debugging existing analytical solutions is often easiest by having 1:1 view for production data also during development. This makes debugging much easier and prevents maintaining data in multiple environments manually.
 
 Using non-production source makes sense when database structure requires changes, new algorithm is being developed or certain values are not yet in production.
