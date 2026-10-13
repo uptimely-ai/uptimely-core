@@ -4,8 +4,6 @@
   .lineage-page { padding: 32px; }
   .lineage-page h1 { font: 600 30px "Space Grotesk", sans-serif; color: #f8fafc; }
   .lineage-page p { color: #94a3b8; line-height: 1.7; }
-  .lineage-legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 24px 0; font-size: 12px; }
-  .lineage-legend span { padding: 8px 12px; border: 1px solid #334155; border-radius: 8px; }
   .lineage-scroll { overflow: auto; border: 1px solid #334155; border-radius: 16px; background: #020617; }
   .lineage-scroll:focus-visible, .lineage-table-scroll:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }
   .lineage-board { position: relative; display: flex; align-items: flex-start; gap: 100px; width: max-content; padding: 72px 32px 32px; }
@@ -33,11 +31,6 @@
   <h1 class="title-with-icon">{{ icon("lineage", "title-icon") }}<span>Data lineage</span></h1>
   <p>Follow data through the processing steps, from source columns to calculated features and writes.
     Tables show declared column types, not runtime values. Building this website does not execute analytics.</p>
-  <div class="lineage-legend" aria-label="Data lineage color key">
-    <span style="color: #93c5fd">Blue: dimension keys</span>
-    <span>Step color: produced columns; inputs keep their producer's color</span>
-    <span>Arrows: dependency direction, from producer to consumer</span>
-  </div>
   {% if stages %}
   <p>Scroll to explore stages from left to right. Steps in the same stage are independent.
     Each table labels input and output columns separately; these are logical column flows, not stored table snapshots.</p>
