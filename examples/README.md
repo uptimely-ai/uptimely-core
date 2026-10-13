@@ -117,7 +117,7 @@ Generated artifacts are written beneath each example's `_generated/` directory:
 | [`example_1/_generated/docs/spec/datasets.html`](example_1/_generated/docs/spec/datasets.html) | `run_docs.py` |
 | [`example_1/_generated/docs/spec/dimensions.html`](example_1/_generated/docs/spec/dimensions.html) | `run_docs.py` |
 | [`example_1/_generated/docs/spec/functions.html`](example_1/_generated/docs/spec/functions.html) | `run_docs.py` |
-| [`example_1/_generated/docs/graph/feature_graph.html`](example_1/_generated/docs/graph/feature_graph.html) | `run_docs.py` |
+| [`example_1/_generated/docs/spec/graph.html`](example_1/_generated/docs/spec/graph.html) | `run_docs.py` |
 | [`example_1/_generated/docs/plan/overview.html`](example_1/_generated/docs/plan/overview.html) | `run_docs.py` |
 | [`example_1/_generated/docs/plan/graph.html`](example_1/_generated/docs/plan/graph.html) | `run_docs.py` |
 | [`example_1/_generated/docs/plan/stages.html`](example_1/_generated/docs/plan/stages.html) | `run_docs.py` |

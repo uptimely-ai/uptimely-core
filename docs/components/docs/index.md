@@ -44,9 +44,8 @@ _generated/docs/
 │   ├── entities.html
 │   ├── datasets.html
 │   ├── dimensions.html
-│   └── functions.html
-├── graph/
-│   └── feature_graph.html
+│   ├── functions.html
+│   └── graph.html
 ├── plan/
 │   ├── overview.html
 │   ├── graph.html
@@ -61,7 +60,7 @@ sidebar group provides subnavigation and highlights the current section. The
 Features page summarizes features by dataset and identifies the producing
 mapping; the Entities and Datasets pages provide focused views of those
 specification resources.
-Feature graph opens `graph/feature_graph.html`. Plan has Overview, Graph,
+Feature graph opens `spec/graph.html` beneath Specification. Plan has Overview, Graph,
 and Stages subnavigation in `plan/`; its graph is in `plan/graph.html`.
 Each graph starts in 2D. Use the **2D / 3D** buttons above it to switch views
 without leaving the page. Selected node details remain visible across switches.
@@ -91,8 +90,9 @@ materialized data. Generating it reuses the compiled plan and never runs analyti
 Each report is a complete HTML page, with relative links to
 the other reports. The directory can be moved or hosted beneath a URL prefix
 without rebuilding its page navigation.
-Rebuilding removes the four obsolete dimension-specific graph files from the
-output directory; unrelated files are left untouched.
+Rebuilding removes the four obsolete dimension-specific graph files and the
+former `graph/feature_graph.html` page from the output directory; unrelated files
+are left untouched.
 
 The build options are:
 
@@ -145,7 +145,7 @@ index_path = documentation.create_html(
 )
 ```
 
-Section pages are written in `spec/`, `graph/`, `plan/`, and `execution/` beneath the index
+Section pages are written in `spec/`, `plan/`, and `execution/` beneath the index
 directory. All navigation is relative to the page containing it, including links
 back to a custom index filename. An index named `overview.html`, for example,
 does not conflict with either section's overview page.

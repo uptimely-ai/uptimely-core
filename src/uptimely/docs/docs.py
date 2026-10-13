@@ -49,7 +49,7 @@ class Documentation:
 
         Args:
             output_path: Index file; defaults to ``_generated/docs/index.html``.
-                Section pages are written in spec, graph, plan, and execution subdirectories
+                Section pages are written in spec, plan, and execution subdirectories
                 beneath the index directory.
             include_generated_at: Include a timestamp on the specification page.
 
@@ -85,6 +85,7 @@ class Documentation:
             "feature_graph_3d.html",
             "execution_plan_graph_2d.html",
             "execution_plan_graph_3d.html",
+            "graph/feature_graph.html",
         ):
             obsolete_page = target.parent / filename
             if obsolete_page != target:
