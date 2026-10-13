@@ -130,3 +130,14 @@ The scripts are intended to run from the repository root. Python 3.13 or newer i
 For website generation, customization, and preview instructions, see the
 [analytics documentation](../docs/components/docs/index.md) and the
 [Python API reference](../docs/reference/api.md#analytics-documentation).
+
+From a repository checkout, build and serve the example website with:
+
+```sh
+./scripts/serve-example-docs.sh
+```
+
+Open <http://localhost:8001/> and stop the server with **Ctrl+C**. The script
+uses Poetry and the example's exported specification, works from any working
+directory, and rebuilds the full website before serving it. Server options can
+be passed through, for example `./scripts/serve-example-docs.sh --port 8002`.

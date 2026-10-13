@@ -145,16 +145,16 @@ MkDocs preview on port **8000**.
 The server prints its address at startup. Stop it with **Ctrl+C**. It serves
 existing files; it does not generate, watch, or rebuild the website.
 
-For the end-to-end example, run from the repository root:
+To build and preview the end-to-end example from a repository checkout:
 
 ```sh
-poetry run uptimely docs build \
-  --spec examples/example_1/_generated/spec/spec.json \
-  --output examples/example_1/_generated/docs
-poetry run uptimely docs serve --directory examples/example_1/_generated/docs
+./scripts/serve-example-docs.sh
 ```
 
-Visit <http://localhost:8001/>.
+The script builds the full website using Poetry, then serves it at
+<http://localhost:8001/>. It locates the repository independently of the working
+directory and passes its arguments to the preview server, for example
+`./scripts/serve-example-docs.sh --port 8002`.
 
 The preview server has no authentication or TLS and is not intended for
 production hosting. Binding to `0.0.0.0` exposes files on all IPv4 interfaces.
