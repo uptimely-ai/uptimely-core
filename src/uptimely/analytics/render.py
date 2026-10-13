@@ -79,6 +79,7 @@ def _render_graph_html(
         include_navigation=True,
         active_page="graph",
         index_filename=index_filename,
+        root_path="../",
     )
 
 
@@ -123,7 +124,8 @@ def _create_website_pages(
         output_directory: Directory shared by all website pages.
         index_filename: Filename of the website dashboard.
     """
-    output_directory.mkdir(parents=True, exist_ok=True)
+    target = output_directory / render.WEBSITE_PAGES["graph"]["lineage"]
+    target.parent.mkdir(parents=True, exist_ok=True)
     nodes, links = graph_payload_from_cytoscape(graph)
     document = _render_graph_html(nodes, links, index_filename=index_filename)
-    (output_directory / "feature_graph.html").write_text(document, encoding="utf-8")
+    target.write_text(document, encoding="utf-8")

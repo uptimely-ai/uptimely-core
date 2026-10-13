@@ -14,16 +14,16 @@ REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 SPEC_PATH = REPOSITORY_ROOT / "examples/example_1/_generated/spec/spec.json"
 PAGES = {
     "index.html",
-    "spec.html",
-    "spec_features.html",
-    "spec_entities.html",
-    "spec_datasets.html",
-    "spec_dimensions.html",
-    "spec_functions.html",
-    "feature_graph.html",
-    "execution_plan.html",
-    "execution_plan_graph.html",
-    "execution_plan_stages.html",
+    "spec/overview.html",
+    "spec/features.html",
+    "spec/entities.html",
+    "spec/datasets.html",
+    "spec/dimensions.html",
+    "spec/functions.html",
+    "graph/feature_graph.html",
+    "plan/overview.html",
+    "plan/graph.html",
+    "plan/stages.html",
 }
 
 
@@ -105,7 +105,7 @@ def test_docs_build_errors_are_reported(
     def fail(*args: object, **kwargs: object) -> pathlib.Path:
         raise failure
 
-    monkeypatch.setattr(cli, "generate_docs", fail)
+    monkeypatch.setattr(cli, "build_docs", fail)
     monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "build", "--spec", "spec.json"])
 
     with pytest.raises(SystemExit) as error:
@@ -214,5 +214,5 @@ def test_docs_build_imports_project_functions_in_fresh_process(
     )
 
     assert result.returncode == 0, result.stderr
-    assert {path.name for path in output.iterdir()} == PAGES
+    assert {path.relative_to(output).as_posix() for path in output.rglob("*.html")} == PAGES
     assert "Documentation website built at" in result.stdout

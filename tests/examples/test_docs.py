@@ -105,7 +105,7 @@ def test_html_docs_overview_counts_match_specification(tmp_path: pathlib.Path) -
     expected_counts = _documentation_counts(specification)
 
     docs.Documentation(specification).create_html(tmp_path / "index.html")
-    output_path = tmp_path / "spec.html"
+    output_path = tmp_path / "spec/overview.html"
     parser = TextCollector()
     parser.feed(output_path.read_text(encoding="utf-8"))
 

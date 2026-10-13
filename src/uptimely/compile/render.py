@@ -14,11 +14,7 @@ from uptimely.analytics import render
 
 from . import compiler
 
-PLAN_PAGES = {
-    "overview": "execution_plan.html",
-    "graph": "execution_plan_graph.html",
-    "stages": "execution_plan_stages.html",
-}
+PLAN_PAGES = uptimely_render.WEBSITE_PAGES["plan"]
 
 
 def _callable_label(operation: uptimely_plan.Operation) -> str:
@@ -185,7 +181,9 @@ def _create_website_pages(
             if source_path and not source_path.endswith(".py"):
                 source_path = source_path.replace(".", "/") + ".py"
             step["source_href"] = (
-                pathlib.Path(os.path.relpath(source_path, start=output_directory)).as_posix()
+                pathlib.Path(
+                    os.path.relpath(source_path, start=output_directory / "plan")
+                ).as_posix()
                 if source_path
                 else None
             )
@@ -216,6 +214,7 @@ def _create_website_pages(
         "include_navigation": True,
         "active_page": "plan",
         "index_filename": index_filename,
+        "root_path": "../",
     }
 
     output_directory.mkdir(parents=True, exist_ok=True)
@@ -225,4 +224,6 @@ def _create_website_pages(
             active_section=section,
             section_title=section.title(),
         )
-        (output_directory / filename).write_text(document, encoding="utf-8")
+        target = output_directory / filename
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(document, encoding="utf-8")

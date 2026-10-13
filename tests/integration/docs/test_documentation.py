@@ -97,11 +97,11 @@ def test_generate_html_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
     pages = {
         filename: (document_path.parent / filename).read_text(encoding="utf-8")
         for filename in (
-            "spec.html",
-            "spec_features.html",
-            "spec_datasets.html",
-            "spec_dimensions.html",
-            "spec_functions.html",
+            "spec/overview.html",
+            "spec/features.html",
+            "spec/datasets.html",
+            "spec/dimensions.html",
+            "spec/functions.html",
         )
     }
     document = "\n".join(pages.values())
@@ -109,17 +109,17 @@ def test_generate_html_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
     assert document_path.name == "index.html"
     assert not document_path.with_suffix(".json").exists()
     for filename in pages:
-        assert f'href="{filename}"' in document
+        assert f'href="../{filename}"' in document
     assert ">Features<" in document
     assert "Datasets" in document
     assert "Mappings" in document
     assert ">source<" in document
     assert "space-y-5" in document
     for filename, section in (
-        ("spec.html", "overview"),
-        ("spec_features.html", "entities"),
-        ("spec_dimensions.html", "dimensions"),
-        ("spec_functions.html", "functions"),
+        ("spec/overview.html", "overview"),
+        ("spec/features.html", "entities"),
+        ("spec/dimensions.html", "dimensions"),
+        ("spec/functions.html", "functions"),
     ):
         assert f'id="{section}"' in pages[filename]
     assert "Pump telemetry" in document
@@ -176,6 +176,7 @@ def test_generate_html_docs_from_in_memory_spec_is_deterministic(tmp_path: pathl
         output_path=tmp_path / "second" / "index.html",
     )
 
-    for first_page in first_path.parent.glob("*.html"):
-        assert first_page.read_bytes() == (second_path.parent / first_page.name).read_bytes()
+    for first_page in first_path.parent.rglob("*.html"):
+        relative_path = first_page.relative_to(first_path.parent)
+        assert first_page.read_bytes() == (second_path.parent / relative_path).read_bytes()
         assert "generated_at" not in first_page.read_text(encoding="utf-8")

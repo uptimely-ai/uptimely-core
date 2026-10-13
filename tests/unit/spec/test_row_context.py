@@ -6,13 +6,10 @@ import polars as pl
 import pydantic
 import pytest
 
-from uptimely import compile, engine, spec
+from uptimely import compile, engine, row_context, spec
 from uptimely import plan as uptimely_plan
-from uptimely import row_context as row_context_module
 from uptimely.docs import docs
-from uptimely.spec import python_spec
-from uptimely.spec.json_spec import json_model
-from uptimely.spec.python_spec import bind, dataset, dimension, feature, mapping, ref
+from uptimely.spec.python_spec import bind, dataset, dimension, entity, feature, mapping, ref
 from uptimely.spec.python_spec import row_context as authoring
 
 
@@ -28,6 +25,11 @@ def read_observations() -> pl.DataFrame:
 def calculate(dataset: pl.DataFrame, column: str, output: str, configuration: dict) -> pl.DataFrame:
     assert configuration == {"windows": ["8h", "24h"]}
     return dataset.with_columns((pl.col(column) + 1).alias(output))
+
+
+def maximum(dataset: pl.DataFrame, column: str, output: str) -> pl.DataFrame:
+    """Return a whole-dataset maximum without observation-context requirements."""
+    return dataset.select(pl.col(column).max().alias(output))
 
 
 def _specification(context=None, *, ordered=True, dimension_type="datetime"):
@@ -258,13 +260,14 @@ def test_specification_plan_execution_and_docs_preserve_context(tmp_path: pathli
     operation = next(item for item in compiled.operations if item.kind == "vectorize")
     assert operation.input_features == ["temperature"]
     assert operation.row_context == context
-    portable = plan.ExecutionPlan(plan.Plan.from_dict(compiled.to_dict()))
+    portable = uptimely_plan.ExecutionPlan(uptimely_plan.Plan.from_dict(compiled.to_dict()))
     result = engine.Engine(portable).execute()
     assert not result.failures
     frame = result.datasets["entity", "observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
-    assert "Row context:" in restored.create_html(tmp_path / "spec.html").read_text()
-    assert "Row context" in portable.export_html(tmp_path / "plan.html").read_text()
+    docs.Documentation(restored).create_html(tmp_path / "index.html")
+    assert "Row context:" not in (tmp_path / "spec/features.html").read_text()
+    assert "Row context" in (tmp_path / "plan/stages.html").read_text()
 
 
 @pytest.mark.parametrize(
@@ -281,42 +284,43 @@ def test_all_data_mappings_preserve_annotated_context(kind):
 def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     tmp_path: pathlib.Path,
 ) -> None:
-    specification = _specification(
-        bind.bind(
-            calculate,
-            column=python_spec.ref.feature("temperature"),
-            window=python_spec.row_context.time("8h", before="8h"),
-            count=8,
-        )
-    )
+    context = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h").row_context
+    specification = _specification(context)
     spec_path = tmp_path / "spec.json"
     specification.to_json(spec_path)
     restored_specification = spec.Specification.from_json(spec_path)
-    original_feature = specification.entities["entity"].datasets[0].features["result"]
-    restored_feature = restored_specification.entities["entity"].datasets[0].features["result"]
-    assert restored_feature.row_context == original_feature.row_context
+    original_mapping = specification.entities["entity"].datasets[0].mappings["result"]
+    restored_mapping = restored_specification.entities["entity"].datasets[0].mappings["result"]
+    assert restored_mapping.row_context == original_mapping.row_context == context
     assert (
         "row_context"
         not in specification.entities["entity"].datasets[0].mappings["result"].binding.model_dump()
     )
     assert "row_context" not in specification.calls[0].model_dump()
     exported = json.loads(spec_path.read_text())
-    exported_feature = exported["entities"]["entity"]["datasets"][0]["features"]["result"]
-    assert exported_feature["row_context"] == original_feature.row_context.to_dict()
+    exported_dataset = exported["entities"]["entity"]["datasets"][0]
+    exported_feature = exported_dataset["features"]["result"]
+    assert "row_context" not in exported_feature
+    assert exported_dataset["mappings"]["result"]["row_context"] == context.to_dict()
     assert "binding" not in exported_feature
     assert (
         "row_context"
         not in exported["entities"]["entity"]["datasets"][0]["mappings"]["result"]["binding"]
     )
-    assert specification.functions.vectorize["calculate"].args["window"].type == "string"
+    assert specification.functions.vectorize["calculate"].args["column"].type == "string"
 
     plan = compile.Compiler(restored_specification).compile()
     operation = next(item for item in plan.operations if item.kind == "vectorize")
-    assert operation.row_context == original_feature.row_context
+    assert operation.row_context == context
     assert all(item.row_context is None for item in plan.operations if item.kind != "vectorize")
-    assert operation.arguments == {"column": "temperature", "window": "8h", "count": 8}
+    assert operation.arguments == {
+        "dataset": "observations",
+        "column": "temperature",
+        "output": "result",
+        "configuration": {"windows": ["8h", "24h"]},
+    }
     assert plan.plan.resources["datasets"]["observations"]["order"] == [
-        {"dimension": "$dimensions.id", "direction": "asc"}
+        {"dimension": "$dimensions.timestamp", "direction": "asc"}
     ]
     plan_path = plan.export_json(tmp_path / "plan.json")
     restored_plan = uptimely_plan.ExecutionPlan.from_json(plan_path)
@@ -324,45 +328,81 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     result = engine.Engine(restored_plan).execute()
     assert not result.failures
     frame = next(iter(result.datasets.values()))
-    assert frame["result"].to_list() == [11, 21, 31]
-    assert frame["id"].to_list() == [3, 1, 2]  # Metadata does not introduce batch sorting.
+    assert frame["result"].to_list() == [11, 21]
+    assert frame["timestamp"].to_list() == [
+        datetime.datetime(2026, 1, 2),
+        datetime.datetime(2026, 1, 1),
+    ]
 
     docs.Documentation(specification).create_html(tmp_path / "index.html")
-    features_html = (tmp_path / "spec_features.html").read_text(encoding="utf-8")
+    features_html = (tmp_path / "spec/features.html").read_text(encoding="utf-8")
     assert "result" in features_html
     assert "Row context:" not in features_html
-    html = (tmp_path / "execution_plan_stages.html").read_text(encoding="utf-8")
+    html = (tmp_path / "plan/stages.html").read_text(encoding="utf-8")
     assert "Row context" in html
 
 
 def test_plan_context_is_present_in_portable_operations() -> None:
-    plan = compile.Compiler(
-        _specification(
-            bind.bind(calculate, column=python_spec.ref.feature("temperature")),
-            context=python_spec.row_context.current(),
-        )
-    ).compile()
+    plan = compile.Compiler(_specification(context=authoring.current())).compile()
     operation = next(item for item in plan.operations if item.output == "result")
-    assert operation.row_context == python_spec.row_context.current()
+    assert operation.row_context == authoring.current()
 
 
 def test_collapse_functions_execute_without_row_context() -> None:
-    annotated = bind.bind(
-        calculation_module.maximum,
-        feature=python_spec.ref.feature("temperature"),
+    source = dataset.Dataset(
+        id="observations",
+        mappings=[
+            mapping.Read(
+                bind=bind.bind(read_observations),
+                outputs=[
+                    feature.Feature(id="timestamp", type="datetime"),
+                    feature.Feature(id="temperature", type="integer"),
+                ],
+            )
+        ],
     )
-    specification = _aggregation_specification(annotated)
+    summary = dataset.Dataset(
+        id="summary",
+        mappings=[
+            mapping.Collapse(
+                id="summary",
+                bind=bind.bind(
+                    maximum,
+                    dataset=ref.dataset("observations").dataframe,
+                    column=ref.feature("temperature").id,
+                    output=ref.feature("temperature_max").id,
+                ),
+                inputs=[ref.feature("temperature")],
+                outputs=[feature.Feature(id="temperature_max", type="integer")],
+            )
+        ],
+    )
+    specification = spec.Specification.from_python(
+        entities=[
+            entity.Entity(
+                id="observation", name="Observation", dimensions=["timestamp"], datasets=[source]
+            ),
+            entity.Entity(id="summary", name="Summary", dimensions=[], datasets=[summary]),
+        ],
+        dimensions=[dimension.Dimension(id="timestamp", type="datetime")],
+    )
     plan = compile.Compiler(specification).compile()
     operation = next(item for item in plan.operations if item.kind == "collapse")
     assert operation.row_context is None
     assert operation.entrypoint.endswith(":maximum")
-    assert operation.arguments == {"feature": "temperature"}
-    output_dataset = specification.entities["entity"].datasets[1]
+    assert operation.arguments == {
+        "dataset": "observations",
+        "column": "temperature",
+        "output": "temperature_max",
+    }
+    output_dataset = specification.entities["summary"].datasets[0]
     output = output_dataset.mappings["summary"]
-    assert output_dataset.features["temperature_max"].row_context is None
+    assert output.row_context is None
     payload = output.model_dump()
     assert "group_by" not in payload
     assert "row_context" not in payload["binding"]
     restored = uptimely_plan.Plan.from_dict(json.loads(json.dumps(plan.plan.to_dict())))
     assert restored == plan.plan
-    assert not engine.Engine(uptimely_plan.ExecutionPlan(restored)).execute().failures
+    result = engine.Engine(uptimely_plan.ExecutionPlan(restored)).execute()
+    assert not result.failures
+    assert result.datasets["summary", "summary"]["temperature_max"].to_list() == [20]
