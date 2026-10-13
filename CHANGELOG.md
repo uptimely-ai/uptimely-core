@@ -30,6 +30,9 @@ Initial public release.
 
 ### Changed
 
+- Moved the generated feature graph to `spec/graph.html` beneath Specification.
+  Rebuilds remove the former `graph/feature_graph.html` page.
+
 - Unified the generated website's navigation, heading, and dashboard icons with
   a shared section palette and distinct specification-resource accents.
 

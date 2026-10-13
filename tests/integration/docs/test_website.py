@@ -25,7 +25,7 @@ REPORTS = {
     "spec/datasets.html": "datasets",
     "spec/dimensions.html": "dimensions",
     "spec/functions.html": "functions",
-    "graph/feature_graph.html": "graph",
+    "spec/graph.html": "graph",
     "plan/overview.html": "plan",
     "plan/graph.html": "plan",
     "plan/stages.html": "stages",
@@ -115,7 +115,7 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         "spec/datasets.html": ("datasets", "table", "Datasets"),
         "spec/dimensions.html": ("dimensions", "layers-3", "Dimensions"),
         "spec/functions.html": ("functions", "braces", "Functions"),
-        "graph/feature_graph.html": ("lineage", "git-fork", "Feature lineage"),
+        "spec/graph.html": ("lineage", "git-fork", "Feature lineage"),
         "plan/overview.html": ("execution", "workflow", "Overview"),
         "plan/graph.html": ("execution-graph", "network", "Execution graph"),
         "plan/stages.html": ("stages", "list-ordered", "Stages"),
@@ -168,7 +168,6 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert {path.name for path in index.parent.iterdir()} == {
         "index.html",
         "spec",
-        "graph",
         "plan",
         "execution",
     }
@@ -205,14 +204,14 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "One row per pump and timestamp" in datasets
     assert "read · read_pump_telemetry" in datasets
     assert "Pump analytics" in (index.parent / "spec/overview.html").read_text(encoding="utf-8")
-    graph_2d = (index.parent / "graph/feature_graph.html").read_text(encoding="utf-8")
+    graph_2d = (index.parent / "spec/graph.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_2d
     assert "force-graph@1.52.0/dist/force-graph.min.js" in graph_2d
     assert ".height(graphContainer.clientHeight)" in graph_2d
     assert "3d-force-graph" in graph_2d
     assert 'aria-label="Feature graph views"' not in graph_2d
     assert re.search(
-        r'href="../graph/feature_graph.html" aria-current="page">'
+        r'href="../spec/graph.html" aria-current="page">'
         r'<i class="site-icon icon--lineage nav-icon" '
         r'data-lucide="git-fork"',
         graph_2d,
@@ -268,7 +267,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
     ]
     for href, action in (
         ("spec/overview.html", "Explore specification"),
-        ("graph/feature_graph.html", "Trace dependencies"),
+        ("spec/graph.html", "Trace dependencies"),
         ("plan/overview.html", "Inspect the plan"),
     ):
         assert f'<a href="{href}">{action}' in document
@@ -496,7 +495,7 @@ def test_execution_plan_pages_render_only_their_section(
     assert ("force-graph@1.52.0" in document) == is_graph
 
 
-@pytest.mark.parametrize("filename", ["graph/feature_graph.html", "plan/graph.html"])
+@pytest.mark.parametrize("filename", ["spec/graph.html", "plan/graph.html"])
 def test_graph_pages_have_one_selector_and_shared_data(
     tmp_path: pathlib.Path, filename: str
 ) -> None:
@@ -527,12 +526,17 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
         "feature_graph_3d.html",
         "execution_plan_graph_2d.html",
         "execution_plan_graph_3d.html",
+        "graph/feature_graph.html",
     )
     for filename in (*obsolete, "custom.html"):
+        (tmp_path / filename).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / filename).write_text("old", encoding="utf-8")
+    (tmp_path / "graph/custom.html").write_text("custom graph", encoding="utf-8")
     docs.create_html(spec.Specification(), tmp_path / "index.html")
     assert all(not (tmp_path / filename).exists() for filename in obsolete)
     assert (tmp_path / "custom.html").read_text(encoding="utf-8") == "old"
+    assert (tmp_path / "graph/custom.html").read_text(encoding="utf-8") == "custom graph"
+    assert (tmp_path / "spec/graph.html").is_file()
 
 
 def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> None:
@@ -634,7 +638,7 @@ def test_website_propagates_compilation_errors_without_writing_reports(
 @pytest.mark.parametrize(
     ("filename", "variable"),
     [
-        ("graph/feature_graph.html", "data"),
+        ("spec/graph.html", "data"),
         ("plan/graph.html", "callableGraphData"),
     ],
 )

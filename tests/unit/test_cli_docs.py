@@ -20,7 +20,7 @@ PAGES = {
     "spec/datasets.html",
     "spec/dimensions.html",
     "spec/functions.html",
-    "graph/feature_graph.html",
+    "spec/graph.html",
     "plan/overview.html",
     "plan/graph.html",
     "plan/stages.html",
