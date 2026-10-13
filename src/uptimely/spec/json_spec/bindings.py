@@ -10,9 +10,7 @@ if typing.TYPE_CHECKING:
     from . import json_model
 
 
-def mapping_category(
-    mapping: json_model.FeatureMapping, catalog: json_model.FunctionCatalog
-) -> str:
+def mapping_category(mapping: json_model.Mapping, catalog: json_model.FunctionCatalog) -> str:
     """Return the execution kind of a canonical mapping."""
     matches = [
         category
@@ -28,7 +26,7 @@ def mapping_category(
 
 
 def collapse_input_dataset(
-    specification: json_model.Specification, mapping: json_model.FeatureMapping
+    specification: json_model.Specification, mapping: json_model.Mapping
 ) -> tuple[json_model.Entity, json_model.Dataset]:
     """Infer one input dataset from a collapse's bound non-dimension features.
 
@@ -44,7 +42,7 @@ def collapse_input_dataset(
     """
     inputs = [
         feature
-        for feature in feature_dependencies(mapping.binding.args)
+        for feature in mapping.input_features
         if feature != "@" and feature not in specification.dimensions
     ]
     if not inputs:
@@ -71,23 +69,20 @@ def collapse_input_dataset(
     return next(iter(owners.values()))
 
 
-def feature_dependencies(args: dict[str, typing.Any] | None) -> list[str]:
-    """Return unique feature identifiers consumed by binding arguments."""
-    if not isinstance(args, dict):
-        return []
-
+def dataset_dependencies(args: dict[str, typing.Any], current_dataset: str) -> list[str]:
+    """Return datasets required as dataframe arguments, excluding identifier selectors."""
     references: list[str] = []
 
     def collect(value: object) -> None:
-        value = _as_plain(value)
-        if isinstance(value, str) and value.startswith("$features."):
-            references.append(value.removeprefix("$features."))
+        if isinstance(value, str) and value.startswith("$datasets.") and not value.endswith(".id"):
+            identifier = value.removeprefix("$datasets.").removesuffix(".dataframe")
+            references.append(current_dataset if identifier == "@" else identifier)
         elif isinstance(value, dict):
-            for nested in value.values():
-                collect(nested)
+            for item in value.values():
+                collect(item)
         elif isinstance(value, list):
-            for nested in value:
-                collect(nested)
+            for item in value:
+                collect(item)
 
     collect(args)
     return list(dict.fromkeys(references))
@@ -119,11 +114,15 @@ def resolve_structural_reference(
     value: str, current_dataset_id: str, feature_id: str | None = None
 ) -> str:
     """Return the identifier represented by a structural binding reference."""
-    if value == "$features.@":
+    if value in {"$features.@", "$features.@.id"}:
         return feature_id if feature_id is not None else value
     for prefix in ("$features.", "$datasets.", "$dimensions."):
         if value.startswith(prefix):
             identifier = value.removeprefix(prefix)
+            if prefix == "$datasets.":
+                identifier = identifier.removesuffix(".dataframe").removesuffix(".id")
+            else:
+                identifier = identifier.removesuffix(".id")
             return (
                 current_dataset_id if prefix == "$datasets." and identifier == "@" else identifier
             )

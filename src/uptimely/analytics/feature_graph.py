@@ -193,9 +193,7 @@ class FeatureGraph(GraphBase):
                         else spec.Function(
                             id=mapping.binding.function,
                             type="python_function",
-                            return_type="expression"
-                            if operation_type == "collapse"
-                            else "dataframe",
+                            return_type="dataframe",
                             info={"description": getattr(template, "description", None)},
                             entrypoint=template.entrypoint,
                             role=operation_type,
@@ -206,7 +204,7 @@ class FeatureGraph(GraphBase):
                             f"Mapping '{operation_id}' references vectorize function "
                             f"'{mapping.binding.function}' without a resolved function"
                         )
-                    dependencies = bindings.feature_dependencies(mapping.binding.args)
+                    dependencies = mapping.input_features
                     if all(existing.id != function.id for existing in self.functions):
                         self.functions.append(function)
                     self._graph_operations.append(
@@ -216,7 +214,7 @@ class FeatureGraph(GraphBase):
                             operation_id,
                             [
                                 feature_id
-                                for feature_id in mapping.features
+                                for feature_id in mapping.output_features
                                 if feature_id not in specs.dimensions
                             ],
                             list(dict.fromkeys(dependencies)),
@@ -297,7 +295,7 @@ class FeatureGraph(GraphBase):
                     operation_type = bindings.mapping_category(
                         mapping, self.specification.functions
                     )
-                    for name in mapping.features:
+                    for name in mapping.output_features:
                         feature = dataset.features[name]
                         register_feature_metadata(
                             name,

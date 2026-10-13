@@ -7,7 +7,7 @@ import typing
 
 from uptimely.spec import json_spec
 
-from . import bind, feature, ref, row_context
+from . import bind, feature, ref
 from . import mappings as mapping_declarations
 
 __all__ = [
@@ -79,12 +79,12 @@ class Dataset:
 
     def to_model(self) -> json_spec.json_model.Dataset:
         """Convert this declaration to the canonical Pydantic dataset model."""
-        mappings: dict[str, json_spec.json_model.FeatureMapping] = {}
+        mappings: dict[str, json_spec.json_model.Mapping] = {}
         feature_models = {item.id: item.to_model() for item in self.features}
         for declaration in self.mappings:
             model = declaration.to_model()
             mappings[model.id] = model
-            for output in declaration.features:
+            for output in declaration.outputs:
                 if isinstance(output, feature.Feature):
                     feature_models.setdefault(output.id, output.to_model())
                 elif isinstance(output, ref.Reference):
@@ -103,15 +103,6 @@ class Dataset:
                     raise ValueError(
                         f"Mapping '{model.id}' references undeclared feature '{output}'"
                     )
-            if isinstance(declaration, mapping_declarations.Vectorize):
-                context = row_context._context(None, declaration.row_context)
-                if context is not None:
-                    for feature_id in model.features:
-                        if feature_id in feature_models:
-                            feature_models[feature_id] = feature_models[feature_id].model_copy(
-                                update={"row_context": context}
-                            )
-
         return json_spec.json_model.Dataset(
             id=self.id,
             description=self.description,

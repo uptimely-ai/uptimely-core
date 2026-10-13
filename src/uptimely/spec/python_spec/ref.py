@@ -26,6 +26,18 @@ class Reference:
         """Convert this reference to its canonical structural reference string."""
         return self.value
 
+    @property
+    def id(self) -> Reference:
+        """Pass the referenced resource's identifier as a string argument."""
+        return Reference(type="string", value=f"{self.value}.id")
+
+    @property
+    def dataframe(self) -> Reference:
+        """Pass a dataset's materialized dataframe as an argument."""
+        if self.type != "dataset":
+            raise ValueError("Only dataset references have a dataframe selector")
+        return Reference(type="dataset", value=f"{self.value}.dataframe")
+
 
 def current_dataset() -> Reference:
     """Reference the dataset currently being evaluated."""

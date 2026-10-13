@@ -21,9 +21,10 @@ By looking at the mcp example in source code, it is almost trivial to define you
 
 ## What the server exposes
 
-Vectorize and collapse functions build Polars expressions inside the
-dependency graph, so the meaningful execution unit is a function **bound to
-features**, not the raw function. The server therefore offers two layers:
+Vectorize and collapse functions return dimension-keyed dataframes. Their
+mappings declare required and produced features, so execution includes the
+prerequisites for a function **bound to features**, not just the raw function.
+The server therefore offers two layers:
 
 Introspection over the specification:
 

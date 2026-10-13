@@ -174,7 +174,7 @@ def test_docs_build_imports_project_functions_in_fresh_process(
                                 "mappings": {
                                     "values": {
                                         "binding": {"function": "read_values"},
-                                        "features": ["value"],
+                                        "features": {"inputs": [], "outputs": ["$features.value"]},
                                     }
                                 },
                             }

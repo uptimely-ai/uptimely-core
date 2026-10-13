@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import typing
-
 import pydantic
 
 from . import common
@@ -39,11 +37,10 @@ class VectorizeFunction(FunctionTemplate):
     """A function template under `functions.vectorize`."""
 
     description: str | None = None
-    partitioning: typing.Literal["none", "by_entity_dimensions", "custom"] | None = None
 
 
 class CollapseFunction(FunctionTemplate):
-    """A reducer returning one expression or a mapping of output expressions."""
+    """A function returning a dataframe at the target entity's reduced grain."""
 
 
 class ExpandFunction(FunctionTemplate):

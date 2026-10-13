@@ -1,12 +1,47 @@
+import ast
 import json
 import pathlib
+import re
 
 import pytest
 
-from uptimely import spec
+from uptimely import compile, engine, spec
 from uptimely.docs import docs
 
 SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+REFERENCE_PATH = pathlib.Path("docs/specification/specification.md")
+
+
+@pytest.mark.parametrize(
+    ("language", "snippet"),
+    re.findall(r"```(json|python)\n(.*?)\n```", REFERENCE_PATH.read_text(), re.DOTALL),
+)
+def test_specification_reference_snippet_syntax(language: str, snippet: str) -> None:
+    if language == "python":
+        ast.parse(snippet)
+    else:
+        document = "{" + snippet + "}" if snippet.lstrip().startswith('"') else snippet
+        json.loads(document)
+
+
+def test_specification_reference_example_parses_compiles_and_executes(
+    tmp_path: pathlib.Path,
+) -> None:
+    reference = REFERENCE_PATH.read_text(encoding="utf-8")
+    example_section = reference.split("## Complete JSON Example\n", 1)[1]
+    example = example_section.split("```json\n", 1)[1].split("\n```", 1)[0]
+    path = tmp_path / "spec.json"
+    path.write_text(example, encoding="utf-8")
+
+    specification = spec.Specification.from_json(path)
+    compiled = compile.Compiler(specification, features=["total"]).compile()
+    execution = engine.Engine(compiled).execute()
+
+    assert len(compiled.operations) == 2
+    assert not execution.failures
+    assert execution.datasets["observation", "observations"].sort("id").select(
+        "id", "total"
+    ).rows() == [(1, 3), (2, 7)]
 
 
 @pytest.mark.parametrize("output_format", ["json", "html"])
@@ -85,7 +120,7 @@ def test_generate_html_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
     assert "examples/example_1/functions/calculation.py" in document
     assert "file:///" in document
     assert "-&gt; LazyFrame" in document
-    assert "-&gt; Expr" in document
+    assert "-&gt; LazyFrame" in document
     assert "read · read_pump_telemetry" in document
     assert document.index("Pump telemetry") < document.index(
         "rounded-2xl border border-slate-800 bg-slate-900/70 p-6"

@@ -34,7 +34,7 @@ def test_engine_returns_calculated_features_without_writing_output() -> None:
     ]
     assert isinstance(
         result.calculated_outputs[("pump", "pump_dataset", "health_signal_normalized")],
-        pl.Expr,
+        pl.LazyFrame,
     )
     pump_frame = result.datasets[("pump", "pump_dataset")].collect()
     assert pump_frame.select("pump", "bearing_temperature_max", "health_signal_normalized").sort(
@@ -123,7 +123,9 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
         for operation in engine.plan.operations
         if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
     )
-    merged = engine._merge_fragment(operation, fragment).collect()
+    dimensions = engine.resource_resolver.entity_dimensions(operation.entity_id)
+    existing = engine._runtime_datasets[operation.entity_id, operation.dataset_id]
+    merged = engine._merge_fragment(existing, fragment, dimensions).collect()
 
     assert merged.select("pump", "existing", "new").sort("pump").rows() == [
         ("PUMP-101", 1, 10),
@@ -157,7 +159,12 @@ def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> Non
     )
 
     with pytest.raises(ValueError, match=message):
-        engine._merge_fragment(operation, fragment)
+        engine._validate_dataframe_result(
+            operation,
+            fragment,
+            None,
+            engine.resource_resolver.entity_dimensions(operation.entity_id),
+        )
 
 
 def test_engine_rejects_ambiguous_dataset_references() -> None:
@@ -181,18 +188,24 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
         }
     )
 
-    result = frame.with_columns(
-        calculation.bearing_temperature_delta(
-            "bearing_temperature",
-            ["pump"],
-            "timestamp",
-        ).alias("temperature_delta"),
+    result = calculation.bearing_temperature_delta(
+        "bearing_temperature",
+        ["pump"],
+        "timestamp",
+        frame.lazy(),
+        "temperature_delta",
+    )
+    result = (
         calculation.vibration_delta_from_previous(
             "vibration_rms",
             ["pump"],
             "timestamp",
-        ).alias("vibration_delta"),
-    ).sort("pump", "timestamp")
+            result,
+            "vibration_delta",
+        )
+        .collect()
+        .sort("pump", "timestamp")
+    )
 
     assert result["pump"].to_list() == [
         "PUMP-101",

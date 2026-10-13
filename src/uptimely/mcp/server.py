@@ -3,13 +3,13 @@
 The server exposes two layers of tools:
 
 * Introspection over the function catalog and calculated features.
-* Execution of a single calculated feature through the engine, which is the
-  meaningful execution unit because vectorize functions build Polars
-  expressions inside the dependency graph rather than returning data.
+* Execution of a calculated feature and its explicit prerequisites through
+  dimension-keyed dataframe-producing mappings.
 """
 
 import argparse
 import dataclasses
+import datetime
 import json
 import logging
 import pathlib
@@ -54,7 +54,13 @@ class ServerState:
 
 def _to_json(payload: object) -> str:
     """Serialize a tool result as JSON."""
-    return json.dumps(payload, indent=2)
+
+    def serialize(value: object) -> str:
+        if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+            return value.isoformat()
+        raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+    return json.dumps(payload, indent=2, default=serialize)
 
 
 def _collect_frame(value: object) -> typing.Any:
@@ -126,7 +132,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 for mapping in dataset.mappings.values()
                 if hasattr(mapping, "binding")
                 if mapping.binding.function in specification.functions.vectorize
-                for feature_id in mapping.features
+                for feature_id in mapping.output_features
             }
         )
         return _to_json(payload)

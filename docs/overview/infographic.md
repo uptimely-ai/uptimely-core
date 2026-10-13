@@ -244,20 +244,25 @@ document. Author it directly or generate it from Python or another client.
       "binding": {
         "function": "divide",
         "args": {
-          "numerator": "$features.pressure",
-          "denominator": "$features.limit"
+          "dataset": "$datasets.@.dataframe",
+          "numerator": "$features.pressure.id",
+          "denominator": "$features.limit.id",
+          "output": "$features.pressure_ratio.id"
         }
       },
-      "features": ["pressure_ratio"]
+      "features": {
+        "inputs": ["$features.pressure", "$features.limit"],
+        "outputs": ["$features.pressure_ratio"]
+      }
     }
   }
 }</code></pre>
       </div>
       <dl class="cv-spec-notes">
         <div><dt class="cv-amber">Feature registry</dt><dd>pressure_ratio is declared once as a feature with metadata.</dd></div>
-        <div><dt>Function binding</dt><dd>divide selects the reusable function and binds its input references.</dd></div>
+        <div><dt>Function binding</dt><dd>divide receives the dataframe and column identifiers, then returns a dataframe with the observation keys and named result.</dd></div>
         <div><dt class="cv-violet">Mapping outputs</dt><dd>The mapping associates its function binding with pressure_ratio.</dd></div>
-        <div><dt>Input references</dt><dd><span class="cv-teal">pressure</span> and <span class="cv-violet">limit</span> declare the mapping's dependencies.</dd></div>
+        <div><dt>Input references</dt><dd>Explicit inputs <span class="cv-teal">pressure</span> and <span class="cv-violet">limit</span> declare dependencies; identifier arguments alone do not.</dd></div>
       </dl>
     </div>
     <p class="cv-takeaway">This excerpt assumes pressure, limit, and divide are declared elsewhere in the specification. The compiler resolves the references and may group mappings into physical fragments; the engine calculates the values.</p>

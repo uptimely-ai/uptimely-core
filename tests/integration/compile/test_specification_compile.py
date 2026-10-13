@@ -36,7 +36,7 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
     specification = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     dataset = specification["entities"]["pump"]["datasets"][0]
     mapping = dataset["mappings"]["health_signal_normalized"]
-    mapping["features"].append("health_signal_secondary")
+    mapping["features"]["outputs"].append("$features.health_signal_secondary")
     dataset["features"]["health_signal_secondary"] = {"type": "float"}
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(specification), encoding="utf-8")

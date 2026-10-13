@@ -24,6 +24,7 @@ class Operation:
     arguments: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
     dependency_ids: list[str] = dataclasses.field(default_factory=list)
     output_features: list[str] = dataclasses.field(default_factory=list)
+    input_features: list[str] = dataclasses.field(default_factory=list)
     row_context: uptimely_row_context.RowContext | None = None
 
     def __post_init__(self) -> None:
@@ -35,8 +36,6 @@ class Operation:
         if self.kind == "collapse" and not self.output_features:
             raise ValueError("Collapse must declare output_features")
         if self.row_context is not None:
-            if self.kind != "vectorize":
-                raise ValueError("Only vectorize operations can declare row context")
             object.__setattr__(
                 self,
                 "row_context",
@@ -79,6 +78,7 @@ class Plan:
                     "arguments": operation.arguments,
                     "dependency_ids": operation.dependency_ids,
                     "output_features": operation.output_features,
+                    "input_features": operation.input_features,
                     "row_context": (
                         operation.row_context.to_dict()
                         if operation.row_context is not None

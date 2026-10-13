@@ -26,6 +26,9 @@
           "args": {
             "column": {
               "type": "string"
+            },
+            "dataset": {
+              "type": "dataframe"
             }
           }
         }
@@ -52,6 +55,7 @@
       "entity_id": "asset",
       "dataset_id": "telemetry",
       "output": "reading",
+      "output_features": ["reading"],
       "arguments": {
         "source": "?storage.source.path"
       },
@@ -64,8 +68,11 @@
       "entity_id": "asset",
       "dataset_id": "telemetry",
       "output": "doubled",
+      "input_features": ["reading"],
+      "output_features": ["doubled"],
       "arguments": {
-        "column": "reading"
+        "column": "reading",
+        "dataset": "telemetry"
       },
       "dependency_ids": [
         "callable:read:load:asset:telemetry:reading"

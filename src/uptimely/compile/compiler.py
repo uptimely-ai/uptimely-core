@@ -61,6 +61,18 @@ def _resource_models(specification: uptimely_spec.Specification) -> dict[str, ty
             for identifier, entity in specification.entities.items()
         },
         "functions": specification.function_catalog.model_dump(exclude_none=False),
+        "datasets": {
+            dataset.id: {
+                "features": {
+                    identifier: feature.model_dump(exclude_none=True)
+                    for identifier, feature in dataset.features.items()
+                },
+                "order": [key.model_dump() for key in dataset.order],
+                "row_scope": dataset.row_scope.model_dump(),
+            }
+            for entity in specification.entities.values()
+            for dataset in entity.datasets
+        },
     }
 
 
@@ -105,17 +117,6 @@ class Compiler:
         resources["signatures"] = {
             node_id: signature.returns for node_id, signature in signatures.items()
         }
-        if any(operation.row_context is not None for operation in operations):
-            planned_datasets = {operation.dataset_id for operation in operations}
-            resources["datasets"] = {
-                dataset.id: {
-                    "order": [key.model_dump() for key in dataset.order],
-                    "row_scope": dataset.row_scope.model_dump(),
-                }
-                for entity in self.specification.entities.values()
-                for dataset in entity.datasets
-                if dataset.id in planned_datasets
-            }
         plan = uptimely_plan.Plan(
             plan_version="1.0.0",
             specification_version=self.specification.version,
@@ -157,6 +158,11 @@ class Compiler:
             dataset_id=node.dataset_id,
             output=node.feature or node.operation_id,
             output_features=list(node.output_features),
+            input_features=next(
+                dataset.mappings[node.operation_id].input_features
+                for dataset in self.specification.entities[node.entity].datasets
+                if dataset.id == node.dataset_id
+            ),
             arguments=_portable_value(arguments),
             dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
             row_context=node.row_context,
