@@ -82,6 +82,11 @@ def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> N
     assert "Execution plan" not in document
     assert 'id="lineage-edges"' in document
     assert 'path.setAttribute("marker-end"' in document
+    assert 'const edgeColor = "#94a3b8";' in document
+    assert 'arrow.setAttribute("fill", edgeColor);' in document
+    assert 'path.setAttribute("stroke", edgeColor);' in document
+    assert 'path.setAttribute("marker-end", "url(#lineage-arrow)");' in document
+    assert 'source.style.getPropertyValue("--step-color")' not in document
     assert "new ResizeObserver(drawEdges)" in document
     assert "Tables show declared column types, not runtime values" in document
     assert "Write boundary:" in document

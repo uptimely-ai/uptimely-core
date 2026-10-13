@@ -81,6 +81,7 @@ same relationships without relying on color. Writes show consumed columns and
 do not imply new analytical outputs.
 
 Arrows connect producer tables to consumer tables using the compiled dependencies.
+All arrows and arrowheads use the same slate color, independent of table colors.
 Scroll horizontally to follow stages and vertically to explore parallel steps;
 individual tables also scroll when they contain many columns. Arrows update when
 the layout changes. Dependency links remain usable without JavaScript. This is

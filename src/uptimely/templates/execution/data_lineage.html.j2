@@ -89,6 +89,7 @@
   if (!board) return;
   const svg = document.getElementById("lineage-edges");
   const namespace = "http://www.w3.org/2000/svg";
+  const edgeColor = "#94a3b8";
   const steps = Array.from(board.querySelectorAll(".lineage-step"));
   function drawEdges() {
     const bounds = board.getBoundingClientRect();
@@ -96,29 +97,25 @@
     svg.setAttribute("height", board.scrollHeight);
     svg.replaceChildren();
     const definitions = document.createElementNS(namespace, "defs");
+    const marker = document.createElementNS(namespace, "marker");
+    marker.setAttribute("id", "lineage-arrow");
+    marker.setAttribute("viewBox", "0 0 10 10");
+    marker.setAttribute("refX", "9");
+    marker.setAttribute("refY", "5");
+    marker.setAttribute("markerWidth", "6");
+    marker.setAttribute("markerHeight", "6");
+    marker.setAttribute("orient", "auto");
+    const arrow = document.createElementNS(namespace, "path");
+    arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+    arrow.setAttribute("fill", edgeColor);
+    marker.append(arrow);
+    definitions.append(marker);
     svg.append(definitions);
     steps.forEach(target => {
       const targetBounds = target.getBoundingClientRect();
       target.dataset.dependencies.split(",").filter(Boolean).forEach(number => {
         const source = document.getElementById(`step-${number}`);
         const sourceBounds = source.getBoundingClientRect();
-        const color = source.style.getPropertyValue("--step-color").trim();
-        const markerId = `arrow-${number}`;
-        if (!definitions.querySelector(`#${markerId}`)) {
-          const marker = document.createElementNS(namespace, "marker");
-          marker.setAttribute("id", markerId);
-          marker.setAttribute("viewBox", "0 0 10 10");
-          marker.setAttribute("refX", "9");
-          marker.setAttribute("refY", "5");
-          marker.setAttribute("markerWidth", "6");
-          marker.setAttribute("markerHeight", "6");
-          marker.setAttribute("orient", "auto");
-          const arrow = document.createElementNS(namespace, "path");
-          arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-          arrow.setAttribute("fill", color);
-          marker.append(arrow);
-          definitions.append(marker);
-        }
         const x1 = sourceBounds.right - bounds.left;
         const y1 = sourceBounds.top - bounds.top + 24;
         const x2 = targetBounds.left - bounds.left;
@@ -129,10 +126,10 @@
         path.setAttribute("d", skipsStage
           ? `M ${x1} ${y1} C ${x1 + 30} ${y1}, ${x1 + 30} ${routeY}, ${x1 + 45} ${routeY} L ${x2 - 45} ${routeY} C ${x2 - 30} ${routeY}, ${x2 - 30} ${y2}, ${x2} ${y2}`
           : `M ${x1} ${y1} C ${x1 + 45} ${y1}, ${x2 - 45} ${y2}, ${x2} ${y2}`);
-        path.setAttribute("stroke", color);
+        path.setAttribute("stroke", edgeColor);
         path.setAttribute("stroke-width", "2");
         path.setAttribute("fill", "none");
-        path.setAttribute("marker-end", `url(#${markerId})`);
+        path.setAttribute("marker-end", "url(#lineage-arrow)");
         path.setAttribute("data-source", source.id);
         path.setAttribute("data-target", target.id);
         svg.append(path);
