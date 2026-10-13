@@ -67,14 +67,19 @@ class Documentation:
             raise ValueError("The website index path must not overwrite a report page.")
         plan = compile.Compiler(self.spec).compile()
         graph = analytics.FeatureGraph(self.spec)
-        spec_render._create_website_pages(self.spec, target.parent, include_generated_at)
-        graph_render._create_website_pages(graph, target.parent)
-        render._create_website_pages(plan, target.parent)
+        context = spec_render._build_context(self.spec, include_generated_at)
+        spec_render._create_website_pages(context, target.parent, index_filename=target.name)
+        graph_render._create_website_pages(graph, target.parent, index_filename=target.name)
+        render._create_website_pages(plan, target.parent, index_filename=target.name)
         document = (
             uptimely_render.html_environment()
             .get_template("index.html.j2")
             .render(
                 specification=self.spec,
+                summary=context.summary,
+                operation_count=len(plan.operations),
+                stage_count=len(plan.execution_stages),
+                index_filename=target.name,
                 include_navigation=True,
                 active_page="home",
                 root_path="",

@@ -11,12 +11,19 @@ connected views:
 | Feature lineage | Explore logical dependencies in interactive 2D and 3D views. |
 | Execution plan | Overview summary, 2D and 3D callable graphs, and detailed parallel execution stages. |
 
-The documentation is about
+The home page is a project dashboard: the specification name and version,
+compact counts for entities, datasets, features, functions, compiled operations,
+and execution stages, and a visual journey through the three views. The site
+brand returns to this dashboard from any page. Projects without a name display
+"Untitled analytics project".
+
+Counts describe declared resources and the compiled plan, not live execution
+results. The dashboard does not run analytics. This website documents the
 analytics project, not the Uptimely package itself.
 
 ![Specification reference overview](../../assets/img/open-analytics-specification-overview.png)
 
-## Generate the website
+## Build the website
 
 ### Command line
 

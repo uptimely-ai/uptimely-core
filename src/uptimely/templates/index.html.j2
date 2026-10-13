@@ -1,21 +1,154 @@
 {% extends "base.html.j2" %}
+{% block title %}{{ specification.name or "Untitled analytics project" }} | OpenAnalytics{% endblock %}
+{% block style %}
+  .dashboard { max-width: 1280px; margin: auto; padding: 48px 40px 64px; }
+  .dashboard .eyebrow { margin: 0; font: 11px "JetBrains Mono", monospace;
+    text-transform: uppercase; letter-spacing: .16em; color: #94a3b8; }
+  .dashboard-hero { position: relative; display: grid; grid-template-columns: 1.2fr 1fr;
+    align-items: center; gap: 32px; padding: 40px; overflow: hidden;
+    border: 1px solid #334155; border-radius: 24px;
+    background: radial-gradient(ellipse at top right, #164e634d, transparent 65%),
+      linear-gradient(135deg, #0f172a, #111827); }
+  .dashboard-hero h1 { margin: 24px 0 16px; overflow-wrap: anywhere;
+    font: 600 clamp(32px, 4vw, 56px)/1.1 "Space Grotesk", sans-serif;
+    letter-spacing: -.04em; color: #f8fafc; }
+  .dashboard-intro { max-width: 440px; margin: 0; color: #cbd5e1; line-height: 1.8; }
+  .dashboard-version { display: inline-block; margin-top: 24px; padding: 6px 10px;
+    border: 1px solid #334155; border-radius: 6px;
+    font: 11px "JetBrains Mono", monospace; color: #67e8f9; }
+  .dashboard-art { width: 100%; max-width: 420px; justify-self: center; }
+  .dashboard-metrics { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 20px; margin: 28px 0 48px; padding: 24px 0;
+    border-top: 1px solid #334155; border-bottom: 1px solid #334155; }
+  .dashboard-metrics div { min-width: 0; }
+  .dashboard-metrics dt { font-size: 12px; color: #94a3b8; }
+  .dashboard-metrics dd { margin: 8px 0 0;
+    font: 600 30px "Space Grotesk", sans-serif; color: #f8fafc; }
+  .dashboard-section-title { margin: 12px 0 8px;
+    font: 600 26px "Space Grotesk", sans-serif; letter-spacing: -.02em; color: #f8fafc; }
+  .dashboard-section-intro { margin: 0 0 28px; color: #94a3b8; line-height: 1.7; }
+  .analytics-journey { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0; padding: 0; list-style: none; border: 1px solid #334155;
+    border-radius: 20px; background: #0f172a; }
+  .journey-step { position: relative; min-width: 0; padding: 28px; }
+  .journey-step + .journey-step { border-left: 1px solid #334155; }
+  .journey-step + .journey-step::before { content: ''; position: absolute;
+    top: 52px; left: -5px; width: 9px; height: 9px; border-top: 1px solid #64748b;
+    border-right: 1px solid #64748b; transform: rotate(45deg); background: #0f172a; }
+  .journey-step.specification { --accent: #67e8f9; --tint: #164e634d; }
+  .journey-step.lineage { --accent: #c4b5fd; --tint: #4c1d954d; }
+  .journey-step.execution { --accent: #fcd34d; --tint: #78350f4d; }
+  .journey-step-header { display: flex; align-items: center; justify-content: space-between; }
+  .journey-icon { display: grid; place-items: center; width: 48px; height: 48px;
+    border: 1px solid var(--accent); border-radius: 14px;
+    background: var(--tint); color: var(--accent); }
+  .journey-icon svg { width: 22px; height: 22px; }
+  .journey-number { font: 12px "JetBrains Mono", monospace; color: #94a3b8; }
+  .journey-step h3 { margin: 28px 0 12px;
+    font: 600 20px "Space Grotesk", sans-serif; color: #f8fafc; }
+  .journey-step p { margin: 0; font-size: 14px; line-height: 1.8; color: #cbd5e1; }
+  .journey-step a { display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 24px; border-radius: 4px; font-size: 13px; font-weight: 600;
+    color: var(--accent); text-decoration: none; transition: gap .15s ease; }
+  .journey-step a svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .journey-step a:hover { gap: 12px; text-decoration: underline; }
+  .journey-step a:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
+  .dashboard-note { margin-top: 24px; font-size: 12px; line-height: 1.7; color: #94a3b8; }
+  @media (max-width: 1120px) {
+    .dashboard { padding: 32px 24px; }
+    .dashboard-hero { padding: 28px; }
+    .dashboard-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .analytics-journey { grid-template-columns: 1fr; }
+    .journey-step + .journey-step { border-left: 0; border-top: 1px solid #334155; }
+    .journey-step + .journey-step::before { top: -5px; left: 48px; transform: rotate(135deg); }
+  }
+  @media (max-width: 800px) {
+    .dashboard-hero { grid-template-columns: 1fr; gap: 24px; }
+    .dashboard-art { max-width: 320px; }
+  }
+  @media (max-width: 480px) {
+    .dashboard { padding: 20px 12px; }
+    .dashboard-hero, .journey-step { padding: 20px 16px; }
+    .dashboard-hero h1 { font-size: 28px; }
+    .dashboard .eyebrow { letter-spacing: .08em; }
+    .dashboard-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 12px; }
+    .dashboard-section-title { font-size: 22px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .journey-step a { transition: none; }
+  }
+{% endblock %}
 {% block content %}
-<main class="mx-auto max-w-7xl px-5 py-12 sm:px-8">
-  <p class="font-mono text-xs uppercase tracking-wider text-cyan-300">OpenAnalytics specification {{ specification.version }}</p>
-  <h1 class="mt-4 font-display text-4xl font-semibold text-white">Analytics documentation</h1>
-  <p class="mt-5 max-w-2xl text-slate-400">Explore the specification, its feature dependencies, and its compiled execution plan.</p>
-  <div class="mt-10 grid gap-5 md:grid-cols-4">
-    {% for href, title, description in [
-      ("spec/overview.html", "Specification", "Browse entities, features, dimensions, and function definitions."),
-      ("graph/2d.html", "2D lineage", "Trace feature dependencies from upstream inputs to downstream outputs."),
-      ("graph/3d.html", "3D lineage", "Explore dependencies between features and the functions that produce them."),
-      ("plan/overview.html", "Execution plan", "Inspect callable dependencies, arguments, and parallel execution stages.")
+<main class="dashboard">
+  <header class="dashboard-hero">
+    <div>
+      <p class="eyebrow">OpenAnalytics / Project explorer</p>
+      <h1>{{ specification.name or "Untitled analytics project" }}</h1>
+      <p class="dashboard-intro">From declared data to a dependency-aware plan.
+        Explore what this analytics project defines, how its features connect,
+        and the operations that bring it together.</p>
+      <span class="dashboard-version">Specification {{ specification.version }}</span>
+    </div>
+    <svg class="dashboard-art" viewBox="0 0 420 280" fill="none" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="journey-gradient" x1="80" y1="60" x2="340" y2="230" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#67e8f9"/><stop offset=".5" stop-color="#c4b5fd"/><stop offset="1" stop-color="#fcd34d"/>
+        </linearGradient>
+      </defs>
+      <circle cx="210" cy="140" r="118" stroke="#334155" stroke-dasharray="3 9"/>
+      <circle cx="210" cy="140" r="82" stroke="#1e293b"/>
+      <path d="M88 72H190Q210 72 210 92V188Q210 208 230 208H332" stroke="url(#journey-gradient)" stroke-width="2"/>
+      <path d="M88 72V208H156M264 72H332V208" stroke="#334155" stroke-dasharray="4 6"/>
+      <rect x="48" y="32" width="80" height="80" rx="20" fill="#0f172a" stroke="#67e8f9"/>
+      <path d="M72 53H104V91H72V53ZM79 64H97M79 72H97M79 80H89" stroke="#67e8f9" stroke-width="2"/>
+      <rect x="170" y="100" width="80" height="80" rx="20" fill="#0f172a" stroke="#c4b5fd"/>
+      <path d="M196 124L224 140L196 156M196 124V156" stroke="#c4b5fd" stroke-width="2"/>
+      <circle cx="196" cy="124" r="5" fill="#0f172a" stroke="#c4b5fd" stroke-width="2"/>
+      <circle cx="224" cy="140" r="5" fill="#0f172a" stroke="#c4b5fd" stroke-width="2"/>
+      <circle cx="196" cy="156" r="5" fill="#0f172a" stroke="#c4b5fd" stroke-width="2"/>
+      <rect x="292" y="168" width="80" height="80" rx="20" fill="#0f172a" stroke="#fcd34d"/>
+      <path d="M314 193H350M314 208H338M314 223H326" stroke="#fcd34d" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="156" cy="208" r="4" fill="#67e8f9"/>
+      <circle cx="264" cy="72" r="4" fill="#fcd34d"/>
+    </svg>
+  </header>
+
+  <dl class="dashboard-metrics" aria-label="Project counts">
+    {% for label, value in [
+      ("Entities", summary.entity_count), ("Datasets", summary.dataset_count),
+      ("Features", summary.feature_count), ("Functions", summary.function_count),
+      ("Operations", operation_count), ("Stages", stage_count)
     ] %}
-    <a href="{{ href }}" class="rounded-2xl border border-slate-800 bg-slate-900 p-6 transition hover:border-cyan-300 focus-visible:outline focus-visible:outline-cyan-300">
-      <h2 class="font-display text-xl font-semibold text-cyan-200">{{ title }}</h2>
-      <p class="mt-3 text-sm leading-6 text-slate-400">{{ description }}</p>
-    </a>
+    <div data-stat="{{ label }}" data-value="{{ value }}">
+      <dt>{{ label }}</dt>
+      <dd>{{ value }}</dd>
+    </div>
     {% endfor %}
-  </div>
+  </dl>
+
+  <section aria-labelledby="journey-heading">
+    <p class="eyebrow">Three perspectives. One project.</p>
+    <h2 class="dashboard-section-title" id="journey-heading">Follow the analytics journey</h2>
+    <p class="dashboard-section-intro">Start with the declarations, trace their dependencies, then inspect the compiled workflow.</p>
+    <ol class="analytics-journey" aria-label="Analytics journey">
+      {% for accent, number, icon, title, description, href, action in [
+        ("specification", "01", "book-open", "Specification", "The source of truth. Browse entities, datasets, features, dimensions, and the functions bound to them.", "spec.html", "Explore specification"),
+        ("lineage", "02", "git-fork", "Feature lineage", "The connections behind each result. Follow upstream inputs and the functions that produce downstream features in 2D or 3D.", "feature_graph_2d.html", "Trace dependencies"),
+        ("execution", "03", "workflow", "Execution plan", "The path to execution. Inspect compiled operations, argument bindings, and dependency-ordered stages with potential parallelism.", "execution_plan.html", "Inspect the plan")
+      ] %}
+      <li class="journey-step {{ accent }}">
+        <div class="journey-step-header">
+          <span class="journey-icon"><i data-lucide="{{ icon }}" aria-hidden="true"></i></span>
+          <span class="journey-number" aria-hidden="true">{{ number }}</span>
+        </div>
+        <h3>{{ title }}</h3>
+        <p>{{ description }}</p>
+        <a href="{{ href }}">{{ action }}<i data-lucide="arrow-right" aria-hidden="true"></i></a>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+  <p class="dashboard-note">A view of your declared analytics, not a live execution monitor.
+    Counts describe the specification and its compiled plan; building this website does not run analytical operations.</p>
 </main>
 {% endblock %}

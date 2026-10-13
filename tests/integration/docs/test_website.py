@@ -72,15 +72,10 @@ def test_website_exports_all_reports_with_relative_navigation(
         document = page_file.read_text(encoding="utf-8")
         parser.feed(document)
         assert parser.html_count == 1
-        expected_links = {
-            "index.html" if filename == "index.html" else "../index.html",
-            *(REPORTS if filename == "index.html" else {f"../{r}" for r in REPORTS}),
-        }
-        assert set(parser.links) == expected_links
+        assert set(parser.links) == {"index.html", *REPORTS}
         for href in parser.links:
-            assert (page_file.parent / href).resolve().is_file()
-        expected_active = [] if filename == "index.html" else [f"../{filename}"]
-        assert parser.active_links == expected_active
+            assert (index.parent / href).is_file()
+        assert parser.active_links == [filename]
         assert "<iframe" not in document
     assert "Pump telemetry" in (index.parent / "spec/features.html").read_text(encoding="utf-8")
     features = (index.parent / "spec/features.html").read_text(encoding="utf-8")
@@ -128,6 +123,75 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "normalize_health_signal" in plan
     assert not pathlib.Path("_generated/spec").exists()
     assert not pathlib.Path("_generated/compile").exists()
+
+
+def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monkeypatch) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
+    expected_plan = compile.Compiler(specification).compile()
+    compile_calls = 0
+    original_compile = compile.Compiler.compile
+
+    @functools.wraps(original_compile)
+    def count_compile(self):
+        nonlocal compile_calls
+        compile_calls += 1
+        return original_compile(self)
+
+    monkeypatch.setattr(compile.Compiler, "compile", count_compile)
+    index = docs.create_html(specification, tmp_path / "index.html")
+    document = index.read_text(encoding="utf-8")
+
+    assert compile_calls == 1
+    assert "<title>Pump analytics | OpenAnalytics</title>" in document
+    assert re.findall(r"<h1>([^<]+)</h1>", document) == ["Pump analytics"]
+    datasets = [
+        dataset for entity in specification.entities.values() for dataset in entity.datasets
+    ]
+    assert dict(re.findall(r'data-stat="([^"]+)" data-value="(\d+)"', document)) == {
+        "Entities": str(len(specification.entities)),
+        "Datasets": str(len(datasets)),
+        "Features": str(sum(len(dataset.features) for dataset in datasets)),
+        "Functions": str(
+            sum(len(group) for group in specification.functions.model_dump().values())
+        ),
+        "Operations": str(len(expected_plan.operations)),
+        "Stages": str(len(expected_plan.execution_stages)),
+    }
+    assert "Specification 0.1.0" in document
+    assert 'aria-label="Project counts"' in document
+    assert 'aria-label="Analytics journey"' in document
+    assert re.findall(r'<li class="journey-step ([^"]+)">', document) == [
+        "specification",
+        "lineage",
+        "execution",
+    ]
+    for href, action in (
+        ("spec.html", "Explore specification"),
+        ("feature_graph_2d.html", "Trace dependencies"),
+        ("execution_plan.html", "Inspect the plan"),
+    ):
+        assert f'<a href="{href}">{action}' in document
+        assert (index.parent / href).is_file()
+    assert "does not run analytical operations" in document
+    assert "prefers-reduced-motion: reduce" in document
+
+
+@pytest.mark.parametrize("name", [None, "", '<script>alert("title")</script> & Analytics'])
+def test_homepage_handles_unnamed_and_escaped_projects(
+    tmp_path: pathlib.Path, name: str | None
+) -> None:
+    index = docs.create_html(spec.Specification(name=name), tmp_path / "index.html")
+    document = index.read_text(encoding="utf-8")
+
+    assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 6
+    if not name:
+        assert "<h1>Untitled analytics project</h1>" in document
+    else:
+        assert (
+            "<h1>&lt;script&gt;alert(&#34;title&#34;)&lt;/script&gt; &amp; Analytics</h1>"
+            in document
+        )
+        assert name not in document
 
 
 @pytest.mark.parametrize(
@@ -183,6 +247,13 @@ def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: pathlib
     assert index == tmp_path / "nested" / "analytics.html"
     assert index.is_file()
     assert all((index.parent / filename).is_file() for filename in REPORTS)
+    for filename in (index.name, *REPORTS):
+        parser = NavigationCollector()
+        parser.feed((index.parent / filename).read_text(encoding="utf-8"))
+        assert "analytics.html" in parser.links
+        assert "index.html" not in parser.links
+        assert parser.active_links == [filename]
+        assert all((index.parent / href).is_file() for href in parser.links)
 
 
 @pytest.mark.parametrize(
