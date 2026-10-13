@@ -12,5 +12,9 @@ def read_pump_telemetry(
     if environment not in {"development", "qa", "production"}:
         raise ValueError(f"Unsupported environment: {environment}")
 
-    data = pl.read_json(source).lazy()
+    data = (
+        pl.read_json(source)
+        .lazy()
+        .with_columns(pl.col("timestamp").str.to_datetime(time_zone="UTC"))
+    )
     return data.filter(pl.col("production_line") == production_line) if production_line else data

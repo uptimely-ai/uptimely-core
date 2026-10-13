@@ -11,7 +11,6 @@ from importlib import util
 
 from uptimely import render, spec
 from uptimely.compile import entrypoint as compile_entrypoint
-from uptimely.spec.json_spec import bindings
 
 OUTPUT_DIR = pathlib.Path("_generated") / "spec"
 SPECIFICATION_PAGES = {
@@ -131,7 +130,8 @@ def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], lis
                     ),
                     None,
                 )
-                for feature_id in mapping.get("features", []):
+                for reference in mapping.get("features", {}).get("outputs", []):
+                    feature_id = reference.removeprefix("$features.")
                     feature = dict(dataset.get("features", {}).get(feature_id, {}))
                     feature["id"] = feature_id
                     if category == "vectorize":
@@ -139,6 +139,7 @@ def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], lis
                             {
                                 **feature,
                                 "binding": mapping.get("binding", {}),
+                                "inputs": mapping.get("features", {}).get("inputs", []),
                             }
                         )
                     elif (dataset.get("id", ""), feature_id) not in seen_inputs:
@@ -147,8 +148,8 @@ def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], lis
     referenced_features = {
         dependency
         for calculation in calculated_features
-        for dependency in bindings.feature_dependencies(
-            (calculation.get("binding") or {}).get("args")
+        for dependency in (
+            reference.removeprefix("$features.") for reference in calculation.get("inputs", [])
         )
     }
     return fragment_features, calculated_features, referenced_features
@@ -239,7 +240,7 @@ def _build_context(
         {
             "function": call.function,
             "feature": call.feature,
-            "dependencies": bindings.feature_dependencies(call.args),
+            "dependencies": call.depends_on_features,
         }
         for call in specification.calls
     ]

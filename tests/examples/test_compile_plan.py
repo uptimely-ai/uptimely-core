@@ -33,7 +33,12 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
     )
     assert collapse_operation["entity_id"] == "pump"
     assert collapse_operation["entrypoint"].endswith(":maximum")
-    assert collapse_operation["arguments"] == {"feature": "bearing_temperature"}
+    assert collapse_operation["arguments"] == {
+        "feature": "bearing_temperature",
+        "dataset": "pump_telemetry_dataset",
+        "dimensions": ["plant", "production_line", "pump"],
+        "output": "bearing_temperature_max",
+    }
     assert collapse_operation["output_features"] == [
         "plant",
         "production_line",

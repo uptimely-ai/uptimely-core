@@ -116,48 +116,97 @@ class ContextExtent(pydantic.BaseModel):
 class RowContext(pydantic.BaseModel):
     """Required input observations, interpreted using the dataset's logical order.
 
-    An empty bounded context explicitly means current-row-only input. An absent
-    RowContext means unknown requirements, not zero context. Partition and
-    dataset extents require their entire respective input scopes.
+    Empty directions mean current-row-only input. An absent RowContext means
+    unknown requirements, not zero context. Unbounded directions require all
+    observations in that direction; two unbounded directions need no ordering.
     """
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True)
 
-    extent: typing.Literal["bounded", "partition", "dataset"] = "bounded"
-    before: ContextExtent = pydantic.Field(default_factory=ContextExtent)
-    after: ContextExtent = pydantic.Field(default_factory=ContextExtent)
+    dimension: str | None = pydantic.Field(default=None, pattern=r"^\$dimensions\.[^.]+$")
+    before: ContextExtent | typing.Literal["unbounded"] = pydantic.Field(
+        default_factory=ContextExtent
+    )
+    after: ContextExtent | typing.Literal["unbounded"] = pydantic.Field(
+        default_factory=ContextExtent
+    )
 
     @pydantic.model_validator(mode="after")
     def validate_extent(self) -> RowContext:
-        """Require one measurement across both directions of bounded context."""
-        measurements = (
-            self.before.model_dump(exclude_none=True).keys()
-            | self.after.model_dump(exclude_none=True).keys()
-        )
+        """Require one measurement across both directional requirements."""
+        measurements = {
+            key
+            for direction in (self.before, self.after)
+            if isinstance(direction, ContextExtent)
+            for key in direction.model_dump(exclude_none=True)
+        }
         if len(measurements) > 1:
             raise ValueError("Row context must use one measurement: time, steps, or rows")
-        if self.extent != "bounded" and (
-            self.before.model_dump(exclude_none=True) or self.after.model_dump(exclude_none=True)
-        ):
-            raise ValueError("Partition/dataset context cannot also declare before or after")
+        if measurements & {"time", "steps"} and self.dimension is None:
+            raise ValueError("Time and steps context require a declared dimension")
+        if "rows" in measurements and self.dimension is not None:
+            raise ValueError("Row-count context uses dataset order, not a dimension")
         return self
 
     @pydantic.model_serializer
     def to_dict(self) -> dict[str, object]:
         """Return JSON-compatible metadata without unspecified measurements."""
-        return {
-            "extent": self.extent,
-            "before": self.before.model_dump(exclude_none=True),
-            "after": self.after.model_dump(exclude_none=True),
+        result: dict[str, object] = {
+            "before": (
+                self.before.model_dump(exclude_none=True)
+                if isinstance(self.before, ContextExtent)
+                else self.before
+            ),
+            "after": (
+                self.after.model_dump(exclude_none=True)
+                if isinstance(self.after, ContextExtent)
+                else self.after
+            ),
         }
+        if self.dimension is not None:
+            result["dimension"] = self.dimension
+        return result
 
     def merge(self, other: RowContext) -> RowContext:
         """Combine requirements for the same input scope without adding lags."""
-        if self.extent == "dataset" or other.extent == "dataset":
-            return RowContext(extent="dataset")
-        if self.extent == "partition" or other.extent == "partition":
-            return RowContext(extent="partition")
+        if (
+            self.dimension is not None
+            and other.dimension is not None
+            and self.dimension != other.dimension
+        ):
+            raise ValueError("Row context must use one dimension")
+        if self.before == self.after == UNBOUNDED:
+            return self
+        if other.before == other.after == UNBOUNDED:
+            return other
         return RowContext(
-            before=self.before.merge(other.before),
-            after=self.after.merge(other.after),
+            dimension=self.dimension or other.dimension,
+            before=(
+                UNBOUNDED
+                if self.before == UNBOUNDED or other.before == UNBOUNDED
+                else self.before.merge(other.before)
+            ),
+            after=(
+                UNBOUNDED
+                if self.after == UNBOUNDED or other.after == UNBOUNDED
+                else self.after.merge(other.after)
+            ),
         )
+
+    @property
+    def requires_order(self) -> bool:
+        """Return whether the context distinguishes preceding from following rows."""
+
+        def amount(direction: ContextExtent | typing.Literal["unbounded"]) -> int | str:
+            if direction == UNBOUNDED:
+                return UNBOUNDED
+            values = direction.model_dump(exclude_none=True)
+            if not values:
+                return 0
+            measure, value = next(iter(values.items()))
+            if value == UNBOUNDED:
+                return UNBOUNDED
+            return duration_nanoseconds(value) if measure == "time" else value
+
+        before, after = amount(self.before), amount(self.after)
+        return not (before == after == UNBOUNDED) and (before != 0 or after != 0)

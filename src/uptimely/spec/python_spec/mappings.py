@@ -28,38 +28,42 @@ class _Mapping:
 
     bind: bind_module.Bind
     id: str | None = None
-    features: list[feature_module.Feature | ref.Reference | str] = dataclasses.field(
+    inputs: list[ref.Reference | str] = dataclasses.field(default_factory=list)
+    outputs: list[feature_module.Feature | ref.Reference | str] = dataclasses.field(
         default_factory=list
     )
     description: str | None = None
-
-    def to_model(self) -> json_spec.json_model.FeatureMapping:
-        """Convert this mapping declaration to its canonical model."""
-        identifier = bind_module._operation_id(self.bind, self.id)
-        arguments = bind_module._binding_args(self.bind)
-        return json_spec.json_model.FeatureMapping(
-            id=identifier,
-            binding=json_spec.json_model.Binding(
-                function=bind_module._operation_id(self.bind, None),
-                args=arguments,
-            ),
-            features=[_feature_id(feature) for feature in self.features],
-        )
-
-
-@dataclasses.dataclass(frozen=True)
-class Vectorize(_Mapping):
-    """A mapping that calculates feature values while preserving dataset rows."""
-
     row_context: (
         row_context_module.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
 
     def __post_init__(self) -> None:
-        """Consolidate context annotations from bound arguments and metadata."""
+        """Consolidate directional maxima from annotated arguments and metadata."""
         object.__setattr__(
             self, "row_context", row_context_module._context(self.bind.args, self.row_context)
         )
+
+    def to_model(self) -> json_spec.json_model.Mapping:
+        """Convert this mapping declaration to its canonical model."""
+        identifier = bind_module._operation_id(self.bind, self.id)
+        arguments = bind_module._binding_args(self.bind)
+        return json_spec.json_model.Mapping(
+            id=identifier,
+            binding=json_spec.json_model.Binding(
+                function=bind_module._operation_id(self.bind, None),
+                args=arguments,
+            ),
+            features={
+                "inputs": [f"$features.{_feature_id(feature)}" for feature in self.inputs],
+                "outputs": [f"$features.{_feature_id(feature)}" for feature in self.outputs],
+            },
+            row_context=self.row_context,
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class Vectorize(_Mapping):
+    """Calculate a dimension-keyed dataframe fragment at the dataset's grain."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -79,30 +83,19 @@ class Expand(_Mapping):
 
 @dataclasses.dataclass(frozen=True)
 class Collapse(_Mapping):
-    """Bind a collapse function with input data inferred from bound features.
+    """Bind a dataframe-producing function at a coarser observation grain.
 
     Args:
-        bind: The reducer callable and its analytical arguments.
+        bind: The dataframe-producing callable and its analytical arguments.
         id: Optional mapping identifier.
-        features: Declared outputs, including the target entity's grouping dimensions.
+        inputs: Required source features.
+        outputs: Declared output features. Dimension keys are required implicitly.
     """
 
 
 @dataclasses.dataclass(frozen=True)
 class Write(_Mapping):
     """The output-free mapping that persists or evaluates a dataset."""
-
-    def to_model(self) -> json_spec.json_model.FeatureMapping:
-        """Convert this write declaration to an output-free mapping model."""
-        identifier = bind_module._operation_id(self.bind, self.id)
-        return json_spec.json_model.FeatureMapping(
-            id=identifier,
-            binding=json_spec.json_model.Binding(
-                function=bind_module._operation_id(self.bind, None),
-                args=bind_module._binding_args(self.bind),
-            ),
-            features=[],
-        )
 
 
 def _feature_id(feature: feature_module.Feature | ref.Reference | str) -> str:

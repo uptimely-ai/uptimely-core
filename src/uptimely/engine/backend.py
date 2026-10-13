@@ -32,21 +32,9 @@ class DataFrameBackend(typing.Protocol):
 
     def row_count(self, frame: object) -> int: ...
 
-    def with_columns(self, frame: object, column: object) -> object: ...
+    def same_keys(self, left: object, right: object, keys: abc.Sequence[str]) -> bool: ...
 
-    def collapse(
-        self, frame: object, keys: abc.Sequence[str], columns: abc.Sequence[object]
-    ) -> object: ...
-
-    def is_expression(self, value: object) -> bool: ...
-
-    def feature_column(self, name: str) -> object: ...
-
-    def literal(self, value: object) -> object: ...
-
-    def alias(self, value: object, name: str) -> object: ...
-
-    def is_column(self, value: object) -> bool: ...
+    def validate_types(self, frame: object, types: abc.Mapping[str, str]) -> None: ...
 
 
 class ResourceResolver(typing.Protocol):
@@ -97,7 +85,9 @@ class PolarsBackend:
                 )
                 .drop(key)
             )
-        return left.join(right, on=list(keys), how="full", coalesce=True, validate="1:1")
+        return left.join(
+            right, on=list(keys), how="full", coalesce=True, validate="1:1", nulls_equal=True
+        )
 
     def collect(self, frame: object) -> object:
         return frame.collect()
@@ -114,31 +104,38 @@ class PolarsBackend:
             count = count.collect()
         return count.item()
 
-    def with_columns(self, frame: object, column: object) -> object:
-        return frame.with_columns(column)
+    def same_keys(self, left: object, right: object, keys: abc.Sequence[str]) -> bool:
+        """Compare observation identities without assuming physical row order."""
+        if not keys:
+            return self.row_count(left) == self.row_count(right)
+        left_keys = left.select(list(keys))
+        right_keys = right.select(list(keys))
+        if isinstance(left_keys, pl.LazyFrame):
+            left_keys = left_keys.collect()
+        if isinstance(right_keys, pl.LazyFrame):
+            right_keys = right_keys.collect()
+        return left_keys.sort(list(keys)).equals(right_keys.sort(list(keys)))
 
-    def collapse(
-        self, frame: object, keys: abc.Sequence[str], columns: abc.Sequence[object]
-    ) -> object:
-        """Evaluate all reducer expressions together at the requested grain."""
-        if keys:
-            return frame.group_by(list(keys)).agg(list(columns))
-        return frame.select(list(columns))
-
-    def is_expression(self, value: object) -> bool:
-        return isinstance(value, pl.Expr)
-
-    def feature_column(self, name: str) -> object:
-        return pl.col(name)
-
-    def literal(self, value: object) -> object:
-        return pl.lit(value)
-
-    def alias(self, value: object, name: str) -> object:
-        return value.alias(name)
-
-    def is_column(self, value: object) -> bool:
-        return isinstance(value, (pl.Expr, pl.Series))
+    def validate_types(self, frame: object, types: abc.Mapping[str, str]) -> None:
+        """Check declared logical column types against the returned schema."""
+        schema = frame.collect_schema()
+        for name, expected in types.items():
+            actual = schema[name]
+            compatible = {
+                "string": actual == pl.String,
+                "integer": actual.is_integer(),
+                "float": actual.is_float(),
+                "numeric": actual.is_numeric(),
+                "boolean": actual == pl.Boolean,
+                "datetime": isinstance(actual, pl.Datetime),
+                "date": actual == pl.Date,
+                "object": isinstance(actual, (pl.Struct, pl.Object)),
+                "array": isinstance(actual, (pl.List, pl.Array)),
+            }
+            if expected not in compatible:
+                raise ValueError(f"Unsupported feature type for {name}: {expected}")
+            if not compatible[expected]:
+                raise ValueError(f"Output column {name} has type {actual}; expected {expected}")
 
 
 class PlanResourceResolver:

@@ -221,7 +221,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
             python_spec.mapping.Read(
                 id="read",
                 bind=python_spec.bind.bind(functions.read_data),
-                features=[
+                outputs=[
                     python_spec.ref.feature("input_1"),
                     python_spec.ref.feature("input_2"),
                     python_spec.ref.feature("id"),
@@ -234,8 +234,10 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
                     left_feature=python_spec.ref.feature("input_1"),
                     right_feature=python_spec.ref.feature("input_2"),
                     output="sum",
+                    dataset=python_spec.ref.current_dataset().dataframe,
                 ),
-                features=[python_spec.ref.feature("sum")],
+                inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
+                outputs=[python_spec.ref.feature("sum")],
             ),
         ],
     )
@@ -255,7 +257,10 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
         ],
         dimensions=spec_module.dimensions,
     )
-    assert compile.Compiler(ordered).compile().plan == compile.Compiler(unordered).compile().plan
+    assert (
+        compile.Compiler(ordered).compile().operations
+        == compile.Compiler(unordered).compile().operations
+    )
 
     result = engine.Engine(ordered).execute()
     assert result.failures == {}

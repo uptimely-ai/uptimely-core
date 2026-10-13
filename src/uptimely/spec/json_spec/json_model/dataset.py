@@ -18,15 +18,48 @@ class Feature(common.StrictModel):
     description: str | None = None
     type: str | None = None
     unit: str | None = None
-    row_context: uptimely_row_context.RowContext | None = None
 
 
-class FeatureMapping(common.StrictModel):
-    """A shared function binding that produces one or more dataset features."""
+class MappingFeatures(common.StrictModel):
+    """Explicit data prerequisites and produced features for one mapping."""
+
+    inputs: list[str] = pydantic.Field(default_factory=list)
+    outputs: list[str] = pydantic.Field(default_factory=list)
+
+    @pydantic.field_validator("inputs", "outputs")
+    @classmethod
+    def validate_references(cls, values: list[str]) -> list[str]:
+        """Require distinct feature references without value selectors."""
+        if any(
+            not value.startswith("$features.")
+            or "." in value[10:]
+            or not value[10:]
+            or value[10:] == "@"
+            for value in values
+        ):
+            raise ValueError("Mapping features must use $features.<id> references")
+        if len(values) != len(set(values)):
+            raise ValueError("Mapping feature references must not repeat")
+        return values
+
+
+class Mapping(common.StrictModel):
+    """A function binding with declared feature inputs, outputs, and row context."""
 
     id: str = pydantic.Field(exclude=True)
     binding: common.Binding
-    features: list[str] = pydantic.Field(default_factory=list)
+    features: MappingFeatures = pydantic.Field(default_factory=MappingFeatures)
+    row_context: uptimely_row_context.RowContext | None = None
+
+    @property
+    def input_features(self) -> list[str]:
+        """Return identifiers of required materialized features."""
+        return [value.removeprefix("$features.") for value in self.features.inputs]
+
+    @property
+    def output_features(self) -> list[str]:
+        """Return identifiers of produced features."""
+        return [value.removeprefix("$features.") for value in self.features.outputs]
 
 
 class Order(common.StrictModel):
@@ -51,7 +84,7 @@ class Dataset(common.StrictModel):
     description: str | None = None
     row_scope: RowScope = pydantic.Field(default_factory=RowScope)
     features: dict[str, Feature] = pydantic.Field(default_factory=dict)
-    mappings: dict[str, FeatureMapping] = pydantic.Field(default_factory=dict)
+    mappings: dict[str, Mapping] = pydantic.Field(default_factory=dict)
     order: list[Order] = pydantic.Field(default_factory=list)
 
     @property

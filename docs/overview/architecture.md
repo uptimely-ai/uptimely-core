@@ -146,7 +146,7 @@ The engine reads the plan and executes it.
 It loops through the plan stages, runs each operation, stores produced
 runtime data, and makes results available to dependent operations. It resolves
 compiled dataset and feature identifiers into runtime objects such as
-dataframes and calculated feature expressions.
+dataframes and dimension-keyed calculated feature results.
 
 The Python engine resolves `?<namespace>.<object>.<attribute>` runtime
 placeholders (such as `?storage.telemetry_source.path`) against `runtime_resources`

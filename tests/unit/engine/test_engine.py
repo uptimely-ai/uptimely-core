@@ -21,8 +21,8 @@ def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
         assert source == "/tmp/telemetry.parquet"
         return pl.DataFrame({"asset_id": ["A", "B"], "reading": [2, 3]})
 
-    def double(column: str) -> pl.Expr:
-        return pl.col(column) * 2
+    def double(column: str, dataset: pl.DataFrame) -> pl.DataFrame:
+        return dataset.with_columns((pl.col(column) * 2).alias("doubled"))
 
     def write(dataset: pl.DataFrame, features: list[str]) -> None:
         written["dataset"] = dataset
@@ -39,7 +39,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
     assert set(result.operation_statuses.values()) == {"succeeded"}
     assert result.failures == {}
     assert result.plan_version == "1.0.0"
-    assert isinstance(result.calculated_outputs["asset", "telemetry", "doubled"], pl.Expr)
+    assert isinstance(result.calculated_outputs["asset", "telemetry", "doubled"], pl.DataFrame)
     assert result.datasets["asset", "telemetry"].select("doubled").to_series().to_list() == [
         4,
         6,
@@ -132,11 +132,11 @@ def test_execute_reports_unsupported_operation_types() -> None:
     assert result.failures[invalid_operation.id] == "Unsupported operation type: unsupported"
 
 
-def test_execute_converts_scalar_calculations_to_columns() -> None:
+def test_execute_rejects_scalar_calculations() -> None:
     def read(source: str) -> pl.DataFrame:
         return pl.DataFrame({"asset_id": ["A"], "reading": [2]})
 
-    def constant(column: str) -> int:
+    def constant(column: str, dataset: pl.DataFrame) -> int:
         return 10
 
     engine = uptimely_engine.Engine(
@@ -149,8 +149,7 @@ def test_execute_converts_scalar_calculations_to_columns() -> None:
 
     result = engine.execute()
 
-    assert result.failures == {}
-    assert result.datasets["asset", "telemetry"].select("doubled").item() == 10
+    assert "must return a Polars DataFrame or LazyFrame" in next(iter(result.failures.values()))
 
 
 def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
@@ -159,13 +158,16 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
     def read() -> pl.DataFrame:
         return pl.DataFrame({"asset_id": ["A"], "reading": [3]})
 
-    def calculate() -> dict[str, pl.Expr]:
+    def calculate() -> pl.DataFrame:
         nonlocal calls
         calls += 1
-        return {
-            "reading_plus_one": pl.col("reading") + 1,
-            "reading_times_two": pl.col("reading") * 2,
-        }
+        return pl.DataFrame(
+            {
+                "asset_id": ["A"],
+                "reading_plus_one": [4],
+                "reading_times_two": [6],
+            }
+        )
 
     read_operation = uptimely_plan.Operation(
         id="callable:read:load:asset:telemetry:load",

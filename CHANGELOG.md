@@ -17,9 +17,9 @@ Initial public release.
 - Declarative specification model with JSON export.
 - Optional dataset logical ordering by dimension, with explicit ascending or
   descending directions, JSON and Python authoring, and reference validation.
-- Feature-level row-context requirements with time, integer-step, and row
-  extents, unbounded context, Python argument annotations, and portable plan
-  metadata. Replaces the function-template `input_scope` field.
+- Mapping-level row-context requirements with fixed dimension-based time and
+  integer-step windows, row counts, unbounded directions, Python window
+  consolidation, and portable plan metadata.
 - Compiler producing portable, staged execution plans.
 - Built-in batch engine with a Polars dataframe backend.
 - Documentation and feature-graph generation from specifications.
@@ -34,14 +34,18 @@ Initial public release.
   preserving package-level public API re-exports and leaving examples unchanged.
 - Moved function-local imports to module scope while keeping S3 dependencies
   optional and reporting the required extra when unavailable.
-- Collapse mappings now use a normal function `binding`, without `source` or
-  `group_by`. The compiler infers the input dataset from bound features;
-  inputs spanning datasets require an explicit expand first.
-  The engine infers grouping from the target entity dimensions and wraps
-  the function expressions in backend grouping. Reducers are cataloged
-  under `functions.collapse`. Removed dataframe collapse wrapper functions,
-  `functions.aggregate`, and the Python `Aggregation` / `aggregation` API.
-  Old specifications and collapse plans are not supported.
+- Mappings declare explicit `features.inputs` and `features.outputs`; Python
+  declarations use `inputs=` and `outputs=`. Identifier arguments do not imply
+  materialized data dependencies.
+- All data-producing functions, including vectorize and collapse, return
+  dimension-keyed dataframes. Functions perform grouping, output naming, and
+  literal construction; the engine validates and joins returned fragments.
+  Standalone expressions, series, scalar returns, and expression dictionaries
+  are no longer supported. Re-export specifications and recompile plans.
+- Row context now belongs to the mapping, with optional `dimension` and fixed
+  `before`/`after` requirements. Removed explicit `extent` and function
+  `partitioning`. Dataset order is inherited; grouping stays in functions.
+- Added explicit `.id` and `.dataframe` argument selectors.
 - Removed legacy portable-plan serialization fields and API aliases, engine
   runtime-state accessors, and pre-row-scope specification input normalization.
   Portable plans now serialize and load only their canonical schema; execution

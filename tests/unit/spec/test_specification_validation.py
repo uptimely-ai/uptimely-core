@@ -20,13 +20,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     dataset["features"]["expanded_feature"] = {"type": "float", "description": "Expanded feature"}
     dataset["mappings"]["expand_op"] = {
         "binding": {"function": "expand_telemetry", "args": {}},
-        "features": [
-            "plant",
-            "production_line",
-            "pump",
-            "timestamp",
-            "expanded_feature",
-        ],
+        "features": {"inputs": [], "outputs": ["$features.expanded_feature"]},
     }
 
     spec_path = tmp_path / "valid_mappings_spec.json"
@@ -44,7 +38,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     ] = {"type": "float"}
     bad_source_config["entities"]["pump_telemetry"]["datasets"][0]["mappings"]["bad_source"] = {
         "binding": {"function": "missing_read", "args": {}},
-        "features": ["bad_source_feature"],
+        "features": {"inputs": [], "outputs": ["$features.bad_source_feature"]},
     }
     bad_source_path = tmp_path / "bad_source.json"
     bad_source_path.write_text(json.dumps(bad_source_config), encoding="utf-8")
@@ -59,7 +53,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         "bad_transform"
     ] = {
         "binding": {"function": "missing_expand", "args": {}},
-        "features": ["bad_transform_feature"],
+        "features": {"inputs": [], "outputs": ["$features.bad_transform_feature"]},
     }
     bad_transform_path = tmp_path / "bad_transform.json"
     bad_transform_path.write_text(json.dumps(bad_transform_config), encoding="utf-8")
@@ -85,8 +79,15 @@ def test_mapping_rejects_explicit_source(tmp_path: pathlib.Path, mapping_id: str
     [
         ("group_by", ["$dimensions.pump"], "group_by"),
         ("operations", {}, "operations"),
-        ("features", ["plant", "production_line", "pump"], "must produce a non-dimension feature"),
-        ("features", ["bearing_temperature_max"], "must include dimension columns"),
+        (
+            "features",
+            {
+                "inputs": ["$features.bearing_temperature"],
+                "outputs": ["$features.plant", "$features.production_line", "$features.pump"],
+            },
+            "must produce a non-dimension feature",
+        ),
+        ("features", ["bearing_temperature_max"], "features"),
     ],
 )
 def test_collapse_validates_source_grouping_and_output_contract(
@@ -104,34 +105,23 @@ def test_collapse_validates_source_grouping_and_output_contract(
 
 
 @pytest.mark.parametrize(
-    ("function", "args", "message"),
+    ("inputs", "message"),
     [
-        ("missing", {"feature": "$features.bearing_temperature"}, "unknown functions"),
-        ("maximum", {}, "must reference a source feature"),
-        ("maximum", {"feature": "$features.health_signal_normalized"}, "target dataset"),
-        ("maximum", {"feature": "$features.bearing_temperature_max"}, "target dataset"),
-        ("maximum", {"feature": "$features.missing"}, "unknown input feature"),
-        (
-            "maximum",
-            {"feature": "$features.bearing_temperature", "extra": 1},
-            "unknown arguments: extra",
-        ),
-        (
-            "maximum",
-            {"column": "$features.bearing_temperature"},
-            "missing arguments: feature; unknown arguments: column",
-        ),
-        ("maximum", {"feature": "$datasets.pump_telemetry_dataset"}, "cannot bind a dataset"),
+        ([], "must reference a source feature"),
+        (["$features.health_signal_normalized"], "target dataset"),
+        (["$features.bearing_temperature_max"], "target dataset"),
+        (["$features.missing"], "unknown input feature"),
+        (["$datasets.pump_telemetry_dataset"], "Mapping features must use"),
     ],
 )
-def test_collapse_validates_reducer_bindings(
-    tmp_path: pathlib.Path, function: str, args: dict, message: str
+def test_collapse_validates_explicit_inputs(
+    tmp_path: pathlib.Path, inputs: list, message: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
         "bearing_temperature_by_pump"
     ]
-    collapse["binding"] = {"function": function, "args": args}
+    collapse["features"]["inputs"] = inputs
     path = tmp_path / "invalid.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
@@ -174,17 +164,15 @@ def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -
         spec.Specification.from_json(path)
 
 
-@pytest.mark.parametrize("container", ["object", "array"])
 def test_collapse_rejects_inputs_from_multiple_datasets(
-    tmp_path: pathlib.Path, container: str
+    tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     references = ["$features.bearing_temperature", "$features.health_signal_normalized"]
-    value = {"inputs": references} if container == "object" else references
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
         "bearing_temperature_by_pump"
     ]
-    collapse["binding"]["args"]["feature"] = value
+    collapse["features"]["inputs"] = references
     path = tmp_path / "mixed_inputs.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="one dataset; use expand"):
@@ -198,7 +186,7 @@ def test_collapse_dimensions_alone_do_not_identify_input_dataset(
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
         "bearing_temperature_by_pump"
     ]
-    collapse["binding"]["args"]["feature"] = "$features.pump"
+    collapse["features"]["inputs"] = ["$features.pump"]
     path = tmp_path / "dimension_input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="must reference a source feature"):

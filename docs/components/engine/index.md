@@ -69,7 +69,7 @@ Operations can carry `row_context` requirements independently of their primitive
 arguments. The batch engine does not pass this metadata to functions or use it
 to sort, retain rows, or delay output. Future stateful implementations can inspect
 the declarations, but must distinguish unknown context from explicit zero
-context and account for input partitions and dependency chains. See
+context and account for grouping performed by functions and dependency chains. See
 [row context](../../specification/specification.md#row-context) for the contract.
 
 ## Runtime placeholders
@@ -100,11 +100,8 @@ If a placeholder's namespace, object, or attribute isn't found in
 `execute()` records in the returned `ExecutionResult.failures` rather than
 raising directly.
 
-`vectorize` and `collapse` bindings never contain `?`-placeholders in a valid
-specification: their arguments are structural references that define the
-compiled dependency graph, and they are the only operation types meant to carry
-significant calculation logic — every other operation type only retrieves,
-reconciles, or persists data.
+Explicit mapping inputs define feature dependencies. Feature identifier
+arguments alone do not require those feature values to be materialized.
 
 ### Runtime overrides
 
@@ -159,21 +156,23 @@ feature in isolation. Instead, it maintains one accumulated dataframe per
 Each fragment resource initializes or updates that working dataframe by joining
 the fragment's rows on the entity dimensions. Once a fragment is loaded, the
 engine materializes the feature columns produced by each vectorize step into the
-same accumulated dataset. A feature is therefore added one vectorized value at a
-time, while the dataset itself remains the live working table that carries the
-current state forward to later computations and writes.
+same accumulated dataset. Every data-producing function returns a dataframe
+containing the dimension keys and its declared outputs. The engine merges only
+those columns; functions handle grouping, output naming, and literal values.
 
 The built-in compiler and engine do not apply dataset `order` metadata or insert
 sorting operations into a plan. Logical order does not change fragment alignment
 or guarantee physical row order. Order-sensitive functions must explicitly
 declare and implement their ordering inputs.
 
-In practice the loop is: load a fragment -> validate the key structure -> join it
-into the current dataset state -> evaluate vectorize node(s) -> alias the result to
-the declared feature -> add that column to the accumulated dataframe -> continue
-until the downstream write operation persists the final assembled dataset.
+The loop is: verify materialized inputs, invoke the function, validate its
+dataframe keys and output schema, then join the fragment into the dataset.
+Vectorize results must preserve the existing dimension-key set. No expression,
+series, dictionary, or scalar return adapters are used.
 
-
+All data-producing mapping categories use the same execution path. Validation
+is separate from merging, and runtime outputs are registered only after the
+fragment has been successfully merged.
 
 ## Write Functions
 
@@ -197,9 +196,10 @@ persists the required output.
 }
 ```
 
-When the compiler selects a feature subset, the engine supplies only the
-compiled feature IDs present in that plan. The accumulated dataset already
-contains columns materialized by completed vectorize operations.
+The accumulated dataset contains columns materialized by completed mappings.
+Subset plans retain configured dataset sinks; a sink requiring additional
+features outside the subset reports an unavailable-input failure rather than
+receiving missing data silently.
 
 ## Dataset Isolation and Fragment Resources
 
@@ -212,11 +212,9 @@ and `collapse`.
 Each fragment produces a runtime dataframe, includes the entity's dimension columns, and
 follows the dataset `row_scope` contract.
 
-With the Polars backend, a vectorize function may return a `pl.Expr`, `pl.Series`,
-or scalar value. The engine aliases that value to the declared output feature
-and materializes it into the accumulated dataset with `with_columns`. It retains
-the calculation element separately while implementations continue to receive
-the declared primitive argument values.
+With the Polars backend, functions return `pl.DataFrame` or `pl.LazyFrame`.
+`calculated_outputs` stores dimension-keyed frames for individual vectorized
+outputs. Scalar construction and column naming belong inside the function.
 
 The compiled plan groups independent operations into stages. The current engine
 processes those stages and their operations sequentially; another engine may
@@ -235,6 +233,7 @@ left.join(
     how="full",
     coalesce=True,
     validate="1:1",
+    nulls_equal=True,
 )
 ```
 
@@ -265,19 +264,16 @@ semantic conditions:
     the same entity before returning a fragment that conforms to the target
     dataset's row scope.
 
-The engine does not currently compare complete key sets between fragments or
-verify that implementation code honors the declared grain and filtering.
-Consequently, omitted keys are preserved by the full join and exposed as nulls
-rather than rejected as row-scope violations.
+Vectorize results must match the existing complete key set. Other categories
+may change coverage: their omitted keys are preserved by the full join and
+exposed as nulls. The engine does not prove declared filtering or coverage.
 
-The function catalog defines operation categories, including collapse. The
-engine wraps collapse function expressions in a backend grouping statement,
-such as `group_by(...).agg(...)`. These operations produce runtime fragments:
+The function catalog defines these dataframe-producing categories:
 
 | Type | Meaning |
 | --- | --- |
 | `read` | Reads another dataset from an external source such as a file or database and returns it as a fragment. |
-| `collapse` | Groups the dataset inferred from bound input features and evaluates reducer expressions together, usually at a different grain. |
+| `collapse` | Returns data grouped by the analytical function, usually at a coarser grain. |
 | `expand` | Retrieves another dataset and returns it at expanded dimensional coverage. |
 | `conform` | Retrieves another dataset in the same entity and reconciles or narrows it to the target dataset's row scope. |
 
@@ -288,22 +284,12 @@ another dataset explicitly; the operation function performs the required pull,
 transformation, or reconciliation before returning the fragment. The returned
 fragment must conform to the target dataset's dimensions and row scope.
 
-Collapse declares only a normal function `binding` and its output features.
-The compiler infers its input dataset from the bound feature references and
-connects the producing operations as dependencies. The engine identifies the
-input dataset from those dependency producers, without a separate source field.
-All input features must
-belong to that same dataset; collapse does not join different datasets.
-Combining inputs from different datasets requires an explicit `expand` operation.
-Its function has a required entrypoint in `functions.collapse` and receives
-only its bound analytical arguments. The engine derives grouping keys from the
-target dataset's owning entity dimensions, so no `group_by` field is needed.
-It needs no user-defined dataframe wrapper function. The engine wraps the
-collapse expressions in the backend's `group_by(...).agg(...)` statement,
-aliases each reducer expression to its output feature,
-and returns the grouping dimensions alongside the reduced features. An entity
-without dimensions uses a global reduction. A function producing several
-reduced features returns a mapping of feature identifiers to expressions.
+Collapse declares explicit input and output feature lists and a normal binding.
+Its input features must identify one source dataset, different from the target.
+Combining sources requires an explicit expand operation first.
+The source dataframe is passed through a dataset argument. The function performs
+grouping and returns the target dimension keys alongside its named output
+columns. An entity without dimensions has at most one returned observation.
 
 Fragments are combined by the owning entity's complete dimension key. The
 engine never combines fragments by row position, so differing row order is safe.

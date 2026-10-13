@@ -105,10 +105,6 @@ def test_feature_references_are_explicit_and_recursive() -> None:
         "nested": {"columns": ["$features.flow_rate", "$features.bearing_temperature"]},
     }
 
-    assert spec.SpecificationParser._resolve_feature_dependencies(args) == [
-        "bearing_temperature",
-        "flow_rate",
-    ]
     assert spec.SpecificationParser._replace_arg_placeholders(args, "telemetry") == {
         "feature": "bearing_temperature",
         "literal": "bearing_temperature_max",
@@ -230,7 +226,7 @@ def test_specification_validation_rejects_duplicate_fragment_input_names(
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"]["duplicate_input"] = {
         "binding": {"function": "read_pump_telemetry", "args": {}},
-        "features": ["bearing_temperature"],
+        "features": {"inputs": [], "outputs": ["$features.bearing_temperature"]},
     }
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -242,18 +238,17 @@ def test_specification_validation_rejects_duplicate_fragment_input_names(
         spec.Specification.from_json(spec_path)
 
 
-def test_specification_validation_requires_dimensions_in_every_mapping(
+def test_dimension_outputs_are_implicit_in_mapping(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"]["read_pump_telemetry"][
         "features"
-    ].remove("plant")
+    ]["outputs"].remove("$features.plant")
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="must include dimension columns: plant"):
-        spec.Specification.from_json(spec_path)
+    spec.Specification.from_json(spec_path)
 
 
 def test_specification_validation_rejects_unknown_vectorize_template(
@@ -281,7 +276,7 @@ def test_specification_validation_rejects_feature_dimension_name_collision(
     collision = json.loads(json.dumps(dataset["mappings"]["converged"]))
     dataset["mappings"]["pump_collision"] = {
         **collision,
-        "features": ["pump"],
+        "features": {"inputs": [], "outputs": ["$features.pump"]},
     }
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -300,7 +295,7 @@ def test_specification_validation_rejects_cross_dataset_feature_dependency(
     calculation = configuration["entities"]["pump"]["datasets"][0]["mappings"].pop(
         "health_signal_normalized"
     )
-    calculation["features"] = ["health_signal_normalized_copy"]
+    calculation["features"]["outputs"] = ["$features.health_signal_normalized_copy"]
     copied_feature = configuration["entities"]["pump"]["datasets"][0]["features"].pop(
         "health_signal_normalized"
     )

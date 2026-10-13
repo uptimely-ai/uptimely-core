@@ -235,13 +235,22 @@ def test_execution_plan_pages_render_only_their_section(
                 '    "motor_power",',
                 '    "bearing_temperature",',
                 '    "vibration_rms"',
-                "  ]",
+                "  ],",
+                '  dataset="pump_telemetry_dataset",',
+                '  output="operating_point_recommendation"',
                 ")",
             ]
             assert f'"label_lines": {json.dumps(expected_list_lines)}' in document
             expected_object_lines = [
                 "maximum(",
-                '  feature="bearing_temperature"',
+                '  feature="bearing_temperature",',
+                '  dataset="pump_telemetry_dataset",',
+                "  dimensions=[",
+                '    "plant",',
+                '    "production_line",',
+                '    "pump"',
+                "  ],",
+                '  output="bearing_temperature_max"',
                 ")",
             ]
             assert f'"label_lines": {json.dumps(expected_object_lines)}' in document

@@ -64,7 +64,7 @@ def test_example_manifest_parses_complete_specification() -> None:
     collapse = pump_dataset.mappings["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.binding.function == "maximum"
-    assert "bearing_temperature_max" in collapse.features
+    assert "bearing_temperature_max" in collapse.output_features
 
 
 def test_spec_from_entities_python_api(tmp_path: pathlib.Path) -> None:
@@ -135,17 +135,20 @@ def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None
     mappings = dataset_payload["mappings"]
     assert mappings["read"]["binding"]["function"] == "read"
     assert mappings["write"]["binding"]["args"]["df"] == "$datasets.@"
-    assert mappings["write"]["features"] == []
+    assert mappings["write"]["features"] == {
+        "inputs": ["$features.column_3", "$features.column_4"],
+        "outputs": [],
+    }
     assert mappings["column_3"]["binding"]["args"] == {
         "left_feature": "$features.input_1",
         "right_feature": "$features.input_2",
         "output": "$features.column_3",
+        "dataset": "$datasets.@.dataframe",
     }
     assert dataset_payload["features"]["column_3"] == {
         "description": "Vectorized feature: column_3",
         "type": None,
         "unit": None,
-        "row_context": None,
     }
 
 
@@ -156,7 +159,7 @@ def test_sources_and_transforms_python_spec() -> None:
             python_spec.mapping.Read(
                 id="read",
                 bind=bind.bind(functions.read_data),
-                features=[python_spec.feature.Feature(id="input_1")],
+                outputs=[python_spec.feature.Feature(id="input_1")],
             ),
             python_spec.mapping.Expand(
                 id="expand_data",
@@ -165,7 +168,7 @@ def test_sources_and_transforms_python_spec() -> None:
                     df1=python_spec.ref.dataset("transformed_dataset"),
                     df2=python_spec.ref.dataset("transformed_dataset"),
                 ),
-                features=[python_spec.feature.Feature(id="input_2")],
+                outputs=[python_spec.feature.Feature(id="input_2")],
             ),
         ],
     )
@@ -175,7 +178,8 @@ def test_sources_and_transforms_python_spec() -> None:
             python_spec.mapping.Collapse(
                 id="collapse_data",
                 bind=bind.bind(calculation.maximum, feature=python_spec.ref.feature("input_1")),
-                features=[python_spec.feature.Feature(id="collapsed_feature")],
+                inputs=[python_spec.ref.feature("input_1")],
+                outputs=[python_spec.feature.Feature(id="collapsed_feature")],
             )
         ],
     )
@@ -190,5 +194,5 @@ def test_sources_and_transforms_python_spec() -> None:
     collapse = spec.entities["transforms_test"].datasets[1].mappings["collapse_data"]
     assert collapse.binding.function == "maximum"
     assert collapse.binding.args == {"feature": "$features.input_1"}
-    assert collapse.features == ["collapsed_feature"]
+    assert collapse.output_features == ["collapsed_feature"]
     assert "maximum" in spec.functions.collapse

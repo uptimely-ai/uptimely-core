@@ -8,7 +8,8 @@
 {% for entity in configuration.entities.values() %}
   {% for dataset in entity.datasets %}
     {% for mapping in dataset.mappings.values() %}
-      {% for feature_id in mapping.features %}
+      {% for reference in mapping.features.outputs %}
+        {% set feature_id = reference.removeprefix("$features.") %}
         {% if feature_id not in entity.dimensions %}{% set total.feature_count = total.feature_count + 1 %}{% endif %}
       {% endfor %}
     {% endfor %}
@@ -30,7 +31,8 @@
           </div>
           {% set ns = namespace(feature_count=0) %}
           {% for mapping in dataset.mappings.values() %}
-            {% for feature_id in mapping.features %}
+            {% for reference in mapping.features.outputs %}
+              {% set feature_id = reference.removeprefix("$features.") %}
               {% if feature_id not in entity.dimensions %}{% set ns.feature_count = ns.feature_count + 1 %}{% endif %}
             {% endfor %}
           {% endfor %}
@@ -40,7 +42,8 @@
           <div class="divide-y divide-slate-800">
           {% for mapping_id, mapping in dataset.mappings.items() %}
             {% set operation_type = mapping_category(mapping, configuration.functions) %}
-            {% for feature_id in mapping.features if feature_id not in entity.dimensions and operation_type != "vectorize" %}
+            {% for reference in mapping.features.outputs if operation_type != "vectorize" %}
+              {% set feature_id = reference.removeprefix("$features.") %}
               {% set feature = dataset.features[feature_id] %}
               <div class="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,1fr)] sm:gap-4">
                 <div>
@@ -55,14 +58,15 @@
             {% endfor %}
           {% endfor %}
           {% for mapping_id, mapping in dataset.mappings.items() if mapping_category(mapping, configuration.functions) == "vectorize" %}
-          {% for feature_id in mapping.features %}
+          {% for reference in mapping.features.outputs %}
+          {% set feature_id = reference.removeprefix("$features.") %}
           {% set feature = dataset.features[feature_id] %}
           <div class="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,1fr)] sm:gap-4">
             <div>
               <span class="font-mono text-sm text-amber-200">{{ feature_id }}</span>
               {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
-              {% if not include_navigation and feature.row_context %}
-              <p class="mt-1 font-mono text-xs text-slate-400">Row context: {{ feature.row_context | tojson }}</p>
+              {% if not include_navigation and mapping.row_context %}
+              <p class="mt-1 font-mono text-xs text-slate-400">Row context: {{ mapping.row_context | tojson }}</p>
               {% endif %}
             </div>
             <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">

@@ -49,10 +49,13 @@
           "output": {
             "type": "string",
             "comment": null
+          },
+          "dataset": {
+            "type": "dataframe",
+            "comment": null
           }
         },
-        "description": null,
-        "partitioning": null
+        "description": null
       },
       "column_4": {
         "entrypoint": "examples.example_2.functions.functions:tag_first_item",
@@ -64,10 +67,13 @@
           "id_column": {
             "type": "string",
             "comment": null
+          },
+          "dataset": {
+            "type": "dataframe",
+            "comment": null
           }
         },
-        "description": null,
-        "partitioning": null
+        "description": null
       }
     }
   },
@@ -90,32 +96,27 @@
             "input_1": {
               "description": "Input feature: input_1",
               "type": null,
-              "unit": null,
-              "row_context": null
+              "unit": null
             },
             "input_2": {
               "description": "Input feature: input_2",
               "type": null,
-              "unit": null,
-              "row_context": null
+              "unit": null
             },
             "id": {
               "description": "Stable identifier for each input row",
               "type": "integer",
-              "unit": null,
-              "row_context": null
+              "unit": null
             },
             "column_3": {
               "description": "Vectorized feature: column_3",
               "type": null,
-              "unit": null,
-              "row_context": null
+              "unit": null
             },
             "column_4": {
               "description": "Vectorized feature: column_4",
               "type": null,
-              "unit": null,
-              "row_context": null
+              "unit": null
             }
           },
           "mappings": {
@@ -124,11 +125,15 @@
                 "function": "read",
                 "args": {}
               },
-              "features": [
-                "input_1",
-                "input_2",
-                "id"
-              ]
+              "features": {
+                "inputs": [],
+                "outputs": [
+                  "$features.input_1",
+                  "$features.input_2",
+                  "$features.id"
+                ]
+              },
+              "row_context": null
             },
             "column_3": {
               "binding": {
@@ -136,24 +141,39 @@
                 "args": {
                   "left_feature": "$features.input_1",
                   "right_feature": "$features.input_2",
-                  "output": "$features.column_3"
+                  "output": "$features.column_3",
+                  "dataset": "$datasets.@.dataframe"
                 }
               },
-              "features": [
-                "column_3"
-              ]
+              "features": {
+                "inputs": [
+                  "$features.input_1",
+                  "$features.input_2"
+                ],
+                "outputs": [
+                  "$features.column_3"
+                ]
+              },
+              "row_context": null
             },
             "column_4": {
               "binding": {
                 "function": "column_4",
                 "args": {
                   "output": "$features.column_4",
-                  "id_column": "$dimensions.id"
+                  "id_column": "$dimensions.id",
+                  "dataset": "$datasets.@.dataframe"
                 }
               },
-              "features": [
-                "column_4"
-              ]
+              "features": {
+                "inputs": [
+                  "$features.id"
+                ],
+                "outputs": [
+                  "$features.column_4"
+                ]
+              },
+              "row_context": null
             },
             "write": {
               "binding": {
@@ -166,7 +186,14 @@
                   ]
                 }
               },
-              "features": []
+              "features": {
+                "inputs": [
+                  "$features.column_3",
+                  "$features.column_4"
+                ],
+                "outputs": []
+              },
+              "row_context": null
             }
           },
           "order": [],

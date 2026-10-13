@@ -37,7 +37,6 @@ class CallableGraph:
 
     def _create_graph(self) -> graphable_.graph.Graph:
         """Build a graph where nodes are callables and edges represent feature dependencies."""
-        graph = graphable_.graph.Graph()
         nodes: dict[str, Node] = {}
 
         for entity_id, entity in self.specification.entities.items():
@@ -47,12 +46,14 @@ class CallableGraph:
                     operation_type = bindings.mapping_category(
                         mapping, self.specification.functions
                     )
-                    primary_feature = mapping.features[0] if mapping.features else None
+                    primary_feature = (
+                        mapping.output_features[0] if mapping.output_features else None
+                    )
                     call = next(
                         (
                             call
                             for call in self.specification.calls
-                            if call.entity == entity_id and call.feature in mapping.features
+                            if call.entity == entity_id and call.feature in mapping.output_features
                         ),
                         None,
                     )
@@ -64,27 +65,24 @@ class CallableGraph:
                         callable_type_override=operation_type,
                         dataset_id=dataset.id,
                         operation_id=mapping.id,
-                        output_features=tuple(mapping.features),
+                        output_features=tuple(mapping.output_features),
                         args=mapping.binding.args,
                         callable=call,
-                        row_context=(
-                            dataset.features[primary_feature].row_context
-                            if operation_type == "vectorize" and primary_feature
-                            else None
-                        ),
+                        row_context=mapping.row_context,
                     )
                     nodes[node.node_id] = graphable_.graphable.Graphable(node)
                     if operation_type == "write":
                         self._dataset_sinks.setdefault(dataset_key, []).append(node)
                     elif operation_type != "vectorize":
                         self._dataset_sources.setdefault(dataset_key, []).append(node)
-                    for feature in mapping.features:
+                    for feature in mapping.output_features:
                         if feature in self.specification.dimensions:
                             continue
                         self._feature_producers[feature] = node
                         if operation_type == "vectorize":
                             self._callable_index[(node.function_id, entity_id, feature)] = node
-        # First pass: create all callable nodes and register feature producers
+        graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
+        # Source transforms follow reads in their dataset.
         for fragments in self._dataset_sources.values():
             reads = [fragment for fragment in fragments if fragment.operation_type == "read"]
             downstream = [fragment for fragment in fragments if fragment.operation_type != "read"]
@@ -95,7 +93,21 @@ class CallableGraph:
         # Mapping inputs create feature-level prerequisites.
         for graph_node in list(nodes.values()):
             consumer = graph_node.reference
-            references = self._feature_references(consumer.args)
+            entity = self.specification.entities[consumer.entity]
+            dataset = next(item for item in entity.datasets if item.id == consumer.dataset_id)
+            mapping = dataset.mappings[consumer.operation_id]
+            references = mapping.input_features
+            dataset_references = bindings.dataset_dependencies(mapping.binding.args, dataset.id)
+            for referenced_id in dataset_references:
+                for source_node in nodes.values():
+                    source = source_node.reference
+                    if (
+                        source.dataset_id == referenced_id
+                        and source != consumer
+                        and source.operation_type in {"read", "collapse", "conform", "expand"}
+                        and (referenced_id != dataset.id or source.operation_type == "read")
+                    ):
+                        graph.add_edge(source_node, graph_node)
             if consumer.operation_type == "collapse":
                 source_id = self.collapse_input_dataset_id(consumer)
                 for source_node in nodes.values():
@@ -134,7 +146,9 @@ class CallableGraph:
                 sink_node = nodes[sink.node_id]
                 for source in sources:
                     graph.add_edge(nodes[source.node_id], sink_node)
-                referenced = set(self._feature_references(sink.args))
+                entity = self.specification.entities[sink.entity]
+                dataset = next(item for item in entity.datasets if item.id == sink.dataset_id)
+                referenced = set(dataset.mappings[sink.operation_id].input_features)
                 dependencies = (
                     [node for node in calculations if referenced.intersection(node.output_features)]
                     if referenced
@@ -153,39 +167,6 @@ class CallableGraph:
         dataset = next(dataset for dataset in entity.datasets if dataset.id == node.dataset_id)
         mapping = dataset.mappings[node.operation_id]
         return bindings.collapse_input_dataset(self.specification, mapping)[1].id
-
-    def _dataset_id(self, entity_id: str, feature: str) -> str | None:
-        """Return the dataset that owns a feature."""
-        entity = self.specification.entities.get(entity_id)
-        if entity is None:
-            return None
-        for dataset in entity.datasets:
-            if any(
-                mapping.binding.function in self.specification.functions.vectorize
-                and feature in mapping.features
-                for mapping in dataset.mappings.values()
-            ):
-                return dataset.id
-        return None
-
-    @staticmethod
-    def _feature_references(value: object) -> list[str]:
-        """Return feature references nested in operation arguments."""
-        if hasattr(value, "model_dump"):
-            value = value.model_dump()
-        if isinstance(value, str) and value.startswith("$features."):
-            return [value.removeprefix("$features.")]
-        if isinstance(value, dict):
-            return [
-                feature
-                for item in value.values()
-                for feature in CallableGraph._feature_references(item)
-            ]
-        if isinstance(value, list):
-            return [
-                feature for item in value for feature in CallableGraph._feature_references(item)
-            ]
-        return []
 
     @staticmethod
     def _node_key(node: node_module.CallableNode) -> str:

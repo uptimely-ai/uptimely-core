@@ -69,7 +69,7 @@ async def test_describe_function_resolves_signature(state: server.ServerState) -
     )
     assert payload["entrypoint"].endswith(":pump_health_score")
     assert payload["declared_args"]["health_features"]["type"] == "array[string]"
-    assert payload["python_signature"]["returns"] == "Expr"
+    assert payload["python_signature"]["returns"] == "LazyFrame"
 
 
 @pytest.mark.anyio

@@ -100,12 +100,20 @@ class SpecificationParser:
                     template = self.function_catalog.vectorize.get(function_name)
                     if template is None:
                         continue
+                    if not mapping.output_features:
+                        raise ValueError(f"Mapping {mapping.id} must declare one or more features")
+                    unknown = set(mapping.output_features) - dataset.features.keys()
+                    if unknown:
+                        raise ValueError(
+                            f"Mapping {mapping.id} references unknown feature: "
+                            + ", ".join(sorted(unknown))
+                        )
                     if function_name not in functions_by_id:
                         functions_by_id[function_name] = self._build_function(
-                            function_name, template, dataset.features[mapping.features[0]]
+                            function_name, template, dataset.features[mapping.output_features[0]]
                         )
                     function = functions_by_id[function_name]
-                    for feature_name in mapping.features:
+                    for feature_name in mapping.output_features:
                         feature = dataset.features[feature_name]
                         call = self._build_call(
                             function_name,
@@ -113,6 +121,7 @@ class SpecificationParser:
                             feature_name,
                             dataset.id,
                             mapping.binding,
+                            mapping.input_features,
                         )
                         calls.append(call)
                         function.callables.append(call)
@@ -151,13 +160,9 @@ class SpecificationParser:
         feature_name: str,
         dataset_id: str,
         binding: json_model.Binding,
+        inputs: list[str],
     ) -> json_model.Call:
         """Build a call, resolving dependencies and dataset placeholders."""
-        if SpecificationParser._contains_dataset_reference(binding.args):
-            raise ValueError(
-                f"Analytics calculation {feature_name} cannot bind a dataset; "
-                "bind its input features or dimensions instead"
-            )
         return json_model.Call(
             function=function_name,
             entity=entity_id,
@@ -165,26 +170,8 @@ class SpecificationParser:
             args=SpecificationParser._replace_arg_placeholders(
                 binding.args, dataset_id, feature_name
             ),
-            depends_on_features=SpecificationParser._resolve_feature_dependencies(binding.args),
+            depends_on_features=inputs,
         )
-
-    @staticmethod
-    def _contains_dataset_reference(value: object) -> bool:
-        """Return whether a binding contains a dataset structural reference."""
-        if isinstance(value, str):
-            return value.startswith("$datasets.")
-        if isinstance(value, dict):
-            return any(
-                SpecificationParser._contains_dataset_reference(item) for item in value.values()
-            )
-        if isinstance(value, list):
-            return any(SpecificationParser._contains_dataset_reference(item) for item in value)
-        return False
-
-    @staticmethod
-    def _resolve_feature_dependencies(args: dict | None) -> list[str]:
-        """Return unique feature names consumed by a binding."""
-        return bindings.feature_dependencies(args)
 
     @staticmethod
     def _replace_arg_placeholders(
@@ -244,7 +231,7 @@ class SpecificationParser:
                     if mapping.binding.function in self.function_catalog.collapse:
                         continue
                     if mapping.binding.function in self.function_catalog.vectorize:
-                        collisions = sorted(set(mapping.features) & dimension_names)
+                        collisions = sorted(set(mapping.output_features) & dimension_names)
                         if collisions:
                             raise ValueError(
                                 "Calculated feature names cannot duplicate entity dimensions: "
@@ -267,33 +254,22 @@ class SpecificationParser:
         for entity_id, entity in self.entities.items():
             for dataset in entity.datasets:
                 dataset_key = (entity_id, dataset.id)
-                expected_features = {
-                    feature_id
-                    for mapping in dataset.mappings.values()
-                    if mapping.binding.function in self.function_catalog.vectorize
-                    for feature_id in mapping.features
-                }
                 for mapping in dataset.mappings.values():
                     if mapping.binding.function in self.function_catalog.collapse:
                         continue
                     if mapping.binding.function not in self.function_catalog.write:
                         continue
-                    sink_features = set(self._resolve_feature_dependencies(mapping.binding.args))
+                    sink_features = set(mapping.input_features)
                     foreign_features = sorted(
                         feature
                         for feature in sink_features
-                        if dataset_of_feature.get(feature) != dataset_key
+                        if feature not in entity.dimensions
+                        and dataset_of_feature.get(feature) != dataset_key
                     )
                     if foreign_features:
                         raise ValueError(
                             f"Write mapping {mapping.id} cannot read features from "
                             "another dataset: " + ", ".join(foreign_features)
-                        )
-                    missing_features = sorted(expected_features - sink_features)
-                    if missing_features:
-                        raise ValueError(
-                            f"Write mapping {mapping.id} must bind all analytics features: "
-                            + ", ".join(missing_features)
                         )
 
         for function in functions:

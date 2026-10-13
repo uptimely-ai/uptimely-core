@@ -27,8 +27,12 @@ pump_mappings = [
         bind=bind.bind(
             calculation.maximum,
             feature=ref.feature("bearing_temperature"),
+            dataset=ref.dataset("pump_telemetry_dataset").dataframe,
+            dimensions=[ref.dimension(name).id for name in ("plant", "production_line", "pump")],
+            output=ref.feature("bearing_temperature_max").id,
         ),
-        features=[
+        inputs=[ref.feature("bearing_temperature")],
+        outputs=[
             ref.feature("plant"),
             ref.feature("production_line"),
             ref.feature("pump"),
@@ -43,8 +47,11 @@ pump_mappings = [
             lower_bound=-1.0,
             upper_bound=1.0,
             scaling_features=[ref.feature("bearing_temperature_max")],
+            dataset=ref.current_dataset().dataframe,
+            output=ref.feature("health_signal_normalized").id,
         ),
-        features=[ref.feature("health_signal_normalized")],
+        inputs=[ref.feature("bearing_temperature_max")],
+        outputs=[ref.feature("health_signal_normalized")],
     ),
 ]
 

@@ -5,7 +5,6 @@ import logging
 import pathlib
 import time
 import typing
-from collections import abc
 
 from uptimely import compile
 from uptimely import plan as plan_module
@@ -152,12 +151,9 @@ class Engine:
                 started = time.perf_counter()
                 logger.debug("Running %s operation %s", operation.kind, operation.id)
                 try:
-                    if operation.kind == "collapse":
-                        self._execute_collapse(operation)
-                    elif operation.kind in {"read", "expand", "conform"}:
-                        self._execute_source(operation)
-                    elif operation.kind == "vectorize":
-                        self._execute_vectorize(operation)
+                    self._validate_inputs(operation)
+                    if operation.kind in {"read", "expand", "conform", "collapse", "vectorize"}:
+                        self._execute_dataframe_mapping(operation)
                     elif operation.kind == "write":
                         self._execute_sink(operation)
                     else:
@@ -184,74 +180,83 @@ class Engine:
             plan_version=self.plan.plan.plan_version,
         )
 
-    def _execute_source(self, operation: plan_module.Operation) -> None:
-        """Run a fragment operation and merge its columns into the dataset."""
-        frame = self._runtime_datasets.get((operation.entity_id, operation.dataset_id))
+    def _execute_dataframe_mapping(self, operation: plan_module.Operation) -> None:
+        """Invoke a data-producing mapping, validate its result, and update the dataset."""
+        dataset_key = (operation.entity_id, operation.dataset_id)
+        frame = self._runtime_datasets.get(dataset_key)
         kwargs = self._resolve_args(operation, dataset_frame=frame)
         result = self.callable_loader.load(operation.entrypoint)(**kwargs)
-        self._runtime_fragments[(operation.entity_id, operation.output or operation.id)] = result
-        self._runtime_datasets[(operation.entity_id, operation.dataset_id)] = self._merge_fragment(
-            operation, result
-        )
-
-    def _execute_collapse(self, operation: plan_module.Operation) -> None:
-        """Invoke the collapse function and group by the target entity dimensions."""
-        input_datasets = {
-            dependency.dataset_id
-            for dependency in self.plan.operations
-            if dependency.id in operation.dependency_ids
-            and dependency.dataset_id != operation.dataset_id
-            and dependency.kind in {"read", "conform", "expand", "collapse", "vectorize"}
-            and dependency.dataset_id is not None
-        }
-        if len(input_datasets) != 1:
-            raise ValueError(
-                f"Collapse {operation.id} dependencies must identify one input dataset"
-            )
-        source_id = next(iter(input_datasets))
-        source = self._dataset_by_id(source_id)
-        if source is None or not self.backend.is_frame(source):
-            raise ValueError(f"Collapse source dataset is unavailable: {source_id}")
         dimensions = self.resource_resolver.entity_dimensions(operation.entity_id)
-        if not set(dimensions).issubset(operation.output_features):
-            raise ValueError("Collapse output_features must include target entity dimensions")
-        outputs = [output for output in operation.output_features if output not in dimensions]
-        if not outputs:
-            raise ValueError("Collapse must produce a non-dimension feature")
-        kwargs = self._resolve_args(operation, dataset_frame=source)
-        result = self.callable_loader.load(operation.entrypoint)(**kwargs)
-        results = self._output_values(operation, result, outputs)
-        expressions: list[object] = []
-        for identifier in outputs:
-            expression = results[identifier]
-            if not self.backend.is_expression(expression):
-                raise ValueError(
-                    f"Collapse function {operation.function_id} must return "
-                    f"an aggregation expression for {identifier}"
-                )
-            expressions.append(self.backend.alias(expression, identifier))
-        result = self.backend.collapse(source, dimensions, expressions)
-        self._runtime_fragments[(operation.entity_id, operation.output or operation.id)] = result
-        self._runtime_datasets[(operation.entity_id, operation.dataset_id)] = self._merge_fragment(
-            operation, result
-        )
+        self._validate_dataframe_result(operation, result, frame, dimensions)
+        columns = list(dict.fromkeys([*dimensions, *operation.output_features]))
+        fragment = self.backend.select(result, columns)
+        merged = self._merge_fragment(frame, fragment, dimensions)
 
-    def _merge_fragment(self, operation: plan_module.Operation, fragment: object) -> object:
-        """Validate and merge a fragment using its entity dimension keys."""
-        if not self.backend.is_frame(fragment):
+        self._runtime_datasets[dataset_key] = merged
+        self._runtime_fragments[(operation.entity_id, operation.output or operation.id)] = fragment
+        if operation.kind == "vectorize":
+            for output in operation.output_features:
+                self._runtime_calculations[(*dataset_key, output)] = self.backend.select(
+                    fragment, [*dimensions, output]
+                )
+
+    def _validate_dataframe_result(
+        self,
+        operation: plan_module.Operation,
+        result: object,
+        input_frame: object,
+        dimensions: list[str],
+    ) -> None:
+        """Check the returned dataframe's keys, declared outputs, and logical types."""
+        if not self.backend.is_frame(result):
             raise ValueError(
                 f"Fragment {operation.function_id} must return a Polars DataFrame or LazyFrame"
             )
-        dimensions = self.resource_resolver.entity_dimensions(operation.entity_id)
-        self._validate_fragment_keys(operation, fragment, dimensions)
-        dataset_id = operation.dataset_id
-        key = (operation.entity_id, dataset_id)
-        existing = self._runtime_datasets.get(key)
+        self._validate_fragment_keys(operation, result, dimensions)
+        columns = set(self.backend.column_names(result))
+        missing = sorted(set(operation.output_features) - columns)
+        if missing:
+            raise ValueError(
+                f"Mapping {operation.id} is missing output columns: " + ", ".join(missing)
+            )
+        dimension_definitions = self.resources.get("dimensions", {})
+        feature_definitions = (
+            self.resources.get("datasets", {}).get(operation.dataset_id, {}).get("features", {})
+        )
+        types: dict[str, str] = {}
+        for name in dict.fromkeys([*dimensions, *operation.output_features]):
+            definitions = dimension_definitions if name in dimensions else feature_definitions
+            column_type = definitions.get(name, {}).get("type")
+            if column_type is not None:
+                types[name] = column_type
+        self.backend.validate_types(result, types)
+        if operation.kind == "vectorize" and (
+            input_frame is None or not self.backend.same_keys(input_frame, result, dimensions)
+        ):
+            raise ValueError(
+                f"Vectorize mapping {operation.id} must preserve the dataset dimension keys"
+            )
+
+    def _validate_inputs(self, operation: plan_module.Operation) -> None:
+        """Require declared input columns to be materialized before invocation."""
+        for feature in operation.input_features:
+            frames = [
+                frame
+                for frame in self._runtime_datasets.values()
+                if feature in self.backend.column_names(frame)
+            ]
+            current = self._runtime_datasets.get((operation.entity_id, operation.dataset_id))
+            if current is not None and feature in self.backend.column_names(current):
+                continue
+            if len(frames) != 1:
+                raise ValueError(
+                    f"Mapping {operation.id} input feature is unavailable or ambiguous: {feature}"
+                )
+
+    def _merge_fragment(self, existing: object, fragment: object, dimensions: list[str]) -> object:
+        """Join a validated fragment without replacing existing feature columns."""
         if existing is None:
             return fragment
-        if not self.backend.is_frame(existing):
-            raise ValueError(f"Dataset {dataset_id} is not a dataframe")
-        self._validate_fragment_keys(operation, existing, dimensions)
         existing_columns = set(self.backend.column_names(existing))
         new_columns = [
             column
@@ -291,51 +296,6 @@ class Engine:
         if self.backend.is_duplicated(keys):
             raise ValueError(f"Fragment {operation.function_id} contains duplicate dimension keys")
 
-    def _execute_vectorize(self, operation: plan_module.Operation) -> None:
-        """Run a vectorize mapping and append its output columns to the dataset."""
-        dataset_key = (operation.entity_id, operation.dataset_id)
-        kwargs = self._resolve_args(operation, dataset_key=dataset_key)
-        result = self.callable_loader.load(operation.entrypoint)(**kwargs)
-        outputs = operation.output_features or [operation.output or operation.function_id]
-        results = self._output_values(operation, result, outputs)
-        elements = [self._as_column(results[output], output) for output in outputs]
-        self._runtime_datasets[dataset_key] = self.backend.with_columns(
-            self._runtime_datasets[dataset_key], elements
-        )
-        for output, element in zip(outputs, elements, strict=True):
-            self._runtime_calculations[(*dataset_key, output)] = element
-
-    @staticmethod
-    def _output_values(
-        operation: plan_module.Operation, result: object, outputs: list[str]
-    ) -> abc.Mapping[str, object]:
-        """Validate a function's return value against its declared analytical outputs."""
-        label = operation.kind.capitalize()
-        if len(outputs) == 1:
-            return {outputs[0]: result}
-        if isinstance(result, abc.Mapping):
-            if not all(isinstance(name, str) for name in result):
-                raise ValueError(
-                    f"{label} mapping {operation.id} returned non-string output identifiers"
-                )
-            unknown = sorted(set(result) - set(outputs))
-            missing = sorted(set(outputs) - set(result))
-            if unknown or missing:
-                details = []
-                if missing:
-                    details.append("missing outputs: " + ", ".join(missing))
-                if unknown:
-                    details.append("unexpected outputs: " + ", ".join(unknown))
-                raise ValueError(
-                    f"{label} mapping {operation.id} returned invalid outputs "
-                    f"({'; '.join(details)})"
-                )
-            return result
-        raise ValueError(
-            f"{label} mapping {operation.id} must return a mapping of "
-            "feature IDs to values when it produces multiple features"
-        )
-
     def _execute_sink(self, operation: plan_module.Operation) -> None:
         """Persist the selected columns of the accumulated dataset."""
         frame = self._runtime_datasets[(operation.entity_id, operation.dataset_id)]
@@ -372,20 +332,30 @@ class Engine:
         if hasattr(value, "model_dump"):
             value = value.model_dump()
         if argument_type == "dataframe" and isinstance(value, str):
-            return self._dataframe_by_id(value)
+            frame = self._dataframe_by_id(value)
+            if frame is None:
+                raise ValueError(f"Dataset dataframe is unavailable: {value}")
+            return frame
         if isinstance(value, str) and value.startswith("?"):
             return self._resolve_runtime_reference(value)
         if isinstance(value, list):
+            element_type = (
+                argument_type[6:-1]
+                if argument_type is not None and argument_type.startswith("array[")
+                else None
+            )
             return [
-                item
-                for item in (
-                    self._resolve_value(item, dataset_frame, dataset_key) for item in value
-                )
-                if item is not None
+                self._resolve_value(item, dataset_frame, dataset_key, element_type)
+                for item in value
             ]
         if isinstance(value, dict):
+            value_type = (
+                argument_type[12:-1]
+                if argument_type is not None and argument_type.startswith("object{str: ")
+                else None
+            )
             return {
-                name: self._resolve_value(item, dataset_frame, dataset_key)
+                name: self._resolve_value(item, dataset_frame, dataset_key, value_type)
                 for name, item in value.items()
             }
         return value
@@ -405,24 +375,6 @@ class Engine:
         if attribute not in object_resources:
             raise ValueError(f"{namespace} object {object_id} has no attribute: {attribute}")
         return object_resources[attribute]
-
-    def _feature_value(
-        self, feature: str, dataset_frame: object, dataset_key: tuple[str, str] | None
-    ) -> object | None:
-        calculation = (
-            self._runtime_calculations.get((*dataset_key, feature))
-            if dataset_key is not None
-            else None
-        )
-        if calculation is not None:
-            return calculation
-        if dataset_frame is None:
-            return self.backend.feature_column(feature)
-        return (
-            self.backend.feature_column(feature)
-            if feature in self.backend.column_names(dataset_frame)
-            else None
-        )
 
     def _dataset_by_id(self, dataset_id: str) -> object | None:
         matches = [
@@ -447,9 +399,3 @@ class Engine:
         if len(matches) > 1:
             raise ValueError(f"Ambiguous fragment reference: {identifier}")
         return matches[0] if matches else None
-
-    def _as_column(self, element: object, feature: str) -> object:
-        """Return a calculation result as a named backend column."""
-        if self.backend.is_column(element):
-            return self.backend.alias(element, feature)
-        return self.backend.alias(self.backend.literal(element), feature)
