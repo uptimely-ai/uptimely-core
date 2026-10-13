@@ -10,7 +10,7 @@ connected views:
 | Specification | Overview, Features, Entities, Datasets, Dimensions, and Functions pages, linked beneath Specification in the sidebar. Features are summarized per dataset with their producing mapping. |
 | Feature lineage | One interactive graph page with a 2D/3D selector. |
 | Plan | Overview summary, one selectable 2D/3D callable graph, and detailed parallel execution stages. |
-| Execution | Data lineage as color-coded processing tables connected by dependency arrows. |
+| Execution | A step-by-step callable walkthrough with illustrative input and output tables. |
 
 The home page is a project dashboard: the specification name and version,
 compact counts for entities, datasets, features, functions, compiled operations,
@@ -60,6 +60,16 @@ sidebar group provides subnavigation and highlights the current section. The
 Features page summarizes features by dataset and identifies the producing
 mapping; the Entities and Datasets pages provide focused views of those
 specification resources.
+Dataset tables put column names first, followed by Dimension, Raw, or Feature labels,
+types, and units. Dimensions come first in the
+entity's declared order; feature columns follow their declaration order in the
+dataset.
+Dimensions are blue, raw input columns green, and calculated features yellow.
+The cards use dark tinted tables with the dataset name and grain visible.
+Expand **Dataset details** for descriptions, filtering, coverage, logical order,
+and dataframe mappings.
+Wide tables scroll horizontally with a thin scrollbar matching the dark page.
+These tables describe schemas, not sample records or runtime results.
 Feature graph opens `spec/graph.html` beneath Specification. Plan has Overview, Graph,
 and Stages subnavigation in `plan/`; its graph is in `plan/graph.html`.
 Each graph starts in 2D. Use the **2D / 3D** buttons above it to switch views
@@ -73,25 +83,43 @@ operations and their dependencies rather than feature-lineage nodes.
 Stages lists dependency-ordered operations with their arguments and return types.
 
 **Execution / Data lineage** opens `execution/data_lineage.html`. Each compiled
-operation has a table of declared dimension, input, and output columns, arranged
-in dependency-stage lanes. Columns show types rather than sample or runtime
-values. Dimensions are blue; each processing step has a color that follows its
-outputs into downstream input columns. Role labels and step numbers explain the
-same relationships without relying on color. Writes show consumed columns and
-do not imply new analytical outputs.
+operation is presented as one scene: an illustrative input table, the callable
+name, and an output table. **Play** highlights the declared inputs, illustrates
+the callable, builds output columns one at a time, and adds placeholder rows
+before advancing. Aggregations first highlight shared observation keys and
+visually enclose the input rows as one illustrative group. Reads highlight their
+source; writes reveal a destination handoff without creating an output schema.
+All declared inputs are highlighted together: the view does not infer exact
+input-to-output mappings or simulate the callable's calculation. **Pause**
+holds the current frame; **Previous** and **Next** show a callable's completed
+illustration without waiting. At the end, **Replay** starts the walkthrough again.
+Playback starts paused and stops when the page is hidden. Pausing also freezes
+the current arrival or grouping animation; resuming continues that frame.
 
-Arrows connect producer tables to consumer tables using the compiled dependencies.
-All arrows and arrowheads use the same slate color, independent of table colors.
-Scroll horizontally to follow stages and vertically to explore parallel steps;
-compact tables also scroll when they contain many columns. Dataset metadata is
-available under each card's **Dataset details** disclosure. The view starts at
-75% zoom; use **+**, **-**, or **100%** to inspect details, and **Fit view** to
-frame all processing cards in the viewport. Zoom keeps the viewport's current
-center in view; stage lanes remain side by side at every zoom level.
-Arrows stay aligned when zooming or
-expanding details. Dependency links remain usable without JavaScript. This is
-a schematic of the planned column flow, not an execution trace or a snapshot of
-materialized data. Generating it reuses the compiled plan and never runs analytics.
+Column names and types come from the compiled plan. Cells labeled **Key**, **Value**,
+and **Result** are symbolic placeholders, not typed sample values or calculated
+results. The three-row illustration is not a claim about actual row counts.
+Aggregation scenes illustrate three placeholder rows becoming one group, without
+inferring the function's calculation or actual grouping. Reads show a source
+boundary; writes show a destination instead of invented analytical outputs.
+Observation keys are shaded separately from newly produced columns. Each scene
+also shows its dataset, declared grain when available, stage, and step number.
+
+The walkthrough follows dependency-stage order. Steps within the same stage are
+independent; sequential playback does not imply a dependency or execution order
+between them. Expand **Declared schema and dependencies** for the complete column
+roles, types, producer links, and direct dependencies. Links jump to the referenced
+callable, pausing playback.
+
+Input and output tables stack vertically at every screen size so each table has
+the full available width for its columns. A downward arrow connects them. Wide tables scroll
+inside their panels. Reduced-motion preferences disable arrival animations while
+preserving discrete playback frames. Without JavaScript, all callable scenes and
+schema disclosures remain available in stage order.
+
+This is an illustrative explanation of declared flow, not a simulation of
+arbitrary function bodies or a runtime trace. Generating it reuses the compiled
+plan and never executes analytics.
 
 Each report is a complete HTML page, with relative links to
 the other reports. The directory can be moved or hosted beneath a URL prefix
