@@ -86,7 +86,9 @@ Scroll horizontally to follow stages and vertically to explore parallel steps;
 compact tables also scroll when they contain many columns. Dataset metadata is
 available under each card's **Dataset details** disclosure. The view starts at
 75% zoom; use **+**, **-**, or **100%** to inspect details, and **Fit view** to
-frame all processing cards in the viewport. Arrows stay aligned when zooming or
+frame all processing cards in the viewport. Zoom keeps the viewport's current
+center in view; stage lanes remain side by side at every zoom level.
+Arrows stay aligned when zooming or
 expanding details. Dependency links remain usable without JavaScript. This is
 a schematic of the planned column flow, not an execution trace or a snapshot of
 materialized data. Generating it reuses the compiled plan and never runs analytics.

@@ -2,11 +2,59 @@
 
 import pathlib
 import re
+from html import parser as html_parser
 
 from uptimely import compile, spec
 from uptimely.docs import docs, lineage
 
 SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+
+
+class LineageStructureCollector(html_parser.HTMLParser):
+    """Validate nesting and retain the parents of lineage layout elements."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.stack: list[tuple[str, dict[str, str | None]]] = []
+        self.parents: list[tuple[str, str | None]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        if attributes.get("class") in {
+            "lineage-stage",
+            "lineage-step",
+            "lineage-dependencies",
+        }:
+            parent = self.stack[-1][1]
+            self.parents.append(
+                (attributes["class"] or "", parent.get("id") or parent.get("class"))
+            )
+        if tag not in {"meta", "link", "br", "hr", "input", "img", "wbr"}:
+            self.stack.append((tag, attributes))
+
+    def handle_endtag(self, tag: str) -> None:
+        assert self.stack, f"Unexpected closing {tag}"
+        assert self.stack[-1][0] == tag, f"Closing {tag} inside {self.stack[-1][0]}"
+        self.stack.pop()
+
+
+def test_lineage_layout_has_balanced_stage_and_card_containers(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
+    plan = compile.Compiler(specification).compile()
+    docs.create_html(specification, tmp_path / "index.html")
+    document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    collector = LineageStructureCollector()
+    collector.feed(document)
+    assert not collector.stack
+    assert [parent for name, parent in collector.parents if name == "lineage-stage"] == [
+        "lineage-board"
+    ] * len(plan.execution_stages)
+    assert [parent for name, parent in collector.parents if name == "lineage-step"] == [
+        "lineage-stage"
+    ] * len(plan.operations)
+    assert [parent for name, parent in collector.parents if name == "lineage-dependencies"] == [
+        f"step-{number}" for number in range(1, len(plan.operations) + 1)
+    ]
 
 
 def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
@@ -112,7 +160,12 @@ def test_lineage_has_compact_tables_and_zoom_controls(tmp_path: pathlib.Path) ->
     specification = spec.Specification.from_json(SPEC_PATH)
     docs.create_html(specification, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
-    assert ".lineage-stage { position: relative; width: 320px;" in document
+    assert ".lineage-stage { position: relative; width: 320px; flex-shrink: 0;" in document
+    assert ".lineage-board-scaled { position: absolute; top: 0; left: 0; }" in document
+    assert 'svg.setAttribute("width", board.offsetWidth);' in document
+    assert 'svg.setAttribute("height", board.offsetHeight);' in document
+    assert "(viewport.scrollLeft + viewport.clientWidth / 2) / zoom" in document
+    assert "(viewport.scrollTop + viewport.clientHeight / 2) / zoom" in document
     assert "padding: 5px 6px;" in document
     assert 'aria-label="Data lineage zoom" hidden' in document
     assert 'aria-label="Zoom out"' in document
