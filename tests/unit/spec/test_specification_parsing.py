@@ -136,7 +136,7 @@ def test_structural_references_compile_to_identifiers() -> None:
 
 def test_system_and_subset_support_multiple_variables() -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
-    assert len(specification.resolved_functions) == 8
+    assert len(specification.resolved_functions) == 7
     collapse = specification.entities["pump"].datasets[0].mappings["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.binding.function == "maximum"

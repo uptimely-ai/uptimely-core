@@ -152,9 +152,9 @@ telemetry_mappings = [
     mapping.Vectorize(
         id="converged",
         bind=bind.bind(
-            calculation.converged,
-            function_id="extract_convergence_flag",
-            recommendation_features=[ref.feature("operating_point_recommendation")],
+            calculation.extract_recommendation_value,
+            optimization_attribute="converged",
+            column=ref.feature("operating_point_recommendation"),
             dataset=ref.current_dataset().dataframe,
             output=ref.feature("converged").id,
         ),

@@ -58,7 +58,7 @@ def test_example_manifest_parses_complete_specification() -> None:
     assert set(specification.functions.vectorize) - {"maximum"} == {
         function.id for function in specification.resolved_functions
     }
-    assert len(specification.resolved_functions) == 8
+    assert len(specification.resolved_functions) == 7
 
     pump_dataset = specification.entities["pump"].datasets[0]
     collapse = pump_dataset.mappings["bearing_temperature_by_pump"]

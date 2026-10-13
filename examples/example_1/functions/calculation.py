@@ -26,14 +26,6 @@ def bearing_temperature_delta(
     )
 
 
-def converged(
-    recommendation_features: list[str], dataset: pl.LazyFrame, output: str
-) -> pl.LazyFrame:
-    """Return the convergence boolean from the recommendation struct column."""
-    recommendation = pl.col(recommendation_features[0])
-    return dataset.with_columns(recommendation.struct.field("converged").alias(output))
-
-
 def extract_recommendation_value(
     optimization_attribute: str,
     column: str,
