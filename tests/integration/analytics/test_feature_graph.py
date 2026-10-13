@@ -153,9 +153,10 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "<strong>Node type:</strong> Function" in html
     assert "<strong>Function:</strong> ${label}" in html
     assert "<strong>Produces:</strong> ${formatDetailValue(features.join(', '))}" in html
-    assert "Feature</span>" in html
+    assert "Function</span>" in html
     for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
-        assert f"{category} function</span>" in html
+        assert f"{category} function</span>" not in html
+    assert "entity-legend" in html
     assert "input_color" not in html
 
 
@@ -170,24 +171,28 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "graph-hint" not in html
     assert 'id="fit-graph"' in html
     assert "function prepareGraphLayout(graphData)" in html
-    assert "function drawEntityLanes(ctx, globalScale)" in html
+    assert "function drawEntityLanes(ctx, globalScale)" not in html
     assert "function drawNode(node, ctx)" in html
     assert "function selectAtPointer(event)" in html
     assert ".nodeCanvasObject(drawNode)" in html
-    assert (
-        "const entityNames = [...new Set("
-        "graphData.nodes.map(node => node.entity || 'Unassigned'))]" in html
-    )
+    assert "data.nodes.map(node => node.entity || 'Unassigned')" in html
     assert "rankNodes" in html
-    assert "node.fx = rankOffsets.get(rank) - graphWidth / 2 + laneLabelWidth + 100" in html
-    assert "lanePositions.get(entity)" in html
-    assert "(index - (nodes.length - 1) / 2) * 54" in html
-    assert ".onRenderFramePre(drawEntityLanes)" in html
-    assert "lanePositions.get(entity)" in html
-    assert (
-        "ctx.fillText(entity, laneLeft + layout.laneLabelWidth, centerY, layout.laneLabelWidth)"
-        in html
-    )
+    assert "node.fx = rankOffsets.get(rank) - graphWidth / 2" in html
+    assert "(index - (nodes.length - 1) / 2) * 70" in html
+    assert "node.entityColor = entityColors.get(node.entity)" in html
+    assert "item.textContent = entity" in html
+    assert "'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa'" in html
+    assert '"#b9c9d8"' in html
+    assert "function linkRoute(link)" in html
+    assert "const corners = [[bendX, start[1]], [bendX, end[1]]]" in html
+    assert "2 * inverse * t * corner[0] + t * t * after[0]" in html
+    assert ".linkCanvasObjectMode(() => 'replace')" in html
+    assert ".linkDirectionalParticles(1)" in html
+    assert "link.flowOffset = index / Math.max(1, data.links.length)" in html
+    assert "performance.now() / 2200" in html
+    assert ".linkCurvature(0.18)" not in html
+    assert ".linkDirectionalParticles(2)" in html
+    assert ".nodeColor(node => node.is_function ? functionColor : node.entityColor)" in html
     assert "function resizeGraph()" in html
     assert "health_signal_normalized" in html
     assert '"label": "bearing_temperature_max", "tags": [], "node_type": "feature"' in html
@@ -195,8 +200,9 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert '"label": "operating_point_recommendation", "tags": [], "node_type": "feature"' in html
     assert '"is_function": false, "entity": "pump_telemetry"' in html
     assert 'aria-label="Feature graph legend"' in html
-    assert "Feature</span>" in html
-    assert "Read function</span>" in html
+    assert "Function</span>" in html
+    for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
+        assert f"{category} function</span>" not in html
     assert 'class="details details-2d"' in html
     assert "Selected item" in html
     assert ".details-2d { right: auto; left: 16px;" in html

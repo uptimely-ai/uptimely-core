@@ -6,7 +6,7 @@
 			.graphData(data)
 			.backgroundColor('{{ style.background_color }}')
 			.nodeLabel(node => `${node.is_function ? 'function' : 'feature'}: ${node.label}<br>entity: ${node.entity || 'n/a'}`)
-			.nodeColor(node => node.is_function ? functionColors[node.function_type] : featureColor)
+			.nodeColor(node => node.is_function ? functionColor : node.entityColor)
 			.nodeRelSize({{ style.node_rel_size }})
 			.nodeResolution({{ style.node_resolution }})
 			.linkDirectionalArrowLength({{ style.arrow_length }})
@@ -25,7 +25,7 @@
 				}
 			})
 			.nodeThreeObject(node => {
-				const color = node.is_function ? functionColors[node.function_type] : featureColor;
+				const color = node.is_function ? functionColor : node.entityColor;
 				const material = new THREE.MeshLambertMaterial({ color });
 				const isVariable = !node.is_function;
 				const geometry = isVariable
