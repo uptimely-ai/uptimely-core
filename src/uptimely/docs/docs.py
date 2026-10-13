@@ -47,23 +47,15 @@ class Documentation:
 
         Args:
             output_path: Index file; defaults to ``_generated/docs/index.html``.
-                All report and specification section pages are written alongside this file.
+                Section pages are written in spec, graph, and plan subdirectories
+                beneath the index directory.
             include_generated_at: Include a timestamp on the specification page.
 
         Returns:
             The path to the website index.
-
-        Raises:
-            ValueError: If the index path conflicts with a report filename.
         """
         target = pathlib.Path(output_path) if output_path is not None else OUTPUT_DIR / "index.html"
         target = target.with_suffix(".html")
-        if target.name in {
-            *spec_render.SPECIFICATION_PAGES.values(),
-            "feature_graph.html",
-            *render.PLAN_PAGES.values(),
-        }:
-            raise ValueError("The website index path must not overwrite a report page.")
         plan = compile.Compiler(self.spec).compile()
         graph = analytics.FeatureGraph(self.spec)
         context = spec_render._build_context(self.spec, include_generated_at)

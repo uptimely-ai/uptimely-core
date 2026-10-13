@@ -60,11 +60,11 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
 
 def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> None:
     docs.Documentation(spec.Specification.from_json(SPEC_PATH)).create_html(tmp_path / "index.html")
-    report_path = tmp_path / "execution_plan_stages.html"
+    report_path = tmp_path / "plan/stages.html"
     report = report_path.read_text(encoding="utf-8")
 
     assert "<title>Execution plan Stages</title>" in report
-    assert ">Stages</h1>" in report
+    assert ">Stages</span></h1>" in report
     assert "Stage 1" in report
     assert "parallel operations" in report
     assert ">Operation</dt>" in report
@@ -83,7 +83,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert source_match is not None
     assert (report_path.parent / source_match.group(1)).resolve().is_file()
 
-    report = (tmp_path / "execution_plan_graph.html").read_text(encoding="utf-8")
+    report = (tmp_path / "plan/graph.html").read_text(encoding="utf-8")
     assert 'id="callable-graph"' in report
     assert "3d-force-graph" in report
     assert "Callable details" in report
@@ -117,9 +117,9 @@ def test_website_exports_plan_pages_to_default_path(tmp_path: pathlib.Path, monk
 
     assert index == pathlib.Path("_generated/docs/index.html")
     for filename in (
-        "execution_plan.html",
-        "execution_plan_graph.html",
-        "execution_plan_stages.html",
+        "plan/overview.html",
+        "plan/graph.html",
+        "plan/stages.html",
     ):
         assert (index.parent / filename).is_file()
     assert not pathlib.Path("_generated/compile").exists()

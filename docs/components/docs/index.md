@@ -36,26 +36,29 @@ The command exports this directory:
 ```text
 _generated/docs/
 ├── index.html
-├── spec.html
-├── spec_features.html
-├── spec_entities.html
-├── spec_datasets.html
-├── spec_dimensions.html
-├── spec_functions.html
-├── feature_graph.html
-├── execution_plan.html
-├── execution_plan_graph.html
-└── execution_plan_stages.html
+├── spec/
+│   ├── overview.html
+│   ├── features.html
+│   ├── entities.html
+│   ├── datasets.html
+│   ├── dimensions.html
+│   └── functions.html
+├── graph/
+│   └── feature_graph.html
+└── plan/
+    ├── overview.html
+    ├── graph.html
+    └── stages.html
 ```
 
-Start at `index.html`. `spec.html` contains the specification overview; the other
+Start at `index.html`. `spec/overview.html` contains the specification overview; the other
 specification pages contain only their respective sections. The Specification
 sidebar group provides subnavigation and highlights the current section. The
 Features page summarizes features by dataset and identifies the producing
 mapping; the Entities and Datasets pages provide focused views of those
 specification resources.
-Feature graph opens `feature_graph.html`. Execution plan has Overview, Graph,
-and Stages subnavigation; its graph is in `execution_plan_graph.html`.
+Feature graph opens `graph/feature_graph.html`. Execution plan has Overview, Graph,
+and Stages subnavigation in `plan/`; its graph is in `plan/graph.html`.
 Each graph starts in 2D. Use the **2D / 3D** buttons above it to switch views
 without leaving the page. Selected node details remain visible across switches.
 The **Fit graph** button frames the active view. Only the visible renderer runs;
@@ -122,8 +125,10 @@ index_path = documentation.create_html(
 )
 ```
 
-All graph, execution-plan, and specification pages are written beside the index.
-The index filename cannot match any of their filenames shown above.
+Section pages are written in `spec/`, `graph/`, and `plan/` beneath the index
+directory. All navigation is relative to the page containing it, including links
+back to a custom index filename. An index named `overview.html`, for example,
+does not conflict with either section's overview page.
 HTML generation always produces the complete website; exporting an individual
 report or a graph subset as HTML is not supported.
 

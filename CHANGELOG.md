@@ -65,6 +65,8 @@ Initial public release.
 
 ### Fixed
 
+- Aligned generated website routes and relative navigation on `spec/`, `graph/`,
+  and `plan/` subdirectories, including custom index names and plan source links.
 - Corrected stale symbol references in specification models, compilation,
   feature graphs, the engine, and tests that prevented pytest collection and
   blocked the pre-push hook.
@@ -74,5 +76,5 @@ Initial public release.
 Placholder release to reserve the package name in PyPI.
 - Combined each generated graph section into one page with an in-place 2D/3D
   selector, defaulting to 2D and preserving selected node details. Sidebar links
-  now use `feature_graph.html` and `execution_plan_graph.html`; rebuilds remove
+  now use `graph/feature_graph.html` and `plan/graph.html`; rebuilds remove
   obsolete dimension-specific graph pages.

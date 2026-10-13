@@ -13,14 +13,7 @@ from uptimely import render, spec
 from uptimely.compile import entrypoint as compile_entrypoint
 
 OUTPUT_DIR = pathlib.Path("_generated") / "spec"
-SPECIFICATION_PAGES = {
-    "overview": "overview.html",
-    "features": "features.html",
-    "entities": "entities.html",
-    "datasets": "datasets.html",
-    "dimensions": "dimensions.html",
-    "functions": "functions.html",
-}
+SPECIFICATION_PAGES = render.WEBSITE_PAGES["spec"]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -79,6 +72,7 @@ def _render_document(
         active_page="spec",
         active_section=section,
         index_filename=index_filename,
+        root_path="../",
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(document, encoding="utf-8")

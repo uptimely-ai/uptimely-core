@@ -3,7 +3,11 @@ import functools
 import json
 import pathlib
 import re
+import threading
 from html import parser as html_parser
+from http import server as http_server
+from urllib import parse as url_parse
+from urllib import request
 
 import pytest
 from examples.example_1.functions import source
@@ -15,16 +19,16 @@ from uptimely.spec import render as spec_render
 
 SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
 REPORTS = {
-    "spec.html": "spec",
-    "spec_features.html": "features",
-    "spec_entities.html": "entities",
-    "spec_datasets.html": "datasets",
-    "spec_dimensions.html": "dimensions",
-    "spec_functions.html": "functions",
-    "feature_graph.html": "graph",
-    "execution_plan.html": "plan",
-    "execution_plan_graph.html": "plan",
-    "execution_plan_stages.html": "stages",
+    "spec/overview.html": "spec",
+    "spec/features.html": "features",
+    "spec/entities.html": "entities",
+    "spec/datasets.html": "datasets",
+    "spec/dimensions.html": "dimensions",
+    "spec/functions.html": "functions",
+    "graph/feature_graph.html": "graph",
+    "plan/overview.html": "plan",
+    "plan/graph.html": "plan",
+    "plan/stages.html": "stages",
 }
 
 
@@ -104,16 +108,16 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
     docs.create_html(spec.Specification(), tmp_path / "index.html")
     expected = {
         "index.html": ("home", "house", "Untitled analytics project"),
-        "overview.html": ("overview", "layout-dashboard", "Overview"),
-        "features.html": ("features", "sparkles", "Features"),
-        "entities.html": ("entities", "boxes", "Entities"),
-        "datasets.html": ("datasets", "table", "Datasets"),
-        "dimensions.html": ("dimensions", "layers-3", "Dimensions"),
-        "functions.html": ("functions", "braces", "Functions"),
-        "feature_graph.html": ("lineage", "git-fork", "Feature lineage"),
-        "execution_plan.html": ("execution", "workflow", "Overview"),
-        "execution_plan_graph.html": ("execution-graph", "network", "Execution graph"),
-        "execution_plan_stages.html": ("stages", "list-ordered", "Stages"),
+        "spec/overview.html": ("overview", "layout-dashboard", "Overview"),
+        "spec/features.html": ("features", "sparkles", "Features"),
+        "spec/entities.html": ("entities", "boxes", "Entities"),
+        "spec/datasets.html": ("datasets", "table", "Datasets"),
+        "spec/dimensions.html": ("dimensions", "layers-3", "Dimensions"),
+        "spec/functions.html": ("functions", "braces", "Functions"),
+        "graph/feature_graph.html": ("lineage", "git-fork", "Feature lineage"),
+        "plan/overview.html": ("execution", "workflow", "Overview"),
+        "plan/graph.html": ("execution-graph", "network", "Execution graph"),
+        "plan/stages.html": ("stages", "list-ordered", "Stages"),
     }
     palette = {
         "home": "#93c5fd",
@@ -166,10 +170,14 @@ def test_website_exports_all_reports_with_relative_navigation(
         document = page_file.read_text(encoding="utf-8")
         parser.feed(document)
         assert parser.html_count == 1
-        assert set(parser.links) == {"index.html", *REPORTS}
+        assert {(page_file.parent / href).resolve() for href in parser.links} == {
+            (index.parent / path).resolve() for path in ("index.html", *REPORTS)
+        }
         for href in parser.links:
-            assert (index.parent / href).is_file()
-        assert parser.active_links == [filename]
+            assert (page_file.parent / href).is_file()
+        assert [(page_file.parent / href).resolve() for href in parser.active_links] == [
+            page_file.resolve()
+        ]
         assert "<iframe" not in document
     assert "Pump telemetry" in (index.parent / "spec/features.html").read_text(encoding="utf-8")
     features = (index.parent / "spec/features.html").read_text(encoding="utf-8")
@@ -188,22 +196,22 @@ def test_website_exports_all_reports_with_relative_navigation(
     datasets = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     assert "One row per pump and timestamp" in datasets
     assert "read · read_pump_telemetry" in datasets
-    assert "Pump analytics" in (index.parent / "spec.html").read_text(encoding="utf-8")
-    graph_2d = (index.parent / "feature_graph.html").read_text(encoding="utf-8")
+    assert "Pump analytics" in (index.parent / "spec/overview.html").read_text(encoding="utf-8")
+    graph_2d = (index.parent / "graph/feature_graph.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_2d
     assert "force-graph@1.52.0/dist/force-graph.min.js" in graph_2d
     assert ".height(graphContainer.clientHeight)" in graph_2d
     assert "3d-force-graph" in graph_2d
     assert 'aria-label="Feature graph views"' not in graph_2d
     assert re.search(
-        r'href="feature_graph.html" aria-current="page">'
+        r'href="../graph/feature_graph.html" aria-current="page">'
         r'<i class="site-icon icon--lineage nav-icon" '
         r'data-lucide="git-fork"',
         graph_2d,
     )
     assert ".onEngineStop(" in graph_2d
     assert "graph.zoomToFit(0, Math.max(140, layout.laneLabelWidth + 24))" in graph_2d
-    plan = (index.parent / "execution_plan_graph.html").read_text(encoding="utf-8")
+    plan = (index.parent / "plan/graph.html").read_text(encoding="utf-8")
     assert 'id="callable-graph"' in plan
     assert "normalize_health_signal" in plan
     assert not pathlib.Path("_generated/spec").exists()
@@ -251,9 +259,9 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         "execution",
     ]
     for href, action in (
-        ("spec.html", "Explore specification"),
-        ("feature_graph.html", "Trace dependencies"),
-        ("execution_plan.html", "Inspect the plan"),
+        ("spec/overview.html", "Explore specification"),
+        ("graph/feature_graph.html", "Trace dependencies"),
+        ("plan/overview.html", "Inspect the plan"),
     ):
         assert f'<a href="{href}">{action}' in document
         assert (index.parent / href).is_file()
@@ -303,7 +311,9 @@ def test_specification_pages_render_only_their_section(
     assert 'aria-label="Documentation sections"' not in document
     headings = re.findall(r'<h1 class="([^"]+)">.*?<span>([^<]+)</span></h1>', document)
     assert len(headings) == 1
-    assert headings[0][0] == "font-display text-3xl font-semibold tracking-tight text-white"
+    assert headings[0][0] == (
+        "title-with-icon font-display text-3xl font-semibold tracking-tight text-white"
+    )
     assert headings[0][1] == title
     assert "sm:text-6xl" not in document
 
@@ -334,19 +344,59 @@ def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: pathlib
     assert all((index.parent / filename).is_file() for filename in REPORTS)
     for filename in (index.name, *REPORTS):
         parser = NavigationCollector()
-        parser.feed((index.parent / filename).read_text(encoding="utf-8"))
-        assert "analytics.html" in parser.links
+        page_file = index.parent / filename
+        parser.feed(page_file.read_text(encoding="utf-8"))
+        assert ("analytics.html" if filename == index.name else "../analytics.html") in parser.links
         assert "index.html" not in parser.links
-        assert parser.active_links == [filename]
-        assert all((index.parent / href).is_file() for href in parser.links)
+        assert [(page_file.parent / href).resolve() for href in parser.active_links] == [
+            page_file.resolve()
+        ]
+        assert all((page_file.parent / href).is_file() for href in parser.links)
+
+
+@pytest.mark.parametrize("index_name", ["index.html", "analytics.html"])
+def test_relocated_website_navigation_works_under_url_prefix(
+    tmp_path: pathlib.Path, index_name: str
+) -> None:
+    original = tmp_path / "generated"
+    docs.create_html(spec.Specification(), original / index_name)
+    host_root = tmp_path / "hosted"
+    relocated = host_root / "projects" / "analytics"
+    relocated.parent.mkdir(parents=True)
+    original.rename(relocated)
+    handler = functools.partial(http_server.SimpleHTTPRequestHandler, directory=str(host_root))
+    with http_server.ThreadingHTTPServer(("127.0.0.1", 0), handler) as server:
+        worker = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01})
+        worker.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}/projects/analytics/"
+            expected_urls = {url_parse.urljoin(base, page) for page in (index_name, *REPORTS)}
+            for page in (index_name, *REPORTS):
+                page_url = url_parse.urljoin(base, page)
+                with request.urlopen(page_url, timeout=5) as response:
+                    assert response.status == 200
+                    collector = NavigationCollector()
+                    collector.feed(response.read().decode("utf-8"))
+                destinations = {url_parse.urljoin(page_url, href) for href in collector.links}
+                assert destinations == expected_urls
+                assert [url_parse.urljoin(page_url, href) for href in collector.active_links] == [
+                    page_url
+                ]
+                for destination in destinations:
+                    with request.urlopen(destination, timeout=5) as response:
+                        assert response.status == 200
+        finally:
+            server.shutdown()
+            worker.join(timeout=5)
+        assert not worker.is_alive()
 
 
 @pytest.mark.parametrize(
     ("filename", "title"),
     [
-        ("execution_plan.html", "Overview"),
-        ("execution_plan_graph.html", "Execution graph"),
-        ("execution_plan_stages.html", "Stages"),
+        ("plan/overview.html", "Overview"),
+        ("plan/graph.html", "Execution graph"),
+        ("plan/stages.html", "Stages"),
     ],
 )
 def test_execution_plan_pages_render_only_their_section(
@@ -438,7 +488,7 @@ def test_execution_plan_pages_render_only_their_section(
     assert ("force-graph@1.52.0" in document) == is_graph
 
 
-@pytest.mark.parametrize("filename", ["feature_graph.html", "execution_plan_graph.html"])
+@pytest.mark.parametrize("filename", ["graph/feature_graph.html", "plan/graph.html"])
 def test_graph_pages_have_one_selector_and_shared_data(
     tmp_path: pathlib.Path, filename: str
 ) -> None:
@@ -490,7 +540,7 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -
     specification = spec.Specification.from_json(SPEC_PATH)
     plan = compile.Compiler(specification).compile()
     docs.Documentation(specification).create_html(tmp_path / "index.html")
-    document = (tmp_path / "execution_plan.html").read_text(encoding="utf-8")
+    document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
     cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
     assert cards == {
         "Callables": str(len(plan.operations)),
@@ -520,23 +570,30 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -
 
 def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> None:
     docs.Documentation(spec.Specification()).create_html(tmp_path / "index.html")
-    document = (tmp_path / "execution_plan.html").read_text(encoding="utf-8")
+    document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
 
     assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 7
     assert "No callable operations." in document
     assert "No execution stages." in document
 
 
-@pytest.mark.parametrize("filename", REPORTS)
-def test_website_rejects_index_path_overwriting_report(
-    tmp_path: pathlib.Path, filename: str
-) -> None:
+@pytest.mark.parametrize(
+    "filename", ["overview.html", "features.html", "graph.html", "stages.html"]
+)
+def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filename: str) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
 
-    with pytest.raises(ValueError, match="must not overwrite"):
-        docs.Documentation(specification).create_html(tmp_path / filename)
-
-    assert not list(tmp_path.iterdir())
+    index = docs.Documentation(specification).create_html(tmp_path / filename)
+    assert index.is_file()
+    for report in REPORTS:
+        page = tmp_path / report
+        assert page.is_file()
+        collector = NavigationCollector()
+        collector.feed(page.read_text(encoding="utf-8"))
+        assert f"../{filename}" in collector.links
+        assert [(page.parent / href).resolve() for href in collector.active_links] == [
+            page.resolve()
+        ]
 
 
 def test_standalone_html_apis_are_removed() -> None:
@@ -569,8 +626,8 @@ def test_website_propagates_compilation_errors_without_writing_reports(
 @pytest.mark.parametrize(
     ("filename", "variable"),
     [
-        ("feature_graph.html", "data"),
-        ("execution_plan_graph.html", "callableGraphData"),
+        ("graph/feature_graph.html", "data"),
+        ("plan/graph.html", "callableGraphData"),
     ],
 )
 def test_website_graph_links_reference_exported_nodes(
@@ -596,7 +653,7 @@ def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pa
     specification = spec.Specification.from_json(SPEC_PATH)
     plan = compile.Compiler(specification).compile()
     docs.Documentation(specification).create_html(tmp_path / "index.html")
-    document = (tmp_path / "execution_plan_graph.html").read_text(encoding="utf-8")
+    document = (tmp_path / "plan/graph.html").read_text(encoding="utf-8")
     match = re.search(r"const callableGraphData = (.+);", document)
     assert match is not None
     payload = json.loads(match.group(1))
