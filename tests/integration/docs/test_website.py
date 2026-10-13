@@ -248,7 +248,7 @@ def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: pathlib
     ("filename", "title"),
     [
         ("execution_plan.html", "Overview"),
-        ("execution_plan_graph.html", "Graph"),
+        ("execution_plan_graph.html", "Execution graph"),
         ("execution_plan_stages.html", "Stages"),
     ],
 )
@@ -260,7 +260,7 @@ def test_execution_plan_pages_render_only_their_section(
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert 'aria-label="Execution plan sections"' in document
-    is_graph = title == "Graph"
+    is_graph = title == "Execution graph"
     assert re.findall(r'<h1 class="[^"]+">([^<]+)</h1>', document) == ([] if is_graph else [title])
     if is_graph:
         assert 'class="absolute inset-0"' in document

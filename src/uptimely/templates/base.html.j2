@@ -43,26 +43,27 @@
   {% set rel_root = root_path or "" %}
   <nav class="site-nav" aria-label="Documentation pages">
     <a class="site-brand" href="{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>openanalytics/docs</a>
-    {% for page, href, label, icon in [("spec", "spec.html", "Specification", "book-open"), ("graph", "feature_graph.html", "Feature graph", "git-fork"), ("plan", "execution_plan.html", "Execution plan", "workflow")] %}
+    {% for page, href, label, icon in [("spec", "spec.html", "Specification", "book-open"), ("plan", "execution_plan.html", "Execution plan", "workflow")] %}
     <a href="{{ href }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span></a>
     {% if page == "spec" %}
     <div class="site-subnav" role="group" aria-label="Specification sections">
       {% for section, section_href, section_label, section_icon in [
-        ("overview", rel_root ~ "spec/overview.html", "Overview", "layout-dashboard"),
-        ("features", rel_root ~ "spec/features.html", "Features", "boxes"),
-        ("entities", rel_root ~ "spec/entities.html", "Entities", "boxes"),
-        ("datasets", rel_root ~ "spec/datasets.html", "Datasets", "table"),
-        ("dimensions", rel_root ~ "spec/dimensions.html", "Dimensions", "layers-3"),
-        ("functions", rel_root ~ "spec/functions.html", "Functions", "braces")
+        ("overview", "spec.html", "Overview", "layout-dashboard"),
+        ("features", "spec_features.html", "Features", "boxes"),
+        ("entities", "spec_entities.html", "Entities", "boxes"),
+        ("datasets", "spec_datasets.html", "Datasets", "table"),
+        ("dimensions", "spec_dimensions.html", "Dimensions", "layers-3"),
+        ("functions", "spec_functions.html", "Functions", "braces"),
+        ("graph", "feature_graph.html", "Feature graph", "git-fork")
       ] %}
-      <a href="{{ section_href }}"{% if active_page == "spec" and active_section == section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ section_icon }}" aria-hidden="true"></i><span>{{ section_label }}</span></a>
+      <a href="{{ section_href }}"{% if (active_page == "spec" and active_section == section) or (active_page == "graph" and section == "graph") %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ section_icon }}" aria-hidden="true"></i><span>{{ section_label }}</span></a>
       {% endfor %}
     </div>
     {% elif page == "plan" %}
     <div class="site-subnav" role="group" aria-label="Execution plan sections">
       {% for section, section_href, section_label, section_icon in [
         ("overview", "execution_plan.html", "Overview", "layout-dashboard"),
-        ("graph", "execution_plan_graph.html", "Graph", "git-fork"),
+        ("graph", "execution_plan_graph.html", "Execution graph", "git-fork"),
         ("stages", "execution_plan_stages.html", "Stages", "layers-3")
       ] %}
       <a href="{{ section_href }}"{% if active_page == "plan" and active_section == section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ section_icon }}" aria-hidden="true"></i><span>{{ section_label }}</span></a>
