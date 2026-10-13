@@ -7,7 +7,7 @@
       <div class="flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ entity_id }}</p>
-          {% set entity_heading = "h2" if include_navigation else "h3" %}
+          {% set entity_heading = "h2" %}
           <{{ entity_heading }} class="mt-1 font-display text-xl font-semibold text-white">{{ entity.name or entity_id }}</{{ entity_heading }}>
         </div>
         <span class="font-mono text-xs text-slate-400">{{ entity.datasets|length }} datasets</span>

@@ -6,7 +6,11 @@ import polars as pl
 import pydantic
 import pytest
 
-from uptimely import compile, engine, plan, row_context, spec
+from uptimely import compile, engine, spec
+from uptimely import plan as uptimely_plan
+from uptimely import row_context as row_context_module
+from uptimely.docs import docs
+from uptimely.spec import python_spec
 from uptimely.spec.json_spec import json_model
 from uptimely.spec.python_spec import bind, dataset, dimension, feature, mapping, ref
 from uptimely.spec.python_spec import row_context as authoring
@@ -274,6 +278,91 @@ def test_all_data_mappings_preserve_annotated_context(kind):
     assert declaration.to_model().binding.args == {"configuration": {"windows": [8]}}
 
 
-def test_context_is_mapping_metadata_not_an_argument():
-    with pytest.raises(pydantic.ValidationError):
-        json_model.Binding(function="calculate", row_context={})
+def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
+    tmp_path: pathlib.Path,
+) -> None:
+    specification = _specification(
+        bind.bind(
+            calculate,
+            column=python_spec.ref.feature("temperature"),
+            window=python_spec.row_context.time("8h", before="8h"),
+            count=8,
+        )
+    )
+    spec_path = tmp_path / "spec.json"
+    specification.to_json(spec_path)
+    restored_specification = spec.Specification.from_json(spec_path)
+    original_feature = specification.entities["entity"].datasets[0].features["result"]
+    restored_feature = restored_specification.entities["entity"].datasets[0].features["result"]
+    assert restored_feature.row_context == original_feature.row_context
+    assert (
+        "row_context"
+        not in specification.entities["entity"].datasets[0].mappings["result"].binding.model_dump()
+    )
+    assert "row_context" not in specification.calls[0].model_dump()
+    exported = json.loads(spec_path.read_text())
+    exported_feature = exported["entities"]["entity"]["datasets"][0]["features"]["result"]
+    assert exported_feature["row_context"] == original_feature.row_context.to_dict()
+    assert "binding" not in exported_feature
+    assert (
+        "row_context"
+        not in exported["entities"]["entity"]["datasets"][0]["mappings"]["result"]["binding"]
+    )
+    assert specification.functions.vectorize["calculate"].args["window"].type == "string"
+
+    plan = compile.Compiler(restored_specification).compile()
+    operation = next(item for item in plan.operations if item.kind == "vectorize")
+    assert operation.row_context == original_feature.row_context
+    assert all(item.row_context is None for item in plan.operations if item.kind != "vectorize")
+    assert operation.arguments == {"column": "temperature", "window": "8h", "count": 8}
+    assert plan.plan.resources["datasets"]["observations"]["order"] == [
+        {"dimension": "$dimensions.id", "direction": "asc"}
+    ]
+    plan_path = plan.export_json(tmp_path / "plan.json")
+    restored_plan = uptimely_plan.ExecutionPlan.from_json(plan_path)
+    assert restored_plan.plan == plan.plan
+    result = engine.Engine(restored_plan).execute()
+    assert not result.failures
+    frame = next(iter(result.datasets.values()))
+    assert frame["result"].to_list() == [11, 21, 31]
+    assert frame["id"].to_list() == [3, 1, 2]  # Metadata does not introduce batch sorting.
+
+    docs.Documentation(specification).create_html(tmp_path / "index.html")
+    features_html = (tmp_path / "spec_features.html").read_text(encoding="utf-8")
+    assert "result" in features_html
+    assert "Row context:" not in features_html
+    html = (tmp_path / "execution_plan_stages.html").read_text(encoding="utf-8")
+    assert "Row context" in html
+
+
+def test_plan_context_is_present_in_portable_operations() -> None:
+    plan = compile.Compiler(
+        _specification(
+            bind.bind(calculate, column=python_spec.ref.feature("temperature")),
+            context=python_spec.row_context.current(),
+        )
+    ).compile()
+    operation = next(item for item in plan.operations if item.output == "result")
+    assert operation.row_context == python_spec.row_context.current()
+
+
+def test_collapse_functions_execute_without_row_context() -> None:
+    annotated = bind.bind(
+        calculation_module.maximum,
+        feature=python_spec.ref.feature("temperature"),
+    )
+    specification = _aggregation_specification(annotated)
+    plan = compile.Compiler(specification).compile()
+    operation = next(item for item in plan.operations if item.kind == "collapse")
+    assert operation.row_context is None
+    assert operation.entrypoint.endswith(":maximum")
+    assert operation.arguments == {"feature": "temperature"}
+    output_dataset = specification.entities["entity"].datasets[1]
+    output = output_dataset.mappings["summary"]
+    assert output_dataset.features["temperature_max"].row_context is None
+    payload = output.model_dump()
+    assert "group_by" not in payload
+    assert "row_context" not in payload["binding"]
+    restored = uptimely_plan.Plan.from_dict(json.loads(json.dumps(plan.plan.to_dict())))
+    assert restored == plan.plan
+    assert not engine.Engine(uptimely_plan.ExecutionPlan(restored)).execute().failures

@@ -41,7 +41,9 @@ This separation keeps the project easy to reason about: the code that defines th
 
 The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/example_1/README.md) also has documentation
 and feature-graph runners. The documentation runner writes a linked website to
-`_generated/docs/`, while standalone specification, plan, and graph exports live
-in `_generated/spec/`, `_generated/compile/`, and `_generated/graph/`.
+`_generated/docs/`. All HTML pages are generated together by that runner.
+Specification and plan JSON exports live in `_generated/spec/` and
+`_generated/compile/`; the feature-graph runner prints graph summaries and,
+with `--verbose`, dependency trees without writing HTML.
 The [smaller Python example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/example_2/README.md) demonstrates
 specification export without the full compilation and execution workflow.

@@ -7,8 +7,6 @@ import typing
 
 import pydantic
 
-from uptimely.spec import render
-
 from .. import json_parser, json_serializer
 from . import common, resolved
 from . import dataset as dataset_module
@@ -88,30 +86,6 @@ class Specification(common.StrictModel):
     def to_json(self, path: str | pathlib.Path) -> str:
         """Write the specification document to disk and return its path."""
         return json_serializer.SpecificationSerializer.to_json(self, path)
-
-    def create_html(
-        self,
-        output_path: str | pathlib.Path | None = None,
-        include_generated_at: bool = False,
-        *,
-        include_navigation: bool = False,
-    ) -> pathlib.Path:
-        """Export reference documentation for this specification as HTML.
-
-        Args:
-            output_path: Output file; defaults to ``_generated/spec/spec.html``.
-            include_generated_at: Include a build timestamp; disabled for reproducibility.
-            include_navigation: Link to sibling pages in a generated documentation website.
-
-        Returns:
-            The path to the rendered specification page.
-        """
-        return render.create_html(
-            self,
-            output_path,
-            include_generated_at,
-            include_navigation=include_navigation,
-        )
 
     @pydantic.model_validator(mode="before")
     @classmethod

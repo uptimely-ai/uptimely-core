@@ -1,4 +1,4 @@
-"""Shared template loading for standalone reports and the documentation website."""
+"""Shared template loading for the documentation website."""
 
 import jinja2
 

@@ -11,7 +11,7 @@ from examples.example_2.spec import spec as spec_module
 
 from uptimely import compile, engine, spec
 from uptimely.docs import docs
-from uptimely.spec import python_spec, render, validation
+from uptimely.spec import python_spec, validation
 
 ORDER = [
     {"dimension": "$dimensions.machine", "direction": "asc"},
@@ -198,14 +198,11 @@ def test_dataset_order_appears_in_reference_json_and_html(tmp_path: pathlib.Path
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["configuration"]["entities"]["telemetry"]["datasets"][0]["order"] == ORDER
 
-    standalone = specification.create_html(tmp_path / "standalone.html")
-    render.create_website_pages(specification, tmp_path)
-    for path in (standalone, tmp_path / "datasets.html"):
-        html = path.read_text(encoding="utf-8")
-        assert "Logical order (not a physical row-order guarantee)" in html
-        assert html.index("$dimensions.machine asc") < html.index("$dimensions.timestamp desc")
-    assert 'href="#datasets"' in standalone.read_text(encoding="utf-8")
-    assert "Logical order" not in (tmp_path / "features.html").read_text(encoding="utf-8")
+    docs.Documentation(specification).create_html(tmp_path / "index.html")
+    html = (tmp_path / "spec_datasets.html").read_text(encoding="utf-8")
+    assert "Logical order (not a physical row-order guarantee)" in html
+    assert html.index("$dimensions.machine asc") < html.index("$dimensions.timestamp desc")
+    assert "Logical order" not in (tmp_path / "spec_features.html").read_text(encoding="utf-8")
 
 
 def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:

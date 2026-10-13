@@ -1,21 +1,19 @@
-from examples.example_1.common import GENERATED_DIR, load_specification, verbose_requested
+from examples.example_1.common import load_specification, verbose_requested
 
 from uptimely.analytics.feature_graph import FeatureGraph
 
 
 def main(verbose: bool | None = None) -> None:
-    """Export the full and health-signal feature graphs."""
+    """Inspect the full and health-signal feature graphs."""
     verbose = verbose_requested() if verbose is None else verbose
     specification = load_specification()
     feature_graph = FeatureGraph(specification)
 
-    graph_path = GENERATED_DIR / "graph" / "feature_graph.html"
-    feature_graph.export_html(graph_path)
-
     subset = feature_graph.subset(["health_signal_normalized"])
-    subset_path = GENERATED_DIR / "graph" / "subset.html"
-    subset.export_html(subset_path)
-    print(f"Feature graphs: {graph_path}, {subset_path}")
+    print(
+        f"Feature graph: {len(feature_graph.feature_names)} features; "
+        f"health signal subset: {len(subset.feature_names)} features"
+    )
 
     if verbose:
         print("\nFeature graph")

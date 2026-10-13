@@ -1,6 +1,6 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
 <section id="overview" class="mb-16">
-  {{ section_header("Overview" if include_navigation else "Specification", "A summary of the entities, datasets, features, and functions declared in this specification.", standalone_title=true) }}
+  {{ section_header("Overview", "A summary of the entities, datasets, features, and functions declared in this specification.") }}
   {% set source = configuration.get("source", {}) %}
   {% set source_name = source.get("name", "manual") %}
   {% set source_generated = source.get("generated", false) %}

@@ -1,4 +1,4 @@
-"""Compile a specification and export its execution plan as JSON and HTML."""
+"""Compile a specification and export its execution plan as JSON."""
 
 from examples.example_1.common import (
     GENERATED_DIR,
@@ -17,11 +17,9 @@ def main(verbose: bool | None = None) -> None:
 
     output_dir = GENERATED_DIR / "compile"
     json_path = plan.export_json(output_dir / "execution_plan.json")
-    html_path = plan.export_html(output_dir / "execution_plan.html")
 
     print(f"Compiled {len(plan.operations)} operations from {SPEC_PATH}")
     print(f"Execution plan: {json_path}")
-    print(f"Execution plan report: {html_path}")
 
     if verbose:
         operations_by_id = {operation.id: operation for operation in plan.operations}

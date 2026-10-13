@@ -88,8 +88,9 @@ the declarative contract.
 
 ::: uptimely.docs.docs.Documentation
 
-`Documentation.create_html` generates a static website with specification,
-feature graph, and execution plan pages. `Specification.create_html` exports only
-the standalone specification reference. `Documentation.create_json` exports
-reference data. These outputs describe analytics, not this Python API reference.
+`Documentation.create_html` and the module-level `uptimely.docs.docs.create_html`
+helper generate the complete static website with specification, feature graph,
+and execution plan pages. Individual HTML report exports are not supported.
+`Documentation.create_json` exports reference data; specification and portable-plan
+JSON exports remain available. These outputs describe analytics, not this Python API reference.
 See [analytics documentation](../components/docs/index.md).

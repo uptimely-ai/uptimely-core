@@ -13,7 +13,7 @@
         <header class="flex flex-wrap items-baseline justify-between gap-3 border-b border-slate-800 pb-3">
           <div>
             <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ entity.name or entity_id }}</p>
-            {% set dataset_heading = "h2" if include_navigation else "h3" %}
+            {% set dataset_heading = "h2" %}
             <{{ dataset_heading }} class="mt-1 font-display text-lg font-semibold text-white">{{ dataset.id }}</{{ dataset_heading }}>
           </div>
           <span class="font-mono text-xs text-slate-400">{{ dataset.features|length }} declared features</span>

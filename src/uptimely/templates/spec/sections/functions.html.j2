@@ -4,7 +4,7 @@
   {% if category %}<p class="mb-2 font-mono text-[10px] uppercase tracking-wider text-cyan-300">{{ category }} function</p>{% endif %}
   <div class="flex items-start justify-between gap-4">
     <div>
-      {% set function_heading = "h3" if include_navigation else "h4" %}
+      {% set function_heading = "h3" %}
       <{{ function_heading }} class="break-words font-display text-lg font-semibold text-white">{{ function_id }}</{{ function_heading }}>
       {% if function.return_type %}<p class="mt-2 text-xs text-lime-300">returns {{ function.return_type }}</p>{% endif %}
     </div>
@@ -46,7 +46,7 @@
               <i data-lucide="{{ group_icons.get(group_name, 'braces') }}" class="h-5 w-5" aria-hidden="true"></i>
             </span>
             <div>
-              {% set group_heading = "h2" if include_navigation else "h3" %}
+              {% set group_heading = "h2" %}
               <{{ group_heading }} class="font-display text-xl font-semibold tracking-tight text-white">{{ group_name|title }}</{{ group_heading }}>
               <p class="mt-0.5 text-xs text-slate-400">{{ "Functions wrapped in grouping by the target entity dimensions" if group_name == "collapse" else "Function group" }}</p>
             </div>

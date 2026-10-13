@@ -9,8 +9,9 @@ import pytest
 from examples.example_1.functions import source
 
 from uptimely import analytics, compile, spec
+from uptimely.analytics import render as graph_render
 from uptimely.docs import docs
-from uptimely.plan import models
+from uptimely.spec import render as spec_render
 
 SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
 REPORTS = {
@@ -294,9 +295,10 @@ def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> N
 
 
 def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -> None:
-    plan = compile.Compiler(spec.Specification.from_json(SPEC_PATH)).compile()
-    plan.export_html(tmp_path / "plan" / "overview.html", include_navigation=True)
-    document = (tmp_path / "plan" / "overview.html").read_text(encoding="utf-8")
+    specification = spec.Specification.from_json(SPEC_PATH)
+    plan = compile.Compiler(specification).compile()
+    docs.Documentation(specification).create_html(tmp_path / "index.html")
+    document = (tmp_path / "execution_plan.html").read_text(encoding="utf-8")
     cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
     assert cards == {
         "Callables": str(len(plan.operations)),
@@ -325,9 +327,8 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -
 
 
 def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> None:
-    plan = models.ExecutionPlan(models.Plan("1.0.0", None, "polars", {}, [], []))
-    path = plan.export_html(tmp_path / "execution_plan.html", include_navigation=True)
-    document = path.read_text(encoding="utf-8")
+    docs.Documentation(spec.Specification()).create_html(tmp_path / "index.html")
+    document = (tmp_path / "execution_plan.html").read_text(encoding="utf-8")
 
     assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 7
     assert "No callable operations." in document
@@ -346,30 +347,17 @@ def test_website_rejects_index_path_overwriting_report(
     assert not list(tmp_path.iterdir())
 
 
-def test_standalone_exports_have_no_website_navigation(tmp_path: pathlib.Path) -> None:
+def test_standalone_html_apis_are_removed() -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
-    paths = [
-        specification.create_html(tmp_path / "spec" / "spec.html"),
-        analytics.FeatureGraph(specification).export_html(tmp_path / "graph" / "graph.html"),
-        compile.Compiler(specification).compile().export_html(tmp_path / "plan" / "plan.html"),
-    ]
-
-    for path in paths:
-        parser = NavigationCollector()
-        parser.feed(path.read_text(encoding="utf-8"))
-        assert parser.html_count == 1
-        assert not parser.links
-    standalone_spec = paths[0].read_text(encoding="utf-8")
-    assert len(re.findall(r"<h1\b", standalone_spec)) == 1
-    assert all(
-        f'<section id="{section}"' in standalone_spec
-        for section in ("overview", "entities", "dimensions", "functions")
-    )
-    standalone_plan = paths[2].read_text(encoding="utf-8")
-    assert 'id="plan-overview"' in standalone_plan
-    assert 'id="callable-graph"' in standalone_plan
-    assert 'id="operations"' in standalone_plan
-    assert not (paths[2].parent / "stages.html").exists()
+    graph = analytics.FeatureGraph(specification)
+    assert not hasattr(specification, "create_html")
+    assert not hasattr(graph, "export_html")
+    assert not hasattr(graph.subset(["health_signal_normalized"]), "export_html")
+    assert not hasattr(compile.Compiler(specification).compile(), "export_html")
+    assert not hasattr(spec_render, "create_html")
+    assert not hasattr(spec_render, "create_website_pages")
+    assert not hasattr(graph_render, "render_graph_html")
+    assert not hasattr(graph_render, "export_graph_html")
 
 
 def test_website_propagates_compilation_errors_without_writing_reports(
