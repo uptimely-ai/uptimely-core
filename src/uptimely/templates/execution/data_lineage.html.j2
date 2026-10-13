@@ -1,0 +1,154 @@
+{% extends "base.html.j2" %}
+{% block title %}Execution / Data lineage{% endblock %}
+{% block style %}
+  .lineage-page { padding: 32px; }
+  .lineage-page h1 { font: 600 30px "Space Grotesk", sans-serif; color: #f8fafc; }
+  .lineage-page p { color: #94a3b8; line-height: 1.7; }
+  .lineage-legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 24px 0; font-size: 12px; }
+  .lineage-legend span { padding: 8px 12px; border: 1px solid #334155; border-radius: 8px; }
+  .lineage-scroll { overflow: auto; border: 1px solid #334155; border-radius: 16px; background: #020617; }
+  .lineage-scroll:focus-visible, .lineage-table-scroll:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }
+  .lineage-board { position: relative; display: flex; align-items: flex-start; gap: 100px; width: max-content; padding: 72px 32px 32px; }
+  .lineage-stage { position: relative; width: 480px; z-index: 1; }
+  .lineage-stage h2 { margin: 0 0 20px; color: #94a3b8; font: 12px "JetBrains Mono", monospace; }
+  .lineage-step { margin-bottom: 28px; padding: 16px; border: 1px solid var(--step-color);
+    border-top: 4px solid var(--step-color); border-radius: 12px; background: #0f172a; }
+  .lineage-step h3 { color: var(--step-color); font: 600 15px "Space Grotesk", sans-serif; overflow-wrap: anywhere; }
+  .lineage-step p { margin: 8px 0; font-size: 12px; overflow-wrap: anywhere; }
+  .lineage-step .step-kind { font: 11px "JetBrains Mono", monospace; text-transform: uppercase; color: var(--step-color); }
+  .lineage-table-scroll { overflow-x: auto; margin: 16px 0; }
+  .lineage-table { width: 100%; border-collapse: collapse; font: 11px "JetBrains Mono", monospace; }
+  .lineage-table caption { text-align: left; color: #94a3b8; margin-bottom: 8px; font: 12px "DM Sans", sans-serif; }
+  .lineage-table th, .lineage-table td { padding: 10px; border: 1px solid #334155; text-align: left; white-space: nowrap; }
+  .lineage-table .column-cell { color: var(--column-color); background: color-mix(in srgb, var(--column-color) 12%, #0f172a); }
+  .lineage-table .column-role { display: block; margin-bottom: 6px; font: 10px "DM Sans", sans-serif; text-transform: uppercase; }
+  .lineage-dependencies { font-size: 12px; color: #94a3b8; }
+  .lineage-dependencies a { color: #c4b5fd; text-decoration: underline; }
+  .lineage-edges { position: absolute; inset: 0; pointer-events: none; }
+  @media (max-width: 640px) { .lineage-page { padding: 20px 12px; } }
+{% endblock %}
+{% block content %}
+<main class="lineage-page">
+  <p class="font-mono text-xs uppercase tracking-widest">Execution</p>
+  <h1 class="title-with-icon">{{ icon("lineage", "title-icon") }}<span>Data lineage</span></h1>
+  <p>Follow data through the processing steps, from source columns to calculated features and writes.
+    Tables show declared column types, not runtime values. Building this website does not execute analytics.</p>
+  <div class="lineage-legend" aria-label="Data lineage color key">
+    <span style="color: #93c5fd">Blue: dimension keys</span>
+    <span>Step color: produced columns; inputs keep their producer's color</span>
+    <span>Arrows: dependency direction, from producer to consumer</span>
+  </div>
+  {% if stages %}
+  <p>Scroll to explore stages from left to right. Steps in the same stage are independent.
+    Each table labels input and output columns separately; these are logical column flows, not stored table snapshots.</p>
+  <div class="lineage-scroll" tabindex="0" role="region" aria-label="Processing tables and dependency edges">
+    <div class="lineage-board" id="lineage-board">
+      <svg class="lineage-edges" id="lineage-edges" aria-hidden="true"></svg>
+      {% for stage in stages %}
+      <section class="lineage-stage" aria-labelledby="stage-{{ loop.index }}">
+        <h2 id="stage-{{ loop.index }}">Stage {{ loop.index }} / {{ stage|length }} step{% if stage|length != 1 %}s{% endif %}</h2>
+        {% for step in stage %}
+        <article class="lineage-step" id="step-{{ step.number }}" data-operation="{{ step.operation_id }}"
+          data-dependencies="{{ step.dependencies|join(',') }}" style="--step-color: {{ step.color }}">
+          <span class="step-kind">Step {{ step.number }} / {{ step.kind }}</span>
+          <h3>{{ step.function }}</h3>
+          <p>Entity: {{ step.entity }}<br>Dataset: {{ step.dataset or "None" }}</p>
+          {% if step.grain %}<p>Grain: {{ step.grain }}</p>{% endif %}
+          {% if step.kind == "write" %}<p>Write boundary: consumes columns; produces no analytical features.</p>{% endif %}
+          {% if step.columns %}
+          <div class="lineage-table-scroll" tabindex="0" role="region" aria-label="Step {{ step.number }} columns">
+            <table class="lineage-table">
+              <caption>Step {{ step.number }} column flow</caption>
+              <thead><tr><th scope="col">Column</th>
+                {% for column in step.columns %}
+                <th scope="col" class="column-cell" data-column="{{ column.name }}" data-role="{{ column.role }}" style="--column-color: {{ column.color }}">
+                  <span class="column-role">{{ column.role }}</span>{{ column.name }}
+                </th>
+                {% endfor %}
+              </tr></thead>
+              <tbody>
+                <tr><th scope="row">Type</th>{% for column in step.columns %}<td class="column-cell" style="--column-color: {{ column.color }}">{{ column.type }}</td>{% endfor %}</tr>
+                <tr><th scope="row">Producer</th>{% for column in step.columns %}<td class="column-cell" style="--column-color: {{ column.color }}">{% if column.producer %}Step {{ column.producer }}{% elif column.role == "Dimension" %}Observation key{% else %}No declared producer{% endif %}</td>{% endfor %}</tr>
+              </tbody>
+            </table>
+          </div>
+          {% else %}<p>No declared columns.</p>{% endif %}
+          <div class="lineage-dependencies">Depends on:
+            {% for dependency in step.dependencies %}<a href="#step-{{ dependency }}">Step {{ dependency }}</a>{% if not loop.last %}, {% endif %}{% else %}Source step{% endfor %}
+          </div>
+        </article>
+        {% endfor %}
+      </section>
+      {% endfor %}
+    </div>
+  </div>
+  <noscript><p>Dependency arrows need JavaScript. The tables and their dependency links remain available above.</p></noscript>
+  {% else %}
+  <p>No processing steps. Add function mappings to the specification to display data lineage.</p>
+  {% endif %}
+</main>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+(() => {
+  const board = document.getElementById("lineage-board");
+  if (!board) return;
+  const svg = document.getElementById("lineage-edges");
+  const namespace = "http://www.w3.org/2000/svg";
+  const steps = Array.from(board.querySelectorAll(".lineage-step"));
+  function drawEdges() {
+    const bounds = board.getBoundingClientRect();
+    svg.setAttribute("width", board.scrollWidth);
+    svg.setAttribute("height", board.scrollHeight);
+    svg.replaceChildren();
+    const definitions = document.createElementNS(namespace, "defs");
+    svg.append(definitions);
+    steps.forEach(target => {
+      const targetBounds = target.getBoundingClientRect();
+      target.dataset.dependencies.split(",").filter(Boolean).forEach(number => {
+        const source = document.getElementById(`step-${number}`);
+        const sourceBounds = source.getBoundingClientRect();
+        const color = source.style.getPropertyValue("--step-color").trim();
+        const markerId = `arrow-${number}`;
+        if (!definitions.querySelector(`#${markerId}`)) {
+          const marker = document.createElementNS(namespace, "marker");
+          marker.setAttribute("id", markerId);
+          marker.setAttribute("viewBox", "0 0 10 10");
+          marker.setAttribute("refX", "9");
+          marker.setAttribute("refY", "5");
+          marker.setAttribute("markerWidth", "6");
+          marker.setAttribute("markerHeight", "6");
+          marker.setAttribute("orient", "auto");
+          const arrow = document.createElementNS(namespace, "path");
+          arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+          arrow.setAttribute("fill", color);
+          marker.append(arrow);
+          definitions.append(marker);
+        }
+        const x1 = sourceBounds.right - bounds.left;
+        const y1 = sourceBounds.top - bounds.top + 24;
+        const x2 = targetBounds.left - bounds.left;
+        const y2 = targetBounds.top - bounds.top + 24;
+        const path = document.createElementNS(namespace, "path");
+        const skipsStage = x2 - x1 > 100;
+        const routeY = 16 + (Number(number) % 4) * 10;
+        path.setAttribute("d", skipsStage
+          ? `M ${x1} ${y1} C ${x1 + 30} ${y1}, ${x1 + 30} ${routeY}, ${x1 + 45} ${routeY} L ${x2 - 45} ${routeY} C ${x2 - 30} ${routeY}, ${x2 - 30} ${y2}, ${x2} ${y2}`
+          : `M ${x1} ${y1} C ${x1 + 45} ${y1}, ${x2 - 45} ${y2}, ${x2} ${y2}`);
+        path.setAttribute("stroke", color);
+        path.setAttribute("stroke-width", "2");
+        path.setAttribute("fill", "none");
+        path.setAttribute("marker-end", `url(#${markerId})`);
+        path.setAttribute("data-source", source.id);
+        path.setAttribute("data-target", target.id);
+        svg.append(path);
+      });
+    });
+  }
+  new ResizeObserver(drawEdges).observe(board);
+  document.fonts.ready.then(drawEdges);
+  drawEdges();
+})();
+</script>
+{% endblock %}

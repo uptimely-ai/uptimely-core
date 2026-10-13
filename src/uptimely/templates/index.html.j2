@@ -133,7 +133,7 @@
       {% for accent, number, title, description, href, action in [
         ("specification", "01", "Specification", "The source of truth. Browse entities, datasets, features, dimensions, and the functions bound to them.", website_pages["spec"]["overview"], "Explore specification"),
         ("lineage", "02", "Feature lineage", "The connections behind each result. Follow upstream inputs and the functions that produce downstream features in 2D or 3D.", website_pages["graph"]["lineage"], "Trace dependencies"),
-        ("execution", "03", "Execution plan", "The path to execution. Inspect compiled operations, argument bindings, and dependency-ordered stages with potential parallelism.", website_pages["plan"]["overview"], "Inspect the plan")
+        ("execution", "03", "Plan", "The path to execution. Inspect compiled operations, argument bindings, and dependency-ordered stages with potential parallelism.", website_pages["plan"]["overview"], "Inspect the plan")
       ] %}
       <li class="journey-step {{ accent }} icon--{{ accent }}">
         <div class="journey-step-header">
@@ -147,6 +147,8 @@
       {% endfor %}
     </ol>
   </section>
+  <p class="dashboard-note">Explore <a class="text-violet-300 underline" href="{{ website_pages['execution']['lineage'] }}">Execution / Data lineage</a>
+    for color-coded processing tables and the dependencies connecting them.</p>
   <p class="dashboard-note">A view of your declared analytics, not a live execution monitor.
     Counts describe the specification and its compiled plan; building this website does not run analytical operations.</p>
 </main>

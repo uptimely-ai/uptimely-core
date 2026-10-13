@@ -8,11 +8,13 @@ from uptimely.analytics import render as graph_render
 from uptimely.compile import render
 from uptimely.spec import render as spec_render
 
+from . import lineage
+
 OUTPUT_DIR = pathlib.Path("_generated") / "docs"
 
 
 class Documentation:
-    """Generate a linked specification, feature graph, and execution plan website."""
+    """Generate a linked specification, plan, and data-lineage website."""
 
     def __init__(self, specification: spec.Specification) -> None:
         self.spec = specification
@@ -47,7 +49,7 @@ class Documentation:
 
         Args:
             output_path: Index file; defaults to ``_generated/docs/index.html``.
-                Section pages are written in spec, graph, and plan subdirectories
+                Section pages are written in spec, graph, plan, and execution subdirectories
                 beneath the index directory.
             include_generated_at: Include a timestamp on the specification page.
 
@@ -62,6 +64,7 @@ class Documentation:
         spec_render._create_website_pages(context, target.parent, index_filename=target.name)
         graph_render._create_website_pages(graph, target.parent, index_filename=target.name)
         render._create_website_pages(plan, target.parent, index_filename=target.name)
+        lineage._create_website_page(self.spec, plan, target.parent, index_filename=target.name)
         document = (
             uptimely_render.html_environment()
             .get_template("index.html.j2")

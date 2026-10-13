@@ -2,18 +2,20 @@
 
 Uptimely generates documentation from an
 [Open Analytics Specification](../../specification/index.md). Feature definitions,
-function bindings, and declared dependencies become a static website with three
+function bindings, and declared dependencies become a static website with four
 connected views:
 
 | Page | Purpose |
 | --- | --- |
 | Specification | Overview, Features, Entities, Datasets, Dimensions, and Functions pages, linked beneath Specification in the sidebar. Features are summarized per dataset with their producing mapping. |
 | Feature lineage | One interactive graph page with a 2D/3D selector. |
-| Execution plan | Overview summary, one selectable 2D/3D callable graph, and detailed parallel execution stages. |
+| Plan | Overview summary, one selectable 2D/3D callable graph, and detailed parallel execution stages. |
+| Execution | Data lineage as color-coded processing tables connected by dependency arrows. |
 
 The home page is a project dashboard: the specification name and version,
 compact counts for entities, datasets, features, functions, compiled operations,
-and execution stages, and a visual journey through the three views. The site
+and execution stages, a visual journey through the specification, feature graph,
+and plan, and a link to data lineage. The site
 brand returns to this dashboard from any page. Projects without a name display
 "Untitled analytics project".
 
@@ -45,10 +47,12 @@ _generated/docs/
 │   └── functions.html
 ├── graph/
 │   └── feature_graph.html
-└── plan/
-    ├── overview.html
-    ├── graph.html
-    └── stages.html
+├── plan/
+│   ├── overview.html
+│   ├── graph.html
+│   └── stages.html
+└── execution/
+    └── data_lineage.html
 ```
 
 Start at `index.html`. `spec/overview.html` contains the specification overview; the other
@@ -57,7 +61,7 @@ sidebar group provides subnavigation and highlights the current section. The
 Features page summarizes features by dataset and identifies the producing
 mapping; the Entities and Datasets pages provide focused views of those
 specification resources.
-Feature graph opens `graph/feature_graph.html`. Execution plan has Overview, Graph,
+Feature graph opens `graph/feature_graph.html`. Plan has Overview, Graph,
 and Stages subnavigation in `plan/`; its graph is in `plan/graph.html`.
 Each graph starts in 2D. Use the **2D / 3D** buttons above it to switch views
 without leaving the page. Selected node details remain visible across switches.
@@ -68,6 +72,22 @@ Overview contains summary counts; the 2D graph groups callable operations into
 vertical lanes by dependency stage, and the graph pages show compiled callable
 operations and their dependencies rather than feature-lineage nodes.
 Stages lists dependency-ordered operations with their arguments and return types.
+
+**Execution / Data lineage** opens `execution/data_lineage.html`. Each compiled
+operation has a table of declared dimension, input, and output columns, arranged
+in dependency-stage lanes. Columns show types rather than sample or runtime
+values. Dimensions are blue; each processing step has a color that follows its
+outputs into downstream input columns. Role labels and step numbers explain the
+same relationships without relying on color. Writes show consumed columns and
+do not imply new analytical outputs.
+
+Arrows connect producer tables to consumer tables using the compiled dependencies.
+Scroll horizontally to follow stages and vertically to explore parallel steps;
+individual tables also scroll when they contain many columns. Arrows update when
+the layout changes. Dependency links remain usable without JavaScript. This is
+a schematic of the planned column flow, not an execution trace or a snapshot of
+materialized data. Generating it reuses the compiled plan and never runs analytics.
+
 Each report is a complete HTML page, with relative links to
 the other reports. The directory can be moved or hosted beneath a URL prefix
 without rebuilding its page navigation.
@@ -125,7 +145,7 @@ index_path = documentation.create_html(
 )
 ```
 
-Section pages are written in `spec/`, `graph/`, and `plan/` beneath the index
+Section pages are written in `spec/`, `graph/`, `plan/`, and `execution/` beneath the index
 directory. All navigation is relative to the page containing it, including links
 back to a custom index filename. An index named `overview.html`, for example,
 does not conflict with either section's overview page.

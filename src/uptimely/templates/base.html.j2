@@ -50,8 +50,8 @@
   {% set rel_root = root_path or "" %}
   <nav class="site-nav" aria-label="Documentation pages">
     <a class="site-brand" href="{{ rel_root }}{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>{{ icon("home", "nav-icon") }}<span>openanalytics/docs</span></a>
-    {% for page, label, icon_key in [("spec", "Specification", "specification"), ("plan", "Execution plan", "execution")] %}
-    <a href="{{ rel_root }}{{ website_pages[page]['overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
+    {% for page, label, icon_key in [("spec", "Specification", "specification"), ("plan", "Plan", "execution"), ("execution", "Execution", "execution")] %}
+    <a href="{{ rel_root }}{{ website_pages[page]['lineage' if page == 'execution' else 'overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
     {% if page == "spec" %}
     <div class="site-subnav" role="group" aria-label="Specification sections">
       {% for section, section_label, section_icon in [
@@ -68,7 +68,7 @@
       {% endfor %}
     </div>
     {% elif page == "plan" %}
-    <div class="site-subnav" role="group" aria-label="Execution plan sections">
+    <div class="site-subnav" role="group" aria-label="Plan sections">
       {% for section, section_label, section_icon in [
         ("overview", "Overview", "execution"),
         ("graph", "Execution graph", "execution-graph"),
@@ -76,6 +76,10 @@
       ] %}
       <a href="{{ rel_root }}{{ website_pages['plan'][section] }}"{% if active_page == "plan" and active_section == section %} aria-current="page"{% endif %}>{{ icon(section_icon, "nav-icon") }}<span>{{ section_label }}</span></a>
       {% endfor %}
+    </div>
+    {% elif page == "execution" %}
+    <div class="site-subnav" role="group" aria-label="Execution sections">
+      <a href="{{ rel_root }}{{ website_pages['execution']['lineage'] }}"{% if active_page == "execution" and active_section == "lineage" %} aria-current="page"{% endif %}>{{ icon("lineage", "nav-icon") }}<span>Data lineage</span></a>
     </div>
     {% endif %}
     {% endfor %}

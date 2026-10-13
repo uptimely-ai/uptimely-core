@@ -24,6 +24,7 @@ PAGES = {
     "plan/overview.html",
     "plan/graph.html",
     "plan/stages.html",
+    "execution/data_lineage.html",
 }
 
 

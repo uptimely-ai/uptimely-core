@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% block title %}Execution plan {{ section_title }}{% endblock %}
+{% block title %}Plan {{ section_title }}{% endblock %}
 {% block content %}
   <div class="pointer-events-none fixed inset-0 -z-0 opacity-30" style="background-image: linear-gradient(rgba(51,65,85,.22) 1px, transparent 1px), linear-gradient(90deg, rgba(51,65,85,.22) 1px, transparent 1px); background-size: 48px 48px;"></div>
   <div class="relative z-10 mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
@@ -9,9 +9,9 @@
     </header>
     <main>
       <header class="mb-8 border-b border-slate-800/80 pb-6">
-        <p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Execution plan</p>
+        <p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Plan</p>
         <h1 class="title-with-icon font-display text-3xl font-semibold tracking-tight text-white">{{ icon("stages" if active_section == "stages" else "execution", "title-icon") }}<span>{{ section_title }}</span></h1>
-        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-400">{% if active_section == "stages" %}Inspect dependency-ordered stages, parallel operations, and their argument bindings.{% else %}Execution plan compiled from <span class="break-all text-cyan-200">{{ spec_path }}</span>, ordered by dependency resolution.{% endif %}</p>
+        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-400">{% if active_section == "stages" %}Inspect dependency-ordered stages, parallel operations, and their argument bindings.{% else %}Plan compiled from the specification, ordered by dependency resolution.{% endif %}</p>
       </header>
       {% block plan_overview %}
       <section id="plan-overview" class="mb-16">
