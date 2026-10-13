@@ -1,26 +1,36 @@
 {% extends "base.html.j2" %}
 {% block title %}Execution / Data lineage{% endblock %}
 {% block style %}
-  .lineage-page { padding: 32px; }
+  .lineage-page { padding: 24px; }
   .lineage-page h1 { font: 600 30px "Space Grotesk", sans-serif; color: #f8fafc; }
   .lineage-page p { color: #94a3b8; line-height: 1.7; }
-  .lineage-scroll { overflow: auto; border: 1px solid #334155; border-radius: 16px; background: #020617; }
+  .lineage-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0; font-size: 12px; }
+  .lineage-toolbar button { padding: 6px 10px; border: 1px solid #334155; border-radius: 6px;
+    background: #0f172a; color: #cbd5e1; cursor: pointer; }
+  .lineage-toolbar button:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }
+  .lineage-toolbar output { min-width: 48px; text-align: center; color: #94a3b8; }
+  .lineage-toolbar[hidden] { display: none; }
+  .lineage-scroll { overflow: auto; height: 65vh; border: 1px solid #334155; border-radius: 12px; background: #020617; }
   .lineage-scroll:focus-visible, .lineage-table-scroll:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }
-  .lineage-board { position: relative; display: flex; align-items: flex-start; gap: 100px; width: max-content; padding: 72px 32px 32px; }
-  .lineage-stage { position: relative; width: 480px; z-index: 1; }
-  .lineage-stage h2 { margin: 0 0 20px; color: #94a3b8; font: 12px "JetBrains Mono", monospace; }
-  .lineage-step { margin-bottom: 28px; padding: 16px; border: 1px solid var(--step-color);
-    border-top: 4px solid var(--step-color); border-radius: 12px; background: #0f172a; }
-  .lineage-step h3 { color: var(--step-color); font: 600 15px "Space Grotesk", sans-serif; overflow-wrap: anywhere; }
-  .lineage-step p { margin: 8px 0; font-size: 12px; overflow-wrap: anywhere; }
-  .lineage-step .step-kind { font: 11px "JetBrains Mono", monospace; text-transform: uppercase; color: var(--step-color); }
-  .lineage-table-scroll { overflow-x: auto; margin: 16px 0; }
-  .lineage-table { width: 100%; border-collapse: collapse; font: 11px "JetBrains Mono", monospace; }
-  .lineage-table caption { text-align: left; color: #94a3b8; margin-bottom: 8px; font: 12px "DM Sans", sans-serif; }
-  .lineage-table th, .lineage-table td { padding: 10px; border: 1px solid #334155; text-align: left; white-space: nowrap; }
+  .lineage-canvas { position: relative; }
+  .lineage-board { position: relative; display: flex; align-items: flex-start; gap: 64px; width: max-content; padding: 64px 24px 24px; transform-origin: top left; }
+  .lineage-board-scaled { position: absolute; }
+  .lineage-stage { position: relative; width: 320px; z-index: 1; }
+  .lineage-stage h2 { margin: 0 0 12px; color: #94a3b8; font: 11px "JetBrains Mono", monospace; }
+  .lineage-step { margin-bottom: 16px; padding: 10px; border: 1px solid var(--step-color);
+    border-top: 3px solid var(--step-color); border-radius: 8px; background: #0f172a; }
+  .lineage-step h3 { margin: 4px 0; color: var(--step-color); font: 600 13px "Space Grotesk", sans-serif; overflow-wrap: anywhere; }
+  .lineage-step p { margin: 4px 0; font-size: 11px; overflow-wrap: anywhere; }
+  .lineage-step details { margin-top: 6px; font-size: 11px; color: #94a3b8; }
+  .lineage-step summary { cursor: pointer; }
+  .lineage-step .step-kind { font: 10px "JetBrains Mono", monospace; text-transform: uppercase; color: var(--step-color); }
+  .lineage-table-scroll { overflow-x: auto; margin: 8px 0; }
+  .lineage-table { width: 100%; border-collapse: collapse; font: 10px "JetBrains Mono", monospace; }
+  .lineage-table caption { text-align: left; color: #94a3b8; margin-bottom: 4px; font: 10px "DM Sans", sans-serif; }
+  .lineage-table th, .lineage-table td { padding: 5px 6px; border: 1px solid #334155; text-align: left; white-space: nowrap; }
   .lineage-table .column-cell { color: var(--column-color); background: color-mix(in srgb, var(--column-color) 12%, #0f172a); }
-  .lineage-table .column-role { display: block; margin-bottom: 6px; font: 10px "DM Sans", sans-serif; text-transform: uppercase; }
-  .lineage-dependencies { font-size: 12px; color: #94a3b8; }
+  .lineage-table .column-role { display: block; margin-bottom: 3px; font: 9px "DM Sans", sans-serif; text-transform: uppercase; }
+  .lineage-dependencies { font-size: 10px; color: #94a3b8; }
   .lineage-dependencies a { color: #c4b5fd; text-decoration: underline; }
   .lineage-edges { position: absolute; inset: 0; pointer-events: none; }
   @media (max-width: 640px) { .lineage-page { padding: 20px 12px; } }
@@ -34,7 +44,15 @@
   {% if stages %}
   <p>Scroll to explore stages from left to right. Steps in the same stage are independent.
     Each table labels input and output columns separately; these are logical column flows, not stored table snapshots.</p>
+  <div class="lineage-toolbar" id="lineage-toolbar" role="group" aria-label="Data lineage zoom" hidden>
+    <button type="button" id="lineage-zoom-out" aria-label="Zoom out">-</button>
+    <output id="lineage-zoom-level" aria-live="polite">75%</output>
+    <button type="button" id="lineage-zoom-in" aria-label="Zoom in">+</button>
+    <button type="button" id="lineage-fit">Fit view</button>
+    <button type="button" id="lineage-reset">100%</button>
+  </div>
   <div class="lineage-scroll" tabindex="0" role="region" aria-label="Processing tables and dependency edges">
+    <div class="lineage-canvas" id="lineage-canvas">
     <div class="lineage-board" id="lineage-board">
       <svg class="lineage-edges" id="lineage-edges" aria-hidden="true"></svg>
       {% for stage in stages %}
@@ -45,9 +63,12 @@
           data-dependencies="{{ step.dependencies|join(',') }}" style="--step-color: {{ step.color }}">
           <span class="step-kind">Step {{ step.number }} / {{ step.kind }}</span>
           <h3>{{ step.function }}</h3>
-          <p>Entity: {{ step.entity }}<br>Dataset: {{ step.dataset or "None" }}</p>
-          {% if step.grain %}<p>Grain: {{ step.grain }}</p>{% endif %}
-          {% if step.kind == "write" %}<p>Write boundary: consumes columns; produces no analytical features.</p>{% endif %}
+          <details>
+            <summary>Dataset details</summary>
+            <p>Entity: {{ step.entity }}<br>Dataset: {{ step.dataset or "None" }}</p>
+            {% if step.grain %}<p>Grain: {{ step.grain }}</p>{% endif %}
+            {% if step.kind == "write" %}<p>Write boundary: consumes columns; produces no analytical features.</p>{% endif %}
+          </details>
           {% if step.columns %}
           <div class="lineage-table-scroll" tabindex="0" role="region" aria-label="Step {{ step.number }} columns">
             <table class="lineage-table">
@@ -64,6 +85,7 @@
                 <tr><th scope="row">Producer</th>{% for column in step.columns %}<td class="column-cell" style="--column-color: {{ column.color }}">{% if column.producer %}Step {{ column.producer }}{% elif column.role == "Dimension" %}Observation key{% else %}No declared producer{% endif %}</td>{% endfor %}</tr>
               </tbody>
             </table>
+          </div>
           </div>
           {% else %}<p>No declared columns.</p>{% endif %}
           <div class="lineage-dependencies">Depends on:
@@ -91,6 +113,39 @@
   const namespace = "http://www.w3.org/2000/svg";
   const edgeColor = "#94a3b8";
   const steps = Array.from(board.querySelectorAll(".lineage-step"));
+  const canvas = document.getElementById("lineage-canvas");
+  const viewport = canvas.parentElement;
+  const toolbar = document.getElementById("lineage-toolbar");
+  const zoomLevel = document.getElementById("lineage-zoom-level");
+  let zoom = 0.75;
+  let fitted = false;
+  function setZoom(value) {
+    zoom = Math.min(1.5, Math.max(0.1, value));
+    board.classList.add("lineage-board-scaled");
+    board.style.transform = `scale(${zoom})`;
+    canvas.style.width = `${board.offsetWidth * zoom}px`;
+    canvas.style.height = `${board.offsetHeight * zoom}px`;
+    zoomLevel.value = `${Math.round(zoom * 100)}%`;
+    drawEdges();
+  }
+  function fitView() {
+    fitted = true;
+    setZoom(Math.min(
+      (viewport.clientWidth - 24) / board.offsetWidth,
+      (viewport.clientHeight - 24) / board.offsetHeight,
+      1
+    ));
+    viewport.scrollTo(0, 0);
+  }
+  function changeZoom(value) {
+    fitted = false;
+    setZoom(value);
+  }
+  document.getElementById("lineage-zoom-out").addEventListener("click", () => changeZoom(zoom - 0.1));
+  document.getElementById("lineage-zoom-in").addEventListener("click", () => changeZoom(zoom + 0.1));
+  document.getElementById("lineage-fit").addEventListener("click", fitView);
+  document.getElementById("lineage-reset").addEventListener("click", () => changeZoom(1));
+  toolbar.hidden = false;
   function drawEdges() {
     const bounds = board.getBoundingClientRect();
     svg.setAttribute("width", board.scrollWidth);
@@ -116,12 +171,12 @@
       target.dataset.dependencies.split(",").filter(Boolean).forEach(number => {
         const source = document.getElementById(`step-${number}`);
         const sourceBounds = source.getBoundingClientRect();
-        const x1 = sourceBounds.right - bounds.left;
-        const y1 = sourceBounds.top - bounds.top + 24;
-        const x2 = targetBounds.left - bounds.left;
-        const y2 = targetBounds.top - bounds.top + 24;
+        const x1 = (sourceBounds.right - bounds.left) / zoom;
+        const y1 = (sourceBounds.top - bounds.top) / zoom + 20;
+        const x2 = (targetBounds.left - bounds.left) / zoom;
+        const y2 = (targetBounds.top - bounds.top) / zoom + 20;
         const path = document.createElementNS(namespace, "path");
-        const skipsStage = x2 - x1 > 100;
+        const skipsStage = x2 - x1 > 65;
         const routeY = 16 + (Number(number) % 4) * 10;
         path.setAttribute("d", skipsStage
           ? `M ${x1} ${y1} C ${x1 + 30} ${y1}, ${x1 + 30} ${routeY}, ${x1 + 45} ${routeY} L ${x2 - 45} ${routeY} C ${x2 - 30} ${routeY}, ${x2 - 30} ${y2}, ${x2} ${y2}`
@@ -136,9 +191,16 @@
       });
     });
   }
-  new ResizeObserver(drawEdges).observe(board);
-  document.fonts.ready.then(drawEdges);
-  drawEdges();
+  function updateView() {
+    if (fitted) fitView();
+    else setZoom(zoom);
+  }
+  const observer = new ResizeObserver(updateView);
+  observer.observe(board);
+  observer.observe(viewport);
+  board.addEventListener("toggle", updateView, true);
+  document.fonts.ready.then(updateView);
+  setZoom(zoom);
 })();
 </script>
 {% endblock %}

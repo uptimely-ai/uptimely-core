@@ -83,8 +83,11 @@ do not imply new analytical outputs.
 Arrows connect producer tables to consumer tables using the compiled dependencies.
 All arrows and arrowheads use the same slate color, independent of table colors.
 Scroll horizontally to follow stages and vertically to explore parallel steps;
-individual tables also scroll when they contain many columns. Arrows update when
-the layout changes. Dependency links remain usable without JavaScript. This is
+compact tables also scroll when they contain many columns. Dataset metadata is
+available under each card's **Dataset details** disclosure. The view starts at
+75% zoom; use **+**, **-**, or **100%** to inspect details, and **Fit view** to
+frame all processing cards in the viewport. Arrows stay aligned when zooming or
+expanding details. Dependency links remain usable without JavaScript. This is
 a schematic of the planned column flow, not an execution trace or a snapshot of
 materialized data. Generating it reuses the compiled plan and never runs analytics.
 
