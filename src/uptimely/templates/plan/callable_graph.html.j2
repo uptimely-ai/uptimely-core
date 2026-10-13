@@ -1,10 +1,10 @@
 <section id="callable-graph" class="absolute inset-0">
 		{% include "graph/view_controls.html.j2" %}
 		<div class="panel">
-			<div class="grid gap-2 font-mono text-xs text-slate-300">
-				<span><i class="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style="background: {{ graph_style.input_color }}"></i>Dataframe operation</span>
-				<span><i class="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style="background: {{ graph_style.function_color }}"></i>Vectorize</span>
-				<span><i class="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style="background: {{ graph_style.feature_color }}"></i>Write</span>
+			<div class="legend" aria-label="Execution graph legend">
+				{% for function_type, color in graph_style.function_colors.items() %}
+				<span class="function" style="--color:{{ color }}">{{ function_type|title }} function</span>
+				{% endfor %}
 			</div>
 		</div>
 		<div class="details details-2d" id="callable-node-details">
@@ -39,14 +39,7 @@
 				<div class="break-all text-xs text-slate-300"><strong>Callable dependencies:</strong> ${formatList(node.dependency_ids)}</div>
 			`;
 		};
-		const callableColors = {
-			read: '{{ graph_style.input_color }}',
-			conform: '{{ graph_style.input_color }}',
-			expand: '{{ graph_style.input_color }}',
-			collapse: '{{ graph_style.input_color }}',
-			vectorize: '{{ graph_style.function_color }}',
-			write: '{{ graph_style.feature_color }}',
-		};
+		const callableColors = {{ graph_style.function_colors|tojson }};
 		function create3D(callableGraphContainer, callableGraphData, updateCallableDetails) {
 		let initialFitComplete = false;
 		const callableGraph = ForceGraph3D()(callableGraphContainer)

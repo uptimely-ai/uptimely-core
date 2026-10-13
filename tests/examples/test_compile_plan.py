@@ -95,9 +95,9 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert '"callable_type": "read"' in report
     assert '"callable_type": "vectorize"' in report
     assert '"callable_type": "write"' in report
-    assert "Dataframe operation</span>" in report
-    assert "Vectorize</span>" in report
-    assert "Write</span>" in report
+    assert "Execution graph legend" in report
+    assert "Vectorize function</span>" in report
+    assert "Write function</span>" in report
     assert (
         '"source": "callable:collapse:maximum:'
         'pump:pump_dataset:bearing_temperature_by_pump"' in report
