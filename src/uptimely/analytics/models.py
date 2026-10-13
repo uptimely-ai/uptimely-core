@@ -10,20 +10,18 @@ def _filled_fields(**fields: object) -> dict:
 
 @dataclasses.dataclass(frozen=True)
 class FunctionNode:
-    """Display metadata for one function node and its resolved function template."""
+    """Display metadata for one function definition and its resolved template."""
 
     name: str
-    feature: str | None
-    entity: str
+    features: tuple[str, ...]
+    entity: str | None
     function: spec.Function | None = dataclasses.field(default=None, compare=False, hash=False)
-    operation_id: str | None = None
 
     @property
     def node_id(self) -> str:
-        """Stable graph identifier for this function invocation."""
-        operation_id = self.operation_id or self.feature or self.name
+        """Stable graph identifier for this function definition."""
         function_type = self.function.role if self.function is not None else "unknown"
-        return f"function:{self.entity}:{function_type}:{operation_id}"
+        return f"function:{function_type}:{self.name}"
 
     def __str__(self) -> str:
         return self.name
@@ -37,9 +35,8 @@ class FunctionNode:
             node_type=node_type,
             is_function=True,
             label=self.name,
-            feature=self.feature,
+            features=list(self.features),
             entity=self.entity,
-            operation_id=self.operation_id,
             function_type=(
                 "vectorize"
                 if self.function is not None and self.function.role == "analytics"

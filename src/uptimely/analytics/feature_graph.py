@@ -224,6 +224,12 @@ class FeatureGraph(GraphBase):
         """Build a graph from the loaded function call dependencies."""
         graph = graphable_.graph.Graph()
         nodes: dict[str, Node] = {}
+        function_entities: dict[tuple[str, str], set[str]] = {}
+        function_outputs: dict[tuple[str, str], set[str]] = {}
+        for function, entity, _operation_id, outputs, _dependencies in self._graph_operations:
+            function_key = (function.role, function.id)
+            function_entities.setdefault(function_key, set()).add(entity)
+            function_outputs.setdefault(function_key, set()).update(outputs)
 
         output_names = {
             output
@@ -305,21 +311,15 @@ class FeatureGraph(GraphBase):
                 is_source_input=metadata.is_source_input if metadata else False,
             )
 
-        for function, entity, operation_id, outputs, dependencies in self._graph_operations:
+        for function, entity, _operation_id, outputs, dependencies in self._graph_operations:
+            function_key = (function.role, function.id)
+            entities = function_entities[function_key]
             function_node = node(
                 models.FunctionNode(
                     name=function.id,
-                    feature=next(
-                        (
-                            output
-                            for output in outputs
-                            if output not in self.specification.dimensions
-                        ),
-                        None,
-                    ),
-                    entity=entity,
+                    features=tuple(sorted(function_outputs[function_key])),
+                    entity=next(iter(entities)) if len(entities) == 1 else None,
                     function=function,
-                    operation_id=operation_id,
                 )
             )
 
