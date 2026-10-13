@@ -87,7 +87,7 @@ def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> N
     assert 'path.setAttribute("stroke", edgeColor);' in document
     assert 'path.setAttribute("marker-end", "url(#lineage-arrow)");' in document
     assert 'source.style.getPropertyValue("--step-color")' not in document
-    assert "new ResizeObserver(drawEdges)" in document
+    assert "new ResizeObserver(updateView)" in document
     assert "Tables show declared column types, not runtime values" in document
     assert "Write boundary:" in document
     assert "No declared producer" not in document
@@ -106,6 +106,31 @@ def test_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert "lineage-legend" not in document
     assert "Data lineage color key" not in document
+
+
+def test_lineage_has_compact_tables_and_zoom_controls(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
+    docs.create_html(specification, tmp_path / "index.html")
+    document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    assert ".lineage-stage { position: relative; width: 320px;" in document
+    assert "padding: 5px 6px;" in document
+    assert 'aria-label="Data lineage zoom" hidden' in document
+    assert 'aria-label="Zoom out"' in document
+    assert 'aria-label="Zoom in"' in document
+    assert 'id="lineage-fit">Fit view</button>' in document
+    assert 'id="lineage-reset">100%</button>' in document
+    assert "let zoom = 0.75;" in document
+    assert "board.style.transform = `scale(${zoom})`;" in document
+    assert "canvas.style.width = `${board.offsetWidth * zoom}px`;" in document
+    assert "canvas.style.height = `${board.offsetHeight * zoom}px`;" in document
+    assert "(viewport.clientWidth - 24) / board.offsetWidth" in document
+    assert "(viewport.clientHeight - 24) / board.offsetHeight" in document
+    assert "(sourceBounds.right - bounds.left) / zoom" in document
+    assert "(targetBounds.left - bounds.left) / zoom" in document
+    assert document.count("<summary>Dataset details</summary>") == len(
+        compile.Compiler(specification).compile().operations
+    )
+    assert "<details open" not in document
 
 
 def test_lineage_escapes_declared_row_scope(tmp_path: pathlib.Path) -> None:
