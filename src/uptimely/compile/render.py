@@ -15,10 +15,9 @@ from uptimely.analytics import render
 from . import compiler
 
 PLAN_PAGES = {
-    "overview": "overview.html",
-    "graph_2d": "2d.html",
-    "graph_3d": "3d.html",
-    "stages": "stages.html",
+    "overview": "execution_plan.html",
+    "graph": "execution_plan_graph.html",
+    "stages": "execution_plan_stages.html",
 }
 
 
@@ -224,8 +223,6 @@ def _create_website_pages(
         document = environment.get_template(f"plan/{section}.html.j2").render(
             **context,
             active_section=section,
-            section_title={"graph_2d": "2D graph", "graph_3d": "3D graph"}.get(
-                section, section.title()
-            ),
+            section_title=section.title(),
         )
         (output_directory / filename).write_text(document, encoding="utf-8")

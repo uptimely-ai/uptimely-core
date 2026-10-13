@@ -51,27 +51,19 @@ def _render_graph_html(
     links: list[dict[str, str]],
     style: GraphStyle | None = None,
     *,
-    dimension: typing.Literal["2d", "3d"],
     index_filename: str = "index.html",
 ) -> str:
-    """Render the dependency graph as interactive 2D or 3D HTML.
+    """Render one feature graph page with selectable 2D and 3D views.
 
     Args:
         nodes: Graph nodes with stable identifiers and display metadata.
         links: Directed connections between node identifiers.
         style: Optional graph appearance settings.
-        dimension: Graph layout to render.
         index_filename: Filename of the website dashboard.
 
     Returns:
         The complete HTML document.
-
-    Raises:
-        ValueError: If the requested graph dimension is not supported.
     """
-    if dimension not in ("2d", "3d"):
-        raise ValueError(f"Unsupported graph dimension: {dimension!r}. Choose '2d' or '3d'.")
-
     style = style or GraphStyle()
     environment = render.html_environment()
     graph_data = json.dumps(
@@ -80,14 +72,12 @@ def _render_graph_html(
             "links": sorted(links, key=lambda link: (link["source"], link["target"])),
         }
     ).replace("</script>", r"<\/script>")
-    template = environment.get_template(f"graph/feature_graph_{dimension}.html.j2")
+    template = environment.get_template("graph/feature_graph.html.j2")
     return template.render(
         style=style,
-        dimension=dimension,
         graph_data=graph_data,
         include_navigation=True,
         active_page="graph",
-        active_section=dimension,
         index_filename=index_filename,
     )
 
@@ -126,7 +116,7 @@ def _create_website_pages(
     *,
     index_filename: str = "index.html",
 ) -> None:
-    """Write both feature graph views within the documentation website.
+    """Write the unified feature graph page within the documentation website.
 
     Args:
         graph: The feature dependency graph to export.
@@ -135,9 +125,5 @@ def _create_website_pages(
     """
     output_directory.mkdir(parents=True, exist_ok=True)
     nodes, links = graph_payload_from_cytoscape(graph)
-    for dimension in ("2d", "3d"):
-        document = _render_graph_html(
-            nodes, links, dimension=dimension, index_filename=index_filename
-        )
-        target = output_directory / f"feature_graph_{dimension}.html"
-        target.write_text(document, encoding="utf-8")
+    document = _render_graph_html(nodes, links, index_filename=index_filename)
+    (output_directory / "feature_graph.html").write_text(document, encoding="utf-8")

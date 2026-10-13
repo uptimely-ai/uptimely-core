@@ -60,8 +60,7 @@ class Documentation:
         target = target.with_suffix(".html")
         if target.name in {
             *spec_render.SPECIFICATION_PAGES.values(),
-            "2d.html",
-            "3d.html",
+            "feature_graph.html",
             *render.PLAN_PAGES.values(),
         }:
             raise ValueError("The website index path must not overwrite a report page.")
@@ -86,6 +85,15 @@ class Documentation:
             )
         )
         target.write_text(document, encoding="utf-8")
+        for filename in (
+            "feature_graph_2d.html",
+            "feature_graph_3d.html",
+            "execution_plan_graph_2d.html",
+            "execution_plan_graph_3d.html",
+        ):
+            obsolete_page = target.parent / filename
+            if obsolete_page != target:
+                obsolete_page.unlink(missing_ok=True)
         return target
 
 

@@ -1,0 +1,31 @@
+{% extends "graph/base.html.j2" %}
+{% from "graph/feature_graph_shared.html.j2" import node_details_panel, node_details_script %}
+{% block title %}Feature lineage{% endblock %}
+{% block body %}
+	<div class="panel">
+		<div class="legend" aria-label="Feature graph legend">
+			<span style="--color:{{ style.feature_color }}">Feature</span>
+			{% for function_type, color in style.function_colors.items() %}
+			<span class="function" style="--color:{{ color }}">{{ function_type|title }} function</span>
+			{% endfor %}
+		</div>
+	</div>
+	{{ node_details_panel("details details-2d", "Selected item") }}
+	{% include "graph/view_controls.html.j2" %}
+	<div id="graph">
+		<div id="graph-2d" class="graph-view"></div>
+		<div id="graph-3d" class="graph-view" hidden></div>
+	</div>
+	<script>
+	{
+		const data = {{ graph_data|safe }};
+		const functionColors = {{ style.function_colors|tojson }};
+		const featureColor = {{ style.feature_color|tojson }};
+		{{ node_details_script("Selected item") }}
+		{% include "graph/feature_renderer_2d.js.j2" %}
+		{% include "graph/feature_renderer_3d.js.j2" %}
+		{% include "graph/view_controller.js.j2" %}
+		mountGraphViews(data, create2D, create3D, updateDetails, document.getElementById('node-details'));
+	}
+	</script>
+{% endblock %}

@@ -117,11 +117,9 @@ Generated artifacts are written beneath each example's `_generated/` directory:
 | [`example_1/_generated/docs/spec_datasets.html`](example_1/_generated/docs/spec_datasets.html) | `run_docs.py` |
 | [`example_1/_generated/docs/spec_dimensions.html`](example_1/_generated/docs/spec_dimensions.html) | `run_docs.py` |
 | [`example_1/_generated/docs/spec_functions.html`](example_1/_generated/docs/spec_functions.html) | `run_docs.py` |
-| [`example_1/_generated/docs/feature_graph_2d.html`](example_1/_generated/docs/feature_graph_2d.html) | `run_docs.py` |
-| [`example_1/_generated/docs/feature_graph_3d.html`](example_1/_generated/docs/feature_graph_3d.html) | `run_docs.py` |
+| [`example_1/_generated/docs/feature_graph.html`](example_1/_generated/docs/feature_graph.html) | `run_docs.py` |
 | [`example_1/_generated/docs/execution_plan.html`](example_1/_generated/docs/execution_plan.html) | `run_docs.py` |
-| [`example_1/_generated/docs/execution_plan_graph_2d.html`](example_1/_generated/docs/execution_plan_graph_2d.html) | `run_docs.py` |
-| [`example_1/_generated/docs/execution_plan_graph_3d.html`](example_1/_generated/docs/execution_plan_graph_3d.html) | `run_docs.py` |
+| [`example_1/_generated/docs/execution_plan_graph.html`](example_1/_generated/docs/execution_plan_graph.html) | `run_docs.py` |
 | [`example_1/_generated/docs/execution_plan_stages.html`](example_1/_generated/docs/execution_plan_stages.html) | `run_docs.py` |
 | [`example_2/_generated/spec/spec.json`](example_2/_generated/spec/spec.json) | `run_export_spec.py` |
 

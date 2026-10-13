@@ -83,7 +83,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert source_match is not None
     assert (report_path.parent / source_match.group(1)).resolve().is_file()
 
-    report = (tmp_path / "execution_plan_graph_3d.html").read_text(encoding="utf-8")
+    report = (tmp_path / "execution_plan_graph.html").read_text(encoding="utf-8")
     assert 'id="callable-graph"' in report
     assert "3d-force-graph" in report
     assert "Callable details" in report
@@ -118,8 +118,7 @@ def test_website_exports_plan_pages_to_default_path(tmp_path: pathlib.Path, monk
     assert index == pathlib.Path("_generated/docs/index.html")
     for filename in (
         "execution_plan.html",
-        "execution_plan_graph_2d.html",
-        "execution_plan_graph_3d.html",
+        "execution_plan_graph.html",
         "execution_plan_stages.html",
     ):
         assert (index.parent / filename).is_file()

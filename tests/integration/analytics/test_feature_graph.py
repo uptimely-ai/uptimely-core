@@ -110,7 +110,7 @@ def test_dependency_features_keep_their_producer_entity_without_becoming_source_
 def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
     docs.Documentation(specification).create_html(tmp_path / "index.html")
-    output = tmp_path / "feature_graph_3d.html"
+    output = tmp_path / "feature_graph.html"
     html = output.read_text(encoding="utf-8")
 
     assert output.exists()
@@ -132,19 +132,15 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "<strong>Function:</strong> ${label}" in html
     assert "<strong>Produces:</strong> ${formatDetailValue(feature)}" in html
     assert "Feature</span>" in html
-    assert "Read function</span>" in html
-    assert "Vectorize function</span>" in html
-    assert "Collapse function</span>" in html
-    assert "Conform function</span>" in html
-    assert "Expand function</span>" in html
-    assert "Write function</span>" in html
+    for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
+        assert f"{category} function</span>" in html
     assert "input_color" not in html
 
 
 def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
     docs.Documentation(specification).create_html(tmp_path / "index.html")
-    output = tmp_path / "feature_graph_2d.html"
+    output = tmp_path / "feature_graph.html"
     html = output.read_text(encoding="utf-8")
 
     assert "force-graph@1.52.0/dist/force-graph.min.js" in html
@@ -176,12 +172,9 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert '"is_function": false, "entity": "pump", "data_type": "float"' in html
     assert '"label": "operating_point_recommendation", "tags": [], "node_type": "feature"' in html
     assert '"is_function": false, "entity": "pump_telemetry"' in html
-    assert ".linkOpacity(" not in html
-    assert 'aria-label="2D graph legend"' in html
+    assert 'aria-label="Feature graph legend"' in html
     assert "Feature</span>" in html
     assert "Read function</span>" in html
-    assert "sphere" not in html
-    assert "octahedron" not in html
     assert 'class="details details-2d"' in html
     assert "Selected item" in html
     assert ".details-2d { right: auto; left: 16px;" in html
@@ -189,4 +182,4 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert ".onNodeClick((_node, event) => selectAtPointer(event))" in html
     assert ".onBackgroundClick(event => selectAtPointer(event))" in html
     assert "<h2>Node details</h2>" not in html
-    assert "3d-force-graph" not in html
+    assert "3d-force-graph" in html

@@ -14,18 +14,16 @@ REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 SPEC_PATH = REPOSITORY_ROOT / "examples/example_1/_generated/spec/spec.json"
 PAGES = {
     "index.html",
-    "spec/overview.html",
-    "spec/features.html",
-    "spec/entities.html",
-    "spec/datasets.html",
-    "spec/dimensions.html",
-    "spec/functions.html",
-    "graph/2d.html",
-    "graph/3d.html",
-    "plan/overview.html",
-    "plan/2d.html",
-    "plan/3d.html",
-    "plan/stages.html",
+    "spec.html",
+    "spec_features.html",
+    "spec_entities.html",
+    "spec_datasets.html",
+    "spec_dimensions.html",
+    "spec_functions.html",
+    "feature_graph.html",
+    "execution_plan.html",
+    "execution_plan_graph.html",
+    "execution_plan_stages.html",
 }
 
 

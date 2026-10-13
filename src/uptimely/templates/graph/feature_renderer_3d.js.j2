@@ -1,37 +1,5 @@
-{% extends "graph/base.html.j2" %}
-{% from "graph/feature_graph_shared.html.j2" import node_details_panel, node_details_script %}
-{% block title %}Uptimely 3D Feature Lineage{% endblock %}
-{% block head %}
-	<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-	<script src="https://unpkg.com/3d-force-graph@1.77.0/dist/3d-force-graph.min.js"></script>
-	<script src="https://unpkg.com/three-spritetext@1.10.0/dist/three-spritetext.min.js"></script>
-{% endblock %}
-{% block graph_style %}
-	.legend-separator { display: block; height: 1px; margin: 4px 0; background: #52616b; }
-	.legend .function::before { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
-{% endblock %}
-{% block body %}
-	<div class="panel">
-		<div class="legend" aria-label="3D graph legend">
-			<span style="--color:{{ style.feature_color }}">Feature</span>
-			<span class="legend-separator" aria-hidden="true"></span>
-			{% for function_type, color in style.function_colors.items() %}
-			<span class="function" style="--color:{{ color }}">{{ function_type|title }} function</span>
-			{% endfor %}
-		</div>
-	</div>
-	{{ node_details_panel() }}
-	<div id="graph"></div>
-	<script>
-		const data = {{ graph_data|safe }};
-		const functionColors = {
-			{% for function_type, color in style.function_colors.items() %}
-			{{ function_type|tojson }}: '{{ color }}'{% if not loop.last %},{% endif %}
-			{% endfor %}
-		};
-		const featureColor = '{{ style.feature_color }}';
-{{ node_details_script() }}
-		const graphContainer = document.getElementById('graph');
+	function create3D(graphContainer, data, updateDetails) {
+		let initialFitComplete = false;
 		const graph = ForceGraph3D()(graphContainer)
 			.width(graphContainer.clientWidth)
 			.height(graphContainer.clientHeight)
@@ -47,6 +15,12 @@
 			.linkColor(() => '{{ style.link_color }}')
 			.linkOpacity({{ style.link_opacity }})
 			.onNodeClick(node => updateDetails(node))
+			.onEngineStop(() => {
+				if (!initialFitComplete) {
+					graph.zoomToFit(0, 60);
+					initialFitComplete = true;
+				}
+			})
 			.nodeThreeObject(node => {
 				const color = node.is_function ? functionColors[node.function_type] : featureColor;
 				const material = new THREE.MeshLambertMaterial({ color });
@@ -74,9 +48,10 @@
 		chargeForce.strength({{ style.charge_strength }});
 		chargeForce.distanceMax({{ style.charge_distance_max }});
 		graph.d3Force('link').distance({{ style.link_distance }});
-		window.addEventListener('resize', () => graph
-			.width(graphContainer.clientWidth)
-			.height(graphContainer.clientHeight));
-		updateDetails(null);
-	</script>
-{% endblock %}
+		const fit = () => graph.zoomToFit(0, 60);
+		const resize = () => {
+			graph.width(graphContainer.clientWidth).height(graphContainer.clientHeight);
+			fit();
+		};
+		return { graph, fit, resize };
+	}

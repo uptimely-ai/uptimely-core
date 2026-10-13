@@ -1,0 +1,10 @@
+	<div class="graph-toolbar">
+		<h1>{{ "Execution plan graph" if active_page == "plan" else "Feature lineage" }}</h1>
+		<div class="graph-buttons" role="group" aria-label="Graph view">
+			<button type="button" data-dimension="2d" aria-pressed="true" aria-controls="graph-2d">2D</button>
+			<button type="button" data-dimension="3d" aria-pressed="false" aria-controls="graph-3d">3D</button>
+		</div>
+		<button id="fit-graph" type="button">Fit graph</button>
+	</div>
+	<p id="graph-error" role="alert" hidden></p>
+	<noscript><p class="graph-error">JavaScript is required to display interactive graphs.</p></noscript>

@@ -8,8 +8,8 @@ connected views:
 | Page | Purpose |
 | --- | --- |
 | Specification | Overview, Features, Entities, Datasets, Dimensions, and Functions pages, linked beneath Specification in the sidebar. Features are summarized per dataset with their producing mapping. |
-| Feature lineage | Explore logical dependencies in interactive 2D and 3D views. |
-| Execution plan | Overview summary, 2D and 3D callable graphs, and detailed parallel execution stages. |
+| Feature lineage | One interactive graph page with a 2D/3D selector. |
+| Execution plan | Overview summary, one selectable 2D/3D callable graph, and detailed parallel execution stages. |
 
 The home page is a project dashboard: the specification name and version,
 compact counts for entities, datasets, features, functions, compiled operations,
@@ -36,33 +36,31 @@ The command exports this directory:
 ```text
 _generated/docs/
 ├── index.html
-├── graph/
-│   ├── 2d.html
-│   └── 3d.html
-├── plan/
-│   ├── 2d.html
-│   ├── 3d.html
-│   ├── overview.html
-│   └── stages.html
-└── spec/
-    ├── datasets.html
-    ├── dimensions.html
-    ├── entities.html
-    ├── features.html
-    ├── functions.html
-    └── overview.html
+├── spec.html
+├── spec_features.html
+├── spec_entities.html
+├── spec_datasets.html
+├── spec_dimensions.html
+├── spec_functions.html
+├── feature_graph.html
+├── execution_plan.html
+├── execution_plan_graph.html
+└── execution_plan_stages.html
 ```
 
-Start at `index.html`. `spec/overview.html` contains the specification overview;
-the other specification pages under `spec/` contain only their respective
-sections. The Specification sidebar group provides subnavigation and highlights
-the current section. The Features page summarizes features by dataset and
-identifies the producing mapping; the Entities and Datasets pages provide
-focused views of those specification resources.
-Feature graph provides separate 2D and 3D lineage views under `graph/` (`2d.html`
-and `3d.html`).
-Execution plan has Overview, 2D graph, 3D graph, and Stages subnavigation under
-`plan/` (`overview.html`, `2d.html`, `3d.html`, and `stages.html`).
+Start at `index.html`. `spec.html` contains the specification overview; the other
+specification pages contain only their respective sections. The Specification
+sidebar group provides subnavigation and highlights the current section. The
+Features page summarizes features by dataset and identifies the producing
+mapping; the Entities and Datasets pages provide focused views of those
+specification resources.
+Feature graph opens `feature_graph.html`. Execution plan has Overview, Graph,
+and Stages subnavigation; its graph is in `execution_plan_graph.html`.
+Each graph starts in 2D. Use the **2D / 3D** buttons above it to switch views
+without leaving the page. Selected node details remain visible across switches.
+The **Fit graph** button frames the active view. Only the visible renderer runs;
+the inactive view is paused. If 3D cannot initialize, an error message appears
+and the current 2D view remains usable.
 Overview contains summary counts; the 2D graph groups callable operations into
 vertical lanes by dependency stage, and the graph pages show compiled callable
 operations and their dependencies rather than feature-lineage nodes.
@@ -70,6 +68,8 @@ Stages lists dependency-ordered operations with their arguments and return types
 Each report is a complete HTML page, with relative links to
 the other reports. The directory can be moved or hosted beneath a URL prefix
 without rebuilding its page navigation.
+Rebuilding removes the four obsolete dimension-specific graph files from the
+output directory; unrelated files are left untouched.
 
 The build options are:
 
@@ -210,8 +210,8 @@ calculations to downstream features. It keeps the standard layered node-card
 layout and directional links, with horizontal swim lanes labeled by
 specification entity. Nodes are stacked vertically within each lane and rank
 without overlapping. Nodes without an entity are grouped in an `Unassigned` lane.
-Both renderings include the same node details. Website generation includes
-both views; open their links under Feature graph in the sidebar.
+Both renderings include the same node details. Open Feature graph in the
+sidebar and select **2D** or **3D** above the visualization.
 
 The feature graph explains logical lineage; the
 [execution plan](../compiler/index.md) separately shows callable dependencies and

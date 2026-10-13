@@ -69,3 +69,7 @@ Initial public release.
 ## [0.0.1] - 2026-08-16
 
 Placholder release to reserve the package name in PyPI.
+- Combined each generated graph section into one page with an in-place 2D/3D
+  selector, defaulting to 2D and preserving selected node details. Sidebar links
+  now use `feature_graph.html` and `execution_plan_graph.html`; rebuilds remove
+  obsolete dimension-specific graph pages.

@@ -1,45 +1,4 @@
-{% extends "graph/base.html.j2" %}
-{% from "graph/feature_graph_shared.html.j2" import node_details_panel, node_details_script %}
-{% block title %}Uptimely 2D Feature Lineage{% endblock %}
-{% block head %}
-	<script src="https://unpkg.com/force-graph@1.52.0/dist/force-graph.min.js"></script>
-{% endblock %}
-{% block graph_style %}
-	.legend-separator { display: block; height: 1px; margin: 4px 0; background: #52616b; }
-	.legend span::before { width: 18px; height: 12px; border: 1px solid var(--color);
-		border-radius: 4px; box-sizing: border-box;
-		background: radial-gradient(circle, var(--color) 0 3px, transparent 3.5px) 3px center / 6px 6px no-repeat; }
-	.legend .function::before {
-		background: linear-gradient(var(--color), var(--color)) 3px center / 6px 6px no-repeat; }
-	.graph-controls { position: absolute; top: 70px; right: 20px; z-index: 1; }
-	.graph-controls button { padding: 9px 14px; border: 1px solid #52616b; border-radius: 8px;
-		background: #1c2b36; color: #e8edf2; font: inherit; cursor: pointer; }
-	.graph-controls button:hover, .graph-controls button:focus-visible {
-		border-color: #67e8f9; color: #67e8f9; }
-{% endblock %}
-{% block body %}
-	<div class="panel">
-		<div class="legend" aria-label="2D graph legend">
-			<span style="--color:{{ style.feature_color }}">Feature</span>
-			<span class="legend-separator" aria-hidden="true"></span>
-			{% for function_type, color in style.function_colors.items() %}
-			<span class="function" style="--color:{{ color }}">{{ function_type|title }} function</span>
-			{% endfor %}
-		</div>
-	</div>
-	<div class="graph-controls"><button id="fit-graph" type="button">Fit graph</button></div>
-	{{ node_details_panel("details details-2d", "Selected item") }}
-	<div id="graph"></div>
-	<script>
-		const data = {{ graph_data|safe }};
-		const functionColors = {
-			{% for function_type, color in style.function_colors.items() %}
-			{{ function_type|tojson }}: '{{ color }}'{% if not loop.last %},{% endif %}
-			{% endfor %}
-		};
-		const featureColor = '{{ style.feature_color }}';
-{{ node_details_script("Selected item") }}
-		const graphContainer = document.getElementById('graph');
+	function create2D(graphContainer, data, updateDetails) {
 		function rankNodes(graphData) {
 			const children = new Map(graphData.nodes.map(node => [node.id, []]));
 			const indegree = new Map(graphData.nodes.map(node => [node.id, 0]));
@@ -258,8 +217,5 @@
 			fitGraph();
 		}
 
-		document.getElementById('fit-graph').addEventListener('click', fitGraph);
-		window.addEventListener('resize', resizeGraph);
-		updateDetails(null);
-	</script>
-{% endblock %}
+		return { graph, fit: fitGraph, resize: resizeGraph };
+	}

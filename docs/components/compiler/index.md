@@ -192,7 +192,8 @@ index_path = docs.create_html(specification)
 ```
 
 `uptimely docs build` provides the same website. Its execution-plan section
-has Overview, 2D graph, 3D graph, and Stages pages. Both graph views use compiled callable operations and their
+has Overview, Graph, and Stages pages. The Graph page defaults to 2D and provides
+a 2D/3D selector without navigating away. Both views use compiled callable operations and their
 dependency edges; feature lineage is shown separately under Feature graph.
 Standalone plan HTML export is not supported; portable-plan JSON export and
 loading do not require website generation.
