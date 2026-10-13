@@ -74,6 +74,10 @@ columns to an entity, group calculations, or expand observations.
 | `features` | object | No; `{}` | Feature metadata keyed by identifier. |
 | `mappings` | object | No; `{}` | Operations keyed by identifier, unique within this dataset. |
 
+### Feature and Mapping Identifiers
+
+Each key under `features` identifies a column's metadata. Each key under
+`mappings` identifies one executable binding, unique within its dataset.
 A mapping identifier names a binding instance, not a reusable function or an
 output feature. Multiple mappings can invoke the same function with different
 arguments. The catalog category of that function determines their operation
@@ -196,18 +200,23 @@ exactly one catalog category.
 
 ### Operation Types
 
-| Category | Purpose | Result |
-| --- | --- | --- |
-| `read` | Read external observations. | Dataframe fragment. |
-| `conform` | Adapt observations to the target row scope. | Dataframe fragment. |
-| `expand` | Transfer or join observations into target dimensional coverage. | Dataframe fragment. |
-| `collapse` | Calculate features at a coarser grain. | Dataframe fragment. |
-| `vectorize` | Calculate features while preserving observation keys. | Dataframe fragment. |
-| `write` | Persist or evaluate selected data. | Ignored; no output features. |
+| Category | Purpose | Analytical role | External I/O | Result |
+| --- | --- | --- | --- | --- |
+| `read` | Read external observations. | Ingestion. | Reads. | Dataframe fragment. |
+| `conform` | Adapt observations to the target row scope. | Row alignment and reconciliation. | None. | Dataframe fragment. |
+| `expand` | Transfer or join observations into target dimensional coverage. | Lookup and enrichment. | None. | Dataframe fragment. |
+| `collapse` | Calculate features at a coarser grain. | Grouping and aggregation. | None. | Dataframe fragment. |
+| `vectorize` | Calculate features while preserving observation keys. | Same-grain calculation. | None. | Dataframe fragment. |
+| `write` | Persist or evaluate selected data. | Output evaluation. | May write. | Ignored; no output features. |
 
 All data-producing functions return a dataframe. They perform their own
 calculations, grouping, output naming, and scalar broadcasting.
 Analytical functions should not perform external I/O.
+
+`vectorize` preserves the current dataset's dimensions and observation keys.
+`conform` reconciles row scopes within an entity; `expand` transfers observations
+into target dimensional coverage; `collapse` reduces a source to a target grain.
+See [modeling patterns](../overview/patterns.md) for join and aggregation examples.
 
 ### Argument Definitions
 
@@ -304,6 +313,12 @@ their physical order may differ. Other dataframe operations may change coverage
 to construct their target row scope. The engine does not verify descriptive
 grain, filtering, or coverage: non-vectorize fragments are full-joined and may
 leave null feature values where another fragment has no matching observation.
+
+Join keys are not separate mapping fields. Entity dimensions define the keys
+used by the engine to merge returned fragments. An expand or conform function
+chooses its own lookup or temporal matching keys internally, then returns the
+complete target dimension key. Dimension parent metadata does not choose those
+internal join keys or perform joins automatically.
 
 ### Structural Binding References
 
