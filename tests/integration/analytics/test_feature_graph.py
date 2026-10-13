@@ -37,6 +37,25 @@ def test_system_graph_connects_functions_to_feature_outputs() -> None:
     assert "extract_recommendation_value" in function_nodes
     assert "extract_converged_flag" not in function_nodes
     assert "extract_convergence_flag" not in function_nodes
+    recommendation_nodes = [
+        node
+        for node in system.graph
+        if isinstance(node.reference, models.FunctionNode)
+        and node.reference.name == "extract_recommendation_value"
+    ]
+    assert len(recommendation_nodes) == 1
+    recommendation_outputs = {
+        neighbor.reference.name
+        for neighbor, _attrs in system.graph.neighbors(recommendation_nodes[0])
+        if isinstance(neighbor.reference, models.FeatureNode)
+    }
+    assert recommendation_outputs == {
+        "recommended_flow_rate",
+        "recommended_discharge_pressure",
+        "energy_cost_score",
+        "converged",
+    }
+    assert set(recommendation_nodes[0].reference.features) == recommendation_outputs
 
     actual_edges = {
         (
@@ -133,7 +152,7 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert '"is_function": false' in html
     assert "<strong>Node type:</strong> Function" in html
     assert "<strong>Function:</strong> ${label}" in html
-    assert "<strong>Produces:</strong> ${formatDetailValue(feature)}" in html
+    assert "<strong>Produces:</strong> ${formatDetailValue(features.join(', '))}" in html
     assert "Feature</span>" in html
     for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
         assert f"{category} function</span>" in html
