@@ -65,6 +65,7 @@ def _render_document(
     context: dict[str, typing.Any],
     output_path: pathlib.Path,
     section: str,
+    index_filename: str,
 ) -> pathlib.Path:
     """Write one specification section within the documentation website."""
     environment = render.html_environment()
@@ -77,7 +78,7 @@ def _render_document(
         include_navigation=True,
         active_page="spec",
         active_section=section,
-        root_path=root_path,
+        index_filename=index_filename,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(document, encoding="utf-8")
@@ -85,22 +86,21 @@ def _render_document(
 
 
 def _create_website_pages(
-    specification: spec.Specification,
+    context: DocumentationContext,
     output_directory: pathlib.Path,
-    include_generated_at: bool = False,
-    root_path: str = "../",
+    *,
+    index_filename: str = "index.html",
 ) -> None:
     """Export separate specification sections with shared website navigation.
 
     Args:
-        specification: The canonical analytics specification.
+        context: Reference data shared with the website dashboard.
         output_directory: Directory shared by all website pages.
-        include_generated_at: Include a timestamp on each specification page.
-        root_path: Relative path to website root from output_directory.
+        index_filename: Filename of the website dashboard.
     """
-    context = dataclasses.asdict(_build_context(specification, include_generated_at))
+    data = dataclasses.asdict(context)
     for section, filename in SPECIFICATION_PAGES.items():
-        _render_document(context, output_directory / filename, section)
+        _render_document(data, output_directory / filename, section, index_filename)
 
 
 def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], list[dict], set[str]]:

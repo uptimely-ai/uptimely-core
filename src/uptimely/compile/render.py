@@ -110,12 +110,15 @@ def _render_step(
 def _create_website_pages(
     plan: compiler.ExecutionPlan,
     output_directory: pathlib.Path,
+    *,
+    index_filename: str = "index.html",
 ) -> None:
     """Write linked overview, callable graph, and stage pages for a plan.
 
     Args:
         plan: The compiled execution plan to render.
         output_directory: Directory shared by all website pages.
+        index_filename: Filename of the website dashboard.
     """
     operations_by_stage = plan.execution_stages
     operations_in_order = [operation for stage in operations_by_stage for operation in stage]
@@ -213,7 +216,7 @@ def _create_website_pages(
         "graph_style": render.GraphStyle(),
         "include_navigation": True,
         "active_page": "plan",
-        "root_path": root_path,
+        "index_filename": index_filename,
     }
 
     output_directory.mkdir(parents=True, exist_ok=True)

@@ -52,6 +52,7 @@ def _render_graph_html(
     style: GraphStyle | None = None,
     *,
     dimension: typing.Literal["2d", "3d"],
+    index_filename: str = "index.html",
 ) -> str:
     """Render the dependency graph as interactive 2D or 3D HTML.
 
@@ -60,6 +61,7 @@ def _render_graph_html(
         links: Directed connections between node identifiers.
         style: Optional graph appearance settings.
         dimension: Graph layout to render.
+        index_filename: Filename of the website dashboard.
 
     Returns:
         The complete HTML document.
@@ -86,7 +88,7 @@ def _render_graph_html(
         include_navigation=True,
         active_page="graph",
         active_section=dimension,
-        root_path=root_path,
+        index_filename=index_filename,
     )
 
 
@@ -121,16 +123,21 @@ def graph_payload_from_cytoscape(
 def _create_website_pages(
     graph: "feature_graph.GraphBase",
     output_directory: pathlib.Path,
+    *,
+    index_filename: str = "index.html",
 ) -> None:
     """Write both feature graph views within the documentation website.
 
     Args:
         graph: The feature dependency graph to export.
         output_directory: Directory shared by all website pages.
+        index_filename: Filename of the website dashboard.
     """
     output_directory.mkdir(parents=True, exist_ok=True)
     nodes, links = graph_payload_from_cytoscape(graph)
     for dimension in ("2d", "3d"):
-        document = _render_graph_html(nodes, links, dimension=dimension)
+        document = _render_graph_html(
+            nodes, links, dimension=dimension, index_filename=index_filename
+        )
         target = output_directory / f"feature_graph_{dimension}.html"
         target.write_text(document, encoding="utf-8")

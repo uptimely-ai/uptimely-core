@@ -42,8 +42,8 @@
   {% if include_navigation %}
   {% set rel_root = root_path or "" %}
   <nav class="site-nav" aria-label="Documentation pages">
-    <a class="site-brand" href="{{ rel_root }}index.html">openanalytics/docs</a>
-    {% for page, href, label, icon in [("spec", rel_root ~ "spec/overview.html", "Specification", "book-open"), ("graph", rel_root ~ "graph/3d.html", "Feature graph", "git-fork"), ("plan", rel_root ~ "plan/overview.html", "Execution plan", "workflow")] %}
+    <a class="site-brand" href="{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>openanalytics/docs</a>
+    {% for page, href, label, icon in [("spec", "spec.html", "Specification", "book-open"), ("graph", "feature_graph_3d.html", "Feature graph", "git-fork"), ("plan", "execution_plan.html", "Execution plan", "workflow")] %}
     <a href="{{ href }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}><i class="nav-icon" data-lucide="{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span></a>
     {% if page == "spec" %}
     <div class="site-subnav" role="group" aria-label="Specification sections">

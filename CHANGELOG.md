@@ -30,9 +30,13 @@ Initial public release.
 
 ### Changed
 
+- Redesigned the generated website homepage as a project dashboard with resource
+  and plan counts and a Specification, Feature lineage, and Execution plan journey.
+  The site brand now returns to the dashboard, including custom index filenames.
 - **Breaking:** HTML generation now always produces the complete documentation
   website through `Documentation.create_html`, `uptimely.docs.docs.create_html`,
-  or `uptimely docs generate`. Removed `Specification.create_html`,
+  or `uptimely docs build`. Renamed the CLI command from `generate` to `build`.
+  Removed `Specification.create_html`,
   `FeatureGraph.export_html` (including subsets), and `ExecutionPlan.export_html`.
   Specification and plan JSON exports and graph analysis remain available.
 - Standardized implementation and test imports on module-qualified references,
