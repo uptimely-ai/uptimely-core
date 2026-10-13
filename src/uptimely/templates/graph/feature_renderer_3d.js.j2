@@ -14,6 +14,9 @@
 			.linkWidth({{ style.link_width }})
 			.linkColor(() => '{{ style.link_color }}')
 			.linkOpacity({{ style.link_opacity }})
+			.linkDirectionalParticles(2)
+			.linkDirectionalParticleWidth(2)
+			.linkDirectionalParticleSpeed(0.003)
 			.onNodeClick(node => updateDetails(node))
 			.onEngineStop(() => {
 				if (!initialFitComplete) {
