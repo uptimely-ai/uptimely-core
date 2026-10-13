@@ -203,6 +203,58 @@ def test_website_exports_all_reports_with_relative_navigation(
     datasets = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     assert "One row per pump and timestamp" in datasets
     assert "read · read_pump_telemetry" in datasets
+    assert datasets.count("data-dataset-schema=") == 2
+    assert "schema only, no sample records" in datasets
+    assert datasets.count('<details class="mt-6 border-t border-slate-800 pt-4">') == 2
+    assert "<summary" in datasets
+    assert "Dataset details</summary>" in datasets
+    assert "Blue: dimensions" not in datasets
+    assert "row keys" not in datasets
+    assert "discharge_pressure" in datasets
+    assert "float · bar" in datasets
+    assert "bg-[#172b46] text-[#b5d4f8]" in datasets
+    assert "bg-[#15352e] text-[#a5dfca]" in datasets
+    assert "bg-[#392e19] text-[#efcf89]" in datasets
+    assert "Column metadata" not in datasets
+    assert "Type / unit" not in datasets
+    for entity in specification.entities.values():
+        for dataset in entity.datasets:
+            table = re.search(
+                rf'<table data-dataset-schema="{dataset.id}".*?</table>', datasets, re.DOTALL
+            ).group()
+            column_row, type_row = re.findall(r"<tr[^>]*>(.*?)</tr>", table, re.DOTALL)
+            columns = re.findall(r'<th scope="col"[^>]*>(.*?)</th>', column_row, re.DOTALL)
+            expected_names = [
+                *entity.dimensions,
+                *(name for name in dataset.features if name not in entity.dimensions),
+            ]
+            assert [column.split("<span", 1)[0] for column in columns] == expected_names
+            assert len(re.findall(r"<td\b", type_row)) == len(columns)
+            raw_columns = {
+                name
+                for mapping in dataset.mappings.values()
+                if mapping.binding.function in specification.functions.read
+                or mapping.binding.function in specification.functions.conform
+                or mapping.binding.function in specification.functions.expand
+                for name in mapping.output_features
+            }
+            for name, column in zip(expected_names, columns, strict=True):
+                if name in entity.dimensions:
+                    assert ">Dimension</span>" in column
+                elif name in raw_columns:
+                    assert ">Raw</span>" in column
+                else:
+                    assert ">Feature</span>" in column
+            assert table.count("health_signal_normalized") <= 1
+            assert table.count("pressure_flow_efficiency") <= 1
+    assert "bg-blue-950" not in datasets
+    assert "bg-teal-950" not in datasets
+    assert "bg-violet-950" not in datasets
+    assert "bg-amber-950" not in datasets
+    assert 'class="dataset-table-scroll overflow-x-auto' in datasets
+    assert "scrollbar-width: thin" in datasets
+    assert "scrollbar-color: #475569 #0f172a" in datasets
+    assert ".dataset-table-scroll::-webkit-scrollbar" in datasets
     assert "Pump analytics" in (index.parent / "spec/overview.html").read_text(encoding="utf-8")
     graph_2d = (index.parent / "spec/graph.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_2d
@@ -217,7 +269,7 @@ def test_website_exports_all_reports_with_relative_navigation(
         graph_2d,
     )
     assert ".onEngineStop(" in graph_2d
-    assert "graph.zoomToFit(0, Math.max(140, layout.laneLabelWidth + 24))" in graph_2d
+    assert "graph.zoomToFit(0, 80)" in graph_2d
     plan = (index.parent / "plan/graph.html").read_text(encoding="utf-8")
     assert 'id="callable-graph"' in plan
     assert "normalize_health_signal" in plan
