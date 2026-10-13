@@ -63,7 +63,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     report_path = tmp_path / "plan/stages.html"
     report = report_path.read_text(encoding="utf-8")
 
-    assert "<title>Execution plan Stages</title>" in report
+    assert "<title>Plan Stages</title>" in report
     assert ">Stages</span></h1>" in report
     assert "Stage 1" in report
     assert "parallel operations" in report

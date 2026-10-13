@@ -121,6 +121,7 @@ Generated artifacts are written beneath each example's `_generated/` directory:
 | [`example_1/_generated/docs/plan/overview.html`](example_1/_generated/docs/plan/overview.html) | `run_docs.py` |
 | [`example_1/_generated/docs/plan/graph.html`](example_1/_generated/docs/plan/graph.html) | `run_docs.py` |
 | [`example_1/_generated/docs/plan/stages.html`](example_1/_generated/docs/plan/stages.html) | `run_docs.py` |
+| [`example_1/_generated/docs/execution/data_lineage.html`](example_1/_generated/docs/execution/data_lineage.html) | `run_docs.py` |
 | [`example_2/_generated/spec/spec.json`](example_2/_generated/spec/spec.json) | `run_export_spec.py` |
 
 The scripts are intended to run from the repository root. Python 3.13 or newer is required. See each example's README for its specification model and workflow details.

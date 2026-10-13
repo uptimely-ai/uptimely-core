@@ -29,6 +29,7 @@ REPORTS = {
     "plan/overview.html": "plan",
     "plan/graph.html": "plan",
     "plan/stages.html": "stages",
+    "execution/data_lineage.html": "lineage",
 }
 
 
@@ -118,6 +119,7 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         "plan/overview.html": ("execution", "workflow", "Overview"),
         "plan/graph.html": ("execution-graph", "network", "Execution graph"),
         "plan/stages.html": ("stages", "list-ordered", "Stages"),
+        "execution/data_lineage.html": ("lineage", "git-fork", "Data lineage"),
     }
     palette = {
         "home": "#93c5fd",
@@ -163,7 +165,13 @@ def test_website_exports_all_reports_with_relative_navigation(
     index = docs.Documentation(specification).create_html()
 
     assert index == pathlib.Path("_generated/docs/index.html")
-    assert {path.name for path in index.parent.iterdir()} == {"index.html", "spec", "graph", "plan"}
+    assert {path.name for path in index.parent.iterdir()} == {
+        "index.html",
+        "spec",
+        "graph",
+        "plan",
+        "execution",
+    }
     for filename in ("index.html", *REPORTS):
         page_file = index.parent / filename
         parser = NavigationCollector()
@@ -406,7 +414,7 @@ def test_execution_plan_pages_render_only_their_section(
     docs.Documentation(specification).create_html(tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
-    assert 'aria-label="Execution plan sections"' in document
+    assert 'aria-label="Plan sections"' in document
     is_graph = title == "Execution graph"
     assert heading_titles(document) == [title]
     if is_graph:

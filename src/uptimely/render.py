@@ -9,6 +9,7 @@ WEBSITE_PAGES = {
     },
     "graph": {"lineage": "graph/feature_graph.html"},
     "plan": {section: f"plan/{section}.html" for section in ("overview", "graph", "stages")},
+    "execution": {"lineage": "execution/data_lineage.html"},
 }
 
 
