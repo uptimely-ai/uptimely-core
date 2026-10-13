@@ -1,103 +1,202 @@
 {% extends "base.html.j2" %}
+{% macro sample_table(columns, keys, label, side, row_count, aggregate, dataset) %}
+<div class="lineage-table-scroll" tabindex="0" role="region" aria-label="{{ label }} illustrative table">
+  <table class="lineage-table" data-side="{{ side }}">
+    <caption>{{ label }} <span class="lineage-table-dataset">Dataset: {{ dataset }}</span><span>Illustrative rows</span></caption>
+    <thead><tr>
+      {% for column in keys + columns %}
+      <th scope="col" data-role="{{ column.role }}" data-column="{{ column.name }}">{{ column.name }}<small>{{ column.type }}</small></th>
+      {% endfor %}
+    </tr></thead>
+    <tbody>
+      {% for row in range(row_count) %}
+      <tr>
+        {% for column in keys + columns %}
+        <td data-role="{{ column.role }}">{% if column.role == "Dimension" %}Key {{ 1 if aggregate else row + 1 }}{% elif side == "input" %}Value {{ row + 1 }}{% else %}Result {{ row + 1 }}{% endif %}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
 {% block title %}Execution / Data lineage{% endblock %}
 {% block style %}
-  .lineage-page { padding: 24px; }
+  .lineage-page { padding: 24px; background: #020617; color: #e2e8f0; font: 14px "DM Sans", sans-serif; min-height: 100vh; box-sizing: border-box; }
   .lineage-page h1 { font: 600 30px "Space Grotesk", sans-serif; color: #f8fafc; }
-  .lineage-page p { color: #94a3b8; line-height: 1.7; }
-  .lineage-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0; font-size: 12px; }
-  .lineage-toolbar button { padding: 6px 10px; border: 1px solid #334155; border-radius: 6px;
-    background: #0f172a; color: #cbd5e1; cursor: pointer; }
-  .lineage-toolbar button:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }
-  .lineage-toolbar output { min-width: 48px; text-align: center; color: #94a3b8; }
-  .lineage-toolbar[hidden] { display: none; }
-  .lineage-scroll { overflow: auto; height: 65vh; border: 1px solid #334155; border-radius: 12px; background: #020617; }
-  .lineage-scroll:focus-visible, .lineage-table-scroll:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }
-  .lineage-canvas { position: relative; }
-  .lineage-board { position: relative; display: flex; align-items: flex-start; gap: 64px; width: max-content; padding: 64px 24px 24px; transform-origin: top left; }
-  .lineage-board-scaled { position: absolute; top: 0; left: 0; }
-  .lineage-stage { position: relative; width: 320px; flex-shrink: 0; z-index: 1; }
-  .lineage-stage h2 { margin: 0 0 12px; color: #94a3b8; font: 11px "JetBrains Mono", monospace; }
-  .lineage-step { margin-bottom: 16px; padding: 10px; border: 1px solid var(--step-color);
-    border-top: 3px solid var(--step-color); border-radius: 8px; background: #0f172a; }
-  .lineage-step h3 { margin: 4px 0; color: var(--step-color); font: 600 13px "Space Grotesk", sans-serif; overflow-wrap: anywhere; }
-  .lineage-step p { margin: 4px 0; font-size: 11px; overflow-wrap: anywhere; }
-  .lineage-step details { margin-top: 6px; font-size: 11px; color: #94a3b8; }
-  .lineage-step summary { cursor: pointer; }
-  .lineage-step .step-kind { font: 10px "JetBrains Mono", monospace; text-transform: uppercase; color: var(--step-color); }
-  .lineage-table-scroll { overflow-x: auto; margin: 8px 0; }
-  .lineage-table { width: 100%; border-collapse: collapse; font: 10px "JetBrains Mono", monospace; }
-  .lineage-table caption { text-align: left; color: #94a3b8; margin-bottom: 4px; font: 10px "DM Sans", sans-serif; }
-  .lineage-table th, .lineage-table td { padding: 5px 6px; border: 1px solid #334155; text-align: left; white-space: nowrap; }
-  .lineage-table .column-cell { color: var(--column-color); background: color-mix(in srgb, var(--column-color) 12%, #0f172a); }
-  .lineage-table .column-role { display: block; margin-bottom: 3px; font: 9px "DM Sans", sans-serif; text-transform: uppercase; }
-  .lineage-dependencies { font-size: 10px; color: #94a3b8; }
-  .lineage-dependencies a { color: #c4b5fd; text-decoration: underline; }
-  .lineage-edges { position: absolute; inset: 0; pointer-events: none; }
-  @media (max-width: 640px) { .lineage-page { padding: 20px 12px; } }
+  .lineage-page p { color: #94a3b8; line-height: 1.6; }
+  .lineage-page [hidden] { display: none !important; }
+  .lineage-page :focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
+  .lineage-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 24px 0 12px; }
+  .lineage-toolbar button { padding: 8px 16px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #e2e8f0; font: inherit; cursor: pointer; }
+  .lineage-toolbar #lineage-play { background: #312e81; border-color: #6366f1; min-width: 100px; }
+  .lineage-toolbar button:disabled { opacity: 0.4; cursor: default; }
+  .lineage-playback-progress { margin: 0 0 20px; }
+  .lineage-progress-track { display: flex; width: 100%; gap: 4px; }
+  .lineage-progress-segment { flex: 1; min-width: 0; height: 6px; border-radius: 4px; background: #334155; }
+  .lineage-progress-segment.is-current { background: #a5b4fc; }
+  .lineage-progress-segment.is-complete { background: #5eead4; }
+  .lineage-step-position, .lineage-stage-position { display: block; margin-top: 6px; color: #cbd5e1; font: 11px "JetBrains Mono", monospace; text-align: right; }
+  .lineage-stage-progress { margin-top: 10px; }
+  .lineage-stage > h2 { font-size: 14px; color: #94a3b8; }
+  .lineage-enhanced .lineage-stage > h2 { display: none; }
+  .lineage-step { margin: 20px 0; padding: 24px; border: 1px solid #334155; border-radius: 12px; background: #0f172a; }
+  .lineage-step h3 { font: 600 22px "Space Grotesk", sans-serif; margin: 10px 0; overflow-wrap: anywhere; text-align: center; }
+  .lineage-operation-label { display: block; color: #64748b; font: 9px "JetBrains Mono", monospace; letter-spacing: 0.12em; text-align: center; }
+  .lineage-scene { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; margin: 24px 0; }
+  .lineage-panel { min-width: 0; }
+  .lineage-arrow { display: flex; flex-direction: column; align-items: center; gap: 4px; justify-self: center; max-width: 100%; padding: 8px 14px; border: 1px solid #334155; border-radius: 8px; background: #111827; color: #a5b4fc; text-align: center; }
+  .lineage-arrow-icon { font-size: 20px; line-height: 1; }
+  .lineage-arrow strong { max-width: 100%; color: #e2e8f0; font: 600 12px "JetBrains Mono", monospace; overflow-wrap: anywhere; }
+  .lineage-arrow small { font: 10px "JetBrains Mono", monospace; }
+  .lineage-callable-type { color: #a5b4fc; text-transform: uppercase; }
+  .lineage-table-scroll { overflow-x: auto; overflow-y: hidden; border: 1px solid #334155; border-radius: 8px; }
+  .lineage-table .lineage-table-dataset { margin: 4px 0 0; color: #a5b4fc; font: 10px "JetBrains Mono", monospace; font-weight: 400; }
+  .lineage-table { width: 100%; border-collapse: collapse; font: 12px "JetBrains Mono", monospace; }
+  .lineage-table caption { padding: 12px; text-align: left; font: 600 13px "DM Sans", sans-serif; background: #1e293b; color: #e2e8f0; }
+  .lineage-table caption span { display: block; margin-top: 4px; color: #94a3b8; font-size: 11px; font-weight: 400; }
+  .lineage-table th, .lineage-table td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; white-space: nowrap; }
+  .lineage-table th { font-weight: 500; color: #e2e8f0; }
+  .lineage-table small { display: block; margin-top: 4px; color: #94a3b8; font-size: 10px; }
+  .lineage-table td { color: #94a3b8; }
+  .lineage-table [data-role="Dimension"] { background: #172033; }
+  .lineage-table[data-side="output"] [data-role="Output"] { background: #242044; color: #ddd6fe; }
+  .lineage-panel-output { min-height: 220px; }
+  .lineage-boundary { padding: 24px; border: 1px dashed #475569; border-radius: 8px; }
+  .lineage-boundary strong { display: block; margin-bottom: 8px; color: #e2e8f0; }
+  .lineage-status { display: flex; align-items: flex-start; gap: 10px; min-height: 24px; margin: 0; padding: 12px 14px; border: 1px solid #334155; border-radius: 8px; background: #020617; color: #cbd5e1 !important; font: 12px/1.6 "JetBrains Mono", monospace; }
+  .lineage-status::before { content: "›"; flex: none; color: #5eead4; font-weight: 700; }
+  .lineage-details { margin-top: 24px; font-size: 12px; color: #94a3b8; }
+  .lineage-details summary { cursor: pointer; }
+  .lineage-dependencies { margin: 12px 0; }
+  .lineage-page a { color: #c4b5fd; }
+  .lineage-new { animation: lineage-arrive 0.6s ease-out both; animation-play-state: paused; }
+  .is-playing .lineage-new { animation-play-state: running; }
+  .lineage-table[data-side="input"] .lineage-input-active { background: #30304e; color: #ede9fe; box-shadow: inset 0 -2px #a5b4fc; }
+  .lineage-table[data-side="input"] .lineage-group-key { background: #193d43; color: #99f6e4; }
+  .lineage-grouped tbody td { border-bottom-color: transparent; }
+  .lineage-grouped tbody tr:first-child td { border-top: 2px solid #5eead4; }
+  .lineage-grouped tbody tr:last-child td { border-bottom: 2px solid #5eead4; }
+  .lineage-grouped tbody td:first-child { border-left: 2px solid #5eead4; }
+  .lineage-grouped tbody td:last-child { border-right: 2px solid #5eead4; }
+  .lineage-grouped tbody { animation: lineage-group 0.6s ease-out both; animation-play-state: paused; }
+  .is-playing .lineage-grouped tbody { animation-play-state: running; }
+  .lineage-arrow.is-working { border-color: #5eead4; }
+  .lineage-arrow.is-working .lineage-arrow-icon { color: #5eead4; }
+  .lineage-boundary.is-working { border-color: #a5b4fc; background: #242044; }
+  @keyframes lineage-arrive { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes lineage-group { from { transform: translateY(4px); opacity: 0.6; } to { transform: translateY(0); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .lineage-new, .lineage-grouped tbody { animation: none; } }
+  @media (max-width: 640px) {
+    .lineage-page { padding: 16px 12px; }
+    .lineage-step { padding: 16px; }
+    .lineage-toolbar button { padding: 8px 10px; }
+  }
 {% endblock %}
 {% block content %}
 <main class="lineage-page">
-  <p class="font-mono text-xs uppercase tracking-widest">Execution</p>
+  <p>Execution</p>
   <h1 class="title-with-icon">{{ icon("lineage", "title-icon") }}<span>Data lineage</span></h1>
-  <p>Follow data through the processing steps, from source columns to calculated features and writes.
-    Tables show declared column types, not runtime values. Building this website does not execute analytics.</p>
+  <p>One callable at a time. Watch declared output columns and illustrative rows appear.</p>
+  <p>Illustration only: keys, values, results, and row counts are placeholders, not calculated data.
+    No analytics are executed.</p>
   {% if stages %}
-  <p>Scroll to explore stages from left to right. Steps in the same stage are independent.
-    Each table labels input and output columns separately; these are logical column flows, not stored table snapshots.</p>
-  <div class="lineage-toolbar" id="lineage-toolbar" role="group" aria-label="Data lineage zoom" hidden>
-    <button type="button" id="lineage-zoom-out" aria-label="Zoom out">-</button>
-    <output id="lineage-zoom-level" aria-live="polite">75%</output>
-    <button type="button" id="lineage-zoom-in" aria-label="Zoom in">+</button>
-    <button type="button" id="lineage-fit">Fit view</button>
-    <button type="button" id="lineage-reset">100%</button>
+  <div class="lineage-toolbar" id="lineage-toolbar" role="group" aria-label="Lineage playback" hidden>
+    <button type="button" id="lineage-previous">Previous</button>
+    <button type="button" id="lineage-play" aria-pressed="false">Play</button>
+    <button type="button" id="lineage-next">Next</button>
   </div>
-  <div class="lineage-scroll" tabindex="0" role="region" aria-label="Processing tables and dependency edges">
-    <div class="lineage-canvas" id="lineage-canvas">
-    <div class="lineage-board" id="lineage-board">
-      <svg class="lineage-edges" id="lineage-edges" aria-hidden="true"></svg>
-      {% for stage in stages %}
-      <section class="lineage-stage" aria-labelledby="stage-{{ loop.index }}">
-        <h2 id="stage-{{ loop.index }}">Stage {{ loop.index }} / {{ stage|length }} step{% if stage|length != 1 %}s{% endif %}</h2>
+  <div class="lineage-playback-progress" id="lineage-playback-progress" hidden>
+    <div class="lineage-step-progress">
+      <div class="lineage-progress-track" id="lineage-step-track" role="list" aria-label="Execution steps">
+        {% set marker_counter = namespace(step=0) %}
+        {% for stage in stages %}
         {% for step in stage %}
-        <article class="lineage-step" id="step-{{ step.number }}" data-operation="{{ step.operation_id }}"
-          data-dependencies="{{ step.dependencies|join(',') }}" style="--step-color: {{ step.color }}">
-          <span class="step-kind">Step {{ step.number }} / {{ step.kind }}</span>
-          <h3>{{ step.function }}</h3>
-          <details>
-            <summary>Dataset details</summary>
-            <p>Entity: {{ step.entity }}<br>Dataset: {{ step.dataset or "None" }}</p>
-            {% if step.grain %}<p>Grain: {{ step.grain }}</p>{% endif %}
-            {% if step.kind == "write" %}<p>Write boundary: consumes columns; produces no analytical features.</p>{% endif %}
-          </details>
+        {% set marker_counter.step = marker_counter.step + 1 %}
+        <span class="lineage-progress-segment" role="listitem" data-step-marker="{{ marker_counter.step }}" aria-label="Step {{ marker_counter.step }}"></span>
+        {% endfor %}
+        {% endfor %}
+      </div>
+      <output class="lineage-step-position" id="lineage-position" aria-live="polite"></output>
+    </div>
+    <div class="lineage-stage-progress">
+      <div class="lineage-progress-track" id="lineage-stage-track" role="list" aria-label="Execution stages">
+        {% for stage in stages %}
+        <span class="lineage-progress-segment" role="listitem" data-stage-marker="{{ loop.index }}" aria-label="Stage {{ loop.index }}"></span>
+        {% endfor %}
+      </div>
+      <output class="lineage-stage-position" id="lineage-stage-position" aria-live="polite"></output>
+    </div>
+  </div>
+  <div id="lineage-board">
+    {% for stage in stages %}
+    {% set stage_number = loop.index %}
+    <section class="lineage-stage" aria-labelledby="stage-{{ stage_number }}">
+      <h2 id="stage-{{ stage_number }}">Stage {{ stage_number }} / {{ stage|length }} independent step{% if stage|length != 1 %}s{% endif %}</h2>
+      {% for step in stage %}
+      {% set inputs = step.columns|selectattr("role", "equalto", "Input")|list %}
+      {% set outputs = step.columns|selectattr("role", "equalto", "Output")|list %}
+      {% set keys = step.columns|selectattr("role", "equalto", "Dimension")|list %}
+      <article class="lineage-step" id="step-{{ step.number }}" data-operation="{{ step.operation_id }}"
+        data-dependencies="{{ step.dependencies|join(',') }}" data-kind="{{ step.kind }}" data-stage="{{ stage_number }}">
+        <h3>{{ step.function|replace("_", " ")|title }}</h3>
+        <span class="lineage-operation-label">{{ {"collapse": "Aggregate"}.get(step.kind, step.kind)|upper }}</span>
+        <div class="lineage-scene">
+          <div class="lineage-panel">
+            {% if step.kind == "read" %}
+            <div class="lineage-boundary"><strong>Source</strong>{{ step.dataset or step.entity }}<p>The read callable supplies the declared columns.</p></div>
+            {% elif inputs or keys %}
+            {{ sample_table(inputs, keys, "Input", "input", 3, step.kind == "collapse", step.dataset or step.entity) }}
+            {% else %}
+            <div class="lineage-boundary"><strong>No declared input columns</strong>Only declared information is shown.</div>
+            {% endif %}
+          </div>
+          <div class="lineage-arrow">
+            <span class="lineage-arrow-icon" aria-hidden="true">&darr;</span>
+            <small class="lineage-callable-type">{{ {"collapse": "Aggregate"}.get(step.kind, step.kind|title) }}</small>
+          </div>
+          <div class="lineage-panel lineage-panel-output">
+            <p class="lineage-waiting" hidden>Output will form here as the callable is illustrated.</p>
+            {% if step.kind == "write" %}
+            <div class="lineage-boundary" data-write-boundary><strong>Write destination</strong>{{ step.dataset or step.entity }}<p>Consumes the input columns; produces no analytical features.</p></div>
+            {% elif outputs or keys %}
+            {{ sample_table(outputs, keys, "Output", "output", 1 if step.kind == "collapse" else 3, step.kind == "collapse", step.dataset or step.entity) }}
+            {% else %}
+            <div class="lineage-boundary"><strong>No declared output columns</strong>No output schema is inferred.</div>
+            {% endif %}
+          </div>
+        </div>
+        <p class="lineage-status" aria-live="polite">{% if step.kind == "collapse" %}Illustrative grouping: three placeholder rows become one group. Actual grouping and row counts are not known.{% elif step.kind == "write" %}Write boundary: no new analytical columns.{% else %}Declared columns shown with three placeholder rows. Actual row counts are not known.{% endif %}</p>
+        <details class="lineage-details">
+          <summary>Declared schema and dependencies</summary>
+          <p>Entity: {{ step.entity }} &middot; Dataset: {{ step.dataset or "None" }}</p>
+          <div class="lineage-dependencies">Depends on:
+            {% for dependency in step.dependencies %}<a href="#step-{{ dependency }}">Step {{ dependency }}</a>{% if not loop.last %}, {% endif %}{% else %}No preceding steps{% endfor %}
+          </div>
           {% if step.columns %}
-          <div class="lineage-table-scroll" tabindex="0" role="region" aria-label="Step {{ step.number }} columns">
-            <table class="lineage-table">
-              <caption>Step {{ step.number }} column flow</caption>
-              <thead><tr><th scope="col">Column</th>
-                {% for column in step.columns %}
-                <th scope="col" class="column-cell" data-column="{{ column.name }}" data-role="{{ column.role }}" style="--column-color: {{ column.color }}">
-                  <span class="column-role">{{ column.role }}</span>{{ column.name }}
-                </th>
-                {% endfor %}
-              </tr></thead>
+          <div class="lineage-table-scroll" tabindex="0" role="region" aria-label="Step {{ step.number }} declared schema">
+            <table class="lineage-table lineage-schema">
+              <caption>Declared schema (not illustrative values)</caption>
+              <thead><tr><th scope="col">Role</th><th scope="col">Column</th><th scope="col">Type</th><th scope="col">Producer</th></tr></thead>
               <tbody>
-                <tr><th scope="row">Type</th>{% for column in step.columns %}<td class="column-cell" style="--column-color: {{ column.color }}">{{ column.type }}</td>{% endfor %}</tr>
-                <tr><th scope="row">Producer</th>{% for column in step.columns %}<td class="column-cell" style="--column-color: {{ column.color }}">{% if column.producer %}Step {{ column.producer }}{% elif column.role == "Dimension" %}Observation key{% else %}No declared producer{% endif %}</td>{% endfor %}</tr>
+                {% for column in step.columns %}
+                <tr data-column="{{ column.name }}" data-role="{{ column.role }}">
+                  <td>{{ column.role }}</td><th scope="row">{{ column.name }}</th><td>{{ column.type }}</td>
+                  <td>{% if column.producer == step.number %}This step{% elif column.producer %}<a href="#step-{{ column.producer }}">Step {{ column.producer }}</a>{% elif column.role == "Dimension" %}Observation key{% else %}No declared producer{% endif %}</td>
+                </tr>
+                {% endfor %}
               </tbody>
             </table>
           </div>
           {% else %}<p>No declared columns.</p>{% endif %}
-          <div class="lineage-dependencies">Depends on:
-            {% for dependency in step.dependencies %}<a href="#step-{{ dependency }}">Step {{ dependency }}</a>{% if not loop.last %}, {% endif %}{% else %}Source step{% endfor %}
-          </div>
-        </article>
-        {% endfor %}
-      </section>
+        </details>
+      </article>
       {% endfor %}
-    </div>
-    </div>
+    </section>
+    {% endfor %}
   </div>
-  <noscript><p>Dependency arrows need JavaScript. The tables and their dependency links remain available above.</p></noscript>
+  <p>Playback follows dependency stages. Callables in the same stage are independent.</p>
+  <noscript><p>Playback needs JavaScript. All callable tables and declared schemas remain available below their stage headings.</p></noscript>
   {% else %}
   <p>No processing steps. Add function mappings to the specification to display data lineage.</p>
   {% endif %}
@@ -109,104 +208,196 @@
 (() => {
   const board = document.getElementById("lineage-board");
   if (!board) return;
-  const svg = document.getElementById("lineage-edges");
-  const namespace = "http://www.w3.org/2000/svg";
-  const edgeColor = "#94a3b8";
   const steps = Array.from(board.querySelectorAll(".lineage-step"));
-  const canvas = document.getElementById("lineage-canvas");
-  const viewport = canvas.parentElement;
-  const toolbar = document.getElementById("lineage-toolbar");
-  const zoomLevel = document.getElementById("lineage-zoom-level");
-  let zoom = 0.75;
-  let fitted = false;
-  function setZoom(value) {
-    zoom = Math.min(1.5, Math.max(0.01, value));
-    board.classList.add("lineage-board-scaled");
-    board.style.transform = `scale(${zoom})`;
-    canvas.style.width = `${board.offsetWidth * zoom}px`;
-    canvas.style.height = `${board.offsetHeight * zoom}px`;
-    zoomLevel.value = `${Math.round(zoom * 100)}%`;
-    drawEdges();
+  const stages = Array.from(board.querySelectorAll(".lineage-stage"));
+  const previous = document.getElementById("lineage-previous");
+  const next = document.getElementById("lineage-next");
+  const play = document.getElementById("lineage-play");
+  const position = document.getElementById("lineage-position");
+  const stagePosition = document.getElementById("lineage-stage-position");
+  const stepMarkers = Array.from(document.querySelectorAll("[data-step-marker]"));
+  const stageMarkers = Array.from(document.querySelectorAll("[data-stage-marker]"));
+  const playbackProgress = document.getElementById("lineage-playback-progress");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const descriptions = steps.map(step => step.querySelector(".lineage-status").textContent);
+  let index = 0;
+  let phase = 0;
+  let playing = false;
+  let timer = null;
+  let renderedFrame = "";
+  function frames() {
+    const step = steps[index];
+    const table = step.querySelector('table[data-side="output"]');
+    const preparation = [{ type: "inputs" }];
+    if (step.dataset.kind === "collapse") preparation.push({ type: "group" });
+    preparation.push({ type: "callable" });
+    if (!table) {
+      if (step.dataset.kind === "write") preparation.push({ type: "write" });
+      return preparation;
+    }
+    const headers = Array.from(table.querySelectorAll('thead th[data-role="Output"]'));
+    const rows = Array.from(table.querySelectorAll("tbody tr"));
+    return [...preparation, ...headers.map(header => ({ type: "column", element: header })),
+      ...rows.map(row => ({ type: "row", element: row }))];
   }
-  function fitView() {
-    fitted = true;
-    setZoom(Math.min(
-      (viewport.clientWidth - 24) / board.offsetWidth,
-      (viewport.clientHeight - 24) / board.offsetHeight,
-      1
-    ));
-    viewport.scrollTo(0, 0);
-  }
-  function changeZoom(value) {
-    const centerX = (viewport.scrollLeft + viewport.clientWidth / 2) / zoom;
-    const centerY = (viewport.scrollTop + viewport.clientHeight / 2) / zoom;
-    fitted = false;
-    setZoom(value);
-    viewport.scrollTo(
-      centerX * zoom - viewport.clientWidth / 2,
-      centerY * zoom - viewport.clientHeight / 2
-    );
-  }
-  document.getElementById("lineage-zoom-out").addEventListener("click", () => changeZoom(zoom - 0.1));
-  document.getElementById("lineage-zoom-in").addEventListener("click", () => changeZoom(zoom + 0.1));
-  document.getElementById("lineage-fit").addEventListener("click", fitView);
-  document.getElementById("lineage-reset").addEventListener("click", () => changeZoom(1));
-  toolbar.hidden = false;
-  function drawEdges() {
-    const bounds = board.getBoundingClientRect();
-    svg.setAttribute("width", board.offsetWidth);
-    svg.setAttribute("height", board.offsetHeight);
-    svg.replaceChildren();
-    const definitions = document.createElementNS(namespace, "defs");
-    const marker = document.createElementNS(namespace, "marker");
-    marker.setAttribute("id", "lineage-arrow");
-    marker.setAttribute("viewBox", "0 0 10 10");
-    marker.setAttribute("refX", "9");
-    marker.setAttribute("refY", "5");
-    marker.setAttribute("markerWidth", "6");
-    marker.setAttribute("markerHeight", "6");
-    marker.setAttribute("orient", "auto");
-    const arrow = document.createElementNS(namespace, "path");
-    arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-    arrow.setAttribute("fill", edgeColor);
-    marker.append(arrow);
-    definitions.append(marker);
-    svg.append(definitions);
-    steps.forEach(target => {
-      const targetBounds = target.getBoundingClientRect();
-      target.dataset.dependencies.split(",").filter(Boolean).forEach(number => {
-        const source = document.getElementById(`step-${number}`);
-        const sourceBounds = source.getBoundingClientRect();
-        const x1 = (sourceBounds.right - bounds.left) / zoom;
-        const y1 = (sourceBounds.top - bounds.top) / zoom + 20;
-        const x2 = (targetBounds.left - bounds.left) / zoom;
-        const y2 = (targetBounds.top - bounds.top) / zoom + 20;
-        const path = document.createElementNS(namespace, "path");
-        const skipsStage = x2 - x1 > 65;
-        const routeY = 16 + (Number(number) % 4) * 10;
-        path.setAttribute("d", skipsStage
-          ? `M ${x1} ${y1} C ${x1 + 30} ${y1}, ${x1 + 30} ${routeY}, ${x1 + 45} ${routeY} L ${x2 - 45} ${routeY} C ${x2 - 30} ${routeY}, ${x2 - 30} ${y2}, ${x2} ${y2}`
-          : `M ${x1} ${y1} C ${x1 + 45} ${y1}, ${x2 - 45} ${y2}, ${x2} ${y2}`);
-        path.setAttribute("stroke", edgeColor);
-        path.setAttribute("stroke-width", "2");
-        path.setAttribute("fill", "none");
-        path.setAttribute("marker-end", "url(#lineage-arrow)");
-        path.setAttribute("data-source", source.id);
-        path.setAttribute("data-target", target.id);
-        svg.append(path);
+  function render() {
+    steps.forEach((step, number) => { step.hidden = number !== index; });
+    stages.forEach(stage => { stage.hidden = !stage.contains(steps[index]); });
+    const step = steps[index];
+    const sequence = frames();
+    const frame = sequence[phase - 1];
+    const newFrame = renderedFrame !== `${index}:${phase}`;
+    renderedFrame = `${index}:${phase}`;
+    step.classList.toggle("is-playing", playing);
+    if (newFrame) step.querySelectorAll(".lineage-new").forEach(element => element.classList.remove("lineage-new"));
+    const completed = phase > sequence.length;
+    const input = step.querySelector('table[data-side="input"]');
+    if (input) {
+      input.classList.toggle("lineage-grouped", phase >= 2 && step.dataset.kind === "collapse" && !completed);
+      input.querySelectorAll("[data-role]").forEach(cell => {
+        cell.classList.toggle("lineage-input-active", phase > 0 && !completed && cell.dataset.role === "Input");
+        cell.classList.toggle("lineage-group-key", phase >= 2 && !completed
+          && step.dataset.kind === "collapse" && cell.dataset.role === "Dimension");
       });
+    }
+    const arrow = step.querySelector(".lineage-arrow");
+    arrow.classList.toggle("is-working", phase > 0 && !completed);
+    if (newFrame && playing && frame?.type === "callable") arrow.classList.add("lineage-new");
+    const source = step.querySelector(".lineage-panel .lineage-boundary");
+    if (source) source.classList.toggle("is-working", phase > 0 && !completed);
+    const table = step.querySelector('table[data-side="output"]');
+    if (table) {
+      const visibleColumns = new Set(sequence.slice(0, phase)
+        .filter(frame => frame.type === "column").map(frame => frame.element.cellIndex));
+      table.querySelectorAll("tr").forEach(row => {
+        Array.from(row.cells).forEach((cell, column) => {
+          cell.hidden = cell.dataset.role === "Output" && !visibleColumns.has(column);
+        });
+      });
+      const visibleRows = new Set(sequence.slice(0, phase)
+        .filter(frame => frame.type === "row").map(frame => frame.element));
+      table.querySelectorAll("tbody tr").forEach(row => {
+        row.hidden = !visibleRows.has(row);
+      });
+      table.hidden = !completed && !sequence.slice(0, phase).some(frame => frame.type === "column" || frame.type === "row");
+      table.parentElement.hidden = table.hidden;
+    }
+    const boundary = step.querySelector("[data-write-boundary]");
+    if (boundary) {
+      boundary.hidden = !completed && frame?.type !== "write";
+      if (newFrame && playing && frame?.type === "write") boundary.classList.add("lineage-new");
+    }
+    step.querySelector(".lineage-waiting").hidden = completed
+      || (table ? !table.hidden : boundary ? !boundary.hidden : true);
+    const status = step.querySelector(".lineage-status");
+    if (phase === 0) {
+      status.textContent = "Input ready. Play to illustrate the callable.";
+    } else if (phase > sequence.length) {
+      status.textContent = descriptions[index];
+    } else {
+      if (frame.type === "inputs") {
+        status.textContent = step.dataset.kind === "read"
+          ? "Reading from the declared source (illustration only)."
+          : "Highlighting all declared input columns. Exact input-to-output mappings are not inferred.";
+      } else if (frame.type === "group") {
+        status.textContent = "Grouping the three placeholder rows by their shared keys (one illustrative group).";
+      } else if (frame.type === "callable") {
+        status.textContent = `Illustrating ${step.querySelector("h3").textContent}. The function is not executed.`;
+      } else if (frame.type === "write") {
+        status.textContent = "Passing the illustrative input table to the write destination. No new analytical columns.";
+      } else if (frame.type === "column") {
+        status.textContent = `Adding declared column: ${frame.element.dataset.column}`;
+        if (playing && newFrame) {
+          const column = frame.element.cellIndex;
+          table.querySelectorAll("tr").forEach(row => row.cells[column].classList.add("lineage-new"));
+        }
+      } else {
+        status.textContent = "Adding an illustrative row (not calculated data).";
+        if (playing && newFrame) frame.element.classList.add("lineage-new");
+      }
+    }
+    previous.disabled = index === 0;
+    next.disabled = index === steps.length - 1;
+    position.value = `Step ${index + 1} of ${steps.length}`;
+    stagePosition.value = `Stage ${step.dataset.stage} of ${stages.length}`;
+    stageMarkers.forEach(marker => {
+      const markerStage = Number(marker.dataset.stageMarker);
+      marker.classList.toggle("is-current", markerStage === Number(step.dataset.stage));
+      marker.classList.toggle("is-complete", markerStage < Number(step.dataset.stage));
     });
+    stepMarkers.forEach(marker => {
+      const markerStep = Number(marker.dataset.stepMarker);
+      marker.classList.toggle("is-current", markerStep === index + 1);
+      marker.classList.toggle("is-complete", markerStep < index + 1);
+    });
+    play.textContent = playing ? "Pause" : index === steps.length - 1 && phase > sequence.length ? "Replay" : "Play";
+    play.setAttribute("aria-pressed", String(playing));
   }
-  function updateView() {
-    if (fitted) fitView();
-    else setZoom(zoom);
+  function pause() {
+    playing = false;
+    window.clearTimeout(timer);
+    timer = null;
+    render();
   }
-  const observer = new ResizeObserver(updateView);
-  observer.observe(board);
-  observer.observe(viewport);
-  board.addEventListener("toggle", updateView, true);
-  document.fonts.ready.then(updateView);
-  setZoom(zoom);
+  function schedule() {
+    window.clearTimeout(timer);
+    if (!playing) return;
+    timer = window.setTimeout(() => {
+      const length = frames().length;
+      if (phase <= length) {
+        phase += 1;
+      } else if (index < steps.length - 1) {
+        index += 1;
+        phase = 0;
+      } else {
+        pause();
+        return;
+      }
+      render();
+      schedule();
+    }, reducedMotion.matches ? 1800 : 1200);
+  }
+  function show(number) {
+    pause();
+    index = number;
+    phase = frames().length + 1;
+    render();
+  }
+  previous.addEventListener("click", () => show(Math.max(0, index - 1)));
+  next.addEventListener("click", () => show(Math.min(steps.length - 1, index + 1)));
+  play.addEventListener("click", () => {
+    if (playing) { pause(); return; }
+    if (document.hidden) return;
+    if (phase > frames().length) {
+      if (index === steps.length - 1) index = 0;
+      phase = 0;
+    }
+    playing = true;
+    render();
+    schedule();
+  });
+  board.addEventListener("click", event => {
+    const link = event.target.closest('a[href^="#step-"]');
+    if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const number = steps.findIndex(step => `#${step.id}` === link.getAttribute("href"));
+    if (number < 0) return;
+    event.preventDefault();
+    show(number);
+    previous.focus({ preventScroll: true });
+    if (previous.disabled) play.focus({ preventScroll: true });
+  });
+  function followHash() {
+    const number = steps.findIndex(step => `#${step.id}` === location.hash);
+    if (number >= 0) show(number);
+  }
+  window.addEventListener("hashchange", followHash);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
+  reducedMotion.addEventListener("change", () => { if (playing) pause(); });
+  board.classList.add("lineage-enhanced");
+  document.getElementById("lineage-toolbar").hidden = false;
+  playbackProgress.hidden = false;
+  render();
+  followHash();
 })();
 </script>
 {% endblock %}

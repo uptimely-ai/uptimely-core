@@ -1,4 +1,4 @@
-"""Tests for processing tables and producer colors in the documentation website."""
+"""Tests for lineage cards, declared schemas, and dependency metadata."""
 
 import pathlib
 import re
@@ -17,9 +17,12 @@ class LineageStructureCollector(html_parser.HTMLParser):
         super().__init__()
         self.stack: list[tuple[str, dict[str, str | None]]] = []
         self.parents: list[tuple[str, str | None]] = []
+        self.columns: list[tuple[str | None, str | None]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
+        if tag == "tr" and "data-column" in attributes:
+            self.columns.append((attributes["data-column"], attributes.get("data-role")))
         if attributes.get("class") in {
             "lineage-stage",
             "lineage-step",
@@ -53,8 +56,8 @@ def test_lineage_layout_has_balanced_stage_and_card_containers(tmp_path: pathlib
         "lineage-stage"
     ] * len(plan.operations)
     assert [parent for name, parent in collector.parents if name == "lineage-dependencies"] == [
-        f"step-{number}" for number in range(1, len(plan.operations) + 1)
-    ]
+        "lineage-details"
+    ] * len(plan.operations)
 
 
 def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
@@ -124,19 +127,14 @@ def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> N
             sorted((numbers[identifier] for identifier in operation.dependency_ids), key=int)
             or [""]
         )
-    assert document.count('<table class="lineage-table">') == len(plan.operations)
+    assert document.count('<table class="lineage-table lineage-schema">') == len(plan.operations)
     assert 'aria-label="Execution sections"' in document
     assert 'aria-label="Plan sections"' in document
     assert "Execution plan" not in document
-    assert 'id="lineage-edges"' in document
-    assert 'path.setAttribute("marker-end"' in document
-    assert 'const edgeColor = "#94a3b8";' in document
-    assert 'arrow.setAttribute("fill", edgeColor);' in document
-    assert 'path.setAttribute("stroke", edgeColor);' in document
-    assert 'path.setAttribute("marker-end", "url(#lineage-arrow)");' in document
-    assert 'source.style.getPropertyValue("--step-color")' not in document
-    assert "new ResizeObserver(updateView)" in document
-    assert "Tables show declared column types, not runtime values" in document
+    assert 'id="lineage-edges"' not in document
+    assert "Illustration only:" in document
+    assert "not calculated data" in document
+    assert "No analytics are executed" in document
     assert "Write boundary:" in document
     assert "No declared producer" not in document
 
@@ -145,7 +143,7 @@ def test_empty_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
     docs.create_html(spec.Specification(), tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert "No processing steps." in document
-    assert '<table class="lineage-table">' not in document
+    assert '<table class="lineage-table"' not in document
     assert 'href="../execution/data_lineage.html" aria-current="page"' in document
 
 
@@ -156,41 +154,100 @@ def test_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
     assert "Data lineage color key" not in document
 
 
-def test_lineage_has_compact_tables_and_zoom_controls(tmp_path: pathlib.Path) -> None:
+def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
     docs.create_html(specification, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
-    assert ".lineage-stage { position: relative; width: 320px; flex-shrink: 0;" in document
-    assert ".lineage-board-scaled { position: absolute; top: 0; left: 0; }" in document
-    assert 'svg.setAttribute("width", board.offsetWidth);' in document
-    assert 'svg.setAttribute("height", board.offsetHeight);' in document
-    assert "(viewport.scrollLeft + viewport.clientWidth / 2) / zoom" in document
-    assert "(viewport.scrollTop + viewport.clientHeight / 2) / zoom" in document
-    assert "padding: 5px 6px;" in document
-    assert 'aria-label="Data lineage zoom" hidden' in document
-    assert 'aria-label="Zoom out"' in document
-    assert 'aria-label="Zoom in"' in document
-    assert 'id="lineage-fit">Fit view</button>' in document
-    assert 'id="lineage-reset">100%</button>' in document
-    assert "let zoom = 0.75;" in document
-    assert "board.style.transform = `scale(${zoom})`;" in document
-    assert "canvas.style.width = `${board.offsetWidth * zoom}px`;" in document
-    assert "canvas.style.height = `${board.offsetHeight * zoom}px`;" in document
-    assert "(viewport.clientWidth - 24) / board.offsetWidth" in document
-    assert "(viewport.clientHeight - 24) / board.offsetHeight" in document
-    assert "(sourceBounds.right - bounds.left) / zoom" in document
-    assert "(targetBounds.left - bounds.left) / zoom" in document
-    assert document.count("<summary>Dataset details</summary>") == len(
+    assert 'aria-label="Lineage playback" hidden' in document
+    assert 'id="lineage-previous">Previous</button>' in document
+    assert 'id="lineage-play" aria-pressed="false">Play</button>' in document
+    assert 'id="lineage-next">Next</button>' in document
+    assert 'id="lineage-step-track" role="list" aria-label="Execution steps"' in document
+    assert 'class="lineage-step-position" id="lineage-position"' in document
+    assert document.index('id="lineage-step-track"') < document.index('id="lineage-position"')
+    assert 'class="lineage-stage-position" id="lineage-stage-position"' in document
+    assert 'id="lineage-stage-track" role="list" aria-label="Execution stages"' in document
+    execution_stages = compile.Compiler(specification).compile().execution_stages
+    assert document.count('data-stage-marker="') == len(execution_stages)
+    assert document.count('data-step-marker="') == sum(map(len, execution_stages))
+    assert document.index('id="lineage-stage-track"') < document.index(
+        'id="lineage-stage-position"'
+    )
+    assert "lineage-progress-track { display: flex; width: 100%;" in document
+    assert 'class="lineage-kicker"' not in document
+    assert "Stage {{ stage_number }} / Step {{ step.number }}" not in document
+    assert "Stage ${step.dataset.stage} of ${stages.length}" in document
+    assert ".lineage-scene { display: grid; grid-template-columns: minmax(0, 1fr);" in document
+    assert 'class="lineage-arrow">' in document
+    assert ".lineage-table-scroll { overflow-x: auto; overflow-y: hidden;" in document
+    assert ".lineage-step h3 {" in document and "text-align: center;" in document
+    assert '<span class="lineage-arrow-icon" aria-hidden="true">&darr;</span>' in document
+    assert "<h3>Maximum</h3>" in document
+    assert (
+        '<div class="lineage-arrow">\n'
+        '            <span class="lineage-arrow-icon" aria-hidden="true">&darr;</span>\n'
+        '            <small class="lineage-callable-type">' in document
+    )
+    assert "<strong>maximum</strong>" not in document
+    assert 'class="lineage-callable-type">Aggregate</small>' in document
+    assert "lineage-callable-phase" not in document
+    assert "<h3>Maximum</h3>" in document
+    for operation_type in ("READ", "AGGREGATE", "VECTORIZE", "WRITE"):
+        assert f'<span class="lineage-operation-label">{operation_type}</span>' in document
+    assert '<span class="lineage-operation-label">OPERATION</span>' not in document
+    assert "lineage-step h3 {" in document
+    assert 'class="lineage-table-dataset">Dataset:' in document
+    assert 'class="lineage-dataset"' not in document
+    assert "transform: rotate(90deg)" not in document
+    assert document.count("<summary>Declared schema and dependencies</summary>") == len(
         compile.Compiler(specification).compile().operations
     )
     assert "<details open" not in document
+    assert "lineage-inspector" not in document
+    assert "lineage-direction" not in document
+    assert "lineage-zoom" not in document
+    assert "lineage-animate" not in document
+    assert "<h3>Maximum</h3>" in document
+    assert '<table class="lineage-table" data-side="input">' in document
+    assert '<table class="lineage-table" data-side="output">' in document
+    assert "prefers-reduced-motion: reduce" in document
+    assert "reducedMotion.addEventListener" in document
+    assert 'document.addEventListener("visibilitychange"' in document
+    assert "three placeholder rows become one group" in document
+    assert "Actual grouping and row counts are not known" in document
+    assert "window.clearTimeout(timer)" in document
+    assert 'type: "column"' in document
+    assert 'type: "row"' in document
+    assert 'type: "inputs"' in document
+    assert 'type: "group"' in document
+    assert 'type: "callable"' in document
+    assert 'type: "write"' in document
+    assert "Exact input-to-output mappings are not inferred" in document
+    assert "animation-play-state: paused" in document
+    assert 'step.classList.toggle("is-playing", playing)' in document
+    assert "lineage-grouped" in document
 
 
-def test_lineage_escapes_declared_row_scope(tmp_path: pathlib.Path) -> None:
+def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_json(SPEC_PATH)
+    execution_plan = compile.Compiler(specification).compile()
+    stages = lineage._build_stages(specification, execution_plan)
+    docs.create_html(specification, tmp_path / "index.html")
+    document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    collector = LineageStructureCollector()
+    collector.feed(document)
+    assert collector.columns == [
+        (column.name, column.role) for stage in stages for step in stage for column in step.columns
+    ]
+    assert "This step" in document
+    assert "Observation key" in document
+
+
+def test_lineage_omits_declared_row_grain(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
     dataset = next(iter(specification.entities.values())).datasets[0]
     dataset.row_scope.grain = "<script>alert('grain')</script>"
     docs.create_html(specification, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert dataset.row_scope.grain not in document
-    assert "&lt;script&gt;alert(&#39;grain&#39;)&lt;/script&gt;" in document
+    assert "&lt;script&gt;alert(&#39;grain&#39;)&lt;/script&gt;" not in document

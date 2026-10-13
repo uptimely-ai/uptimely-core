@@ -29,9 +29,13 @@
 			background: rgba(16, 24, 32, .9); border: 1px solid #52616b; border-radius: 8px; }
 		h1 { font-size: 18px; margin: 0 0 10px; }
 		.legend { display: grid; gap: 6px; }
-		.legend span::before { content: ''; display: inline-block; width: 10px; height: 10px;
+		.legend span:not(.legend-heading)::before { content: ''; display: inline-block; width: 10px; height: 10px;
 			margin-right: 7px; background: var(--color); border-radius: 50%; }
 		.legend .function::before { border-radius: 2px; }
+		.legend-heading { margin-top: 4px; color: #9fb3c3; font-size: 11px; text-transform: uppercase;
+			letter-spacing: .06em; }
+		.entity-legend { display: grid; gap: 5px; max-height: 30vh; overflow-y: auto; }
+		.entity-legend span { overflow-wrap: anywhere; }
 		.details { position: absolute; right: 16px; bottom: 16px; width: 260px;
 			max-width: calc(100% - 32px); max-height: 40%; overflow-y: auto;
 			box-sizing: border-box; padding: 14px 16px;
