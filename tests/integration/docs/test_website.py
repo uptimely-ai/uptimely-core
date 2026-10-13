@@ -54,6 +54,102 @@ class NavigationCollector(html_parser.HTMLParser):
             self.in_navigation = False
 
 
+class IconCollector(html_parser.HTMLParser):
+    """Collect decorative icons and heading labels independently of their markup."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.in_heading = False
+        self.in_navigation = False
+        self.heading_parts: list[str] = []
+        self.headings: list[str] = []
+        self.heading_icons: list[dict[str, str | None]] = []
+        self.navigation_icons: list[dict[str, str | None]] = []
+        self.icons: list[dict[str, str | None]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        if tag == "h1":
+            self.in_heading = True
+            self.heading_parts = []
+        if tag == "nav":
+            self.in_navigation = True
+        if "data-lucide" in attributes:
+            self.icons.append(attributes)
+            if self.in_heading:
+                self.heading_icons.append(attributes)
+            if self.in_navigation:
+                self.navigation_icons.append(attributes)
+
+    def handle_data(self, data: str) -> None:
+        if self.in_heading:
+            self.heading_parts.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "h1":
+            self.headings.append("".join(self.heading_parts).strip())
+            self.in_heading = False
+        if tag == "nav":
+            self.in_navigation = False
+
+
+def heading_titles(document: str) -> list[str]:
+    """Return visible page titles, ignoring decorative icon markup."""
+    collector = IconCollector()
+    collector.feed(document)
+    return collector.headings
+
+
+def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
+    docs.create_html(spec.Specification(), tmp_path / "index.html")
+    expected = {
+        "index.html": ("home", "house", "Untitled analytics project"),
+        "overview.html": ("overview", "layout-dashboard", "Overview"),
+        "features.html": ("features", "sparkles", "Features"),
+        "entities.html": ("entities", "boxes", "Entities"),
+        "datasets.html": ("datasets", "table", "Datasets"),
+        "dimensions.html": ("dimensions", "layers-3", "Dimensions"),
+        "functions.html": ("functions", "braces", "Functions"),
+        "feature_graph.html": ("lineage", "git-fork", "Feature lineage"),
+        "execution_plan.html": ("execution", "workflow", "Overview"),
+        "execution_plan_graph.html": ("execution-graph", "network", "Execution graph"),
+        "execution_plan_stages.html": ("stages", "list-ordered", "Stages"),
+    }
+    palette = {
+        "home": "#93c5fd",
+        "specification": "#67e8f9",
+        "overview": "#93c5fd",
+        "features": "#f9a8d4",
+        "entities": "#fdba74",
+        "datasets": "#6ee7b7",
+        "dimensions": "#a5b4fc",
+        "functions": "#fcd34d",
+        "lineage": "#c4b5fd",
+        "execution": "#fcd34d",
+        "execution-graph": "#fcd34d",
+        "stages": "#fcd34d",
+    }
+    for filename, (key, symbol, title) in expected.items():
+        document = (tmp_path / filename).read_text(encoding="utf-8")
+        collector = IconCollector()
+        collector.feed(document)
+        assert collector.headings == [title]
+        assert len(collector.heading_icons) == 1
+        heading_icon = collector.heading_icons[0]
+        assert heading_icon["data-lucide"] == symbol
+        assert f"icon--{key}" in (heading_icon["class"] or "").split()
+        assert any(
+            item["data-lucide"] == symbol and f"icon--{key}" in (item["class"] or "").split()
+            for item in collector.navigation_icons
+        )
+        assert all(item["aria-hidden"] == "true" for item in collector.icons)
+        for icon_key, color in palette.items():
+            assert f".icon--{icon_key} {{ --icon-color: {color};" in document
+        assert ".site-icon { color: var(--icon-color);" in document
+        assert 'a[aria-current="page"]' in document
+        assert "a:focus-visible" in document
+
+
 def test_website_exports_all_reports_with_relative_navigation(
     tmp_path: pathlib.Path, monkeypatch
 ) -> None:
@@ -100,7 +196,8 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "3d-force-graph" in graph_2d
     assert 'aria-label="Feature graph views"' not in graph_2d
     assert re.search(
-        r'href="feature_graph.html" aria-current="page"><i class="nav-icon" '
+        r'href="feature_graph.html" aria-current="page">'
+        r'<i class="site-icon icon--lineage nav-icon" '
         r'data-lucide="git-fork"',
         graph_2d,
     )
@@ -131,7 +228,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
 
     assert compile_calls == 1
     assert "<title>Pump analytics | OpenAnalytics</title>" in document
-    assert re.findall(r"<h1>([^<]+)</h1>", document) == ["Pump analytics"]
+    assert heading_titles(document) == ["Pump analytics"]
     datasets = [
         dataset for entity in specification.entities.values() for dataset in entity.datasets
     ]
@@ -148,7 +245,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
     assert "Specification 0.1.0" in document
     assert 'aria-label="Project counts"' in document
     assert 'aria-label="Analytics journey"' in document
-    assert re.findall(r'<li class="journey-step ([^"]+)">', document) == [
+    assert re.findall(r'<li class="journey-step (\S+) icon--\1">', document) == [
         "specification",
         "lineage",
         "execution",
@@ -173,10 +270,10 @@ def test_homepage_handles_unnamed_and_escaped_projects(
 
     assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 6
     if not name:
-        assert "<h1>Untitled analytics project</h1>" in document
+        assert heading_titles(document) == ["Untitled analytics project"]
     else:
         assert (
-            "<h1>&lt;script&gt;alert(&#34;title&#34;)&lt;/script&gt; &amp; Analytics</h1>"
+            "<span>&lt;script&gt;alert(&#34;title&#34;)&lt;/script&gt; &amp; Analytics</span>"
             in document
         )
         assert name not in document
@@ -204,7 +301,7 @@ def test_specification_pages_render_only_their_section(
         assert (f'<section id="{candidate}"' in document) == (candidate == section_id)
     assert 'aria-label="Specification sections"' in document
     assert 'aria-label="Documentation sections"' not in document
-    headings = re.findall(r'<h1 class="([^"]+)">([^<]+)</h1>', document)
+    headings = re.findall(r'<h1 class="([^"]+)">.*?<span>([^<]+)</span></h1>', document)
     assert len(headings) == 1
     assert headings[0][0] == "font-display text-3xl font-semibold tracking-tight text-white"
     assert headings[0][1] == title
@@ -261,7 +358,7 @@ def test_execution_plan_pages_render_only_their_section(
 
     assert 'aria-label="Execution plan sections"' in document
     is_graph = title == "Execution graph"
-    assert re.findall(r'<h1 class="[^"]+">([^<]+)</h1>', document) == ([] if is_graph else [title])
+    assert heading_titles(document) == [title]
     if is_graph:
         assert 'class="absolute inset-0"' in document
         assert "<header" not in document

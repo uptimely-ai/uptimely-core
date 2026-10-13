@@ -1,0 +1,17 @@
+{% set icons = {
+  "home": ("house", "#93c5fd", "#1e3a8a4d"),
+  "specification": ("book-open", "#67e8f9", "#164e634d"),
+  "overview": ("layout-dashboard", "#93c5fd", "#1e3a8a4d"),
+  "features": ("sparkles", "#f9a8d4", "#8318434d"),
+  "entities": ("boxes", "#fdba74", "#7c2d124d"),
+  "datasets": ("table", "#6ee7b7", "#064e3b4d"),
+  "dimensions": ("layers-3", "#a5b4fc", "#312e814d"),
+  "functions": ("braces", "#fcd34d", "#78350f4d"),
+  "lineage": ("git-fork", "#c4b5fd", "#4c1d954d"),
+  "execution": ("workflow", "#fcd34d", "#78350f4d"),
+  "execution-graph": ("network", "#fcd34d", "#78350f4d"),
+  "stages": ("list-ordered", "#fcd34d", "#78350f4d")
+} %}
+{% macro icon(key, class="") -%}
+<i class="site-icon icon--{{ key }} {{ class }}" data-lucide="{{ icons[key][0] }}" aria-hidden="true"></i>
+{%- endmacro %}

@@ -30,6 +30,9 @@ Initial public release.
 
 ### Changed
 
+- Unified the generated website's navigation, heading, and dashboard icons with
+  a shared section palette and distinct specification-resource accents.
+
 - Redesigned the generated website homepage as a project dashboard with resource
   and plan counts and a Specification, Feature lineage, and Execution plan journey.
   The site brand now returns to the dashboard, including custom index filenames.
