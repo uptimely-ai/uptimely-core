@@ -33,12 +33,12 @@ examples/
 
 ### Download examples with the installed package
 
-With Python 3.13 or newer, install the package and download the examples without
-cloning the repository:
+With Python 3.13 or newer, install the package and download matching release
+examples without cloning the repository:
 
 ```sh
-pip install uptimely-core
-uptimely examples download
+pip install uptimely-core==0.1.0
+uptimely examples download --ref v0.1.0
 python examples/check_setup.py
 python examples/run_all.py
 ```
@@ -54,15 +54,17 @@ downloads the repository's current default branch. To select a release tag,
 branch, or commit, or to use a different destination:
 
 ```sh
-uptimely examples download --ref main --output ./demo/examples
+uptimely examples download --ref v0.1.0 --output ./demo/examples
 cd demo
 python examples/run_all.py
 ```
 
-Use a revision compatible with your installed package: the default branch may
-contain unreleased changes. The destination must not already exist, even if it
-is empty. Download and extraction errors produce a nonzero exit status without
-leaving a partially extracted destination.
+The commands above pair package version `0.1.0` with release tag `v0.1.0`.
+If you install a different version, select its matching release tag with `--ref`.
+Omitting `--ref` downloads the default branch, which may contain unreleased
+changes incompatible with your installed package. The destination must not
+already exist, even if it is empty. Download and extraction errors produce a
+nonzero exit status without leaving a partially extracted destination.
 
 ### Run examples from a repository checkout
 
