@@ -66,7 +66,7 @@ def test_feature_graph_summary_subset_and_tree(
     invoke(
         monkeypatch,
         "spec",
-        "feature_graph",
+        "feature-graph",
         "--project-root",
         str(PROJECT),
         "--features",
@@ -143,7 +143,7 @@ def test_workflow_argument_errors(monkeypatch: pytest.MonkeyPatch, arguments: li
 
 @pytest.mark.parametrize(
     "command",
-    [["plan", "build"], ["spec", "feature_graph"], ["engine", "run"]],
+    [["plan", "build"], ["spec", "feature-graph"], ["engine", "run"]],
 )
 def test_workflow_missing_inputs_are_reported(
     tmp_path: pathlib.Path,
@@ -159,7 +159,7 @@ def test_workflow_missing_inputs_are_reported(
     assert not result.out
 
 
-@pytest.mark.parametrize("command", [["plan", "build"], ["spec", "feature_graph"]])
+@pytest.mark.parametrize("command", [["plan", "build"], ["spec", "feature-graph"]])
 def test_unknown_feature_is_reported(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], command: list[str]
 ) -> None:
@@ -238,7 +238,7 @@ def test_engine_saved_plan_errors_are_reported(
     assert not result.out
 
 
-@pytest.mark.parametrize("command", [["plan", "build"], ["spec", "feature_graph"]])
+@pytest.mark.parametrize("command", [["plan", "build"], ["spec", "feature-graph"]])
 def test_invalid_specification_is_reported(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -320,7 +320,7 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
     )
     for command in (
         ["plan", "build"],
-        ["spec", "feature_graph", "--verbose"],
+        ["spec", "feature-graph", "--verbose"],
         ["engine", "run", "--verbose"],
         ["engine", "run", "--compile", "false", "--verbose"],
     ):

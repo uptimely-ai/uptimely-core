@@ -200,7 +200,11 @@ def test_serve_reports_missing_website(
         "build_docs",
         lambda spec, output, project_root: output / "index.html",
     )
-    monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "serve", "--directory", str(directory)])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["uptimely", "docs", "serve", "--directory", str(directory)],
+    )
 
     with pytest.raises(SystemExit) as error:
         cli.main()
