@@ -11,6 +11,9 @@ import pytest
 
 from uptimely.cli import cli
 
+REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
+SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
+
 
 @pytest.mark.parametrize(
     ("arguments", "expected"),
@@ -28,17 +31,110 @@ def test_serve_arguments(
     arguments: list[str],
     expected: tuple[pathlib.Path, str, int],
 ) -> None:
-    calls: list[tuple[pathlib.Path, str, int]] = []
+    calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        cli,
+        "build_docs",
+        lambda spec, directory, project_root: (
+            calls.append(("build", spec, directory, project_root)) or directory / "index.html"
+        ),
+    )
     monkeypatch.setattr(
         cli,
         "serve_docs",
-        lambda directory, host, port: calls.append((directory, host, port)),
+        lambda directory, host, port: calls.append(("serve", directory, host, port)),
     )
     monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "serve", *arguments])
 
     cli.main()
 
-    assert calls == [expected]
+    directory, host, port = expected
+    assert calls == [
+        (
+            "build",
+            pathlib.Path("_generated/spec/spec.json"),
+            directory,
+            pathlib.Path.cwd(),
+        ),
+        ("serve", directory, host, port),
+    ]
+
+
+def test_serve_builds_custom_spec_before_starting_server(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        cli,
+        "build_docs",
+        lambda spec, directory, project_root: (
+            calls.append(("build", spec, directory, project_root)) or directory / "index.html"
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "serve_docs",
+        lambda directory, host, port: calls.append(("serve", directory, host, port)),
+    )
+    specification = tmp_path / "spec.json"
+    output = tmp_path / "website"
+    project_root = tmp_path / "project"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "uptimely",
+            "docs",
+            "serve",
+            "--spec",
+            str(specification),
+            "--directory",
+            str(output),
+            "--project-root",
+            str(project_root),
+        ],
+    )
+
+    cli.main()
+
+    assert calls == [
+        ("build", specification, output, project_root),
+        ("serve", output, "127.0.0.1", 8001),
+    ]
+
+
+def test_serve_builds_html_before_starting_server(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    output = tmp_path / "website"
+    project_root = REPOSITORY_ROOT / "examples/pump_analytics"
+
+    def check_website(directory: pathlib.Path, host: str, port: int) -> None:
+        assert directory == output
+        assert host == "127.0.0.1"
+        assert port == 8001
+        assert (output / "index.html").is_file()
+        assert (output / "spec/overview.html").is_file()
+        assert (output / "plan/graph.html").is_file()
+
+    monkeypatch.setattr(cli, "serve_docs", check_website)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "uptimely",
+            "docs",
+            "serve",
+            "--spec",
+            str(SPEC_PATH),
+            "--project-root",
+            str(project_root),
+            "--directory",
+            str(output),
+        ],
+    )
+
+    cli.main()
 
 
 @pytest.mark.parametrize("port", ["-1", "65536", "abc"])
@@ -63,6 +159,11 @@ def test_serve_reports_missing_website(
         directory.write_text("not a directory", encoding="utf-8")
     elif kind == "empty":
         directory.mkdir()
+    monkeypatch.setattr(
+        cli,
+        "build_docs",
+        lambda spec, output, project_root: output / "index.html",
+    )
     monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "serve", "--directory", str(directory)])
 
     with pytest.raises(SystemExit) as error:
@@ -123,6 +224,11 @@ def test_serve_reports_occupied_port(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     (tmp_path / "index.html").write_text("index", encoding="utf-8")
+    monkeypatch.setattr(
+        cli,
+        "build_docs",
+        lambda spec, output, project_root: output / "index.html",
+    )
     with http_server.ThreadingHTTPServer(
         ("127.0.0.1", 0), cli.http_server.SimpleHTTPRequestHandler
     ) as occupied:

@@ -8,6 +8,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- `uptimely docs serve` now builds the website from the project's specification before serving it.
 
 ## [0.1.0] - 2026-10-14
 

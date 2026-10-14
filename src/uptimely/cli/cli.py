@@ -249,12 +249,26 @@ def main() -> None:
         action="store_true",
         help="Include a build timestamp on the specification page",
     )
-    serve = doc_actions.add_parser("serve", help="Serve the generated website for local preview")
+    serve = doc_actions.add_parser(
+        "serve", help="Build and serve the generated website for local preview"
+    )
+    serve.add_argument(
+        "--spec",
+        type=pathlib.Path,
+        default=pathlib.Path("_generated/spec/spec.json"),
+        help="JSON specification path (default: _generated/spec/spec.json)",
+    )
     serve.add_argument(
         "--directory",
         type=pathlib.Path,
         default=pathlib.Path("_generated/docs"),
-        help="Website directory (default: _generated/docs)",
+        help="Website output directory (default: _generated/docs)",
+    )
+    serve.add_argument(
+        "--project-root",
+        type=pathlib.Path,
+        default=pathlib.Path.cwd(),
+        help="Root for importing function entrypoints (default: working directory)",
     )
     serve.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
     serve.add_argument(
@@ -262,6 +276,17 @@ def main() -> None:
     )
     args = parser.parse_args()
     if args.command == "docs" and args.action == "serve":
+        try:
+            build_docs(args.spec, args.directory, args.project_root)
+        except (
+            OSError,
+            ValueError,
+            ImportError,
+            AttributeError,
+            TypeError,
+            jinja2.TemplateError,
+        ) as error:
+            parser.exit(1, f"uptimely: error: {error}\n")
         try:
             serve_docs(args.directory, args.host, args.port)
         except (OSError, ValueError) as error:
