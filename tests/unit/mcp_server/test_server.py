@@ -13,7 +13,7 @@ from uptimely.mcp import server  # noqa: E402
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
 SPEC_PATH = REPOSITORY_ROOT / "examples" / "example_1" / "_generated" / "spec" / "spec.json"
-RUNTIME_RESOURCES_PATH = REPOSITORY_ROOT / "examples" / "example_1" / "runtime-resources.json"
+CONFIG_PATH = REPOSITORY_ROOT / "examples" / "example_1" / "engine.json"
 
 pytestmark = pytest.mark.skipif(not SPEC_PATH.exists(), reason="example spec is not generated")
 
@@ -21,10 +21,12 @@ pytestmark = pytest.mark.skipif(not SPEC_PATH.exists(), reason="example spec is 
 @pytest.fixture()
 def state() -> server.ServerState:
     """Provide server state bound to the example 1 specification."""
+    engine_config, bind = server._load_engine_config(CONFIG_PATH)
     return server.ServerState(
         spec_path=SPEC_PATH,
         project_root=REPOSITORY_ROOT,
-        runtime_resources=json.loads(RUNTIME_RESOURCES_PATH.read_text(encoding="utf-8")),
+        engine_config=engine_config,
+        bind=bind,
     )
 
 

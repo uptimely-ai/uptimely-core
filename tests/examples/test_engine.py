@@ -13,9 +13,7 @@ SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
 
 
 def test_engine_returns_calculated_features_without_writing_output() -> None:
-    engine = uptimely_engine.Engine(
-        SPEC_PATH, runtime_resources={"storage": spec.storage_resources}
-    )
+    engine = uptimely_engine.Engine(SPEC_PATH, bind={"storage": spec.storage_resources})
 
     result = engine.execute()
 
@@ -94,7 +92,7 @@ def test_engine_runner_returns_calculated_feature_ids() -> None:
 
 
 def test_engine_rejects_unknown_runtime_namespace() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH, runtime_resources={})
+    engine = uptimely_engine.Engine(SPEC_PATH, bind={})
 
     result = engine.execute()
 
@@ -104,7 +102,7 @@ def test_engine_rejects_unknown_runtime_namespace() -> None:
 
 
 def test_engine_rejects_unknown_runtime_object() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH, runtime_resources={"storage": {}})
+    engine = uptimely_engine.Engine(SPEC_PATH, bind={"storage": {}})
 
     result = engine.execute()
 
@@ -115,9 +113,7 @@ def test_engine_rejects_unknown_runtime_object() -> None:
 
 
 def test_engine_rejects_unknown_runtime_attribute() -> None:
-    engine = uptimely_engine.Engine(
-        SPEC_PATH, runtime_resources={"storage": {"telemetry_source": {}}}
-    )
+    engine = uptimely_engine.Engine(SPEC_PATH, bind={"storage": {"telemetry_source": {}}})
 
     result = engine.execute()
 
@@ -251,7 +247,7 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
 
 def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathlib.Path) -> None:
     plan = compile.Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
-    engine = uptimely_engine.Engine(plan, runtime_resources={"storage": spec.storage_resources})
+    engine = uptimely_engine.Engine(plan, bind={"storage": spec.storage_resources})
     assert [
         operation.output
         for stage in engine.plan.execution_stages

@@ -22,7 +22,7 @@ project/
 │   │   └── spec.json
 │   └── compile/
 │       └── execution_plan.json
-├── runtime-resources.json
+├── engine.json
 ├── run_export_spec.py
 ├── run_execution_plan.py
 └── run_engine.py
@@ -34,7 +34,7 @@ project/
 - functions: reusable source, calculation, and write functions.
 - spec: Python declarations that define entities, datasets, and relationships.
 - _generated: output created by the tooling, such as exported JSON specifications, compiled plans, graphs, and documentation.
-- runtime-resources.json: environment-specific values used to resolve runtime placeholders.
+- engine.json: engine settings and bind values used to resolve runtime placeholders.
 - run_*.py: entry points for specification export, compilation, and execution.
 
 This separation keeps the project easy to reason about: the code that defines the model lives in the spec folder, the runtime logic lives in functions, and generated resources stay clearly separate from source inputs.

@@ -23,18 +23,19 @@ Add support for common orchestrator patterns. Most likely requires Python decora
 
 ## Runtime configuration enhancements
 
-Environment-specific runtime resource substitution is already implemented.
+Environment-specific runtime configuration substitution is already implemented.
 The engine resolves `?<namespace>.<object>.<attribute>` placeholders against
-`runtime_resources`, allowing the same compiled plan to run in dev, test, and
+`bind`, allowing the same compiled plan to run in dev, test, and
 prod without changing its bindings or recompiling.
 
 The Python API accepts a mapping; application code can load that mapping from
-JSON. The MCP CLI already accepts a JSON file through `--runtime-resources`.
+JSON. The MCP CLI already accepts a JSON file through `--config`.
 See [runtime overrides](components/engine/index.md#runtime-overrides) for usage.
 
 Future work includes automatic environment selection, layered configuration
-merging, and a mechanism for calculation constants. Runtime resource substitution
-does not currently override arbitrary specification fields or literal arguments.
+merging, and a mechanism for calculation constants. Runtime configuration
+substitution does not currently override arbitrary specification fields or
+literal arguments.
 
 ## Add constants to spec
 

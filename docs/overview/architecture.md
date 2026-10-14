@@ -151,7 +151,7 @@ compiled dataset and feature identifiers into runtime objects such as
 dataframes and dimension-keyed calculated feature results.
 
 The Python engine resolves `?<namespace>.<object>.<attribute>` runtime
-placeholders (such as `?storage.telemetry_source.path`) against `runtime_resources`
+placeholders (such as `?storage.telemetry_source.path`) against engine `bind`
 supplied when the engine is constructed. This is how a compiled plan runs against
 different physical storage locations in different environments without
 recompiling the specification.

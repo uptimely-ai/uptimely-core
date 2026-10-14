@@ -36,13 +36,14 @@ FUNCTION_CATEGORIES = (
 
 @dataclasses.dataclass
 class ServerState:
-    """Runtime configuration and cached specification for the MCP server."""
+    """Engine configuration, runtime bindings, and cached specification."""
 
     spec_path: pathlib.Path
     project_root: pathlib.Path
-    runtime_resources: dict[str, dict[str, dict[str, typing.Any]]] = dataclasses.field(
-        default_factory=dict
+    engine_config: uptimely_engine.EngineConfig = dataclasses.field(
+        default_factory=uptimely_engine.EngineConfig
     )
+    bind: dict[str, dict[str, dict[str, typing.Any]]] = dataclasses.field(default_factory=dict)
     specification: spec.Specification | None = dataclasses.field(default=None, repr=False)
 
     def load_specification(self, *, reload: bool = False) -> spec.Specification:
@@ -230,7 +231,8 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         plan = compile.Compiler(specification, features=[feature_id]).compile()
         engine = uptimely_engine.Engine(
             plan,
-            runtime_resources=state.runtime_resources,
+            config=state.engine_config,
+            bind=state.bind,
         )
         result = engine.execute()
         key = next((k for k in result.calculated_outputs if k[2] == feature_id), None)
@@ -287,13 +289,25 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
     return mcp
 
 
-def _load_runtime_resources(
-    path: pathlib.Path | None,
-) -> dict[str, dict[str, dict[str, typing.Any]]]:
-    """Load a runtime resources mapping from a JSON file."""
-    if path is None:
-        return {}
-    return json.loads(path.read_text(encoding="utf-8"))
+def _load_engine_config(
+    config_path: pathlib.Path | None,
+) -> tuple[
+    uptimely_engine.EngineConfig,
+    dict[str, dict[str, dict[str, typing.Any]]],
+]:
+    """Load engine settings and runtime bindings from a JSON file."""
+    if config_path is None:
+        return uptimely_engine.EngineConfig(), {}
+    payload = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("Engine configuration JSON must contain an object")
+    backend_values = payload.get("backend", {})
+    bind = payload.get("bind", {})
+    if not isinstance(backend_values, dict):
+        raise ValueError("The 'backend' value must be an object")
+    if not isinstance(bind, dict):
+        raise ValueError("The 'bind' value must be an object")
+    return uptimely_engine.EngineConfig(**backend_values), bind
 
 
 def main() -> None:
@@ -309,10 +323,10 @@ def main() -> None:
         help="Root added to sys.path so function entrypoints are importable",
     )
     parser.add_argument(
-        "--runtime-resources",
+        "--config",
         type=pathlib.Path,
         default=None,
-        help="JSON file with runtime resource values for ?storage-style placeholders",
+        help="JSON file with engine settings and bind values",
     )
     args = parser.parse_args()
 
@@ -320,10 +334,12 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
     logger.info("Starting uptimely MCP server for spec %s", args.spec)
 
+    engine_config, bind = _load_engine_config(args.config)
     state = ServerState(
         spec_path=args.spec,
         project_root=args.project_root,
-        runtime_resources=_load_runtime_resources(args.runtime_resources),
+        engine_config=engine_config,
+        bind=bind,
     )
     create_server(state).run()
 

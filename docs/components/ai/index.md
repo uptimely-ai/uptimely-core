@@ -62,7 +62,7 @@ is plain JSON-RPC; the model lives in the client host.
 uptimely-mcp \
   --spec examples/example_1/_generated/spec/spec.json \
   --project-root . \
-  --runtime-resources examples/example_1/runtime-resources.json
+  --config examples/example_1/engine.json
 ```
 
 The arguments:
@@ -71,11 +71,11 @@ Argument | Purpose
 --- | ---
 `--spec` | Path to the JSON specification. Required.
 `--project-root` | Directory added to `sys.path` so function entrypoints resolve. Defaults to the working directory.
-`--runtime-resources` | JSON file with values for `?storage`-style placeholders. The example mapping supplies local paths for source datasets.
+`--config` | JSON file with engine settings and `bind` values. The example binding supplies local paths for source datasets.
 
-For dev, test, or prod, pass the corresponding resource file to
-`--runtime-resources`. The CLI loads its JSON into the engine's
-`runtime_resources` mapping; it does not select an environment or merge files
+For dev, test, or prod, pass the corresponding engine configuration file to
+`--config`. The CLI loads the `engine` object as `EngineConfig` and passes the
+`bind` object to the engine; it does not select an environment or merge files
 automatically. Only values referenced by runtime placeholders are substituted,
 not arbitrary specification fields. See the
 [runtime override guide](../engine/index.md#runtime-overrides) for the file
@@ -105,8 +105,8 @@ workspace and launches the server from its Poetry virtual environment.
         "${workspaceFolder}/examples/example_1/_generated/spec/spec.json",
         "--project-root",
         "${workspaceFolder}",
-        "--runtime-resources",
-        "${workspaceFolder}/examples/example_1/runtime-resources.json"
+        "--config",
+        "${workspaceFolder}/examples/example_1/engine.json"
       ]
     }
   }

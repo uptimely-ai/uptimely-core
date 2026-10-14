@@ -9,8 +9,8 @@
         "${workspaceFolder}/examples/example_1/_generated/spec/spec.json",
         "--project-root",
         "${workspaceFolder}",
-        "--runtime-resources",
-        "${workspaceFolder}/examples/example_1/runtime-resources.json"
+        "--config",
+        "${workspaceFolder}/examples/example_1/engine.json"
       ]
     }
   }

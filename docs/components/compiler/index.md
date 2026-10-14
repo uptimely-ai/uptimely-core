@@ -73,7 +73,7 @@ resolves them to identifiers in the plan; the engine binds those identifiers to
 live dataframes and feature values.
 
 Runtime placeholders such as `?storage.telemetry_source.path` remain in the
-compiled arguments. The engine resolves them against its `runtime_resources`,
+compiled arguments. The engine resolves them against its `bind` mapping,
 allowing a plan to run with different physical storage locations without
 recompilation.
 
