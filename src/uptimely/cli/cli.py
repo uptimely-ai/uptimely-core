@@ -21,15 +21,19 @@ from uptimely import spec as spec_module
 from uptimely.docs import docs as docs_module
 
 EXAMPLES_FOLDER: str = "examples"
+DISTRIBUTION_NAME: str = "uptimely-core"
+RELEASE_TAG_PREFIX: str = "v"
+EXAMPLES_DOWNLOAD_TIMEOUT: int = 30
+TEMPORARY_DIRECTORY_PREFIX: str = ".uptimely-"
 
 
 def _repository_url() -> str:
     """Read the repository URL from the installed distribution metadata."""
-    for entry in metadata.metadata("uptimely-core").get_all("Project-URL", []):
+    for entry in metadata.metadata(DISTRIBUTION_NAME).get_all("Project-URL", []):
         label, separator, url = entry.partition(",")
         if separator and label.strip().lower() == "repository":
             return url.strip()
-    raise ValueError("Installed uptimely-core metadata has no Repository URL")
+    raise ValueError(f"Installed {DISTRIBUTION_NAME} metadata has no Repository URL")
 
 
 def _archive_url(repository: str, ref: str) -> str:
@@ -80,12 +84,14 @@ def _extract_examples(archive: zipfile.ZipFile, destination: pathlib.Path) -> No
         raise ValueError("The repository archive contains no example files")
 
 
-def download_examples(output: pathlib.Path, ref: str = "HEAD") -> pathlib.Path:
+def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.Path:
     """Download the public repository's examples into a new directory.
 
     Args:
         output: Destination for the contents of the repository's examples directory.
-        ref: GitHub branch, tag, or commit. HEAD selects the default branch.
+        ref: GitHub branch, tag, or commit. If omitted, use the release tag
+            matching the installed package version (v<version>).
+            Explicit HEAD selects the default branch.
 
     Returns:
         Absolute path to the downloaded examples.
@@ -93,7 +99,8 @@ def download_examples(output: pathlib.Path, ref: str = "HEAD") -> pathlib.Path:
     Raises:
         FileExistsError: The destination already exists.
         PackageNotFoundError: The distribution metadata is not installed.
-        ValueError: Repository metadata, revision, or archive entries are invalid.
+        ValueError: Repository metadata, revision, or archive entries are invalid,
+            or the matching release tag is unavailable.
         URLError: GitHub cannot be reached or rejects the download.
         BadZipFile: The downloaded archive is invalid.
         OSError: The files cannot be written.
@@ -101,14 +108,25 @@ def download_examples(output: pathlib.Path, ref: str = "HEAD") -> pathlib.Path:
     output = output.absolute()
     if output.exists() or output.is_symlink():
         raise FileExistsError(f"Destination already exists: {output}")
-    url = _archive_url(_repository_url(), ref)
+    revision = f"{RELEASE_TAG_PREFIX}{metadata.version(DISTRIBUTION_NAME)}" if ref is None else ref
+    url = _archive_url(_repository_url(), revision)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=".uptimely-", dir=output.parent) as temporary:
+    with tempfile.TemporaryDirectory(
+        prefix=TEMPORARY_DIRECTORY_PREFIX, dir=output.parent
+    ) as temporary:
         staging = pathlib.Path(temporary) / "examples"
         staging.mkdir()
         with tempfile.TemporaryFile() as downloaded:
-            with request.urlopen(url, timeout=30) as response:
-                shutil.copyfileobj(response, downloaded)
+            try:
+                with request.urlopen(url, timeout=EXAMPLES_DOWNLOAD_TIMEOUT) as response:
+                    shutil.copyfileobj(response, downloaded)
+            except urllib_error.HTTPError as error:
+                if error.code == 404 and ref is None:
+                    raise ValueError(
+                        f"Matching examples release tag {revision!r} is unavailable. "
+                        "Use --ref to select a revision compatible with your installed package."
+                    ) from error
+                raise
             downloaded.seek(0)
             with zipfile.ZipFile(downloaded) as archive:
                 _extract_examples(archive, staging)
@@ -206,8 +224,7 @@ def main() -> None:
     )
     download.add_argument(
         "--ref",
-        default="HEAD",
-        help="Branch, tag, or commit (default: the repository's default branch)",
+        help="Branch, tag, or commit (default: v<installed package version>)",
     )
     docs = commands.add_parser("docs", help="Manage analytics documentation")
     doc_actions = docs.add_subparsers(dest="action", required=True)

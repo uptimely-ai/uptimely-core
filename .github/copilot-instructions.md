@@ -27,6 +27,8 @@ Before making project-wide changes, consult the relevant guides:
 ## Python conventions
 
 - Add type hints to new or changed code and keep docstrings current.
+- Define reusable literal values as module-level constants named in
+  `UPPER_SNAKE_CASE` when practical.
 - Write Google-style docstrings. Use `Args:`, `Returns:`, and `Raises:` sections
   when applicable.
 - Import modules rather than individual classes, functions, or constants.

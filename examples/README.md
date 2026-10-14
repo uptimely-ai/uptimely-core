@@ -50,6 +50,13 @@ python examples/check_setup.py
 python examples/run_all.py
 ```
 
+Run these commands from the parent of the downloaded `examples/` directory.
+By default, the download uses the release tag matching the installed package
+version (`v<version>`) and fails if that tag is unavailable. Use `--ref` to
+select another branch, tag, or commit (`HEAD` selects the repository's default
+branch), or `--output` to change the destination. The destination must not
+already exist.
+
 Generated artifacts are written beneath each example's `_generated/` directory.
 
 See each example's README for details.

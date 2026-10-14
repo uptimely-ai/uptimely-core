@@ -23,14 +23,16 @@ Read more at [uptimely.ai website](https://uptimely.ai).
 
 ## Quick start
 
-Python 3.13 or newer is required. Install the package, download matching release
-examples and run.
+Python 3.13 or newer is required. Install the package, download the examples
+and run.
 
 ```sh
-pip install uptimely-core==0.1.0
-uptimely examples download --ref v0.1.0
+pip install uptimely-core
+uptimely examples download
 python examples/run_all.py
 ```
+
+Read more from [examples](examples/README.md).
 
 Explore the examples files, generated resources and modify for the needs of your own project.
 
