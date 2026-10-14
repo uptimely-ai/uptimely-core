@@ -25,6 +25,21 @@ jobs:
             echo "Tag $TAG does not match pyproject version $PKG"
             exit 1
           fi
+      - name: Verify changelog contains package version
+        shell: bash
+        run: |
+          PACKAGE_VERSION="$(poetry version -s)"
+          RELEASE_ENTRY_COUNT="$(
+            awk -v version="$PACKAGE_VERSION" '
+              $1 == "##" && $2 == "[" version "]" && $3 == "-" &&
+              $4 ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/ { count++ }
+              END { print count + 0 }
+            ' CHANGELOG.md
+          )"
+          if [ "$RELEASE_ENTRY_COUNT" -ne 1 ]; then
+            echo "Expected exactly one dated CHANGELOG.md heading for $PACKAGE_VERSION; found $RELEASE_ENTRY_COUNT."
+            exit 1
+          fi
       - run: poetry build
       - run: pipx run twine check dist/*
       - uses: pypa/gh-action-pypi-publish@release/v1
