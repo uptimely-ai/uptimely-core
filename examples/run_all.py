@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def main() -> None:
-    """Run setup validation followed by both examples."""
+    """Run both example workflows in sequence."""
     repository_root = Path(__file__).parent.parent
     if str(repository_root) not in sys.path:
         sys.path.insert(0, str(repository_root))
@@ -16,10 +16,6 @@ def main() -> None:
     from examples.pump_analytics.run_feature_graph import main as create_graph
     from examples.simple_analytics.run_export_spec import main as export_python_spec
 
-    print("=== Checking setup ===")
-    from examples.check_setup import main as check_setup
-
-    check_setup()
     workflows = (
         ("Pump analytics: specification", export_spec),
         ("Pump analytics: execution plan", create_plan),
