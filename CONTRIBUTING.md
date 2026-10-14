@@ -127,8 +127,8 @@ Keep the stable release PR focused on release metadata:
    `chore/prepare-0-2-0`), run the normal checks, and open a PR against `main`.
    Merge after review and CI pass.
 
-After the release PR merges, check out the latest `main` with a clean working
-tree and run the release-tag helper from the repository root:
+After the release PR merges, run the stable release script from the repository
+root:
 
 ```sh
 git switch main
@@ -136,8 +136,9 @@ git pull --ff-only
 ./scripts/tag/stable-release.sh
 ```
 
-The helper checks the release version and repository state before creating and
-pushing the tag. Run it from the merged release commit.
+The script checks the release version and repository state, then creates and
+pushes the tag. The release workflow verifies the package version and
+`CHANGELOG.md` heading before publishing.
 
 After a stable release, open a follow-up PR to set the next development version
 in `pyproject.toml` and keep a fresh `Unreleased` section in the changelog.
@@ -146,9 +147,11 @@ in `pyproject.toml` and keep a fresh `Unreleased` section in the changelog.
 
 For a development release, set the package version to a PEP 440 development
 version in a PR to `main`, then merge it after review and CI pass. From the
-clean, up-to-date `main`, run:
+repository root, run:
 
 ```sh
+git switch main
+git pull --ff-only
 ./scripts/tag/dev-release.sh
 ```
 
