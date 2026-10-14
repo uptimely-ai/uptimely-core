@@ -2,9 +2,9 @@
 
 This page describes the built-in engine shipped with Uptimely Core. It is the reference execution implementation for the project, but it is not the only possible engine. Any engine that can read the portable compiled plan and execute its operations according to the plan contract may be used instead. An alternative engine may be implemented in another language or runtime, as long as it respects the portable execution model and the plan's declared backend compatibility.
 
-## Engine configuration
+## Engine settings
 
-Runtime configuration is supplied to `Engine`, not stored in the Open Analytics specification. The engine implementation decides which configuration values to use.
+Engine settings are supplied to `Engine`, not stored in the Open Analytics specification. The engine implementation decides which configuration values to use.
 
 The built-in Python engine only uses `dataframe` to validate backend
 compatibility. `evaluation` and `batch_size` are reserved settings: they are
@@ -12,27 +12,19 @@ accepted and stored, but do not change evaluation strategy, data access, or
 persistence. Do not rely on them to enable lazy execution, batching, or
 persistence.
 
-```python
-from uptimely.engine import EngineConfig
+The `engine.json` file has `backend` and `bind` top-level keys:
 
-config = EngineConfig(
-    type="python_venv",
-    definition=None,
-    dataframe="polars",
-    evaluation="eager",
-    batch_size=None,
-)
-```
-
-Property | Data type | Runtime configuration
+JSON key | Type | Purpose
 --- | --- | ---
-type | string | Engine type. Eg `docker` or `python_venv`.
-definition | string | Folder having configuration files for engine
-dataframe | string | Dataframe backend. The built-in engine currently supports `polars`.
-evaluation | string | Reserved. Values such as `eager`, `lazy`, and `persist` are stored but have no effect on execution.
-batch_size | integer, `"*"`, or `None` | Reserved. Validates positive integers, `"*"`, or `None`, but does not change how many records are read at a time.
+`backend` | object | Engine settings passed to `EngineConfig`.
+`backend.type` | string | Engine type, such as `docker` or `python_venv`.
+`backend.definition` | string or `null` | Folder containing configuration files for the engine.
+`backend.dataframe` | string | Dataframe backend. The built-in engine currently supports `polars`.
+`backend.evaluation` | string | Reserved. Values such as `eager`, `lazy`, and `persist` are stored but have no effect on execution.
+`backend.batch_size` | integer, `"*"`, or `null` | Reserved. Validates positive integers, `"*"`, or `null`, but does not change how many records are read at a time.
+`bind` | object | Runtime values keyed by namespace, object identifier, and attribute for resolving placeholders.
 
-`backend` is not a specification or runtime configuration field. A compiled plan records its backend
+`backend` is not a specification or engine configuration field. A compiled plan records its backend
 claim as `required_backend`; the built-in engine rejects values other than `polars`.
 Orchestration is a deployment concern and is not represented in the
 specification.
@@ -91,12 +83,12 @@ A binding argument can hold a literal string of the form
 `?<namespace>.<object>.<attribute>`, for example `?storage.telemetry_source.path`.
 Unlike `$`-prefixed structural references, the compiler leaves this form
 untouched — it carries no graph dependency and is resolved only by the engine,
-at execution time, against `runtime_resources`:
+at execution time, against the engine's `bind` mapping:
 
 ```python
 engine = Engine(
     plan,
-    runtime_resources={
+    bind={
         "storage": {
             "telemetry_source": {"path": "test_fixtures/pump_telemetry.json"},
         },
@@ -104,12 +96,12 @@ engine = Engine(
 )
 ```
 
-`runtime_resources` is keyed by namespace, then by object identifier, then by
+`bind` is keyed by namespace, then by object identifier, then by
 attribute name. Every operation referencing the same placeholder receives the
-value supplied for that resource.
+configured value.
 
 If a placeholder's namespace, object, or attribute isn't found in
-`runtime_resources`, the engine raises a `ValueError` for that operation, which
+`bind`, the engine raises a `ValueError` for that operation, which
 `execute()` records in the returned `ExecutionResult.failures` rather than
 raising directly.
 
@@ -118,20 +110,26 @@ arguments alone do not require those feature values to be materialized.
 
 ### Runtime overrides
 
-Runtime resource substitution is already supported. Supply a different
-`runtime_resources` mapping when constructing the engine to run the same
+Runtime configuration substitution is already supported. Supply a different
+`bind` mapping when constructing the engine to run the same
 compiled plan against dev, test, or prod resources without recompilation.
 The plan must already contain placeholders for the values you want to vary.
 This does not modify the specification or replace literal arguments, functions,
 features, or dependencies.
 
-An environment-specific JSON file can contain the mapping:
+An environment-specific engine JSON file groups backend settings and runtime
+bindings under `backend` and `bind`:
 
 ```json
 {
-  "storage": {
-    "telemetry_source": {
-      "path": "/prod/telemetry.json"
+  "backend": {
+    "dataframe": "polars"
+  },
+  "bind": {
+    "storage": {
+      "telemetry_source": {
+        "path": "/prod/telemetry.json"
+      }
     }
   }
 }
@@ -148,16 +146,18 @@ from uptimely.engine import Engine
 from uptimely.plan import ExecutionPlan
 
 plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
-runtime_resources = json.loads(Path("runtime-resources.prod.json").read_text(encoding="utf-8"))
-result = Engine(plan, runtime_resources=runtime_resources).execute()
+engine_json = json.loads(Path("engine.prod.json").read_text(encoding="utf-8"))
+engine_config = EngineConfig(**engine_json["backend"])
+result = Engine(plan, config=engine_config, bind=engine_json["bind"]).execute()
 if result.failures:
     raise RuntimeError(f"Execution failed: {result.failures}")
 ```
 
-The [MCP CLI](../ai/index.md#running-the-server) loads this JSON mapping directly
-through `--runtime-resources`. Neither interface automatically selects an
+The [MCP CLI](../ai/index.md#running-the-server) loads this JSON file through
+`--config`, reading backend settings from `backend` and runtime values from
+`bind`. Neither interface automatically selects an
 environment or merges multiple configuration files. Each supplied mapping must
-provide all resources required by the operations being executed; missing values
+provide all values required by the operations being executed; missing values
 are errors, not fallbacks to another environment.
 
 ## Engine execution
@@ -195,7 +195,7 @@ runtime the engine uses the function template's mapped primitive types to bind
 `dataframe` IDs to physical dataframes; feature and dimension IDs remain
 strings for the implementation to interpret. `sink` (like `source`) is
 ordinarily a `?storage.<id>.<attribute>` runtime placeholder, resolved against
-`runtime_resources` at execution time. The write implementation prepares and
+`bind` values at execution time. The write implementation prepares and
 persists the required output.
 
 ```json

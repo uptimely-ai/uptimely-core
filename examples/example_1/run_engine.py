@@ -14,7 +14,7 @@ def main(verbose: bool | None = None) -> list[str]:
     # To process a subset, pass to compiler:
     # features=["health_signal_normalized"]
     plan = Compiler(specification).compile()
-    engine = Engine(plan, runtime_resources={"storage": storage_resources})
+    engine = Engine(plan, bind={"storage": storage_resources})
     result = engine.execute()
     if result.failures:
         failures = "; ".join(result.failures.values())

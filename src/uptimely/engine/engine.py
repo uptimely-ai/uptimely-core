@@ -60,7 +60,7 @@ class Engine:
         backend: backend_module.DataFrameBackend | None = None,
         resource_resolver: backend_module.ResourceResolver | None = None,
         callable_loader: backend_module.CallableLoader | None = None,
-        runtime_resources: dict[str, dict[str, dict[str, typing.Any]]] | None = None,
+        bind: dict[str, dict[str, dict[str, typing.Any]]] | None = None,
     ) -> None:
         """Prepare an engine from a plan, with specification convenience support."""
         self._specification: json_model.Specification | None = None
@@ -90,7 +90,7 @@ class Engine:
         self._runtime_datasets: dict[tuple[str, str], object] = {}
         self._runtime_fragments: dict[tuple[str, str], object] = {}
         self._runtime_calculations: dict[tuple[str, str, str], object] = {}
-        self.runtime_resources = runtime_resources or {}
+        self.bind = bind or {}
         self._verify_plan()
 
     @classmethod
@@ -370,15 +370,15 @@ class Engine:
         if len(parts) != 3:
             raise ValueError(f"Malformed runtime reference: {value}")
         namespace, object_id, attribute = parts
-        namespace_resources = self.runtime_resources.get(namespace)
-        if namespace_resources is None:
+        namespace_bindings = self.bind.get(namespace)
+        if namespace_bindings is None:
             raise ValueError(f"Unknown runtime namespace: {namespace}")
-        object_resources = namespace_resources.get(object_id)
-        if object_resources is None:
+        object_bindings = namespace_bindings.get(object_id)
+        if object_bindings is None:
             raise ValueError(f"Unknown {namespace} object: {object_id}")
-        if attribute not in object_resources:
+        if attribute not in object_bindings:
             raise ValueError(f"{namespace} object {object_id} has no attribute: {attribute}")
-        return object_resources[attribute]
+        return object_bindings[attribute]
 
     def _dataset_by_id(self, dataset_id: str) -> object | None:
         matches = [

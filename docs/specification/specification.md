@@ -343,7 +343,7 @@ calculated outputs.
 
 Other JSON values are literals. Runtime placeholders such as
 `?storage.telemetry_source.path` remain unchanged during compilation and are
-resolved against engine runtime resources. They do not establish dependencies.
+resolved against the engine's runtime configuration. They do not establish dependencies.
 
 Runtime placeholders have exactly the form
 `?<namespace>.<object>.<attribute>`. For example, the engine resolves
@@ -357,7 +357,7 @@ Runtime placeholders have exactly the form
 }
 ```
 
-Supply that mapping through `Engine(..., runtime_resources=...)`, not as a
+Supply that mapping through `Engine(..., bind=...)`, not as a
 specification root field. Missing namespaces, objects, or attributes are
 execution errors. Plain literals and structural references do not change
 between runtime environments.

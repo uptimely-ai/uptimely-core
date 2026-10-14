@@ -30,7 +30,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
 
     engine = uptimely_engine.Engine(
         _plan(),
-        runtime_resources={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
+        bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
         callable_loader=_Loader({"test:read": read, "test:double": double, "test:write": write}),
     )
 
@@ -60,7 +60,7 @@ def test_execute_stops_after_a_failed_operation() -> None:
 
     engine = uptimely_engine.Engine(
         _plan(),
-        runtime_resources={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
+        bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
         callable_loader=_Loader({"test:read": read, "test:write": write}),
     )
 
@@ -141,7 +141,7 @@ def test_execute_rejects_scalar_calculations() -> None:
 
     engine = uptimely_engine.Engine(
         _plan(),
-        runtime_resources={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
+        bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
         callable_loader=_Loader(
             {"test:read": read, "test:double": constant, "test:write": lambda **_: None}
         ),
