@@ -2,7 +2,7 @@
 
 from uptimely.spec.python_spec import bind, dataset, feature, mapping, ref, row_context
 
-from ...functions import calculation, sink, source
+from ....functions import calculation, sink, source
 
 telemetry_features = [
     feature.Feature(id="plant", type="string", description="Manufacturing plant identifier"),

@@ -14,8 +14,10 @@ project/
 ├── functions/
 │   ├── source.py
 │   └── calculation.py
-├── spec/
-│   └── spec.py
+├── config/
+│   ├── engine.json
+│   └── spec/
+│       └── spec.py
 ├── _generated/
 │   ├── spec/
 │   └── compile/
@@ -24,7 +26,7 @@ project/
 └── run_engine.py
 ```
 
-Python declarations in `spec/` are exported to `_generated/spec/spec.json`.
+Python declarations in `config/spec/` are exported to `_generated/spec/spec.json`.
 The compiler produces `_generated/compile/execution_plan.json`, and the engine
 executes the plan.
 Functions describe the read, transformation, and write logic; the runners
@@ -46,11 +48,11 @@ Keep multiple independent workflows in one or multiple repositories, each using 
 projects/
 ├── pump_analytics/
 │   ├── functions/
-│   ├── spec/
+│   ├── config/
 │   └── _generated/
 └── factory_analytics/
     ├── functions/
-    ├── spec/
+    ├── config/
     └── _generated/
 ```
 
@@ -76,8 +78,9 @@ than maintained as a separate copy of every team's definitions.
 
 ```text
 master-project/
-├── spec/
-│   └── sources.json
+├── config/
+│   └── spec/
+│       └── sources.json
 └── _generated/
     ├── spec/
     │   └── spec.json
@@ -91,14 +94,15 @@ analytics-package/
 │   └── analytics_functions/
 │       ├── __init__.py
 │       └── calculation.py
-└── spec/
-    └── spec.json
+└── config/
+    └── spec/
+        └── spec.json
 ```
 
 In this illustrative layout, `sources.json` is a project-defined manifest of
 contributing repositories, versions, and specification locations; it is not a
 configuration format supported by Uptimely. Each analytics repository contributes its
-`spec/spec.json`, either authored directly or exported from Python declarations.
+`config/spec/spec.json`, either authored directly or exported from Python declarations.
 
 Project-specific assembly tooling retrieves those specifications, combines their
 definitions, and resolves identifier conflicts and cross-repository references.

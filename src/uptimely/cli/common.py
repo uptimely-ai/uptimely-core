@@ -8,7 +8,7 @@ from uptimely import spec
 
 GENERATED_SPEC_PATH = pathlib.Path("_generated/spec/spec.json")
 GENERATED_PLAN_PATH = pathlib.Path("_generated/compile/execution_plan.json")
-ENGINE_CONFIG_PATH = pathlib.Path("engine.json")
+ENGINE_CONFIG_PATH = pathlib.Path("config/engine.json")
 
 
 def configure_project_arguments(parser: argparse.ArgumentParser) -> None:

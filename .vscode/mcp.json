@@ -10,7 +10,7 @@
         "--project-root",
         "${workspaceFolder}",
         "--config",
-        "${workspaceFolder}/examples/pump_analytics/engine.json"
+        "${workspaceFolder}/examples/pump_analytics/config/engine.json"
       ]
     }
   }

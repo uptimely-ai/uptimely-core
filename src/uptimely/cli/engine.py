@@ -41,7 +41,10 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     execute.add_argument(
         "--config",
         type=pathlib.Path,
-        help="Backend settings and runtime bindings (default: engine.json under --project-root)",
+        help=(
+            "Backend settings and runtime bindings "
+            "(default: config/engine.json under --project-root)"
+        ),
     )
 
 

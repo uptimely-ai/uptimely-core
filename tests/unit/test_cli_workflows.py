@@ -215,7 +215,9 @@ def test_engine_saved_plan_errors_are_reported(
     capsys: pytest.CaptureFixture[str],
     content: str | None,
 ) -> None:
-    (tmp_path / "engine.json").write_text("{}", encoding="utf-8")
+    config = tmp_path / "config" / "engine.json"
+    config.parent.mkdir()
+    config.write_text("{}", encoding="utf-8")
     plan_path = tmp_path / "_generated/compile/execution_plan.json"
     if content is not None:
         plan_path.parent.mkdir(parents=True)
@@ -275,7 +277,9 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
     )
     data = project / "data.json"
     data.write_text('[{"value": 1.0}]', encoding="utf-8")
-    (project / "engine.json").write_text(
+    config = project / "config" / "engine.json"
+    config.parent.mkdir()
+    config.write_text(
         json.dumps({"bind": {"storage": {"source": {"path": str(data)}}}}), encoding="utf-8"
     )
     (project / "_generated/spec/spec.json").write_text(

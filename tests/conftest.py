@@ -10,8 +10,8 @@ from uptimely import spec
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
 EXAMPLE_SPEC_DIRS = [
-    REPOSITORY_ROOT / "examples" / "pump_analytics" / "spec",
-    REPOSITORY_ROOT / "examples" / "simple_analytics" / "spec",
+    REPOSITORY_ROOT / "examples" / "pump_analytics" / "config" / "spec",
+    REPOSITORY_ROOT / "examples" / "simple_analytics" / "config" / "spec",
 ]
 
 for path in [str(REPOSITORY_ROOT), *(str(directory) for directory in EXAMPLE_SPEC_DIRS)]:
@@ -24,8 +24,8 @@ def pytest_configure(config: pytest.Config) -> None:
     if hasattr(config, "workerinput"):
         return
 
-    pump_spec = importlib.import_module("examples.pump_analytics.spec.spec")
-    simple_spec = importlib.import_module("examples.simple_analytics.spec.spec")
+    pump_spec = importlib.import_module("examples.pump_analytics.config.spec.spec")
+    simple_spec = importlib.import_module("examples.simple_analytics.config.spec.spec")
     specifications = (
         (
             "pump_analytics",

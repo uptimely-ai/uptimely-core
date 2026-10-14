@@ -11,7 +11,7 @@ from uptimely.spec.python_spec import (
     ref,
 )
 
-from ..functions import functions
+from ...functions import functions
 
 dimensions = [
     dimension.Dimension(

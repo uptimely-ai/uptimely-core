@@ -14,15 +14,16 @@ project/
 ├── functions/
 │   ├── source.py
 │   └── calculation.py
-├── spec/
-│   ├── spec.py
-│   └── datasets/
+├── config/
+│   ├── engine.json
+│   └── spec/
+│       ├── spec.py
+│       └── datasets/
 ├── _generated/
 │   ├── spec/
 │   │   └── spec.json
 │   └── compile/
 │       └── execution_plan.json
-├── engine.json
 ├── run_export_spec.py
 ├── run_execution_plan.py
 └── run_engine.py
@@ -32,12 +33,12 @@ project/
 
 - data: raw or reference datasets used by the analytics workflow.
 - functions: reusable source, calculation, and write functions.
-- spec: Python declarations that define entities, datasets, and relationships.
+- config/spec: Python declarations that define entities, datasets, and relationships.
 - _generated: output created by the tooling, such as exported JSON specifications, compiled plans, graphs, and documentation.
-- engine.json: engine settings and bind values used to resolve runtime placeholders.
+- config/engine.json: engine settings and bind values used to resolve runtime placeholders.
 - run_*.py: entry points for specification export, compilation, and execution.
 
-This separation keeps the project easy to reason about: the code that defines the model lives in the spec folder, the runtime logic lives in functions, and generated resources stay clearly separate from source inputs.
+This separation keeps the project easy to reason about: configuration and specification sources live in config, runtime logic lives in functions, and generated resources stay clearly separate from source inputs.
 
 The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/pump_analytics/README.md) also has documentation
 and feature-graph runners. The documentation runner writes a linked website to

@@ -18,6 +18,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 ### Changed
 
 - `uptimely docs serve` now builds the website from the project's specification before serving it.
+- Example project specifications and engine settings now live under `config/`;
+  `uptimely engine run` defaults to `config/engine.json` beneath the project root.
 
 ## [0.1.0] - 2026-10-14
 
