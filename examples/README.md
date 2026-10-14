@@ -46,7 +46,6 @@ With Python 3.13 or newer, install the package and download the examples:
 ```sh
 pip install uptimely-core
 uptimely examples download
-python examples/check_setup.py
 uptimely spec feature_graph --project-root examples/pump_analytics --verbose
 uptimely plan build --project-root examples/pump_analytics
 uptimely engine run --project-root examples/pump_analytics
