@@ -30,6 +30,7 @@ def github(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     package_metadata["Project-URL"] = "Documentation, https://example.com/docs"
     package_metadata["Project-URL"] = "Repository, https://github.com/example/project"
     monkeypatch.setattr(cli.metadata, "metadata", lambda name: package_metadata)
+    monkeypatch.setattr(cli.metadata, "version", lambda name: "1.2.3")
     urls: list[str] = []
     archive = _archive(
         {
@@ -56,7 +57,7 @@ def github(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 def test_download_examples(tmp_path: pathlib.Path, github: list[str]) -> None:
     output = tmp_path / "nested" / "examples"
     assert cli.download_examples(output) == output
-    assert github == ["https://codeload.github.com/example/project/zip/HEAD"]
+    assert github == ["https://codeload.github.com/example/project/zip/v1.2.3"]
     assert sorted(
         str(path.relative_to(output)) for path in output.rglob("*") if path.is_file()
     ) == [
