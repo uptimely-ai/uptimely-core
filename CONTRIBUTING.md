@@ -46,11 +46,15 @@ publishes it from `main`. It can also be run manually from the Actions tab.
 
 1. Create a branch from `main`.
 2. Make your change.
-3. Commit and push your changes. The installed hooks run checks before commit
-   and the test suite before push.
+3. Commit and push your changes. The installed pre-commit hooks run checks,
+   including the test suite when Python files are staged.
 4. Open a pull request against `main`. Describe the motivation and link any
    related issue. CI must pass (lint, format, tests, coverage gate) before
    merge.
+
+The CI quality job skips the pytest hook to avoid running tests twice. The
+separate test job runs the suite with coverage; local commit hooks still run
+tests when Python files are staged.
 
 ## Coding style
 
