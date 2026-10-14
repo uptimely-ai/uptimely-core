@@ -7,6 +7,7 @@ import sys
 import tomllib
 import zipfile
 from email import message
+from importlib import metadata
 from urllib import error as urllib_error
 
 import pytest
@@ -73,6 +74,74 @@ def test_download_examples(tmp_path: pathlib.Path, github: list[str]) -> None:
 def test_download_revision(tmp_path: pathlib.Path, github: list[str]) -> None:
     cli.download_examples(tmp_path / "examples", "feature/demo")
     assert github == ["https://codeload.github.com/example/project/zip/feature%2Fdemo"]
+
+
+@pytest.mark.parametrize("version", ["0.1.0", "0.2.3", "0.2.0.dev4", "0.2.0rc1"])
+def test_download_matches_installed_version(
+    tmp_path: pathlib.Path,
+    github: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    version: str,
+) -> None:
+    monkeypatch.setattr(cli.metadata, "version", lambda name: version)
+    cli.download_examples(tmp_path / "examples")
+    assert github == [f"https://codeload.github.com/example/project/zip/v{version}"]
+
+
+def test_explicit_revision_does_not_require_version(
+    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def missing_version(name: str) -> str:
+        raise metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(cli.metadata, "version", missing_version)
+    cli.download_examples(tmp_path / "examples", "HEAD")
+    assert github == ["https://codeload.github.com/example/project/zip/HEAD"]
+
+
+def test_missing_version_is_reported(
+    tmp_path: pathlib.Path,
+    github: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def missing_version(name: str) -> str:
+        raise metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(cli.metadata, "version", missing_version)
+    monkeypatch.setattr(
+        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "examples")]
+    )
+    with pytest.raises(SystemExit) as result:
+        cli.main()
+    assert result.value.code == 1
+    assert "uptimely: error:" in capsys.readouterr().err
+    assert github == []
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_missing_release_tag_does_not_fall_back(
+    tmp_path: pathlib.Path,
+    github: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def missing_tag(url: str, *, timeout: int) -> io.BytesIO:
+        github.append(url)
+        raise urllib_error.HTTPError(url, 404, "Not found", {}, None)
+
+    monkeypatch.setattr(cli.request, "urlopen", missing_tag)
+    monkeypatch.setattr(
+        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "examples")]
+    )
+    with pytest.raises(SystemExit) as result:
+        cli.main()
+    assert result.value.code == 1
+    error = capsys.readouterr().err
+    assert "v1.2.3" in error
+    assert "--ref" in error
+    assert github == ["https://codeload.github.com/example/project/zip/v1.2.3"]
+    assert list(tmp_path.iterdir()) == []
 
 
 @pytest.mark.parametrize("source_path", ["samples", "demos/examples"])
@@ -244,6 +313,7 @@ def test_cli_success(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["uptimely", "examples", "download"])
     cli.main()
+    assert github == ["https://codeload.github.com/example/project/zip/v1.2.3"]
     assert f"Downloaded examples to {tmp_path / 'examples'}" in capsys.readouterr().out
     assert (tmp_path / "examples/README.md").exists()
 
@@ -260,6 +330,18 @@ def test_cli_output_and_revision(
     cli.main()
     assert github == ["https://codeload.github.com/example/project/zip/v1.0"]
     assert (output / "README.md").exists()
+
+
+def test_download_help_describes_version_default(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["uptimely", "examples", "download", "--help"])
+    with pytest.raises(SystemExit) as result:
+        cli.main()
+    assert result.value.code == 0
+    help_text = " ".join(capsys.readouterr().out.split())
+    assert "installed package version" in help_text
+    assert "default branch" not in help_text
 
 
 def test_write_failure_cleans_staging(

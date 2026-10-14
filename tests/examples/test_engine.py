@@ -44,8 +44,38 @@ def test_engine_returns_calculated_features_without_writing_output() -> None:
         ("PUMP-201", 64.5, -1.0),
     ]
     telemetry_frame = result.datasets[("pump_telemetry", "pump_telemetry_dataset")].collect()
-    assert "pressure_flow_efficiency" in telemetry_frame.columns
     assert "health_signal_normalized" not in telemetry_frame.columns
+    telemetry_frame = telemetry_frame.sort("pump", "timestamp")
+    assert telemetry_frame["pump"].to_list() == ["PUMP-101", "PUMP-101", "PUMP-201"]
+    efficiency = [5.3 * 118.0 / (36 * 17.9), 5.4 * 119.5 / (36 * 18.1), 4.1 * 83.0 / (36 * 11.7)]
+    assert telemetry_frame["pressure_flow_efficiency"].to_list() == pytest.approx(efficiency)
+    assert telemetry_frame["bearing_temperature_delta"].to_list() == [None, 0.5, None]
+    assert telemetry_frame["vibration_delta"].to_list() == pytest.approx([None, 0.1, None])
+    assert telemetry_frame["pump_health_score"].to_list() == pytest.approx(
+        [None, efficiency[1] - 0.05 - 0.05, None]
+    )
+    assert telemetry_frame["recommended_flow_rate"].to_list() == [118.0, 119.5, 83.0]
+    assert telemetry_frame["recommended_discharge_pressure"].to_list() == [5.3, 5.4, 4.1]
+    assert telemetry_frame["energy_cost_score"].to_list() == pytest.approx(
+        [17.9 / 118.0, 18.1 / 119.5, 11.7 / 83.0]
+    )
+    assert telemetry_frame["converged"].to_list() == [True, True, True]
+    recommendations = telemetry_frame["operating_point_recommendation"].to_list()
+    for recommendation, flow, pressure, cost in zip(
+        recommendations,
+        [118.0, 119.5, 83.0],
+        [5.3, 5.4, 4.1],
+        [17.9 / 118.0, 18.1 / 119.5, 11.7 / 83.0],
+        strict=True,
+    ):
+        assert recommendation == pytest.approx(
+            {
+                "recommended_flow_rate": flow,
+                "recommended_discharge_pressure": pressure,
+                "energy_cost_score": cost,
+                "converged": True,
+            }
+        )
 
 
 def test_engine_runner_returns_calculated_feature_ids() -> None:
