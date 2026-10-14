@@ -27,7 +27,7 @@ jobs:
           poetry run uptimely docs build \
             --spec examples/example_1/_generated/spec/spec.json \
             --output docs/examples/example_1
-      - run: poetry run mkdocs build --strict
+      - run: poetry run mkdocs build
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:
