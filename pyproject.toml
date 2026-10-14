@@ -39,7 +39,7 @@ uptimely = "uptimely.cli.cli:main"
 uptimely-mcp = "uptimely.mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/uptimely-ai/uptimely-core"
+Homepage = "http://uptimely.ai/core/"
 Repository = "https://github.com/uptimely-ai/uptimely-core"
 Documentation = "https://uptimely-ai.github.io/uptimely-core"
 
