@@ -7,8 +7,8 @@ import pytest
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
 EXAMPLE_SPEC_DIRS = [
-    REPOSITORY_ROOT / "examples" / "example_1" / "spec",
-    REPOSITORY_ROOT / "examples" / "example_2" / "spec",
+    REPOSITORY_ROOT / "examples" / "pump_analytics" / "spec",
+    REPOSITORY_ROOT / "examples" / "simple_analytics" / "spec",
 ]
 
 for path in [str(REPOSITORY_ROOT), *(str(directory) for directory in EXAMPLE_SPEC_DIRS)]:
@@ -21,8 +21,8 @@ def pytest_configure(config: pytest.Config) -> None:
     if hasattr(config, "workerinput"):
         return
 
-    from examples.example_1.run_export_spec import main as export_example_1
-    from examples.example_2.run_export_spec import main as export_example_2
+    from examples.pump_analytics.run_export_spec import main as export_pump_analytics
+    from examples.simple_analytics.run_export_spec import main as export_simple_analytics
 
-    export_example_1()
-    export_example_2()
+    export_pump_analytics()
+    export_simple_analytics()

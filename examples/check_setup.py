@@ -21,8 +21,8 @@ def main() -> None:
         problems.append(f"Missing dependencies: {', '.join(missing_modules)}")
 
     expected_files = (
-        REPOSITORY_ROOT / "examples" / "example_1" / "_generated" / "spec" / "spec.json",
-        REPOSITORY_ROOT / "examples" / "example_2" / "spec" / "spec.py",
+        REPOSITORY_ROOT / "examples" / "pump_analytics" / "_generated" / "spec" / "spec.json",
+        REPOSITORY_ROOT / "examples" / "simple_analytics" / "spec" / "spec.py",
     )
     missing_files = [str(path) for path in expected_files if not path.exists()]
     if missing_files:

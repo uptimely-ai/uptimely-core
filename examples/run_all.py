@@ -10,12 +10,12 @@ def main() -> None:
     if str(repository_root) not in sys.path:
         sys.path.insert(0, str(repository_root))
 
-    from examples.example_1.run_docs import main as create_docs
-    from examples.example_1.run_engine import main as execute_engine
-    from examples.example_1.run_execution_plan import main as create_plan
-    from examples.example_1.run_export_spec import main as export_spec
-    from examples.example_1.run_feature_graph import main as create_graph
-    from examples.example_2.run_export_spec import main as export_python_spec
+    from examples.pump_analytics.run_docs import main as create_docs
+    from examples.pump_analytics.run_engine import main as execute_engine
+    from examples.pump_analytics.run_execution_plan import main as create_plan
+    from examples.pump_analytics.run_export_spec import main as export_spec
+    from examples.pump_analytics.run_feature_graph import main as create_graph
+    from examples.simple_analytics.run_export_spec import main as export_python_spec
 
     print("=== Checking setup ===")
     from examples.check_setup import main as check_setup

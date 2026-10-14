@@ -8,7 +8,7 @@ from uptimely import analytics, spec
 from uptimely.analytics import models
 from uptimely.spec import validation
 
-SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str) -> pathlib.Path:

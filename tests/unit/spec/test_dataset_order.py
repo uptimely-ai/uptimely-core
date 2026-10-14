@@ -6,8 +6,8 @@ import typing
 import polars as pl
 import pydantic
 import pytest
-from examples.example_2.functions import functions
-from examples.example_2.spec import spec as spec_module
+from examples.simple_analytics.functions import functions
+from examples.simple_analytics.spec import spec as spec_module
 
 from uptimely import compile, engine, spec
 from uptimely.docs import docs

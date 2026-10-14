@@ -3,8 +3,8 @@ from collections import abc
 
 import polars as pl
 import pytest
-from examples.example_1.functions import calculation
-from examples.example_2.functions import functions
+from examples.pump_analytics.functions import calculation
+from examples.simple_analytics.functions import functions
 
 
 @pytest.mark.parametrize("dimensions", [[], ["plant", "pump"]])

@@ -1,4 +1,4 @@
-from examples.example_1.common import GENERATED_DIR, load_specification
+from examples.pump_analytics.common import GENERATED_DIR, load_specification
 
 from uptimely.docs.docs import Documentation
 

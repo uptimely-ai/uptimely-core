@@ -8,7 +8,7 @@ from uptimely.compile import entrypoint as compile_entrypoint
 SPEC_PATH = (
     pathlib.Path(__file__).parents[3]
     / "examples"
-    / "example_1"
+    / "pump_analytics"
     / "_generated"
     / "spec"
     / "spec.json"

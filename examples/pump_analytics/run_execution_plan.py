@@ -1,6 +1,6 @@
 """Compile a specification and export its execution plan as JSON."""
 
-from examples.example_1.common import (
+from examples.pump_analytics.common import (
     GENERATED_DIR,
     SPEC_PATH,
     load_specification,

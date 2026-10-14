@@ -5,14 +5,14 @@ import pytest
 
 from uptimely import spec
 
-SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand"] = {
         "expand_telemetry": {
-            "entrypoint": "examples.example_1.functions.source:read_pump_telemetry",
+            "entrypoint": "examples.pump_analytics.functions.source:read_pump_telemetry",
             "args": {},
         }
     }

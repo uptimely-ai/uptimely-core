@@ -1,4 +1,4 @@
-from examples.example_1.common import load_specification, verbose_requested
+from examples.pump_analytics.common import load_specification, verbose_requested
 
 from uptimely.analytics.feature_graph import FeatureGraph
 

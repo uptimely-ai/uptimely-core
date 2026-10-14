@@ -60,9 +60,9 @@ is plain JSON-RPC; the model lives in the client host.
 
 ```sh
 uptimely-mcp \
-  --spec examples/example_1/_generated/spec/spec.json \
+  --spec examples/pump_analytics/_generated/spec/spec.json \
   --project-root . \
-  --config examples/example_1/engine.json
+  --config examples/pump_analytics/engine.json
 ```
 
 The arguments:
@@ -102,11 +102,11 @@ workspace and launches the server from its Poetry virtual environment.
       "cwd": "${workspaceFolder}",
       "args": [
         "--spec",
-        "${workspaceFolder}/examples/example_1/_generated/spec/spec.json",
+        "${workspaceFolder}/examples/pump_analytics/_generated/spec/spec.json",
         "--project-root",
         "${workspaceFolder}",
         "--config",
-        "${workspaceFolder}/examples/example_1/engine.json"
+        "${workspaceFolder}/examples/pump_analytics/engine.json"
       ]
     }
   }

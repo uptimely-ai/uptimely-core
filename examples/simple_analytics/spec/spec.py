@@ -86,7 +86,7 @@ dataset_ = dataset.Dataset(
 )
 
 entity_ = entity.Entity(
-    id="example_2",
+    id="simple_analytics",
     name="Example 2",
     dimensions=["id"],
     datasets=[dataset_],

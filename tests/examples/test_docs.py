@@ -2,12 +2,12 @@ import json
 import pathlib
 from html import parser as html_parser
 
-from examples.example_1 import run_export_spec
+from examples.pump_analytics import run_export_spec
 
 from uptimely import spec
 from uptimely.docs import docs
 
-SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def test_specification_runner_exports_only_json(tmp_path: pathlib.Path, monkeypatch) -> None:

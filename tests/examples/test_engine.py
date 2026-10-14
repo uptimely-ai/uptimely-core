@@ -2,14 +2,14 @@ import pathlib
 
 import polars as pl
 import pytest
-from examples.example_1 import run_engine
-from examples.example_1.functions import calculation
-from examples.example_1.spec import spec
+from examples.pump_analytics import run_engine
+from examples.pump_analytics.functions import calculation
+from examples.pump_analytics.spec import spec
 
 from uptimely import compile
 from uptimely import engine as uptimely_engine
 
-SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def test_engine_returns_calculated_features_without_writing_output() -> None:

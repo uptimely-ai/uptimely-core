@@ -10,14 +10,14 @@ from urllib import parse as url_parse
 from urllib import request
 
 import pytest
-from examples.example_1.functions import source
+from examples.pump_analytics.functions import source
 
 from uptimely import analytics, compile, spec
 from uptimely.analytics import render as graph_render
 from uptimely.docs import docs
 from uptimely.spec import render as spec_render
 
-SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 REPORTS = {
     "spec/overview.html": "spec",
     "spec/features.html": "features",

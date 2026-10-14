@@ -5,7 +5,7 @@ import pytest
 
 from uptimely import compile, spec
 
-SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def test_compiler_creates_callable_graph_subset_for_requested_features() -> None:
