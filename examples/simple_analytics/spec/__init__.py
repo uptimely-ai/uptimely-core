@@ -1,1 +1,1 @@
-"""Python declarations for the example 2 specification."""
+"""Python declarations for the simple analytics specification."""

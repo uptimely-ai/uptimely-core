@@ -1,4 +1,4 @@
-"""Dataset declarations for example 2."""
+"""Dataset declarations for simple analytics."""
 
 from uptimely.spec.python_spec import (
     PythonSpecification,
@@ -87,14 +87,14 @@ dataset_ = dataset.Dataset(
 
 entity_ = entity.Entity(
     id="simple_analytics",
-    name="Example 2",
+    name="Simple analytics",
     dimensions=["id"],
     datasets=[dataset_],
-    description="Example 2 entity.",
+    description="Simple analytics entity.",
 )
 
 python_specification = PythonSpecification(
     entities=[entity_],
     dimensions=dimensions,
-    name="Example 2",
+    name="Simple analytics",
 )

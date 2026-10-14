@@ -1,0 +1,189 @@
+"""Command-line tools for building and serving analytics documentation."""
+
+import argparse
+import functools
+import pathlib
+from http import server as http_server
+
+import jinja2
+
+from uptimely.cli import common
+from uptimely.docs import docs as docs_module
+
+GENERATED_SPEC_PATH: pathlib.Path = common.GENERATED_SPEC_PATH
+GENERATED_DOCS_PATH: pathlib.Path = pathlib.Path("_generated/docs")
+
+
+def build_docs(
+    spec: pathlib.Path,
+    output: pathlib.Path,
+    project_root: pathlib.Path,
+    include_generated_at: bool = False,
+) -> pathlib.Path:
+    """Build the static analytics documentation website.
+
+    Args:
+        spec: Path to the JSON specification.
+        output: Directory for the website index and report pages.
+        project_root: Directory added to the import path for function entrypoints.
+        include_generated_at: Include a timestamp on the specification page.
+
+    Returns:
+        The path to the website index.
+    """
+    specification = common.load_specification(spec, project_root)
+    return docs_module.Documentation(specification).create_html(
+        output / "index.html", include_generated_at=include_generated_at
+    )
+
+
+def serve_docs(directory: pathlib.Path, host: str = "127.0.0.1", port: int = 8001) -> None:
+    """Serve an existing documentation website for local preview.
+
+    Args:
+        directory: Website directory containing an index.html file.
+        host: Address to bind; defaults to localhost.
+        port: TCP port; defaults to 8001. Zero selects an available port.
+
+    Raises:
+        NotADirectoryError: The website directory does not exist or is not a directory.
+        FileNotFoundError: The website index is missing.
+        ValueError: The port is outside the valid TCP range.
+        OSError: The server cannot bind to the requested address.
+    """
+    directory = directory.resolve()
+    if not directory.is_dir():
+        raise NotADirectoryError(f"Website directory does not exist: {directory}")
+    if not (directory / "index.html").is_file():
+        raise FileNotFoundError(
+            f"Website index not found: {directory / 'index.html'}. Run 'uptimely docs build' first."
+        )
+    if not 0 <= port <= 65535:
+        raise ValueError("Port must be between 0 and 65535.")
+    handler = functools.partial(http_server.SimpleHTTPRequestHandler, directory=str(directory))
+    with http_server.ThreadingHTTPServer((host, port), handler) as server:
+        print(
+            f"Serving documentation from {directory} at "
+            f"http://{host}:{server.server_port}/ (Ctrl+C to stop)",
+            flush=True,
+        )
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("\nDocumentation server stopped.")
+
+
+def _port(value: str) -> int:
+    """Parse a valid TCP port for the CLI."""
+    try:
+        port = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("Port must be an integer.") from error
+    if not 0 <= port <= 65535:
+        raise argparse.ArgumentTypeError("Port must be between 0 and 65535.")
+    return port
+
+
+def configure_parser(parser: argparse.ArgumentParser) -> None:
+    """Configure the docs command and its build and serve actions."""
+    actions = parser.add_subparsers(dest="action", required=True)
+    build = actions.add_parser(
+        "build", help="Build the specification, feature graph, and execution plan website"
+    )
+    build.add_argument(
+        "--spec",
+        type=pathlib.Path,
+        help=(
+            "JSON specification path (required unless --project-root is set; "
+            "then defaults to _generated/spec/spec.json under that root)"
+        ),
+    )
+    build.add_argument(
+        "--output",
+        type=pathlib.Path,
+        help=(
+            "Website directory (defaults to _generated/docs under --project-root, "
+            "or _generated/docs otherwise)"
+        ),
+    )
+    build.add_argument(
+        "--project-root",
+        type=pathlib.Path,
+        help="Root for importing function entrypoints and resolving default paths",
+    )
+    build.add_argument(
+        "--include-generated-at",
+        action="store_true",
+        help="Include a build timestamp on the specification page",
+    )
+    serve = actions.add_parser(
+        "serve", help="Build and serve the generated website for local preview"
+    )
+    serve.add_argument(
+        "--spec",
+        type=pathlib.Path,
+        help=(
+            "JSON specification path (defaults to _generated/spec/spec.json under "
+            "--project-root, or _generated/spec/spec.json otherwise)"
+        ),
+    )
+    serve.add_argument(
+        "--directory",
+        type=pathlib.Path,
+        help=(
+            "Website directory (defaults to _generated/docs under --project-root, "
+            "or _generated/docs otherwise)"
+        ),
+    )
+    serve.add_argument(
+        "--project-root",
+        type=pathlib.Path,
+        help="Root for importing function entrypoints and resolving default paths",
+    )
+    serve.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
+    serve.add_argument(
+        "--port", type=_port, default=8001, help="TCP port (default: 8001; 0 selects a free port)"
+    )
+
+
+def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """Build or serve documentation using parsed command-line arguments."""
+    project_root = args.project_root or pathlib.Path.cwd()
+    project_path = args.project_root or pathlib.Path()
+    default_spec = project_path / GENERATED_SPEC_PATH
+    default_output = project_path / GENERATED_DOCS_PATH
+    if args.action == "serve":
+        spec = args.spec or default_spec
+        directory = args.directory or default_output
+        try:
+            build_docs(spec, directory, project_root)
+        except (
+            OSError,
+            ValueError,
+            ImportError,
+            AttributeError,
+            TypeError,
+            jinja2.TemplateError,
+        ) as error:
+            parser.exit(1, f"uptimely: error: {error}\n")
+        try:
+            serve_docs(directory, args.host, args.port)
+        except (OSError, ValueError) as error:
+            parser.exit(1, f"uptimely: error: {error}\n")
+        return
+    if args.spec is None and args.project_root is None:
+        parser.error("docs build requires --spec unless --project-root is set")
+    spec = args.spec or default_spec
+    output = args.output or default_output
+    try:
+        index = build_docs(spec, output, project_root, args.include_generated_at)
+    except (
+        OSError,
+        ValueError,
+        ImportError,
+        AttributeError,
+        TypeError,
+        jinja2.TemplateError,
+    ) as error:
+        parser.exit(1, f"uptimely: error: {error}\n")
+    print(f"Documentation website built at {index}")

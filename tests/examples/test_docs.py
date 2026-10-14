@@ -2,7 +2,7 @@ import json
 import pathlib
 from html import parser as html_parser
 
-from examples.pump_analytics import run_export_spec
+from examples.pump_analytics.spec import spec as pump_spec
 
 from uptimely import spec
 from uptimely.docs import docs
@@ -10,10 +10,13 @@ from uptimely.docs import docs
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
-def test_specification_runner_exports_only_json(tmp_path: pathlib.Path, monkeypatch) -> None:
-    monkeypatch.setattr(run_export_spec, "OUTPUT_PATH", tmp_path / "spec.json")
-
-    run_export_spec.main()
+def test_specification_exports_only_json(tmp_path: pathlib.Path) -> None:
+    specification = spec.Specification.from_python(
+        entities=pump_spec.entities,
+        dimensions=pump_spec.dimensions,
+        name="Pump analytics",
+    )
+    specification.to_json(tmp_path / "spec.json")
 
     assert {path.name for path in tmp_path.iterdir()} == {"spec.json"}
     assert spec.Specification.from_json(tmp_path / "spec.json").name == "Pump analytics"

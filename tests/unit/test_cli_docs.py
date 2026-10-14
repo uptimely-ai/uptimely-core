@@ -8,7 +8,7 @@ import sys
 import jinja2
 import pytest
 
-from uptimely.cli import cli
+from uptimely.cli import cli, docs
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
@@ -73,7 +73,7 @@ def test_docs_build_defaults_paths_from_project_root(
 ) -> None:
     calls: list[tuple[pathlib.Path, pathlib.Path, pathlib.Path]] = []
     monkeypatch.setattr(
-        cli,
+        docs,
         "build_docs",
         lambda spec, output, project_root, include_generated_at=False: (
             calls.append((spec, output, project_root)) or output / "index.html"
@@ -134,7 +134,7 @@ def test_docs_build_errors_are_reported(
     def fail(*args: object, **kwargs: object) -> pathlib.Path:
         raise failure
 
-    monkeypatch.setattr(cli, "build_docs", fail)
+    monkeypatch.setattr(docs, "build_docs", fail)
     monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "build", "--spec", "spec.json"])
 
     with pytest.raises(SystemExit) as error:

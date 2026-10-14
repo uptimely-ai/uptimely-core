@@ -75,7 +75,7 @@ def test_spec_from_entities_python_api(tmp_path: pathlib.Path) -> None:
     )
 
     assert specification.entities["simple_analytics"].datasets[0].id == "my_beautiful_dataset"
-    assert specification.name == "Example 2"
+    assert specification.name == "Simple analytics"
     assert specification.source.name == "python_api"
     assert specification.source.generated is True
     assert specification.functions.read

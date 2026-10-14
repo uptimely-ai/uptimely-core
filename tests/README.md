@@ -12,7 +12,9 @@ Keep examples user-focused. Test-only scenarios and invalid inputs belong in fix
 ## Running tests
 
 Run `poetry run pytest` to export the example specifications required by the
-tests and use four parallel worker processes by default.
+tests directly from their Python declarations using the specification API, then
+use four parallel worker processes by default. The shared setup writes exports
+before workers start; it does not depend on example runner scripts.
 Change the worker count with `-n`:
 
 ```sh
