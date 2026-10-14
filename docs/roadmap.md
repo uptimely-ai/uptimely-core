@@ -19,9 +19,7 @@ Currently the package supports only the built-in basic engine in a single proces
 
 Add support for common orchestrator patterns. Most likely requires Python decorator support for compiled functions and defining containers or vectorize environments (eg venv).
 
-## Publish in PyPi
 
-Make the package available in Python package index.
 
 ## Runtime configuration enhancements
 
