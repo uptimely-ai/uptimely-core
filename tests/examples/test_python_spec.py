@@ -1,10 +1,10 @@
 import json
 import pathlib
 
+from examples.pump_analytics.config.spec import spec as pump_telemetry_spec
 from examples.pump_analytics.functions import calculation
-from examples.pump_analytics.spec import spec as pump_telemetry_spec
+from examples.simple_analytics.config.spec import spec as simple_analytics_spec
 from examples.simple_analytics.functions import functions
-from examples.simple_analytics.spec import spec as simple_analytics_spec
 
 from uptimely import spec as uptimely_spec
 from uptimely.spec import python_spec

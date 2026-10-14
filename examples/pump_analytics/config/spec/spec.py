@@ -1,6 +1,6 @@
 """Combined pump analytics Python specification."""
 
-from examples.pump_analytics.spec.datasets import pump, telemetry
+from examples.pump_analytics.config.spec.datasets import pump, telemetry
 
 from uptimely.spec.python_spec import dimension, entity
 

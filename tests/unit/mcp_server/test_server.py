@@ -13,7 +13,7 @@ from uptimely.mcp import server  # noqa: E402
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
 SPEC_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "_generated" / "spec" / "spec.json"
-CONFIG_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "engine.json"
+CONFIG_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "config" / "engine.json"
 
 pytestmark = pytest.mark.skipif(not SPEC_PATH.exists(), reason="example spec is not generated")
 

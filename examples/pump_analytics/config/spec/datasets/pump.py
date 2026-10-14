@@ -2,7 +2,7 @@
 
 from uptimely.spec.python_spec import bind, dataset, feature, mapping, ref
 
-from ...functions import calculation
+from ....functions import calculation
 
 pump_features = [
     feature.Feature(id="plant", type="string", description="Manufacturing plant identifier"),

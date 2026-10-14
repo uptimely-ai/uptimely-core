@@ -25,18 +25,24 @@ Open <http://localhost:8001/> to view it. Stop the server with **Ctrl+C**.
 examples/
 ├── README.md
 ├── pump_analytics/
+│   ├── config/
+│   │   ├── engine.json       Engine settings and runtime bindings
+│   │   └── spec/             Python specification declarations
 │   ├── data/                 Input and calculated example datasets
 │   ├── functions/            Read, vectorize, and write function implementations
-│   ├── _generated/           Plans, graphs, documentation, and engine output
-│   ├── spec/                 Python specification declarations
-│   ├── _generated/spec/     Exported declarative analytics specification
+│   ├── _generated/
+│   │   ├── compile/          Compiled plans
+│   │   ├── docs/             Generated documentation
+│   │   └── spec/             Exported declarative analytics specification
 │   └── run_*.py              Example workflow entry points
 └── simple_analytics/
-	├── data/                 Data used by the Python example
-	├── functions/            Example function implementations
-	├── _generated/spec/      Exported specification output
-	├── spec/                 Python specification declarations
-	└── run_export_spec.py    Specification export entry point
+    ├── config/
+    │   └── spec/             Python specification declarations
+    ├── data/                 Data used by the Python example
+    ├── functions/            Example function implementations
+    ├── _generated/
+    │   └── spec/             Exported specification output
+    └── run_export_spec.py    Specification export entry point
 ```
 
 ## Quick start

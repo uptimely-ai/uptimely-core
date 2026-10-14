@@ -62,7 +62,7 @@ is plain JSON-RPC; the model lives in the client host.
 uptimely-mcp \
   --spec examples/pump_analytics/_generated/spec/spec.json \
   --project-root . \
-  --config examples/pump_analytics/engine.json
+  --config examples/pump_analytics/config/engine.json
 ```
 
 The arguments:
@@ -106,7 +106,7 @@ workspace and launches the server from its Poetry virtual environment.
         "--project-root",
         "${workspaceFolder}",
         "--config",
-        "${workspaceFolder}/examples/pump_analytics/engine.json"
+        "${workspaceFolder}/examples/pump_analytics/config/engine.json"
       ]
     }
   }

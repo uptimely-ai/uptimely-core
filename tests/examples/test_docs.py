@@ -2,7 +2,7 @@ import json
 import pathlib
 from html import parser as html_parser
 
-from examples.pump_analytics.spec import spec as pump_spec
+from examples.pump_analytics.config.spec import spec as pump_spec
 
 from uptimely import spec
 from uptimely.docs import docs

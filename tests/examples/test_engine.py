@@ -3,8 +3,8 @@ import sys
 
 import polars as pl
 import pytest
+from examples.pump_analytics.config.spec import spec
 from examples.pump_analytics.functions import calculation
-from examples.pump_analytics.spec import spec
 
 from uptimely import compile
 from uptimely import engine as uptimely_engine
