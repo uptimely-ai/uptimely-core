@@ -1,4 +1,4 @@
-"""Export example 1's Python specification as JSON."""
+"""Export the pump analytics Python specification as JSON."""
 
 from pathlib import Path
 

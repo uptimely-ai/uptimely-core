@@ -4,10 +4,10 @@ The examples demonstrate how Uptimely Core describes industrial analytics as a d
 
 ## View the example documentation
 
-From a repository checkout, build and serve the generated documentation website from example 1 with:
+From the project root, build and serve the pump analytics documentation with:
 
 ```sh
-./scripts/serve-example-docs.sh
+uptimely docs serve --project-root examples/pump_analytics
 ```
 
 Open <http://localhost:8001/> to view it. Stop the server with **Ctrl+C**.

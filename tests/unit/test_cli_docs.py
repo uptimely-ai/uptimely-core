@@ -68,6 +68,34 @@ def test_docs_build_custom_output_and_timestamp(
     assert "generated 20" in (output / "spec/overview.html").read_text(encoding="utf-8")
 
 
+def test_docs_build_defaults_paths_from_project_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    calls: list[tuple[pathlib.Path, pathlib.Path, pathlib.Path]] = []
+    monkeypatch.setattr(
+        cli,
+        "build_docs",
+        lambda spec, output, project_root, include_generated_at=False: (
+            calls.append((spec, output, project_root)) or output / "index.html"
+        ),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["uptimely", "docs", "build", "--project-root", str(tmp_path)],
+    )
+
+    cli.main()
+
+    assert calls == [
+        (
+            tmp_path / "_generated/spec/spec.json",
+            tmp_path / "_generated/docs",
+            tmp_path,
+        )
+    ]
+
+
 @pytest.mark.parametrize(
     "arguments",
     [
@@ -157,11 +185,13 @@ def test_docs_build_imports_project_functions_in_fresh_process(
 ) -> None:
     project = tmp_path / "project"
     project.mkdir()
+    generated = project / "_generated"
+    (generated / "spec").mkdir(parents=True)
     (project / "analytics_functions.py").write_text(
         "def read_values() -> object:\n    raise RuntimeError('Must not execute analytics')\n",
         encoding="utf-8",
     )
-    specification = project / "spec.json"
+    specification = generated / "spec/spec.json" if explicit_project_root else project / "spec.json"
     specification.write_text(
         json.dumps(
             {
@@ -190,20 +220,18 @@ def test_docs_build_imports_project_functions_in_fresh_process(
         ),
         encoding="utf-8",
     )
-    output = tmp_path / "website"
+    output = generated / "docs" if explicit_project_root else tmp_path / "website"
     arguments = [
         sys.executable,
         "-m",
         "uptimely.cli.cli",
         "docs",
         "build",
-        "--spec",
-        str(specification),
-        "--output",
-        str(output),
     ]
     if explicit_project_root:
         arguments.extend(["--project-root", str(project)])
+    else:
+        arguments.extend(["--spec", str(specification), "--output", str(output)])
 
     result = subprocess.run(
         arguments,

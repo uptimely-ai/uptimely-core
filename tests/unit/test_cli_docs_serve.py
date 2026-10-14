@@ -103,6 +103,42 @@ def test_serve_builds_custom_spec_before_starting_server(
     ]
 
 
+def test_serve_defaults_paths_from_project_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        cli,
+        "build_docs",
+        lambda spec, directory, project_root: (
+            calls.append(("build", spec, directory, project_root)) or directory / "index.html"
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "serve_docs",
+        lambda directory, host, port: calls.append(("serve", directory, host, port)),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["uptimely", "docs", "serve", "--project-root", str(tmp_path)],
+    )
+
+    cli.main()
+
+    directory = tmp_path / "_generated/docs"
+    assert calls == [
+        (
+            "build",
+            tmp_path / "_generated/spec/spec.json",
+            directory,
+            tmp_path,
+        ),
+        ("serve", directory, "127.0.0.1", 8001),
+    ]
+
+
 def test_serve_builds_html_before_starting_server(
     monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
 ) -> None:

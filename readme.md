@@ -31,6 +31,7 @@ With pip:
 ```sh
 pip install uptimely-core
 uptimely examples download
+uptimely docs serve --project-root examples/pump_analytics
 python examples/run_all.py
 ```
 
@@ -39,6 +40,7 @@ With poetry:
 ```sh
 pip install uptimely-core
 poetry run uptimely examples download
+poetry run uptimely docs serve --project-root examples/pump_analytics
 poetry run python examples/run_all.py
 ```
 

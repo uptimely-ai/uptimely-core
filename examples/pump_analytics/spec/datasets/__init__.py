@@ -1,1 +1,1 @@
-"""Dataset declarations for the example 1 specification."""
+"""Dataset declarations for the pump analytics specification."""
