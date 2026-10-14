@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- `uptimely spec export` exports a module's `PythonSpecification` to JSON,
+  replacing the removed example export runners in documentation CI and MCP setup.
 - CLI commands for compiling execution plans (`uptimely plan build`), inspecting
   feature dependencies (`uptimely spec feature_graph`), and running workflows
   (`uptimely engine run`). Engine execution compiles by default; use

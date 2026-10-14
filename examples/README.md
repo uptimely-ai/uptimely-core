@@ -4,9 +4,13 @@ The examples demonstrate how Uptimely Core describes industrial analytics as a d
 
 ## View the example documentation
 
-From the project root, build and serve the pump analytics documentation with:
+From the project root, export the specification, then build and serve the pump
+analytics documentation with:
 
 ```sh
+uptimely spec export \
+  --module examples.pump_analytics.config.spec.spec \
+  --output examples/pump_analytics/_generated/spec/spec.json
 uptimely docs serve --project-root examples/pump_analytics
 ```
 
@@ -16,7 +20,7 @@ Open <http://localhost:8001/> to view it. Stop the server with **Ctrl+C**.
 
 | Directory | What it demonstrates |
 | --- | --- |
-| [`pump_analytics/`](pump_analytics/) | An end-to-end pump analytics project defined by a JSON specification. |
+| [`pump_analytics/`](pump_analytics/) | An end-to-end pump analytics project authored in Python and exported to JSON. |
 | [`simple_analytics/`](simple_analytics/) | A small specification assembled in Python, converted through the canonical model, and exported to JSON. |
 
 ## Folder structure
@@ -30,19 +34,17 @@ examples/
 │   │   └── spec/             Python specification declarations
 │   ├── data/                 Input and calculated example datasets
 │   ├── functions/            Read, vectorize, and write function implementations
-│   ├── _generated/
-│   │   ├── compile/          Compiled plans
-│   │   ├── docs/             Generated documentation
-│   │   └── spec/             Exported declarative analytics specification
-│   └── run_*.py              Example workflow entry points
+│   └── _generated/
+│       ├── compile/          Compiled plans
+│       ├── docs/             Generated documentation
+│       └── spec/             Exported declarative analytics specification
 └── simple_analytics/
     ├── config/
     │   └── spec/             Python specification declarations
     ├── data/                 Data used by the Python example
     ├── functions/            Example function implementations
-    ├── _generated/
-    │   └── spec/             Exported specification output
-    └── run_export_spec.py    Specification export entry point
+    └── _generated/
+        └── spec/             Exported specification output
 ```
 
 ## Quick start
@@ -52,6 +54,7 @@ With Python 3.13 or newer, install the package and download the examples:
 ```sh
 pip install uptimely-core
 uptimely examples download
+uptimely spec export --module examples.pump_analytics.config.spec.spec --output examples/pump_analytics/_generated/spec/spec.json
 uptimely spec feature-graph --project-root examples/pump_analytics --verbose
 uptimely plan build --project-root examples/pump_analytics
 uptimely engine run --project-root examples/pump_analytics
@@ -65,5 +68,27 @@ branch), or `--output` to change the destination. The destination must not
 already exist.
 
 Generated artifacts are written beneath each example's `_generated/` directory.
+
+## Export Python specifications
+
+The workflow commands consume JSON, so export the Python declarations before
+building plans or documentation. Re-export after changing the declarations.
+From the repository root (or the parent of downloaded examples), run:
+
+```sh
+uptimely spec export \
+  --module examples.pump_analytics.config.spec.spec \
+  --output examples/pump_analytics/_generated/spec/spec.json
+uptimely spec export \
+  --module examples.simple_analytics.config.spec.spec \
+  --output examples/simple_analytics/_generated/spec/spec.json
+```
+
+Prefix commands with `poetry run` in a Poetry environment.
+Each declaration module exposes a `python_specification` instance of
+`uptimely.spec.python_spec.PythonSpecification`. The module is imported using
+the current working directory unless `--project-root` supplies an import root.
+Without `--output`, JSON is written to `_generated/spec/spec.json` beneath
+that root. An explicit output path is relative to the current working directory.
 
 See each example's README for details.

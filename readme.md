@@ -31,6 +31,7 @@ With pip:
 ```sh
 pip install uptimely-core
 uptimely examples download
+uptimely spec export --module examples.pump_analytics.config.spec.spec --output examples/pump_analytics/_generated/spec/spec.json
 uptimely spec feature-graph --project-root examples/pump_analytics
 uptimely plan build --project-root examples/pump_analytics
 uptimely engine run --project-root examples/pump_analytics
@@ -42,6 +43,7 @@ With Poetry, from your Poetry project:
 ```sh
 poetry add uptimely-core
 poetry run uptimely examples download
+poetry run uptimely spec export --module examples.pump_analytics.config.spec.spec --output examples/pump_analytics/_generated/spec/spec.json
 poetry run uptimely spec feature-graph --project-root examples/pump_analytics
 poetry run uptimely plan build --project-root examples/pump_analytics
 poetry run uptimely engine run --project-root examples/pump_analytics

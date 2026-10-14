@@ -2,6 +2,7 @@
 
 from examples.pump_analytics.config.spec.datasets import pump, telemetry
 
+from uptimely.spec import python_spec
 from uptimely.spec.python_spec import dimension, entity
 
 dimensions = [
@@ -53,3 +54,9 @@ entities = [
         datasets=[pump.pump_dataset],
     ),
 ]
+
+python_specification = python_spec.PythonSpecification(
+    entities=entities,
+    dimensions=dimensions,
+    name="Pump analytics",
+)
