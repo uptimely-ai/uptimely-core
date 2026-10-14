@@ -198,18 +198,21 @@ Timestamps are disabled by default for reproducible exports. Pass
 uptimely docs serve
 ```
 
-This serves an existing `_generated/docs/` website at
+This builds the website from `_generated/spec/spec.json` into
+`_generated/docs/`, then serves it at
 <http://127.0.0.1:8001/>. Port **8001** is separate from the project documentation's
 MkDocs preview on port **8000**.
 
 | Option | Behavior |
 | --- | --- |
-| `--directory` | Website directory; defaults to `_generated/docs`. Must contain `index.html`. |
+| `--spec` | JSON specification path; defaults to `_generated/spec/spec.json`. |
+| `--directory` | Website output directory; defaults to `_generated/docs`. |
+| `--project-root` | Directory added to Python's import path; defaults to the working directory. |
 | `--host` | Bind address; defaults to `127.0.0.1`, restricting access to the local machine. |
 | `--port` | TCP port; defaults to `8001`. Use `0` to select an available port. |
 
-The server prints its address at startup. Stop it with **Ctrl+C**. It serves
-existing files; it does not generate, watch, or rebuild the website.
+The server prints its address at startup. Stop it with **Ctrl+C**. It builds
+once when started; it does not watch or rebuild the website as files change.
 
 To build and preview the end-to-end example from a repository checkout:
 
