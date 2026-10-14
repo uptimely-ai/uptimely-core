@@ -62,10 +62,6 @@ Add section to spec to define something like this:
 }
 ```
 
-## Add 2D lineage
-
-Add traditional 2-dimensional column level lineage for features.
-
 ## Extend the MCP support
 
 Add MCP support for each atomic analytical functions.
