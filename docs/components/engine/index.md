@@ -31,6 +31,13 @@ claim as `required_backend`; version 0.1 rejects values other than `polars`.
 Orchestration is a deployment concern and is not represented in the
 specification.
 
+## Dataframe backend
+
+The built-in Python engine currently uses columnar DataFrames and supports
+Polars `DataFrame` and `LazyFrame` values. Alternative data representations and
+processing models, such as Arrow, Beam, and tensor formats, may be explored in
+the future; they are not supported by the built-in engine today.
+
 ## Executing a compiled plan
 
 The current Python engine is initialized from a compiled portable plan. A
