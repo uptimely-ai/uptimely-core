@@ -15,7 +15,9 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     examples.configure_parser(commands.add_parser("examples", help="Manage example projects"))
     docs.configure_parser(commands.add_parser("docs", help="Manage analytics documentation"))
-    spec.configure_parser(commands.add_parser("spec", help="Inspect analytics specifications"))
+    spec.configure_parser(
+        commands.add_parser("spec", help="Export and inspect analytics specifications")
+    )
     plan.configure_parser(commands.add_parser("plan", help="Build execution plans"))
     engine.configure_parser(commands.add_parser("engine", help="Run analytics workflows"))
     args = parser.parse_args()

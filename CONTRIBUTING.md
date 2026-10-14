@@ -34,6 +34,10 @@ Start the documentation preview from the repository root:
 poetry run mkdocs serve --dev-addr 0.0.0.0:8000
 ```
 
+To include the pump analytics demo, first run the specification export and
+documentation build commands from
+[the documentation workflow](.github/workflows/docs.yml).
+
 Open <http://localhost:8000> using the forwarded port. MkDocs rebuilds the site
 when documentation or Python source files change. Stop the server with `Ctrl+C`.
 

@@ -18,19 +18,20 @@ project/
 │   ├── engine.json
 │   └── spec/
 │       └── spec.py
-├── _generated/
-│   ├── spec/
-│   └── compile/
-├── run_export_spec.py
-├── run_compiler.py
-└── run_engine.py
+└── _generated/
+    ├── spec/
+    └── compile/
 ```
 
 Python declarations in `config/spec/` are exported to `_generated/spec/spec.json`.
 The compiler produces `_generated/compile/execution_plan.json`, and the engine
 executes the plan.
-Functions describe the read, transformation, and write logic; the runners
-coordinate export, compilation, and execution.
+Functions describe the read, transformation, and write logic; CLI commands
+coordinate export, compilation, and execution. Export a module exposing a
+`python_specification` with `uptimely spec export --module <module>`, then use
+`uptimely plan build` and `uptimely engine run`. See the
+[examples guide](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/README.md)
+for runnable commands.
 
 Source datasets and other generated artifacts are described in the
 [project structure guide](project-structure.md). See the
