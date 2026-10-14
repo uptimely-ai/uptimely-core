@@ -3,7 +3,6 @@ site_description: Declarative analytics for industrial use cases
 site_url: https://uptimely-ai.github.io/uptimely-core/
 repo_url: https://github.com/uptimely-ai/uptimely-core
 edit_uri: edit/main/docs/
-strict: true
 watch: [src/uptimely]
 
 theme:

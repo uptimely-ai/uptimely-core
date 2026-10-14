@@ -115,11 +115,9 @@ workspace and launches the server from its Poetry virtual environment.
 
 To use it:
 
-1. In the Dev Container, `post-create.sh` installs the MCP extra and exports
-   the example specification. Outside the Dev Container, run
-   `poetry config virtualenvs.in-project true --local`,
-   `poetry install --extras "mcp"`, and
-   `poetry run python -m examples.example_1.run_export_spec`.
+1. In the Dev Container, `post-create.sh` installs the MCP extra. Outside the
+   Dev Container, run `./scripts/install-mcp.sh` from the repository root to
+   install MCP and export the example specification.
 2. Reopen the folder in the Dev Container if needed, then open Copilot Chat in
    **Agent mode** — tools are not available in Ask mode.
 3. Check the tools icon to confirm the `uptimely` tools are listed, then ask
@@ -150,11 +148,11 @@ Use **MCP: List Servers** in the Command Palette and the **MCP** channel in the
 Output panel to inspect status and raw JSON-RPC traffic when troubleshooting.
 
 If startup reports "No such file or directory", check that
-`.venv/bin/uptimely-mcp` exists in the container workspace. Run
-`poetry install --extras "mcp"` in the container if it is missing. The
+`.venv/bin/uptimely-mcp` exists in the container workspace. Run the
+`./scripts/install-mcp.sh` script in the container if it is missing. The
 Dockerfile already installs Poetry, and `post-create.sh` prepares the virtual
-environment; installing Poetry on the local host does not repair the
-container environment.
+environment; installing Poetry on the local host does not repair the container
+environment.
 
 This is VS Code's native configuration (`servers`, with workspace-variable
 substitution). Clients that require a root `.mcp.json` with `mcpServers`, such

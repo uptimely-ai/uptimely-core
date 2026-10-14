@@ -1,7 +1,7 @@
 {
     "name": "Uptimely Core",
     "dockerFile": "Dockerfile",
-    "postCreateCommand": "bash .devcontainer/post-create.sh",
+    "postCreateCommand": "bash .devcontainer/scripts/post-create.sh",
     "forwardPorts": [8000],
     "portsAttributes": {
         "8000": {
