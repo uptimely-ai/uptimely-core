@@ -22,6 +22,8 @@ jobs:
           cache: poetry
           cache-dependency-path: poetry.lock
       - run: poetry install --without dev,test --with docs
+      - name: Export Example 1 specification
+        run: poetry run python -m examples.example_1.run_export_spec
       - name: Build Example 1 analytics docs
         run: |
           poetry run uptimely docs build \
