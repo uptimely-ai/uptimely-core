@@ -27,6 +27,6 @@ repos:
         entry: poetry run pytest
         args: [-n, "4"]
         language: system
-        stages: [pre-push]
+        stages: [pre-commit]
+        types: [python]
         pass_filenames: false
-        always_run: true
