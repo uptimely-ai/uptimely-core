@@ -8,3 +8,16 @@ Tests are organized by the scope of the behavior they verify:
 - `fixtures/` contains reusable specifications and portable execution plans. Add lengthy JSON setup here rather than embedding it in individual test modules.
 
 Keep examples user-focused. Test-only scenarios and invalid inputs belong in fixtures or directly in focused unit tests.
+
+## Running tests
+
+Run `poetry run pytest` to use four parallel worker processes by default.
+Change the worker count with `-n`:
+
+```sh
+poetry run pytest -n 2     # Use two workers.
+poetry run pytest -n auto  # Choose workers based on CPU cores.
+poetry run pytest -n 0     # Run serially.
+```
+
+The pre-commit pytest hook runs at the pre-push stage with four workers.

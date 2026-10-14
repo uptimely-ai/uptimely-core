@@ -25,6 +25,7 @@ repos:
       - id: pytest
         name: pytest
         entry: poetry run pytest
+        args: [-n, "4"]
         language: system
         stages: [pre-push]
         pass_filenames: false
