@@ -42,10 +42,12 @@ Python spec -> Parse Python spec -> JSON specification -> Compile JSON spec -> E
 The Python spec is optional. It is a developer-friendly definition that may be
 written in Python and then converted into the authoritative JSON specification.
 
-**The JSON specification is the definitive contract**. The compiler turns that
-contract into a portable execution plan. The plan defines what runs, in what
-order, and under which declared execution context. The engine reads the plan and
-executes it against live runtime state.
+**The JSON specification is the definitive declarative contract**: it describes
+the data and calculations the analytical system needs without prescribing every
+operational step for producing them. The compiler turns that contract into a
+portable execution plan. The plan defines what runs, in what order, and under
+which declared execution context. The engine reads the plan and executes it
+against live runtime state.
 
 ## Python Spec
 
