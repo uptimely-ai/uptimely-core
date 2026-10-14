@@ -183,7 +183,7 @@ project environment. For example:
 ```json
 "vectorize": {
   "sum_features": {
-    "entrypoint": "examples.example_2.functions.functions:sum_features",
+    "entrypoint": "examples.simple_analytics.functions.functions:sum_features",
     "args": {
       "dataset": {"type": "dataframe"},
       "left_feature": {"type": "string"},
@@ -565,12 +565,12 @@ returned dataframes but is not duplicated in the feature registry or outputs.
   "functions": {
     "read": {
       "read_data": {
-        "entrypoint": "examples.example_2.functions.functions:read_data"
+        "entrypoint": "examples.simple_analytics.functions.functions:read_data"
       }
     },
     "vectorize": {
       "sum_features": {
-        "entrypoint": "examples.example_2.functions.functions:sum_features",
+        "entrypoint": "examples.simple_analytics.functions.functions:sum_features",
         "args": {
           "dataset": {"type": "dataframe"},
           "left_feature": {"type": "string"},

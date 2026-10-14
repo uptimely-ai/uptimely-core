@@ -8,7 +8,7 @@ import pytest
 from uptimely import compile, engine, spec
 from uptimely.docs import docs
 
-SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 REFERENCE_PATH = pathlib.Path("docs/specification/specification.md")
 
 
@@ -128,8 +128,8 @@ def test_generate_html_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
     assert "discharge_pressure" in document
     assert "maximum" in document
     assert "normalize_health_signal" in document
-    assert "examples.example_1.functions.calculation:maximum" in document
-    assert "examples/example_1/functions/calculation.py" in document
+    assert "examples.pump_analytics.functions.calculation:maximum" in document
+    assert "examples/pump_analytics/functions/calculation.py" in document
     assert "file:///" in document
     assert "-&gt; LazyFrame" in document
     assert "-&gt; LazyFrame" in document

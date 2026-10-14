@@ -16,22 +16,22 @@ Open <http://localhost:8001/> to view it. Stop the server with **Ctrl+C**.
 
 | Directory | What it demonstrates |
 | --- | --- |
-| [`example_1/`](example_1/) | An end-to-end pump analytics project defined by a JSON specification. |
-| [`example_2/`](example_2/) | A small specification assembled in Python, converted through the canonical model, and exported to JSON. |
+| [`pump_analytics/`](pump_analytics/) | An end-to-end pump analytics project defined by a JSON specification. |
+| [`simple_analytics/`](simple_analytics/) | A small specification assembled in Python, converted through the canonical model, and exported to JSON. |
 
 ## Folder structure
 
 ```text
 examples/
 ├── README.md
-├── example_1/
+├── pump_analytics/
 │   ├── data/                 Input and calculated example datasets
 │   ├── functions/            Read, vectorize, and write function implementations
 │   ├── _generated/           Plans, graphs, documentation, and engine output
 │   ├── spec/                 Python specification declarations
 │   ├── _generated/spec/     Exported declarative analytics specification
 │   └── run_*.py              Example workflow entry points
-└── example_2/
+└── simple_analytics/
 	├── data/                 Data used by the Python example
 	├── functions/            Example function implementations
 	├── _generated/spec/      Exported specification output

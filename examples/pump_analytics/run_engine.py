@@ -1,7 +1,7 @@
 """Execute the selected analytics flow from example 1."""
 
-from examples.example_1.common import SPEC_PATH, load_specification, verbose_requested
-from examples.example_1.spec.spec import storage_resources
+from examples.pump_analytics.common import SPEC_PATH, load_specification, verbose_requested
+from examples.pump_analytics.spec.spec import storage_resources
 
 from uptimely.compile import Compiler
 from uptimely.engine import Engine

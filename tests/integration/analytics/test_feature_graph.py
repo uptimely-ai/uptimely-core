@@ -1,13 +1,13 @@
 import pathlib
 
 import pytest
-from examples.example_1 import run_feature_graph
+from examples.pump_analytics import run_feature_graph
 
 from uptimely import analytics, spec
 from uptimely.analytics import models
 from uptimely.docs import docs
 
-SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 @pytest.mark.parametrize("verbose", [False, True])

@@ -11,7 +11,7 @@ import pytest
 from uptimely.cli import cli
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-SPEC_PATH = REPOSITORY_ROOT / "examples/example_1/_generated/spec/spec.json"
+SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
 PAGES = {
     "index.html",
     "spec/overview.html",

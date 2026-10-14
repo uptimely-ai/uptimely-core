@@ -22,13 +22,13 @@ jobs:
           cache: poetry
           cache-dependency-path: poetry.lock
       - run: poetry install --without dev,test --with docs
-      - name: Export Example 1 specification
-        run: poetry run python -m examples.example_1.run_export_spec
-      - name: Build Example 1 analytics docs
+      - name: Export pump analytics specification
+        run: poetry run python -m examples.pump_analytics.run_export_spec
+      - name: Build pump analytics docs
         run: |
           poetry run uptimely docs build \
-            --spec examples/example_1/_generated/spec/spec.json \
-            --output docs/examples/example_1
+            --spec examples/pump_analytics/_generated/spec/spec.json \
+            --output docs/examples/pump_analytics
       - run: poetry run mkdocs build
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

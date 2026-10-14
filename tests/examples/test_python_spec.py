@@ -1,16 +1,16 @@
 import json
 import pathlib
 
-from examples.example_1.functions import calculation
-from examples.example_1.spec import spec as example_1_spec
-from examples.example_2.functions import functions
-from examples.example_2.spec import spec as example_2_spec
+from examples.pump_analytics.functions import calculation
+from examples.pump_analytics.spec import spec as pump_telemetry_spec
+from examples.simple_analytics.functions import functions
+from examples.simple_analytics.spec import spec as simple_analytics_spec
 
 from uptimely import spec as uptimely_spec
 from uptimely.spec import python_spec
 from uptimely.spec.python_spec import bind
 
-SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def test_argument_definition_supports_recursive_compact_types() -> None:
@@ -69,12 +69,12 @@ def test_example_manifest_parses_complete_specification() -> None:
 
 def test_spec_from_entities_python_api(tmp_path: pathlib.Path) -> None:
     specification = uptimely_spec.Specification.from_python(
-        entities=example_2_spec.python_specification.entities,
-        dimensions=example_2_spec.python_specification.dimensions,
-        name=example_2_spec.python_specification.name,
+        entities=simple_analytics_spec.python_specification.entities,
+        dimensions=simple_analytics_spec.python_specification.dimensions,
+        name=simple_analytics_spec.python_specification.name,
     )
 
-    assert specification.entities["example_2"].datasets[0].id == "my_beautiful_dataset"
+    assert specification.entities["simple_analytics"].datasets[0].id == "my_beautiful_dataset"
     assert specification.name == "Example 2"
     assert specification.source.name == "python_api"
     assert specification.source.generated is True
@@ -83,7 +83,7 @@ def test_spec_from_entities_python_api(tmp_path: pathlib.Path) -> None:
 
 def test_example_timestamp_order_matches_python_declaration() -> None:
     authored = uptimely_spec.Specification.from_python(
-        entities=example_1_spec.entities, dimensions=example_1_spec.dimensions
+        entities=pump_telemetry_spec.entities, dimensions=pump_telemetry_spec.dimensions
     )
     exported = uptimely_spec.Specification.from_json(SPEC_PATH)
     expected = [{"dimension": "$dimensions.timestamp", "direction": "asc"}]
@@ -96,18 +96,18 @@ def test_example_timestamp_order_matches_python_declaration() -> None:
 
 def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None:
     specification = uptimely_spec.Specification.from_python(
-        datasets=[example_2_spec.dataset_],
-        functions=example_2_spec.dataset_.function_catalog(),
-        name="example_2",
-        dimensions=example_2_spec.dimensions,
+        datasets=[simple_analytics_spec.dataset_],
+        functions=simple_analytics_spec.dataset_.function_catalog(),
+        name="simple_analytics",
+        dimensions=simple_analytics_spec.dimensions,
     )
     output_path = tmp_path / "spec.json"
     specification.to_json(output_path)
 
     payload = json.loads(output_path.read_text(encoding="utf-8"))
-    dataset_payload = payload["entities"]["example_2"]["datasets"][0]
+    dataset_payload = payload["entities"]["simple_analytics"]["datasets"][0]
     assert {key: payload[key] for key in ("name", "version", "source")} == {
-        "name": "example_2",
+        "name": "simple_analytics",
         "version": "0.1.0",
         "source": {"name": "python_api", "generated": True},
     }

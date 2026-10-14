@@ -12,15 +12,15 @@ import fastmcp as fastmcp_  # noqa: E402
 from uptimely.mcp import server  # noqa: E402
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
-SPEC_PATH = REPOSITORY_ROOT / "examples" / "example_1" / "_generated" / "spec" / "spec.json"
-CONFIG_PATH = REPOSITORY_ROOT / "examples" / "example_1" / "engine.json"
+SPEC_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "_generated" / "spec" / "spec.json"
+CONFIG_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "engine.json"
 
 pytestmark = pytest.mark.skipif(not SPEC_PATH.exists(), reason="example spec is not generated")
 
 
 @pytest.fixture()
 def state() -> server.ServerState:
-    """Provide server state bound to the example 1 specification."""
+    """Provide server state bound to the pump analytics specification."""
     engine_config, bind = server._load_engine_config(CONFIG_PATH)
     return server.ServerState(
         spec_path=SPEC_PATH,

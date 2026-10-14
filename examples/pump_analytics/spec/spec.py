@@ -1,6 +1,6 @@
 """Combined Python specification for example 1."""
 
-from examples.example_1.spec.datasets import pump, telemetry
+from examples.pump_analytics.spec.datasets import pump, telemetry
 
 from uptimely.spec.python_spec import dimension, entity
 
@@ -28,9 +28,11 @@ dimensions = [
 # Runtime resource values for `?storage.<id>.<attribute>` references,
 # supplied to the engine, not the spec.
 storage_resources = {
-    "pump_reference_source": {"path": "examples/example_1/data/pump_reference.json"},
-    "telemetry_source": {"path": "examples/example_1/data/pump_telemetry.json"},
-    "telemetry_archive_source": {"path": "examples/example_1/data/pump_telemetry_archive.json"},
+    "pump_reference_source": {"path": "examples/pump_analytics/data/pump_reference.json"},
+    "telemetry_source": {"path": "examples/pump_analytics/data/pump_telemetry.json"},
+    "telemetry_archive_source": {
+        "path": "examples/pump_analytics/data/pump_telemetry_archive.json"
+    },
 }
 
 entities = [

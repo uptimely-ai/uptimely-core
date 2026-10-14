@@ -42,7 +42,7 @@ Thumbs.db
 
 *.html
 _generated/*.html
-examples/example_1/_generated/output/
+examples/pump_analytics/_generated/output/
 *Identifier
 
 # Local documentation preview

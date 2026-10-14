@@ -1,5 +1,5 @@
 import polars as pl
-from examples.example_2.data.data import DATA
+from examples.simple_analytics.data.data import DATA
 
 
 def read_data() -> pl.DataFrame:

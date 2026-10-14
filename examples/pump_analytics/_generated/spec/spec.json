@@ -1,0 +1,750 @@
+{
+  "name": "Pump analytics",
+  "version": "0.1.0",
+  "source": {
+    "name": "python_api",
+    "generated": true
+  },
+  "dimensions": {
+    "plant": {
+      "type": "string",
+      "description": "Manufacturing plant identifier",
+      "parent": null
+    },
+    "production_line": {
+      "type": "string",
+      "description": "Production line identifier",
+      "parent": "plant"
+    },
+    "pump": {
+      "type": "string",
+      "description": "Centrifugal pump asset identifier",
+      "parent": "production_line"
+    },
+    "timestamp": {
+      "type": "datetime",
+      "description": "UTC timestamp of pump telemetry at one-minute grain",
+      "parent": null
+    }
+  },
+  "functions": {
+    "read": {
+      "read_pump_telemetry": {
+        "entrypoint": "examples.pump_analytics.functions.source:read_pump_telemetry",
+        "args": {
+          "source": {
+            "type": "string",
+            "comment": null
+          },
+          "environment": {
+            "type": "string",
+            "comment": null
+          }
+        }
+      }
+    },
+    "write": {
+      "write_pump_telemetry": {
+        "entrypoint": "examples.pump_analytics.functions.sink:write_pump_telemetry",
+        "args": {
+          "dataset": {
+            "type": "dataframe",
+            "comment": null
+          },
+          "features": {
+            "type": "array[string]",
+            "comment": null
+          }
+        }
+      }
+    },
+    "vectorize": {
+      "extract_recommendation_value": {
+        "entrypoint": "examples.pump_analytics.functions.calculation:extract_recommendation_value",
+        "args": {
+          "optimization_attribute": {
+            "type": "string",
+            "comment": null
+          },
+          "column": {
+            "type": "string",
+            "comment": null
+          },
+          "dataset": {
+            "type": "dataframe",
+            "comment": null
+          },
+          "output": {
+            "type": "string",
+            "comment": null
+          }
+        },
+        "description": null
+      },
+      "pressure_flow_efficiency": {
+        "entrypoint": "examples.pump_analytics.functions.calculation:pressure_flow_efficiency",
+        "args": {
+          "pressure_features": {
+            "type": "array[string]",
+            "comment": null
+          },
+          "dataset": {
+            "type": "dataframe",
+            "comment": null
+          },
+          "output": {
+            "type": "string",
+            "comment": null
+          }
+        },
+        "description": null
+      },
+      "bearing_temperature_delta": {
+        "entrypoint": "examples.pump_analytics.functions.calculation:bearing_temperature_delta",
+        "args": {
+          "temperature": {
+            "type": "string",
+            "comment": null
+          },
+          "partition_by": {
+            "type": "array[string]",
+            "comment": null
+          },
+          "order_by": {
+            "type": "string",
+            "comment": null
+          },
+          "dataset": {
+            "type": "dataframe",
+            "comment": null
+          },
+          "output": {
+            "type": "string",
+            "comment": null
+          }
+        },
+        "description": null
+      },
+      "vibration_delta_from_previous": {
+        "entrypoint": "examples.pump_analytics.functions.calculation:vibration_delta_from_previous",
+        "args": {
+          "vibration": {
+            "type": "string",
+            "comment": null
+          },
+          "partition_by": {
+            "type": "array[string]",
+            "comment": null
+          },
+          "order_by": {
+            "type": "string",
+            "comment": null
+          },
+          "dataset": {
+            "type": "dataframe",
+            "comment": null
+          },
+          "output": {
+            "type": "string",
+            "comment": null
+          }
+        },
+        "description": null
+      },
+      "pump_health_score": {
+        "entrypoint": "examples.pump_analytics.functions.calculation:pump_health_score",
+        "args": {
+          "health_features": {
+            "type": "array[string]",
+            "comment": null
+          },
+          "dataset": {
+            "type": "dataframe",
+            "comment": null
+          },
+          "output": {
+            "type": "string",
+            "comment": null
+          }
+        },
+        "description": null
+      },
+      "optimize_pump_operating_point": {
+        "entrypoint": "examples.pump_analytics.functions.calculation:optimize_pump_operating_point",
+        "args": {
+          "optimization_features": {
+            "type": "array[string]",
+            "comment": null
+          },
+          "dataset": {
+            "type": "dataframe",
+            "comment": null
+          },
+          "output": {
+            "type": "string",
+            "comment": null
+          }
+        },
+        "description": null
+      },
+      "normalize_health_signal": {
+        "entrypoint": "examples.pump_analytics.functions.calculation:normalize_health_signal",
+        "args": {
+          "scale_feature": {
+            "type": "string",
+            "comment": null
+          },
+          "lower_bound": {
+            "type": "float",
+            "comment": null
+          },
+          "upper_bound": {
+            "type": "float",
+            "comment": null
+          },
+          "scaling_features": {
+            "type": "array[string]",
+            "comment": null
+          },
+          "dataset": {
+            "type": "dataframe",
+            "comment": null
+          },
+          "output": {
+            "type": "string",
+            "comment": null
+          }
+        },
+        "description": null
+      }
+    },
+    "collapse": {
+      "maximum": {
+        "entrypoint": "examples.pump_analytics.functions.calculation:maximum",
+        "args": {
+          "feature": {
+            "type": "string",
+            "comment": null
+          },
+          "dataset": {
+            "type": "dataframe",
+            "comment": null
+          },
+          "dimensions": {
+            "type": "array[string]",
+            "comment": null
+          },
+          "output": {
+            "type": "string",
+            "comment": null
+          }
+        }
+      }
+    }
+  },
+  "entities": {
+    "pump_telemetry": {
+      "name": "Pump telemetry",
+      "description": "A one-minute pump record identified by plant, production line, pump, and timestamp",
+      "dimensions": [
+        "plant",
+        "production_line",
+        "pump",
+        "timestamp"
+      ],
+      "datasets": [
+        {
+          "description": "Pump process and condition readings sampled at one-minute intervals.",
+          "row_scope": {
+            "grain": "One row per pump and timestamp",
+            "filtering": "Development telemetry selected by the read function",
+            "coverage": ""
+          },
+          "features": {
+            "plant": {
+              "description": "Manufacturing plant identifier",
+              "type": "string",
+              "unit": null
+            },
+            "production_line": {
+              "description": "Production line identifier",
+              "type": "string",
+              "unit": null
+            },
+            "pump": {
+              "description": "Centrifugal pump asset identifier",
+              "type": "string",
+              "unit": null
+            },
+            "timestamp": {
+              "description": "UTC telemetry timestamp",
+              "type": "datetime",
+              "unit": null
+            },
+            "discharge_pressure": {
+              "description": "Pump discharge pressure",
+              "type": "float",
+              "unit": "bar"
+            },
+            "flow_rate": {
+              "description": "Pump discharge flow rate",
+              "type": "float",
+              "unit": "m3/h"
+            },
+            "bearing_temperature": {
+              "description": "Drive-end bearing temperature",
+              "type": "float",
+              "unit": "C"
+            },
+            "vibration_rms": {
+              "description": "Overall pump vibration RMS",
+              "type": "float",
+              "unit": "mm/s"
+            },
+            "motor_power": {
+              "description": "Electric motor active power consumption",
+              "type": "float",
+              "unit": "kW"
+            },
+            "recommended_flow_rate": {
+              "description": "Recommended flow rate for efficient operation",
+              "type": "float",
+              "unit": "m3/h"
+            },
+            "recommended_discharge_pressure": {
+              "description": "Recommended discharge pressure for efficient operation",
+              "type": "float",
+              "unit": "bar"
+            },
+            "energy_cost_score": {
+              "description": "Estimated energy-cost score for the recommended operating point",
+              "type": "float",
+              "unit": null
+            },
+            "converged": {
+              "description": "Whether the optimization converged",
+              "type": "boolean",
+              "unit": null
+            },
+            "pressure_flow_efficiency": {
+              "description": "Hydraulic efficiency proxy from pressure, flow, and motor power",
+              "type": "float",
+              "unit": null
+            },
+            "bearing_temperature_delta": {
+              "description": "Bearing-temperature change from the previous pump reading.",
+              "type": "float",
+              "unit": "C"
+            },
+            "vibration_delta": {
+              "description": "Vibration change from the previous pump reading.",
+              "type": "float",
+              "unit": "mm/s"
+            },
+            "pump_health_score": {
+              "description": "Composite pump health score from bearing-temperature trend, vibration trend, and efficiency.",
+              "type": "float",
+              "unit": null
+            },
+            "operating_point_recommendation": {
+              "description": "Recommended pump operating point based on process demand and energy use",
+              "type": "object",
+              "unit": null
+            }
+          },
+          "mappings": {
+            "read_pump_telemetry": {
+              "binding": {
+                "function": "read_pump_telemetry",
+                "args": {
+                  "source": "?storage.telemetry_source.path",
+                  "environment": "development"
+                }
+              },
+              "features": {
+                "inputs": [],
+                "outputs": [
+                  "$features.plant",
+                  "$features.production_line",
+                  "$features.pump",
+                  "$features.timestamp",
+                  "$features.discharge_pressure",
+                  "$features.flow_rate",
+                  "$features.bearing_temperature",
+                  "$features.vibration_rms",
+                  "$features.motor_power"
+                ]
+              },
+              "row_context": null
+            },
+            "recommended_flow_rate": {
+              "binding": {
+                "function": "extract_recommendation_value",
+                "args": {
+                  "optimization_attribute": "recommended_flow_rate",
+                  "column": "$features.operating_point_recommendation",
+                  "dataset": "$datasets.@.dataframe",
+                  "output": "$features.recommended_flow_rate.id"
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.operating_point_recommendation"
+                ],
+                "outputs": [
+                  "$features.recommended_flow_rate"
+                ]
+              },
+              "row_context": null
+            },
+            "recommended_discharge_pressure": {
+              "binding": {
+                "function": "extract_recommendation_value",
+                "args": {
+                  "optimization_attribute": "recommended_discharge_pressure",
+                  "column": "$features.operating_point_recommendation",
+                  "dataset": "$datasets.@.dataframe",
+                  "output": "$features.recommended_discharge_pressure.id"
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.operating_point_recommendation"
+                ],
+                "outputs": [
+                  "$features.recommended_discharge_pressure"
+                ]
+              },
+              "row_context": null
+            },
+            "energy_cost_score": {
+              "binding": {
+                "function": "extract_recommendation_value",
+                "args": {
+                  "optimization_attribute": "energy_cost_score",
+                  "column": "$features.operating_point_recommendation",
+                  "dataset": "$datasets.@.dataframe",
+                  "output": "$features.energy_cost_score.id"
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.operating_point_recommendation"
+                ],
+                "outputs": [
+                  "$features.energy_cost_score"
+                ]
+              },
+              "row_context": null
+            },
+            "converged": {
+              "binding": {
+                "function": "extract_recommendation_value",
+                "args": {
+                  "optimization_attribute": "converged",
+                  "column": "$features.operating_point_recommendation",
+                  "dataset": "$datasets.@.dataframe",
+                  "output": "$features.converged.id"
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.operating_point_recommendation"
+                ],
+                "outputs": [
+                  "$features.converged"
+                ]
+              },
+              "row_context": null
+            },
+            "pressure_flow_efficiency": {
+              "binding": {
+                "function": "pressure_flow_efficiency",
+                "args": {
+                  "pressure_features": [
+                    "$features.discharge_pressure",
+                    "$features.flow_rate",
+                    "$features.motor_power"
+                  ],
+                  "dataset": "$datasets.@.dataframe",
+                  "output": "$features.pressure_flow_efficiency.id"
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.discharge_pressure",
+                  "$features.flow_rate",
+                  "$features.motor_power"
+                ],
+                "outputs": [
+                  "$features.pressure_flow_efficiency"
+                ]
+              },
+              "row_context": null
+            },
+            "bearing_temperature_delta": {
+              "binding": {
+                "function": "bearing_temperature_delta",
+                "args": {
+                  "temperature": "$features.bearing_temperature",
+                  "partition_by": [
+                    "$dimensions.plant",
+                    "$dimensions.production_line",
+                    "$dimensions.pump"
+                  ],
+                  "order_by": "$dimensions.timestamp",
+                  "dataset": "$datasets.@.dataframe",
+                  "output": "$features.bearing_temperature_delta.id"
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.bearing_temperature"
+                ],
+                "outputs": [
+                  "$features.bearing_temperature_delta"
+                ]
+              },
+              "row_context": {
+                "before": {
+                  "rows": 1
+                },
+                "after": {
+                  "rows": 0
+                }
+              }
+            },
+            "vibration_delta": {
+              "binding": {
+                "function": "vibration_delta_from_previous",
+                "args": {
+                  "vibration": "$features.vibration_rms",
+                  "partition_by": [
+                    "$dimensions.plant",
+                    "$dimensions.production_line",
+                    "$dimensions.pump"
+                  ],
+                  "order_by": "$dimensions.timestamp",
+                  "dataset": "$datasets.@.dataframe",
+                  "output": "$features.vibration_delta.id"
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.vibration_rms"
+                ],
+                "outputs": [
+                  "$features.vibration_delta"
+                ]
+              },
+              "row_context": {
+                "before": {
+                  "rows": 1
+                },
+                "after": {
+                  "rows": 0
+                }
+              }
+            },
+            "pump_health_score": {
+              "binding": {
+                "function": "pump_health_score",
+                "args": {
+                  "health_features": [
+                    "$features.bearing_temperature_delta",
+                    "$features.vibration_delta",
+                    "$features.pressure_flow_efficiency"
+                  ],
+                  "dataset": "$datasets.@.dataframe",
+                  "output": "$features.pump_health_score.id"
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.bearing_temperature_delta",
+                  "$features.vibration_delta",
+                  "$features.pressure_flow_efficiency"
+                ],
+                "outputs": [
+                  "$features.pump_health_score"
+                ]
+              },
+              "row_context": null
+            },
+            "operating_point_recommendation": {
+              "binding": {
+                "function": "optimize_pump_operating_point",
+                "args": {
+                  "optimization_features": [
+                    "$features.discharge_pressure",
+                    "$features.flow_rate",
+                    "$features.motor_power",
+                    "$features.bearing_temperature",
+                    "$features.vibration_rms"
+                  ],
+                  "dataset": "$datasets.@.dataframe",
+                  "output": "$features.operating_point_recommendation.id"
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.discharge_pressure",
+                  "$features.flow_rate",
+                  "$features.motor_power",
+                  "$features.bearing_temperature",
+                  "$features.vibration_rms"
+                ],
+                "outputs": [
+                  "$features.operating_point_recommendation"
+                ]
+              },
+              "row_context": null
+            },
+            "write_pump_telemetry": {
+              "binding": {
+                "function": "write_pump_telemetry",
+                "args": {
+                  "dataset": "$datasets.@",
+                  "features": [
+                    "$features.recommended_flow_rate",
+                    "$features.recommended_discharge_pressure",
+                    "$features.energy_cost_score",
+                    "$features.converged",
+                    "$features.pressure_flow_efficiency",
+                    "$features.bearing_temperature_delta",
+                    "$features.vibration_delta",
+                    "$features.pump_health_score",
+                    "$features.operating_point_recommendation"
+                  ]
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.recommended_flow_rate",
+                  "$features.recommended_discharge_pressure",
+                  "$features.energy_cost_score",
+                  "$features.converged",
+                  "$features.pressure_flow_efficiency",
+                  "$features.bearing_temperature_delta",
+                  "$features.vibration_delta",
+                  "$features.pump_health_score",
+                  "$features.operating_point_recommendation"
+                ],
+                "outputs": []
+              },
+              "row_context": null
+            }
+          },
+          "order": [
+            {
+              "dimension": "$dimensions.timestamp",
+              "direction": "asc"
+            }
+          ],
+          "id": "pump_telemetry_dataset"
+        }
+      ]
+    },
+    "pump": {
+      "name": "Pump",
+      "description": "Pump-level information collapsed from timestamped telemetry",
+      "dimensions": [
+        "plant",
+        "production_line",
+        "pump"
+      ],
+      "datasets": [
+        {
+          "description": "One row per pump with collapsed condition information.",
+          "row_scope": {
+            "grain": "One row per pump",
+            "filtering": "Telemetry available to the source dataset",
+            "coverage": ""
+          },
+          "features": {
+            "plant": {
+              "description": "Manufacturing plant identifier",
+              "type": "string",
+              "unit": null
+            },
+            "production_line": {
+              "description": "Production line identifier",
+              "type": "string",
+              "unit": null
+            },
+            "pump": {
+              "description": "Centrifugal pump asset identifier",
+              "type": "string",
+              "unit": null
+            },
+            "bearing_temperature_max": {
+              "description": "Maximum observed bearing temperature",
+              "type": "float",
+              "unit": "C"
+            },
+            "health_signal_normalized": {
+              "description": "Normalized bearing-temperature health signal by pump.",
+              "type": "float",
+              "unit": null
+            }
+          },
+          "mappings": {
+            "bearing_temperature_by_pump": {
+              "binding": {
+                "function": "maximum",
+                "args": {
+                  "feature": "$features.bearing_temperature",
+                  "dataset": "$datasets.pump_telemetry_dataset.dataframe",
+                  "dimensions": [
+                    "$dimensions.plant.id",
+                    "$dimensions.production_line.id",
+                    "$dimensions.pump.id"
+                  ],
+                  "output": "$features.bearing_temperature_max.id"
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.bearing_temperature"
+                ],
+                "outputs": [
+                  "$features.plant",
+                  "$features.production_line",
+                  "$features.pump",
+                  "$features.bearing_temperature_max"
+                ]
+              },
+              "row_context": null
+            },
+            "health_signal_normalized": {
+              "binding": {
+                "function": "normalize_health_signal",
+                "args": {
+                  "scale_feature": "$features.bearing_temperature_max",
+                  "lower_bound": -1.0,
+                  "upper_bound": 1.0,
+                  "scaling_features": [
+                    "$features.bearing_temperature_max"
+                  ],
+                  "dataset": "$datasets.@.dataframe",
+                  "output": "$features.health_signal_normalized.id"
+                }
+              },
+              "features": {
+                "inputs": [
+                  "$features.bearing_temperature_max"
+                ],
+                "outputs": [
+                  "$features.health_signal_normalized"
+                ]
+              },
+              "row_context": null
+            }
+          },
+          "order": [],
+          "id": "pump_dataset"
+        }
+      ]
+    }
+  }
+}

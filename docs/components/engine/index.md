@@ -44,7 +44,7 @@ convenience constructors, but the runtime engine itself primarily works with the
 plan object.
 
 ```python
-specification = Specification.from_json("examples/example_1/_generated/spec/spec.json")
+specification = Specification.from_json("examples/pump_analytics/_generated/spec/spec.json")
 plan = Compiler(
     specification,
     features=["health_signal_normalized"],

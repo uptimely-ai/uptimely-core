@@ -39,11 +39,11 @@ project/
 
 This separation keeps the project easy to reason about: the code that defines the model lives in the spec folder, the runtime logic lives in functions, and generated resources stay clearly separate from source inputs.
 
-The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/example_1/README.md) also has documentation
+The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/pump_analytics/README.md) also has documentation
 and feature-graph runners. The documentation runner writes a linked website to
 `_generated/docs/`. All HTML pages are generated together by that runner.
 Specification and plan JSON exports live in `_generated/spec/` and
 `_generated/compile/`; the feature-graph runner prints graph summaries and,
 with `--verbose`, dependency trees without writing HTML.
-The [smaller Python example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/example_2/README.md) demonstrates
+The [smaller Python example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/simple_analytics/README.md) demonstrates
 specification export without the full compilation and execution workflow.

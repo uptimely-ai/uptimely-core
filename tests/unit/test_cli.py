@@ -37,8 +37,8 @@ def github(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         {
             "project-main/readme.md": "not an example",
             "project-main/examples/README.md": "Example guide",
-            "project-main/examples/example_1/run.py": "print('example')",
-            "project-main/examples/example_1/data/sample.csv": "x\n1\n",
+            "project-main/examples/pump_analytics/run.py": "print('example')",
+            "project-main/examples/pump_analytics/data/sample.csv": "x\n1\n",
             "project-main/src/module.py": "not an example",
             "project-main/docs/examples/guide.md": "not a root-level example",
             "project-main/tests/examples/fixture.py": "not a root-level example",
@@ -63,10 +63,10 @@ def test_download_examples(tmp_path: pathlib.Path, github: list[str]) -> None:
         str(path.relative_to(output)) for path in output.rglob("*") if path.is_file()
     ) == [
         "README.md",
-        "example_1/data/sample.csv",
-        "example_1/run.py",
+        "pump_analytics/data/sample.csv",
+        "pump_analytics/run.py",
     ]
-    assert (output / "example_1/run.py").read_text() == "print('example')"
+    assert (output / "pump_analytics/run.py").read_text() == "print('example')"
     assert not (output / "empty").exists()
     assert list(output.parent.iterdir()) == [output]
 

@@ -2,12 +2,12 @@ import json
 import pathlib
 import re
 
-from examples.example_1 import run_execution_plan
+from examples.pump_analytics import run_execution_plan
 
 from uptimely import compile, spec
 from uptimely.docs import docs
 
-SPEC_PATH = pathlib.Path("examples/example_1/_generated/spec/spec.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def test_execution_plan_runner_exports_only_json(tmp_path: pathlib.Path, monkeypatch) -> None:
