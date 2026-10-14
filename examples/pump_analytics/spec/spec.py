@@ -1,4 +1,4 @@
-"""Combined Python specification for example 1."""
+"""Combined pump analytics Python specification."""
 
 from examples.pump_analytics.spec.datasets import pump, telemetry
 

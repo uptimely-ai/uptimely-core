@@ -10,7 +10,6 @@ def main() -> None:
     if str(repository_root) not in sys.path:
         sys.path.insert(0, str(repository_root))
 
-    from examples.pump_analytics.run_docs import main as create_docs
     from examples.pump_analytics.run_engine import main as execute_engine
     from examples.pump_analytics.run_execution_plan import main as create_plan
     from examples.pump_analytics.run_export_spec import main as export_spec
@@ -22,12 +21,11 @@ def main() -> None:
 
     check_setup()
     workflows = (
-        ("Example 1: specification", export_spec),
-        ("Example 1: execution plan", create_plan),
-        ("Example 1: documentation", create_docs),
-        ("Example 1: feature graph", create_graph),
-        ("Example 1: engine", execute_engine),
-        ("Example 2: export Python specification", export_python_spec),
+        ("Pump analytics: specification", export_spec),
+        ("Pump analytics: execution plan", create_plan),
+        ("Pump analytics: feature graph", create_graph),
+        ("Pump analytics: engine", execute_engine),
+        ("Simple analytics: export Python specification", export_python_spec),
     )
     for title, workflow in workflows:
         print(f"\n=== {title} ===")

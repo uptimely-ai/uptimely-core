@@ -25,6 +25,8 @@ DISTRIBUTION_NAME: str = "uptimely-core"
 RELEASE_TAG_PREFIX: str = "v"
 EXAMPLES_DOWNLOAD_TIMEOUT: int = 30
 TEMPORARY_DIRECTORY_PREFIX: str = ".uptimely-"
+GENERATED_SPEC_PATH: pathlib.Path = pathlib.Path("_generated/spec/spec.json")
+GENERATED_DOCS_PATH: pathlib.Path = pathlib.Path("_generated/docs")
 
 
 def _repository_url() -> str:
@@ -231,18 +233,26 @@ def main() -> None:
     build = doc_actions.add_parser(
         "build", help="Build the specification, feature graph, and execution plan website"
     )
-    build.add_argument("--spec", type=pathlib.Path, required=True, help="JSON specification path")
+    build.add_argument(
+        "--spec",
+        type=pathlib.Path,
+        help=(
+            "JSON specification path (required unless --project-root is set; "
+            "then defaults to _generated/spec/spec.json under that root)"
+        ),
+    )
     build.add_argument(
         "--output",
         type=pathlib.Path,
-        default=pathlib.Path("_generated/docs"),
-        help="Website directory (default: _generated/docs)",
+        help=(
+            "Website directory (defaults to _generated/docs under --project-root, "
+            "or _generated/docs otherwise)"
+        ),
     )
     build.add_argument(
         "--project-root",
         type=pathlib.Path,
-        default=pathlib.Path.cwd(),
-        help="Root for importing function entrypoints (default: working directory)",
+        help="Root for importing function entrypoints and resolving default paths",
     )
     build.add_argument(
         "--include-generated-at",
@@ -255,29 +265,39 @@ def main() -> None:
     serve.add_argument(
         "--spec",
         type=pathlib.Path,
-        default=pathlib.Path("_generated/spec/spec.json"),
-        help="JSON specification path (default: _generated/spec/spec.json)",
+        help=(
+            "JSON specification path (defaults to _generated/spec/spec.json under "
+            "--project-root, or _generated/spec/spec.json otherwise)"
+        ),
     )
     serve.add_argument(
         "--directory",
         type=pathlib.Path,
-        default=pathlib.Path("_generated/docs"),
-        help="Website output directory (default: _generated/docs)",
+        help=(
+            "Website directory (defaults to _generated/docs under --project-root, "
+            "or _generated/docs otherwise)"
+        ),
     )
     serve.add_argument(
         "--project-root",
         type=pathlib.Path,
-        default=pathlib.Path.cwd(),
-        help="Root for importing function entrypoints (default: working directory)",
+        help="Root for importing function entrypoints and resolving default paths",
     )
     serve.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
     serve.add_argument(
         "--port", type=_port, default=8001, help="TCP port (default: 8001; 0 selects a free port)"
     )
     args = parser.parse_args()
+    if args.command == "docs":
+        project_root = args.project_root or pathlib.Path.cwd()
+        project_path = args.project_root or pathlib.Path()
+        default_spec = project_path / GENERATED_SPEC_PATH
+        default_output = project_path / GENERATED_DOCS_PATH
     if args.command == "docs" and args.action == "serve":
+        spec = args.spec or default_spec
+        directory = args.directory or default_output
         try:
-            build_docs(args.spec, args.directory, args.project_root)
+            build_docs(spec, directory, project_root)
         except (
             OSError,
             ValueError,
@@ -288,13 +308,17 @@ def main() -> None:
         ) as error:
             parser.exit(1, f"uptimely: error: {error}\n")
         try:
-            serve_docs(args.directory, args.host, args.port)
+            serve_docs(directory, args.host, args.port)
         except (OSError, ValueError) as error:
             parser.exit(1, f"uptimely: error: {error}\n")
         return
     if args.command == "docs":
+        if args.spec is None and args.project_root is None:
+            parser.error("docs build requires --spec unless --project-root is set")
+        spec = args.spec or default_spec
+        output = args.output or default_output
         try:
-            index = build_docs(args.spec, args.output, args.project_root, args.include_generated_at)
+            index = build_docs(spec, output, project_root, args.include_generated_at)
         except (
             OSError,
             ValueError,

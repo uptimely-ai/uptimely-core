@@ -1,4 +1,4 @@
-"""Execute the selected analytics flow from example 1."""
+"""Execute the selected pump analytics flow."""
 
 from examples.pump_analytics.common import SPEC_PATH, load_specification, verbose_requested
 from examples.pump_analytics.spec.spec import storage_resources

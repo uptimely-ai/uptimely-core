@@ -203,27 +203,29 @@ This builds the website from `_generated/spec/spec.json` into
 <http://127.0.0.1:8001/>. Port **8001** is separate from the project documentation's
 MkDocs preview on port **8000**.
 
+The same project-relative defaults apply to `uptimely docs build`. It uses
+`--output` instead of `--directory`, and requires `--spec` unless
+`--project-root` is set.
+
 | Option | Behavior |
 | --- | --- |
-| `--spec` | JSON specification path; defaults to `_generated/spec/spec.json`. |
-| `--directory` | Website output directory; defaults to `_generated/docs`. |
-| `--project-root` | Directory added to Python's import path; defaults to the working directory. |
+| `--spec` | JSON specification path; defaults to `<project-root>/_generated/spec/spec.json` when `--project-root` is set, or `_generated/spec/spec.json` otherwise. |
+| `--directory` / `--output` | Website output directory for `serve` / `build`; defaults to `<project-root>/_generated/docs` when `--project-root` is set, or `_generated/docs` otherwise. |
+| `--project-root` | Project root added to Python's import path. When set, it also bases the default `--spec` and `--directory` paths. |
 | `--host` | Bind address; defaults to `127.0.0.1`, restricting access to the local machine. |
 | `--port` | TCP port; defaults to `8001`. Use `0` to select an available port. |
 
 The server prints its address at startup. Stop it with **Ctrl+C**. It builds
 once when started; it does not watch or rebuild the website as files change.
 
-To build and preview the end-to-end example from a repository checkout:
+To build and preview the pump analytics project from the repository root:
 
 ```sh
-./scripts/serve-example-docs.sh
+uptimely docs serve --project-root examples/pump_analytics
 ```
 
-The script builds the full website using Poetry, then serves it at
-<http://localhost:8001/>. It locates the repository independently of the working
-directory and passes its arguments to the preview server, for example
-`./scripts/serve-example-docs.sh --port 8002`.
+The command builds the website and serves it at <http://127.0.0.1:8001/>.
+Stop the server with **Ctrl+C**.
 
 The preview server has no authentication or TLS and is not intended for
 production hosting. Binding to `0.0.0.0` exposes files on all IPv4 interfaces.
@@ -325,8 +327,7 @@ data_path = documentation.create_json()  # _generated/docs/docs.json
 
 It contains the specification configuration, summary counts, feature
 dependencies, and optional generation timestamp. Neither `Documentation.create_html`
-nor `uptimely docs build` automatically writes this JSON. The example's
-`run_docs.py` calls both exports.
+nor `uptimely docs build` automatically writes this JSON.
 
 ![Specification feature reference](../../assets/img/open-analytics-specification-features.png)
 
