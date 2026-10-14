@@ -31,17 +31,21 @@ With pip:
 ```sh
 pip install uptimely-core
 uptimely examples download
-uptimely docs serve --project-root examples/pump_analytics
-python examples/run_all.py
+python examples/check_setup.py
+uptimely spec feature_graph --project-root examples/pump_analytics --verbose
+uptimely plan build --project-root examples/pump_analytics
+uptimely engine run --project-root examples/pump_analytics
 ```
 
-With poetry:
+With Poetry, from your Poetry project:
 
 ```sh
-pip install uptimely-core
+poetry add uptimely-core
 poetry run uptimely examples download
-poetry run uptimely docs serve --project-root examples/pump_analytics
-poetry run python examples/run_all.py
+poetry run python examples/check_setup.py
+poetry run uptimely spec feature_graph --project-root examples/pump_analytics --verbose
+poetry run uptimely plan build --project-root examples/pump_analytics
+poetry run uptimely engine run --project-root examples/pump_analytics
 ```
 
 

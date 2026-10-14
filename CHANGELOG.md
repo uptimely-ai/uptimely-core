@@ -8,6 +8,13 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- CLI commands for compiling execution plans (`uptimely plan build`), inspecting
+  feature dependencies (`uptimely spec feature_graph`), and running workflows
+  (`uptimely engine run`). Engine execution compiles by default; use
+  `--compile false` to run a saved plan.
+
 ### Changed
 
 - `uptimely docs serve` now builds the website from the project's specification before serving it.

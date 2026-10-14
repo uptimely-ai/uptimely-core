@@ -1,13 +1,14 @@
 import pathlib
+import sys
 
 import polars as pl
 import pytest
-from examples.pump_analytics import run_engine
 from examples.pump_analytics.functions import calculation
 from examples.pump_analytics.spec import spec
 
 from uptimely import compile
 from uptimely import engine as uptimely_engine
+from uptimely.cli import cli
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
@@ -76,8 +77,17 @@ def test_engine_returns_calculated_features_without_writing_output() -> None:
         )
 
 
-def test_engine_runner_returns_calculated_feature_ids() -> None:
-    assert run_engine.main(verbose=False) == [
+def test_engine_cli_reports_calculated_feature_ids(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["uptimely", "engine", "run", "--project-root", "examples/pump_analytics"],
+    )
+    cli.main()
+
+    expected_features = [
         "bearing_temperature_delta",
         "converged",
         "energy_cost_score",
@@ -89,6 +99,7 @@ def test_engine_runner_returns_calculated_feature_ids() -> None:
         "recommended_flow_rate",
         "vibration_delta",
     ]
+    assert "Calculated features: " + ", ".join(expected_features) in capsys.readouterr().out
 
 
 def test_engine_rejects_unknown_runtime_namespace() -> None:

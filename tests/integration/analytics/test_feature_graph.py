@@ -1,29 +1,43 @@
 import pathlib
+import sys
 
 import pytest
-from examples.pump_analytics import run_feature_graph
 
 from uptimely import analytics, spec
 from uptimely.analytics import models
+from uptimely.cli import cli
 from uptimely.docs import docs
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 @pytest.mark.parametrize("verbose", [False, True])
-def test_feature_graph_runner_inspects_without_exporting(
-    tmp_path: pathlib.Path, monkeypatch, capsys, verbose: bool
+def test_feature_graph_cli_inspects_without_exporting(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    verbose: bool,
 ) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
-    monkeypatch.setattr(run_feature_graph, "load_specification", lambda: specification)
+    arguments = [
+        "uptimely",
+        "spec",
+        "feature_graph",
+        "--spec",
+        str(SPEC_PATH.resolve()),
+        "--features",
+        "health_signal_normalized",
+    ]
+    if verbose:
+        arguments.append("--verbose")
+    monkeypatch.setattr(sys, "argv", arguments)
     monkeypatch.chdir(tmp_path)
 
-    run_feature_graph.main(verbose=verbose)
+    cli.main()
 
     output = capsys.readouterr().out
     assert "Feature graph:" in output
-    assert "health signal subset:" in output
-    assert ("Health signal subset" in output) == verbose
+    assert "Selected feature subset: 2 features" in output
+    assert ("Selected feature subset\n" in output) == verbose
     assert not list(tmp_path.iterdir())
 
 

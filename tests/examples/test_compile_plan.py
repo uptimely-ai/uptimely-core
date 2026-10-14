@@ -1,19 +1,34 @@
 import json
 import pathlib
 import re
+import sys
 
-from examples.pump_analytics import run_execution_plan
+import pytest
 
 from uptimely import compile, spec
+from uptimely.cli import cli
 from uptimely.docs import docs
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
-def test_execution_plan_runner_exports_only_json(tmp_path: pathlib.Path, monkeypatch) -> None:
-    monkeypatch.setattr(run_execution_plan, "GENERATED_DIR", tmp_path)
-
-    run_execution_plan.main(verbose=False)
+def test_execution_plan_cli_exports_only_json(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "uptimely",
+            "plan",
+            "build",
+            "--spec",
+            str(SPEC_PATH),
+            "--output",
+            str(tmp_path / "compile" / "execution_plan.json"),
+        ],
+    )
+    cli.main()
 
     assert {path.name for path in (tmp_path / "compile").iterdir()} == {"execution_plan.json"}
 

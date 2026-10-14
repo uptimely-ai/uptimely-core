@@ -9,7 +9,7 @@ from urllib import request
 
 import pytest
 
-from uptimely.cli import cli
+from uptimely.cli import cli, docs
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
@@ -33,14 +33,14 @@ def test_serve_arguments(
 ) -> None:
     calls: list[tuple[object, ...]] = []
     monkeypatch.setattr(
-        cli,
+        docs,
         "build_docs",
         lambda spec, directory, project_root: (
             calls.append(("build", spec, directory, project_root)) or directory / "index.html"
         ),
     )
     monkeypatch.setattr(
-        cli,
+        docs,
         "serve_docs",
         lambda directory, host, port: calls.append(("serve", directory, host, port)),
     )
@@ -65,14 +65,14 @@ def test_serve_builds_custom_spec_before_starting_server(
 ) -> None:
     calls: list[tuple[object, ...]] = []
     monkeypatch.setattr(
-        cli,
+        docs,
         "build_docs",
         lambda spec, directory, project_root: (
             calls.append(("build", spec, directory, project_root)) or directory / "index.html"
         ),
     )
     monkeypatch.setattr(
-        cli,
+        docs,
         "serve_docs",
         lambda directory, host, port: calls.append(("serve", directory, host, port)),
     )
@@ -108,14 +108,14 @@ def test_serve_defaults_paths_from_project_root(
 ) -> None:
     calls: list[tuple[object, ...]] = []
     monkeypatch.setattr(
-        cli,
+        docs,
         "build_docs",
         lambda spec, directory, project_root: (
             calls.append(("build", spec, directory, project_root)) or directory / "index.html"
         ),
     )
     monkeypatch.setattr(
-        cli,
+        docs,
         "serve_docs",
         lambda directory, host, port: calls.append(("serve", directory, host, port)),
     )
@@ -153,7 +153,7 @@ def test_serve_builds_html_before_starting_server(
         assert (output / "spec/overview.html").is_file()
         assert (output / "plan/graph.html").is_file()
 
-    monkeypatch.setattr(cli, "serve_docs", check_website)
+    monkeypatch.setattr(docs, "serve_docs", check_website)
     monkeypatch.setattr(
         sys,
         "argv",
@@ -196,7 +196,7 @@ def test_serve_reports_missing_website(
     elif kind == "empty":
         directory.mkdir()
     monkeypatch.setattr(
-        cli,
+        docs,
         "build_docs",
         lambda spec, output, project_root: output / "index.html",
     )
@@ -247,7 +247,7 @@ def test_serve_serves_only_selected_directory_and_closes_on_interrupt(
 
     monkeypatch.setattr(http_server.ThreadingHTTPServer, "serve_forever", check_server)
 
-    cli.serve_docs(directory, port=0)
+    docs.serve_docs(directory, port=0)
 
     assert pathlib.Path.cwd() == cwd
     assert servers[0].socket.fileno() == -1
@@ -261,12 +261,12 @@ def test_serve_reports_occupied_port(
 ) -> None:
     (tmp_path / "index.html").write_text("index", encoding="utf-8")
     monkeypatch.setattr(
-        cli,
+        docs,
         "build_docs",
         lambda spec, output, project_root: output / "index.html",
     )
     with http_server.ThreadingHTTPServer(
-        ("127.0.0.1", 0), cli.http_server.SimpleHTTPRequestHandler
+        ("127.0.0.1", 0), http_server.SimpleHTTPRequestHandler
     ) as occupied:
         monkeypatch.setattr(
             sys,
