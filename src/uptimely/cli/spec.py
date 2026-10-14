@@ -8,9 +8,9 @@ from uptimely.cli import common
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure the spec feature_graph action."""
+    """Configure the spec feature-graph action."""
     actions = parser.add_subparsers(dest="action", required=True)
-    graph = actions.add_parser("feature_graph", help="Inspect feature dependencies")
+    graph = actions.add_parser("feature-graph", help="Inspect feature dependencies")
     common.configure_project_arguments(graph)
 
 
