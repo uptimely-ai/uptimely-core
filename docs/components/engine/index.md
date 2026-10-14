@@ -6,6 +6,12 @@ This page describes the built-in engine shipped with Uptimely Core. It is the re
 
 Runtime configuration is supplied to `Engine`, not stored in the Open Analytics specification. The engine implementation decides which configuration values to use.
 
+The built-in Python engine only uses `dataframe` to validate backend
+compatibility. `evaluation` and `batch_size` are reserved settings: they are
+accepted and stored, but do not change evaluation strategy, data access, or
+persistence. Do not rely on them to enable lazy execution, batching, or
+persistence.
+
 ```python
 from uptimely.engine import EngineConfig
 
@@ -22,12 +28,12 @@ Property | Data type | Runtime configuration
 --- | --- | ---
 type | string | Engine type. Eg `docker` or `python_venv`.
 definition | string | Folder having configuration files for engine
-dataframe | string | Dataframe backend. Version 0.1 supports `polars`.
-evaluation | string | How the full analytical lineage is executed. `eager`: Calculate immediately in-memory. `lazy`: Generate optimized plan before execution. `persist`: Store each result to database between calculations.
-batch_size | integer or string | The integer tells how many entity records to read on a single data access to balance i/o rounds and memory usage. `"*"` reads all entity records at once.
+dataframe | string | Dataframe backend. The built-in engine currently supports `polars`.
+evaluation | string | Reserved. Values such as `eager`, `lazy`, and `persist` are stored but have no effect on execution.
+batch_size | integer, `"*"`, or `None` | Reserved. Validates positive integers, `"*"`, or `None`, but does not change how many records are read at a time.
 
 `backend` is not a specification or runtime configuration field. A compiled plan records its backend
-claim as `required_backend`; version 0.1 rejects values other than `polars`.
+claim as `required_backend`; the built-in engine rejects values other than `polars`.
 Orchestration is a deployment concern and is not represented in the
 specification.
 

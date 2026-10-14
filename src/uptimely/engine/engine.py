@@ -18,7 +18,11 @@ logger = logging.getLogger(__name__)
 
 @dataclasses.dataclass(frozen=True)
 class EngineConfig:
-    """Runtime configuration supplied to an execution engine."""
+    """Runtime configuration supplied to an execution engine.
+
+    ``evaluation`` and ``batch_size`` are reserved and do not currently affect
+    execution.
+    """
 
     type: str = "python_venv"
     definition: str | None = None
