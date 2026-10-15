@@ -81,7 +81,7 @@ class Explorer:
             .render(
                 analytics_definition=self.analytics,
                 summary=context.summary,
-                operation_count=len(plan.operations),
+                callable_count=len(plan.callables),
                 stage_count=len(plan.execution_stages),
                 index_filename=target.name,
                 include_navigation=True,

@@ -2,7 +2,7 @@
 
 The compiler turns the [Analytics document](analytics.md) into a portable
 execution plan. It connects declared feature requirements to function calls,
-resolves their dependencies, and schedules the resulting operations into stages.
+resolves their dependencies, and schedules the resulting callables into stages.
 
 Compilation prepares a workflow but does not run its analytical functions. The
 portable plan is the boundary between planning and execution: an
@@ -15,9 +15,9 @@ The built-in Python compiler:
 1. Uses an in-memory `Analytics` object or loads Analytics from a JSON file.
 2. Builds a callable dependency graph from the declared bindings.
 3. Selects the required dependency closure when a feature subset is requested.
-4. Resolves structural references into portable operation arguments and records
-   each operation's dependencies.
-5. Groups operations into dependency-ordered stages.
+4. Resolves structural references into portable callable arguments and records
+   each callable's dependencies.
+5. Groups callables into dependency-ordered stages.
 6. Copies the runtime resources and callable signatures needed by the plan.
 
 The compiler reads signatures by importing the declared Python entrypoints.
@@ -67,14 +67,14 @@ fail during execution.
 
 Subset plans retain configured dataset writes and do not trim literal
 feature lists passed to those write functions. Declare all required features
-as mapping inputs; an operation that requests a feature outside the selected
+as mapping inputs; a callable that requests a feature outside the selected
 closure can fail because that value was not materialized.
 
 ## Dependency resolution
 
 Explicit mapping inputs define feature dependencies. The compiler uses those
 edges to include required producers in a feature-subset plan and to order
-operations. Feature or dataset identifiers passed as arguments do not, by
+callables. Feature or dataset identifiers passed as arguments do not, by
 themselves, declare a calculated-feature dependency. A dataset dataframe
 argument requires its source observations, but not every calculated feature
 available in that dataset; list each consumed feature as an input.
@@ -140,40 +140,42 @@ The serialized plan contains these top-level fields:
 | --- | --- |
 | `plan_version` | Version of the portable plan format. |
 | `analytics_version` | Analytics format version used to create the plan, not a project revision. |
-| `required_backend` | Backend required by the plan. Version 0.1 uses `polars`. |
+| `required_backend` | Backend required by the plan. The built-in engine currently supports `polars`. |
 | `resources` | Runtime metadata needed by an engine, including dimensions, entities, function templates, and signatures. |
-| `operations` | The executable operations in the dependency graph. |
-| `stages` | Lists of operation identifiers grouped by dependency level. |
+| `callables` | Executable function invocations in the dependency graph. |
+| `stages` | Lists of callable identifiers grouped by dependency level. |
 
 The compiler copies only the information needed at runtime into `resources`.
-The plan carries callable entrypoints and binding arguments, but remains
-distinct from the source Analytics document.
+The plan carries callable entrypoints, binding arguments, and each callable's
+`operation` (`read`, `conform`, `expand`, `collapse`, `vectorize`, or `write`),
+but remains distinct from the source Analytics document. The current portable
+plan format is version `2.0.0`.
 
-### Operations
+### Callables
 
-Each operation represents one callable invocation:
+Each callable represents one function invocation:
 
 | Field | Meaning |
 | --- | --- |
-| `id` | Stable identifier for the operation in the plan. |
-| `kind` | Operation category: `read`, `conform`, `expand`, `collapse`, `vectorize`, or `write`. |
-| `entrypoint` | Required callable implementation location, including for collapse functions. |
-| `entity_id` | Entity whose dimensions and datasets scope the operation. |
-| `dataset_id` | Dataset receiving or supplying the operation's dataframe state. |
-| `output` | Operation output identifier, such as a calculated feature. |
+| `id` | Stable identifier for the callable in the plan. |
+| `operation` | Category of the function invocation: `read`, `conform`, `expand`, `collapse`, `vectorize`, or `write`. |
+| `entrypoint` | Required Python function implementation location. |
+| `entity_id` | Entity whose dimensions and datasets scope the callable. |
+| `dataset_id` | Dataset receiving or supplying the callable's dataframe state. |
+| `output` | Callable output identifier, such as a calculated feature. |
 | `arguments` | Portable compiled argument values. Structural references are resolved to identifiers; runtime dataframe binding is deferred to the engine. |
-| `dependency_ids` | Operation identifiers that must complete before this operation. |
+| `dependency_ids` | Callable identifiers that must complete before this callable. |
 | `row_context` | Mapping input-context requirements; `null` when undeclared. Stored separately from function arguments. |
 
-Every data-producing operation returns a dataframe with its declared outputs.
-Write operations consume the assembled dataset state. The plan records
-operation contracts and dependencies; it does not execute them.
+Every data-producing callable returns a dataframe with its declared outputs.
+Write callables consume the assembled dataset state. The plan records callable
+contracts and dependencies; it does not execute them.
 
 ### Execution stages
 
 The compiler derives stages from the callable graph topology. A stage contains
-operations whose prerequisites are in earlier stages or have no remaining
-prerequisites. Operations in a later stage cannot run until their dependencies
+callables whose prerequisites are in earlier stages or have no remaining
+prerequisites. Callables in a later stage cannot run until their dependencies
 have completed.
 
 For example, a dataset may produce this topology:
@@ -185,12 +187,12 @@ Stage 3: vectorize normalized health signal
 Stage 4: write pump results
 ```
 
-Independent operations may appear in the same stage. The built-in Python
+Independent callables may appear in the same stage. The built-in Python
 engine currently processes stage members sequentially, but another engine may
-run independent operations in parallel while preserving the dependency order.
+run independent callables in parallel while preserving the dependency order.
 
-Stages are represented in JSON by operation identifiers rather than duplicated
-operation objects:
+Stages are represented in JSON by callable identifiers rather than duplicated
+callable objects:
 
 ```json
 "stages": [
@@ -216,8 +218,8 @@ plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
 result = Engine(plan).execute()
 ```
 
-`ExecutionPlan` exposes serialized operations and resolved execution stages.
-To inspect operation order and dependencies in HTML, generate the full website
+`ExecutionPlan` exposes serialized callables and resolved execution stages.
+To inspect callable order and dependencies in HTML, generate the full website
 from the original Analytics document:
 
 ```python
@@ -228,15 +230,15 @@ index_path = explorer.create_html(analytics_definition)
 
 `uptimely explorer build` provides the same website. Its execution-plan section
 has Overview, Graph, and Stages pages. The Graph page defaults to 2D and provides
-a 2D/3D selector without navigating away. Both views use compiled callable operations and their
+a 2D/3D selector without navigating away. Both views use compiled callables and their
 dependency edges; feature lineage is shown separately under Feature graph.
 Standalone plan HTML export is not supported; portable-plan JSON export and
 loading do not require website generation.
 
 The overview summarizes callable, function, entity, and feature counts, along
-with stages, dependency edges, and the largest number of operations in a stage.
-Bar charts show the operation-type breakdown and each stage's size. Stage size
-indicates potential parallelism, not how many operations the engine actually
+with stages, dependency edges, and the largest number of callables in a stage.
+Bar charts show the operation breakdown and each stage's size. Stage size
+indicates potential parallelism, not how many callables the engine actually
 runs concurrently.
 
 The [execution engine](engine.md) describes how the built-in runtime executes
@@ -261,23 +263,23 @@ For a compatible compiler:
    bindings, features, and dimensions.
 2. Resolve the dependency graph, including upstream dependencies and dataset
    writes when supporting feature subsets.
-3. Generate operations with unique identifiers, implementation entrypoints,
+3. Generate callables with unique identifiers, implementation entrypoints,
    portable arguments, output identifiers, and explicit dependency identifiers.
-4. Schedule every operation exactly once, placing each dependency in an earlier
-   stage than the operation that consumes it.
+4. Schedule every callable exactly once, placing each dependency in an earlier
+   stage than the callable that consumes it.
 5. Include the resources required by the target engine and declare the plan
    version, Analytics format version (`analytics_version`), and required backend accurately.
 6. Preserve runtime placeholders for the engine rather than embedding
    environment-specific storage locations during compilation.
 
-In Python, reuse the `Operation`, `Plan`, and `ExecutionPlan` models exported by
+In Python, reuse the `Callable`, `Plan`, and `ExecutionPlan` models exported by
 `uptimely.plan`. The built-in `Compiler.compile()` implementation shows how
-dependency resolution, operation construction, signature inspection, and resource
+dependency resolution, callable construction, signature inspection, and resource
 export fit together. Reuse those concepts rather than depending on its private
 methods as an extension API.
 
 Validate exported plans by loading them through `ExecutionPlan.from_json()`.
-The loader checks operation identifiers, dependency references, and stage
+The loader checks callable identifiers, dependency references, and stage
 ordering, but those structural checks do not establish semantic equivalence.
 Also test the compiler with representative Analytics documents, feature subsets, and
 the target engine to verify that it produces the intended numerical results.

@@ -163,7 +163,7 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
 
     operation = next(
         operation
-        for operation in engine.plan.operations
+        for operation in engine.plan.callables
         if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
     )
     dimensions = engine.resource_resolver.entity_dimensions(operation.entity_id)
@@ -197,7 +197,7 @@ def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> Non
     engine = uptimely_engine.Engine(ANALYTICS_PATH)
     operation = next(
         operation
-        for operation in engine.plan.operations
+        for operation in engine.plan.callables
         if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
     )
 
@@ -269,11 +269,13 @@ def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathli
         operation.output
         for stage in engine.plan.execution_stages
         for operation in stage
-        if operation.kind == "vectorize"
+        if operation.operation == "vectorize"
     ] == [
         "health_signal_normalized",
     ]
-    assert {operation.kind for stage in engine.plan.execution_stages for operation in stage} == {
+    assert {
+        operation.operation for stage in engine.plan.execution_stages for operation in stage
+    } == {
         "read",
         "collapse",
         "vectorize",

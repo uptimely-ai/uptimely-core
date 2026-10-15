@@ -132,12 +132,12 @@ async def test_describe_feature_rejects_unknown_feature(
 
 @pytest.mark.anyio
 async def test_compile_plan_subset(state: server.ServerState) -> None:
-    """compile_plan compiles a feature subset into staged operations."""
+    """compile_plan compiles a feature subset into staged callables."""
     payload = await _call(state, "compile_plan", {"feature_ids": ["pump_health_score"]})
-    assert payload["operation_count"] > 0
-    kinds = {operation["kind"] for stage in payload["stages"] for operation in stage}
-    assert "read" in kinds
-    assert "vectorize" in kinds
+    assert payload["callable_count"] > 0
+    operations = {callable["operation"] for stage in payload["stages"] for callable in stage}
+    assert "read" in operations
+    assert "vectorize" in operations
 
 
 @pytest.mark.anyio
@@ -146,7 +146,7 @@ async def test_compile_plan_empty_subset_is_empty(state: server.ServerState) -> 
     payload = await _call(state, "compile_plan", {"feature_ids": []})
     assert payload["features"] == []
     assert payload["stages"] == []
-    assert payload["operation_count"] == 0
+    assert payload["callable_count"] == 0
 
 
 @pytest.mark.anyio

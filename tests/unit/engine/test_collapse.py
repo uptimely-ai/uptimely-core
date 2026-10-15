@@ -149,8 +149,8 @@ def _analytics(*, lazy=False, empty=False):
 def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
     analytics_definition = _analytics(lazy=lazy)
     plan = compile.Compiler(analytics_definition, features=["average"]).compile()
-    assert not any("unneeded" in item.output_features for item in plan.operations)
-    collapse = next(item for item in plan.operations if item.kind == "collapse")
+    assert not any("unneeded" in item.output_features for item in plan.callables)
+    collapse = next(item for item in plan.callables if item.operation == "collapse")
     assert collapse.input_features == ["value", "doubled"]
     assert len(collapse.dependency_ids) == 2
     result = engine.Engine(plan).execute()

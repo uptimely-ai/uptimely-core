@@ -45,12 +45,12 @@ class _Mapping:
 
     def to_model(self) -> json_analytics.json_model.Mapping:
         """Convert this mapping declaration to its canonical model."""
-        identifier = bind_module._operation_id(self.bind, self.id)
+        identifier = bind_module._mapping_id(self.bind, self.id)
         arguments = bind_module._binding_args(self.bind)
         return json_analytics.json_model.Mapping(
             id=identifier,
             binding=json_analytics.json_model.Binding(
-                function=bind_module._operation_id(self.bind, None),
+                function=bind_module._function_id(self.bind),
                 args=arguments,
             ),
             features={

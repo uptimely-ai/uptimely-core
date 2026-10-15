@@ -20,17 +20,17 @@ def compile_plan(
 
 def print_stages(plan: plan_module.ExecutionPlan) -> None:
     """Print execution stages and their function dependencies."""
-    operations_by_id = {operation.id: operation for operation in plan.operations}
+    callables_by_id = {callable.id: callable for callable in plan.callables}
     print("\nExecution stages")
     for stage_number, stage in enumerate(plan.execution_stages, 1):
         print(f"Stage {stage_number}")
-        for operation in stage:
+        for callable in stage:
             dependencies = [
-                operations_by_id[dependency_id].function_id
-                for dependency_id in operation.dependency_ids
+                callables_by_id[dependency_id].function_id
+                for dependency_id in callable.dependency_ids
             ]
             suffix = f" <- [{', '.join(dependencies)}]" if dependencies else ""
-            print(f"  {operation.function_id}({operation.entity_id}) -> {operation.output}{suffix}")
+            print(f"  {callable.function_id}({callable.entity_id}) -> {callable.output}{suffix}")
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
@@ -58,7 +58,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         json_path = plan.export_json(output)
     except (OSError, ValueError, ImportError, AttributeError, TypeError) as error:
         parser.exit(1, f"uptimely: error: {error}\n")
-    print(f"Compiled {len(plan.operations)} operations from {analytics_definition}")
+    print(f"Compiled {len(plan.callables)} callables from {analytics_definition}")
     print(f"Execution plan: {json_path}")
     if args.verbose:
         print_stages(plan)

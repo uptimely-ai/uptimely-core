@@ -153,18 +153,18 @@ class FeatureGraph(GraphBase):
         for entity_id, entity in analytics.entities.items():
             for dataset in entity.datasets:
                 for operation_id, mapping in dataset.mappings.items():
-                    operation_type = bindings.mapping_operation(mapping, analytics.functions)
+                    operation = bindings.mapping_operation(mapping, analytics.functions)
                     template = analytics.functions[mapping.binding.function]
                     function = (
                         vectorize_functions.get(mapping.binding.function)
-                        if operation_type == "vectorize"
+                        if operation == "vectorize"
                         else json_model.Function(
                             id=mapping.binding.function,
                             type="python_function",
                             return_type="dataframe",
                             info={"description": getattr(template, "description", None)},
                             entrypoint=template.entrypoint,
-                            role=operation_type,
+                            role=operation,
                         )
                     )
                     if function is None:
@@ -266,15 +266,14 @@ class FeatureGraph(GraphBase):
         for entity_id, entity in self.analytics.entities.items():
             for dataset in entity.datasets:
                 for mapping in dataset.mappings.values():
-                    operation_type = bindings.mapping_operation(mapping, self.analytics.functions)
+                    operation = bindings.mapping_operation(mapping, self.analytics.functions)
                     for name in mapping.output_features:
                         feature = dataset.features[name]
                         register_feature_metadata(
                             name,
                             feature.type,
                             entity_id,
-                            is_source_input=operation_type != "collapse"
-                            and operation_type != "vectorize",
+                            is_source_input=operation != "collapse" and operation != "vectorize",
                         )
         for function, entity, _operation_id, outputs, _dependencies in self._graph_operations:
             for output in outputs:

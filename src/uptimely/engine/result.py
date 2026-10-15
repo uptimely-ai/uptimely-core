@@ -11,7 +11,7 @@ class ExecutionResult:
 
     datasets: dict[tuple[str, str], object]
     calculated_outputs: dict[tuple[str, str, str], object]
-    operation_statuses: dict[str, str]
+    callable_statuses: dict[str, str]
     durations: dict[str, float]
     failures: dict[str, str]
     plan_version: str

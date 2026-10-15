@@ -7,7 +7,7 @@ from uptimely import plan as uptimely_plan
 
 def _sample_plan() -> uptimely_plan.Plan:
     return uptimely_plan.Plan(
-        plan_version="1.0.0",
+        plan_version="2.0.0",
         analytics_version="0.2.0",
         required_backend="polars",
         resources={
@@ -16,10 +16,10 @@ def _sample_plan() -> uptimely_plan.Plan:
                 "callable:write:save:pump:pump_dataset:pressure_by_pump": "None",
             }
         },
-        operations=[
-            uptimely_plan.Operation(
+        callables=[
+            uptimely_plan.Callable(
                 id="callable:read:load:pump:pump_dataset:pressure",
-                kind="read",
+                operation="read",
                 entrypoint="example.functions:load",
                 entity_id="pump",
                 dataset_id="pump_dataset",
@@ -27,9 +27,9 @@ def _sample_plan() -> uptimely_plan.Plan:
                 arguments={"dataset": {"type": "literal", "value": "pump_dataset"}},
                 dependency_ids=[],
             ),
-            uptimely_plan.Operation(
+            uptimely_plan.Callable(
                 id="callable:collapse:maximum:pump:pump_dataset:pressure_by_pump",
-                kind="collapse",
+                operation="collapse",
                 entrypoint="example.functions:maximum",
                 entity_id="pump",
                 dataset_id="pump_dataset",
@@ -38,9 +38,9 @@ def _sample_plan() -> uptimely_plan.Plan:
                 output_features=["plant", "pump", "maximum"],
                 dependency_ids=["callable:read:load:pump:pump_dataset:pressure"],
             ),
-            uptimely_plan.Operation(
+            uptimely_plan.Callable(
                 id="callable:write:save:pump:pump_dataset:pressure_by_pump",
-                kind="write",
+                operation="write",
                 entrypoint="example.functions:save",
                 entity_id="pump",
                 dataset_id="pump_dataset",
@@ -64,16 +64,16 @@ def test_plan_round_trip_preserves_operation_metadata() -> None:
     restored = uptimely_plan.Plan.from_dict(payload)
 
     assert restored == plan
-    assert restored.operations[1].function_id == "maximum"
-    assert not hasattr(restored.operations[1], "source")
-    assert all("source" not in operation for operation in payload["operations"])
-    assert restored.operations[1].entrypoint == "example.functions:maximum"
-    assert restored.operations[1].entity_id == "pump"
-    assert restored.operations[1].output == "pressure_by_pump"
-    assert restored.operations[0].dataset_id == "pump_dataset"
+    assert restored.callables[1].function_id == "maximum"
+    assert not hasattr(restored.callables[1], "source")
+    assert all("source" not in callable for callable in payload["callables"])
+    assert restored.callables[1].entrypoint == "example.functions:maximum"
+    assert restored.callables[1].entity_id == "pump"
+    assert restored.callables[1].output == "pressure_by_pump"
+    assert restored.callables[0].dataset_id == "pump_dataset"
 
 
-def test_plan_stages_track_operation_order() -> None:
+def test_plan_stages_track_callable_order() -> None:
     plan = _sample_plan()
     execution_plan = uptimely_plan.ExecutionPlan(plan)
 
@@ -83,7 +83,7 @@ def test_plan_stages_track_operation_order() -> None:
         ["callable:write:save:pump:pump_dataset:pressure_by_pump"],
     ]
     assert [
-        [operation.function_id for operation in stage] for stage in execution_plan.execution_stages
+        [callable.function_id for callable in stage] for stage in execution_plan.execution_stages
     ] == [["load"], ["maximum"], ["save"]]
 
     restored = uptimely_plan.Plan.from_dict(plan.to_dict())
@@ -100,7 +100,7 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
         "analytics_version",
         "required_backend",
         "resources",
-        "operations",
+        "callables",
         "stages",
     }
 
@@ -113,13 +113,13 @@ def test_plan_json_helpers_round_trip(tmp_path) -> None:
     payload = json.loads(destination.read_text(encoding="utf-8"))
     recreated = uptimely_plan.from_json(destination)
 
-    assert payload["operations"][0]["kind"] == "read"
+    assert payload["callables"][0]["operation"] == "read"
     assert recreated.plan == plan
-    assert recreated.operations[0].id == "callable:read:load:pump:pump_dataset:pressure"
+    assert recreated.callables[0].id == "callable:read:load:pump:pump_dataset:pressure"
 
 
 @pytest.mark.parametrize(
-    "missing_field", ["analytics_version", "operations", "required_backend", "stages"]
+    "missing_field", ["analytics_version", "callables", "required_backend", "stages"]
 )
 def test_plan_rejects_missing_required_fields(missing_field: str) -> None:
     payload = _sample_plan().to_dict()
@@ -137,26 +137,26 @@ def test_plan_rejects_legacy_version_field() -> None:
         uptimely_plan.Plan.from_dict(payload)
 
 
-def test_plan_rejects_unknown_dependency_and_stage_operation() -> None:
+def test_plan_rejects_unknown_dependency_and_stage_callable() -> None:
     payload = _sample_plan().to_dict()
-    payload["operations"][1]["dependency_ids"] = ["unknown-operation"]
+    payload["callables"][1]["dependency_ids"] = ["unknown-callable"]
     payload["stages"][2] = ["another-unknown-operation"]
 
-    with pytest.raises(ValueError, match="Plan references unknown operation"):
+    with pytest.raises(ValueError, match="Plan references unknown callable"):
         uptimely_plan.Plan.from_dict(payload)
 
 
-def test_plan_rejects_duplicate_and_unstaged_operations() -> None:
+def test_plan_rejects_duplicate_and_unstaged_callables() -> None:
     duplicate_payload = _sample_plan().to_dict()
-    duplicate_payload["operations"].append(dict(duplicate_payload["operations"][0]))
+    duplicate_payload["callables"].append(dict(duplicate_payload["callables"][0]))
 
-    with pytest.raises(ValueError, match="duplicate operation ids"):
+    with pytest.raises(ValueError, match="duplicate callable ids"):
         uptimely_plan.Plan.from_dict(duplicate_payload)
 
     unstaged_payload = _sample_plan().to_dict()
     unstaged_payload["stages"] = unstaged_payload["stages"][:-1]
 
-    with pytest.raises(ValueError, match="must stage every operation exactly once"):
+    with pytest.raises(ValueError, match="must stage every callable exactly once"):
         uptimely_plan.Plan.from_dict(unstaged_payload)
 
 
@@ -178,7 +178,7 @@ def test_plan_rejects_dependencies_scheduled_after_consumers() -> None:
 )
 def test_plan_rejects_invalid_collapse_metadata(field: str, value: object, message: str) -> None:
     payload = _sample_plan().to_dict()
-    payload["operations"][1][field] = value
+    payload["callables"][1][field] = value
     with pytest.raises(ValueError, match=message):
         uptimely_plan.Plan.from_dict(payload)
 
@@ -186,6 +186,6 @@ def test_plan_rejects_invalid_collapse_metadata(field: str, value: object, messa
 @pytest.mark.parametrize("field", ["source", "group_by", "operations"])
 def test_plan_rejects_removed_collapse_fields(field: str) -> None:
     payload = _sample_plan().to_dict()
-    payload["operations"][1][field] = []
+    payload["callables"][1][field] = []
     with pytest.raises(TypeError, match=field):
         uptimely_plan.Plan.from_dict(payload)

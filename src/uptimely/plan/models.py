@@ -11,11 +11,11 @@ from uptimely import row_context as uptimely_row_context
 
 
 @dataclasses.dataclass(frozen=True)
-class Operation:
-    """One executable operation in a portable plan."""
+class Callable:
+    """One executable function invocation in a portable plan."""
 
     id: str
-    kind: str
+    operation: str
     entrypoint: str
     entity_id: str
     dataset_id: str | None
@@ -27,12 +27,12 @@ class Operation:
     row_context: uptimely_row_context.RowContext | None = None
 
     def __post_init__(self) -> None:
-        """Validate grouped execution and context contracts when constructing an operation."""
+        """Validate callable and context contracts during construction."""
         if len(set(self.output_features)) != len(self.output_features):
-            raise ValueError("Operation output_features must be unique")
+            raise ValueError("Callable output_features must be unique")
         if not isinstance(self.entrypoint, str) or not self.entrypoint:
-            raise ValueError("Callable operations must declare an entrypoint")
-        if self.kind == "collapse" and not self.output_features:
+            raise ValueError("Callables must declare an entrypoint")
+        if self.operation == "collapse" and not self.output_features:
             raise ValueError("Collapse must declare output_features")
         if self.row_context is not None:
             object.__setattr__(
@@ -43,7 +43,7 @@ class Operation:
 
     @property
     def function_id(self) -> str:
-        """Return the declared operation function identifier."""
+        """Return the function identifier encoded in this callable's id."""
         parts = self.id.split(":")
         return parts[2] if len(parts) > 2 and parts[0] == "callable" else self.id
 
@@ -56,7 +56,7 @@ class Plan:
     analytics_version: str | None
     required_backend: str
     resources: dict[str, typing.Any]
-    operations: list[Operation]
+    callables: list[Callable]
     stages: list[list[str]]
 
     def to_dict(self) -> dict[str, typing.Any]:
@@ -66,25 +66,23 @@ class Plan:
             "analytics_version": self.analytics_version,
             "required_backend": self.required_backend,
             "resources": self.resources,
-            "operations": [
+            "callables": [
                 {
-                    "id": operation.id,
-                    "kind": operation.kind,
-                    "entrypoint": operation.entrypoint,
-                    "entity_id": operation.entity_id,
-                    "dataset_id": operation.dataset_id,
-                    "output": operation.output,
-                    "arguments": operation.arguments,
-                    "dependency_ids": operation.dependency_ids,
-                    "output_features": operation.output_features,
-                    "input_features": operation.input_features,
+                    "id": callable.id,
+                    "operation": callable.operation,
+                    "entrypoint": callable.entrypoint,
+                    "entity_id": callable.entity_id,
+                    "dataset_id": callable.dataset_id,
+                    "output": callable.output,
+                    "arguments": callable.arguments,
+                    "dependency_ids": callable.dependency_ids,
+                    "output_features": callable.output_features,
+                    "input_features": callable.input_features,
                     "row_context": (
-                        operation.row_context.to_dict()
-                        if operation.row_context is not None
-                        else None
+                        callable.row_context.to_dict() if callable.row_context is not None else None
                     ),
                 }
-                for operation in self.operations
+                for callable in self.callables
             ],
             "stages": self.stages,
         }
@@ -97,7 +95,7 @@ class Plan:
             "analytics_version",
             "required_backend",
             "resources",
-            "operations",
+            "callables",
             "stages",
         }
         missing = sorted(required - payload.keys())
@@ -106,39 +104,39 @@ class Plan:
         unexpected = sorted(payload.keys() - required)
         if unexpected:
             raise ValueError("Plan contains unknown fields: " + ", ".join(unexpected))
-        operations = [Operation(**operation) for operation in payload["operations"]]
-        operation_ids = {operation.id for operation in operations}
-        if len(operation_ids) != len(operations):
-            raise ValueError("Plan contains duplicate operation ids")
+        callables = [Callable(**callable) for callable in payload["callables"]]
+        callable_ids = {callable.id for callable in callables}
+        if len(callable_ids) != len(callables):
+            raise ValueError("Plan contains duplicate callable ids")
         referenced = {
-            dependency_id for operation in operations for dependency_id in operation.dependency_ids
+            dependency_id for callable in callables for dependency_id in callable.dependency_ids
         }
-        staged_operations = [operation_id for stage in payload["stages"] for operation_id in stage]
-        staged = set(staged_operations)
-        unknown = (referenced | staged) - operation_ids
+        staged_callables = [callable_id for stage in payload["stages"] for callable_id in stage]
+        staged = set(staged_callables)
+        unknown = (referenced | staged) - callable_ids
         if unknown:
-            raise ValueError("Plan references unknown operation(s): " + ", ".join(sorted(unknown)))
-        if len(staged_operations) != len(operations) or staged != operation_ids:
-            raise ValueError("Plan must stage every operation exactly once")
-        stage_by_operation = {
-            operation_id: stage_number
+            raise ValueError("Plan references unknown callable(s): " + ", ".join(sorted(unknown)))
+        if len(staged_callables) != len(callables) or staged != callable_ids:
+            raise ValueError("Plan must stage every callable exactly once")
+        stage_by_callable = {
+            callable_id: stage_number
             for stage_number, stage in enumerate(payload["stages"])
-            for operation_id in stage
+            for callable_id in stage
         }
-        for operation in operations:
+        for callable in callables:
             if any(
-                stage_by_operation[dependency_id] >= stage_by_operation[operation.id]
-                for dependency_id in operation.dependency_ids
+                stage_by_callable[dependency_id] >= stage_by_callable[callable.id]
+                for dependency_id in callable.dependency_ids
             ):
                 raise ValueError(
-                    f"Dependencies for operation {operation.id} must be scheduled before it"
+                    f"Dependencies for callable {callable.id} must be scheduled before it"
                 )
         return cls(
             plan_version=payload["plan_version"],
             analytics_version=payload["analytics_version"],
             required_backend=payload["required_backend"],
             resources=payload["resources"],
-            operations=operations,
+            callables=callables,
             stages=payload["stages"],
         )
 
@@ -150,15 +148,15 @@ class ExecutionPlan:
     plan: Plan
 
     @property
-    def operations(self) -> list[Operation]:
-        """Return operations in their serialized order."""
-        return self.plan.operations
+    def callables(self) -> list[Callable]:
+        """Return callables in their serialized order."""
+        return self.plan.callables
 
     @property
-    def execution_stages(self) -> list[list[Operation]]:
-        """Return staged operations resolved from stage identifiers."""
-        by_id = {operation.id: operation for operation in self.operations}
-        return [[by_id[operation_id] for operation_id in stage] for stage in self.plan.stages]
+    def execution_stages(self) -> list[list[Callable]]:
+        """Return staged callables resolved from stage identifiers."""
+        by_id = {callable.id: callable for callable in self.callables}
+        return [[by_id[callable_id] for callable_id in stage] for stage in self.plan.stages]
 
     def to_dict(self) -> dict[str, typing.Any]:
         """Return the portable plan as plain JSON-compatible data."""

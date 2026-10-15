@@ -137,36 +137,36 @@
       {% set inputs = step.columns|selectattr("role", "equalto", "Input")|list %}
       {% set outputs = step.columns|selectattr("role", "equalto", "Output")|list %}
       {% set keys = step.columns|selectattr("role", "equalto", "Dimension")|list %}
-      <article class="lineage-step" id="step-{{ step.number }}" data-operation="{{ step.operation_id }}"
-        data-dependencies="{{ step.dependencies|join(',') }}" data-kind="{{ step.kind }}" data-stage="{{ stage_number }}">
+      <article class="lineage-step" id="step-{{ step.number }}" data-callable-id="{{ step.callable_id }}"
+        data-dependencies="{{ step.dependencies|join(',') }}" data-operation="{{ step.operation }}" data-stage="{{ stage_number }}">
         <h3>{{ step.function|replace("_", " ")|title }}</h3>
-        <span class="lineage-operation-label">{{ {"collapse": "Aggregate"}.get(step.kind, step.kind)|upper }}</span>
+        <span class="lineage-operation-label">{{ {"collapse": "Aggregate"}.get(step.operation, step.operation)|upper }}</span>
         <div class="lineage-scene">
           <div class="lineage-panel">
-            {% if step.kind == "read" %}
+            {% if step.operation == "read" %}
             <div class="lineage-boundary"><strong>Source</strong>{{ step.dataset or step.entity }}<p>The read callable supplies the declared columns.</p></div>
             {% elif inputs or keys %}
-            {{ sample_table(inputs, keys, "Input", "input", 3, step.kind == "collapse", step.dataset or step.entity) }}
+            {{ sample_table(inputs, keys, "Input", "input", 3, step.operation == "collapse", step.dataset or step.entity) }}
             {% else %}
             <div class="lineage-boundary"><strong>No declared input columns</strong>Only declared information is shown.</div>
             {% endif %}
           </div>
           <div class="lineage-arrow">
             <span class="lineage-arrow-icon" aria-hidden="true">&darr;</span>
-            <small class="lineage-callable-type">{{ {"collapse": "Aggregate"}.get(step.kind, step.kind|title) }}</small>
+            <small class="lineage-callable-type">{{ {"collapse": "Aggregate"}.get(step.operation, step.operation|title) }}</small>
           </div>
           <div class="lineage-panel lineage-panel-output">
             <p class="lineage-waiting" hidden>Output will form here as the callable is illustrated.</p>
-            {% if step.kind == "write" %}
+            {% if step.operation == "write" %}
             <div class="lineage-boundary" data-write-boundary><strong>Write destination</strong>{{ step.dataset or step.entity }}<p>Consumes the input columns; produces no analytical features.</p></div>
             {% elif outputs or keys %}
-            {{ sample_table(outputs, keys, "Output", "output", 1 if step.kind == "collapse" else 3, step.kind == "collapse", step.dataset or step.entity) }}
+            {{ sample_table(outputs, keys, "Output", "output", 1 if step.operation == "collapse" else 3, step.operation == "collapse", step.dataset or step.entity) }}
             {% else %}
             <div class="lineage-boundary"><strong>No declared output columns</strong>No output schema is inferred.</div>
             {% endif %}
           </div>
         </div>
-        <p class="lineage-status" aria-live="polite">{% if step.kind == "collapse" %}Illustrative grouping: three placeholder rows become one group. Actual grouping and row counts are not known.{% elif step.kind == "write" %}Write boundary: no new analytical columns.{% else %}Declared columns shown with three placeholder rows. Actual row counts are not known.{% endif %}</p>
+        <p class="lineage-status" aria-live="polite">{% if step.operation == "collapse" %}Illustrative grouping: three placeholder rows become one group. Actual grouping and row counts are not known.{% elif step.operation == "write" %}Write boundary: no new analytical columns.{% else %}Declared columns shown with three placeholder rows. Actual row counts are not known.{% endif %}</p>
         <details class="lineage-details">
           <summary>Declared schema and dependencies</summary>
           <p>Entity: {{ step.entity }} &middot; Dataset: {{ step.dataset or "None" }}</p>
@@ -229,10 +229,10 @@
     const step = steps[index];
     const table = step.querySelector('table[data-side="output"]');
     const preparation = [{ type: "inputs" }];
-    if (step.dataset.kind === "collapse") preparation.push({ type: "group" });
+    if (step.dataset.operation === "collapse") preparation.push({ type: "group" });
     preparation.push({ type: "callable" });
     if (!table) {
-      if (step.dataset.kind === "write") preparation.push({ type: "write" });
+      if (step.dataset.operation === "write") preparation.push({ type: "write" });
       return preparation;
     }
     const headers = Array.from(table.querySelectorAll('thead th[data-role="Output"]'));
@@ -253,11 +253,11 @@
     const completed = phase > sequence.length;
     const input = step.querySelector('table[data-side="input"]');
     if (input) {
-      input.classList.toggle("lineage-grouped", phase >= 2 && step.dataset.kind === "collapse" && !completed);
+      input.classList.toggle("lineage-grouped", phase >= 2 && step.dataset.operation === "collapse" && !completed);
       input.querySelectorAll("[data-role]").forEach(cell => {
         cell.classList.toggle("lineage-input-active", phase > 0 && !completed && cell.dataset.role === "Input");
         cell.classList.toggle("lineage-group-key", phase >= 2 && !completed
-          && step.dataset.kind === "collapse" && cell.dataset.role === "Dimension");
+          && step.dataset.operation === "collapse" && cell.dataset.role === "Dimension");
       });
     }
     const arrow = step.querySelector(".lineage-arrow");
@@ -296,7 +296,7 @@
       status.textContent = descriptions[index];
     } else {
       if (frame.type === "inputs") {
-        status.textContent = step.dataset.kind === "read"
+        status.textContent = step.dataset.operation === "read"
           ? "Reading from the declared source (illustration only)."
           : "Highlighting all declared input columns. Exact input-to-output mappings are not inferred.";
       } else if (frame.type === "group") {

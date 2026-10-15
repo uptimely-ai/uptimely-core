@@ -39,7 +39,7 @@ def test_analytics_reference_example_parses_compiles_and_executes(
     compiled = compile.Compiler(analytics_definition, features=["total"]).compile()
     execution = engine.Engine(compiled).execute()
 
-    assert len(compiled.operations) == 2
+    assert len(compiled.callables) == 2
     assert not execution.failures
     assert execution.datasets["observation", "observations"].sort("id").select(
         "id", "total"

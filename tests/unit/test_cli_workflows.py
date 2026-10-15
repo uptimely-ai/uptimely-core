@@ -29,9 +29,9 @@ def test_plan_build_defaults_and_verbose(
     restored = plan_module.ExecutionPlan.from_json(
         tmp_path / "_generated/compile/execution_plan.json"
     )
-    assert len(restored.operations) == 13
+    assert len(restored.callables) == 13
     text = capsys.readouterr().out
-    assert "Compiled 13 operations" in text
+    assert "Compiled 13 callables" in text
     assert "Execution stages" in text
     assert "normalize_health_signal(pump)" in text
     assert " <- [" in text
@@ -53,7 +53,7 @@ def test_plan_build_explicit_paths_and_subset(
         "health_signal_normalized",
     )
     restored = plan_module.ExecutionPlan.from_json(output)
-    assert {operation.function_id for operation in restored.operations} == {
+    assert {callable.function_id for callable in restored.callables} == {
         "read_pump_telemetry",
         "maximum",
         "normalize_health_signal",
@@ -114,7 +114,7 @@ def test_engine_run_compile_and_saved_plan(
     invoke(monkeypatch, *arguments)
     text = capsys.readouterr().out
     assert "Engine completed the flow" in text
-    assert "3 operations" in text
+    assert "3 callables" in text
     assert "Calculated features: health_signal_normalized" in text
     assert "Execution stages" in text
     assert "Dataset(pump, pump_dataset): 5 features" in text

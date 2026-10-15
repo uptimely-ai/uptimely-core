@@ -308,7 +308,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         "Datasets": str(len(datasets)),
         "Features": str(sum(len(dataset.features) for dataset in datasets)),
         "Functions": str(len(analytics_definition.functions)),
-        "Operations": str(len(expected_plan.operations)),
+        "Callables": str(len(expected_plan.callables)),
         "Stages": str(len(expected_plan.execution_stages)),
     }
     assert "Analytics 0.2.0" in document
@@ -540,7 +540,7 @@ def test_execution_plan_pages_render_only_their_section(
     assert ('id="plan-overview"' in document) == (title == "Overview")
     assert ('id="callable-graph"' in document) == is_graph
     assert ("const callableGraphData" in document) == is_graph
-    assert ('id="operations"' in document) == (title == "Stages")
+    assert ('id="callables"' in document) == (title == "Stages")
     assert (">Argument</th>" in document) == (title == "Stages")
     if title == "Stages":
         assert "Source dataset:" not in document
@@ -610,25 +610,25 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
     cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
     assert cards == {
-        "Callables": str(len(plan.operations)),
-        "Functions": str(len({operation.function_id for operation in plan.operations})),
-        "Entities": str(len({operation.entity_id for operation in plan.operations})),
+        "Callables": str(len(plan.callables)),
+        "Functions": str(len({callable.function_id for callable in plan.callables})),
+        "Entities": str(len({callable.entity_id for callable in plan.callables})),
         "Features": str(
             len(
                 {
-                    operation.output
-                    for operation in plan.operations
-                    if operation.kind == "vectorize" and operation.output is not None
+                    callable.output
+                    for callable in plan.callables
+                    if callable.operation == "vectorize" and callable.output is not None
                 }
             )
         ),
         "Stages": str(len(plan.execution_stages)),
-        "Dependencies": str(sum(len(operation.dependency_ids) for operation in plan.operations)),
-        "Max parallel operations": str(max(map(len, plan.execution_stages), default=0)),
+        "Dependencies": str(sum(len(callable.dependency_ids) for callable in plan.callables)),
+        "Max parallel callables": str(max(map(len, plan.execution_stages), default=0)),
     }
     assert dict(re.findall(r'data-operation="([^"]+)" data-count="(\d+)"', document)) == {
         kind: str(count)
-        for kind, count in collections.Counter(op.kind for op in plan.operations).items()
+        for kind, count in collections.Counter(item.operation for item in plan.callables).items()
     }
     assert re.findall(r'data-stage="(\d+)" data-count="(\d+)"', document) == [
         (str(index), str(len(stage))) for index, stage in enumerate(plan.execution_stages, start=1)
@@ -640,7 +640,7 @@ def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> Non
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
 
     assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 7
-    assert "No callable operations." in document
+    assert "No callables." in document
     assert "No execution stages." in document
 
 
@@ -724,14 +724,12 @@ def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pa
     match = re.search(r"const callableGraphData = (.+);", document)
     assert match is not None
     payload = json.loads(match.group(1))
-    assert {node["id"] for node in payload["nodes"]} == {
-        operation.id for operation in plan.operations
-    }
+    assert {node["id"] for node in payload["nodes"]} == {callable.id for callable in plan.callables}
     assert all(node["node_type"] == "callable" for node in payload["nodes"])
     assert {(link["source"], link["target"]) for link in payload["links"]} == {
-        (dependency_id, operation.id)
-        for operation in plan.operations
-        for dependency_id in operation.dependency_ids
+        (dependency_id, callable.id)
+        for callable in plan.callables
+        for dependency_id in callable.dependency_ids
     }
 
 
