@@ -8,7 +8,7 @@ from examples.pump_analytics.functions import calculation
 from examples.simple_analytics.config.spec import spec as simple_analytics_spec
 from examples.simple_analytics.functions import functions
 
-from uptimely import analytics as uptimely_spec
+from uptimely import analytics
 from uptimely.analytics import python as python_spec
 from uptimely.analytics.python import bind
 
@@ -60,15 +60,15 @@ def test_argument_definition_supports_recursive_compact_types() -> None:
 
 
 def test_function_catalog_uses_vectorize_category() -> None:
-    specification = uptimely_spec.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
 
     categories = set(specification.functions.model_dump(exclude_none=True))
     assert "vectorize" in categories
 
 
 def test_example_manifest_parses_complete_specification() -> None:
-    specification = uptimely_spec.Analytics.from_json(SPEC_PATH)
-    specification_from_directory = uptimely_spec.Analytics.from_json(SPEC_PATH.parent)
+    specification = analytics.Analytics(json=SPEC_PATH)
+    specification_from_directory = analytics.Analytics(json=SPEC_PATH.parent)
 
     assert specification_from_directory.path.endswith("spec.json")
     assert specification.dimensions["pump"].parent == "production_line"
@@ -83,7 +83,7 @@ def test_example_manifest_parses_complete_specification() -> None:
         specification.dimensions[identifier]
         for identifier in ("plant", "production_line", "pump", "timestamp")
     ]
-    assert isinstance(specification, uptimely_spec.Analytics)
+    assert isinstance(specification, analytics.Analytics)
     assert specification.source.name == "python_api"
     assert specification.source.generated is True
     assert set(specification.functions.model_dump(exclude_none=True)) == {
@@ -107,7 +107,7 @@ def test_example_manifest_parses_complete_specification() -> None:
 
 
 def test_spec_from_entities_python_api(tmp_path: pathlib.Path) -> None:
-    specification = uptimely_spec.Analytics.from_python(
+    specification = analytics.Analytics.from_python(
         entities=simple_analytics_spec.python_specification.entities,
         dimensions=simple_analytics_spec.python_specification.dimensions,
         name=simple_analytics_spec.python_specification.name,
@@ -121,10 +121,10 @@ def test_spec_from_entities_python_api(tmp_path: pathlib.Path) -> None:
 
 
 def test_example_timestamp_order_matches_python_declaration() -> None:
-    authored = uptimely_spec.Analytics.from_python(
+    authored = analytics.Analytics.from_python(
         entities=pump_telemetry_spec.entities, dimensions=pump_telemetry_spec.dimensions
     )
-    exported = uptimely_spec.Analytics.from_json(SPEC_PATH)
+    exported = analytics.Analytics(json=SPEC_PATH)
     expected = [{"dimension": "$dimensions.timestamp", "direction": "asc"}]
     for specification in (authored, exported):
         assert [
@@ -134,7 +134,7 @@ def test_example_timestamp_order_matches_python_declaration() -> None:
 
 
 def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None:
-    specification = uptimely_spec.Analytics.from_python(
+    specification = analytics.Analytics.from_python(
         datasets=[simple_analytics_spec.dataset_],
         functions=simple_analytics_spec.dataset_.function_catalog(),
         name="simple_analytics",
@@ -225,7 +225,7 @@ def test_sources_and_transforms_python_spec() -> None:
             )
         ],
     )
-    spec = uptimely_spec.Analytics.from_python(
+    spec = analytics.Analytics.from_python(
         datasets=[declaration, summary],
         name="transforms_test",
     )

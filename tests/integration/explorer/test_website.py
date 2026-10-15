@@ -159,7 +159,7 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
 def test_website_exports_all_reports_with_relative_navigation(
     tmp_path: pathlib.Path, monkeypatch
 ) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     monkeypatch.chdir(tmp_path)
 
     index = explorer.Explorer(specification).create_html()
@@ -279,7 +279,7 @@ def test_website_exports_all_reports_with_relative_navigation(
 
 
 def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monkeypatch) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     expected_plan = compile.Compiler(specification).compile()
     compile_calls = 0
     original_compile = compile.Compiler.compile
@@ -361,7 +361,7 @@ def test_homepage_handles_unnamed_and_escaped_projects(
 def test_specification_pages_render_only_their_section(
     tmp_path: pathlib.Path, filename: str, section_id: str, title: str
 ) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     explorer.Explorer(specification).create_html(tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
@@ -379,7 +379,7 @@ def test_specification_pages_render_only_their_section(
 
 
 def test_specification_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     explorer.Explorer(specification).create_html(tmp_path / "index.html")
     document = (tmp_path / "spec/overview.html").read_text(encoding="utf-8")
 
@@ -394,7 +394,7 @@ def test_specification_overview_displays_source_profile(tmp_path: pathlib.Path) 
 
 
 def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     specification.path = None
 
     index = explorer.create_html(specification, tmp_path / "nested" / "analytics.htm")
@@ -462,7 +462,7 @@ def test_relocated_website_navigation_works_under_url_prefix(
 def test_execution_plan_pages_render_only_their_section(
     tmp_path: pathlib.Path, filename: str, title: str
 ) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     explorer.Explorer(specification).create_html(tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
@@ -552,7 +552,7 @@ def test_execution_plan_pages_render_only_their_section(
 def test_graph_pages_have_one_selector_and_shared_data(
     tmp_path: pathlib.Path, filename: str
 ) -> None:
-    explorer.create_html(analytics.Analytics.from_json(SPEC_PATH), tmp_path / "index.html")
+    explorer.create_html(analytics.Analytics(json=SPEC_PATH), tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert document.count('aria-label="Graph view"') == 1
@@ -593,7 +593,7 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
 
 
 def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     first = explorer.Explorer(specification).create_html(tmp_path / "first" / "index.html")
     second = explorer.Explorer(specification).create_html(tmp_path / "second" / "index.html")
 
@@ -602,7 +602,7 @@ def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> N
 
 
 def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     plan = compile.Compiler(specification).compile()
     explorer.Explorer(specification).create_html(tmp_path / "index.html")
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
@@ -646,7 +646,7 @@ def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> Non
     "filename", ["overview.html", "features.html", "graph.html", "stages.html"]
 )
 def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filename: str) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
 
     index = explorer.Explorer(specification).create_html(tmp_path / filename)
     assert index.is_file()
@@ -662,7 +662,7 @@ def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filen
 
 
 def test_standalone_html_apis_are_removed() -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     graph = analytics.FeatureGraph(specification)
     assert not hasattr(specification, "create_html")
     assert not hasattr(graph, "export_html")
@@ -677,7 +677,7 @@ def test_standalone_html_apis_are_removed() -> None:
 def test_website_propagates_compilation_errors_without_writing_reports(
     tmp_path: pathlib.Path,
 ) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     specification.functions.read[
         "read_pump_telemetry"
     ].entrypoint = "missing_functions:read_pump_telemetry"
@@ -698,7 +698,7 @@ def test_website_propagates_compilation_errors_without_writing_reports(
 def test_website_graph_links_reference_exported_nodes(
     tmp_path: pathlib.Path, filename: str, variable: str
 ) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     explorer.Explorer(specification).create_html(tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
     match = re.search(rf"const {variable} = (.+);", document)
@@ -715,7 +715,7 @@ def test_website_graph_links_reference_exported_nodes(
 
 
 def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     plan = compile.Compiler(specification).compile()
     explorer.Explorer(specification).create_html(tmp_path / "index.html")
     document = (tmp_path / "plan/graph.html").read_text(encoding="utf-8")
@@ -739,13 +739,13 @@ def test_website_does_not_execute_analytics(tmp_path: pathlib.Path, monkeypatch)
         raise AssertionError("Website generation must not execute analytics")
 
     monkeypatch.setattr(source, "read_pump_telemetry", fail_if_executed)
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
 
     assert explorer.Explorer(specification).create_html(tmp_path / "index.html").is_file()
 
 
 def test_website_can_include_specification_timestamp(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
 
     explorer.Explorer(specification).create_html(tmp_path / "index.html", include_generated_at=True)
 

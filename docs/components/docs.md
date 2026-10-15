@@ -160,10 +160,10 @@ exit status.
 
 ```python
 from uptimely.explorer.explorer import Explorer
-from uptimely.analytics import Analytics
+from uptimely import Analytics
 
-specification = Analytics.from_json("_generated/spec/spec.json")
-explorer = Explorer(specification)
+analytics_definition = Analytics(json="_generated/spec/spec.json")
+explorer = Explorer(analytics_definition)
 index_path = explorer.create_html()
 ```
 

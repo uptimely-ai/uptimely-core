@@ -162,7 +162,7 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
     specification = _specification(lazy=lazy, empty=empty)
     path = tmp_path / "spec.json"
     specification.to_json(path)
-    restored = analytics.Analytics.from_json(path)
+    restored = analytics.Analytics(json=path)
     plan = compile.Compiler(restored).compile()
     portable = plan_module.ExecutionPlan(
         plan_module.Plan.from_dict(json.loads(json.dumps(plan.to_dict())))

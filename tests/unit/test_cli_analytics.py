@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from uptimely import analytics as spec_module
+from uptimely import analytics
 from uptimely.cli import cli
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
@@ -51,7 +51,7 @@ def test_export_example_in_fresh_process(
     )
     assert f"Analytics written to {output}" in result.stdout
     assert not result.stderr
-    specification = spec_module.Analytics.from_json(output)
+    specification = analytics.Analytics(json=output)
     assert specification.name == name
     assert set(specification.entities) == entities
     assert specification.source.name == "python_api"

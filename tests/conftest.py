@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from uptimely import analytics as spec
+from uptimely import analytics
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
 EXAMPLE_SPEC_DIRS = [
@@ -29,7 +29,7 @@ def pytest_configure(config: pytest.Config) -> None:
     specifications = (
         (
             "pump_analytics",
-            spec.Analytics.from_python(
+            analytics.Analytics.from_python(
                 entities=pump_spec.entities,
                 dimensions=pump_spec.dimensions,
                 name="Pump analytics",
@@ -37,7 +37,7 @@ def pytest_configure(config: pytest.Config) -> None:
         ),
         (
             "simple_analytics",
-            spec.Analytics.from_python(
+            analytics.Analytics.from_python(
                 entities=simple_spec.python_specification.entities,
                 dimensions=simple_spec.python_specification.dimensions,
                 name=simple_spec.python_specification.name,

@@ -4,14 +4,14 @@ from html import parser as html_parser
 
 from examples.pump_analytics.config.spec import spec as pump_spec
 
-from uptimely import analytics as spec
+from uptimely import analytics
 from uptimely.explorer import explorer
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def test_specification_exports_only_json(tmp_path: pathlib.Path) -> None:
-    specification = spec.Analytics.from_python(
+    specification = analytics.Analytics.from_python(
         entities=pump_spec.entities,
         dimensions=pump_spec.dimensions,
         name="Pump analytics",
@@ -19,7 +19,7 @@ def test_specification_exports_only_json(tmp_path: pathlib.Path) -> None:
     specification.to_json(tmp_path / "spec.json")
 
     assert {path.name for path in tmp_path.iterdir()} == {"spec.json"}
-    assert spec.Analytics.from_json(tmp_path / "spec.json").name == "Pump analytics"
+    assert analytics.Analytics(json=tmp_path / "spec.json").name == "Pump analytics"
 
 
 class TextCollector(html_parser.HTMLParser):
@@ -37,7 +37,7 @@ class TextCollector(html_parser.HTMLParser):
         return " ".join(self.parts)
 
 
-def _explorer_counts(specification: spec.Analytics) -> dict[str, int]:
+def _explorer_counts(specification: analytics.Analytics) -> dict[str, int]:
     datasets = [
         dataset for entity in specification.entities.values() for dataset in entity.datasets
     ]
@@ -56,7 +56,7 @@ def _explorer_counts(specification: spec.Analytics) -> dict[str, int]:
 
 
 def test_json_explorer_have_expected_keys(tmp_path: pathlib.Path) -> None:
-    specification = spec.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
 
     output_path = explorer.Explorer(specification).create_json(tmp_path / "explorer.json")
     document = json.loads(output_path.read_text(encoding="utf-8"))
@@ -85,7 +85,7 @@ def test_json_explorer_have_expected_keys(tmp_path: pathlib.Path) -> None:
 
 
 def test_json_explorer_counts_match_specification(tmp_path: pathlib.Path) -> None:
-    specification = spec.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     expected_counts = _explorer_counts(specification)
 
     output_path = explorer.Explorer(specification).create_json(tmp_path / "explorer.json")
@@ -103,7 +103,7 @@ def test_json_explorer_counts_match_specification(tmp_path: pathlib.Path) -> Non
 
 
 def test_html_explorer_overview_counts_match_specification(tmp_path: pathlib.Path) -> None:
-    specification = spec.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     specification.name = "Pump analytics"
     expected_counts = _explorer_counts(specification)
 

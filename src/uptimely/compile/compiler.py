@@ -7,7 +7,7 @@ import pathlib
 import typing
 from collections import abc
 
-from uptimely import analytics as uptimely_spec
+from uptimely import analytics
 from uptimely import plan as uptimely_plan
 from uptimely.analytics.json import bindings
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 ExecutionPlan = uptimely_plan.ExecutionPlan
 
 
-def _resolve_function(specification: uptimely_spec.Analytics, node: node_module.CallableNode):
+def _resolve_function(specification: analytics.Analytics, node: node_module.CallableNode):
     """Return the function definition for an operation node."""
     catalog = specification.function_catalog
     function_catalog = getattr(catalog, node.callable_type, None)
@@ -48,7 +48,7 @@ def _portable_value(value: object) -> object:
     return value
 
 
-def _resource_models(specification: uptimely_spec.Analytics) -> dict[str, typing.Any]:
+def _resource_models(specification: analytics.Analytics) -> dict[str, typing.Any]:
     """Export the specification data required by the engine at runtime."""
     return {
         "specification_version": specification.version,
@@ -81,14 +81,14 @@ class Compiler:
 
     def __init__(
         self,
-        spec: str | pathlib.Path | uptimely_spec.Analytics,
+        spec: str | pathlib.Path | analytics.Analytics,
         features: abc.Collection[str] | None = None,
     ) -> None:
         """Initialize the compiler with a specification or JSON path."""
         self.spec_path: pathlib.Path | None = None
-        self.specification: uptimely_spec.Analytics | None = None
+        self.specification: analytics.Analytics | None = None
         self.features = self._validate_features(features)
-        if isinstance(spec, uptimely_spec.Analytics):
+        if isinstance(spec, analytics.Analytics):
             self.specification = spec
             self.spec_path = pathlib.Path(spec.path) if spec.path else None
         else:
@@ -99,7 +99,7 @@ class Compiler:
         if self.specification is None:
             if self.spec_path is None:
                 raise ValueError("No specification or specification path provided.")
-            self.specification = uptimely_spec.Analytics.from_json(self.spec_path)
+            self.specification = analytics.Analytics(json=self.spec_path)
 
         callable_graph = execution_graph.CallableGraph(self.specification)
         if self.features is not None:

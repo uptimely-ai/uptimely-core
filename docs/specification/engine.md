@@ -49,11 +49,11 @@ convenience constructors, but the runtime engine itself primarily works with the
 plan object.
 
 ```python
-from uptimely.analytics import Analytics
+from uptimely import Analytics
 
-specification = Analytics.from_json("examples/pump_analytics/_generated/spec/spec.json")
+analytics_definition = Analytics(json="examples/pump_analytics/_generated/spec/spec.json")
 plan = Compiler(
-    specification,
+    analytics_definition,
     features=["health_signal_normalized"],
 ).compile()
 engine = Engine(plan, config=EngineConfig(dataframe="polars"))

@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from uptimely import analytics as spec
-from uptimely import row_context
+from uptimely import analytics, row_context
 
 FRAGMENT_OPERATION_TYPES = frozenset({"read", "collapse", "expand", "conform"})
 SOURCE_OPERATION_TYPES = FRAGMENT_OPERATION_TYPES
@@ -26,7 +25,7 @@ class CallableNode:
     operation_id: str | None = None
     output_features: tuple[str, ...] = ()
     args: dict[str, object] = dataclasses.field(default_factory=dict, compare=False, hash=False)
-    callable: spec.Call | None = dataclasses.field(default=None, compare=False, hash=False)
+    callable: analytics.Call | None = dataclasses.field(default=None, compare=False, hash=False)
     callable_type_override: str | None = dataclasses.field(default=None, compare=False, hash=False)
     row_context: row_context.RowContext | None = dataclasses.field(
         default=None, compare=False, hash=False

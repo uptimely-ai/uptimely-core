@@ -5,8 +5,7 @@ from __future__ import annotations
 import dataclasses
 import pathlib
 
-from uptimely import analytics as spec
-from uptimely import plan, render
+from uptimely import analytics, plan, render
 
 
 @dataclasses.dataclass(frozen=True)
@@ -37,7 +36,7 @@ class DataLineageStep:
 
 
 def _build_stages(
-    specification: spec.Analytics, execution_plan: plan.ExecutionPlan
+    specification: analytics.Analytics, execution_plan: plan.ExecutionPlan
 ) -> list[list[DataLineageStep]]:
     """Build typed table schemas with colors inherited from feature producers.
 
@@ -132,7 +131,7 @@ def _build_stages(
 
 
 def _create_website_page(
-    specification: spec.Analytics,
+    specification: analytics.Analytics,
     execution_plan: plan.ExecutionPlan,
     output_directory: pathlib.Path,
     *,

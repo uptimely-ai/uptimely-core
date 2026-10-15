@@ -5,7 +5,7 @@ from __future__ import annotations
 import graphable as graphable_
 from graphable.views import texttree
 
-from uptimely import analytics as spec
+from uptimely import analytics
 
 from ..analytics.json import bindings
 from . import node as node_module
@@ -17,7 +17,7 @@ NodeMeta = node_module.CallableNode
 class CallableGraph:
     """Dependency graph built from callable invocations and their feature dependencies."""
 
-    def __init__(self, specs: spec.Analytics) -> None:
+    def __init__(self, specs: analytics.Analytics) -> None:
         """Load analytics functions and build the callable dependency graph.
 
         Args:

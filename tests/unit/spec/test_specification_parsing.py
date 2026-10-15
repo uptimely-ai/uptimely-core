@@ -21,18 +21,31 @@ def test_specification_rejects_unknown_fields(tmp_path: pathlib.Path) -> None:
     configuration["unexpected"] = True
 
     with pytest.raises(pydantic.ValidationError, match="unexpected"):
-        analytics.Analytics.from_json(_write_configuration(tmp_path, configuration, "unknown.json"))
+        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "unknown.json"))
 
 
 def test_specification_accepts_top_level_name(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["name"] = "Pump analytics"
 
-    specification = analytics.Analytics.from_json(
-        _write_configuration(tmp_path, configuration, "named.json")
+    specification = analytics.Analytics(
+        json=_write_configuration(tmp_path, configuration, "named.json")
     )
 
     assert specification.name == "Pump analytics"
+
+
+def test_analytics_json_constructor_preserves_resolved_data() -> None:
+    specification = analytics.Analytics(json=SPEC_PATH)
+
+    assert specification.path == str(SPEC_PATH)
+    assert specification.resolved_functions
+    assert specification.calls
+
+
+def test_analytics_json_constructor_rejects_model_fields() -> None:
+    with pytest.raises(ValueError, match="either json or analytics fields"):
+        analytics.Analytics(json=SPEC_PATH, name="Pump analytics")
 
 
 def test_specification_rejects_unsupported_version(tmp_path: pathlib.Path) -> None:
@@ -40,7 +53,7 @@ def test_specification_rejects_unsupported_version(tmp_path: pathlib.Path) -> No
     configuration["version"] = "9.9.9"
 
     with pytest.raises(pydantic.ValidationError, match="version"):
-        analytics.Analytics.from_json(_write_configuration(tmp_path, configuration, "version.json"))
+        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "version.json"))
 
 
 def test_specification_rejects_dimension_parent_cycles(tmp_path: pathlib.Path) -> None:
@@ -48,7 +61,7 @@ def test_specification_rejects_dimension_parent_cycles(tmp_path: pathlib.Path) -
     configuration["dimensions"]["plant"]["parent"] = "pump"
 
     with pytest.raises(ValueError, match="Dimension parent cycle.*plant"):
-        analytics.Analytics.from_json(_write_configuration(tmp_path, configuration, "cycle.json"))
+        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "cycle.json"))
 
 
 def test_specification_rejects_duplicate_dataset_ids(tmp_path: pathlib.Path) -> None:
@@ -57,9 +70,7 @@ def test_specification_rejects_duplicate_dataset_ids(tmp_path: pathlib.Path) -> 
     configuration["entities"]["pump"]["datasets"].append(duplicate)
 
     with pytest.raises(ValueError, match="Duplicate dataset id.*pump_dataset"):
-        analytics.Analytics.from_json(
-            _write_configuration(tmp_path, configuration, "datasets.json")
-        )
+        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "datasets.json"))
 
 
 def test_specification_errors_expose_stable_code_and_path(tmp_path: pathlib.Path) -> None:
@@ -68,9 +79,7 @@ def test_specification_errors_expose_stable_code_and_path(tmp_path: pathlib.Path
     configuration["entities"]["pump_telemetry"]["datasets"].append(duplicate)
 
     with pytest.raises(validation.SpecificationError) as error:
-        analytics.Analytics.from_json(
-            _write_configuration(tmp_path, configuration, "datasets.json")
-        )
+        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "datasets.json"))
 
     assert error.value.code == "duplicate_dataset_id"
     assert error.value.path == ("entities", "pump", "datasets", "pump_dataset")
@@ -82,7 +91,7 @@ def test_specification_rejects_unknown_write_function(tmp_path: pathlib.Path) ->
     dataset["mappings"]["write_pump_telemetry"]["binding"]["function"] = "missing_write"
 
     with pytest.raises(ValueError, match="mappings reference unknown functions: missing_write"):
-        analytics.Analytics.from_json(_write_configuration(tmp_path, configuration, "write.json"))
+        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "write.json"))
 
 
 def test_specification_rejects_undeclared_binding_arguments(tmp_path: pathlib.Path) -> None:
@@ -96,9 +105,7 @@ def test_specification_rejects_undeclared_binding_arguments(tmp_path: pathlib.Pa
         ValueError,
         match="Binding for function read_pump_telemetry has unknown arguments: unexpected",
     ):
-        analytics.Analytics.from_json(
-            _write_configuration(tmp_path, configuration, "arguments.json")
-        )
+        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "arguments.json"))
 
 
 def test_feature_references_are_explicit_and_recursive() -> None:
@@ -138,7 +145,7 @@ def test_structural_references_compile_to_identifiers() -> None:
 
 
 def test_system_and_subset_support_multiple_variables() -> None:
-    specification = analytics.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     assert len(specification.resolved_functions) == 7
     collapse = specification.entities["pump"].datasets[0].mappings["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
@@ -220,7 +227,7 @@ def test_specification_validation_rejects_duplicate_feature_names(tmp_path: path
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(ValueError, match="Duplicate feature name: pressure_flow_efficiency"):
-        analytics.Analytics.from_json(spec_path)
+        analytics.Analytics(json=spec_path)
 
 
 def test_specification_validation_rejects_duplicate_fragment_input_names(
@@ -238,7 +245,7 @@ def test_specification_validation_rejects_duplicate_fragment_input_names(
         ValueError,
         match="Feature bearing_temperature is produced by multiple mappings",
     ):
-        analytics.Analytics.from_json(spec_path)
+        analytics.Analytics(json=spec_path)
 
 
 def test_dimension_outputs_are_implicit_in_mapping(
@@ -251,7 +258,7 @@ def test_dimension_outputs_are_implicit_in_mapping(
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    analytics.Analytics.from_json(spec_path)
+    analytics.Analytics(json=spec_path)
 
 
 def test_specification_validation_rejects_unknown_vectorize_template(
@@ -268,7 +275,7 @@ def test_specification_validation_rejects_unknown_vectorize_template(
         ValueError,
         match="mappings reference unknown functions: missing_vectorize_template",
     ):
-        analytics.Analytics.from_json(spec_path)
+        analytics.Analytics(json=spec_path)
 
 
 def test_specification_validation_rejects_feature_dimension_name_collision(
@@ -288,7 +295,7 @@ def test_specification_validation_rejects_feature_dimension_name_collision(
         ValueError,
         match="Calculated feature names cannot duplicate entity dimensions: pump",
     ):
-        analytics.Analytics.from_json(spec_path)
+        analytics.Analytics(json=spec_path)
 
 
 def test_specification_validation_rejects_cross_dataset_feature_dependency(
@@ -321,4 +328,4 @@ def test_specification_validation_rejects_cross_dataset_feature_dependency(
         ValueError,
         match="use a source resource operation",
     ):
-        analytics.Analytics.from_json(spec_path)
+        analytics.Analytics(json=spec_path)
