@@ -1,9 +1,8 @@
 # Open Analytics Specification
 
 The specification is a single JSON document describing datasets, feature
-dependencies, and function bindings. JSON is the canonical contract.
-`Specification.from_python(...)` converts Python declarations to the same model;
-`to_json(...)` exports it.
+dependencies, and function bindings. JSON is the canonical contract between
+analytical declarations and the tools that validate, document, and compile them.
 
 ## Document Conventions
 
@@ -14,8 +13,8 @@ arguments, and mappings use object keys as identifiers; do not repeat their
 
 Tables describe the current parser contract. A default applies when a field is
 omitted; it does not generally make explicit `null` valid. Unknown fields are
-rejected. Python declarations and direct JSON authoring use the same canonical
-model, rather than separate execution contracts.
+rejected. The JSON structure defines the same contract regardless of how a
+document is authored or consumed.
 
 ## Root Object
 
@@ -29,8 +28,8 @@ model, rather than separate execution contracts.
 | `entities` | object | No; `{}` | Entity definitions keyed by identifier. |
 
 When supplied, `source` requires `name` (string) and `generated` (boolean).
-The default is `{"name": "manual", "generated": false}`. Python authoring
-records `{"name": "python_api", "generated": true}`.
+The default is `{"name": "manual", "generated": false}`. Generated documents
+can identify their generator in `name` and set `generated` to `true`.
 
 ## Dimensions and Entities
 
@@ -130,39 +129,39 @@ calculated. Its dataset registry declares the metadata once:
 
 Feature fields are `type`, `description`, and `unit`, all optional.
 Each is a string or null and defaults to null.
-Types should be declared explicitly: a dataframe return annotation cannot
+Types should be declared explicitly: a tabular result's general type does not
 describe the types of its individual columns.
 
 Non-dimension feature identifiers must be globally unique and have exactly
 one producer. Dimension columns can recur across datasets.
 
-### Column Types and Dataframe Boundaries
+### Column Types and Tabular Results
 
-The built-in engine accepts Polars `DataFrame` and `LazyFrame` results.
-It validates non-null declared column types using these logical names:
+The execution engine validates non-null declared column types using these
+logical names:
 
-| Logical type | Accepted Polars column type |
+| Logical type | Meaning |
 | --- | --- |
-| `string` | String. |
-| `integer` | Any integer type. |
-| `float` | Any floating-point type. |
-| `numeric` | Any numeric type. |
-| `boolean` | Boolean. |
-| `datetime` | Datetime, including timezone-aware datetime. |
-| `date` | Date. |
-| `object` | Struct or Object. |
-| `array` | List or Array. |
+| `string` | Text value. |
+| `integer` | Integer value. |
+| `float` | Floating-point value. |
+| `numeric` | Numeric value. |
+| `boolean` | Boolean value. |
+| `datetime` | Datetime value, optionally timezone-aware. |
+| `date` | Calendar date. |
+| `object` | Structured value. |
+| `array` | List or array value. |
 
-No automatic type conversion is performed. Unknown logical column types fail
-runtime validation; omitted feature types skip that column's type check.
+The engine does not automatically convert values. Unknown logical column types
+fail runtime validation; omitted feature types skip that column's type check.
 Dimension types come from the root registry, even when their columns are not
 listed as mapping outputs. Repeated dimension feature metadata does not
 override the root dimension type.
 
-Dataframe arguments refer to materialized datasets; they do not carry a
-separate schema declaration. Entity dimensions and feature metadata define
-the result's expected columns. A dataframe may carry extra columns, but only
-the declared outputs and dimension keys enter the accumulated dataset.
+Tabular arguments refer to materialized datasets; they do not carry a separate
+schema declaration. Entity dimensions and feature metadata define the result's
+expected columns. A result may carry extra columns, but only the declared
+outputs and dimension keys enter the accumulated dataset.
 
 ## Functions
 
@@ -176,14 +175,14 @@ All templates require an `entrypoint` string and accept an `args` object,
 defaulting to `{}`. Only vectorize templates currently support an optional
 `description` string or null; other categories reject that field.
 
-Entrypoints use `module.path:function_name` or
-`path/to/module.py:function_name`. The module must be importable from the
-project environment. For example:
+An entrypoint identifies the implementation associated with a template. Its
+resolution is determined by the execution environment. The value below is
+symbolic; a concrete runtime defines its accepted entrypoint syntax.
 
 ```json
 "vectorize": {
   "sum_features": {
-    "entrypoint": "examples.simple_analytics.functions.functions:sum_features",
+    "entrypoint": "analytics.sum_features",
     "args": {
       "dataset": {"type": "dataframe"},
       "left_feature": {"type": "string"},
@@ -209,9 +208,9 @@ exactly one catalog category.
 | `vectorize` | Calculate features while preserving observation keys. | Same-grain calculation. | None. | Dataframe fragment. |
 | `write` | Persist or evaluate selected data. | Output evaluation. | May write. | Ignored; no output features. |
 
-All data-producing functions return a dataframe. They perform their own
+All data-producing operations return a table. They perform their own
 calculations, grouping, output naming, and scalar broadcasting.
-Analytical functions should not perform external I/O.
+Analytical operations should not perform external I/O.
 
 `vectorize` preserves the current dataset's dimensions and observation keys.
 `conform` reconciles row scopes within an entity; `expand` transfers observations
@@ -242,15 +241,15 @@ Nested expressions such as `object{str: array[string]}` are supported.
 
 The parser checks bound argument names and explicit selector/type agreement;
 it does not perform general validation or coercion of literal values against
-the declared types, or verify that the callable accepts those arguments.
-The compiler imports implementations and reads annotations, but column
-schemas still come from the dimension and feature registries.
-Use typed collections for nested dataframe references so the engine knows
+the declared types, or verify that the implementation accepts those arguments.
+The compiler resolves implementations, but column schemas still come from
+the dimension and feature registries.
+Use typed collections for nested table references so the engine knows
 which members to resolve as data.
 
 ## Feature Mappings
 
-A mapping separates analytical requirements from the Python call:
+A mapping separates analytical requirements from the implementation binding:
 
 ```json
 "temperature_mean": {
@@ -291,7 +290,7 @@ Conversely, passing a feature identifier is not a declaration that its data
 must exist. Declare every consumed feature in `inputs`.
 
 Outputs reference the owning dataset's feature registry. Entity dimension keys
-are required in every returned dataframe, even when omitted from `outputs`.
+are required in every returned table, even when omitted from `outputs`.
 A write mapping declares empty outputs and explicitly lists its required inputs.
 Data-producing mappings require at least one output. Vectorize outputs cannot
 redeclare entity dimensions. Collapse must produce at least one non-dimension
@@ -299,17 +298,17 @@ feature. There is no binding-level `return` field.
 
 ### Dimension-Keyed Alignment
 
-The returned dataframe must contain the complete target dimension key and every
+The returned table must contain the complete target dimension key and every
 declared output column. Keys must be unique; dimensionless datasets allow at
 most one row. Results are joined by keys, never by physical row position.
 Null key values match corresponding null keys.
 
-Only dimension columns and declared outputs are merged. A function may return
-its input dataframe with added columns, but it cannot overwrite unrelated
+Only dimension columns and declared outputs are merged. An operation may return
+its input table with added columns, but it cannot overwrite unrelated
 features through that return. The engine checks declared output types.
 
 Vectorize returns must preserve the dataset's exact observation keys, although
-their physical order may differ. Other dataframe operations may change coverage
+their physical order may differ. Other tabular operations may change coverage
 to construct their target row scope. The engine does not verify descriptive
 grain, filtering, or coverage: non-vectorize fragments are full-joined and may
 leave null feature values where another fragment has no matching observation.
@@ -322,12 +321,12 @@ internal join keys or perform joins automatically.
 
 ### Structural Binding References
 
-| Argument reference | Value passed to the function |
+| Argument reference | Value supplied to the implementation |
 | --- | --- |
 | `$features.<id>.id` | Feature identifier string. |
 | `$dimensions.<id>.id` | Dimension identifier string. |
-| `$datasets.<id>.dataframe` | Materialized dataframe for that dataset. |
-| `$datasets.@.dataframe` | Current dataset's input-ready dataframe. |
+| `$datasets.<id>.dataframe` | Materialized table for that dataset. |
+| `$datasets.@.dataframe` | Current dataset's input-ready table. |
 | `$datasets.<id>.id` | Dataset identifier string; declare a `string` argument. |
 | `$features.@.id` | The sole vectorize output, or sole non-dimension collapse output. |
 
@@ -357,26 +356,18 @@ Runtime placeholders have exactly the form
 }
 ```
 
-Supply that mapping through `Engine(..., bind=...)`, not as a
-specification root field. Missing namespaces, objects, or attributes are
-execution errors. Plain literals and structural references do not change
-between runtime environments.
+Supply that mapping through the execution environment, not as a specification
+root field. Missing namespaces, objects, or attributes are execution errors.
+Plain literals and structural references do not change between environments.
 
 
 ## Collapse Mappings
 
-Collapse functions receive a source dataframe and return a dataframe at the
-target grain. For example:
+Collapse operations transform a source table to the target grain. For example,
+a maximum temperature by pump groups source observations by pump and produces
+one maximum-temperature value per group.
 
-```python
-import polars as pl
-
-
-def maximum(dataset: pl.LazyFrame, column: str, output: str) -> pl.LazyFrame:
-    return dataset.group_by("pump").agg(pl.col(column).max().alias(output))
-```
-
-Declare this function under `functions.collapse`. Its binding can receive
+Declare the operation under `functions.collapse`. Its binding can receive
 `$datasets.telemetry.dataframe`, `$features.bearing_temperature.id`, and
 `$features.bearing_temperature_max.id`.
 
@@ -388,17 +379,17 @@ The function, not the engine, performs grouping and names the returned columns.
 ## Vectorized Features
 
 Vectorize mappings produce one or more feature columns at the existing dataset
-grain. They may receive the current dataframe and return it with added columns,
-or return just the dimension keys and output columns.
+grain. They may receive the current table and return it with added columns, or
+return just the dimension keys and output columns.
 
-They do not return expressions, standalone series, dictionaries of expressions,
-or scalars. Construct any literal-valued column inside the analytical function.
+The result is a table, not an expression or scalar. Literal-valued columns are
+part of the operation's result.
 
 ## Row Context
 
 `row_context` belongs to the mapping, not its features or function template.
 It describes the greatest required input reach across all calculations in that
-mapping. It does not describe returned rows or alter full-dataframe execution.
+mapping. It does not describe returned rows or alter full-table execution.
 
 | Field | Meaning |
 | --- | --- |
@@ -440,19 +431,12 @@ Fixed durations use distinct lowercase suffixes `w`, `d`, `h`, `m`, `s`, `ms`,
 `us`, and `ns`. They are nonnegative, contain no whitespace, and have nanosecond
 or coarser precision. A day is 24 hours; a week is seven days.
 
-Python `row_context.time`, `steps`, and `rows` annotate bound values without
-changing the values passed to functions. Time and step helpers require a
-`dimension`. Nested annotations and direct mapping context are consolidated
-using the maximum before and maximum after independently, not their sum.
-All annotations must use the same measurement and dimension.
-
 An eight-row rolling window including the current row needs seven preceding
 rows. An eight-hour window ending two hours ago needs ten hours before.
 Declarations must describe actual reach, not merely the window parameter.
 
-Use `row_context.current()` for zero context and `row_context.dataset()` for
-whole-input context. The canonical JSON records the consolidated requirements
-explicitly; the compiler does not guess window semantics from argument names.
+The JSON declaration records context requirements explicitly; the compiler
+does not infer window semantics from argument names.
 
 ## Dependency Semantics
 
@@ -460,8 +444,8 @@ Explicit inputs establish producer-to-consumer edges. The compiler includes
 required producers in feature-subset plans. Semantic validation rejects explicit
 feature-dependency cycles; the compiler also requires an acyclic execution graph.
 Argument identifiers alone do not establish feature dependencies.
-Dataset dataframe arguments require their source observations to be available;
-dataset `.id` arguments are metadata only. A dataframe argument does not imply
+Dataset table arguments require their source observations to be available;
+dataset `.id` arguments are metadata only. A table argument does not imply
 that all calculated features in that dataset are needed: declare consumed
 features as inputs.
 
@@ -474,7 +458,7 @@ the same plan stage.
 Structural validation rejects unsupported fields and malformed context.
 Semantic validation checks identifiers, unique producers, input ownership,
 function categories, argument names, context dimensions, and logical order.
-Runtime validation checks materialized inputs, returned dataframe keys, output
+Runtime validation checks materialized inputs, returned table keys, output
 columns and declared types, and vectorize observation preservation.
 
 Validation cannot prove analytical correctness or infer a function's hidden
@@ -503,117 +487,22 @@ dataset-level `write` section. They have no feature outputs. For example:
 ```
 
 Register a matching template in `functions.write` with `dataset: dataframe`,
-`columns: array[string]`, and `sink: string` argument definitions. A possible
-implementation is:
+`columns: array[string]`, and `sink: string` argument definitions. Explicit
+inputs establish dependencies; the `columns` argument independently identifies
+the values to persist. The bound operation defines how they are persisted.
+Column-list order does not schedule calculations, and feature-subset compilation
+does not trim bound lists. Configured dataset sinks are retained in subset
+plans; a sink requiring a feature outside the selected closure can fail with
+unavailable input.
 
-```python
-import polars as pl
-
-
-def write_telemetry(dataset: pl.DataFrame | pl.LazyFrame, columns: list[str], sink: str) -> None:
-    selected = dataset.select(columns)
-    if isinstance(selected, pl.LazyFrame):
-        selected = selected.collect()
-    selected.write_json(sink)
-```
-
-Explicit inputs establish dependencies; the `columns` argument tells the
-implementation what to persist. They are independent declarations. Column-list
-order does not schedule calculations, and feature-subset compilation does not
-trim bound lists. Configured dataset sinks are retained in subset plans; a sink
-requiring a feature outside the selected closure can fail with unavailable input.
-
-## Complete JSON Example
-
-This runnable example uses the repository's example functions to read two
-integer columns and calculate their sum. The dimension key `id` is required in
-returned dataframes but is not duplicated in the feature registry or outputs.
-
-```json
-{
-  "name": "Sum example",
-  "version": "0.1.0",
-  "dimensions": {
-    "id": {"type": "integer"}
-  },
-  "functions": {
-    "read": {
-      "read_data": {
-        "entrypoint": "examples.simple_analytics.functions.functions:read_data"
-      }
-    },
-    "vectorize": {
-      "sum_features": {
-        "entrypoint": "examples.simple_analytics.functions.functions:sum_features",
-        "args": {
-          "dataset": {"type": "dataframe"},
-          "left_feature": {"type": "string"},
-          "right_feature": {"type": "string"},
-          "output": {"type": "string"}
-        }
-      }
-    }
-  },
-  "entities": {
-    "observation": {
-      "name": "Observation",
-      "dimensions": ["id"],
-      "datasets": [
-        {
-          "id": "observations",
-          "features": {
-            "input_1": {"type": "integer"},
-            "input_2": {"type": "integer"},
-            "total": {"type": "integer"}
-          },
-          "mappings": {
-            "read_inputs": {
-              "features": {
-                "inputs": [],
-                "outputs": ["$features.input_1", "$features.input_2"]
-              },
-              "binding": {"function": "read_data"}
-            },
-            "calculate_total": {
-              "features": {
-                "inputs": ["$features.input_1", "$features.input_2"],
-                "outputs": ["$features.total"]
-              },
-              "row_context": {},
-              "binding": {
-                "function": "sum_features",
-                "args": {
-                  "dataset": "$datasets.@.dataframe",
-                  "left_feature": "$features.input_1.id",
-                  "right_feature": "$features.input_2.id",
-                  "output": "$features.total.id"
-                }
-              }
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-```
-
-Export or save this object, load it with `Specification.from_json(path)`, compile
-it, and execute the plan. The resulting `(id, total)` rows are `(1, 3)` and
-`(2, 7)`. Empty row context declares current-row-only calculation; no logical
-order is needed for this elementwise sum.
-
-## Migration
+## Contract Migration
 
 Replace mapping `features: ["name"]` with
 `features: {"inputs": [...], "outputs": ["$features.name"]}`. Move feature-level
 context to the producing mapping and remove `extent`. Add dimensions to
-time/step context. Python mappings use `inputs=` and `outputs=`.
-The canonical Python model is named `Mapping` (previously `FeatureMapping`);
-update direct model imports and construction calls. The JSON key remains
-`mappings`.
+time/step context. The JSON key remains `mappings`.
 
-Update vectorize and collapse functions to receive their bound dataframes and
-return dimension-keyed dataframe results. Grouping, aliases, and literal
-construction are now the functions' responsibility. Re-export specifications
-and recompile plans; old expression-based plans are not supported.
+Vectorize and collapse operations produce dimension-keyed tabular results.
+Grouping, output naming, and literal construction belong to the operation.
+Revalidate specifications and recompile plans; old expression-based plans are
+not supported.
