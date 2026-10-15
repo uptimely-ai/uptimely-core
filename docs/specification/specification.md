@@ -431,3 +431,85 @@ Vectorize and collapse operations produce dimension-keyed tabular results.
 Grouping, output naming, and literal construction belong to the operation.
 Revalidate specifications and recompile plans; old expression-based plans are
 not supported.
+
+## Complete JSON Example
+
+This small specification reads two input features and produces their sum for
+each observation. Its function entrypoints use the runnable example project so
+the document can also be compiled and executed by the test suite.
+
+```json
+{
+  "name": "Observation totals",
+  "version": "0.1.0",
+  "dimensions": {
+    "id": {
+      "type": "integer"
+    }
+  },
+  "functions": {
+    "read": {
+      "read_observations": {
+        "entrypoint": "examples.simple_analytics.functions.functions:read_data"
+      }
+    },
+    "vectorize": {
+      "sum_features": {
+        "entrypoint": "examples.simple_analytics.functions.functions:sum_features",
+        "args": {
+          "left_feature": {"type": "string"},
+          "right_feature": {"type": "string"},
+          "output": {"type": "string"},
+          "dataset": {"type": "dataframe"}
+        }
+      }
+    }
+  },
+  "entities": {
+    "observation": {
+      "name": "Observation",
+      "dimensions": ["id"],
+      "datasets": [
+        {
+          "id": "observations",
+          "features": {
+            "id": {"type": "integer"},
+            "input_1": {"type": "integer"},
+            "input_2": {"type": "integer"},
+            "total": {"type": "integer"}
+          },
+          "mappings": {
+            "read_observations": {
+              "binding": {
+                "function": "read_observations"
+              },
+              "features": {
+                "outputs": [
+                  "$features.id",
+                  "$features.input_1",
+                  "$features.input_2"
+                ]
+              }
+            },
+            "calculate_total": {
+              "binding": {
+                "function": "sum_features",
+                "args": {
+                  "left_feature": "$features.input_1",
+                  "right_feature": "$features.input_2",
+                  "output": "$features.total",
+                  "dataset": "$datasets.@.dataframe"
+                }
+              },
+              "features": {
+                "inputs": ["$features.input_1", "$features.input_2"],
+                "outputs": ["$features.total"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+```

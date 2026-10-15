@@ -10,7 +10,7 @@ from uptimely.spec import render as spec_render
 
 from . import lineage
 
-OUTPUT_DIR = pathlib.Path("_generated") / "docs"
+OUTPUT_DIR = pathlib.Path("_generated") / "explorer"
 
 
 class Documentation:
@@ -27,7 +27,7 @@ class Documentation:
         """Export specification reference data as JSON.
 
         Args:
-            output_path: Output file; defaults to ``_generated/docs/docs.json``.
+            output_path: Output file; defaults to ``_generated/explorer/docs.json``.
             include_generated_at: Include a build timestamp.
 
         Returns:
@@ -48,7 +48,7 @@ class Documentation:
         Individual HTML report and subset-graph exports are not supported.
 
         Args:
-            output_path: Index file; defaults to ``_generated/docs/index.html``.
+            output_path: Index file; defaults to ``_generated/explorer/index.html``.
                 Section pages are written in spec, plan, and execution subdirectories
                 beneath the index directory.
             include_generated_at: Include a timestamp on the specification page.
@@ -111,7 +111,7 @@ def create_html(
 
     Args:
         specification: The canonical analytics specification.
-        output_path: Index file; defaults to ``_generated/docs/index.html``.
+        output_path: Index file; defaults to ``_generated/explorer/index.html``.
         include_generated_at: Include a timestamp on specification pages.
 
     Returns:

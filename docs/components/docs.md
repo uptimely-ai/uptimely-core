@@ -1,4 +1,4 @@
-# Analytics documentation
+# Analytics Explorer
 
 Uptimely generates documentation from an
 [Open Analytics Specification](../specification/index.md). Feature definitions,
@@ -30,13 +30,13 @@ analytics project, not the Uptimely package itself.
 ### Command line
 
 ```sh
-uptimely docs build --spec _generated/spec/spec.json
+uptimely explorer build --spec _generated/spec/spec.json
 ```
 
 The command exports this directory:
 
 ```text
-_generated/docs/
+_generated/explorer/
 ├── index.html
 ├── spec/
 │   ├── overview.html
@@ -133,14 +133,14 @@ The build options are:
 | Option | Behavior |
 | --- | --- |
 | `--spec` | Required path to a JSON specification. |
-| `--output` | Website directory; defaults to `_generated/docs`. |
+| `--output` | Website directory; defaults to `_generated/explorer`. |
 | `--project-root` | Directory added to Python's import path; defaults to the working directory. |
 | `--include-generated-at` | Show a build timestamp on the specification page. |
 
 For a project outside the working directory:
 
 ```sh
-uptimely docs build \
+uptimely explorer build \
   --spec analytics/_generated/spec/spec.json \
   --project-root analytics \
   --output public/analytics
@@ -195,22 +195,22 @@ Timestamps are disabled by default for reproducible exports. Pass
 ## Preview and publish
 
 ```sh
-uptimely docs serve
+uptimely explorer serve
 ```
 
 This builds the website from `_generated/spec/spec.json` into
-`_generated/docs/`, then serves it at
+`_generated/explorer/`, then serves it at
 <http://127.0.0.1:8001/>. Port **8001** is separate from the project documentation's
 MkDocs preview on port **8000**.
 
-The same project-relative defaults apply to `uptimely docs build`. It uses
+The same project-relative defaults apply to `uptimely explorer build`. It uses
 `--output` instead of `--directory`, and requires `--spec` unless
 `--project-root` is set.
 
 | Option | Behavior |
 | --- | --- |
 | `--spec` | JSON specification path; defaults to `<project-root>/_generated/spec/spec.json` when `--project-root` is set, or `_generated/spec/spec.json` otherwise. |
-| `--directory` / `--output` | Website output directory for `serve` / `build`; defaults to `<project-root>/_generated/docs` when `--project-root` is set, or `_generated/docs` otherwise. |
+| `--directory` / `--output` | Website output directory for `serve` / `build`; defaults to `<project-root>/_generated/explorer` when `--project-root` is set, or `_generated/explorer` otherwise. |
 | `--project-root` | Project root added to Python's import path. When set, it also bases the default `--spec` and `--directory` paths. |
 | `--host` | Bind address; defaults to `127.0.0.1`, restricting access to the local machine. |
 | `--port` | TCP port; defaults to `8001`. Use `0` to select an available port. |
@@ -221,7 +221,7 @@ once when started; it does not watch or rebuild the website as files change.
 To build and preview the pump analytics project from the repository root:
 
 ```sh
-uptimely docs serve --project-root examples/pump_analytics
+uptimely explorer serve --project-root examples/pump_analytics
 ```
 
 The command builds the website and serves it at <http://127.0.0.1:8001/>.
@@ -322,16 +322,16 @@ analysis are unchanged.
 Reference JSON is a separate export:
 
 ```python
-data_path = documentation.create_json()  # _generated/docs/docs.json
+data_path = documentation.create_json()  # _generated/explorer/docs.json
 ```
 
 It contains the specification configuration, summary counts, feature
 dependencies, and optional generation timestamp. Neither `Documentation.create_html`
-nor `uptimely docs build` automatically writes this JSON.
+nor `uptimely explorer build` automatically writes this JSON.
 
 ![Specification feature reference](../assets/img/open-analytics-specification-features.png)
 
-See the [Python API reference](../reference/api.md#analytics-documentation) for
+See the [Python API reference](../reference/api.md#analytics-explorer) for
 the documentation interface and the
 [feature graph API](../reference/api.md#dependency-graphs) for graph operations.
 

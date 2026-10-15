@@ -18,12 +18,12 @@ SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json
 @pytest.mark.parametrize(
     ("arguments", "expected"),
     [
-        ([], (pathlib.Path("_generated/docs"), "127.0.0.1", 8001)),
+        ([], (pathlib.Path("_generated/explorer"), "127.0.0.1", 8001)),
         (
             ["--directory", "public", "--host", "0.0.0.0", "--port", "9000"],
             (pathlib.Path("public"), "0.0.0.0", 9000),
         ),
-        (["--port", "0"], (pathlib.Path("_generated/docs"), "127.0.0.1", 0)),
+        (["--port", "0"], (pathlib.Path("_generated/explorer"), "127.0.0.1", 0)),
     ],
 )
 def test_serve_arguments(
@@ -44,7 +44,7 @@ def test_serve_arguments(
         "serve_docs",
         lambda directory, host, port: calls.append(("serve", directory, host, port)),
     )
-    monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "serve", *arguments])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "explorer", "serve", *arguments])
 
     cli.main()
 
@@ -84,7 +84,7 @@ def test_serve_builds_custom_spec_before_starting_server(
         "argv",
         [
             "uptimely",
-            "docs",
+            "explorer",
             "serve",
             "--spec",
             str(specification),
@@ -122,12 +122,12 @@ def test_serve_defaults_paths_from_project_root(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "docs", "serve", "--project-root", str(tmp_path)],
+        ["uptimely", "explorer", "serve", "--project-root", str(tmp_path)],
     )
 
     cli.main()
 
-    directory = tmp_path / "_generated/docs"
+    directory = tmp_path / "_generated/explorer"
     assert calls == [
         (
             "build",
@@ -159,7 +159,7 @@ def test_serve_builds_html_before_starting_server(
         "argv",
         [
             "uptimely",
-            "docs",
+            "explorer",
             "serve",
             "--spec",
             str(SPEC_PATH),
@@ -175,7 +175,7 @@ def test_serve_builds_html_before_starting_server(
 
 @pytest.mark.parametrize("port", ["-1", "65536", "abc"])
 def test_serve_rejects_invalid_ports(monkeypatch: pytest.MonkeyPatch, port: str) -> None:
-    monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "serve", "--port", port])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "explorer", "serve", "--port", port])
 
     with pytest.raises(SystemExit) as error:
         cli.main()
@@ -203,7 +203,7 @@ def test_serve_reports_missing_website(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "docs", "serve", "--directory", str(directory)],
+        ["uptimely", "explorer", "serve", "--directory", str(directory)],
     )
 
     with pytest.raises(SystemExit) as error:
@@ -257,7 +257,7 @@ def test_serve_serves_only_selected_directory_and_closes_on_interrupt(
     assert servers[0].socket.fileno() == -1
     result = capsys.readouterr()
     assert f"http://127.0.0.1:{servers[0].server_port}/" in result.out
-    assert "Documentation server stopped." in result.out
+    assert "Analytics explorer server stopped." in result.out
 
 
 def test_serve_reports_occupied_port(
@@ -277,7 +277,7 @@ def test_serve_reports_occupied_port(
             "argv",
             [
                 "uptimely",
-                "docs",
+                "explorer",
                 "serve",
                 "--directory",
                 str(tmp_path),

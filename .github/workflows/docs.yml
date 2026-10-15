@@ -27,9 +27,9 @@ jobs:
           poetry run uptimely spec export \
             --module examples.pump_analytics.config.spec.spec \
             --output examples/pump_analytics/_generated/spec/spec.json
-      - name: Build pump analytics docs
+      - name: Build pump analytics explorer
         run: |
-          poetry run uptimely docs build \
+          poetry run uptimely explorer build \
             --spec examples/pump_analytics/_generated/spec/spec.json \
             --output docs/examples/pump_analytics
       - run: poetry run mkdocs build

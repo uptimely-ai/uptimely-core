@@ -57,9 +57,9 @@ def test_reference_exports_to_default_directory(
     )
 
     expected = (
-        pathlib.Path("_generated/docs/docs.json")
+        pathlib.Path("_generated/explorer/docs.json")
         if output_format == "json"
-        else pathlib.Path("_generated/docs/index.html")
+        else pathlib.Path("_generated/explorer/index.html")
     )
     assert document_path == expected
     assert document_path.is_file()
@@ -91,7 +91,7 @@ def test_generate_json_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
 
 def test_generate_html_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
-    monkeypatch.setattr("uptimely.docs.docs.OUTPUT_DIR", tmp_path / "_generated" / "docs")
+    monkeypatch.setattr("uptimely.docs.docs.OUTPUT_DIR", tmp_path / "_generated" / "explorer")
 
     document_path = docs.Documentation(specification).create_html()
     pages = {

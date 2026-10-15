@@ -43,7 +43,7 @@ The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/
 for specification export, compilation, execution, documentation, and feature
 graphs. `uptimely spec export --module <module>` imports a module exposing
 `python_specification`, a `PythonSpecification` instance, and writes JSON.
-`uptimely docs build` writes a linked website to `_generated/docs/`.
+`uptimely explorer build` writes a linked website to `_generated/explorer/`.
 All HTML pages are generated together by that command.
 Specification and plan JSON exports live in `_generated/spec/` and
 `_generated/compile/`; `uptimely spec feature-graph` prints graph summaries and,

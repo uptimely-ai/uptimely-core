@@ -84,7 +84,7 @@ the declarative contract.
         - SubGraph
         - GraphStyle
 
-## Analytics documentation
+## Analytics Explorer
 
 ::: uptimely.docs.docs.Documentation
 

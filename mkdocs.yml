@@ -60,7 +60,7 @@ nav:
       - Execution engine: specification/engine.md
   - Components:
       - Overview: components/index.md
-      - Analytics documentation: components/docs.md
+      - Analytics Explorer: components/docs.md
       - AI agents: components/ai.md
   - Development:
       - Project structure: development/project-structure.md

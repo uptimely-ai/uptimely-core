@@ -32,14 +32,14 @@ def test_docs_build_defaults(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "build", "--spec", str(SPEC_PATH)])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "explorer", "build", "--spec", str(SPEC_PATH)])
 
     cli.main()
 
-    output = tmp_path / "_generated/docs"
+    output = tmp_path / "_generated/explorer"
     assert {p.relative_to(output).as_posix() for p in output.rglob("*.html")} == PAGES
     result = capsys.readouterr()
-    assert "Documentation website built at _generated/docs/index.html" in result.out
+    assert "Analytics explorer built at _generated/explorer/index.html" in result.out
     assert not result.err
 
 
@@ -52,7 +52,7 @@ def test_docs_build_custom_output_and_timestamp(
         "argv",
         [
             "uptimely",
-            "docs",
+            "explorer",
             "build",
             "--spec",
             str(SPEC_PATH),
@@ -82,7 +82,7 @@ def test_docs_build_defaults_paths_from_project_root(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "docs", "build", "--project-root", str(tmp_path)],
+        ["uptimely", "explorer", "build", "--project-root", str(tmp_path)],
     )
 
     cli.main()
@@ -90,7 +90,7 @@ def test_docs_build_defaults_paths_from_project_root(
     assert calls == [
         (
             tmp_path / "_generated/spec/spec.json",
-            tmp_path / "_generated/docs",
+            tmp_path / "_generated/explorer",
             tmp_path,
         )
     ]
@@ -99,11 +99,12 @@ def test_docs_build_defaults_paths_from_project_root(
 @pytest.mark.parametrize(
     "arguments",
     [
+        ["explorer"],
+        ["explorer", "unknown"],
+        ["explorer", "build"],
+        ["explorer", "build", "--unknown"],
+        ["explorer", "generate", "--spec", str(SPEC_PATH)],
         ["docs"],
-        ["docs", "unknown"],
-        ["docs", "build"],
-        ["docs", "build", "--unknown"],
-        ["docs", "generate", "--spec", str(SPEC_PATH)],
     ],
 )
 def test_docs_requires_valid_arguments(
@@ -135,7 +136,7 @@ def test_docs_build_errors_are_reported(
         raise failure
 
     monkeypatch.setattr(docs, "build_docs", fail)
-    monkeypatch.setattr(sys, "argv", ["uptimely", "docs", "build", "--spec", "spec.json"])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "explorer", "build", "--spec", "spec.json"])
 
     with pytest.raises(SystemExit) as error:
         cli.main()
@@ -162,7 +163,7 @@ def test_docs_rejects_missing_or_invalid_specification(
         "argv",
         [
             "uptimely",
-            "docs",
+            "explorer",
             "build",
             "--spec",
             str(specification),
@@ -220,12 +221,12 @@ def test_docs_build_imports_project_functions_in_fresh_process(
         ),
         encoding="utf-8",
     )
-    output = generated / "docs" if explicit_project_root else tmp_path / "website"
+    output = generated / "explorer" if explicit_project_root else tmp_path / "website"
     arguments = [
         sys.executable,
         "-m",
         "uptimely.cli.cli",
-        "docs",
+        "explorer",
         "build",
     ]
     if explicit_project_root:
@@ -244,4 +245,4 @@ def test_docs_build_imports_project_functions_in_fresh_process(
 
     assert result.returncode == 0, result.stderr
     assert {path.relative_to(output).as_posix() for path in output.rglob("*.html")} == PAGES
-    assert "Documentation website built at" in result.stdout
+    assert "Analytics explorer built at" in result.stdout

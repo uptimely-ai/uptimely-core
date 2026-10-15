@@ -22,7 +22,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Python function bindings now require `ref.function(callable_or_entrypoint)`,
   accepting a Python callable or a `path:function` string. Local Python files,
   HTTPS source URLs, and S3 source URIs support signature inspection and execution.
-- `uptimely docs serve` now builds the website from the project's specification before serving it.
+- `uptimely explorer serve` now builds the website from the project's specification before serving it.
+- Renamed the analytics documentation CLI command from `docs` to `explorer`.
 - Example project specifications and engine settings now live under `config/`;
   `uptimely engine run` defaults to `config/engine.json` beneath the project root.
 

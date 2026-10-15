@@ -11,7 +11,7 @@ from uptimely.cli import common
 from uptimely.docs import docs as docs_module
 
 GENERATED_SPEC_PATH: pathlib.Path = common.GENERATED_SPEC_PATH
-GENERATED_DOCS_PATH: pathlib.Path = pathlib.Path("_generated/docs")
+GENERATED_DOCS_PATH: pathlib.Path = pathlib.Path("_generated/explorer")
 
 
 def build_docs(
@@ -56,21 +56,22 @@ def serve_docs(directory: pathlib.Path, host: str = "127.0.0.1", port: int = 800
         raise NotADirectoryError(f"Website directory does not exist: {directory}")
     if not (directory / "index.html").is_file():
         raise FileNotFoundError(
-            f"Website index not found: {directory / 'index.html'}. Run 'uptimely docs build' first."
+            f"Website index not found: {directory / 'index.html'}. "
+            "Run 'uptimely explorer build' first."
         )
     if not 0 <= port <= 65535:
         raise ValueError("Port must be between 0 and 65535.")
     handler = functools.partial(http_server.SimpleHTTPRequestHandler, directory=str(directory))
     with http_server.ThreadingHTTPServer((host, port), handler) as server:
         print(
-            f"Serving documentation from {directory} at "
+            f"Serving analytics explorer from {directory} at "
             f"http://{host}:{server.server_port}/ (Ctrl+C to stop)",
             flush=True,
         )
         try:
             server.serve_forever()
         except KeyboardInterrupt:
-            print("\nDocumentation server stopped.")
+            print("\nAnalytics explorer server stopped.")
 
 
 def _port(value: str) -> int:
@@ -85,7 +86,7 @@ def _port(value: str) -> int:
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure the docs command and its build and serve actions."""
+    """Configure the explorer command and its build and serve actions."""
     actions = parser.add_subparsers(dest="action", required=True)
     build = actions.add_parser(
         "build", help="Build the specification, feature graph, and execution plan website"
@@ -102,8 +103,8 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         "--output",
         type=pathlib.Path,
         help=(
-            "Website directory (defaults to _generated/docs under --project-root, "
-            "or _generated/docs otherwise)"
+            "Website directory (defaults to _generated/explorer under --project-root, "
+            "or _generated/explorer otherwise)"
         ),
     )
     build.add_argument(
@@ -131,8 +132,8 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         "--directory",
         type=pathlib.Path,
         help=(
-            "Website directory (defaults to _generated/docs under --project-root, "
-            "or _generated/docs otherwise)"
+            "Website directory (defaults to _generated/explorer under --project-root, "
+            "or _generated/explorer otherwise)"
         ),
     )
     serve.add_argument(
@@ -172,7 +173,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             parser.exit(1, f"uptimely: error: {error}\n")
         return
     if args.spec is None and args.project_root is None:
-        parser.error("docs build requires --spec unless --project-root is set")
+        parser.error("explorer build requires --spec unless --project-root is set")
     spec = args.spec or default_spec
     output = args.output or default_output
     try:
@@ -186,4 +187,4 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         jinja2.TemplateError,
     ) as error:
         parser.exit(1, f"uptimely: error: {error}\n")
-    print(f"Documentation website built at {index}")
+    print(f"Analytics explorer built at {index}")
