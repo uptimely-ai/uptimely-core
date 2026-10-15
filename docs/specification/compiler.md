@@ -139,7 +139,7 @@ The serialized plan contains these top-level fields:
 | Field | Meaning |
 | --- | --- |
 | `plan_version` | Version of the portable plan format. |
-| `specification_version` | Version of the Analytics document used to create the plan. |
+| `analytics_version` | Analytics format version used to create the plan, not a project revision. |
 | `required_backend` | Backend required by the plan. Version 0.1 uses `polars`. |
 | `resources` | Runtime metadata needed by an engine, including dimensions, entities, function templates, and signatures. |
 | `operations` | The executable operations in the dependency graph. |
@@ -266,7 +266,7 @@ For a compatible compiler:
 4. Schedule every operation exactly once, placing each dependency in an earlier
    stage than the operation that consumes it.
 5. Include the resources required by the target engine and declare the plan
-   version, Analytics version (`specification_version`), and required backend accurately.
+   version, Analytics format version (`analytics_version`), and required backend accurately.
 6. Preserve runtime placeholders for the engine rather than embedding
    environment-specific storage locations during compilation.
 

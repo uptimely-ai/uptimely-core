@@ -1,9 +1,9 @@
 {
   "plan_version": "1.0.0",
-  "specification_version": "2024.01",
+  "analytics_version": "0.1.0",
   "required_backend": "polars",
   "resources": {
-    "specification_version": "2024.01",
+    "analytics_version": "0.1.0",
     "entities": {
       "asset": {
         "dimensions": [
