@@ -291,7 +291,7 @@ telemetry_mappings = [
     ),
 ]
 
-telemetry_dataset = dataset.Dataset(
+TELEMETRY_DATASET = dataset.Dataset(
     id="pump_telemetry_dataset",
     description="Pump process and condition readings sampled at one-minute intervals.",
     row_scope=dataset.RowScope(
