@@ -93,4 +93,4 @@ helper generate the complete static website with specification, feature graph,
 and execution plan pages. Individual HTML report exports are not supported.
 `Documentation.create_json` exports reference data; specification and portable-plan
 JSON exports remain available. These outputs describe analytics, not this Python API reference.
-See [analytics documentation](../components/docs/index.md).
+See [analytics documentation](../components/docs.md).

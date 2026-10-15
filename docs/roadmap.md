@@ -30,7 +30,7 @@ prod without changing its bindings or recompiling.
 
 The Python API accepts a mapping; application code can load that mapping from
 JSON. The MCP CLI already accepts a JSON file through `--config`.
-See [runtime overrides](components/engine/index.md#runtime-overrides) for usage.
+See [runtime overrides](components/engine.md#runtime-overrides) for usage.
 
 Future work includes automatic environment selection, layered configuration
 merging, and a mechanism for calculation constants. Runtime configuration
