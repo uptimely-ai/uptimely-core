@@ -1,4 +1,4 @@
-"""Render compiled execution-plan pages within the documentation website."""
+"""Render compiled execution-plan pages within the explorer website."""
 
 from __future__ import annotations
 

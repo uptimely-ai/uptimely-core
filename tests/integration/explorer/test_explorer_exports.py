@@ -1,3 +1,5 @@
+"""Tests for Explorer exports."""
+
 import ast
 import json
 import pathlib
@@ -6,7 +8,7 @@ import re
 import pytest
 
 from uptimely import compile, engine, spec
-from uptimely.docs import docs
+from uptimely.explorer import explorer
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 REFERENCE_PATH = pathlib.Path("docs/specification/specification.md")
@@ -50,14 +52,16 @@ def test_reference_exports_to_default_directory(
 ) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
-    documentation = docs.Documentation(specification)
+    explorer_instance = explorer.Explorer(specification)
 
     document_path = (
-        documentation.create_json() if output_format == "json" else documentation.create_html()
+        explorer_instance.create_json()
+        if output_format == "json"
+        else explorer_instance.create_html()
     )
 
     expected = (
-        pathlib.Path("_generated/explorer/docs.json")
+        pathlib.Path("_generated/explorer/explorer.json")
         if output_format == "json"
         else pathlib.Path("_generated/explorer/index.html")
     )
@@ -66,14 +70,14 @@ def test_reference_exports_to_default_directory(
     assert not pathlib.Path("generated").exists()
 
 
-def test_generate_json_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
+def test_generate_json_reference(tmp_path: pathlib.Path, monkeypatch) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
-    monkeypatch.setattr("uptimely.docs.docs.OUTPUT_DIR", tmp_path / "_generated")
+    monkeypatch.setattr("uptimely.explorer.explorer.EXPLORER_OUTPUT_DIR", tmp_path / "_generated")
 
-    data_path = docs.Documentation(specification).create_json()
+    data_path = explorer.Explorer(specification).create_json()
     data = json.loads(data_path.read_text(encoding="utf-8"))
 
-    assert data_path.name == "docs.json"
+    assert data_path.name == "explorer.json"
     assert (
         data["configuration"]["entities"]["pump_telemetry"]["datasets"][0]["id"]
         == "pump_telemetry_dataset"
@@ -89,11 +93,13 @@ def test_generate_json_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
     assert not data_path.with_suffix(".html").exists()
 
 
-def test_generate_html_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
+def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
-    monkeypatch.setattr("uptimely.docs.docs.OUTPUT_DIR", tmp_path / "_generated" / "explorer")
+    monkeypatch.setattr(
+        "uptimely.explorer.explorer.EXPLORER_OUTPUT_DIR", tmp_path / "_generated" / "explorer"
+    )
 
-    document_path = docs.Documentation(specification).create_html()
+    document_path = explorer.Explorer(specification).create_html()
     pages = {
         filename: (document_path.parent / filename).read_text(encoding="utf-8")
         for filename in (
@@ -151,28 +157,32 @@ def test_generate_html_docs(tmp_path: pathlib.Path, monkeypatch) -> None:
     assert "Collapse function" in document
 
 
-def test_generate_json_docs_from_in_memory_spec_is_deterministic(tmp_path: pathlib.Path) -> None:
+def test_generate_json_reference_from_in_memory_spec_is_deterministic(
+    tmp_path: pathlib.Path,
+) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
     specification.path = None
 
-    first_path = docs.Documentation(specification).create_json(
-        output_path=tmp_path / "first" / "docs.json",
+    first_path = explorer.Explorer(specification).create_json(
+        output_path=tmp_path / "first" / "explorer.json",
     )
-    second_path = docs.Documentation(specification).create_json(
-        output_path=tmp_path / "second" / "docs.json",
+    second_path = explorer.Explorer(specification).create_json(
+        output_path=tmp_path / "second" / "explorer.json",
     )
 
     assert first_path.read_bytes() == second_path.read_bytes()
 
 
-def test_generate_html_docs_from_in_memory_spec_is_deterministic(tmp_path: pathlib.Path) -> None:
+def test_generate_html_explorer_from_in_memory_spec_is_deterministic(
+    tmp_path: pathlib.Path,
+) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
     specification.path = None
 
-    first_path = docs.Documentation(specification).create_html(
+    first_path = explorer.Explorer(specification).create_html(
         output_path=tmp_path / "first" / "index.html",
     )
-    second_path = docs.Documentation(specification).create_html(
+    second_path = explorer.Explorer(specification).create_html(
         output_path=tmp_path / "second" / "index.html",
     )
 

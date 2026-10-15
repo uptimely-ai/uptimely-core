@@ -10,7 +10,7 @@ from examples.simple_analytics.config.spec import spec as spec_module
 from examples.simple_analytics.functions import functions
 
 from uptimely import compile, engine, spec
-from uptimely.docs import docs
+from uptimely.explorer import explorer
 from uptimely.spec import python_spec, validation
 
 ORDER = [
@@ -194,11 +194,11 @@ def test_dataset_order_python_authoring_validates_references() -> None:
 
 def test_dataset_order_appears_in_reference_json_and_html(tmp_path: pathlib.Path) -> None:
     specification = _parse(tmp_path, ORDER)
-    path = docs.Documentation(specification).create_json(tmp_path / "docs.json")
+    path = explorer.Explorer(specification).create_json(tmp_path / "explorer.json")
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["configuration"]["entities"]["telemetry"]["datasets"][0]["order"] == ORDER
 
-    docs.Documentation(specification).create_html(tmp_path / "index.html")
+    explorer.Explorer(specification).create_html(tmp_path / "index.html")
     html = (tmp_path / "spec/datasets.html").read_text(encoding="utf-8")
     assert "Logical order (not a physical row-order guarantee)" in html
     assert html.index("$dimensions.machine asc") < html.index("$dimensions.timestamp desc")

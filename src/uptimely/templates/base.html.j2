@@ -48,8 +48,8 @@
 <body class="{% block body_class %}min-h-screen bg-slate-950 font-sans text-slate-200{% endblock %}">
   {% if include_navigation %}
   {% set rel_root = root_path or "" %}
-  <nav class="site-nav" aria-label="Documentation pages">
-    <a class="site-brand" href="{{ rel_root }}{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>{{ icon("home", "nav-icon") }}<span>openanalytics/docs</span></a>
+  <nav class="site-nav" aria-label="Explorer pages">
+    <a class="site-brand" href="{{ rel_root }}{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>{{ icon("home", "nav-icon") }}<span>openanalytics/explorer</span></a>
     {% for page, label, icon_key in [("spec", "Specification", "specification"), ("plan", "Plan", "execution"), ("execution", "Execution", "execution")] %}
     <a href="{{ rel_root }}{{ website_pages[page]['lineage' if page == 'execution' else 'overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
     {% if page == "spec" %}

@@ -2,11 +2,11 @@
 
 import argparse
 
-from uptimely.cli import docs, engine, examples, plan, spec
+from uptimely.cli import engine, examples, explorer, plan, spec
 
 download_examples = examples.download_examples
-build_docs = docs.build_docs
-serve_docs = docs.serve_docs
+build_explorer = explorer.build_explorer
+serve_explorer = explorer.serve_explorer
 
 
 def main() -> None:
@@ -14,7 +14,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="uptimely")
     commands = parser.add_subparsers(dest="command", required=True)
     examples.configure_parser(commands.add_parser("examples", help="Manage example projects"))
-    docs.configure_parser(
+    explorer.configure_parser(
         commands.add_parser(
             "explorer", help="Explore analytics specifications, lineage, and execution plans"
         )
@@ -28,7 +28,7 @@ def main() -> None:
     if args.command == "examples":
         examples.run(args, parser)
     elif args.command == "explorer":
-        docs.run(args, parser)
+        explorer.run(args, parser)
     elif args.command == "spec":
         spec.run(args, parser)
     elif args.command == "plan":

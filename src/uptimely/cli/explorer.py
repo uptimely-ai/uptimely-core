@@ -1,4 +1,4 @@
-"""Command-line tools for building and serving analytics documentation."""
+"""Command-line tools for building and serving the analytics explorer."""
 
 import argparse
 import functools
@@ -8,19 +8,19 @@ from http import server as http_server
 import jinja2
 
 from uptimely.cli import common
-from uptimely.docs import docs as docs_module
+from uptimely.explorer import explorer as explorer_module
 
 GENERATED_SPEC_PATH: pathlib.Path = common.GENERATED_SPEC_PATH
-GENERATED_DOCS_PATH: pathlib.Path = pathlib.Path("_generated/explorer")
+GENERATED_EXPLORER_PATH: pathlib.Path = pathlib.Path("_generated/explorer")
 
 
-def build_docs(
+def build_explorer(
     spec: pathlib.Path,
     output: pathlib.Path,
     project_root: pathlib.Path,
     include_generated_at: bool = False,
 ) -> pathlib.Path:
-    """Build the static analytics documentation website.
+    """Build the static analytics explorer website.
 
     Args:
         spec: Path to the JSON specification.
@@ -32,13 +32,13 @@ def build_docs(
         The path to the website index.
     """
     specification = common.load_specification(spec, project_root)
-    return docs_module.Documentation(specification).create_html(
+    return explorer_module.Explorer(specification).create_html(
         output / "index.html", include_generated_at=include_generated_at
     )
 
 
-def serve_docs(directory: pathlib.Path, host: str = "127.0.0.1", port: int = 8001) -> None:
-    """Serve an existing documentation website for local preview.
+def serve_explorer(directory: pathlib.Path, host: str = "127.0.0.1", port: int = 8001) -> None:
+    """Serve an existing analytics explorer website for local preview.
 
     Args:
         directory: Website directory containing an index.html file.
@@ -148,16 +148,16 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    """Build or serve documentation using parsed command-line arguments."""
+    """Build or serve the analytics explorer using parsed command-line arguments."""
     project_root = args.project_root or pathlib.Path.cwd()
     project_path = args.project_root or pathlib.Path()
     default_spec = project_path / GENERATED_SPEC_PATH
-    default_output = project_path / GENERATED_DOCS_PATH
+    default_output = project_path / GENERATED_EXPLORER_PATH
     if args.action == "serve":
         spec = args.spec or default_spec
         directory = args.directory or default_output
         try:
-            build_docs(spec, directory, project_root)
+            build_explorer(spec, directory, project_root)
         except (
             OSError,
             ValueError,
@@ -168,7 +168,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         ) as error:
             parser.exit(1, f"uptimely: error: {error}\n")
         try:
-            serve_docs(directory, args.host, args.port)
+            serve_explorer(directory, args.host, args.port)
         except (OSError, ValueError) as error:
             parser.exit(1, f"uptimely: error: {error}\n")
         return
@@ -177,7 +177,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     spec = args.spec or default_spec
     output = args.output or default_output
     try:
-        index = build_docs(spec, output, project_root, args.include_generated_at)
+        index = build_explorer(spec, output, project_root, args.include_generated_at)
     except (
         OSError,
         ValueError,

@@ -8,7 +8,7 @@ import pytest
 
 from uptimely import compile, engine, row_context, spec
 from uptimely import plan as uptimely_plan
-from uptimely.docs import docs
+from uptimely.explorer import explorer
 from uptimely.spec.python_spec import bind, dataset, dimension, entity, feature, mapping, ref
 from uptimely.spec.python_spec import row_context as authoring
 
@@ -244,7 +244,7 @@ def test_directional_context_requires_dataset_order():
     _specification(authoring.dataset(), ordered=False)
 
 
-def test_specification_plan_execution_and_docs_preserve_context(tmp_path: pathlib.Path):
+def test_specification_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Path):
     context = authoring.time(
         "24h", dimension=ref.dimension("timestamp"), before="24h", after="2h"
     ).row_context
@@ -265,7 +265,7 @@ def test_specification_plan_execution_and_docs_preserve_context(tmp_path: pathli
     assert not result.failures
     frame = result.datasets["entity", "observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
-    docs.Documentation(restored).create_html(tmp_path / "index.html")
+    explorer.Explorer(restored).create_html(tmp_path / "index.html")
     assert "Row context:" not in (tmp_path / "spec/features.html").read_text()
     assert "Row context" in (tmp_path / "plan/stages.html").read_text()
 
@@ -337,7 +337,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
         datetime.datetime(2026, 1, 1),
     ]
 
-    docs.Documentation(specification).create_html(tmp_path / "index.html")
+    explorer.Explorer(specification).create_html(tmp_path / "index.html")
     features_html = (tmp_path / "spec/features.html").read_text(encoding="utf-8")
     assert "result" in features_html
     assert "Row context:" not in features_html

@@ -6,7 +6,7 @@ import pytest
 from uptimely import analytics, spec
 from uptimely.analytics import models
 from uptimely.cli import cli
-from uptimely.docs import docs
+from uptimely.explorer import explorer
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
@@ -145,7 +145,7 @@ def test_dependency_features_keep_their_producer_entity_without_becoming_source_
 
 def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
-    docs.Documentation(specification).create_html(tmp_path / "index.html")
+    explorer.Explorer(specification).create_html(tmp_path / "index.html")
     output = tmp_path / "spec/graph.html"
     html = output.read_text(encoding="utf-8")
 
@@ -176,7 +176,7 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
 
 def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
-    docs.Documentation(specification).create_html(tmp_path / "index.html")
+    explorer.Explorer(specification).create_html(tmp_path / "index.html")
     output = tmp_path / "spec/graph.html"
     html = output.read_text(encoding="utf-8")
 

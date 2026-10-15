@@ -159,12 +159,12 @@ exit status.
 ### Python API
 
 ```python
-from uptimely.docs.docs import Documentation
+from uptimely.explorer.explorer import Explorer
 from uptimely.spec import Specification
 
 specification = Specification.from_json("_generated/spec/spec.json")
-documentation = Documentation(specification)
-index_path = documentation.create_html()
+explorer = Explorer(specification)
+index_path = explorer.create_html()
 ```
 
 The generator also accepts an in-memory `Specification`; no source JSON path is
@@ -174,7 +174,7 @@ Unlike the CLI's `--output` directory, the Python API's `output_path` is an
 **index-file path**:
 
 ```python
-index_path = documentation.create_html(
+index_path = explorer.create_html(
     output_path="public/analytics/index.html",
 )
 ```
@@ -186,7 +186,7 @@ does not conflict with either section's overview page.
 HTML generation always produces the complete website; exporting an individual
 report or a graph subset as HTML is not supported.
 
-The module-level `uptimely.docs.docs.create_html(specification, output_path=...)`
+The module-level `uptimely.explorer.explorer.create_html(specification, output_path=...)`
 helper generates the same complete website and returns its index path.
 
 Timestamps are disabled by default for reproducible exports. Pass
@@ -304,9 +304,9 @@ The standalone methods `Specification.create_html`, `FeatureGraph.export_html`
 those calls with a single website-generation call using the original specification:
 
 ```python
-from uptimely.docs import docs
+from uptimely.explorer import explorer
 
-index_path = docs.create_html(
+index_path = explorer.create_html(
     specification,
     output_path="public/analytics/index.html",
 )
@@ -322,11 +322,11 @@ analysis are unchanged.
 Reference JSON is a separate export:
 
 ```python
-data_path = documentation.create_json()  # _generated/explorer/docs.json
+data_path = explorer.create_json()  # _generated/explorer/explorer.json
 ```
 
 It contains the specification configuration, summary counts, feature
-dependencies, and optional generation timestamp. Neither `Documentation.create_html`
+dependencies, and optional generation timestamp. Neither `Explorer.create_html`
 nor `uptimely explorer build` automatically writes this JSON.
 
 ![Specification feature reference](../assets/img/open-analytics-specification-features.png)
