@@ -341,6 +341,192 @@ def _validate_mapping_inputs(model: typing.Any) -> None:
         visit(key)
 
 
+def _validate_mapping_contracts(model: typing.Any) -> None:
+    """Validate feature inputs against dataframe arguments and operation dimensions."""
+    datasets = {
+        dataset.id: (entity_id, entity, dataset)
+        for entity_id, entity in model.entities.items()
+        for dataset in entity.datasets
+    }
+    feature_owners = {
+        feature_id: (entity_id, dataset.id)
+        for entity_id, entity in model.entities.items()
+        for dataset in entity.datasets
+        for feature_id in dataset.features
+        if feature_id not in model.dimensions
+    }
+
+    for entity_id, entity in model.entities.items():
+        target_dimensions = set(entity.dimension_ids)
+        for dataset in entity.datasets:
+            for mapping in dataset.mappings.values():
+                function = model.functions[mapping.binding.function]
+                operation = function.operation
+                path = (
+                    "entities",
+                    entity_id,
+                    "datasets",
+                    dataset.id,
+                    "mappings",
+                    mapping.id,
+                )
+                dataframe_datasets: list[str] = []
+                for argument_id, argument in function.args.items():
+                    if argument.type != "dataframe":
+                        continue
+                    value = mapping.binding.args[argument_id]
+                    if not isinstance(value, str) or not value.startswith("$datasets."):
+                        raise AnalyticsError(
+                            f"Dataframe argument {argument_id} must reference a dataset",
+                            code="invalid_mapping_dataset_input",
+                            path=(*path, "binding", "args", argument_id),
+                        )
+                    reference = value.removeprefix("$datasets.")
+                    if reference.endswith(".id"):
+                        raise AnalyticsError(
+                            f"Dataframe argument {argument_id} must reference a dataframe",
+                            code="invalid_mapping_dataset_input",
+                            path=(*path, "binding", "args", argument_id),
+                        )
+                    source_id = reference.removesuffix(".dataframe")
+                    source_id = dataset.id if source_id == "@" else source_id
+                    if source_id not in datasets:
+                        raise AnalyticsError(
+                            f"Dataframe argument {argument_id} references unknown dataset "
+                            f"{source_id}",
+                            code="invalid_mapping_dataset_input",
+                            path=(*path, "binding", "args", argument_id),
+                        )
+                    dataframe_datasets.append(source_id)
+
+                if operation == "read":
+                    if mapping.input_features:
+                        raise AnalyticsError(
+                            "Read mappings cannot declare feature inputs",
+                            code="invalid_mapping_feature_inputs",
+                            path=(*path, "features", "inputs"),
+                        )
+                    continue
+
+                if operation in {"vectorize", "write"}:
+                    if dataset.id not in dataframe_datasets:
+                        raise AnalyticsError(
+                            f"{operation.capitalize()} mapping must consume its target dataset",
+                            code="invalid_mapping_dataset_input",
+                            path=(*path, "binding", "args"),
+                        )
+                    invalid_inputs = sorted(
+                        feature_id
+                        for feature_id in mapping.input_features
+                        if feature_id not in dataset.features
+                        and feature_id not in target_dimensions
+                    )
+                    if invalid_inputs:
+                        raise AnalyticsError(
+                            f"{operation.capitalize()} mapping inputs must belong to its "
+                            "target dataset: " + ", ".join(invalid_inputs),
+                            code="invalid_mapping_feature_inputs",
+                            path=(*path, "features", "inputs"),
+                        )
+                    continue
+
+                if operation == "collapse":
+                    source_entity, source = bindings.collapse_input_dataset(model, mapping)
+                    if source.id not in dataframe_datasets:
+                        raise AnalyticsError(
+                            f"Collapse mapping must consume its source dataset {source.id}",
+                            code="invalid_mapping_dataset_input",
+                            path=(*path, "binding", "args"),
+                        )
+                    source_dimensions = set(source_entity.dimension_ids)
+                    if source_dimensions == target_dimensions:
+                        raise AnalyticsError(
+                            "Collapse mapping must reduce dataset dimensionality",
+                            code="invalid_mapping_dimensions",
+                            path=(*path, "features", "inputs"),
+                        )
+                    continue
+
+                if operation in {"conform", "expand"}:
+                    unique_datasets = set(dataframe_datasets)
+                    if len(unique_datasets) != 2:
+                        raise AnalyticsError(
+                            f"{operation.capitalize()} mapping must consume two distinct datasets",
+                            code="invalid_mapping_dataset_input",
+                            path=(*path, "binding", "args"),
+                        )
+                    input_entities = [datasets[source_id][1] for source_id in unique_datasets]
+                    unavailable = sorted(
+                        feature_id
+                        for feature_id in mapping.input_features
+                        if (
+                            feature_id in model.dimensions
+                            and not any(
+                                feature_id in input_entity.dimension_ids
+                                for input_entity in input_entities
+                            )
+                        )
+                        or (
+                            feature_id not in model.dimensions
+                            and (
+                                feature_id not in feature_owners
+                                or feature_owners[feature_id][1] not in unique_datasets
+                            )
+                        )
+                    )
+                    if unavailable:
+                        raise AnalyticsError(
+                            f"{operation.capitalize()} mapping inputs must belong to its "
+                            "dataframe inputs: " + ", ".join(unavailable),
+                            code="invalid_mapping_feature_inputs",
+                            path=(*path, "features", "inputs"),
+                        )
+                    input_dimensions = [
+                        set(datasets[source_id][1].dimension_ids) for source_id in unique_datasets
+                    ]
+                    if operation == "conform" and any(
+                        dimensions != target_dimensions for dimensions in input_dimensions
+                    ):
+                        raise AnalyticsError(
+                            "Conform mapping inputs must preserve target dimensionality",
+                            code="invalid_mapping_dimensions",
+                            path=(*path, "binding", "args"),
+                        )
+                    if operation == "conform" and (
+                        dataset.id not in unique_datasets
+                        or any(datasets[source_id][0] != entity_id for source_id in unique_datasets)
+                    ):
+                        raise AnalyticsError(
+                            "Conform mapping must combine its target dataset with a dataset "
+                            "from the same entity",
+                            code="invalid_mapping_entity",
+                            path=(*path, "binding", "args"),
+                        )
+                    if operation == "expand":
+                        target_is_input = dataset.id in unique_datasets
+                        lower_dataset_ids = {
+                            source_id
+                            for source_id in unique_datasets
+                            if set(datasets[source_id][1].dimension_ids) < target_dimensions
+                        }
+                        lower_dimensional_input = bool(lower_dataset_ids)
+                        lower_dimensional_features = any(
+                            feature_owners.get(feature_id, ("", ""))[1] in lower_dataset_ids
+                            for feature_id in mapping.input_features
+                        )
+                        if (
+                            not target_is_input
+                            or not lower_dimensional_input
+                            or not lower_dimensional_features
+                        ):
+                            raise AnalyticsError(
+                                "Expand mapping must combine its target dataset with a "
+                                "declared feature from a lower-dimensional dataset",
+                                code="invalid_mapping_dimensions",
+                                path=(*path, "binding", "args"),
+                            )
+
+
 def _validate_operation_functions(
     entity: typing.Any, categories: dict[str, dict[str, typing.Any]]
 ) -> None:
@@ -513,4 +699,5 @@ def validate_analytics(model: typing.Any, calls: list[typing.Any]) -> None:
     _validate_mapping_inputs(model)
     _validate_binding_contracts(model, categories)
     _validate_function_contracts(model)
+    _validate_mapping_contracts(model)
     _validate_feature_dependencies(calls, _feature_names(model), dimensions)

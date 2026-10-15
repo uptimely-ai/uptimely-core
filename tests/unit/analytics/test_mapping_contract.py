@@ -5,11 +5,26 @@ import polars as pl
 import pytest
 
 from uptimely import analytics, compile, engine
-from uptimely.analytics.python import bind, dataset, dimension, feature, mapping, ref
+from uptimely.analytics.python import bind, dataset, dimension, entity, feature, mapping, ref
 
 
 def read_values() -> pl.DataFrame:
     return pl.DataFrame({"id": [2, 1], "value": [20, 10]})
+
+
+def read_lower_grain() -> pl.DataFrame:
+    return pl.DataFrame({"id": [1, 2], "value": [10, 20]})
+
+
+def read_target_grain(include_second: bool) -> pl.DataFrame:
+    identifiers = [1, 2] if include_second else [1]
+    return pl.DataFrame(
+        {
+            "id": identifiers,
+            "region": ["north"] * len(identifiers),
+            "target_value": identifiers,
+        }
+    )
 
 
 def add_one(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
@@ -26,7 +41,9 @@ def write_ids(dataset: pl.DataFrame, column: str) -> None:
 
 
 def copy_values(dataset: pl.DataFrame, other_dataset: pl.DataFrame, output: str) -> pl.DataFrame:
-    return dataset.select("id", pl.col("value").alias(output))
+    return other_dataset.join(dataset.select("id", "value"), on="id").with_columns(
+        pl.col("value").alias(output)
+    )
 
 
 def dataset_identifier(
@@ -35,7 +52,9 @@ def dataset_identifier(
     identifier: str,
     output: str,
 ) -> pl.DataFrame:
-    return pl.DataFrame({"id": [1], output: [identifier]})
+    return other_dataset.join(dataset.select("id"), on="id").with_columns(
+        pl.lit(identifier).alias(output)
+    )
 
 
 def _analytics() -> analytics.Analytics:
@@ -242,52 +261,80 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
 def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: bool) -> None:
     source_reference = ref.dataset("source")
     analytics_definition = analytics.Analytics.from_python(
-        dimensions=[dimension.Dimension(id="id", type="integer")],
-        datasets=[
-            dataset.Dataset(
-                id="source",
-                mappings=[
-                    mapping.Read(
-                        bind=bind.bind(ref.function(read_values)),
-                        outputs=[
-                            feature.Feature(id="id", type="integer"),
-                            feature.Feature(id="value", type="integer"),
+        dimensions=[
+            dimension.Dimension(id="id", type="integer"),
+            dimension.Dimension(id="region", type="string"),
+        ],
+        entities=[
+            entity.Entity(
+                id="source_entity",
+                name="Source",
+                dimensions=[dimension.Dimension(id="id", type="integer")],
+                datasets=[
+                    dataset.Dataset(
+                        id="source",
+                        mappings=[
+                            mapping.Read(
+                                bind=bind.bind(ref.function(read_lower_grain)),
+                                outputs=[
+                                    feature.Feature(id="value", type="integer"),
+                                ],
+                            )
                         ],
                     )
                 ],
             ),
-            dataset.Dataset(
-                id="target",
-                mappings=[
-                    mapping.Expand(
-                        outputs=[
-                            feature.Feature(id="copied", type="integer" if dataframe else "string")
+            entity.Entity(
+                id="target_entity",
+                name="Target",
+                dimensions=[
+                    dimension.Dimension(id="id", type="integer"),
+                    dimension.Dimension(id="region", type="string"),
+                ],
+                datasets=[
+                    dataset.Dataset(
+                        id="target",
+                        mappings=[
+                            mapping.Read(
+                                bind=bind.bind(
+                                    ref.function(read_target_grain), include_second=dataframe
+                                ),
+                                outputs=[feature.Feature(id="target_value", type="integer")],
+                            ),
+                            mapping.Expand(
+                                inputs=[ref.feature("value")],
+                                outputs=[
+                                    feature.Feature(
+                                        id="copied", type="integer" if dataframe else "string"
+                                    )
+                                ],
+                                bind=(
+                                    bind.bind(
+                                        ref.function(copy_values),
+                                        dataset=source_reference.dataframe,
+                                        other_dataset=ref.current_dataset().dataframe,
+                                        output=ref.feature("copied").id,
+                                    )
+                                    if dataframe
+                                    else bind.bind(
+                                        ref.function(dataset_identifier),
+                                        dataset=source_reference.dataframe,
+                                        other_dataset=ref.current_dataset().dataframe,
+                                        identifier=source_reference.id,
+                                        output=ref.feature("copied").id,
+                                    )
+                                ),
+                            ),
                         ],
-                        bind=(
-                            bind.bind(
-                                ref.function(copy_values),
-                                dataset=source_reference.dataframe,
-                                other_dataset=source_reference.dataframe,
-                                output=ref.feature("copied").id,
-                            )
-                            if dataframe
-                            else bind.bind(
-                                ref.function(dataset_identifier),
-                                dataset=source_reference.dataframe,
-                                other_dataset=source_reference.dataframe,
-                                identifier=source_reference.id,
-                                output=ref.feature("copied").id,
-                            )
-                        ),
                     )
                 ],
             ),
         ],
     )
     compiled = compile.Compiler(analytics_definition, features=["copied"]).compile()
-    assert len(compiled.operations) == 2
+    assert len(compiled.operations) == 3
     execution = engine.Engine(compiled).execute()
     assert not execution.failures
-    assert execution.datasets["entity", "target"].sort("id")["copied"].to_list() == (
+    assert execution.datasets["target_entity", "target"].sort("id")["copied"].to_list() == (
         [10, 20] if dataframe else ["source"]
     )

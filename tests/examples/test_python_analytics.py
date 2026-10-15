@@ -189,55 +189,95 @@ def test_analytics_from_python_models_and_json_export(tmp_path: pathlib.Path) ->
 
 
 def test_sources_and_transforms_python_analytics() -> None:
-    declaration = python_analytics.dataset.Dataset(
-        id="transformed_dataset",
-        mappings=[
-            python_analytics.mapping.Read(
-                id="read",
-                bind=bind.bind(python_analytics.ref.function(functions.read_data)),
-                outputs=[python_analytics.feature.Feature(id="input_1")],
-            ),
-            python_analytics.mapping.Expand(
-                id="expand_data",
-                bind=bind.bind(
-                    python_analytics.ref.function(functions.expand_data),
-                    df1=python_analytics.ref.dataset("transformed_dataset"),
-                    df2=python_analytics.ref.dataset("transformed_dataset"),
-                ),
-                outputs=[python_analytics.feature.Feature(id="input_2")],
-            ),
+    id_dimension = python_analytics.dimension.Dimension(id="id", type="integer")
+    region_dimension = python_analytics.dimension.Dimension(id="region", type="string")
+    source = python_analytics.entity.Entity(
+        id="source",
+        name="Source",
+        dimensions=[id_dimension],
+        datasets=[
+            python_analytics.dataset.Dataset(
+                id="transformed_dataset",
+                mappings=[
+                    python_analytics.mapping.Read(
+                        id="read",
+                        bind=bind.bind(python_analytics.ref.function(functions.read_data)),
+                        outputs=[python_analytics.feature.Feature(id="input_1")],
+                    ),
+                ],
+            )
         ],
     )
-    summary = python_analytics.dataset.Dataset(
+    target = python_analytics.entity.Entity(
+        id="transforms_test",
+        name="Transforms test",
+        dimensions=[id_dimension, region_dimension],
+        datasets=[
+            python_analytics.dataset.Dataset(
+                id="target",
+                mappings=[
+                    python_analytics.mapping.Read(
+                        id="read",
+                        bind=bind.bind(python_analytics.ref.function(functions.read_data)),
+                        outputs=[python_analytics.feature.Feature(id="target_value")],
+                    ),
+                    python_analytics.mapping.Expand(
+                        id="expand_data",
+                        inputs=[python_analytics.ref.feature("input_1")],
+                        bind=bind.bind(
+                            python_analytics.ref.function(functions.expand_data),
+                            df1=python_analytics.ref.dataset("transformed_dataset").dataframe,
+                            df2=python_analytics.ref.current_dataset().dataframe,
+                        ),
+                        outputs=[python_analytics.feature.Feature(id="input_2")],
+                    ),
+                ],
+            )
+        ],
+    )
+    summary = python_analytics.entity.Entity(
         id="summary",
-        mappings=[
-            python_analytics.mapping.Collapse(
-                id="collapse_data",
-                bind=bind.bind(
-                    python_analytics.ref.function(calculation.maximum),
-                    dataset=python_analytics.ref.dataset("transformed_dataset").dataframe,
-                    feature=python_analytics.ref.feature("input_1"),
-                ),
-                inputs=[python_analytics.ref.feature("input_1")],
-                outputs=[python_analytics.feature.Feature(id="collapsed_feature")],
+        name="Summary",
+        dimensions=[id_dimension],
+        datasets=[
+            python_analytics.dataset.Dataset(
+                id="summary",
+                mappings=[
+                    python_analytics.mapping.Collapse(
+                        id="collapse_data",
+                        bind=bind.bind(
+                            python_analytics.ref.function(calculation.maximum),
+                            dataset=python_analytics.ref.dataset("target").dataframe,
+                            feature=python_analytics.ref.feature("input_2"),
+                        ),
+                        inputs=[python_analytics.ref.feature("input_2")],
+                        outputs=[python_analytics.feature.Feature(id="collapsed_feature")],
+                    )
+                ],
             )
         ],
     )
     analytics_definition = analytics.Analytics.from_python(
-        datasets=[declaration, summary],
+        entities=[source, target, summary],
+        dimensions=[id_dimension, region_dimension],
         name="transforms_test",
     )
 
     ds_model = analytics_definition.entities["transforms_test"].datasets[0]
     assert set(ds_model.mappings) == {"read", "expand_data"}
-    assert {"input_1", "input_2"} <= set(ds_model.all_features)
-    collapse = (
-        analytics_definition.entities["transforms_test"].datasets[1].mappings["collapse_data"]
-    )
+    assert {"target_value", "input_2"} <= set(ds_model.all_features)
+    expand = ds_model.mappings["expand_data"]
+    assert expand.binding.function == "expand_data"
+    assert expand.binding.args == {
+        "df1": "$datasets.transformed_dataset.dataframe",
+        "df2": "$datasets.@.dataframe",
+    }
+    assert expand.input_features == ["input_1"]
+    collapse = analytics_definition.entities["summary"].datasets[0].mappings["collapse_data"]
     assert collapse.binding.function == "maximum"
     assert collapse.binding.args == {
-        "dataset": "$datasets.transformed_dataset.dataframe",
-        "feature": "$features.input_1",
+        "dataset": "$datasets.target.dataframe",
+        "feature": "$features.input_2",
     }
     assert collapse.output_features == ["collapsed_feature"]
     assert analytics_definition.functions["maximum"].operation == "collapse"
