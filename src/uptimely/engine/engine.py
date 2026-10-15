@@ -8,7 +8,7 @@ import typing
 
 from uptimely import compile
 from uptimely import plan as plan_module
-from uptimely.spec.json_spec import json_model
+from uptimely.analytics.json import json_model
 
 from . import backend as backend_module
 from . import result as result_module

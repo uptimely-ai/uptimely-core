@@ -10,8 +10,10 @@ import typing
 from importlib import util
 from urllib import parse
 
-from uptimely import render, spec
+from uptimely import render
 from uptimely.compile import entrypoint as compile_entrypoint
+
+from .json import json_model as spec
 
 OUTPUT_DIR = pathlib.Path("_generated") / "spec"
 SPECIFICATION_PAGES = render.WEBSITE_PAGES["spec"]

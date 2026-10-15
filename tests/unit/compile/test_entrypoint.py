@@ -7,11 +7,12 @@ from urllib import error, request
 
 import pytest
 
-from uptimely import compile, engine, spec
+from uptimely import analytics as spec
+from uptimely import compile, engine
+from uptimely.analytics import explorer_render as spec_render
+from uptimely.analytics import storage
+from uptimely.analytics.python import bind, dataset, dimension, feature, mapping, ref
 from uptimely.compile import entrypoint as compile_entrypoint
-from uptimely.spec import render as spec_render
-from uptimely.spec import storage
-from uptimely.spec.python_spec import bind, dataset, dimension, feature, mapping, ref
 
 SPEC_PATH = (
     pathlib.Path(__file__).parents[3]

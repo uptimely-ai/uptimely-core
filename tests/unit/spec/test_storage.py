@@ -5,7 +5,7 @@ import types
 
 import pytest
 
-from uptimely.spec import storage
+from uptimely.analytics import storage
 
 
 def test_storage_reads_and_inspects_local_paths(tmp_path: pathlib.Path) -> None:
@@ -117,7 +117,7 @@ class BlockS3:
             raise ModuleNotFoundError(name=fullname)
 
 sys.meta_path.insert(0, BlockS3())
-from uptimely.spec import storage
+from uptimely.analytics import storage
 assert storage.boto3 is None
 assert storage.exceptions is None
 assert storage.Storage.exists("pyproject.toml")

@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import typing
 
-from uptimely.spec import json_spec
+from uptimely.analytics import json as json_spec
 
 from . import bind, feature, ref
 from . import mappings as mapping_declarations

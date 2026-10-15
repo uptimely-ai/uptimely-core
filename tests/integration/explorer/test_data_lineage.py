@@ -4,7 +4,8 @@ import pathlib
 import re
 from html import parser as html_parser
 
-from uptimely import compile, spec
+from uptimely import analytics as spec
+from uptimely import compile
 from uptimely.explorer import explorer, lineage
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")

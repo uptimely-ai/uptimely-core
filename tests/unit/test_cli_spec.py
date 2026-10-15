@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from uptimely import spec as spec_module
+from uptimely import analytics as spec_module
 from uptimely.cli import cli
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
@@ -115,7 +115,7 @@ def test_export_explicit_output_is_relative_to_working_directory(
         ),
         (
             "invalid_export_specification",
-            "from uptimely.spec import python_spec\n"
+            "from uptimely.analytics import python as python_spec\n"
             "python_specification = python_spec.PythonSpecification()",
             "At least one entity is required",
         ),

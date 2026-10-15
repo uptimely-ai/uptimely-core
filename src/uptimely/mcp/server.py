@@ -19,7 +19,8 @@ import typing
 import fastmcp
 import polars as pl
 
-from uptimely import compile, spec
+from uptimely import analytics as spec
+from uptimely import compile
 from uptimely import engine as uptimely_engine
 
 logger = logging.getLogger(__name__)

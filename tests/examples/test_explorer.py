@@ -4,7 +4,7 @@ from html import parser as html_parser
 
 from examples.pump_analytics.config.spec import spec as pump_spec
 
-from uptimely import spec
+from uptimely import analytics as spec
 from uptimely.explorer import explorer
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")

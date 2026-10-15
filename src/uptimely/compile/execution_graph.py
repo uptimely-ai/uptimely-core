@@ -5,9 +5,9 @@ from __future__ import annotations
 import graphable as graphable_
 from graphable.views import texttree
 
-from uptimely import spec
+from uptimely import analytics as spec
 
-from ..spec.json_spec import bindings
+from ..analytics.json import bindings
 from . import node as node_module
 
 Node = graphable_.graphable.Graphable

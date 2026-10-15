@@ -3,7 +3,7 @@ import pathlib
 
 import pytest
 
-from uptimely import spec
+from uptimely import analytics as spec
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 

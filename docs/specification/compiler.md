@@ -32,7 +32,7 @@ string or `Path`. Calling `compile()` returns an `ExecutionPlan`.
 
 ```python
 from uptimely.compile import Compiler
-from uptimely.spec import Specification
+from uptimely.analytics import Specification
 
 specification = Specification.from_json("_generated/spec/spec.json")
 plan = Compiler(specification).compile()

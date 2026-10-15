@@ -7,7 +7,8 @@ import re
 
 import pytest
 
-from uptimely import compile, engine, spec
+from uptimely import analytics as spec
+from uptimely import compile, engine
 from uptimely.explorer import explorer
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")

@@ -4,9 +4,8 @@ import pathlib
 import pydantic
 import pytest
 
-from uptimely import analytics, spec
-from uptimely.analytics import models
-from uptimely.spec import validation
+from uptimely import analytics
+from uptimely.analytics import models, validation
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
@@ -22,14 +21,16 @@ def test_specification_rejects_unknown_fields(tmp_path: pathlib.Path) -> None:
     configuration["unexpected"] = True
 
     with pytest.raises(pydantic.ValidationError, match="unexpected"):
-        spec.Specification.from_json(_write_configuration(tmp_path, configuration, "unknown.json"))
+        analytics.Specification.from_json(
+            _write_configuration(tmp_path, configuration, "unknown.json")
+        )
 
 
 def test_specification_accepts_top_level_name(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["name"] = "Pump analytics"
 
-    specification = spec.Specification.from_json(
+    specification = analytics.Specification.from_json(
         _write_configuration(tmp_path, configuration, "named.json")
     )
 
@@ -41,7 +42,9 @@ def test_specification_rejects_unsupported_version(tmp_path: pathlib.Path) -> No
     configuration["version"] = "9.9.9"
 
     with pytest.raises(pydantic.ValidationError, match="version"):
-        spec.Specification.from_json(_write_configuration(tmp_path, configuration, "version.json"))
+        analytics.Specification.from_json(
+            _write_configuration(tmp_path, configuration, "version.json")
+        )
 
 
 def test_specification_rejects_dimension_parent_cycles(tmp_path: pathlib.Path) -> None:
@@ -49,7 +52,9 @@ def test_specification_rejects_dimension_parent_cycles(tmp_path: pathlib.Path) -
     configuration["dimensions"]["plant"]["parent"] = "pump"
 
     with pytest.raises(ValueError, match="Dimension parent cycle.*plant"):
-        spec.Specification.from_json(_write_configuration(tmp_path, configuration, "cycle.json"))
+        analytics.Specification.from_json(
+            _write_configuration(tmp_path, configuration, "cycle.json")
+        )
 
 
 def test_specification_rejects_duplicate_dataset_ids(tmp_path: pathlib.Path) -> None:
@@ -58,7 +63,9 @@ def test_specification_rejects_duplicate_dataset_ids(tmp_path: pathlib.Path) -> 
     configuration["entities"]["pump"]["datasets"].append(duplicate)
 
     with pytest.raises(ValueError, match="Duplicate dataset id.*pump_dataset"):
-        spec.Specification.from_json(_write_configuration(tmp_path, configuration, "datasets.json"))
+        analytics.Specification.from_json(
+            _write_configuration(tmp_path, configuration, "datasets.json")
+        )
 
 
 def test_specification_errors_expose_stable_code_and_path(tmp_path: pathlib.Path) -> None:
@@ -67,7 +74,9 @@ def test_specification_errors_expose_stable_code_and_path(tmp_path: pathlib.Path
     configuration["entities"]["pump_telemetry"]["datasets"].append(duplicate)
 
     with pytest.raises(validation.SpecificationError) as error:
-        spec.Specification.from_json(_write_configuration(tmp_path, configuration, "datasets.json"))
+        analytics.Specification.from_json(
+            _write_configuration(tmp_path, configuration, "datasets.json")
+        )
 
     assert error.value.code == "duplicate_dataset_id"
     assert error.value.path == ("entities", "pump", "datasets", "pump_dataset")
@@ -79,7 +88,9 @@ def test_specification_rejects_unknown_write_function(tmp_path: pathlib.Path) ->
     dataset["mappings"]["write_pump_telemetry"]["binding"]["function"] = "missing_write"
 
     with pytest.raises(ValueError, match="mappings reference unknown functions: missing_write"):
-        spec.Specification.from_json(_write_configuration(tmp_path, configuration, "write.json"))
+        analytics.Specification.from_json(
+            _write_configuration(tmp_path, configuration, "write.json")
+        )
 
 
 def test_specification_rejects_undeclared_binding_arguments(tmp_path: pathlib.Path) -> None:
@@ -93,7 +104,7 @@ def test_specification_rejects_undeclared_binding_arguments(tmp_path: pathlib.Pa
         ValueError,
         match="Binding for function read_pump_telemetry has unknown arguments: unexpected",
     ):
-        spec.Specification.from_json(
+        analytics.Specification.from_json(
             _write_configuration(tmp_path, configuration, "arguments.json")
         )
 
@@ -105,7 +116,7 @@ def test_feature_references_are_explicit_and_recursive() -> None:
         "nested": {"columns": ["$features.flow_rate", "$features.bearing_temperature"]},
     }
 
-    assert spec.SpecificationParser._replace_arg_placeholders(args, "telemetry") == {
+    assert analytics.SpecificationParser._replace_arg_placeholders(args, "telemetry") == {
         "feature": "bearing_temperature",
         "literal": "bearing_temperature_max",
         "nested": {"columns": ["flow_rate", "bearing_temperature"]},
@@ -115,7 +126,7 @@ def test_feature_references_are_explicit_and_recursive() -> None:
 def test_feature_placeholder_resolves_to_bound_feature_id() -> None:
     args = {"output": "$features.@"}
 
-    assert spec.SpecificationParser._replace_arg_placeholders(
+    assert analytics.SpecificationParser._replace_arg_placeholders(
         args, "dataset", "calculated_feature"
     ) == {"output": "calculated_feature"}
 
@@ -127,7 +138,9 @@ def test_structural_references_compile_to_identifiers() -> None:
         "dimension": "$dimensions.pump",
     }
 
-    assert spec.SpecificationParser._replace_arg_placeholders(args, "pump_telemetry_dataset") == {
+    assert analytics.SpecificationParser._replace_arg_placeholders(
+        args, "pump_telemetry_dataset"
+    ) == {
         "current": "pump_telemetry_dataset",
         "specific": "pump_units",
         "dimension": "pump",
@@ -135,7 +148,7 @@ def test_structural_references_compile_to_identifiers() -> None:
 
 
 def test_system_and_subset_support_multiple_variables() -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = analytics.Specification.from_json(SPEC_PATH)
     assert len(specification.resolved_functions) == 7
     collapse = specification.entities["pump"].datasets[0].mappings["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
@@ -174,9 +187,9 @@ def test_system_and_subset_support_multiple_variables() -> None:
 
 
 def test_specification_validation_rejects_missing_output_variables() -> None:
-    specification = spec.SpecificationParser()
+    specification = analytics.SpecificationParser()
     specification.functions = [
-        spec.Function(
+        analytics.Function(
             id="broken.function",
             type="python_function",
             return_type="num",
@@ -184,7 +197,7 @@ def test_specification_validation_rejects_missing_output_variables() -> None:
         )
     ]
     specification.calls = [
-        spec.Call(
+        analytics.Call(
             function="broken.function",
             entity="temperature",
             feature="",
@@ -217,7 +230,7 @@ def test_specification_validation_rejects_duplicate_feature_names(tmp_path: path
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(ValueError, match="Duplicate feature name: pressure_flow_efficiency"):
-        spec.Specification.from_json(spec_path)
+        analytics.Specification.from_json(spec_path)
 
 
 def test_specification_validation_rejects_duplicate_fragment_input_names(
@@ -235,7 +248,7 @@ def test_specification_validation_rejects_duplicate_fragment_input_names(
         ValueError,
         match="Feature bearing_temperature is produced by multiple mappings",
     ):
-        spec.Specification.from_json(spec_path)
+        analytics.Specification.from_json(spec_path)
 
 
 def test_dimension_outputs_are_implicit_in_mapping(
@@ -248,7 +261,7 @@ def test_dimension_outputs_are_implicit_in_mapping(
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    spec.Specification.from_json(spec_path)
+    analytics.Specification.from_json(spec_path)
 
 
 def test_specification_validation_rejects_unknown_vectorize_template(
@@ -265,7 +278,7 @@ def test_specification_validation_rejects_unknown_vectorize_template(
         ValueError,
         match="mappings reference unknown functions: missing_vectorize_template",
     ):
-        spec.Specification.from_json(spec_path)
+        analytics.Specification.from_json(spec_path)
 
 
 def test_specification_validation_rejects_feature_dimension_name_collision(
@@ -285,7 +298,7 @@ def test_specification_validation_rejects_feature_dimension_name_collision(
         ValueError,
         match="Calculated feature names cannot duplicate entity dimensions: pump",
     ):
-        spec.Specification.from_json(spec_path)
+        analytics.Specification.from_json(spec_path)
 
 
 def test_specification_validation_rejects_cross_dataset_feature_dependency(
@@ -318,4 +331,4 @@ def test_specification_validation_rejects_cross_dataset_feature_dependency(
         ValueError,
         match="use a source resource operation",
     ):
-        spec.Specification.from_json(spec_path)
+        analytics.Specification.from_json(spec_path)

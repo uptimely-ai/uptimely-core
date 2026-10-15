@@ -4,9 +4,9 @@ import pathlib
 import polars as pl
 import pytest
 
-from uptimely import analytics, compile, engine, spec
+from uptimely import analytics, compile, engine
 from uptimely import plan as plan_module
-from uptimely.spec.python_spec import bind, dataset, dimension, entity, feature, mapping, ref
+from uptimely.analytics.python import bind, dataset, dimension, entity, feature, mapping, ref
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -122,7 +122,7 @@ def _specification(*, lazy=False, empty=False):
     )
     group = dimension.Dimension(id="group", type="string")
     identifier = dimension.Dimension(id="id", type="integer")
-    return spec.Specification.from_python(
+    return analytics.Specification.from_python(
         entities=[
             entity.Entity(
                 id="observation",
@@ -162,7 +162,7 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
     specification = _specification(lazy=lazy, empty=empty)
     path = tmp_path / "spec.json"
     specification.to_json(path)
-    restored = spec.Specification.from_json(path)
+    restored = analytics.Specification.from_json(path)
     plan = compile.Compiler(restored).compile()
     portable = plan_module.ExecutionPlan(
         plan_module.Plan.from_dict(json.loads(json.dumps(plan.to_dict())))
@@ -181,8 +181,8 @@ def test_collapse_consumes_expanded_features(lazy):
     specification = _specification(lazy=lazy)
     specification.entities.pop("global")
     source = specification.entities["observation"].datasets[0]
-    source.features["expanded"] = spec.Feature(id="expanded")
-    from uptimely.spec.json_spec import json_model
+    source.features["expanded"] = analytics.Feature(id="expanded")
+    from uptimely.analytics.json import json_model
 
     source.mappings["expanded"] = json_model.Mapping(
         id="expanded",
@@ -198,7 +198,7 @@ def test_collapse_consumes_expanded_features(lazy):
         args={"dataset": json_model.Argument(id="dataset", type="dataframe")},
     )
     summary = specification.entities["group"].datasets[0]
-    summary.features = {"combined_maximum": spec.Feature(id="combined_maximum")}
+    summary.features = {"combined_maximum": analytics.Feature(id="combined_maximum")}
     summary.mappings = {
         "nested": json_model.Mapping(
             id="nested",

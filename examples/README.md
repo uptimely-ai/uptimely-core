@@ -99,7 +99,7 @@ uptimely spec export \
 
 Prefix commands with `poetry run` in a Poetry environment.
 Each declaration module exposes a `python_specification` instance of
-`uptimely.spec.python_spec.PythonSpecification`. The module is imported using
+`uptimely.analytics.python.PythonSpecification`. The module is imported using
 the current working directory unless `--project-root` supplies an import root.
 Without `--output`, JSON is written to `_generated/spec/spec.json` beneath
 that root. An explicit output path is relative to the current working directory.

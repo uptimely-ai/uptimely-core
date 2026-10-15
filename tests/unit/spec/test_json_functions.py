@@ -2,8 +2,8 @@ import typing
 
 import pytest
 
-from uptimely.spec.json_spec import json_functions, json_model
-from uptimely.spec.python_spec import bind, dataset, dimension, entity, mapping, ref
+from uptimely.analytics.json import json_functions, json_model
+from uptimely.analytics.python import bind, dataset, dimension, entity, mapping, ref
 
 
 def _source() -> None:

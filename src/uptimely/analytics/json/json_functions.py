@@ -4,7 +4,7 @@ import typing
 
 import pydantic
 
-from ..python_spec import bind
+from ..python import bind
 from . import json_model
 
 

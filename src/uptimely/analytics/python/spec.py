@@ -5,8 +5,8 @@ from __future__ import annotations
 import dataclasses
 import typing
 
-from uptimely.spec import json_spec
-from uptimely.spec.json_spec import json_functions
+from uptimely.analytics import json as json_spec
+from uptimely.analytics.json import json_functions
 
 from . import dataset as dataset_module
 from . import dimension

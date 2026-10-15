@@ -81,7 +81,7 @@ In the specification, the mapping declares the function binding and target featu
 Python authoring:
 
 ```python
-from uptimely.spec.python_spec import bind, mapping, ref
+from uptimely.analytics.python import bind, mapping, ref
 
 expand_mapping = mapping.Expand(
     id="expand_pump_reference",
@@ -178,7 +178,7 @@ In the specification:
 Python authoring:
 
 ```python
-from uptimely.spec.python_spec import bind, mapping, ref
+from uptimely.analytics.python import bind, mapping, ref
 
 collapse_mapping = mapping.Collapse(
     id="bearing_temperature_by_pump",
@@ -243,7 +243,7 @@ Use a **`conform`** mapping to adapt observations from the existing dataset into
 Python authoring:
 
 ```python
-from uptimely.spec.python_spec import bind, mapping, ref
+from uptimely.analytics.python import bind, mapping, ref
 
 conform_mapping = mapping.Conform(
     id="conform_telemetry_5m",

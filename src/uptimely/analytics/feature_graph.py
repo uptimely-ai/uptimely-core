@@ -5,10 +5,9 @@ import re
 import graphable as graphable_
 from graphable import views
 
-from uptimely import spec
-from uptimely.spec.json_spec import bindings
-
 from . import models
+from .json import bindings
+from .json import json_model as spec
 
 Node = graphable_.graphable.Graphable
 NodeMeta = models.FunctionNode | models.FeatureNode

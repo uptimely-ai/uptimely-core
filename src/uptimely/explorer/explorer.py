@@ -2,11 +2,11 @@
 
 import pathlib
 
-from uptimely import analytics, compile, spec
+from uptimely import analytics, compile
 from uptimely import render as uptimely_render
-from uptimely.analytics import render as graph_render
+from uptimely.analytics import explorer_render as spec_render
+from uptimely.analytics import graph_render
 from uptimely.compile import render
-from uptimely.spec import render as spec_render
 
 from . import lineage
 
@@ -16,7 +16,7 @@ EXPLORER_OUTPUT_DIR = pathlib.Path("_generated") / "explorer"
 class Explorer:
     """Generate a linked specification, plan, and data-lineage website."""
 
-    def __init__(self, specification: spec.Specification) -> None:
+    def __init__(self, specification: analytics.Specification) -> None:
         self.spec = specification
 
     def create_json(
@@ -102,7 +102,7 @@ class Explorer:
 
 
 def create_json(
-    specification: spec.Specification,
+    specification: analytics.Specification,
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
 ) -> pathlib.Path:
@@ -111,7 +111,7 @@ def create_json(
 
 
 def create_html(
-    specification: spec.Specification,
+    specification: analytics.Specification,
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
 ) -> pathlib.Path:
