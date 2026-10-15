@@ -166,7 +166,9 @@ telemetry_mappings = [
     mapping.Vectorize(
         id="pressure_flow_efficiency",
         bind=bind.bind(
-            ref.function(functions.calculation.pressure_flow_efficiency),
+            ref.function(
+                "examples/pump_analytics/functions/calculation.py:pressure_flow_efficiency"
+            ),
             pressure_features=[
                 ref.feature("discharge_pressure"),
                 ref.feature("flow_rate"),

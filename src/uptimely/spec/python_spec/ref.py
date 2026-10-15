@@ -48,8 +48,10 @@ def function(
 
     Args:
         function: A named Python callable such as ``module.calculate``, or an
-            entrypoint string such as ``path/to/module.py:calculate``. Remote
-            locations are recorded only, not downloaded.
+            entrypoint string such as ``path/to/module.py:calculate``,
+            ``https://example.org/module.py:calculate``, or
+            ``s3://bucket/module.py:calculate``. Creating a reference does not
+            load code; compilation and execution do.
 
     Returns:
         A reference containing the module location and function name.
