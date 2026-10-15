@@ -120,18 +120,20 @@ def _specification(*, lazy=False, empty=False):
             ),
         ],
     )
+    group = dimension.Dimension(id="group", type="string")
+    identifier = dimension.Dimension(id="id", type="integer")
     return spec.Specification.from_python(
         entities=[
             entity.Entity(
-                id="observation", name="Observation", dimensions=["group", "id"], datasets=[source]
+                id="observation",
+                name="Observation",
+                dimensions=[group, identifier],
+                datasets=[source],
             ),
-            entity.Entity(id="group", name="Group", dimensions=["group"], datasets=[summary]),
+            entity.Entity(id="group", name="Group", dimensions=[group], datasets=[summary]),
             entity.Entity(id="global", name="Global", dimensions=[], datasets=[global_summary]),
         ],
-        dimensions=[
-            dimension.Dimension(id="group", type="string"),
-            dimension.Dimension(id="id", type="integer"),
-        ],
+        dimensions=[group, identifier],
     )
 
 

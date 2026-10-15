@@ -377,14 +377,15 @@ def test_collapse_functions_execute_without_row_context() -> None:
             )
         ],
     )
+    timestamp = dimension.Dimension(id="timestamp", type="datetime")
     specification = spec.Specification.from_python(
         entities=[
             entity.Entity(
-                id="observation", name="Observation", dimensions=["timestamp"], datasets=[source]
+                id="observation", name="Observation", dimensions=[timestamp], datasets=[source]
             ),
             entity.Entity(id="summary", name="Summary", dimensions=[], datasets=[summary]),
         ],
-        dimensions=[dimension.Dimension(id="timestamp", type="datetime")],
+        dimensions=[timestamp],
     )
     plan = compile.Compiler(specification).compile()
     operation = next(item for item in plan.operations if item.kind == "collapse")

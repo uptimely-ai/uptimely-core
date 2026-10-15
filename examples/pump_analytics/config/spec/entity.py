@@ -11,10 +11,10 @@ PUMP_TELEMETRY = entity.Entity(
         "A one-minute pump record identified by plant, production line, pump, and timestamp"
     ),
     dimensions=[
-        dimension.PLANT.id,
-        dimension.PRODUCTION_LINE.id,
-        dimension.PUMP.id,
-        dimension.TIMESTAMP.id,
+        dimension.PLANT,
+        dimension.PRODUCTION_LINE,
+        dimension.PUMP,
+        dimension.TIMESTAMP,
     ],
     datasets=[dataset_telemetry.telemetry_dataset],
 )
@@ -23,7 +23,7 @@ PUMP = entity.Entity(
     id="pump",
     name="Pump",
     description="Pump-level information collapsed from timestamped telemetry",
-    dimensions=[dimension.PLANT.id, dimension.PRODUCTION_LINE.id, dimension.PUMP.id],
+    dimensions=[dimension.PLANT, dimension.PRODUCTION_LINE, dimension.PUMP],
     datasets=[dataset_pump.pump_dataset],
 )
 

@@ -150,7 +150,7 @@ def test_dataset_order_python_authoring_matches_json(
                 python_spec.entity.Entity(
                     id="telemetry",
                     name="Telemetry",
-                    dimensions=["machine", "timestamp"],
+                    dimensions=dimensions,
                     datasets=[declaration],
                 )
             ],
