@@ -43,7 +43,7 @@ class LineageStructureCollector(html_parser.HTMLParser):
 
 
 def test_lineage_layout_has_balanced_stage_and_card_containers(tmp_path: pathlib.Path) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = spec.Analytics.from_json(SPEC_PATH)
     plan = compile.Compiler(specification).compile()
     explorer.create_html(specification, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
@@ -62,7 +62,7 @@ def test_lineage_layout_has_balanced_stage_and_card_containers(tmp_path: pathlib
 
 
 def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = spec.Analytics.from_json(SPEC_PATH)
     plan = compile.Compiler(specification).compile()
 
     stages = lineage._build_stages(specification, plan)
@@ -111,7 +111,7 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
 
 
 def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = spec.Analytics.from_json(SPEC_PATH)
     plan = compile.Compiler(specification).compile()
     explorer.create_html(specification, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
@@ -141,7 +141,7 @@ def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> N
 
 
 def test_empty_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
-    explorer.create_html(spec.Specification(), tmp_path / "index.html")
+    explorer.create_html(spec.Analytics(), tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert "No processing steps." in document
     assert '<table class="lineage-table"' not in document
@@ -149,14 +149,14 @@ def test_empty_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
 
 
 def test_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
-    explorer.create_html(spec.Specification(), tmp_path / "index.html")
+    explorer.create_html(spec.Analytics(), tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert "lineage-legend" not in document
     assert "Data lineage color key" not in document
 
 
 def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = spec.Analytics.from_json(SPEC_PATH)
     explorer.create_html(specification, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert 'aria-label="Lineage playback" hidden' in document
@@ -230,7 +230,7 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
 
 
 def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = spec.Analytics.from_json(SPEC_PATH)
     execution_plan = compile.Compiler(specification).compile()
     stages = lineage._build_stages(specification, execution_plan)
     explorer.create_html(specification, tmp_path / "index.html")
@@ -245,7 +245,7 @@ def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -
 
 
 def test_lineage_omits_declared_row_grain(tmp_path: pathlib.Path) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = spec.Analytics.from_json(SPEC_PATH)
     dataset = next(iter(specification.entities.values())).datasets[0]
     dataset.row_scope.grain = "<script>alert('grain')</script>"
     explorer.create_html(specification, tmp_path / "index.html")

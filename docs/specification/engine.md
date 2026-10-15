@@ -43,13 +43,15 @@ the future; they are not supported by the built-in engine today.
 
 ## Executing a compiled plan
 
-The current Python engine is initialized from a compiled portable plan. A
-Specification can still be used indirectly by compiling it first or by using the
+The current Python engine is initialized from a compiled portable plan. An
+`Analytics` object can still be used indirectly by compiling it first or by using the
 convenience constructors, but the runtime engine itself primarily works with the
 plan object.
 
 ```python
-specification = Specification.from_json("examples/pump_analytics/_generated/spec/spec.json")
+from uptimely.analytics import Analytics
+
+specification = Analytics.from_json("examples/pump_analytics/_generated/spec/spec.json")
 plan = Compiler(
     specification,
     features=["health_signal_normalized"],

@@ -141,7 +141,7 @@ class GraphBase:
 class FeatureGraph(GraphBase):
     """Global dependency graph built from all feature mappings."""
 
-    def __init__(self, specs: spec.Specification) -> None:
+    def __init__(self, specs: spec.Analytics) -> None:
         """Load analytics function calls and build the complete dependency graph."""
         self.functions = [
             function for function in specs.resolved_functions if function.role == "analytics"

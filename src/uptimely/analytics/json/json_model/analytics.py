@@ -37,7 +37,7 @@ def _normalize_nested_mappings(value: typing.Any, fields: tuple[str, ...]) -> ty
     return normalized
 
 
-class Specification(common.StrictModel):
+class Analytics(common.StrictModel):
     """The complete JSON specification document."""
 
     path: str | None = pydantic.Field(default=None, exclude=True)
@@ -60,9 +60,9 @@ class Specification(common.StrictModel):
         return self.functions
 
     @classmethod
-    def from_json(cls, path: str | pathlib.Path) -> Specification:
+    def from_json(cls, path: str | pathlib.Path) -> Analytics:
         """Create a specification from a JSON file."""
-        return json_parser.SpecificationParser.from_json(path)
+        return json_parser.AnalyticsParser.from_json(path)
 
     @classmethod
     def from_python(
@@ -73,9 +73,9 @@ class Specification(common.StrictModel):
         dimensions: dict[str, common.Dimension] | list[common.Dimension] | None = None,
         *,
         entities: object | None = None,
-    ) -> Specification:
+    ) -> Analytics:
         """Create a specification from Python authoring models."""
-        return json_parser.SpecificationParser.from_python(
+        return json_parser.AnalyticsParser.from_python(
             datasets=datasets,
             functions=functions,
             name=name,
@@ -85,7 +85,7 @@ class Specification(common.StrictModel):
 
     def to_json(self, path: str | pathlib.Path) -> str:
         """Write the specification document to disk and return its path."""
-        return json_serializer.SpecificationSerializer.to_json(self, path)
+        return json_serializer.AnalyticsSerializer.to_json(self, path)
 
     @pydantic.model_validator(mode="before")
     @classmethod

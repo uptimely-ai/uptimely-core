@@ -5,6 +5,7 @@ from uptimely.row_context import RowContext
 from .feature_graph import FeatureGraph, SubGraph
 from .graph_render import GraphStyle
 from .json.json_model import (
+    Analytics,
     Argument,
     Binding,
     Call,
@@ -17,11 +18,20 @@ from .json.json_model import (
     Mapping,
     Order,
     RowScope,
-    Specification,
 )
-from .json.json_parser import SpecificationParser
-from .json.json_serializer import SpecificationSerializer
-from .python import bind, dataset, dimension, entity, feature, mapping, ref, row_context, spec
+from .json.json_parser import AnalyticsParser
+from .json.json_serializer import AnalyticsSerializer
+from .python import (
+    PythonAnalytics,
+    bind,
+    dataset,
+    dimension,
+    entity,
+    feature,
+    mapping,
+    ref,
+    row_context,
+)
 
 __all__ = [
     "Argument",
@@ -37,11 +47,12 @@ __all__ = [
     "GraphStyle",
     "Mapping",
     "Order",
+    "PythonAnalytics",
     "RowContext",
     "RowScope",
-    "Specification",
-    "SpecificationParser",
-    "SpecificationSerializer",
+    "Analytics",
+    "AnalyticsParser",
+    "AnalyticsSerializer",
     "SubGraph",
     "bind",
     "dataset",
@@ -51,5 +62,4 @@ __all__ = [
     "mapping",
     "ref",
     "row_context",
-    "spec",
 ]

@@ -16,7 +16,7 @@ EXPLORER_OUTPUT_DIR = pathlib.Path("_generated") / "explorer"
 class Explorer:
     """Generate a linked specification, plan, and data-lineage website."""
 
-    def __init__(self, specification: analytics.Specification) -> None:
+    def __init__(self, specification: analytics.Analytics) -> None:
         self.spec = specification
 
     def create_json(
@@ -102,7 +102,7 @@ class Explorer:
 
 
 def create_json(
-    specification: analytics.Specification,
+    specification: analytics.Analytics,
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
 ) -> pathlib.Path:
@@ -111,7 +111,7 @@ def create_json(
 
 
 def create_html(
-    specification: analytics.Specification,
+    specification: analytics.Analytics,
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
 ) -> pathlib.Path:

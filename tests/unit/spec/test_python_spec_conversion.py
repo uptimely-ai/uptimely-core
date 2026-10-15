@@ -3,7 +3,15 @@ from collections import abc
 import pytest
 
 from uptimely.analytics.json import json_model
-from uptimely.analytics.python import bind, dataset, dimension, entity, mapping, ref, spec
+from uptimely.analytics.python import (
+    PythonAnalytics,
+    bind,
+    dataset,
+    dimension,
+    entity,
+    mapping,
+    ref,
+)
 
 
 def _source() -> None:
@@ -51,7 +59,7 @@ def _entity(identifier: str, datasets: list[dataset.Dataset]) -> entity.Entity:
 
 
 def test_empty_specification_has_no_datasets_or_functions() -> None:
-    specification = spec.PythonSpecification()
+    specification = PythonAnalytics()
 
     assert specification.iter_datasets() == []
     assert specification.function_catalog() == json_model.FunctionCatalog()
@@ -63,7 +71,7 @@ def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
     first = dataset.Dataset(id="first")
     second = dataset.Dataset(id="second")
     third = dataset.Dataset(id="third")
-    specification = spec.PythonSpecification(
+    specification = PythonAnalytics(
         entities=[_entity("empty", []), _entity("one", [first, second]), _entity("two", [third])]
     )
 
@@ -75,7 +83,7 @@ def test_function_catalog_keeps_distinct_functions_and_categories() -> None:
         id="additional",
         mappings=[mapping.Read(bind=bind.bind(ref.function(_other_source)))],
     )
-    specification = spec.PythonSpecification(
+    specification = PythonAnalytics(
         entities=[
             _entity("one", [_declaration("first", "read")]),
             _entity("two", [additional, _declaration("calculated", "vectorize")]),
@@ -96,9 +104,7 @@ def test_function_catalog_keeps_distinct_functions_and_categories() -> None:
 def test_function_catalog_merges_and_deduplicates_each_category(category: str) -> None:
     first = _declaration("first", category)
     second = _declaration("second", category)
-    specification = spec.PythonSpecification(
-        entities=[_entity("one", [first]), _entity("two", [second])]
-    )
+    specification = PythonAnalytics(entities=[_entity("one", [first]), _entity("two", [second])])
 
     catalog = specification.function_catalog()
 
@@ -126,7 +132,7 @@ def test_function_catalog_merges_and_deduplicates_each_category(category: str) -
     "category", ["read", "write", "vectorize", "collapse", "expand", "conform"]
 )
 def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None:
-    specification = spec.PythonSpecification(
+    specification = PythonAnalytics(
         entities=[
             _entity("one", [_declaration("first", category)]),
             _entity("two", [_declaration("second", category, _other_source)]),
@@ -152,7 +158,7 @@ def test_to_spec_dict_preserves_name_dimensions_and_dataset_metadata(
         row_scope=dataset.RowScope(grain="One row per pump", coverage="All pumps"),
         order=[dataset.Order(dimension=ref.dimension("pump"), direction="desc")],
     )
-    specification = spec.PythonSpecification(
+    specification = PythonAnalytics(
         name="Pump analytics",
         entities=[_entity("assets", [declaration])],
         dimensions={"pump": pump} if keyed_dimensions else [pump],

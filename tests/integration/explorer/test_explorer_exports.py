@@ -36,7 +36,7 @@ def test_specification_reference_example_parses_compiles_and_executes(
     path = tmp_path / "spec.json"
     path.write_text(example, encoding="utf-8")
 
-    specification = spec.Specification.from_json(path)
+    specification = spec.Analytics.from_json(path)
     compiled = compile.Compiler(specification, features=["total"]).compile()
     execution = engine.Engine(compiled).execute()
 
@@ -51,7 +51,7 @@ def test_specification_reference_example_parses_compiles_and_executes(
 def test_reference_exports_to_default_directory(
     tmp_path: pathlib.Path, monkeypatch, output_format: str
 ) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = spec.Analytics.from_json(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
     explorer_instance = explorer.Explorer(specification)
 
@@ -72,7 +72,7 @@ def test_reference_exports_to_default_directory(
 
 
 def test_generate_json_reference(tmp_path: pathlib.Path, monkeypatch) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = spec.Analytics.from_json(SPEC_PATH)
     monkeypatch.setattr("uptimely.explorer.explorer.EXPLORER_OUTPUT_DIR", tmp_path / "_generated")
 
     data_path = explorer.Explorer(specification).create_json()
@@ -95,7 +95,7 @@ def test_generate_json_reference(tmp_path: pathlib.Path, monkeypatch) -> None:
 
 
 def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = spec.Analytics.from_json(SPEC_PATH)
     monkeypatch.setattr(
         "uptimely.explorer.explorer.EXPLORER_OUTPUT_DIR", tmp_path / "_generated" / "explorer"
     )
@@ -161,7 +161,7 @@ def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
 def test_generate_json_reference_from_in_memory_spec_is_deterministic(
     tmp_path: pathlib.Path,
 ) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = spec.Analytics.from_json(SPEC_PATH)
     specification.path = None
 
     first_path = explorer.Explorer(specification).create_json(
@@ -177,7 +177,7 @@ def test_generate_json_reference_from_in_memory_spec_is_deterministic(
 def test_generate_html_explorer_from_in_memory_spec_is_deterministic(
     tmp_path: pathlib.Path,
 ) -> None:
-    specification = spec.Specification.from_json(SPEC_PATH)
+    specification = spec.Analytics.from_json(SPEC_PATH)
     specification.path = None
 
     first_path = explorer.Explorer(specification).create_html(

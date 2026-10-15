@@ -78,7 +78,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     print("Engine completed the flow")
     print(f"{len(execution_plan.operations)} operations")
     print("Calculated features: " + ", ".join(calculated_features))
-    print(f"Specification: {spec}" if args.compile == "true" else f"Execution plan: {plan_path}")
+    print(f"Analytics: {spec}" if args.compile == "true" else f"Execution plan: {plan_path}")
     if args.verbose:
         plan.print_stages(execution_plan)
         print("\nDataset registry")

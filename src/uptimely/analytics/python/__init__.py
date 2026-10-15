@@ -2,6 +2,6 @@
 
 from . import feature
 from . import mappings as mapping
-from .spec import PythonSpecification
+from .analytics import PythonAnalytics
 
-__all__ = ["PythonSpecification", "feature", "mapping"]
+__all__ = ["PythonAnalytics", "feature", "mapping"]

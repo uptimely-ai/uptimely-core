@@ -84,7 +84,7 @@ def test_engine_validates_plan_backend_and_specification_version() -> None:
             )
         )
 
-    with pytest.raises(ValueError, match="Specification version mismatch"):
+    with pytest.raises(ValueError, match="Analytics version mismatch"):
         uptimely_engine.Engine(
             _plan(),
             resources={"specification_version": "2025.01"},

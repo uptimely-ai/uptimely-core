@@ -17,7 +17,7 @@ NodeMeta = node_module.CallableNode
 class CallableGraph:
     """Dependency graph built from callable invocations and their feature dependencies."""
 
-    def __init__(self, specs: spec.Specification) -> None:
+    def __init__(self, specs: spec.Analytics) -> None:
         """Load analytics functions and build the callable dependency graph.
 
         Args:

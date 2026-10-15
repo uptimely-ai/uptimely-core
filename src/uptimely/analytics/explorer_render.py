@@ -151,9 +151,7 @@ def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], lis
     return fragment_features, calculated_features, referenced_features
 
 
-def _build_context(
-    specification: spec.Specification, include_generated_at: bool
-) -> ExplorerContext:
+def _build_context(specification: spec.Analytics, include_generated_at: bool) -> ExplorerContext:
     """Build the typed template context from a canonical specification model."""
     configuration = specification.model_dump(mode="json", exclude_none=True)
     for entity_id, entity in specification.entities.items():
@@ -265,7 +263,7 @@ def _build_context(
 
 
 def create_json(
-    specification: spec.Specification,
+    specification: spec.Analytics,
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
 ) -> pathlib.Path:

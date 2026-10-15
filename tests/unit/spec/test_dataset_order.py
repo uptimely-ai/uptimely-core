@@ -40,12 +40,12 @@ def _configuration() -> dict[str, typing.Any]:
     }
 
 
-def _parse(tmp_path: pathlib.Path, order: object) -> spec.Specification:
+def _parse(tmp_path: pathlib.Path, order: object) -> spec.Analytics:
     configuration = _configuration()
     configuration["entities"]["telemetry"]["datasets"][0]["order"] = order
     path = tmp_path / "input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    return spec.Specification.from_json(path)
+    return spec.Analytics.from_json(path)
 
 
 def test_dataset_order_json_round_trip_preserves_precedence(tmp_path: pathlib.Path) -> None:
@@ -57,7 +57,7 @@ def test_dataset_order_json_round_trip_preserves_precedence(tmp_path: pathlib.Pa
     specification.to_json(path)
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["entities"]["telemetry"]["datasets"][0]["order"] == ORDER
-    assert spec.Specification.from_json(path).entities["telemetry"].datasets[0].order == keys
+    assert spec.Analytics.from_json(path).entities["telemetry"].datasets[0].order == keys
 
 
 def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.Path) -> None:
@@ -66,7 +66,7 @@ def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.
     del configuration["entities"]["telemetry"]["datasets"][0]["order"]
     path = tmp_path / "omitted.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    assert spec.Specification.from_json(path).entities["telemetry"].datasets[0].order == []
+    assert spec.Analytics.from_json(path).entities["telemetry"].datasets[0].order == []
 
     first = spec.Dataset(id="first")
     second = spec.Dataset(id="second")
@@ -147,7 +147,7 @@ def test_dataset_order_python_authoring_matches_json(
         python_spec.dimension.Dimension(id="timestamp", type="datetime"),
     ]
     if use_entities:
-        specification = spec.Specification.from_python(
+        specification = spec.Analytics.from_python(
             entities=[
                 python_spec.entity.Entity(
                     id="telemetry",
@@ -159,7 +159,7 @@ def test_dataset_order_python_authoring_matches_json(
             dimensions=dimensions,
         )
     else:
-        specification = spec.Specification.from_python(
+        specification = spec.Analytics.from_python(
             datasets=[declaration], dimensions=dimensions, name="telemetry"
         )
     assert specification.entities["telemetry"].datasets[0].order == (
@@ -167,7 +167,7 @@ def test_dataset_order_python_authoring_matches_json(
     )
     path = tmp_path / "python.json"
     specification.to_json(path)
-    assert spec.Specification.from_json(path).entities["telemetry"].datasets[0].order == [
+    assert spec.Analytics.from_json(path).entities["telemetry"].datasets[0].order == [
         spec.Order(**key) for key in ORDER
     ]
 
@@ -179,7 +179,7 @@ def test_dataset_order_python_authoring_validates_references() -> None:
         ).to_model()
 
     with pytest.raises(validation.SpecificationError, match="not declared by entity"):
-        spec.Specification.from_python(
+        spec.Analytics.from_python(
             datasets=[
                 python_spec.dataset.Dataset(
                     id="observations",
@@ -240,10 +240,10 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
             ),
         ],
     )
-    unordered = spec.Specification.from_python(
+    unordered = spec.Analytics.from_python(
         datasets=[declaration], dimensions=spec_module.dimensions
     )
-    ordered = spec.Specification.from_python(
+    ordered = spec.Analytics.from_python(
         datasets=[
             dataclasses.replace(
                 declaration,

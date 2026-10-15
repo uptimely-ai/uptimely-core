@@ -25,7 +25,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
 
     spec_path = tmp_path / "valid_mappings_spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
-    parsed_spec = spec.Specification.from_json(spec_path)
+    parsed_spec = spec.Analytics.from_json(spec_path)
     ds = parsed_spec.entities["pump_telemetry"].datasets[0]
 
     assert "read_pump_telemetry" in ds.mappings
@@ -43,7 +43,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     bad_source_path = tmp_path / "bad_source.json"
     bad_source_path.write_text(json.dumps(bad_source_config), encoding="utf-8")
     with pytest.raises(ValueError, match="mappings reference unknown functions"):
-        spec.Specification.from_json(bad_source_path)
+        spec.Analytics.from_json(bad_source_path)
 
     bad_transform_config = json.loads(json.dumps(configuration))
     bad_transform_config["entities"]["pump_telemetry"]["datasets"][0]["features"][
@@ -58,7 +58,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     bad_transform_path = tmp_path / "bad_transform.json"
     bad_transform_path.write_text(json.dumps(bad_transform_config), encoding="utf-8")
     with pytest.raises(ValueError, match="mappings reference unknown functions"):
-        spec.Specification.from_json(bad_transform_path)
+        spec.Analytics.from_json(bad_transform_path)
 
 
 @pytest.mark.parametrize("mapping_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
@@ -71,7 +71,7 @@ def test_mapping_rejects_explicit_source(tmp_path: pathlib.Path, mapping_id: str
     invalid_operation_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(ValueError, match="source"):
-        spec.Specification.from_json(invalid_operation_path)
+        spec.Analytics.from_json(invalid_operation_path)
 
 
 @pytest.mark.parametrize(
@@ -101,7 +101,7 @@ def test_collapse_validates_source_grouping_and_output_contract(
     path = tmp_path / "invalid.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
-        spec.Specification.from_json(path)
+        spec.Analytics.from_json(path)
 
 
 @pytest.mark.parametrize(
@@ -125,7 +125,7 @@ def test_collapse_validates_explicit_inputs(
     path = tmp_path / "invalid.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
-        spec.Specification.from_json(path)
+        spec.Analytics.from_json(path)
 
 
 @pytest.mark.parametrize("legacy", ["catalog", "source", "group_by", "operations", "aggregations"])
@@ -143,7 +143,7 @@ def test_removed_aggregation_and_wrapper_schemas_are_rejected(
     path = tmp_path / "legacy.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError):
-        spec.Specification.from_json(path)
+        spec.Analytics.from_json(path)
 
 
 def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Path) -> None:
@@ -152,7 +152,7 @@ def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Pat
     path = tmp_path / "invalid_dimensions.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="grouping dimensions must exist in source"):
-        spec.Specification.from_json(path)
+        spec.Analytics.from_json(path)
 
 
 def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -> None:
@@ -161,7 +161,7 @@ def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -
     path = tmp_path / "missing_entrypoint.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="entrypoint"):
-        spec.Specification.from_json(path)
+        spec.Analytics.from_json(path)
 
 
 def test_collapse_rejects_inputs_from_multiple_datasets(
@@ -176,7 +176,7 @@ def test_collapse_rejects_inputs_from_multiple_datasets(
     path = tmp_path / "mixed_inputs.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="one dataset; use expand"):
-        spec.Specification.from_json(path)
+        spec.Analytics.from_json(path)
 
 
 def test_collapse_dimensions_alone_do_not_identify_input_dataset(
@@ -190,4 +190,4 @@ def test_collapse_dimensions_alone_do_not_identify_input_dataset(
     path = tmp_path / "dimension_input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="must reference a source feature"):
-        spec.Specification.from_json(path)
+        spec.Analytics.from_json(path)
