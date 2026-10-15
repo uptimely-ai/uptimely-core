@@ -35,7 +35,7 @@
 {% endmacro %}
 <section id="functions" class="mb-16">
   {{ section_header("Functions", "Browse the function catalog, argument types, return signatures, and source entrypoints.", count=summary.function_count, count_label="functions") }}
-  {% for group_name, group in configuration.functions.items() %}
+  {% for group_name, group in function_groups.items() %}
     {% set ordered_functions = group.items() | list %}
     {% if ordered_functions %}
       <div class="mb-8">

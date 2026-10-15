@@ -94,11 +94,9 @@ class AnalyticsParser:
         for entity_id, entity in self.entities.items():
             for dataset in entity.datasets:
                 for mapping in dataset.mappings.values():
-                    if mapping.binding.function in self.function_catalog.collapse:
-                        continue
                     function_name = mapping.binding.function
-                    template = self.function_catalog.vectorize.get(function_name)
-                    if template is None:
+                    template = self.function_catalog.get(function_name)
+                    if template is None or template.operation != "vectorize":
                         continue
                     if not mapping.output_features:
                         raise ValueError(f"Mapping {mapping.id} must declare one or more features")
@@ -135,7 +133,7 @@ class AnalyticsParser:
     @staticmethod
     def _build_function(
         function_name: str,
-        template: json_model.VectorizeFunction | None,
+        template: json_model.FunctionTemplate | None,
         calculation: json_model.Feature,
     ) -> json_model.Function:
         """Build a deduplicated function entry from its first calculation."""
@@ -228,9 +226,8 @@ class AnalyticsParser:
         for entity in self.entities.values():
             for dataset in entity.datasets:
                 for mapping in dataset.mappings.values():
-                    if mapping.binding.function in self.function_catalog.collapse:
-                        continue
-                    if mapping.binding.function in self.function_catalog.vectorize:
+                    function = self.function_catalog.get(mapping.binding.function)
+                    if function is not None and function.operation == "vectorize":
                         collisions = sorted(set(mapping.output_features) & dimension_names)
                         if collisions:
                             raise ValueError(
@@ -255,9 +252,8 @@ class AnalyticsParser:
             for dataset in entity.datasets:
                 dataset_key = (entity_id, dataset.id)
                 for mapping in dataset.mappings.values():
-                    if mapping.binding.function in self.function_catalog.collapse:
-                        continue
-                    if mapping.binding.function not in self.function_catalog.write:
+                    function = self.function_catalog.get(mapping.binding.function)
+                    if function is None or function.operation != "write":
                         continue
                     sink_features = set(mapping.input_features)
                     foreign_features = sorted(

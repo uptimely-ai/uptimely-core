@@ -58,21 +58,17 @@ async def test_lists_all_tools(state: server.ServerState) -> None:
 
 
 @pytest.mark.anyio
-async def test_list_functions_groups_catalog(state: server.ServerState) -> None:
-    """list_functions groups function ids by category."""
+async def test_list_functions_returns_function_operations(state: server.ServerState) -> None:
+    """list_functions returns each function id and declared operation."""
     payload = await _call(state, "list_functions")
-    assert "pump_health_score" in payload["vectorize"]
-    assert sorted(payload) == sorted(
-        ["read", "write", "vectorize", "collapse", "expand", "conform"]
-    )
+    assert {"id": "pump_health_score", "operation": "vectorize"} in payload
 
 
 @pytest.mark.anyio
 async def test_describe_function_resolves_signature(state: server.ServerState) -> None:
     """describe_function returns declared args and the resolved Python signature."""
-    payload = await _call(
-        state, "describe_function", {"category": "vectorize", "function_id": "pump_health_score"}
-    )
+    payload = await _call(state, "describe_function", {"function_id": "pump_health_score"})
+    assert payload["operation"] == "vectorize"
     assert payload["entrypoint"].endswith(":pump_health_score")
     assert payload["declared_args"]["health_features"]["type"] == "array[string]"
     assert payload["python_signature"]["returns"] == "LazyFrame"
@@ -82,16 +78,10 @@ async def test_describe_function_resolves_signature(state: server.ServerState) -
 async def test_describe_function_rejects_unknown_ids(
     state: server.ServerState,
 ) -> None:
-    """describe_function fails with a clear error for unknown categories or functions."""
+    """describe_function fails with a clear error for unknown functions."""
     async with fastmcp_.Client(server.create_server(state)) as client:
-        with pytest.raises(Exception, match="Unknown category"):
-            await client.call_tool(
-                "describe_function", {"category": "nope", "function_id": "pump_health_score"}
-            )
-        with pytest.raises(Exception, match="Unknown vectorize function"):
-            await client.call_tool(
-                "describe_function", {"category": "vectorize", "function_id": "nope"}
-            )
+        with pytest.raises(Exception, match="Unknown function"):
+            await client.call_tool("describe_function", {"function_id": "nope"})
 
 
 @pytest.mark.anyio

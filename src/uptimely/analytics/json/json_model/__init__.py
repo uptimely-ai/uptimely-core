@@ -19,33 +19,24 @@ from .dataset import (
     RowScope,
 )
 from .functions import (
-    FUNCTION_CATEGORIES,
+    FUNCTION_OPERATIONS,
     FUNCTION_TYPES,
-    CollapseFunction,
-    ConformFunction,
-    ExpandFunction,
     FunctionCatalog,
     FunctionTemplate,
-    ReadFunction,
-    VectorizeFunction,
-    WriteFunction,
 )
 from .resolved import Call, Function
 
 __all__ = [
-    "FUNCTION_CATEGORIES",
+    "FUNCTION_OPERATIONS",
     "FUNCTION_TYPES",
     "SUPPORTED_ANALYTICS_VERSION",
     "Argument",
     "Binding",
     "BindingArgument",
     "Call",
-    "CollapseFunction",
-    "ConformFunction",
     "Dataset",
     "Dimension",
     "Entity",
-    "ExpandFunction",
     "Feature",
     "Function",
     "FunctionCatalog",
@@ -53,11 +44,8 @@ __all__ = [
     "Mapping",
     "MappingFeatures",
     "Order",
-    "ReadFunction",
     "RowScope",
     "Analytics",
     "AnalyticsSource",
     "StrictModel",
-    "VectorizeFunction",
-    "WriteFunction",
 ]

@@ -4,13 +4,20 @@ import typing
 
 import pydantic
 
-from ..python import bind
 from . import json_model
 
 
 def _argument_metadata(argument: typing.Any) -> dict[str, typing.Any]:
     """Serialize an argument definition."""
     return {"type": argument.type, "comment": argument.comment}
+
+
+def _function_metadata(function: json_model.FunctionTemplate) -> dict[str, typing.Any]:
+    """Serialize a function definition without unset optional metadata."""
+    metadata = function.model_dump(exclude={"id"})
+    if metadata.get("description") is None:
+        metadata.pop("description")
+    return metadata
 
 
 def python_to_analytics_dict(
@@ -87,61 +94,21 @@ def _resources_by_id(
     }
 
 
-def _configured_entrypoint(
-    functions: typing.Any, category: str, function_name: str, fallback: str
-) -> str:
-    """Return the configured entrypoint or the declared fallback."""
-    if isinstance(functions, pydantic.BaseModel):
-        lookup = getattr(functions, category, {})
-    elif isinstance(functions, dict):
-        lookup = functions.get(category, {})
-    else:
-        lookup = {}
-
-    if isinstance(lookup, dict):
-        configured = lookup.get(function_name)
-        if isinstance(configured, pydantic.BaseModel):
-            return str(configured.entrypoint)
-        if isinstance(configured, dict):
-            entrypoint = configured.get("entrypoint")
-            if entrypoint:
-                return str(entrypoint)
-    return fallback
-
-
-def _configured_function(functions: typing.Any, category: str, function_name: str) -> typing.Any:
-    """Return a configured function model or mapping entry, when available."""
-    if isinstance(functions, pydantic.BaseModel):
-        lookup = getattr(functions, category, {})
-        return lookup.get(function_name) if isinstance(lookup, dict) else None
-    if isinstance(functions, dict):
-        lookup = functions.get(category, {})
-        return lookup.get(function_name) if isinstance(lookup, dict) else None
-    return None
-
-
 def _auto_function_catalog(declarations: object) -> dict[str, typing.Any]:
     """Build an automatic function catalog from original Python declarations."""
-    merged: dict[str, dict[str, typing.Any]] = {
-        "read": {},
-        "write": {},
-        "vectorize": {},
-        "collapse": {},
-        "expand": {},
-        "conform": {},
-    }
+    merged: dict[str, typing.Any] = {}
 
     declaration_list = (
         list(declarations.values()) if isinstance(declarations, dict) else list(declarations or [])
     )
 
     def register_dataset(dataset: typing.Any) -> None:
-        for category, functions in dataset.function_catalog().model_dump().items():
-            for function_id, function in functions.items():
-                existing = merged[category].get(function_id)
-                if existing is not None and existing["entrypoint"] != function["entrypoint"]:
-                    raise ValueError(f"Conflicting function id '{function_id}' for {category}")
-                merged[category][function_id] = function
+        for function_id, function in dataset.function_catalog().root.items():
+            existing = merged.get(function_id)
+            serialized = _function_metadata(function)
+            if existing is not None and existing != serialized:
+                raise ValueError(f"Conflicting function definition for '{function_id}'")
+            merged[function_id] = serialized
 
     for declaration in declaration_list:
         if hasattr(declaration, "datasets"):
@@ -188,107 +155,37 @@ def _static_datasets_to_analytics(
             ]
             entity_values[entity_id] = entity_value
 
+    function_definitions: dict[str, typing.Any] = {}
+    if isinstance(functions, json_model.FunctionCatalog):
+        function_definitions.update(
+            {
+                function_id: _function_metadata(definition)
+                for function_id, definition in functions.root.items()
+            }
+        )
+    elif isinstance(functions, dict):
+        for function_id, definition in functions.items():
+            if isinstance(definition, pydantic.BaseModel):
+                function_definitions[function_id] = _function_metadata(definition)
+            else:
+                metadata = dict(definition)
+                if metadata.get("description") is None:
+                    metadata.pop("description", None)
+                function_definitions[function_id] = metadata
+
+    for dataset in datasets.values():
+        if hasattr(dataset, "function_catalog"):
+            for function_id, definition in dataset.function_catalog().root.items():
+                function_definitions.setdefault(function_id, _function_metadata(definition))
+
     return {
         **({"name": name} if name is not None else {}),
-        "version": "0.1.0",
+        "version": "0.2.0",
         "source": {"name": "python_api", "generated": True},
         "dimensions": {
             identifier: resource.model_dump(exclude_none=False)
             for identifier, resource in dimensions.items()
         },
-        "functions": {
-            "read": _static_function_catalog(datasets, functions, "read"),
-            "write": _static_function_catalog(datasets, functions, "write"),
-            "vectorize": {
-                **_static_function_catalog(datasets, functions, "vectorize"),
-            },
-            "collapse": _static_function_catalog(datasets, functions, "collapse"),
-            "expand": _static_function_catalog(datasets, functions, "expand"),
-            "conform": _static_function_catalog(datasets, functions, "conform"),
-        },
+        "functions": function_definitions,
         "entities": entity_values,
     }
-
-
-def _static_function_catalog(
-    datasets: dict[str, pydantic.BaseModel], functions: dict[str, typing.Any], category: str
-) -> dict[str, typing.Any]:
-    """Build the function catalog for a given operation category."""
-    catalog: dict[str, typing.Any] = {}
-    if isinstance(functions, pydantic.BaseModel):
-        by_category = getattr(functions, category, {})
-        if isinstance(by_category, dict):
-            catalog.update(
-                {
-                    fn_id: {
-                        "entrypoint": fn_obj.entrypoint
-                        if hasattr(fn_obj, "entrypoint")
-                        else str(fn_obj),
-                        "args": {
-                            name: _argument_metadata(arg)
-                            for name, arg in (getattr(fn_obj, "args", {}) or {}).items()
-                        },
-                    }
-                    for fn_id, fn_obj in by_category.items()
-                }
-            )
-    elif isinstance(functions, dict):
-        by_category = functions.get(category, {})
-        if isinstance(by_category, dict):
-            catalog.update(
-                {
-                    fn_id: {
-                        "entrypoint": (
-                            fn_obj.get("entrypoint")
-                            if isinstance(fn_obj, dict)
-                            else getattr(fn_obj, "entrypoint", str(fn_obj))
-                        ),
-                        "args": {
-                            name: (
-                                {
-                                    "type": arg.get("type", "object"),
-                                    "comment": arg.get("comment"),
-                                }
-                                if isinstance(arg, dict)
-                                else _argument_metadata(arg)
-                            )
-                            for name, arg in (
-                                fn_obj.get("args", {})
-                                if isinstance(fn_obj, dict)
-                                else (getattr(fn_obj, "args", {}) or {})
-                            ).items()
-                        },
-                    }
-                    for fn_id, fn_obj in by_category.items()
-                }
-            )
-
-    for dataset in datasets.values():
-        operations = []
-        if category in {"read", "expand", "conform", "vectorize", "write"}:
-            registered = (
-                functions.get(category, {})
-                if isinstance(functions, dict)
-                else getattr(functions, category, {})
-            )
-            operations = [
-                mapping
-                for mapping in dataset.mappings.values()
-                if hasattr(mapping, "binding")
-                if mapping.binding.function in registered
-            ]
-        for operation in operations:
-            if not operation.binding.function:
-                continue
-            function_id = operation.binding.function
-            if function_id not in catalog:
-                catalog[function_id] = {
-                    "entrypoint": _configured_entrypoint(
-                        functions, category, function_id, function_id
-                    ),
-                    "args": {
-                        name: {**bind._argument_definition(value), "comment": None}
-                        for name, value in operation.binding.args.items()
-                    },
-                }
-    return catalog

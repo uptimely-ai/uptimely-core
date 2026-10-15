@@ -236,9 +236,8 @@ def test_website_exports_all_reports_with_relative_navigation(
             raw_columns = {
                 name
                 for mapping in dataset.mappings.values()
-                if mapping.binding.function in analytics_definition.functions.read
-                or mapping.binding.function in analytics_definition.functions.conform
-                or mapping.binding.function in analytics_definition.functions.expand
+                if analytics_definition.functions[mapping.binding.function].operation
+                in {"read", "conform", "expand"}
                 for name in mapping.output_features
             }
             for name, column in zip(expected_names, columns, strict=True):
@@ -308,13 +307,11 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         "Entities": str(len(analytics_definition.entities)),
         "Datasets": str(len(datasets)),
         "Features": str(sum(len(dataset.features) for dataset in datasets)),
-        "Functions": str(
-            sum(len(group) for group in analytics_definition.functions.model_dump().values())
-        ),
+        "Functions": str(len(analytics_definition.functions)),
         "Operations": str(len(expected_plan.operations)),
         "Stages": str(len(expected_plan.execution_stages)),
     }
-    assert "Analytics 0.1.0" in document
+    assert "Analytics 0.2.0" in document
     assert 'aria-label="Project counts"' in document
     assert 'aria-label="Analytics journey"' in document
     assert re.findall(r'<li class="journey-step (\S+) icon--\1">', document) == [
@@ -683,7 +680,7 @@ def test_website_propagates_compilation_errors_without_writing_reports(
     tmp_path: pathlib.Path,
 ) -> None:
     analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
-    analytics_definition.functions.read[
+    analytics_definition.functions[
         "read_pump_telemetry"
     ].entrypoint = "missing_functions:read_pump_telemetry"
 

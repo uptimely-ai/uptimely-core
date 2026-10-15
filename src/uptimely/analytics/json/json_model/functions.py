@@ -1,13 +1,15 @@
-"""Canonical function-catalog models."""
+"""Canonical function definitions and their operation contracts."""
 
 from __future__ import annotations
+
+import typing
 
 import pydantic
 
 from . import common
 
 FUNCTION_TYPES = ["sql_query", "python_function"]
-FUNCTION_CATEGORIES = (
+FUNCTION_OPERATIONS = (
     "read",
     "write",
     "vectorize",
@@ -15,51 +17,44 @@ FUNCTION_CATEGORIES = (
     "expand",
     "conform",
 )
+FunctionOperation = typing.Literal["read", "write", "vectorize", "collapse", "expand", "conform"]
 
 
 class FunctionTemplate(common.StrictModel):
-    """Common declaration fields for a catalog function template."""
+    """One logical function definition in the analytics catalog."""
 
     id: str = pydantic.Field(exclude=True)
+    operation: FunctionOperation
     entrypoint: str
     args: dict[str, common.Argument] = pydantic.Field(default_factory=dict)
-
-
-class ReadFunction(FunctionTemplate):
-    """A function template under `functions.read`."""
-
-
-class WriteFunction(FunctionTemplate):
-    """A function template under `functions.write`."""
-
-
-class VectorizeFunction(FunctionTemplate):
-    """A function template under `functions.vectorize`."""
-
     description: str | None = None
 
 
-class CollapseFunction(FunctionTemplate):
-    """A function returning a dataframe at the target entity's reduced grain."""
+class FunctionCatalog(pydantic.RootModel[dict[str, FunctionTemplate]]):
+    """Function definitions keyed by their globally unique identifiers."""
 
+    root: dict[str, FunctionTemplate] = pydantic.Field(default_factory=dict)
 
-class ExpandFunction(FunctionTemplate):
-    """A function that creates a fragment by expanding data."""
+    def by_operation(self, operation: FunctionOperation) -> dict[str, FunctionTemplate]:
+        """Return function definitions for one operation."""
+        return {
+            function_id: function
+            for function_id, function in self.root.items()
+            if function.operation == operation
+        }
 
+    def __getitem__(self, function_id: str) -> FunctionTemplate:
+        return self.root[function_id]
 
-class ConformFunction(FunctionTemplate):
-    """A function that creates a fragment from another dataset in the same entity.
+    def get(self, function_id: str, default: typing.Any = None) -> FunctionTemplate | typing.Any:
+        """Return one function definition, or a default when it is absent."""
+        return self.root.get(function_id, default)
 
-    The fragment is adapted to the target dataset's row scope.
-    """
+    def __contains__(self, function_id: object) -> bool:
+        return function_id in self.root
 
+    def __iter__(self) -> typing.Iterator[str]:
+        return iter(self.root)
 
-class FunctionCatalog(common.StrictModel):
-    """The top-level `functions` block."""
-
-    read: dict[str, ReadFunction] = pydantic.Field(default_factory=dict)
-    write: dict[str, WriteFunction] = pydantic.Field(default_factory=dict)
-    vectorize: dict[str, VectorizeFunction] = pydantic.Field(default_factory=dict)
-    collapse: dict[str, CollapseFunction] = pydantic.Field(default_factory=dict)
-    expand: dict[str, ExpandFunction] = pydantic.Field(default_factory=dict)
-    conform: dict[str, ConformFunction] = pydantic.Field(default_factory=dict)
+    def __len__(self) -> int:
+        return len(self.root)

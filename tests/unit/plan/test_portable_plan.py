@@ -8,7 +8,7 @@ from uptimely import plan as uptimely_plan
 def _sample_plan() -> uptimely_plan.Plan:
     return uptimely_plan.Plan(
         plan_version="1.0.0",
-        analytics_version="0.1.0",
+        analytics_version="0.2.0",
         required_backend="polars",
         resources={
             "signatures": {

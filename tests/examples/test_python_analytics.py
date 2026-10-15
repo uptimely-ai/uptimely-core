@@ -59,11 +59,11 @@ def test_argument_definition_supports_recursive_compact_types() -> None:
     assert bind._argument_definition({"value": 1.0, "other": "text"}) == {"type": "object"}
 
 
-def test_function_catalog_uses_vectorize_category() -> None:
+def test_function_catalog_functions_declare_operations() -> None:
     analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
 
-    categories = set(analytics_definition.functions.model_dump(exclude_none=True))
-    assert "vectorize" in categories
+    operations = {function.operation for function in analytics_definition.functions.root.values()}
+    assert "vectorize" in operations
 
 
 def test_example_manifest_parses_complete_analytics() -> None:
@@ -86,15 +86,13 @@ def test_example_manifest_parses_complete_analytics() -> None:
     assert isinstance(analytics_definition, analytics.Analytics)
     assert analytics_definition.source.name == "python_api"
     assert analytics_definition.source.generated is True
-    assert set(analytics_definition.functions.model_dump(exclude_none=True)) == {
+    assert {function.operation for function in analytics_definition.functions.root.values()} == {
         "read",
         "write",
         "vectorize",
         "collapse",
-        "expand",
-        "conform",
     }
-    assert set(analytics_definition.functions.vectorize) - {"maximum"} == {
+    assert set(analytics_definition.function_catalog.by_operation("vectorize")) - {"maximum"} == {
         function.id for function in analytics_definition.resolved_functions
     }
     assert len(analytics_definition.resolved_functions) == 7
@@ -119,7 +117,7 @@ def test_analytics_from_entities_python_api(tmp_path: pathlib.Path) -> None:
     assert analytics_definition.name == "Simple analytics"
     assert analytics_definition.source.name == "python_api"
     assert analytics_definition.source.generated is True
-    assert analytics_definition.functions.read
+    assert analytics_definition.function_catalog.by_operation("read")
 
 
 def test_example_timestamp_order_matches_python_declaration() -> None:
@@ -150,17 +148,13 @@ def test_analytics_from_python_models_and_json_export(tmp_path: pathlib.Path) ->
     dataset_payload = payload["entities"]["simple_analytics"]["datasets"][0]
     assert {key: payload[key] for key in ("name", "version", "source")} == {
         "name": "simple_analytics",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "source": {"name": "python_api", "generated": True},
     }
-    assert set(payload["functions"]) == {"read", "write", "vectorize"}
+    assert set(payload["functions"]) == {"read", "write", "sum_features", "column_4"}
     assert {
-        name: payload["functions"][category][name]["entrypoint"].rsplit(":", 1)[-1]
-        for category, name in (
-            ("read", "read"),
-            ("write", "write"),
-            ("vectorize", "sum_features"),
-        )
+        name: payload["functions"][name]["entrypoint"].rsplit(":", 1)[-1]
+        for name in ("read", "write", "sum_features")
     } == {
         "read": "read_data",
         "write": "write_data",
@@ -242,4 +236,4 @@ def test_sources_and_transforms_python_analytics() -> None:
     assert collapse.binding.function == "maximum"
     assert collapse.binding.args == {"feature": "$features.input_1"}
     assert collapse.output_features == ["collapsed_feature"]
-    assert "maximum" in analytics_definition.functions.collapse
+    assert analytics_definition.functions["maximum"].operation == "collapse"

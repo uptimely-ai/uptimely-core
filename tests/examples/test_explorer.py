@@ -42,10 +42,7 @@ def _explorer_counts(analytics_definition: analytics.Analytics) -> dict[str, int
         dataset for entity in analytics_definition.entities.values() for dataset in entity.datasets
     ]
     feature_count = sum(len(dataset.features) for dataset in datasets)
-    function_count = sum(
-        len(functions)
-        for functions in analytics_definition.functions.model_dump(exclude_none=True).values()
-    )
+    function_count = len(analytics_definition.functions)
     return {
         "entity_count": len(analytics_definition.entities),
         "dataset_count": len(datasets),

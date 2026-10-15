@@ -10,19 +10,15 @@ if typing.TYPE_CHECKING:
     from . import json_model
 
 
-def mapping_category(mapping: json_model.Mapping, catalog: json_model.FunctionCatalog) -> str:
-    """Return the execution kind of a canonical mapping."""
-    matches = [
-        category
-        for category in ("read", "conform", "expand", "collapse", "vectorize", "write")
-        if mapping.binding.function in getattr(catalog, category)
-    ]
-    if len(matches) != 1:
+def mapping_operation(mapping: json_model.Mapping, catalog: json_model.FunctionCatalog) -> str:
+    """Return the declared operation of a mapping's function."""
+    function = catalog.get(mapping.binding.function)
+    if function is None:
         raise ValueError(
             f"Mapping {mapping.id} function {mapping.binding.function} must resolve "
-            "to exactly one operation category"
+            "to a declared function"
         )
-    return matches[0]
+    return function.operation
 
 
 def collapse_input_dataset(

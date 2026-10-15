@@ -34,7 +34,7 @@ def test_compiler_rejects_string_feature_selection() -> None:
 )
 def test_compiler_rejects_missing_function_entrypoints(category: str, function_id: str) -> None:
     analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
-    getattr(analytics_definition.functions, category)[function_id].entrypoint = ""
+    analytics_definition.functions[function_id].entrypoint = ""
 
     with pytest.raises(ValueError, match=f"Missing entrypoint for function: {function_id}"):
         compile.Compiler(analytics_definition).compile()
@@ -42,9 +42,7 @@ def test_compiler_rejects_missing_function_entrypoints(category: str, function_i
 
 def test_compiler_reports_unreadable_function_signatures() -> None:
     analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
-    analytics_definition.functions.vectorize[
-        "pressure_flow_efficiency"
-    ].entrypoint = "invalid-entrypoint"
+    analytics_definition.functions["pressure_flow_efficiency"].entrypoint = "invalid-entrypoint"
 
     with pytest.raises(ValueError, match="Could not read signature.*Invalid entrypoint"):
         compile.Compiler(analytics_definition).compile()
@@ -213,7 +211,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
     reference_data = analytics_render.create_json(analytics_definition, tmp_path / "docs.json")
     configuration = json.loads(reference_data.read_text(encoding="utf-8"))["configuration"]
     expected_file = path.as_uri() if scheme == "local" else location
-    assert configuration["functions"]["vectorize"]["calculate"]["entrypoint_file"] == expected_file
+    assert configuration["functions"]["calculate"]["entrypoint_file"] == expected_file
     assert downloads == expected_downloads
 
 

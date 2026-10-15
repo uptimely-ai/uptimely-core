@@ -40,7 +40,7 @@ def _declaration(
                 id=f"{identifier}_mapping",
                 bind=bind.bind(
                     ref.function(function),
-                    function_id="shared",
+                    function_id=f"{category}_shared",
                     dataset=ref.current_dataset().dataframe,
                     columns=[ref.feature("temperature")],
                 ),
@@ -78,7 +78,7 @@ def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
     assert analytics_definition.iter_datasets() == [first, second, third]
 
 
-def test_function_catalog_keeps_distinct_functions_and_categories() -> None:
+def test_function_catalog_keeps_distinct_functions_and_operations() -> None:
     additional = dataset.Dataset(
         id="additional",
         mappings=[mapping.Read(bind=bind.bind(ref.function(_other_source)))],
@@ -92,16 +92,19 @@ def test_function_catalog_keeps_distinct_functions_and_categories() -> None:
 
     catalog = analytics_definition.function_catalog()
 
-    assert set(catalog.read) == {"shared", "_other_source"}
-    assert catalog.read["_other_source"].entrypoint == f"{__name__}:_other_source"
-    assert set(catalog.vectorize) == {"shared"}
-    assert catalog.write == catalog.collapse == catalog.expand == catalog.conform == {}
+    assert set(catalog.by_operation("read")) == {"read_shared", "_other_source"}
+    assert catalog["_other_source"].entrypoint == f"{__name__}:_other_source"
+    assert set(catalog.by_operation("vectorize")) == {"vectorize_shared"}
+    assert all(
+        not catalog.by_operation(operation)
+        for operation in ("write", "collapse", "expand", "conform")
+    )
 
 
 @pytest.mark.parametrize(
     "category", ["read", "write", "vectorize", "collapse", "expand", "conform"]
 )
-def test_function_catalog_merges_and_deduplicates_each_category(category: str) -> None:
+def test_function_catalog_merges_and_deduplicates_each_operation(category: str) -> None:
     first = _declaration("first", category)
     second = _declaration("second", category)
     analytics_definition = PythonAnalytics(
@@ -111,21 +114,21 @@ def test_function_catalog_merges_and_deduplicates_each_category(category: str) -
     catalog = analytics_definition.function_catalog()
 
     assert catalog == first.function_catalog()
-    assert getattr(catalog, category)["shared"].entrypoint == f"{__name__}:_source"
-    assert getattr(catalog, category)["shared"].args["dataset"].type == "dataframe"
-    assert getattr(catalog, category)["shared"].args["columns"].type == "array[string]"
+    function_id = f"{category}_shared"
+    assert catalog[function_id].entrypoint == f"{__name__}:_source"
+    assert catalog[function_id].args["dataset"].type == "dataframe"
+    assert catalog[function_id].args["columns"].type == "array[string]"
     payload = analytics_definition.to_analytics_dict()
-    assert payload["functions"][category] == {
-        "shared": {
-            "entrypoint": f"{__name__}:_source",
-            "args": {
-                "dataset": {"type": "dataframe", "comment": None},
-                "columns": {"type": "array[string]", "comment": None},
-            },
-        }
+    assert payload["functions"][function_id] == {
+        "operation": category,
+        "entrypoint": f"{__name__}:_source",
+        "args": {
+            "dataset": {"type": "dataframe", "comment": None},
+            "columns": {"type": "array[string]", "comment": None},
+        },
     }
     assert payload["entities"]["one"]["datasets"][0]["mappings"]["first_mapping"]["binding"] == {
-        "function": "shared",
+        "function": function_id,
         "args": {"dataset": "$datasets.@.dataframe", "columns": ["$features.temperature"]},
     }
 
@@ -142,11 +145,13 @@ def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None
     )
 
     with pytest.raises(
-        ValueError, match=f"Conflicting function id 'shared' for {category}"
+        ValueError, match=f"Conflicting function definition for '{category}_shared'"
     ) as error:
         analytics_definition.to_analytics_dict()
 
-    assert f"{__name__}:_source vs {__name__}:_other_source" in str(error.value)
+    assert f"{category}/{__name__}:_source vs {category}/{__name__}:_other_source" in str(
+        error.value
+    )
 
 
 @pytest.mark.parametrize("keyed_dimensions", [False, True])
@@ -169,7 +174,7 @@ def test_to_analytics_dict_preserves_name_dimensions_and_dataset_metadata(
     payload = analytics_definition.to_analytics_dict()
 
     assert payload["name"] == "Pump analytics"
-    assert payload["version"] == "0.1.0"
+    assert payload["version"] == "0.2.0"
     assert payload["source"] == {"name": "python_api", "generated": True}
     assert payload["dimensions"] == {
         "pump": {"type": "string", "description": "Asset ID", "parent": None}

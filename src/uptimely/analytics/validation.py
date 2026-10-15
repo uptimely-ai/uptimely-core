@@ -5,6 +5,7 @@ from __future__ import annotations
 import typing
 
 from .json import bindings
+from .json.json_model import functions as functions_module
 
 
 class AnalyticsError(ValueError):
@@ -44,12 +45,8 @@ def _function_categories(model: typing.Any) -> dict[str, dict[str, typing.Any]]:
     """Return function implementations indexed by their catalog category."""
     catalog = model.functions
     return {
-        "read": catalog.read,
-        "write": catalog.write,
-        "vectorize": catalog.vectorize,
-        "collapse": catalog.collapse,
-        "expand": catalog.expand,
-        "conform": catalog.conform,
+        operation: catalog.by_operation(operation)
+        for operation in functions_module.FUNCTION_OPERATIONS
     }
 
 
@@ -208,7 +205,7 @@ def _validate_collapses(model: typing.Any) -> None:
     for entity in model.entities.values():
         for dataset in entity.datasets:
             for mapping in dataset.mappings.values():
-                if mapping.binding.function not in model.functions.collapse:
+                if model.functions[mapping.binding.function].operation != "collapse":
                     continue
                 binding = mapping.binding
                 source_entity, source = bindings.collapse_input_dataset(model, mapping)
@@ -261,7 +258,7 @@ def _validate_mapping_inputs(model: typing.Any) -> None:
     dependencies: dict[tuple[str, str], set[tuple[str, str]]] = {}
     for entity, dataset in datasets.values():
         for mapping in dataset.mappings.values():
-            category = bindings.mapping_category(mapping, model.functions)
+            operation = bindings.mapping_operation(mapping, model.functions)
             key = (dataset.id, mapping.id)
             dependencies[key] = set()
             for name in mapping.input_features:
@@ -269,7 +266,7 @@ def _validate_mapping_inputs(model: typing.Any) -> None:
                     raise ValueError(
                         f"Mapping {mapping.id} references unknown input feature: {name}"
                     )
-                if category in {"vectorize", "write"} and name not in (
+                if operation in {"vectorize", "write"} and name not in (
                     set(dataset.features) | set(entity.dimension_ids)
                 ):
                     raise ValueError(
@@ -289,7 +286,7 @@ def _validate_mapping_inputs(model: typing.Any) -> None:
             if mapping.row_context is not None:
                 context_dataset = (
                     bindings.collapse_input_dataset(model, mapping)[1]
-                    if category == "collapse"
+                    if operation == "collapse"
                     else dataset
                 )
                 if mapping.row_context.requires_order and not context_dataset.order:
@@ -301,7 +298,7 @@ def _validate_mapping_inputs(model: typing.Any) -> None:
                     identifier = dimension.removeprefix("$dimensions.")
                     context_entity = (
                         bindings.collapse_input_dataset(model, mapping)[0]
-                        if category == "collapse"
+                        if operation == "collapse"
                         else entity
                     )
                     if identifier not in context_entity.dimension_ids:

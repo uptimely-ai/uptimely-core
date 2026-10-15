@@ -317,13 +317,12 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
     (project / "_generated/analytics/analytics.json").write_text(
         json.dumps(
             {
-                "version": "0.1.0",
+                "version": "0.2.0",
                 "functions": {
-                    "read": {
-                        "read_values": {
-                            "entrypoint": "cli_project_functions:read_values",
-                            "args": {"path": {"type": "string"}},
-                        }
+                    "read_values": {
+                        "operation": "read",
+                        "entrypoint": "cli_project_functions:read_values",
+                        "args": {"path": {"type": "string"}},
                     }
                 },
                 "entities": {

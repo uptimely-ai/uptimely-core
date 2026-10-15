@@ -36,33 +36,24 @@ class PythonAnalytics:
 
     def function_catalog(self) -> json_analytics.json_model.FunctionCatalog:
         """Collect and merge the function catalog across all entities."""
-        catalog = json_analytics.json_model.FunctionCatalog()
+        functions: dict[str, json_analytics.json_model.FunctionTemplate] = {}
         for dataset in self.iter_datasets():
             dataset_catalog = dataset.function_catalog()
-            for category in (
-                "read",
-                "write",
-                "vectorize",
-                "collapse",
-                "expand",
-                "conform",
-            ):
-                existing = dict(getattr(catalog, category, {}))
-                incoming = dict(getattr(dataset_catalog, category, {}))
-                for function_id, function_model in incoming.items():
-                    if function_id in existing:
-                        current = existing[function_id]
-                        if getattr(current, "entrypoint", None) != getattr(
-                            function_model, "entrypoint", None
-                        ):
-                            raise ValueError(
-                                f"Conflicting function id '{function_id}' for {category}: "
-                                f"{current.entrypoint} vs {function_model.entrypoint}"
-                            )
-                        continue
-                    existing[function_id] = function_model
-                setattr(catalog, category, existing)
-        return catalog
+            for function_id, function_model in dataset_catalog.root.items():
+                current = functions.get(function_id)
+                if current is not None:
+                    if (
+                        current.operation != function_model.operation
+                        or current.entrypoint != function_model.entrypoint
+                    ):
+                        raise ValueError(
+                            f"Conflicting function definition for '{function_id}': "
+                            f"{current.operation}/{current.entrypoint} vs "
+                            f"{function_model.operation}/{function_model.entrypoint}"
+                        )
+                    continue
+                functions[function_id] = function_model
+        return json_analytics.json_model.FunctionCatalog(root=functions)
 
     def to_analytics_dict(self) -> dict[str, typing.Any]:
         """Return the canonical analytics dictionary for the configured entities."""

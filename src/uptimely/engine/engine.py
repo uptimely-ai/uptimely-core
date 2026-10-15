@@ -313,9 +313,13 @@ class Engine:
         dataset_key: tuple[str, str] | None = None,
     ) -> dict[str, object]:
         """Bind compiled IDs to physical runtime arguments using template types."""
-        arguments = self.resources["functions"][operation.kind][operation.function_id].get(
-            "args", {}
-        )
+        function = self.resources["functions"][operation.function_id]
+        if function["operation"] != operation.kind:
+            raise ValueError(
+                f"Callable {operation.id} operation {operation.kind} does not match "
+                f"function {operation.function_id} operation {function['operation']}"
+            )
+        arguments = function.get("args", {})
         return {
             name: self._resolve_value(
                 value, dataset_frame, dataset_key, arguments.get(name, {}).get("type")

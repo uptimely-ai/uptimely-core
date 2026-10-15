@@ -1,5 +1,3 @@
-import typing
-
 import pytest
 
 from uptimely.analytics.json import json_functions, json_model
@@ -56,20 +54,14 @@ def test_auto_catalog_converts_declaration_lists_and_dicts(keyed: bool, as_entit
         "second",
     ]
     assert payload["functions"] == {
-        "read": {
-            "source": {
-                "entrypoint": f"{__name__}:_source",
-                "args": {
-                    "path": {"type": "string", "comment": None},
-                    "columns": {"type": "array[string]", "comment": None},
-                },
-            }
+        "source": {
+            "operation": "read",
+            "entrypoint": f"{__name__}:_source",
+            "args": {
+                "path": {"type": "string", "comment": None},
+                "columns": {"type": "array[string]", "comment": None},
+            },
         },
-        "write": {},
-        "vectorize": {},
-        "collapse": {},
-        "expand": {},
-        "conform": {},
     }
 
 
@@ -92,7 +84,7 @@ def test_auto_catalog_rejects_conflicting_entrypoints(as_entities: bool) -> None
         else declarations
     )
 
-    with pytest.raises(ValueError, match="Conflicting function id 'source' for read"):
+    with pytest.raises(ValueError, match="Conflicting function definition for 'source'"):
         json_functions.python_to_analytics_dict(
             **({"entities": inputs} if as_entities else {"datasets": inputs})
         )
@@ -105,9 +97,10 @@ def test_explicit_catalog_preserves_argument_metadata(
 ) -> None:
     declaration = _dataset("readings")
     catalog = json_model.FunctionCatalog(
-        read={
-            "source": json_model.ReadFunction(
+        root={
+            "source": json_model.FunctionTemplate(
                 id="source",
+                operation="read",
                 entrypoint="custom.reader:load",
                 args={
                     "path": json_model.Argument(id="path", type="string", comment="Input path"),
@@ -119,7 +112,7 @@ def test_explicit_catalog_preserves_argument_metadata(
     functions = {
         "model": catalog,
         "dict": catalog.model_dump(),
-        "dict_of_models": {"read": catalog.read},
+        "dict_of_models": {"source": catalog["source"]},
     }[catalog_form]
     pump = dimension.Dimension(id="pump", type="string")
 
@@ -130,14 +123,13 @@ def test_explicit_catalog_preserves_argument_metadata(
         dimensions={"pump": pump.to_model()},
     )
 
-    assert payload["functions"]["read"] == {
-        "source": {
-            "entrypoint": "custom.reader:load",
-            "args": {
-                "path": {"type": "string", "comment": "Input path"},
-                "columns": {"type": "array[string]", "comment": None},
-            },
-        }
+    assert payload["functions"]["source"] == {
+        "operation": "read",
+        "entrypoint": "custom.reader:load",
+        "args": {
+            "path": {"type": "string", "comment": "Input path"},
+            "columns": {"type": "array[string]", "comment": None},
+        },
     }
     assert payload["entities"]["Readings"]["name"] == "Readings"
     assert payload["entities"]["Readings"]["datasets"][0]["id"] == "readings"
@@ -147,54 +139,21 @@ def test_explicit_catalog_preserves_argument_metadata(
 def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_functions() -> None:
     payload = json_functions.python_to_analytics_dict(
         datasets=[_dataset("readings").to_model()],
-        functions={"read": {"configured": {"entrypoint": "reader:load", "args": {"value": {}}}}},
+        functions={
+            "configured": {
+                "operation": "read",
+                "entrypoint": "reader:load",
+                "args": {"value": {"type": "object", "comment": None}},
+            }
+        },
     )
 
-    assert payload["functions"]["read"] == {
-        "configured": {
-            "entrypoint": "reader:load",
-            "args": {"value": {"type": "object", "comment": None}},
-        }
+    assert payload["functions"]["configured"] == {
+        "operation": "read",
+        "entrypoint": "reader:load",
+        "args": {"value": {"type": "object", "comment": None}},
     }
     assert payload["dimensions"] == {}
-
-
-@pytest.mark.parametrize(
-    ("functions", "expected_function", "expected_entrypoint"),
-    [
-        (
-            json_model.FunctionCatalog(
-                read={"source": json_model.ReadFunction(id="source", entrypoint="reader:load")}
-            ),
-            json_model.ReadFunction(id="source", entrypoint="reader:load"),
-            "reader:load",
-        ),
-        (
-            {"read": {"source": json_model.ReadFunction(id="source", entrypoint="reader:load")}},
-            json_model.ReadFunction(id="source", entrypoint="reader:load"),
-            "reader:load",
-        ),
-        (
-            {"read": {"source": {"entrypoint": "reader:load"}}},
-            {"entrypoint": "reader:load"},
-            "reader:load",
-        ),
-        ({"read": {"source": {}}}, {}, "fallback:load"),
-        ({"read": {"source": {"entrypoint": ""}}}, {"entrypoint": ""}, "fallback:load"),
-        (json_model.FunctionCatalog(), None, "fallback:load"),
-        ({}, None, "fallback:load"),
-        ({"read": []}, None, "fallback:load"),
-        (None, None, "fallback:load"),
-    ],
-)
-def test_configured_function_lookup_and_entrypoint_fallback(
-    functions: typing.Any, expected_function: typing.Any, expected_entrypoint: str
-) -> None:
-    assert json_functions._configured_function(functions, "read", "source") == expected_function
-    assert (
-        json_functions._configured_entrypoint(functions, "read", "source", "fallback:load")
-        == expected_entrypoint
-    )
 
 
 @pytest.mark.parametrize(

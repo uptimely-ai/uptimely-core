@@ -87,7 +87,7 @@ def test_engine_validates_plan_backend_and_analytics_version() -> None:
     with pytest.raises(ValueError, match="Analytics version mismatch"):
         uptimely_engine.Engine(
             _plan(),
-            resources={"analytics_version": "0.2.0"},
+            resources={"analytics_version": "0.3.0"},
         )
 
 
@@ -191,14 +191,14 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
     plan = uptimely_plan.ExecutionPlan(
         uptimely_plan.Plan(
             plan_version="1.0.0",
-            analytics_version="0.1.0",
+            analytics_version="0.2.0",
             required_backend="polars",
             resources={
-                "analytics_version": "0.1.0",
+                "analytics_version": "0.2.0",
                 "entities": {"asset": {"dimensions": ["asset_id"]}},
                 "functions": {
-                    "read": {"load": {"args": {}}},
-                    "vectorize": {"calculate": {"args": {}}},
+                    "load": {"operation": "read", "args": {}},
+                    "calculate": {"operation": "vectorize", "args": {}},
                 },
             },
             operations=[read_operation, vectorize_operation],
