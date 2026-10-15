@@ -16,7 +16,7 @@ PUMP_TELEMETRY = entity.Entity(
         dimension.PUMP,
         dimension.TIMESTAMP,
     ],
-    datasets=[dataset_telemetry.telemetry_dataset],
+    datasets=[dataset_telemetry.TELEMETRY_DATASET],
 )
 
 PUMP = entity.Entity(
@@ -24,7 +24,7 @@ PUMP = entity.Entity(
     name="Pump",
     description="Pump-level information collapsed from timestamped telemetry",
     dimensions=[dimension.PLANT, dimension.PRODUCTION_LINE, dimension.PUMP],
-    datasets=[dataset_pump.pump_dataset],
+    datasets=[dataset_pump.PUMP_DATASET],
 )
 
 entities: list[entity.Entity] = [

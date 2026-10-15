@@ -55,7 +55,7 @@ pump_mappings = [
     ),
 ]
 
-pump_dataset = dataset.Dataset(
+PUMP_DATASET = dataset.Dataset(
     id="pump_dataset",
     description="One row per pump with collapsed condition information.",
     row_scope=dataset.RowScope(
