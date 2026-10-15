@@ -26,16 +26,6 @@ dimensions = [
     ),
 ]
 
-# Runtime resource values for `?storage.<id>.<attribute>` references,
-# supplied to the engine, not the spec.
-storage_resources = {
-    "pump_reference_source": {"path": "examples/pump_analytics/data/pump_reference.json"},
-    "telemetry_source": {"path": "examples/pump_analytics/data/pump_telemetry.json"},
-    "telemetry_archive_source": {
-        "path": "examples/pump_analytics/data/pump_telemetry_archive.json"
-    },
-}
-
 entities = [
     entity.Entity(
         id="pump_telemetry",

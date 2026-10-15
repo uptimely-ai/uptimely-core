@@ -1,9 +1,9 @@
+import json
 import pathlib
 import sys
 
 import polars as pl
 import pytest
-from examples.pump_analytics.config.spec import spec
 from examples.pump_analytics.functions import calculation
 
 from uptimely import compile
@@ -11,10 +11,16 @@ from uptimely import engine as uptimely_engine
 from uptimely.cli import cli
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ENGINE_CONFIG_PATH = pathlib.Path("examples/pump_analytics/config/engine.json")
+
+
+def _engine_bind() -> dict[str, object]:
+    engine_config = json.loads(ENGINE_CONFIG_PATH.read_text(encoding="utf-8"))
+    return engine_config["bind"]
 
 
 def test_engine_returns_calculated_features_without_writing_output() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH, bind={"storage": spec.storage_resources})
+    engine = uptimely_engine.Engine(SPEC_PATH, bind=_engine_bind())
 
     result = engine.execute()
 
@@ -258,7 +264,7 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
 
 def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathlib.Path) -> None:
     plan = compile.Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
-    engine = uptimely_engine.Engine(plan, bind={"storage": spec.storage_resources})
+    engine = uptimely_engine.Engine(plan, bind=_engine_bind())
     assert [
         operation.output
         for stage in engine.plan.execution_stages
