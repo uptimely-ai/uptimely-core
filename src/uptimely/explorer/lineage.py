@@ -24,9 +24,9 @@ class DataLineageStep:
     """One processing table in dependency order."""
 
     number: int
-    operation_id: str
+    callable_id: str
     function: str
-    kind: str
+    operation: str
     entity: str
     dataset: str | None
     grain: str
@@ -42,25 +42,24 @@ def _build_stages(
 
     Args:
         analytics_definition: Declared dimensions, datasets, and column metadata.
-        execution_plan: Compiled operations and their dependencies.
+        execution_plan: Compiled callables and their dependencies.
 
     Returns:
         Processing tables grouped by dependency stage.
     """
     ordered_stages = [
-        sorted(stage, key=lambda operation: operation.id)
-        for stage in execution_plan.execution_stages
+        sorted(stage, key=lambda callable: callable.id) for stage in execution_plan.execution_stages
     ]
-    operations = [operation for stage in ordered_stages for operation in stage]
-    numbers = {operation.id: number for number, operation in enumerate(operations, 1)}
+    callables = [callable for stage in ordered_stages for callable in stage]
+    numbers = {callable.id: number for number, callable in enumerate(callables, 1)}
     colors = {
-        operation.id: f"hsl({(150 + number * 137) % 360}, 70%, 75%)"
-        for number, operation in enumerate(operations, 1)
+        callable.id: f"hsl({(150 + number * 137) % 360}, 70%, 75%)"
+        for number, callable in enumerate(callables, 1)
     }
     producers = {
-        feature: operation
-        for operation in operations
-        for feature in operation.output_features
+        feature: callable
+        for callable in callables
+        for feature in callable.output_features
         if feature not in analytics_definition.dimensions
     }
     datasets = {
@@ -80,8 +79,8 @@ def _build_stages(
     stages: list[list[DataLineageStep]] = []
     for stage in ordered_stages:
         steps: list[DataLineageStep] = []
-        for operation in stage:
-            dimensions = analytics_definition.entities[operation.entity_id].dimension_ids
+        for callable in stage:
+            dimensions = analytics_definition.entities[callable.entity_id].dimension_ids
             columns = [
                 DataLineageColumn(
                     name, analytics_definition.dimensions[name].type, "Dimension", "#93c5fd", None
@@ -89,8 +88,8 @@ def _build_stages(
                 for name in dimensions
             ]
             for role, features in (
-                ("Input", operation.input_features),
-                ("Output", operation.output_features),
+                ("Input", callable.input_features),
+                ("Output", callable.output_features),
             ):
                 for feature in features:
                     if feature in dimensions:
@@ -109,20 +108,20 @@ def _build_stages(
                             numbers[producer.id] if producer else None,
                         )
                     )
-            dataset = datasets.get(operation.dataset_id)
+            dataset = datasets.get(callable.dataset_id)
             steps.append(
                 DataLineageStep(
-                    number=numbers[operation.id],
-                    operation_id=operation.id,
-                    function=operation.function_id,
-                    kind=operation.kind,
-                    entity=operation.entity_id,
-                    dataset=operation.dataset_id,
+                    number=numbers[callable.id],
+                    callable_id=callable.id,
+                    function=callable.function_id,
+                    operation=callable.operation,
+                    entity=callable.entity_id,
+                    dataset=callable.dataset_id,
                     grain=dataset.row_scope.grain if dataset else "",
-                    color=colors[operation.id],
+                    color=colors[callable.id],
                     columns=columns,
                     dependencies=sorted(
-                        numbers[dependency] for dependency in operation.dependency_ids
+                        numbers[dependency] for dependency in callable.dependency_ids
                     ),
                 )
             )

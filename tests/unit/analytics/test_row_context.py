@@ -257,7 +257,7 @@ def test_analytics_plan_execution_and_explorer_preserve_context(tmp_path: pathli
     assert authored_dataset["mappings"]["result"]["row_context"] == context.to_dict()
     restored = analytics.Analytics(json=path)
     compiled = compile.Compiler(restored).compile()
-    operation = next(item for item in compiled.operations if item.kind == "vectorize")
+    operation = next(item for item in compiled.callables if item.operation == "vectorize")
     assert operation.input_features == ["temperature"]
     assert operation.row_context == context
     portable = uptimely_plan.ExecutionPlan(uptimely_plan.Plan.from_dict(compiled.to_dict()))
@@ -316,9 +316,9 @@ def test_analytics_plan_and_batch_execution_preserve_context_and_arguments(
     assert analytics_definition.functions["calculate"].args["column"].type == "string"
 
     plan = compile.Compiler(restored_analytics).compile()
-    operation = next(item for item in plan.operations if item.kind == "vectorize")
+    operation = next(item for item in plan.callables if item.operation == "vectorize")
     assert operation.row_context == context
-    assert all(item.row_context is None for item in plan.operations if item.kind != "vectorize")
+    assert all(item.row_context is None for item in plan.callables if item.operation != "vectorize")
     assert operation.arguments == {
         "dataset": "observations",
         "column": "temperature",
@@ -350,7 +350,7 @@ def test_analytics_plan_and_batch_execution_preserve_context_and_arguments(
 
 def test_plan_context_is_present_in_portable_operations() -> None:
     plan = compile.Compiler(_analytics(context=authoring.current())).compile()
-    operation = next(item for item in plan.operations if item.output == "result")
+    operation = next(item for item in plan.callables if item.output == "result")
     assert operation.row_context == authoring.current()
 
 
@@ -394,7 +394,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         dimensions=[timestamp],
     )
     plan = compile.Compiler(analytics_definition).compile()
-    operation = next(item for item in plan.operations if item.kind == "collapse")
+    operation = next(item for item in plan.callables if item.operation == "collapse")
     assert operation.row_context is None
     assert operation.entrypoint.endswith(":maximum")
     assert operation.arguments == {

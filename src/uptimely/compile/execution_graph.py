@@ -43,7 +43,7 @@ class CallableGraph:
             for dataset in entity.datasets:
                 dataset_key = (entity_id, dataset.id)
                 for mapping in dataset.mappings.values():
-                    operation_type = bindings.mapping_operation(mapping, self.analytics.functions)
+                    operation = bindings.mapping_operation(mapping, self.analytics.functions)
                     primary_feature = (
                         mapping.output_features[0] if mapping.output_features else None
                     )
@@ -59,31 +59,30 @@ class CallableGraph:
                         function_id=mapping.binding.function,
                         entity=entity_id,
                         feature=primary_feature,
-                        operation_type=operation_type,
-                        callable_type_override=operation_type,
+                        operation=operation,
                         dataset_id=dataset.id,
-                        operation_id=mapping.id,
+                        mapping_id=mapping.id,
                         output_features=tuple(mapping.output_features),
                         args=mapping.binding.args,
                         callable=call,
                         row_context=mapping.row_context,
                     )
                     nodes[node.node_id] = graphable_.graphable.Graphable(node)
-                    if operation_type == "write":
+                    if operation == "write":
                         self._dataset_sinks.setdefault(dataset_key, []).append(node)
-                    elif operation_type != "vectorize":
+                    elif operation != "vectorize":
                         self._dataset_sources.setdefault(dataset_key, []).append(node)
                     for feature in mapping.output_features:
                         if feature in self.analytics.dimensions:
                             continue
                         self._feature_producers[feature] = node
-                        if operation_type == "vectorize":
+                        if operation == "vectorize":
                             self._callable_index[(node.function_id, entity_id, feature)] = node
         graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
         # Source transforms follow reads in their dataset.
         for fragments in self._dataset_sources.values():
-            reads = [fragment for fragment in fragments if fragment.operation_type == "read"]
-            downstream = [fragment for fragment in fragments if fragment.operation_type != "read"]
+            reads = [fragment for fragment in fragments if fragment.operation == "read"]
+            downstream = [fragment for fragment in fragments if fragment.operation != "read"]
             for fragment in downstream:
                 for read in reads:
                     graph.add_edge(nodes[read.node_id], nodes[fragment.node_id])
@@ -93,7 +92,7 @@ class CallableGraph:
             consumer = graph_node.reference
             entity = self.analytics.entities[consumer.entity]
             dataset = next(item for item in entity.datasets if item.id == consumer.dataset_id)
-            mapping = dataset.mappings[consumer.operation_id]
+            mapping = dataset.mappings[consumer.mapping_id]
             references = mapping.input_features
             dataset_references = bindings.dataset_dependencies(mapping.binding.args, dataset.id)
             for referenced_id in dataset_references:
@@ -102,18 +101,18 @@ class CallableGraph:
                     if (
                         source.dataset_id == referenced_id
                         and source != consumer
-                        and source.operation_type in {"read", "collapse", "conform", "expand"}
-                        and (referenced_id != dataset.id or source.operation_type == "read")
+                        and source.operation in {"read", "collapse", "conform", "expand"}
+                        and (referenced_id != dataset.id or source.operation == "read")
                     ):
                         graph.add_edge(source_node, graph_node)
-            if consumer.operation_type == "collapse":
+            if consumer.operation == "collapse":
                 source_id = self.collapse_input_dataset_id(consumer)
                 for source_node in nodes.values():
                     source = source_node.reference
                     if source.dataset_id == source_id and (
-                        source.operation_type in {"read", "collapse", "expand", "conform"}
+                        source.operation in {"read", "collapse", "expand", "conform"}
                         or (
-                            source.operation_type == "vectorize"
+                            source.operation == "vectorize"
                             and set(references).intersection(source.output_features)
                         )
                     ):
@@ -146,7 +145,7 @@ class CallableGraph:
                     graph.add_edge(nodes[source.node_id], sink_node)
                 entity = self.analytics.entities[sink.entity]
                 dataset = next(item for item in entity.datasets if item.id == sink.dataset_id)
-                referenced = set(dataset.mappings[sink.operation_id].input_features)
+                referenced = set(dataset.mappings[sink.mapping_id].input_features)
                 dependencies = (
                     [node for node in calculations if referenced.intersection(node.output_features)]
                     if referenced
@@ -159,11 +158,11 @@ class CallableGraph:
 
     def collapse_input_dataset_id(self, node: node_module.CallableNode) -> str:
         """Infer the input dataset from a collapse node's analytics binding."""
-        if node.operation_type != "collapse" or node.operation_id is None:
+        if node.operation != "collapse" or node.mapping_id is None:
             raise ValueError(f"Expected a collapse mapping node: {node.node_id}")
         entity = self.analytics.entities[node.entity]
         dataset = next(dataset for dataset in entity.datasets if dataset.id == node.dataset_id)
-        mapping = dataset.mappings[node.operation_id]
+        mapping = dataset.mappings[node.mapping_id]
         return bindings.collapse_input_dataset(self.analytics, mapping)[1].id
 
     @staticmethod

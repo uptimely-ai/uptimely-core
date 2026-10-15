@@ -64,7 +64,7 @@ def _binding_value(value: typing.Any) -> typing.Any:
         return value.to_model()
     if isinstance(value, Bind):
         return {
-            "function": _operation_id(value, None),
+            "function": _function_id(value),
             "args": {name: _binding_value(argument) for name, argument in value.args.items()},
         }
     if isinstance(value, list):
@@ -106,9 +106,14 @@ def _argument_definition(value: typing.Any) -> dict[str, typing.Any]:
     return {"type": "object"}
 
 
-def _operation_id(bind: Bind, identifier: str | None) -> str:
-    """Return the explicit or reference-derived identifier for an operation."""
-    return identifier or bind.function_id or bind.function.name
+def _function_id(bind: Bind) -> str:
+    """Return the explicit or reference-derived function identifier."""
+    return bind.function_id or bind.function.name
+
+
+def _mapping_id(bind: Bind, identifier: str | None) -> str:
+    """Return the explicit mapping identifier or default it to the function identifier."""
+    return identifier or _function_id(bind)
 
 
 def _binding_args(bind: Bind) -> dict[str, typing.Any]:

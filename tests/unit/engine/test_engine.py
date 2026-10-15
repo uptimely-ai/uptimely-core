@@ -36,9 +36,9 @@ def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
 
     result = engine.execute()
 
-    assert set(result.operation_statuses.values()) == {"succeeded"}
+    assert set(result.callable_statuses.values()) == {"succeeded"}
     assert result.failures == {}
-    assert result.plan_version == "1.0.0"
+    assert result.plan_version == "2.0.0"
     assert isinstance(result.calculated_outputs["asset", "telemetry", "doubled"], pl.DataFrame)
     assert result.datasets["asset", "telemetry"].select("doubled").to_series().to_list() == [
         4,
@@ -68,9 +68,9 @@ def test_execute_stops_after_a_failed_operation() -> None:
 
     read_id = "callable:read:load:asset:telemetry:reading"
     write_id = "callable:write:save:asset:telemetry:doubled"
-    assert result.operation_statuses[read_id] == "failed"
+    assert result.callable_statuses[read_id] == "failed"
     assert "source unavailable" in result.failures[read_id]
-    assert result.operation_statuses[write_id] == "skipped"
+    assert result.callable_statuses[write_id] == "skipped"
     assert called is False
 
 
@@ -117,19 +117,19 @@ def test_engine_rejects_ambiguous_fragment_references() -> None:
 
 def test_execute_reports_unsupported_operation_types() -> None:
     plan = _plan().plan
-    invalid_operation = dataclasses.replace(plan.operations[0], kind="unsupported")
+    invalid_callable = dataclasses.replace(plan.callables[0], operation="unsupported")
     engine = uptimely_engine.Engine(
         uptimely_plan.ExecutionPlan(
             uptimely_plan.Plan(
-                **{**plan.__dict__, "operations": [invalid_operation, *plan.operations[1:]]}
+                **{**plan.__dict__, "callables": [invalid_callable, *plan.callables[1:]]}
             )
         )
     )
 
     result = engine.execute()
 
-    assert result.operation_statuses[invalid_operation.id] == "failed"
-    assert result.failures[invalid_operation.id] == "Unsupported operation type: unsupported"
+    assert result.callable_statuses[invalid_callable.id] == "failed"
+    assert result.failures[invalid_callable.id] == "Unsupported callable operation: unsupported"
 
 
 def test_execute_rejects_scalar_calculations() -> None:
@@ -169,28 +169,28 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
             }
         )
 
-    read_operation = uptimely_plan.Operation(
+    read_callable = uptimely_plan.Callable(
         id="callable:read:load:asset:telemetry:load",
-        kind="read",
+        operation="read",
         entrypoint="test:read",
         entity_id="asset",
         dataset_id="telemetry",
         output="load",
         output_features=["asset_id", "reading"],
     )
-    vectorize_operation = uptimely_plan.Operation(
+    vectorize_callable = uptimely_plan.Callable(
         id="callable:vectorize:calculate:asset:telemetry:reading_plus_one",
-        kind="vectorize",
+        operation="vectorize",
         entrypoint="test:calculate",
         entity_id="asset",
         dataset_id="telemetry",
         output="reading_plus_one",
         output_features=["reading_plus_one", "reading_times_two"],
-        dependency_ids=[read_operation.id],
+        dependency_ids=[read_callable.id],
     )
     plan = uptimely_plan.ExecutionPlan(
         uptimely_plan.Plan(
-            plan_version="1.0.0",
+            plan_version="2.0.0",
             analytics_version="0.2.0",
             required_backend="polars",
             resources={
@@ -201,8 +201,8 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
                     "calculate": {"operation": "vectorize", "args": {}},
                 },
             },
-            operations=[read_operation, vectorize_operation],
-            stages=[[read_operation.id], [vectorize_operation.id]],
+            callables=[read_callable, vectorize_callable],
+            stages=[[read_callable.id], [vectorize_callable.id]],
         )
     )
     engine = uptimely_engine.Engine(

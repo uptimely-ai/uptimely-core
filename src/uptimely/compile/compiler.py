@@ -105,11 +105,11 @@ class Compiler:
             logger.debug("Compiling feature subset: %s", sorted(self.features))
             callable_graph = callable_graph.subset(self.features)
         execution_stages = callable_graph.topology()
-        operations = [self._operation(callable_graph, node) for node in callable_graph.callables]
+        callables = [self._callable(callable_graph, node) for node in callable_graph.callables]
         signatures = self._read_signatures(callable_graph)
-        operation_ids = {operation.id for operation in operations}
+        callable_ids = {callable.id for callable in callables}
         stages = [
-            [node.node_id for node in stage if node.node_id in operation_ids]
+            [node.node_id for node in stage if node.node_id in callable_ids]
             for stage in execution_stages
         ]
         resources = _resource_models(self.analytics)
@@ -117,20 +117,20 @@ class Compiler:
             node_id: signature.returns for node_id, signature in signatures.items()
         }
         plan = uptimely_plan.Plan(
-            plan_version="1.0.0",
+            plan_version="2.0.0",
             analytics_version=self.analytics.version,
             required_backend="polars",
             resources=resources,
-            operations=operations,
+            callables=callables,
             stages=stages,
         )
-        logger.info("Compiled plan: %d operations in %d stages", len(operations), len(stages))
+        logger.info("Compiled plan: %d callables in %d stages", len(callables), len(stages))
         return uptimely_plan.ExecutionPlan(plan)
 
-    def _operation(
+    def _callable(
         self, graph: execution_graph.CallableGraph, node: node_module.CallableNode
-    ) -> uptimely_plan.Operation:
-        """Convert one live graph node into a portable operation DTO."""
+    ) -> uptimely_plan.Callable:
+        """Convert one live graph node into a portable callable DTO."""
         function = _resolve_function(self.analytics, node)
         if function is None or not function.entrypoint:
             raise ValueError(f"Missing entrypoint for function: {node.function_id}")
@@ -143,22 +143,22 @@ class Compiler:
                     for feature in node.output_features
                     if feature not in self.analytics.entities[node.entity].dimension_ids
                 )
-                if node.operation_type == "collapse"
+                if node.operation == "collapse"
                 else node.feature
-                if node.operation_type == "vectorize"
+                if node.operation == "vectorize"
                 else None
             ),
         )
-        return uptimely_plan.Operation(
+        return uptimely_plan.Callable(
             id=node.node_id,
-            kind=node.operation_type,
+            operation=node.operation,
             entrypoint=function.entrypoint,
             entity_id=node.entity,
             dataset_id=node.dataset_id,
-            output=node.feature or node.operation_id,
+            output=node.feature or node.mapping_id,
             output_features=list(node.output_features),
             input_features=next(
-                dataset.mappings[node.operation_id].input_features
+                dataset.mappings[node.mapping_id].input_features
                 for dataset in self.analytics.entities[node.entity].datasets
                 if dataset.id == node.dataset_id
             ),

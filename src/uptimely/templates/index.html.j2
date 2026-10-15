@@ -116,7 +116,7 @@
     {% for label, value in [
       ("Entities", summary.entity_count), ("Datasets", summary.dataset_count),
       ("Features", summary.feature_count), ("Functions", summary.function_count),
-      ("Operations", operation_count), ("Stages", stage_count)
+      ("Callables", callable_count), ("Stages", stage_count)
     ] %}
     <div data-stat="{{ label }}" data-value="{{ value }}">
       <dt>{{ label }}</dt>

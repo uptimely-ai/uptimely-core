@@ -17,22 +17,22 @@ from . import compiler
 PLAN_PAGES = uptimely_render.WEBSITE_PAGES["plan"]
 
 
-def _callable_label(operation: uptimely_plan.Operation) -> str:
+def _callable_label(callable: uptimely_plan.Callable) -> str:
     """Format a callable identifier with its actual bound arguments."""
     arguments = ", ".join(
         f"{name}={json.dumps(value, ensure_ascii=False, separators=(',', ':'))}"
-        for name, value in operation.arguments.items()
+        for name, value in callable.arguments.items()
     )
-    return f"{operation.function_id}({arguments})"
+    return f"{callable.function_id}({arguments})"
 
 
-def _callable_label_lines(operation: uptimely_plan.Operation) -> list[str]:
+def _callable_label_lines(callable: uptimely_plan.Callable) -> list[str]:
     """Return a multiline callable signature with indented bound arguments."""
-    if not operation.arguments:
-        return [f"{operation.function_id}()"]
+    if not callable.arguments:
+        return [f"{callable.function_id}()"]
 
-    arguments = list(operation.arguments.items())
-    lines = [f"{operation.function_id}("]
+    arguments = list(callable.arguments.items())
+    lines = [f"{callable.function_id}("]
     for index, (name, value) in enumerate(arguments):
         value_lines = json.dumps(value, ensure_ascii=False, indent=2).splitlines()
         argument_lines = [f"  {name}={value_lines[0]}"]
@@ -45,7 +45,7 @@ def _callable_label_lines(operation: uptimely_plan.Operation) -> list[str]:
 
 
 def _render_step(
-    position: int, operation: uptimely_plan.Operation, plan: compiler.ExecutionPlan
+    position: int, callable: uptimely_plan.Callable, plan: compiler.ExecutionPlan
 ) -> dict[str, typing.Any]:
     """Build the display model used by the execution-plan HTML templates."""
 
@@ -60,28 +60,27 @@ def _render_step(
 
     return {
         "position": position,
-        "function": operation.function_id,
-        "operation_type": operation.kind,
-        "callable_type": operation.kind,
-        "title": operation.function_id.replace("_", " ").capitalize(),
-        "entrypoint": operation.entrypoint,
-        "entity": operation.entity_id,
-        "dataset": operation.dataset_id,
+        "function": callable.function_id,
+        "operation": callable.operation,
+        "title": callable.function_id.replace("_", " ").capitalize(),
+        "entrypoint": callable.entrypoint,
+        "entity": callable.entity_id,
+        "dataset": callable.dataset_id,
         "feature": (
-            ", ".join(operation.output_features)
-            if operation.kind == "collapse"
-            else operation.output
-            if operation.kind == "vectorize"
+            ", ".join(callable.output_features)
+            if callable.operation == "collapse"
+            else callable.output
+            if callable.operation == "vectorize"
             else None
         ),
-        "row_context": operation.row_context.to_dict() if operation.row_context else None,
+        "row_context": callable.row_context.to_dict() if callable.row_context else None,
         "depends_on_callables": [
             {
                 "function": dependency.split(":")[2]
                 if dependency.startswith("callable:")
                 else dependency
             }
-            for dependency in operation.dependency_ids
+            for dependency in callable.dependency_ids
         ],
         "args": {
             name: {
@@ -94,11 +93,9 @@ def _render_step(
                     value.get("value") if isinstance(value, dict) and "type" in value else value
                 ),
             }
-            for name, value in operation.arguments.items()
+            for name, value in callable.arguments.items()
         },
-        "returns": {
-            "type": {"engine": plan.plan.resources.get("signatures", {}).get(operation.id)}
-        },
+        "returns": {"type": {"engine": plan.plan.resources.get("signatures", {}).get(callable.id)}},
     }
 
 
@@ -115,48 +112,47 @@ def _create_website_pages(
         output_directory: Directory shared by all website pages.
         index_filename: Filename of the website dashboard.
     """
-    operations_by_stage = plan.execution_stages
-    operations_in_order = [operation for stage in operations_by_stage for operation in stage]
-    position_by_operation = {
-        operation.id: position for position, operation in enumerate(operations_in_order, start=1)
+    callables_by_stage = plan.execution_stages
+    callables_in_order = [callable for stage in callables_by_stage for callable in stage]
+    position_by_callable = {
+        callable.id: position for position, callable in enumerate(callables_in_order, start=1)
     }
     stages = [
         {
             "stage": stage_number,
             "steps": [
-                _render_step(position_by_operation[operation.id], operation, plan)
-                for operation in stage
+                _render_step(position_by_callable[callable.id], callable, plan)
+                for callable in stage
             ],
         }
-        for stage_number, stage in enumerate(operations_by_stage, start=1)
+        for stage_number, stage in enumerate(callables_by_stage, start=1)
     ]
     steps = [step for stage in stages for step in stage["steps"]]
-    stage_by_operation = {
-        operation.id: stage_number
-        for stage_number, stage in enumerate(operations_by_stage, start=1)
-        for operation in stage
+    stage_by_callable = {
+        callable.id: stage_number
+        for stage_number, stage in enumerate(callables_by_stage, start=1)
+        for callable in stage
     }
     graph_nodes = [
         {
-            "id": operation.id,
+            "id": callable.id,
             "node_type": "callable",
-            "operation_type": operation.kind,
-            "callable_type": operation.kind,
-            "stage": stage_by_operation[operation.id],
-            "label": _callable_label(operation),
-            "label_lines": _callable_label_lines(operation),
-            "function_id": operation.function_id,
-            "entity": operation.entity_id,
-            "dataset_id": operation.dataset_id,
-            "feature": operation.output if operation.kind == "vectorize" else None,
-            "dependency_ids": sorted(operation.dependency_ids),
+            "operation": callable.operation,
+            "stage": stage_by_callable[callable.id],
+            "label": _callable_label(callable),
+            "label_lines": _callable_label_lines(callable),
+            "function_id": callable.function_id,
+            "entity": callable.entity_id,
+            "dataset_id": callable.dataset_id,
+            "feature": callable.output if callable.operation == "vectorize" else None,
+            "dependency_ids": sorted(callable.dependency_ids),
         }
-        for operation in sorted(plan.operations, key=lambda operation: operation.id)
+        for callable in sorted(plan.callables, key=lambda callable: callable.id)
     ]
     graph_links = [
-        {"source": dependency_id, "target": operation.id}
-        for operation in plan.operations
-        for dependency_id in operation.dependency_ids
+        {"source": dependency_id, "target": callable.id}
+        for callable in plan.callables
+        for dependency_id in callable.dependency_ids
     ]
     callable_graph_data = json.dumps(
         {
@@ -191,21 +187,21 @@ def _create_website_pages(
     environment = uptimely_render.html_environment()
     context = {
         "analytics_version": plan.plan.analytics_version,
-        "callable_count": len(plan.operations),
+        "callable_count": len(plan.callables),
         "function_count": len({step["function"] for step in steps}),
-        "entity_count": len({operation.entity_id for operation in operations_in_order}),
+        "entity_count": len({callable.entity_id for callable in callables_in_order}),
         "feature_count": len(
             {
-                operation.output
-                for operation in plan.operations
-                if operation.kind == "vectorize" and operation.output is not None
+                callable.output
+                for callable in plan.callables
+                if callable.operation == "vectorize" and callable.output is not None
             }
         ),
         "stage_count": len(stages),
         "dependency_count": len(graph_links),
-        "max_parallel_operations": max((len(stage["steps"]) for stage in stages), default=0),
+        "max_parallel_callables": max((len(stage["steps"]) for stage in stages), default=0),
         "operation_counts": sorted(
-            collections.Counter(operation.kind for operation in plan.operations).items()
+            collections.Counter(callable.operation for callable in plan.callables).items()
         ),
         "stages": stages,
         "callable_graph_data": callable_graph_data,

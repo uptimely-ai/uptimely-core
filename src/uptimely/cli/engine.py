@@ -78,7 +78,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         parser.exit(1, f"uptimely: error: {error}\n")
     calculated_features = sorted({feature_id for _, _, feature_id in result.calculated_outputs})
     print("Engine completed the flow")
-    print(f"{len(execution_plan.operations)} operations")
+    print(f"{len(execution_plan.callables)} callables")
     print("Calculated features: " + ", ".join(calculated_features))
     print(
         f"Analytics: {analytics_definition}"
@@ -90,7 +90,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         print("\nDataset registry")
         datasets = execution_plan.plan.resources.get("datasets", {})
         for entity_id, dataset_id in dict.fromkeys(
-            (operation.entity_id, operation.dataset_id) for operation in execution_plan.operations
+            (callable.entity_id, callable.dataset_id) for callable in execution_plan.callables
         ):
             dataset = datasets.get(dataset_id)
             if dataset is None:

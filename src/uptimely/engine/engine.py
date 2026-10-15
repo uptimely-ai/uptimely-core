@@ -142,69 +142,69 @@ class Engine:
         self._runtime_fragments = fragments
         self._runtime_calculations = calculations
 
-        def _mark_unrun_operations_skipped() -> None:
-            """Mark operations that never ran so consumers can distinguish skipped from absent."""
-            for operation in self.plan.operations:
-                statuses.setdefault(operation.id, "skipped")
+        def _mark_unrun_callables_skipped() -> None:
+            """Mark callables that never ran as skipped."""
+            for callable in self.plan.callables:
+                statuses.setdefault(callable.id, "skipped")
 
         logger.info("Executing plan: %d stages", len(self.plan.execution_stages))
         for stage in self.plan.execution_stages:
-            for operation in stage:
+            for callable in stage:
                 started = time.perf_counter()
-                logger.debug("Running %s operation %s", operation.kind, operation.id)
+                logger.debug("Running %s callable %s", callable.operation, callable.id)
                 try:
-                    self._validate_inputs(operation)
-                    if operation.kind in {"read", "expand", "conform", "collapse", "vectorize"}:
-                        self._execute_dataframe_mapping(operation)
-                    elif operation.kind == "write":
-                        self._execute_sink(operation)
+                    self._validate_inputs(callable)
+                    if callable.operation in {"read", "expand", "conform", "collapse", "vectorize"}:
+                        self._execute_dataframe_mapping(callable)
+                    elif callable.operation == "write":
+                        self._execute_sink(callable)
                     else:
-                        raise ValueError(f"Unsupported operation type: {operation.kind}")
+                        raise ValueError(f"Unsupported callable operation: {callable.operation}")
                 except Exception as error:
-                    statuses[operation.id] = "failed"
-                    failures[operation.id] = str(error)
-                    durations[operation.id] = time.perf_counter() - started
-                    logger.warning("Operation %s failed: %s", operation.id, error)
+                    statuses[callable.id] = "failed"
+                    failures[callable.id] = str(error)
+                    durations[callable.id] = time.perf_counter() - started
+                    logger.warning("Callable %s failed: %s", callable.id, error)
                     break
-                statuses[operation.id] = "succeeded"
-                durations[operation.id] = time.perf_counter() - started
+                statuses[callable.id] = "succeeded"
+                durations[callable.id] = time.perf_counter() - started
             if failures:
                 break
 
-        _mark_unrun_operations_skipped()
+        _mark_unrun_callables_skipped()
 
         return result_module.ExecutionResult(
             datasets=dict(datasets),
             calculated_outputs=dict(calculations),
-            operation_statuses=statuses,
+            callable_statuses=statuses,
             durations=durations,
             failures=failures,
             plan_version=self.plan.plan.plan_version,
         )
 
-    def _execute_dataframe_mapping(self, operation: plan_module.Operation) -> None:
+    def _execute_dataframe_mapping(self, callable: plan_module.Callable) -> None:
         """Invoke a data-producing mapping, validate its result, and update the dataset."""
-        dataset_key = (operation.entity_id, operation.dataset_id)
+        dataset_key = (callable.entity_id, callable.dataset_id)
         frame = self._runtime_datasets.get(dataset_key)
-        kwargs = self._resolve_args(operation, dataset_frame=frame)
-        result = self.callable_loader.load(operation.entrypoint)(**kwargs)
-        dimensions = self.resource_resolver.entity_dimensions(operation.entity_id)
-        self._validate_dataframe_result(operation, result, frame, dimensions)
-        columns = list(dict.fromkeys([*dimensions, *operation.output_features]))
+        kwargs = self._resolve_args(callable, dataset_frame=frame)
+        result = self.callable_loader.load(callable.entrypoint)(**kwargs)
+        dimensions = self.resource_resolver.entity_dimensions(callable.entity_id)
+        self._validate_dataframe_result(callable, result, frame, dimensions)
+        columns = list(dict.fromkeys([*dimensions, *callable.output_features]))
         fragment = self.backend.select(result, columns)
         merged = self._merge_fragment(frame, fragment, dimensions)
 
         self._runtime_datasets[dataset_key] = merged
-        self._runtime_fragments[(operation.entity_id, operation.output or operation.id)] = fragment
-        if operation.kind == "vectorize":
-            for output in operation.output_features:
+        self._runtime_fragments[(callable.entity_id, callable.output or callable.id)] = fragment
+        if callable.operation == "vectorize":
+            for output in callable.output_features:
                 self._runtime_calculations[(*dataset_key, output)] = self.backend.select(
                     fragment, [*dimensions, output]
                 )
 
     def _validate_dataframe_result(
         self,
-        operation: plan_module.Operation,
+        callable: plan_module.Callable,
         result: object,
         input_frame: object,
         dimensions: list[str],
@@ -212,47 +212,47 @@ class Engine:
         """Check the returned dataframe's keys, declared outputs, and logical types."""
         if not self.backend.is_frame(result):
             raise ValueError(
-                f"Fragment {operation.function_id} must return a Polars DataFrame or LazyFrame"
+                f"Fragment {callable.function_id} must return a Polars DataFrame or LazyFrame"
             )
-        self._validate_fragment_keys(operation, result, dimensions)
+        self._validate_fragment_keys(callable, result, dimensions)
         columns = set(self.backend.column_names(result))
-        missing = sorted(set(operation.output_features) - columns)
+        missing = sorted(set(callable.output_features) - columns)
         if missing:
             raise ValueError(
-                f"Mapping {operation.id} is missing output columns: " + ", ".join(missing)
+                f"Mapping {callable.id} is missing output columns: " + ", ".join(missing)
             )
         dimension_definitions = self.resources.get("dimensions", {})
         feature_definitions = (
-            self.resources.get("datasets", {}).get(operation.dataset_id, {}).get("features", {})
+            self.resources.get("datasets", {}).get(callable.dataset_id, {}).get("features", {})
         )
         types: dict[str, str] = {}
-        for name in dict.fromkeys([*dimensions, *operation.output_features]):
+        for name in dict.fromkeys([*dimensions, *callable.output_features]):
             definitions = dimension_definitions if name in dimensions else feature_definitions
             column_type = definitions.get(name, {}).get("type")
             if column_type is not None:
                 types[name] = column_type
         self.backend.validate_types(result, types)
-        if operation.kind == "vectorize" and (
+        if callable.operation == "vectorize" and (
             input_frame is None or not self.backend.same_keys(input_frame, result, dimensions)
         ):
             raise ValueError(
-                f"Vectorize mapping {operation.id} must preserve the dataset dimension keys"
+                f"Vectorize mapping {callable.id} must preserve the dataset dimension keys"
             )
 
-    def _validate_inputs(self, operation: plan_module.Operation) -> None:
+    def _validate_inputs(self, callable: plan_module.Callable) -> None:
         """Require declared input columns to be materialized before invocation."""
-        for feature in operation.input_features:
+        for feature in callable.input_features:
             frames = [
                 frame
                 for frame in self._runtime_datasets.values()
                 if feature in self.backend.column_names(frame)
             ]
-            current = self._runtime_datasets.get((operation.entity_id, operation.dataset_id))
+            current = self._runtime_datasets.get((callable.entity_id, callable.dataset_id))
             if current is not None and feature in self.backend.column_names(current):
                 continue
             if len(frames) != 1:
                 raise ValueError(
-                    f"Mapping {operation.id} input feature is unavailable or ambiguous: {feature}"
+                    f"Mapping {callable.id} input feature is unavailable or ambiguous: {feature}"
                 )
 
     def _merge_fragment(self, existing: object, fragment: object, dimensions: list[str]) -> object:
@@ -275,20 +275,20 @@ class Engine:
         return self.backend.join(left, right, dimensions)
 
     def _validate_fragment_keys(
-        self, operation: plan_module.Operation, fragment: object, dimensions: list[str]
+        self, callable: plan_module.Callable, fragment: object, dimensions: list[str]
     ) -> None:
         """Validate the dimension-key contract of one dataframe fragment."""
         columns = set(self.backend.column_names(fragment))
         missing = sorted(set(dimensions) - columns)
         if missing:
             raise ValueError(
-                f"Fragment {operation.function_id} is missing dimension columns: "
+                f"Fragment {callable.function_id} is missing dimension columns: "
                 + ", ".join(missing)
             )
         if not dimensions:
             if self.backend.row_count(fragment) > 1:
                 raise ValueError(
-                    f"Fragment {operation.function_id} contains duplicate dimension keys "
+                    f"Fragment {callable.function_id} contains duplicate dimension keys "
                     "(dimensionless datasets allow at most one row)"
                 )
             return
@@ -296,35 +296,35 @@ class Engine:
         if not isinstance(keys, type(fragment)):
             keys = self.backend.collect(keys)
         if self.backend.is_duplicated(keys):
-            raise ValueError(f"Fragment {operation.function_id} contains duplicate dimension keys")
+            raise ValueError(f"Fragment {callable.function_id} contains duplicate dimension keys")
 
-    def _execute_sink(self, operation: plan_module.Operation) -> None:
+    def _execute_sink(self, callable: plan_module.Callable) -> None:
         """Persist the selected columns of the accumulated dataset."""
-        frame = self._runtime_datasets[(operation.entity_id, operation.dataset_id)]
+        frame = self._runtime_datasets[(callable.entity_id, callable.dataset_id)]
         kwargs = self._resolve_args(
-            operation, dataset_frame=frame, dataset_key=(operation.entity_id, operation.dataset_id)
+            callable, dataset_frame=frame, dataset_key=(callable.entity_id, callable.dataset_id)
         )
-        self.callable_loader.load(operation.entrypoint)(**kwargs)
+        self.callable_loader.load(callable.entrypoint)(**kwargs)
 
     def _resolve_args(
         self,
-        operation: plan_module.Operation,
+        callable: plan_module.Callable,
         dataset_frame: object = None,
         dataset_key: tuple[str, str] | None = None,
     ) -> dict[str, object]:
         """Bind compiled IDs to physical runtime arguments using template types."""
-        function = self.resources["functions"][operation.function_id]
-        if function["operation"] != operation.kind:
+        function = self.resources["functions"][callable.function_id]
+        if function["operation"] != callable.operation:
             raise ValueError(
-                f"Callable {operation.id} operation {operation.kind} does not match "
-                f"function {operation.function_id} operation {function['operation']}"
+                f"Callable {callable.id} operation {callable.operation} does not match "
+                f"function {callable.function_id} operation {function['operation']}"
             )
         arguments = function.get("args", {})
         return {
             name: self._resolve_value(
                 value, dataset_frame, dataset_key, arguments.get(name, {}).get("type")
             )
-            for name, value in operation.arguments.items()
+            for name, value in callable.arguments.items()
         }
 
     def _resolve_value(

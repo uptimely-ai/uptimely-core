@@ -259,8 +259,8 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
         dimensions=analytics_module.dimensions,
     )
     assert (
-        compile.Compiler(ordered).compile().operations
-        == compile.Compiler(unordered).compile().operations
+        compile.Compiler(ordered).compile().callables
+        == compile.Compiler(unordered).compile().callables
     )
 
     result = engine.Engine(ordered).execute()

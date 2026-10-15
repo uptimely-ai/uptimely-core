@@ -129,7 +129,7 @@ class Dataset:
             | mapping_declarations.Write,
         ) -> None:
             if isinstance(declaration, mapping_declarations.Write):
-                function_id = bind._operation_id(declaration.bind, None)
+                function_id = bind._function_id(declaration.bind)
                 functions[function_id] = json_analytics.json_model.FunctionTemplate(
                     id=function_id,
                     operation="write",
@@ -140,25 +140,25 @@ class Dataset:
                     },
                 )
                 return
-            operation_type = {
+            operation = {
                 mapping_declarations.Read: "read",
                 mapping_declarations.Conform: "conform",
                 mapping_declarations.Expand: "expand",
                 mapping_declarations.Collapse: "collapse",
                 mapping_declarations.Vectorize: "vectorize",
             }.get(type(declaration))
-            if operation_type is None:
+            if operation is None:
                 raise ValueError(
-                    f"Mapping '{bind._operation_id(declaration.bind, declaration.id)}' "
+                    f"Mapping '{bind._mapping_id(declaration.bind, declaration.id)}' "
                     "must use a category-specific mapping declaration"
                 )
-            function_id = bind._operation_id(declaration.bind, None)
+            function_id = bind._function_id(declaration.bind)
             arguments = {
                 name: argument(name, value) for name, value in declaration.bind.args.items()
             }
             functions[function_id] = json_analytics.json_model.FunctionTemplate(
                 id=function_id,
-                operation=operation_type,
+                operation=operation,
                 returns="dataframe",
                 entrypoint=bind._entrypoint(declaration.bind.function),
                 args=arguments,

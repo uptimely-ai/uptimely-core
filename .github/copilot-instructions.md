@@ -38,7 +38,7 @@ Before making project-wide changes, consult the relevant guides:
   from uptimely import plan
   from uptimely.engine import backend
 
-  operation = plan.Operation(...)
+  callable = plan.Callable(...)
   dataframe_backend = backend.PolarsBackend()
   ```
 

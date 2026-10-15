@@ -195,15 +195,15 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 "stages": [
                     [
                         {
-                            "id": operation.id,
-                            "kind": operation.kind,
-                            "function_id": operation.function_id,
+                            "id": callable.id,
+                            "operation": callable.operation,
+                            "function_id": callable.function_id,
                         }
-                        for operation in stage
+                        for callable in stage
                     ]
                     for stage in plan.execution_stages
                 ],
-                "operation_count": sum(len(stage) for stage in plan.execution_stages),
+                "callable_count": sum(len(stage) for stage in plan.execution_stages),
             }
         )
 

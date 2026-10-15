@@ -20,34 +20,22 @@ class CallableNode:
     function_id: str
     entity: str
     feature: str | None = None
-    operation_type: str = "vectorize"
+    operation: str = "vectorize"
     dataset_id: str | None = None
-    operation_id: str | None = None
+    mapping_id: str | None = None
     output_features: tuple[str, ...] = ()
     args: dict[str, object] = dataclasses.field(default_factory=dict, compare=False, hash=False)
     callable: analytics.Call | None = dataclasses.field(default=None, compare=False, hash=False)
-    callable_type_override: str | None = dataclasses.field(default=None, compare=False, hash=False)
     row_context: row_context.RowContext | None = dataclasses.field(
         default=None, compare=False, hash=False
     )
 
     @property
-    def callable_type(self) -> str:
-        """Return the analytics function category for this operation."""
-        if self.callable_type_override is not None:
-            return self.callable_type_override
-        return {
-            "read": "read",
-            "vectorize": "vectorize",
-            "write": "write",
-        }.get(self.operation_type, self.operation_type)
-
-    @property
     def node_id(self) -> str:
         """Stable graph identifier for this callable invocation."""
-        identifier = self.operation_id or self.feature or self.function_id
+        identifier = self.mapping_id or self.feature or self.function_id
         return (
-            f"callable:{self.operation_type}:{self.function_id}:"
+            f"callable:{self.operation}:{self.function_id}:"
             f"{self.entity}:{self.dataset_id}:{identifier}"
         )
 
@@ -61,8 +49,7 @@ class CallableNode:
         """Return display metadata for rendering this callable node."""
         return _filled_fields(
             node_type=node_type,
-            operation_type=self.operation_type,
-            callable_type=self.callable_type,
+            operation=self.operation,
             label=str(self),
             function_id=self.function_id,
             entity=self.entity,

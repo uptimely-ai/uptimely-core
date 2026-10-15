@@ -1,5 +1,5 @@
 {
-  "plan_version": "1.0.0",
+  "plan_version": "2.0.0",
   "analytics_version": "0.2.0",
   "required_backend": "polars",
   "resources": {
@@ -47,10 +47,10 @@
       }
     }
   },
-  "operations": [
+  "callables": [
     {
       "id": "callable:read:load:asset:telemetry:reading",
-      "kind": "read",
+      "operation": "read",
       "entrypoint": "test:read",
       "entity_id": "asset",
       "dataset_id": "telemetry",
@@ -65,7 +65,7 @@
     },
     {
       "id": "callable:vectorize:double:asset:telemetry:doubled",
-      "kind": "vectorize",
+      "operation": "vectorize",
       "entrypoint": "test:double",
       "entity_id": "asset",
       "dataset_id": "telemetry",
@@ -86,7 +86,7 @@
     },
     {
       "id": "callable:write:save:asset:telemetry:doubled",
-      "kind": "write",
+      "operation": "write",
       "entrypoint": "test:write",
       "entity_id": "asset",
       "dataset_id": "telemetry",

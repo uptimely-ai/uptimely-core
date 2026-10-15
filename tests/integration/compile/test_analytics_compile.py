@@ -12,19 +12,21 @@ def test_compiler_creates_callable_graph_subset_for_requested_features() -> None
     plan = compile.Compiler(ANALYTICS_PATH, features=["health_signal_normalized"]).compile()
 
     assert [
-        operation.output
+        callable.output
         for stage in plan.execution_stages
-        for operation in stage
-        if operation.kind == "vectorize"
+        for callable in stage
+        if callable.operation == "vectorize"
     ] == [
         "health_signal_normalized",
     ]
-    assert {operation.kind for operation in plan.operations} == {
+    assert {callable.operation for callable in plan.callables} == {
         "read",
         "collapse",
         "vectorize",
     }
-    assert {operation.output for operation in plan.operations if operation.kind == "vectorize"} == {
+    assert {
+        callable.output for callable in plan.callables if callable.operation == "vectorize"
+    } == {
         "health_signal_normalized",
     }
 
@@ -42,12 +44,12 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
     analytics_path.write_text(json.dumps(analytics_definition), encoding="utf-8")
 
     plan = compile.Compiler(analytics_path, features=["health_signal_normalized"]).compile()
-    vectorize_operations = [
-        operation for operation in plan.operations if operation.kind == "vectorize"
+    vectorize_callables = [
+        callable for callable in plan.callables if callable.operation == "vectorize"
     ]
 
-    assert len(vectorize_operations) == 1
-    assert vectorize_operations[0].output_features == [
+    assert len(vectorize_callables) == 1
+    assert vectorize_callables[0].output_features == [
         "health_signal_normalized",
         "health_signal_secondary",
     ]
@@ -62,13 +64,11 @@ def test_callable_graph_subset_contains_requested_output_and_ancestors() -> None
     )
 
     assert [
-        node.feature for node in subset.get_callable_order() if node.operation_type == "vectorize"
+        node.feature for node in subset.get_callable_order() if node.operation == "vectorize"
     ] == [
         "health_signal_normalized",
     ]
-    assert {
-        (node.operation_type, node.function_id) for node in subset.dependencies(normalized)
-    } == {
+    assert {(node.operation, node.function_id) for node in subset.dependencies(normalized)} == {
         ("collapse", "maximum"),
     }
     assert len(graph.callables) == 13

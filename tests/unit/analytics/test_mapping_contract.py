@@ -99,14 +99,14 @@ def _analytics() -> analytics.Analytics:
 def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     analytics_definition = _analytics()
     computed = compile.Compiler(analytics_definition, features=["result"]).compile()
-    assert len(computed.operations) == 2
+    assert len(computed.callables) == 2
     assert next(
-        item for item in computed.operations if item.kind == "vectorize"
+        item for item in computed.callables if item.operation == "vectorize"
     ).input_features == [
         "value",
     ]
     metadata = compile.Compiler(analytics_definition, features=["metadata"]).compile()
-    assert all("result" not in item.output_features for item in metadata.operations)
+    assert all("result" not in item.output_features for item in metadata.callables)
     execution = engine.Engine(metadata).execute()
     assert not execution.failures
     assert execution.datasets["entity", "observations"]["metadata"].to_list() == [7, 7]
@@ -332,7 +332,7 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
         ],
     )
     compiled = compile.Compiler(analytics_definition, features=["copied"]).compile()
-    assert len(compiled.operations) == 3
+    assert len(compiled.callables) == 3
     execution = engine.Engine(compiled).execute()
     assert not execution.failures
     assert execution.datasets["target_entity", "target"].sort("id")["copied"].to_list() == (

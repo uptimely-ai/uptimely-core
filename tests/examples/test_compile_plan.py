@@ -48,27 +48,27 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
         "analytics_version",
         "required_backend",
         "resources",
-        "operations",
+        "callables",
         "stages",
     }
-    assert {operation["kind"] for operation in metadata["operations"]} == {
+    assert {callable["operation"] for callable in metadata["callables"]} == {
         "read",
         "collapse",
         "vectorize",
         "write",
     }
-    collapse_operation = next(
-        operation for operation in metadata["operations"] if operation["kind"] == "collapse"
+    collapse_callable = next(
+        callable for callable in metadata["callables"] if callable["operation"] == "collapse"
     )
-    assert collapse_operation["entity_id"] == "pump"
-    assert collapse_operation["entrypoint"].endswith(":maximum")
-    assert collapse_operation["arguments"] == {
+    assert collapse_callable["entity_id"] == "pump"
+    assert collapse_callable["entrypoint"].endswith(":maximum")
+    assert collapse_callable["arguments"] == {
         "feature": "bearing_temperature",
         "dataset": "pump_telemetry_dataset",
         "dimensions": ["plant", "production_line", "pump"],
         "output": "bearing_temperature_max",
     }
-    assert collapse_operation["output_features"] == [
+    assert collapse_callable["output_features"] == [
         "plant",
         "production_line",
         "pump",
@@ -84,9 +84,9 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert "<title>Plan Stages</title>" in report
     assert ">Stages</span></h1>" in report
     assert "Stage 1" in report
-    assert "parallel operations" in report
+    assert "parallel callables" in report
     assert ">Operation</dt>" in report
-    assert ">Callable type</dt>" in report
+    assert ">Function</dt>" in report
     assert ">Produces</dt>" in report
     assert ">Depends on callables</dt>" in report
     assert ">Returns</dt>" in report
@@ -106,13 +106,10 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert "3d-force-graph" in report
     assert "Callable details" in report
     assert '"node_type": "callable"' in report
-    assert '"operation_type": "read"' in report
-    assert '"operation_type": "collapse"' in report
-    assert '"operation_type": "vectorize"' in report
-    assert '"operation_type": "write"' in report
-    assert '"callable_type": "read"' in report
-    assert '"callable_type": "vectorize"' in report
-    assert '"callable_type": "write"' in report
+    assert '"operation": "read"' in report
+    assert '"operation": "collapse"' in report
+    assert '"operation": "vectorize"' in report
+    assert '"operation": "write"' in report
     assert "Execution graph legend" in report
     assert "Vectorize function</span>" in report
     assert "Write function</span>" in report

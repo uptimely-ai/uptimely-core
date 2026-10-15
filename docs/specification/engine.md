@@ -3,7 +3,7 @@
 This page describes the built-in Uptimely Core runtime and its execution
 contract. It consumes a compiled plan, resolves runtime resources, invokes
 functions, and accumulates their tabular results. Other engines can use the same
-portable plan format if they implement its operations and required backend.
+portable plan format if they implement callable execution and the required backend.
 
 ## Engine settings
 
@@ -73,7 +73,7 @@ result = Engine(plan).execute()
 ```
 
 `result` is an `ExecutionResult` containing `datasets`, `calculated_outputs`,
-`operation_statuses`, `durations`, `failures`, and `plan_version`.
+`callable_statuses`, `durations`, `failures`, and `plan_version`.
 
 ### Row-context metadata
 
@@ -164,7 +164,7 @@ The [MCP CLI](../components/ai.md#running-the-server) loads this JSON file throu
 `--config`, reading backend settings from `backend` and runtime values from
 `bind`. Neither interface automatically selects an
 environment or merges multiple configuration files. Each supplied mapping must
-provide all values required by the operations being executed; missing values
+provide all values required by the callables being executed; missing values
 are errors, not fallbacks to another environment.
 
 ## Execution state
@@ -185,7 +185,7 @@ sorting operations into a plan. Logical order does not change fragment alignment
 or guarantee physical row order. Order-sensitive functions must explicitly
 declare and implement their ordering inputs.
 
-For each operation, the engine checks that its inputs are materialized, invokes
+For each callable, the engine checks that its inputs are materialized, invokes
 the function, validates the returned keys and schema, and then joins the
 fragment into the dataset.
 Vectorize results must preserve the existing dimension-key set. No expression,
@@ -237,7 +237,7 @@ and constructed literal values.
 
 ## Write Functions
 
-A write operation is the final node for a dataset in the execution plan. Its
+A write callable is the final node for a dataset in the execution plan. Its
 binding uses structural references, which the compiler resolves to IDs. At
 runtime the engine uses the function template's mapped primitive types to bind
 `dataframe` IDs to physical dataframes; feature and dimension IDs remain
@@ -289,9 +289,9 @@ With the Polars backend, functions return `pl.DataFrame` or `pl.LazyFrame`.
 `calculated_outputs` stores dimension-keyed frames for individual vectorized
 outputs. Scalar construction and column naming belong inside the function.
 
-The compiled plan groups independent operations into stages. The current engine
-processes those stages and their operations sequentially; another engine may
-execute independent operations in parallel while preserving dependency order.
+The compiled plan groups independent callables into stages. The current engine
+processes those stages and their callables sequentially; another engine may
+execute independent callables in parallel while preserving dependency order.
 
 ### Fragment Join Behavior
 

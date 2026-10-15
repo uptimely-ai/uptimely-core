@@ -31,9 +31,8 @@
 			}
 			callableNodeDetails.innerHTML = `
 				<h3 class="mb-2 font-mono text-xs uppercase tracking-wider text-slate-400">Callable details</h3>
-				<div class="mb-1 break-all text-xs text-slate-300"><strong>Callable type:</strong> ${node.callable_type || 'n/a'}</div>
-				<div class="mb-1 break-all text-xs text-slate-300"><strong>Graph role:</strong> ${node.operation_type || 'n/a'}</div>
-				<div class="mb-1 break-all text-xs text-slate-300"><strong>Operation:</strong> ${node.function_id || 'n/a'}</div>
+				<div class="mb-1 break-all text-xs text-slate-300"><strong>Operation:</strong> ${node.operation || 'n/a'}</div>
+				<div class="mb-1 break-all text-xs text-slate-300"><strong>Function:</strong> ${node.function_id || 'n/a'}</div>
 				<div class="mb-1 break-all text-xs text-slate-300"><strong>Entity:</strong> ${node.entity || 'n/a'}</div>
 				<div class="mb-1 break-all text-xs text-slate-300"><strong>Produces:</strong> ${node.feature || 'n/a'}</div>
 				<div class="break-all text-xs text-slate-300"><strong>Callable dependencies:</strong> ${formatList(node.dependency_ids)}</div>
@@ -48,7 +47,7 @@
 			.graphData(callableGraphData)
 			.backgroundColor('{{ graph_style.background_color }}')
 			.nodeLabel(node => `${node.function_id}<br>produces: ${node.feature}`)
-			.nodeColor(node => callableColors[node.operation_type])
+			.nodeColor(node => callableColors[node.operation])
 			.nodeRelSize({{ graph_style.node_rel_size }})
 			.nodeResolution({{ graph_style.node_resolution }})
 			.linkWidth({{ graph_style.link_width }})
@@ -65,7 +64,7 @@
 				}
 			})
 			.nodeThreeObject(node => {
-				const material = new THREE.MeshLambertMaterial({ color: callableColors[node.operation_type] });
+				const material = new THREE.MeshLambertMaterial({ color: callableColors[node.operation] });
 				const mesh = new THREE.Mesh(
 					new THREE.OctahedronGeometry({{ graph_style.function_node_size }}, 0),
 					material,
