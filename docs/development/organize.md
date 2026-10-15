@@ -28,7 +28,7 @@ The compiler produces `_generated/compile/execution_plan.json`, and the engine
 executes the plan.
 Functions describe the read, transformation, and write logic; CLI commands
 coordinate export, compilation, and execution. Export a module exposing a
-`python_specification` with `uptimely spec export --module <module>`, then use
+`python_specification` with `uptimely analytics export --module <module>`, then use
 `uptimely plan build` and `uptimely engine run`. See the
 [examples guide](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/README.md)
 for runnable commands.

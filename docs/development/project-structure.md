@@ -41,12 +41,12 @@ This separation keeps the project easy to reason about: configuration and specif
 
 The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/pump_analytics/README.md) uses CLI commands
 for specification export, compilation, execution, documentation, and feature
-graphs. `uptimely spec export --module <module>` imports a module exposing
+graphs. `uptimely analytics export --module <module>` imports a module exposing
 `python_specification`, a `PythonAnalytics` instance, and writes JSON.
 `uptimely explorer build` writes a linked website to `_generated/explorer/`.
 All HTML pages are generated together by that command.
 Specification and plan JSON exports live in `_generated/spec/` and
-`_generated/compile/`; `uptimely spec feature-graph` prints graph summaries and,
+`_generated/compile/`; `uptimely analytics feature-graph` prints graph summaries and,
 with `--verbose`, dependency trees without writing HTML.
 The [smaller Python example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/simple_analytics/README.md) demonstrates
 specification export without the full compilation and execution workflow.

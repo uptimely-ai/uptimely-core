@@ -20,7 +20,7 @@ def test_feature_graph_cli_inspects_without_exporting(
 ) -> None:
     arguments = [
         "uptimely",
-        "spec",
+        "analytics",
         "feature-graph",
         "--spec",
         str(SPEC_PATH.resolve()),
