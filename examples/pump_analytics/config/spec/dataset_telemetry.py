@@ -1,6 +1,6 @@
 """Pump telemetry dataset declarations for the pump analytics project."""
 
-from uptimely.spec.python_spec import bind, dataset, feature, mapping, ref, row_context
+from uptimely.analytics.python import bind, dataset, feature, mapping, ref, row_context
 
 from . import functions
 

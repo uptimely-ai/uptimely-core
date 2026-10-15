@@ -10,7 +10,7 @@ import typing
 
 from uptimely import plan as uptimely_plan
 from uptimely import render as uptimely_render
-from uptimely.analytics import render
+from uptimely.analytics import graph_render as render
 
 from . import compiler
 

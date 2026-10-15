@@ -1,6 +1,6 @@
 """Dataset declarations for simple analytics."""
 
-from uptimely.spec.python_spec import (
+from uptimely.analytics.python import (
     PythonSpecification,
     bind,
     dataset,

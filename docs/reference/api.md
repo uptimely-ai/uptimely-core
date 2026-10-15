@@ -11,7 +11,7 @@ the declarative contract.
 
 ## Specifications
 
-::: uptimely.spec
+::: uptimely.analytics
     options:
       members:
         - Specification
@@ -29,23 +29,23 @@ the declarative contract.
 
 ## Python authoring
 
-::: uptimely.spec.python_spec.spec
+::: uptimely.analytics.python.spec
 
-::: uptimely.spec.python_spec.entity
+::: uptimely.analytics.python.entity
 
-::: uptimely.spec.python_spec.dataset
+::: uptimely.analytics.python.dataset
 
-::: uptimely.spec.python_spec.dimension
+::: uptimely.analytics.python.dimension
 
-::: uptimely.spec.python_spec.feature
+::: uptimely.analytics.python.feature
 
-::: uptimely.spec.python_spec.mappings
+::: uptimely.analytics.python.mappings
 
-::: uptimely.spec.python_spec.bind
+::: uptimely.analytics.python.bind
 
-::: uptimely.spec.python_spec.ref
+::: uptimely.analytics.python.ref
 
-::: uptimely.spec.python_spec.row_context
+::: uptimely.analytics.python.row_context
 
 ## Compilation
 

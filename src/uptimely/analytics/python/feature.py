@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from uptimely.spec import json_spec
+from uptimely.analytics import json as json_spec
 
 __all__ = ["Feature"]
 

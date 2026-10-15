@@ -1,6 +1,6 @@
 """Entity declarations for the pump analytics specification."""
 
-from uptimely.spec.python_spec import entity
+from uptimely.analytics.python import entity
 
 from . import dataset_pump, dataset_telemetry, dimension
 

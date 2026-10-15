@@ -1,6 +1,6 @@
 import dataclasses
 
-from uptimely import spec
+from .json import json_model as spec
 
 
 def _filled_fields(**fields: object) -> dict:

@@ -4,8 +4,9 @@ import pathlib
 import polars as pl
 import pytest
 
-from uptimely import compile, engine, spec
-from uptimely.spec.python_spec import bind, dataset, dimension, feature, mapping, ref
+from uptimely import analytics as spec
+from uptimely import compile, engine
+from uptimely.analytics.python import bind, dataset, dimension, feature, mapping, ref
 
 
 def read_values() -> pl.DataFrame:

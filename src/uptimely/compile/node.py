@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import dataclasses
 
-from uptimely import row_context, spec
+from uptimely import analytics as spec
+from uptimely import row_context
 
 FRAGMENT_OPERATION_TYPES = frozenset({"read", "collapse", "expand", "conform"})
 SOURCE_OPERATION_TYPES = FRAGMENT_OPERATION_TYPES

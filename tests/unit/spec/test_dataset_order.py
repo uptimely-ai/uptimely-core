@@ -9,9 +9,11 @@ import pytest
 from examples.simple_analytics.config.spec import spec as spec_module
 from examples.simple_analytics.functions import functions
 
-from uptimely import compile, engine, spec
+from uptimely import analytics as spec
+from uptimely import compile, engine
+from uptimely.analytics import python as python_spec
+from uptimely.analytics import validation
 from uptimely.explorer import explorer
-from uptimely.spec import python_spec, validation
 
 ORDER = [
     {"dimension": "$dimensions.machine", "direction": "asc"},

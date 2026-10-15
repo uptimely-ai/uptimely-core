@@ -4,10 +4,10 @@ import argparse
 import importlib
 import pathlib
 
-from uptimely import spec as spec_module
+from uptimely import analytics as spec_module
 from uptimely.analytics import feature_graph
+from uptimely.analytics import python as python_spec
 from uptimely.cli import common
-from uptimely.spec import python_spec
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:

@@ -6,8 +6,8 @@ from collections import abc
 
 import pytest
 
-from uptimely.spec.json_spec import json_functions
-from uptimely.spec.python_spec import bind, dataset, mapping, ref
+from uptimely.analytics.json import json_functions
+from uptimely.analytics.python import bind, dataset, mapping, ref
 
 MODULE_LOCATIONS = [
     "math",

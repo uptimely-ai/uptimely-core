@@ -6,11 +6,12 @@ import polars as pl
 import pydantic
 import pytest
 
-from uptimely import compile, engine, row_context, spec
+from uptimely import analytics as spec
+from uptimely import compile, engine, row_context
 from uptimely import plan as uptimely_plan
+from uptimely.analytics.python import bind, dataset, dimension, entity, feature, mapping, ref
+from uptimely.analytics.python import row_context as authoring
 from uptimely.explorer import explorer
-from uptimely.spec.python_spec import bind, dataset, dimension, entity, feature, mapping, ref
-from uptimely.spec.python_spec import row_context as authoring
 
 
 def read_observations() -> pl.DataFrame:

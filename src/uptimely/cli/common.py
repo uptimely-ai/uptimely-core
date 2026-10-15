@@ -4,7 +4,7 @@ import argparse
 import pathlib
 import sys
 
-from uptimely import spec
+from uptimely import analytics as spec
 
 GENERATED_SPEC_PATH = pathlib.Path("_generated/spec/spec.json")
 GENERATED_PLAN_PATH = pathlib.Path("_generated/compile/execution_plan.json")

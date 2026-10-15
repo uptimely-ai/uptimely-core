@@ -5,7 +5,8 @@ import sys
 
 import pytest
 
-from uptimely import compile, spec
+from uptimely import analytics as spec
+from uptimely import compile
 from uptimely.cli import cli
 from uptimely.explorer import explorer
 

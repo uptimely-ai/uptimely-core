@@ -1,6 +1,6 @@
 """Combined pump analytics Python specification."""
 
-from uptimely.spec import python_spec
+from uptimely.analytics import python as python_spec
 
 from . import dimension, entity
 

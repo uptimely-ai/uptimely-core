@@ -160,7 +160,7 @@ exit status.
 
 ```python
 from uptimely.explorer.explorer import Explorer
-from uptimely.spec import Specification
+from uptimely.analytics import Specification
 
 specification = Specification.from_json("_generated/spec/spec.json")
 explorer = Explorer(specification)

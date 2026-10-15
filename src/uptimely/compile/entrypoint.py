@@ -11,7 +11,7 @@ import typing
 from importlib import abc, util
 from urllib import parse, request
 
-from uptimely.spec import storage
+from uptimely.analytics import storage
 
 REMOTE_SCHEMES = {"https", "s3"}
 REMOTE_READ_TIMEOUT = 30

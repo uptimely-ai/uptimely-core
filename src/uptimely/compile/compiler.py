@@ -7,9 +7,9 @@ import pathlib
 import typing
 from collections import abc
 
+from uptimely import analytics as uptimely_spec
 from uptimely import plan as uptimely_plan
-from uptimely import spec as uptimely_spec
-from uptimely.spec.json_spec import bindings
+from uptimely.analytics.json import bindings
 
 from . import entrypoint, execution_graph
 from . import node as node_module

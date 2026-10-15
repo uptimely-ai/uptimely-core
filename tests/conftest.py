@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from uptimely import spec
+from uptimely import analytics as spec
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
 EXAMPLE_SPEC_DIRS = [

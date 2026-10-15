@@ -8,9 +8,9 @@ from examples.pump_analytics.functions import calculation
 from examples.simple_analytics.config.spec import spec as simple_analytics_spec
 from examples.simple_analytics.functions import functions
 
-from uptimely import spec as uptimely_spec
-from uptimely.spec import python_spec
-from uptimely.spec.python_spec import bind
+from uptimely import analytics as uptimely_spec
+from uptimely.analytics import python as python_spec
+from uptimely.analytics.python import bind
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 

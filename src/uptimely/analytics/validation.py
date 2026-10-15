@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typing
 
-from .json_spec import bindings
+from .json import bindings
 
 
 class SpecificationError(ValueError):

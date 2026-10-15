@@ -2,8 +2,8 @@ from collections import abc
 
 import pytest
 
-from uptimely.spec.json_spec import json_model
-from uptimely.spec.python_spec import bind, dataset, dimension, entity, mapping, ref, spec
+from uptimely.analytics.json import json_model
+from uptimely.analytics.python import bind, dataset, dimension, entity, mapping, ref, spec
 
 
 def _source() -> None:
