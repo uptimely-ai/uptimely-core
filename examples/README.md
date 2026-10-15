@@ -31,7 +31,13 @@ examples/
 ├── pump_analytics/
 │   ├── config/
 │   │   ├── engine.json       Engine settings and runtime bindings
-│   │   └── spec/             Python specification declarations
+│   │   └── spec/             Flat Python specification declarations
+│   │       ├── spec.py
+│   │       ├── dataset_pump.py
+│   │       ├── dataset_telemetry.py
+│   │       ├── entity.py
+│   │       ├── dimension.py
+│   │       └── functions.py
 │   ├── data/                 Input and calculated example datasets
 │   ├── functions/            Read, vectorize, and write function implementations
 │   └── _generated/
