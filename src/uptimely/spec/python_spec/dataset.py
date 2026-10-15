@@ -135,7 +135,7 @@ class Dataset:
             | mapping_declarations.Write,
         ) -> None:
             if isinstance(declaration, mapping_declarations.Write):
-                function_id = declaration.bind.function_id or declaration.bind.function.__name__
+                function_id = bind._operation_id(declaration.bind, None)
                 write[function_id] = json_spec.json_model.WriteFunction(
                     id=function_id,
                     entrypoint=bind._entrypoint(declaration.bind.function),
@@ -153,10 +153,10 @@ class Dataset:
             }.get(type(declaration))
             if operation_type is None:
                 raise ValueError(
-                    f"Mapping '{declaration.id or declaration.bind.function.__name__}' "
+                    f"Mapping '{bind._operation_id(declaration.bind, declaration.id)}' "
                     "must use a category-specific mapping declaration"
                 )
-            function_id = declaration.bind.function_id or declaration.bind.function.__name__
+            function_id = bind._operation_id(declaration.bind, None)
             function = {
                 "read": json_spec.json_model.ReadFunction,
                 "vectorize": json_spec.json_model.VectorizeFunction,

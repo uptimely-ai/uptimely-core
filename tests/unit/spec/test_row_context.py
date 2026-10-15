@@ -40,7 +40,7 @@ def _specification(context=None, *, ordered=True, dimension_type="datetime"):
                 order=[dataset.Order(ref.dimension("timestamp"), "asc")] if ordered else [],
                 mappings=[
                     mapping.Read(
-                        bind=bind.bind(read_observations),
+                        bind=bind.bind(ref.function(read_observations)),
                         outputs=[
                             feature.Feature(id="timestamp", type=dimension_type),
                             feature.Feature(id="temperature", type="integer"),
@@ -52,7 +52,7 @@ def _specification(context=None, *, ordered=True, dimension_type="datetime"):
                         outputs=[feature.Feature(id="result", type="integer")],
                         row_context=context,
                         bind=bind.bind(
-                            calculate,
+                            ref.function(calculate),
                             dataset=ref.current_dataset().dataframe,
                             column=ref.feature("temperature").id,
                             output=ref.feature("result").id,
@@ -118,7 +118,7 @@ def test_count_extents_require_nonnegative_integers(factory, value):
 def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
     declaration = mapping.Vectorize(
         bind=bind.bind(
-            calculate,
+            ref.function(calculate),
             configuration={
                 "windows": [
                     authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h"),
@@ -145,11 +145,11 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
     first = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h")
     second = authoring.time("8h", dimension=ref.dimension("other"), before="8h")
     with pytest.raises(ValueError, match="one dimension"):
-        mapping.Vectorize(bind=bind.bind(calculate, configuration=[first, second]))
+        mapping.Vectorize(bind=bind.bind(ref.function(calculate), configuration=[first, second]))
     with pytest.raises(ValueError, match="one measurement"):
         mapping.Vectorize(
             bind=bind.bind(
-                calculate,
+                ref.function(calculate),
                 configuration=[
                     first,
                     authoring.rows(8, before=7),
@@ -184,7 +184,7 @@ def test_context_rejects_invalid_metadata(payload):
 
 
 def test_unknown_current_and_whole_dataset_context_are_distinct():
-    assert mapping.Vectorize(bind=bind.bind(calculate)).row_context is None
+    assert mapping.Vectorize(bind=bind.bind(ref.function(calculate))).row_context is None
     assert authoring.current().to_dict() == {"before": {}, "after": {}}
     whole = authoring.dataset()
     assert whole.to_dict() == {"before": "unbounded", "after": "unbounded"}
@@ -275,7 +275,10 @@ def test_specification_plan_execution_and_docs_preserve_context(tmp_path: pathli
 )
 def test_all_data_mappings_preserve_annotated_context(kind):
     declaration = kind(
-        bind=bind.bind(calculate, configuration={"windows": [authoring.rows(8, before=7)]})
+        bind=bind.bind(
+            ref.function(calculate),
+            configuration={"windows": [authoring.rows(8, before=7)]},
+        )
     )
     assert declaration.to_model().row_context.before.rows == 7
     assert declaration.to_model().binding.args == {"configuration": {"windows": [8]}}
@@ -353,7 +356,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         id="observations",
         mappings=[
             mapping.Read(
-                bind=bind.bind(read_observations),
+                bind=bind.bind(ref.function(read_observations)),
                 outputs=[
                     feature.Feature(id="timestamp", type="datetime"),
                     feature.Feature(id="temperature", type="integer"),
@@ -367,7 +370,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
             mapping.Collapse(
                 id="summary",
                 bind=bind.bind(
-                    maximum,
+                    ref.function(maximum),
                     dataset=ref.dataset("observations").dataframe,
                     column=ref.feature("temperature").id,
                     output=ref.feature("temperature_max").id,

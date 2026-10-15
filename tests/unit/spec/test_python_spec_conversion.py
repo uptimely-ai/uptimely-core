@@ -31,7 +31,7 @@ def _declaration(
             mapping_type(
                 id=f"{identifier}_mapping",
                 bind=bind.bind(
-                    function,
+                    ref.function(function),
                     function_id="shared",
                     dataset=ref.current_dataset().dataframe,
                     columns=[ref.feature("temperature")],
@@ -72,7 +72,8 @@ def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
 
 def test_function_catalog_keeps_distinct_functions_and_categories() -> None:
     additional = dataset.Dataset(
-        id="additional", mappings=[mapping.Read(bind=bind.bind(_other_source))]
+        id="additional",
+        mappings=[mapping.Read(bind=bind.bind(ref.function(_other_source)))],
     )
     specification = spec.PythonSpecification(
         entities=[

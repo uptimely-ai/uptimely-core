@@ -197,13 +197,13 @@ def test_sources_and_transforms_python_spec() -> None:
         mappings=[
             python_spec.mapping.Read(
                 id="read",
-                bind=bind.bind(functions.read_data),
+                bind=bind.bind(python_spec.ref.function(functions.read_data)),
                 outputs=[python_spec.feature.Feature(id="input_1")],
             ),
             python_spec.mapping.Expand(
                 id="expand_data",
                 bind=bind.bind(
-                    functions.expand_data,
+                    python_spec.ref.function(functions.expand_data),
                     df1=python_spec.ref.dataset("transformed_dataset"),
                     df2=python_spec.ref.dataset("transformed_dataset"),
                 ),
@@ -216,7 +216,10 @@ def test_sources_and_transforms_python_spec() -> None:
         mappings=[
             python_spec.mapping.Collapse(
                 id="collapse_data",
-                bind=bind.bind(calculation.maximum, feature=python_spec.ref.feature("input_1")),
+                bind=bind.bind(
+                    python_spec.ref.function(calculation.maximum),
+                    feature=python_spec.ref.feature("input_1"),
+                ),
                 inputs=[python_spec.ref.feature("input_1")],
                 outputs=[python_spec.feature.Feature(id="collapsed_feature")],
             )

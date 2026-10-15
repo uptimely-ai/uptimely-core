@@ -31,7 +31,7 @@ features = [
 mappings = [
     mapping.Read(
         id="read",
-        bind=bind.bind(functions.read_data, function_id="read"),
+        bind=bind.bind(ref.function(functions.read_data), function_id="read"),
         outputs=[
             ref.feature("input_1"),
             ref.feature("input_2"),
@@ -41,7 +41,7 @@ mappings = [
     mapping.Vectorize(
         id="column_3",
         bind=bind.bind(
-            functions.sum_features,
+            ref.function(functions.sum_features),
             left_feature=ref.feature("input_1"),
             right_feature=ref.feature("input_2"),
             output=ref.feature("column_3"),
@@ -53,7 +53,7 @@ mappings = [
     mapping.Vectorize(
         id="column_4",
         bind=bind.bind(
-            functions.tag_first_item,
+            ref.function(functions.tag_first_item),
             function_id="column_4",
             output=ref.feature("column_4"),
             id_column=ref.dimension("id"),
@@ -65,7 +65,7 @@ mappings = [
     mapping.Write(
         inputs=[ref.feature("column_3"), ref.feature("column_4")],
         bind=bind.bind(
-            functions.write_data,
+            ref.function(functions.write_data),
             function_id="write",
             df=ref.current_dataset(),
             cols=[ref.feature("column_3"), ref.feature("column_4")],

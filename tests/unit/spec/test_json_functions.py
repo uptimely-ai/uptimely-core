@@ -20,7 +20,7 @@ def _dataset(identifier: str, conflicting: bool = False) -> dataset.Dataset:
         mappings=[
             mapping.Read(
                 bind=bind.bind(
-                    _other_source if conflicting else _source,
+                    ref.function(_other_source if conflicting else _source),
                     function_id="source",
                     path="readings.json",
                     columns=[ref.feature("temperature")],
