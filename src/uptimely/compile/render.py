@@ -190,7 +190,6 @@ def _create_website_pages(
 
     environment = uptimely_render.html_environment()
     context = {
-        "spec_path": None,
         "analytics_version": plan.plan.analytics_version,
         "callable_count": len(plan.operations),
         "function_count": len({step["function"] for step in steps}),

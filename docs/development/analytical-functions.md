@@ -2,7 +2,7 @@
 
 The framework creates many safeguards what can go into the analytical functions, and what comes out. For example dataset, feature and dimension data types, structural validation, operation types etc.
 
-However, what happens inside the analytical functions written by user is developer's responsibility. It is possible to even produce structurally correct results with methods that are against the specification.
+However, what happens inside the analytical functions written by user is developer's responsibility. It is possible to even produce structurally correct results with methods that are against the analytics definition.
 
 Here are the best practices for writing the analytical function.
 
@@ -26,7 +26,7 @@ for t in timesteps:
     ...
 ```
 
-For tabular data, prefer vectorized functions and SQL window capabilities where they fit the problem. In the specification, this feature category is named `vectorize`; each vectorize function should transform its declared feature inputs into one output feature without performing I/O.
+For tabular data, prefer vectorized functions and SQL window capabilities where they fit the problem. In Analytics, this feature category is named `vectorize`; each vectorize function should transform its declared feature inputs into one output feature without performing I/O.
 
 ## i/o only in read and write functions
 

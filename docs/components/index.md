@@ -1,3 +1,3 @@
 # Components
 
-Components are common tools across specification, compiler and engine.
+Components are common tools across Analytics, Compiler, and Engine.

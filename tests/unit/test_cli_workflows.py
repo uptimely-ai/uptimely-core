@@ -1,4 +1,4 @@
-"""Tests for specification, plan, and engine command groups."""
+"""Tests for analytics, plan, and engine command groups."""
 
 import json
 import pathlib
@@ -105,7 +105,7 @@ def test_engine_run_compile_and_saved_plan(
         )
         capsys.readouterr()
 
-        # Loading a saved plan must neither compile nor require a specification.
+        # Loading a saved plan must neither compile nor require analytics.
         def fail_compile(*args: object, **kwargs: object) -> None:
             pytest.fail("Saved-plan execution must not compile")
 
