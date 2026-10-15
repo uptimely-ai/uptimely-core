@@ -60,7 +60,7 @@ is plain JSON-RPC; the model lives in the client host.
 
 ```sh
 uptimely-mcp \
-  --spec examples/pump_analytics/_generated/spec/spec.json \
+  --analytics examples/pump_analytics/_generated/analytics/analytics.json \
   --project-root . \
   --config examples/pump_analytics/config/engine.json
 ```
@@ -69,7 +69,7 @@ The arguments:
 
 Argument | Purpose
 --- | ---
-`--spec` | Path to the analytics JSON document. Required.
+`--analytics` | Path to the analytics JSON document. Required.
 `--project-root` | Directory added to `sys.path` so function entrypoints resolve. Defaults to the working directory.
 `--config` | JSON file with engine settings and `bind` values. The example binding supplies local paths for source datasets.
 
@@ -101,8 +101,8 @@ workspace and launches the server from its Poetry virtual environment.
       "command": "${workspaceFolder}/.venv/bin/uptimely-mcp",
       "cwd": "${workspaceFolder}",
       "args": [
-        "--spec",
-        "${workspaceFolder}/examples/pump_analytics/_generated/spec/spec.json",
+        "--analytics",
+        "${workspaceFolder}/examples/pump_analytics/_generated/analytics/analytics.json",
         "--project-root",
         "${workspaceFolder}",
         "--config",

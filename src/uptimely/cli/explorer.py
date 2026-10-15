@@ -92,11 +92,11 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         "build", help="Build the analytics, feature graph, and execution plan website"
     )
     build.add_argument(
-        "--spec",
+        "--analytics",
         type=pathlib.Path,
         help=(
             "Analytics JSON path (required unless --project-root is set; "
-            "then defaults to _generated/spec/spec.json under that root)"
+            "then defaults to _generated/analytics/analytics.json under that root)"
         ),
     )
     build.add_argument(
@@ -121,11 +121,11 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         "serve", help="Build and serve the generated website for local preview"
     )
     serve.add_argument(
-        "--spec",
+        "--analytics",
         type=pathlib.Path,
         help=(
-            "Analytics JSON path (defaults to _generated/spec/spec.json under "
-            "--project-root, or _generated/spec/spec.json otherwise)"
+            "Analytics JSON path (defaults to _generated/analytics/analytics.json under "
+            "--project-root, or _generated/analytics/analytics.json otherwise)"
         ),
     )
     serve.add_argument(
@@ -154,7 +154,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     default_analytics_path = project_path / GENERATED_ANALYTICS_PATH
     default_output = project_path / GENERATED_EXPLORER_PATH
     if args.action == "serve":
-        analytics_definition = args.spec or default_analytics_path
+        analytics_definition = args.analytics or default_analytics_path
         directory = args.directory or default_output
         try:
             build_explorer(analytics_definition, directory, project_root)
@@ -172,9 +172,9 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         except (OSError, ValueError) as error:
             parser.exit(1, f"uptimely: error: {error}\n")
         return
-    if args.spec is None and args.project_root is None:
-        parser.error("explorer build requires --spec unless --project-root is set")
-    analytics_definition = args.spec or default_analytics_path
+    if args.analytics is None and args.project_root is None:
+        parser.error("explorer build requires --analytics unless --project-root is set")
+    analytics_definition = args.analytics or default_analytics_path
     output = args.output or default_output
     try:
         index = build_explorer(

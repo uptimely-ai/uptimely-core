@@ -5,7 +5,7 @@ import pytest
 
 from uptimely import analytics, compile
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 
 
 def test_compiler_creates_callable_graph_subset_for_requested_features() -> None:
@@ -38,7 +38,7 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
     mapping = dataset["mappings"]["health_signal_normalized"]
     mapping["features"]["outputs"].append("$features.health_signal_secondary")
     dataset["features"]["health_signal_secondary"] = {"type": "float"}
-    analytics_path = tmp_path / "spec.json"
+    analytics_path = tmp_path / "analytics.json"
     analytics_path.write_text(json.dumps(analytics_definition), encoding="utf-8")
 
     plan = compile.Compiler(analytics_path, features=["health_signal_normalized"]).compile()

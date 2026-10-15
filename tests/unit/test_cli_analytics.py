@@ -33,7 +33,7 @@ def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
 def test_export_example_in_fresh_process(
     tmp_path: pathlib.Path, module: str, name: str, entities: set[str]
 ) -> None:
-    output = tmp_path / "export/spec.json"
+    output = tmp_path / "export/analytics.json"
     result = subprocess.run(
         [
             sys.executable,
@@ -81,7 +81,7 @@ def test_export_default_output_and_import_root(
     else:
         monkeypatch.chdir(tmp_path)
     invoke(monkeypatch, *arguments)
-    output = tmp_path / "_generated/spec/spec.json"
+    output = tmp_path / "_generated/analytics/analytics.json"
     assert json.loads(output.read_text(encoding="utf-8"))["name"] == "Simple analytics"
     assert "Analytics written to" in capsys.readouterr().out
 
@@ -97,9 +97,9 @@ def test_export_explicit_output_is_relative_to_working_directory(
         "--project-root",
         str(REPOSITORY_ROOT),
         "--output",
-        "custom/spec.json",
+        "custom/analytics.json",
     )
-    assert (tmp_path / "custom/spec.json").is_file()
+    assert (tmp_path / "custom/analytics.json").is_file()
 
 
 @pytest.mark.parametrize(
@@ -142,7 +142,7 @@ def test_export_errors_are_reported(
     assert "uptimely: error:" in result.err
     assert error_text in result.err
     assert not result.out
-    assert not (tmp_path / "_generated/spec/spec.json").exists()
+    assert not (tmp_path / "_generated/analytics/analytics.json").exists()
 
 
 def test_export_write_errors_are_reported(
@@ -151,7 +151,7 @@ def test_export_write_errors_are_reported(
     output = tmp_path / "blocked"
     output.write_text("not a directory", encoding="utf-8")
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, "--module", PUMP_MODULE, "--output", str(output / "spec.json"))
+        invoke(monkeypatch, "--module", PUMP_MODULE, "--output", str(output / "analytics.json"))
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err

@@ -23,8 +23,8 @@ project/
 │       ├── dimension.py
 │       └── functions.py
 └── _generated/
-    ├── spec/
-    │   └── spec.json
+    ├── analytics/
+    │   └── analytics.json
     └── compile/
         └── execution_plan.json
 ```
@@ -47,7 +47,7 @@ graphs. `uptimely analytics export --module <module>` imports a module exposing
 `python_analytics`, a `PythonAnalytics` instance, and writes JSON.
 `uptimely explorer build` writes a linked website to `_generated/explorer/`.
 All HTML pages are generated together by that command.
-Analytics and plan JSON exports live in `_generated/spec/` and
+Analytics and plan JSON exports live in `_generated/analytics/` and
 `_generated/compile/`; `uptimely analytics feature-graph` prints graph summaries and,
 with `--verbose`, dependency trees without writing HTML.
 The [smaller Python example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/simple_analytics/README.md) demonstrates

@@ -160,7 +160,7 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
 @pytest.mark.parametrize("empty", [False, True])
 def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path):
     analytics_definition = _analytics(lazy=lazy, empty=empty)
-    path = tmp_path / "spec.json"
+    path = tmp_path / "analytics.json"
     analytics_definition.to_json(path)
     restored = analytics.Analytics(json=path)
     plan = compile.Compiler(restored).compile()

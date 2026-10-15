@@ -49,6 +49,8 @@ def pytest_configure(config: pytest.Config) -> None:
         ),
     )
     for project, analytics_definition in analytics_definitions:
-        output_path = REPOSITORY_ROOT / "examples" / project / "_generated" / "spec" / "spec.json"
+        output_path = (
+            REPOSITORY_ROOT / "examples" / project / "_generated" / "analytics" / "analytics.json"
+        )
         output_path.parent.mkdir(parents=True, exist_ok=True)
         analytics_definition.to_json(output_path)

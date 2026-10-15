@@ -10,7 +10,7 @@ from uptimely import compile
 from uptimely import engine as uptimely_engine
 from uptimely.cli import cli
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 ENGINE_CONFIG_PATH = pathlib.Path("examples/pump_analytics/config/engine.json")
 
 

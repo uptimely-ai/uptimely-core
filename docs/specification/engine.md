@@ -51,7 +51,7 @@ plan object.
 ```python
 from uptimely import Analytics
 
-analytics_definition = Analytics(json="examples/pump_analytics/_generated/spec/spec.json")
+analytics_definition = Analytics(json="examples/pump_analytics/_generated/analytics/analytics.json")
 plan = Compiler(
     analytics_definition,
     features=["health_signal_normalized"],

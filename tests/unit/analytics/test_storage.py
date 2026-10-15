@@ -9,14 +9,14 @@ from uptimely.analytics import storage
 
 
 def test_storage_reads_and_inspects_local_paths(tmp_path: pathlib.Path) -> None:
-    file_path = tmp_path / "spec.json"
+    file_path = tmp_path / "analytics.json"
     file_path.write_text('{"version": "0.1.0"}', encoding="utf-8")
 
     assert storage.Storage.read(file_path) == '{"version": "0.1.0"}'
     assert storage.Storage.exists(file_path)
     assert storage.Storage.is_dir(tmp_path)
-    assert storage.Storage.join(tmp_path, "nested", "spec.json") == str(
-        tmp_path / "nested" / "spec.json"
+    assert storage.Storage.join(tmp_path, "nested", "analytics.json") == str(
+        tmp_path / "nested" / "analytics.json"
     )
     assert storage.Storage.parent(file_path) == str(tmp_path)
 
@@ -53,19 +53,19 @@ def test_storage_reads_and_checks_s3_paths_with_mocked_client(monkeypatch) -> No
     monkeypatch.setattr(storage, "boto3", boto3)
     monkeypatch.setattr(storage, "exceptions", exceptions)
 
-    assert storage.Storage.read("s3://bucket/spec.json") == '{"version": "0.1.0"}'
-    assert storage.Storage.exists("s3://bucket/spec.json")
+    assert storage.Storage.read("s3://bucket/analytics.json") == '{"version": "0.1.0"}'
+    assert storage.Storage.exists("s3://bucket/analytics.json")
     client.exists = False
     assert not storage.Storage.exists("s3://bucket/missing.json")
     assert storage.Storage.is_dir("s3://bucket/prefix/")
     assert (
-        storage.Storage.join("s3://bucket/prefix/", "nested", "spec.json")
-        == "s3://bucket/prefix/nested/spec.json"
+        storage.Storage.join("s3://bucket/prefix/", "nested", "analytics.json")
+        == "s3://bucket/prefix/nested/analytics.json"
     )
-    assert storage.Storage.parent("s3://bucket/prefix/spec.json") == "s3://bucket/prefix/"
+    assert storage.Storage.parent("s3://bucket/prefix/analytics.json") == "s3://bucket/prefix/"
     assert client.requests == [
-        ("get", "bucket", "spec.json"),
-        ("head", "bucket", "spec.json"),
+        ("get", "bucket", "analytics.json"),
+        ("head", "bucket", "analytics.json"),
         ("head", "bucket", "missing.json"),
     ]
 
@@ -91,7 +91,7 @@ def test_storage_s3_exists_propagates_non_404_errors(monkeypatch) -> None:
     monkeypatch.setattr(storage, "exceptions", exceptions)
 
     with pytest.raises(ClientError):
-        storage.Storage.exists("s3://bucket/spec.json")
+        storage.Storage.exists("s3://bucket/analytics.json")
 
 
 @pytest.mark.parametrize("method", ["read", "exists"])
@@ -100,7 +100,7 @@ def test_storage_s3_reports_missing_optional_dependencies(monkeypatch, method: s
     monkeypatch.setattr(storage, "exceptions", None)
 
     with pytest.raises(ModuleNotFoundError, match=r"uptimely-core\[s3\]"):
-        getattr(storage.Storage, method)("s3://bucket/spec.json")
+        getattr(storage.Storage, method)("s3://bucket/analytics.json")
 
 
 def test_core_imports_without_s3_dependencies() -> None:

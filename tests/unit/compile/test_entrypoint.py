@@ -18,8 +18,8 @@ ANALYTICS_PATH = (
     / "examples"
     / "pump_analytics"
     / "_generated"
-    / "spec"
-    / "spec.json"
+    / "analytics"
+    / "analytics.json"
 )
 
 

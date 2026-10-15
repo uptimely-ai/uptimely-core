@@ -7,7 +7,7 @@ from html import parser as html_parser
 from uptimely import analytics, compile
 from uptimely.explorer import explorer, lineage
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 
 
 class LineageStructureCollector(html_parser.HTMLParser):

@@ -11,7 +11,7 @@ from uptimely import plan as plan_module
 from uptimely.cli import cli, engine, plan
 
 PROJECT = pathlib.Path(__file__).parents[2] / "examples/pump_analytics"
-ANALYTICS_PATH = PROJECT / "_generated/spec/spec.json"
+ANALYTICS_PATH = PROJECT / "_generated/analytics/analytics.json"
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
@@ -22,8 +22,8 @@ def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
 def test_plan_build_defaults_and_verbose(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    (tmp_path / "_generated/spec").mkdir(parents=True)
-    (tmp_path / "_generated/spec/spec.json").write_bytes(ANALYTICS_PATH.read_bytes())
+    (tmp_path / "_generated/analytics").mkdir(parents=True)
+    (tmp_path / "_generated/analytics/analytics.json").write_bytes(ANALYTICS_PATH.read_bytes())
     invoke(monkeypatch, "plan", "build", "--project-root", str(tmp_path), "--verbose")
 
     restored = plan_module.ExecutionPlan.from_json(
@@ -45,7 +45,7 @@ def test_plan_build_explicit_paths_and_subset(
         monkeypatch,
         "plan",
         "build",
-        "--spec",
+        "--analytics",
         str(ANALYTICS_PATH),
         "--output",
         str(output),
@@ -132,7 +132,7 @@ def test_engine_run_compile_and_saved_plan(
         ["engine", "unknown"],
         ["engine", "run", "--compile", "no"],
         ["engine", "run", "--compile", "false", "--features", "health_signal_normalized"],
-        ["engine", "run", "--compile", "false", "--spec", "spec.json"],
+        ["engine", "run", "--compile", "false", "--analytics", "analytics.json"],
         ["engine", "run", "--plan", "plan.json"],
     ],
 )
@@ -166,7 +166,12 @@ def test_unknown_feature_is_reported(
 ) -> None:
     with pytest.raises(SystemExit) as error:
         invoke(
-            monkeypatch, *command, "--spec", str(ANALYTICS_PATH), "--features", "unknown_feature"
+            monkeypatch,
+            *command,
+            "--analytics",
+            str(ANALYTICS_PATH),
+            "--features",
+            "unknown_feature",
         )
     assert error.value.code == 1
     assert "unknown_feature" in capsys.readouterr().err
@@ -182,7 +187,15 @@ def test_engine_invalid_config_is_reported(
     config = tmp_path / "engine.json"
     config.write_text(content, encoding="utf-8")
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, "engine", "run", "--spec", str(ANALYTICS_PATH), "--config", str(config))
+        invoke(
+            monkeypatch,
+            "engine",
+            "run",
+            "--analytics",
+            str(ANALYTICS_PATH),
+            "--config",
+            str(config),
+        )
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
@@ -195,7 +208,15 @@ def test_engine_operation_failures_are_reported(
     config = tmp_path / "engine.json"
     config.write_text("{}", encoding="utf-8")
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, "engine", "run", "--spec", str(ANALYTICS_PATH), "--config", str(config))
+        invoke(
+            monkeypatch,
+            "engine",
+            "run",
+            "--analytics",
+            str(ANALYTICS_PATH),
+            "--config",
+            str(config),
+        )
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "Engine flow failed:" in result.err
@@ -248,10 +269,10 @@ def test_invalid_analytics_is_reported(
     capsys: pytest.CaptureFixture[str],
     command: list[str],
 ) -> None:
-    analytics_definition = tmp_path / "spec.json"
+    analytics_definition = tmp_path / "analytics.json"
     analytics_definition.write_text("not JSON", encoding="utf-8")
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, *command, "--spec", str(analytics_definition))
+        invoke(monkeypatch, *command, "--analytics", str(analytics_definition))
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
@@ -268,7 +289,7 @@ def test_plan_write_errors_are_reported(
             monkeypatch,
             "plan",
             "build",
-            "--spec",
+            "--analytics",
             str(ANALYTICS_PATH),
             "--output",
             str(output),
@@ -279,7 +300,7 @@ def test_plan_write_errors_are_reported(
 
 def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.Path) -> None:
     project = tmp_path / "project"
-    (project / "_generated/spec").mkdir(parents=True)
+    (project / "_generated/analytics").mkdir(parents=True)
     (project / "cli_project_functions.py").write_text(
         "import polars\n"
         "def read_values(path: str) -> polars.DataFrame:\n"
@@ -293,7 +314,7 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
     config.write_text(
         json.dumps({"bind": {"storage": {"source": {"path": str(data)}}}}), encoding="utf-8"
     )
-    (project / "_generated/spec/spec.json").write_text(
+    (project / "_generated/analytics/analytics.json").write_text(
         json.dumps(
             {
                 "version": "0.1.0",

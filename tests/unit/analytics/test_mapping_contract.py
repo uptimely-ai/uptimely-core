@@ -146,7 +146,7 @@ def test_returned_row_order_does_not_control_alignment(monkeypatch: pytest.Monke
 def test_invalid_input_contracts_are_rejected(
     tmp_path: pathlib.Path, inputs: list[str], message: str
 ) -> None:
-    path = tmp_path / "spec.json"
+    path = tmp_path / "analytics.json"
     _analytics().to_json(path)
     configuration = json.loads(path.read_text())
     configuration["entities"]["entity"]["datasets"][0]["mappings"]["result"]["features"][
@@ -158,7 +158,7 @@ def test_invalid_input_contracts_are_rejected(
 
 
 def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
-    path = tmp_path / "spec.json"
+    path = tmp_path / "analytics.json"
     _analytics().to_json(path)
     configuration = json.loads(path.read_text())
     configuration["functions"]["vectorize"]["add_one"]["args"]["dataset"]["type"] = "string"
@@ -205,7 +205,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
 def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     tmp_path: pathlib.Path, with_sink: bool
 ) -> None:
-    path = tmp_path / "spec.json"
+    path = tmp_path / "analytics.json"
     _analytics().to_json(path)
     configuration = json.loads(path.read_text())
     dataset = configuration["entities"]["entity"]["datasets"][0]

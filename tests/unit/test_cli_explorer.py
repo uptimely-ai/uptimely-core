@@ -11,7 +11,7 @@ import pytest
 from uptimely.cli import cli, explorer
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-ANALYTICS_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
+ANALYTICS_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/analytics/analytics.json"
 PAGES = {
     "index.html",
     "spec/overview.html",
@@ -33,7 +33,7 @@ def test_explorer_build_defaults(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
-        sys, "argv", ["uptimely", "explorer", "build", "--spec", str(ANALYTICS_PATH)]
+        sys, "argv", ["uptimely", "explorer", "build", "--analytics", str(ANALYTICS_PATH)]
     )
 
     cli.main()
@@ -56,7 +56,7 @@ def test_explorer_build_custom_output_and_timestamp(
             "uptimely",
             "explorer",
             "build",
-            "--spec",
+            "--analytics",
             str(ANALYTICS_PATH),
             "--output",
             str(output),
@@ -91,7 +91,7 @@ def test_explorer_build_defaults_paths_from_project_root(
 
     assert calls == [
         (
-            tmp_path / "_generated/spec/spec.json",
+            tmp_path / "_generated/analytics/analytics.json",
             tmp_path / "_generated/explorer",
             tmp_path,
         )
@@ -105,7 +105,7 @@ def test_explorer_build_defaults_paths_from_project_root(
         ["explorer", "unknown"],
         ["explorer", "build"],
         ["explorer", "build", "--unknown"],
-        ["explorer", "generate", "--spec", str(ANALYTICS_PATH)],
+        ["explorer", "generate", "--analytics", str(ANALYTICS_PATH)],
         ["docs"],
     ],
 )
@@ -138,7 +138,9 @@ def test_explorer_build_errors_are_reported(
         raise failure
 
     monkeypatch.setattr(explorer, "build_explorer", fail)
-    monkeypatch.setattr(sys, "argv", ["uptimely", "explorer", "build", "--spec", "spec.json"])
+    monkeypatch.setattr(
+        sys, "argv", ["uptimely", "explorer", "build", "--analytics", "analytics.json"]
+    )
 
     with pytest.raises(SystemExit) as error:
         cli.main()
@@ -156,7 +158,7 @@ def test_explorer_rejects_missing_or_invalid_analytics(
     capsys: pytest.CaptureFixture[str],
     content: str | None,
 ) -> None:
-    analytics_definition = tmp_path / "spec.json"
+    analytics_definition = tmp_path / "analytics.json"
     if content is not None:
         analytics_definition.write_text(content, encoding="utf-8")
     output = tmp_path / "site"
@@ -167,7 +169,7 @@ def test_explorer_rejects_missing_or_invalid_analytics(
             "uptimely",
             "explorer",
             "build",
-            "--spec",
+            "--analytics",
             str(analytics_definition),
             "--output",
             str(output),
@@ -189,13 +191,15 @@ def test_explorer_build_imports_project_functions_in_fresh_process(
     project = tmp_path / "project"
     project.mkdir()
     generated = project / "_generated"
-    (generated / "spec").mkdir(parents=True)
+    (generated / "analytics").mkdir(parents=True)
     (project / "analytics_functions.py").write_text(
         "def read_values() -> object:\n    raise RuntimeError('Must not execute analytics')\n",
         encoding="utf-8",
     )
     analytics_definition = (
-        generated / "spec/spec.json" if explicit_project_root else project / "spec.json"
+        generated / "analytics/analytics.json"
+        if explicit_project_root
+        else project / "analytics.json"
     )
     analytics_definition.write_text(
         json.dumps(
@@ -236,7 +240,7 @@ def test_explorer_build_imports_project_functions_in_fresh_process(
     if explicit_project_root:
         arguments.extend(["--project-root", str(project)])
     else:
-        arguments.extend(["--spec", str(analytics_definition), "--output", str(output)])
+        arguments.extend(["--analytics", str(analytics_definition), "--output", str(output)])
 
     result = subprocess.run(
         arguments,

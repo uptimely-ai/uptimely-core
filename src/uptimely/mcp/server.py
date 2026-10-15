@@ -278,7 +278,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         analytics_definition = state.load_analytics(reload=True)
         return _to_json(
             {
-                "spec": str(state.analytics_path),
+                "analytics": str(state.analytics_path),
                 "entities": sorted(analytics_definition.entities),
                 "functions": {
                     category: len(getattr(analytics_definition.function_catalog, category))
@@ -314,7 +314,9 @@ def _load_engine_config(
 def main() -> None:
     """Launch the uptimely MCP server over stdio."""
     parser = argparse.ArgumentParser(description="Uptimely MCP server")
-    parser.add_argument("--spec", required=True, type=pathlib.Path, help="Path to analytics JSON")
+    parser.add_argument(
+        "--analytics", required=True, type=pathlib.Path, help="Path to analytics JSON"
+    )
     parser.add_argument(
         "--project-root",
         type=pathlib.Path,
@@ -331,11 +333,11 @@ def main() -> None:
 
     # Log to stderr only: stdout is the MCP protocol channel.
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
-    logger.info("Starting uptimely MCP server for analytics %s", args.spec)
+    logger.info("Starting uptimely MCP server for analytics %s", args.analytics)
 
     engine_config, bind = _load_engine_config(args.config)
     state = ServerState(
-        analytics_path=args.spec,
+        analytics_path=args.analytics,
         project_root=args.project_root,
         engine_config=engine_config,
         bind=bind,

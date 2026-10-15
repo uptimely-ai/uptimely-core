@@ -249,7 +249,7 @@ def test_analytics_plan_execution_and_explorer_preserve_context(tmp_path: pathli
         "24h", dimension=ref.dimension("timestamp"), before="24h", after="2h"
     ).row_context
     analytics_definition = _analytics(context)
-    path = tmp_path / "spec.json"
+    path = tmp_path / "analytics.json"
     analytics_definition.to_json(path)
     payload = json.loads(path.read_text())
     authored_dataset = payload["entities"]["entity"]["datasets"][0]
@@ -289,7 +289,7 @@ def test_analytics_plan_and_batch_execution_preserve_context_and_arguments(
 ) -> None:
     context = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h").row_context
     analytics_definition = _analytics(context)
-    analytics_path = tmp_path / "spec.json"
+    analytics_path = tmp_path / "analytics.json"
     analytics_definition.to_json(analytics_path)
     restored_analytics = analytics.Analytics(json=analytics_path)
     original_mapping = analytics_definition.entities["entity"].datasets[0].mappings["result"]

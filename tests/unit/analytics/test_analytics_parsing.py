@@ -7,7 +7,7 @@ import pytest
 from uptimely import analytics
 from uptimely.analytics import models, validation
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 
 
 def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str) -> pathlib.Path:
@@ -225,7 +225,7 @@ def test_analytics_validation_rejects_duplicate_feature_names(tmp_path: pathlib.
             }
         ],
     }
-    analytics_path = tmp_path / "spec.json"
+    analytics_path = tmp_path / "analytics.json"
     analytics_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(ValueError, match="Duplicate feature name: pressure_flow_efficiency"):
@@ -240,7 +240,7 @@ def test_analytics_validation_rejects_duplicate_fragment_input_names(
         "binding": {"function": "read_pump_telemetry", "args": {}},
         "features": {"inputs": [], "outputs": ["$features.bearing_temperature"]},
     }
-    analytics_path = tmp_path / "spec.json"
+    analytics_path = tmp_path / "analytics.json"
     analytics_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(
@@ -257,7 +257,7 @@ def test_dimension_outputs_are_implicit_in_mapping(
     configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"]["read_pump_telemetry"][
         "features"
     ]["outputs"].remove("$features.plant")
-    analytics_path = tmp_path / "spec.json"
+    analytics_path = tmp_path / "analytics.json"
     analytics_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     analytics.Analytics(json=analytics_path)
@@ -270,7 +270,7 @@ def test_analytics_validation_rejects_unknown_vectorize_template(
     configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"]["recommended_flow_rate"][
         "binding"
     ]["function"] = "missing_vectorize_template"
-    analytics_path = tmp_path / "spec.json"
+    analytics_path = tmp_path / "analytics.json"
     analytics_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(
@@ -290,7 +290,7 @@ def test_analytics_validation_rejects_feature_dimension_name_collision(
         **collision,
         "features": {"inputs": [], "outputs": ["$features.pump"]},
     }
-    analytics_path = tmp_path / "spec.json"
+    analytics_path = tmp_path / "analytics.json"
     analytics_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(
@@ -323,7 +323,7 @@ def test_analytics_validation_rejects_cross_dataset_feature_dependency(
             }
         ],
     }
-    analytics_path = tmp_path / "spec.json"
+    analytics_path = tmp_path / "analytics.json"
     analytics_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(
