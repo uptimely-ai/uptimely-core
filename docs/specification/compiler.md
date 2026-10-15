@@ -221,9 +221,9 @@ To inspect operation order and dependencies in HTML, generate the full website
 from the original specification:
 
 ```python
-from uptimely.docs import docs
+from uptimely.explorer import explorer
 
-index_path = docs.create_html(specification)
+index_path = explorer.create_html(specification)
 ```
 
 `uptimely explorer build` provides the same website. Its execution-plan section

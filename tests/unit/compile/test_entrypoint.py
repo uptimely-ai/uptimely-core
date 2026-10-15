@@ -208,8 +208,8 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
         "dataset": "DataFrame",
         "output": "str",
     }
-    documentation = spec_render.create_json(specification, tmp_path / "docs.json")
-    configuration = json.loads(documentation.read_text(encoding="utf-8"))["configuration"]
+    reference_data = spec_render.create_json(specification, tmp_path / "docs.json")
+    configuration = json.loads(reference_data.read_text(encoding="utf-8"))["configuration"]
     expected_file = path.as_uri() if scheme == "local" else location
     assert configuration["functions"]["vectorize"]["calculate"]["entrypoint_file"] == expected_file
     assert downloads == expected_downloads

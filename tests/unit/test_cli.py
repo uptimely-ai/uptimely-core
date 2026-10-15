@@ -12,7 +12,7 @@ from urllib import error as urllib_error
 
 import pytest
 
-from uptimely.cli import cli, docs, examples
+from uptimely.cli import cli, examples, explorer
 
 
 def _archive(files: dict[str, str]) -> bytes:
@@ -40,7 +40,7 @@ def github(monkeypatch: pytest.MonkeyPatch) -> list[str]:
             "project-main/examples/pump_analytics/run.py": "print('example')",
             "project-main/examples/pump_analytics/data/sample.csv": "x\n1\n",
             "project-main/src/module.py": "not an example",
-            "project-main/docs/examples/guide.md": "not a root-level example",
+            "project-main/explorer/examples/guide.md": "not a root-level example",
             "project-main/tests/examples/fixture.py": "not a root-level example",
             "project-main/examples/empty/": "",
         }
@@ -401,5 +401,5 @@ def test_console_script_registration() -> None:
 
 def test_cli_preserves_helper_imports() -> None:
     assert cli.download_examples is examples.download_examples
-    assert cli.build_docs is docs.build_docs
-    assert cli.serve_docs is docs.serve_docs
+    assert cli.build_explorer is explorer.build_explorer
+    assert cli.serve_explorer is explorer.serve_explorer

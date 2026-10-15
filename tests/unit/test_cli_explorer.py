@@ -1,4 +1,4 @@
-"""Tests for building analytics documentation from the command line."""
+"""Tests for building the analytics explorer from the command line."""
 
 import json
 import pathlib
@@ -8,7 +8,7 @@ import sys
 import jinja2
 import pytest
 
-from uptimely.cli import cli, docs
+from uptimely.cli import cli, explorer
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
@@ -28,7 +28,7 @@ PAGES = {
 }
 
 
-def test_docs_build_defaults(
+def test_explorer_build_defaults(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.chdir(tmp_path)
@@ -43,7 +43,7 @@ def test_docs_build_defaults(
     assert not result.err
 
 
-def test_docs_build_custom_output_and_timestamp(
+def test_explorer_build_custom_output_and_timestamp(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     output = tmp_path / "public/analytics"
@@ -68,13 +68,13 @@ def test_docs_build_custom_output_and_timestamp(
     assert "generated 20" in (output / "spec/overview.html").read_text(encoding="utf-8")
 
 
-def test_docs_build_defaults_paths_from_project_root(
+def test_explorer_build_defaults_paths_from_project_root(
     monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
 ) -> None:
     calls: list[tuple[pathlib.Path, pathlib.Path, pathlib.Path]] = []
     monkeypatch.setattr(
-        docs,
-        "build_docs",
+        explorer,
+        "build_explorer",
         lambda spec, output, project_root, include_generated_at=False: (
             calls.append((spec, output, project_root)) or output / "index.html"
         ),
@@ -107,7 +107,7 @@ def test_docs_build_defaults_paths_from_project_root(
         ["docs"],
     ],
 )
-def test_docs_requires_valid_arguments(
+def test_explorer_requires_valid_arguments(
     monkeypatch: pytest.MonkeyPatch, arguments: list[str]
 ) -> None:
     monkeypatch.setattr(sys, "argv", ["uptimely", *arguments])
@@ -129,13 +129,13 @@ def test_docs_requires_valid_arguments(
         jinja2.TemplateError("Invalid HTML template"),
     ],
 )
-def test_docs_build_errors_are_reported(
+def test_explorer_build_errors_are_reported(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], failure: Exception
 ) -> None:
     def fail(*args: object, **kwargs: object) -> pathlib.Path:
         raise failure
 
-    monkeypatch.setattr(docs, "build_docs", fail)
+    monkeypatch.setattr(explorer, "build_explorer", fail)
     monkeypatch.setattr(sys, "argv", ["uptimely", "explorer", "build", "--spec", "spec.json"])
 
     with pytest.raises(SystemExit) as error:
@@ -148,7 +148,7 @@ def test_docs_build_errors_are_reported(
 
 
 @pytest.mark.parametrize("content", [None, "not JSON", '{"version": "unsupported"}'])
-def test_docs_rejects_missing_or_invalid_specification(
+def test_explorer_rejects_missing_or_invalid_specification(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -181,7 +181,7 @@ def test_docs_rejects_missing_or_invalid_specification(
 
 
 @pytest.mark.parametrize("explicit_project_root", [False, True])
-def test_docs_build_imports_project_functions_in_fresh_process(
+def test_explorer_build_imports_project_functions_in_fresh_process(
     tmp_path: pathlib.Path, explicit_project_root: bool
 ) -> None:
     project = tmp_path / "project"

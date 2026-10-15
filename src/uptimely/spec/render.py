@@ -18,8 +18,8 @@ SPECIFICATION_PAGES = render.WEBSITE_PAGES["spec"]
 
 
 @dataclasses.dataclass(frozen=True)
-class DocumentationSummary:
-    """Typed summary values displayed in the documentation overview."""
+class ExplorerSummary:
+    """Typed summary values displayed in the explorer overview."""
 
     entity_count: int
     dataset_count: int
@@ -34,17 +34,17 @@ class DocumentationSummary:
 
 
 @dataclasses.dataclass(frozen=True)
-class DocumentationContext:
-    """Complete template context for one documentation build."""
+class ExplorerContext:
+    """Complete template context for one explorer build."""
 
     configuration: dict[str, typing.Any]
-    summary: DocumentationSummary
+    summary: ExplorerSummary
     feature_dependencies: list[dict[str, typing.Any]]
     generated_at: str | None = None
 
 
 def _write_document_data(
-    context: DocumentationContext, output_path: pathlib.Path
+    context: ExplorerContext, output_path: pathlib.Path
 ) -> dict[str, typing.Any]:
     data = dataclasses.asdict(context)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -61,7 +61,7 @@ def _render_document(
     section: str,
     index_filename: str,
 ) -> pathlib.Path:
-    """Write one specification section within the documentation website."""
+    """Write one specification section within the explorer website."""
     environment = render.html_environment()
     template = f"spec/{section}.html.j2"
     document = environment.get_template(template).render(
@@ -81,7 +81,7 @@ def _render_document(
 
 
 def _create_website_pages(
-    context: DocumentationContext,
+    context: ExplorerContext,
     output_directory: pathlib.Path,
     *,
     index_filename: str = "index.html",
@@ -151,7 +151,7 @@ def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], lis
 
 def _build_context(
     specification: spec.Specification, include_generated_at: bool
-) -> DocumentationContext:
+) -> ExplorerContext:
     """Build the typed template context from a canonical specification model."""
     configuration = specification.model_dump(mode="json", exclude_none=True)
     for entity_id, entity in specification.entities.items():
@@ -227,7 +227,7 @@ def _build_context(
             for category in ("read", "conform", "expand", "collapse")
         )
     )
-    summary = DocumentationSummary(
+    summary = ExplorerSummary(
         entity_count=len(entities),
         dataset_count=dataset_count,
         mapping_count=mapping_count,
@@ -254,7 +254,7 @@ def _build_context(
         if include_generated_at
         else None
     )
-    return DocumentationContext(
+    return ExplorerContext(
         configuration=configuration,
         summary=summary,
         feature_dependencies=dependencies,

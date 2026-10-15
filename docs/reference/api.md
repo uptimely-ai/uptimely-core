@@ -86,11 +86,11 @@ the declarative contract.
 
 ## Analytics Explorer
 
-::: uptimely.docs.docs.Documentation
+::: uptimely.explorer.explorer.Explorer
 
-`Documentation.create_html` and the module-level `uptimely.docs.docs.create_html`
+`Explorer.create_html` and the module-level `uptimely.explorer.explorer.create_html`
 helper generate the complete static website with specification, feature graph,
 and execution plan pages. Individual HTML report exports are not supported.
-`Documentation.create_json` exports reference data; specification and portable-plan
+`Explorer.create_json` exports reference data; specification and portable-plan
 JSON exports remain available. These outputs describe analytics, not this Python API reference.
-See [analytics documentation](../components/docs.md).
+See [Analytics Explorer](../components/docs.md).

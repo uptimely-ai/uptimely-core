@@ -5,7 +5,7 @@ from html import parser as html_parser
 from examples.pump_analytics.config.spec import spec as pump_spec
 
 from uptimely import spec
-from uptimely.docs import docs
+from uptimely.explorer import explorer
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
@@ -37,7 +37,7 @@ class TextCollector(html_parser.HTMLParser):
         return " ".join(self.parts)
 
 
-def _documentation_counts(specification: spec.Specification) -> dict[str, int]:
+def _explorer_counts(specification: spec.Specification) -> dict[str, int]:
     datasets = [
         dataset for entity in specification.entities.values() for dataset in entity.datasets
     ]
@@ -55,10 +55,10 @@ def _documentation_counts(specification: spec.Specification) -> dict[str, int]:
     }
 
 
-def test_json_docs_have_expected_keys(tmp_path: pathlib.Path) -> None:
+def test_json_explorer_have_expected_keys(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
 
-    output_path = docs.Documentation(specification).create_json(tmp_path / "docs.json")
+    output_path = explorer.Explorer(specification).create_json(tmp_path / "explorer.json")
     document = json.loads(output_path.read_text(encoding="utf-8"))
 
     assert set(document) == {
@@ -84,11 +84,11 @@ def test_json_docs_have_expected_keys(tmp_path: pathlib.Path) -> None:
     }
 
 
-def test_json_docs_counts_match_specification(tmp_path: pathlib.Path) -> None:
+def test_json_explorer_counts_match_specification(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
-    expected_counts = _documentation_counts(specification)
+    expected_counts = _explorer_counts(specification)
 
-    output_path = docs.Documentation(specification).create_json(tmp_path / "docs.json")
+    output_path = explorer.Explorer(specification).create_json(tmp_path / "explorer.json")
     document = json.loads(output_path.read_text(encoding="utf-8"))
     configuration = document["configuration"]
 
@@ -102,12 +102,12 @@ def test_json_docs_counts_match_specification(tmp_path: pathlib.Path) -> None:
     assert len(document["feature_dependencies"]) == len(specification.calls)
 
 
-def test_html_docs_overview_counts_match_specification(tmp_path: pathlib.Path) -> None:
+def test_html_explorer_overview_counts_match_specification(tmp_path: pathlib.Path) -> None:
     specification = spec.Specification.from_json(SPEC_PATH)
     specification.name = "Pump analytics"
-    expected_counts = _documentation_counts(specification)
+    expected_counts = _explorer_counts(specification)
 
-    docs.Documentation(specification).create_html(tmp_path / "index.html")
+    explorer.Explorer(specification).create_html(tmp_path / "index.html")
     output_path = tmp_path / "spec/overview.html"
     parser = TextCollector()
     parser.feed(output_path.read_text(encoding="utf-8"))

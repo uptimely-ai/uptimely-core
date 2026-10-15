@@ -1,4 +1,4 @@
-"""Build a static documentation website from an analytics specification."""
+"""Build an analytics explorer website from a specification."""
 
 import pathlib
 
@@ -10,10 +10,10 @@ from uptimely.spec import render as spec_render
 
 from . import lineage
 
-OUTPUT_DIR = pathlib.Path("_generated") / "explorer"
+EXPLORER_OUTPUT_DIR = pathlib.Path("_generated") / "explorer"
 
 
-class Documentation:
+class Explorer:
     """Generate a linked specification, plan, and data-lineage website."""
 
     def __init__(self, specification: spec.Specification) -> None:
@@ -27,13 +27,17 @@ class Documentation:
         """Export specification reference data as JSON.
 
         Args:
-            output_path: Output file; defaults to ``_generated/explorer/docs.json``.
+            output_path: Output file; defaults to ``_generated/explorer/explorer.json``.
             include_generated_at: Include a build timestamp.
 
         Returns:
             The path to the JSON document.
         """
-        target = pathlib.Path(output_path) if output_path is not None else OUTPUT_DIR / "docs.json"
+        target = (
+            pathlib.Path(output_path)
+            if output_path is not None
+            else EXPLORER_OUTPUT_DIR / "explorer.json"
+        )
         return spec_render.create_json(self.spec, target, include_generated_at)
 
     def create_html(
@@ -56,7 +60,11 @@ class Documentation:
         Returns:
             The path to the website index.
         """
-        target = pathlib.Path(output_path) if output_path is not None else OUTPUT_DIR / "index.html"
+        target = (
+            pathlib.Path(output_path)
+            if output_path is not None
+            else EXPLORER_OUTPUT_DIR / "index.html"
+        )
         target = target.with_suffix(".html")
         plan = compile.Compiler(self.spec).compile()
         graph = analytics.FeatureGraph(self.spec)
@@ -99,7 +107,7 @@ def create_json(
     include_generated_at: bool = False,
 ) -> pathlib.Path:
     """Export specification reference data as JSON."""
-    return Documentation(specification).create_json(output_path, include_generated_at)
+    return Explorer(specification).create_json(output_path, include_generated_at)
 
 
 def create_html(
@@ -107,7 +115,7 @@ def create_html(
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
 ) -> pathlib.Path:
-    """Export the complete documentation website.
+    """Export the complete analytics explorer website.
 
     Args:
         specification: The canonical analytics specification.
@@ -117,4 +125,4 @@ def create_html(
     Returns:
         The path to the website index.
     """
-    return Documentation(specification).create_html(output_path, include_generated_at)
+    return Explorer(specification).create_html(output_path, include_generated_at)
