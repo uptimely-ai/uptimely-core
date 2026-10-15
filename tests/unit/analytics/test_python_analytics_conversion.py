@@ -41,7 +41,19 @@ def _declaration(
                 bind=bind.bind(
                     ref.function(function),
                     function_id=f"{category}_shared",
-                    dataset=ref.current_dataset().dataframe,
+                    **(
+                        {"dataset": ref.current_dataset().dataframe}
+                        if category in {"write", "vectorize", "collapse"}
+                        else {}
+                    ),
+                    **(
+                        {
+                            "dataset": ref.current_dataset().dataframe,
+                            "other_dataset": ref.current_dataset().dataframe,
+                        }
+                        if category in {"expand", "conform"}
+                        else {}
+                    ),
                     columns=[ref.feature("temperature")],
                 ),
             )
@@ -116,20 +128,48 @@ def test_function_catalog_merges_and_deduplicates_each_operation(category: str) 
     assert catalog == first.function_catalog()
     function_id = f"{category}_shared"
     assert catalog[function_id].entrypoint == f"{__name__}:_source"
-    assert catalog[function_id].args["dataset"].type == "dataframe"
+    expected_dataframe_inputs = {
+        "read": 0,
+        "write": 1,
+        "vectorize": 1,
+        "collapse": 1,
+        "expand": 2,
+        "conform": 2,
+    }[category]
+    assert sum(arg.type == "dataframe" for arg in catalog[function_id].args.values()) == (
+        expected_dataframe_inputs
+    )
     assert catalog[function_id].args["columns"].type == "array[string]"
     payload = analytics_definition.to_analytics_dict()
     assert payload["functions"][function_id] == {
         "operation": category,
+        "returns": "none" if category == "write" else "dataframe",
         "entrypoint": f"{__name__}:_source",
         "args": {
-            "dataset": {"type": "dataframe", "comment": None},
             "columns": {"type": "array[string]", "comment": None},
+            **(
+                {"dataset": {"type": "dataframe", "comment": None}}
+                if expected_dataframe_inputs == 1
+                else {}
+            ),
+            **(
+                {
+                    "dataset": {"type": "dataframe", "comment": None},
+                    "other_dataset": {"type": "dataframe", "comment": None},
+                }
+                if expected_dataframe_inputs == 2
+                else {}
+            ),
         },
     }
+    expected_args = {"columns": ["$features.temperature"]}
+    if expected_dataframe_inputs:
+        expected_args["dataset"] = "$datasets.@.dataframe"
+    if expected_dataframe_inputs == 2:
+        expected_args["other_dataset"] = "$datasets.@.dataframe"
     assert payload["entities"]["one"]["datasets"][0]["mappings"]["first_mapping"]["binding"] == {
         "function": function_id,
-        "args": {"dataset": "$datasets.@.dataframe", "columns": ["$features.temperature"]},
+        "args": expected_args,
     }
 
 

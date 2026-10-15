@@ -9,7 +9,7 @@ from collections import abc
 
 from uptimely import analytics
 from uptimely import plan as uptimely_plan
-from uptimely.analytics.json import bindings
+from uptimely.analytics.json import bindings, json_model
 
 from . import entrypoint, execution_graph
 from . import node as node_module
@@ -184,12 +184,35 @@ class Compiler:
             if function is None or not function.entrypoint:
                 continue
             try:
-                signatures[node.node_id] = entrypoint.read_signature(
-                    function.entrypoint, pathlib.Path.cwd()
-                )
+                signature = entrypoint.read_signature(function.entrypoint, pathlib.Path.cwd())
             except (ImportError, AttributeError, ValueError, TypeError) as error:
                 raise ValueError(
                     f"Could not read signature of function {function.id} "
                     f"from entrypoint {function.entrypoint}: {error}"
                 ) from error
+            self._validate_return_annotation(function, signature.returns)
+            signatures[node.node_id] = signature
         return signatures
+
+    @staticmethod
+    def _validate_return_annotation(
+        function: json_model.FunctionTemplate, annotation: str | None
+    ) -> None:
+        """Require the Python return annotation to satisfy the function contract."""
+        returns = function.returns
+        if annotation is None:
+            raise ValueError(
+                f"Function {function.id} must annotate its return as "
+                f"{'None' if returns == 'none' else 'DataFrame or LazyFrame'}"
+            )
+        members = {member.strip().rsplit(".", 1)[-1] for member in annotation.split(" | ")}
+        if returns == "none":
+            compatible = members == {"None"}
+        else:
+            compatible = bool(members) and members <= {"DataFrame", "LazyFrame"}
+        if not compatible:
+            expected = "None" if returns == "none" else "DataFrame or LazyFrame"
+            raise ValueError(
+                f"Function {function.id} declares returns={returns}, but its Python "
+                f"return annotation is {annotation}; expected {expected}"
+            )

@@ -193,7 +193,10 @@ def test_explorer_build_imports_project_functions_in_fresh_process(
     generated = project / "_generated"
     (generated / "analytics").mkdir(parents=True)
     (project / "analytics_functions.py").write_text(
-        "def read_values() -> object:\n    raise RuntimeError('Must not execute analytics')\n",
+        "from __future__ import annotations\n\n"
+        "import polars\n\n"
+        "def read_values() -> polars.DataFrame:\n"
+        "    raise RuntimeError('Must not execute analytics')\n",
         encoding="utf-8",
     )
     analytics_definition = (
@@ -208,6 +211,7 @@ def test_explorer_build_imports_project_functions_in_fresh_process(
                 "functions": {
                     "read_values": {
                         "operation": "read",
+                        "returns": "dataframe",
                         "entrypoint": "analytics_functions:read_values",
                     }
                 },

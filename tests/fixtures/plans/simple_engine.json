@@ -18,7 +18,8 @@
           "source": {
             "type": "string"
           }
-        }
+        },
+        "returns": "dataframe"
       },
       "double": {
         "operation": "vectorize",
@@ -29,7 +30,8 @@
           "dataset": {
             "type": "dataframe"
           }
-        }
+        },
+        "returns": "dataframe"
       },
       "save": {
         "operation": "write",
@@ -40,7 +42,8 @@
           "features": {
             "type": "array[string]"
           }
-        }
+        },
+        "returns": "none"
       }
     }
   },

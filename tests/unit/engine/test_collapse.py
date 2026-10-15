@@ -28,11 +28,15 @@ def read_null_groups(lazy: bool = False, empty: bool = False) -> pl.DataFrame | 
     )
 
 
-def double(dataset: pl.DataFrame | pl.LazyFrame, column: str, output: str):
+def double(
+    dataset: pl.DataFrame | pl.LazyFrame, column: str, output: str
+) -> pl.DataFrame | pl.LazyFrame:
     return dataset.with_columns((pl.col(column) * 2).alias(output))
 
 
-def summarize(dataset: pl.DataFrame | pl.LazyFrame, column: str, calculated: str):
+def summarize(
+    dataset: pl.DataFrame | pl.LazyFrame, column: str, calculated: str
+) -> pl.DataFrame | pl.LazyFrame:
     return dataset.group_by("group").agg(
         pl.col(column).max().alias("maximum"),
         pl.col(calculated).mean().alias("average"),
@@ -40,19 +44,23 @@ def summarize(dataset: pl.DataFrame | pl.LazyFrame, column: str, calculated: str
     )
 
 
-def total(dataset: pl.DataFrame | pl.LazyFrame):
+def total(dataset: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.LazyFrame:
     return dataset.select(pl.col("maximum").sum().alias("total"))
 
 
-def maximum(dataset: pl.DataFrame | pl.LazyFrame):
+def maximum(dataset: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.LazyFrame:
     return dataset.select(pl.col("maximum").max().alias("global_max"))
 
 
-def expanded_values(dataset: pl.DataFrame | pl.LazyFrame):
+def expanded_values(
+    dataset: pl.DataFrame | pl.LazyFrame, other_dataset: pl.DataFrame | pl.LazyFrame
+) -> pl.DataFrame | pl.LazyFrame:
     return dataset.select("group", "id", (pl.col("value") * 3).alias("expanded"))
 
 
-def nested_maximum(dataset: pl.DataFrame | pl.LazyFrame, columns: list[str]):
+def nested_maximum(
+    dataset: pl.DataFrame | pl.LazyFrame, columns: list[str]
+) -> pl.DataFrame | pl.LazyFrame:
     return dataset.group_by("group").agg(pl.sum_horizontal(columns).max().alias("combined_maximum"))
 
 
@@ -188,15 +196,22 @@ def test_collapse_consumes_expanded_features(lazy):
         id="expanded",
         binding=json_model.Binding(
             function="expanded_values",
-            args={"dataset": "$datasets.observations.dataframe"},
+            args={
+                "dataset": "$datasets.observations.dataframe",
+                "other_dataset": "$datasets.observations.dataframe",
+            },
         ),
         features={"inputs": ["$features.value"], "outputs": ["$features.expanded"]},
     )
     analytics_definition.functions.root["expanded_values"] = json_model.FunctionTemplate(
         id="expanded_values",
         operation="expand",
+        returns="dataframe",
         entrypoint=f"{__name__}:expanded_values",
-        args={"dataset": json_model.Argument(id="dataset", type="dataframe")},
+        args={
+            "dataset": json_model.Argument(id="dataset", type="dataframe"),
+            "other_dataset": json_model.Argument(id="other_dataset", type="dataframe"),
+        },
     )
     summary = analytics_definition.entities["group"].datasets[0]
     summary.features = {"combined_maximum": analytics.Feature(id="combined_maximum")}
@@ -219,6 +234,7 @@ def test_collapse_consumes_expanded_features(lazy):
     analytics_definition.functions.root["nested_maximum"] = json_model.FunctionTemplate(
         id="nested_maximum",
         operation="collapse",
+        returns="dataframe",
         entrypoint=f"{__name__}:nested_maximum",
         args={
             "dataset": json_model.Argument(id="dataset", type="dataframe"),

@@ -215,6 +215,7 @@ def test_sources_and_transforms_python_analytics() -> None:
                 id="collapse_data",
                 bind=bind.bind(
                     python_analytics.ref.function(calculation.maximum),
+                    dataset=python_analytics.ref.dataset("transformed_dataset").dataframe,
                     feature=python_analytics.ref.feature("input_1"),
                 ),
                 inputs=[python_analytics.ref.feature("input_1")],
@@ -234,6 +235,9 @@ def test_sources_and_transforms_python_analytics() -> None:
         analytics_definition.entities["transforms_test"].datasets[1].mappings["collapse_data"]
     )
     assert collapse.binding.function == "maximum"
-    assert collapse.binding.args == {"feature": "$features.input_1"}
+    assert collapse.binding.args == {
+        "dataset": "$datasets.transformed_dataset.dataframe",
+        "feature": "$features.input_1",
+    }
     assert collapse.output_features == ["collapsed_feature"]
     assert analytics_definition.functions["maximum"].operation == "collapse"
