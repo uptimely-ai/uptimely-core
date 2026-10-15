@@ -8,8 +8,54 @@ import pathlib
 import sys
 import types
 import typing
-from importlib import util
-from urllib import parse
+from importlib import abc, util
+from urllib import parse, request
+
+from uptimely.spec import storage
+
+REMOTE_SCHEMES = {"https", "s3"}
+REMOTE_READ_TIMEOUT = 30
+
+
+class _RemoteModuleLoader(abc.SourceLoader):
+    """Load one Python source file from a supported remote location."""
+
+    def __init__(self, location: str) -> None:
+        self.location = location
+
+    def get_filename(self, fullname: str) -> str:
+        return self.location
+
+    def get_data(self, path: str) -> bytes:
+        if parse.urlsplit(self.location).scheme == "s3":
+            return storage.Storage.read(self.location).encode("utf-8")
+        with request.urlopen(self.location, timeout=REMOTE_READ_TIMEOUT) as response:
+            if parse.urlsplit(response.geturl()).scheme != "https":
+                raise ValueError("HTTPS function references must not redirect to another scheme")
+            return response.read()
+
+
+def _load_module(location: str, loader: abc.Loader | None = None) -> types.ModuleType:
+    """Load a file or remote module once, removing failed imports from the cache."""
+    module_name = f"_uptimely_function_{hashlib.sha256(location.encode()).hexdigest()}"
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+    module_spec = (
+        util.spec_from_loader(module_name, loader, origin=location)
+        if loader is not None
+        else util.spec_from_file_location(module_name, location)
+    )
+    if module_spec is None or module_spec.loader is None:
+        raise ImportError(f"Cannot load Python module from {location}")
+    module = util.module_from_spec(module_spec)
+    module.__file__ = location
+    sys.modules[module_name] = module
+    try:
+        module_spec.loader.exec_module(module)
+    except BaseException:
+        del sys.modules[module_name]
+        raise
+    return module
 
 
 @dataclasses.dataclass
@@ -24,14 +70,15 @@ def load_callable(entrypoint: str, root: pathlib.Path | None = None) -> typing.C
     """Import the callable addressed by an entrypoint.
 
     Args:
-        entrypoint: An import path or local Python file followed by ``:function``.
+        entrypoint: An import path, local Python file, HTTPS URL, or S3 URI
+            followed by ``:function``. Only load code from trusted sources.
         root: Directory added to ``sys.path`` so the module becomes importable.
 
     Returns:
         The imported callable.
 
     Raises:
-        ValueError: If the entrypoint is invalid or refers to a remote location.
+        ValueError: If the entrypoint is invalid or uses an unsupported scheme.
         ImportError: If the module cannot be imported.
         AttributeError: If the module has no such function.
         TypeError: If the referenced attribute is not callable.
@@ -43,32 +90,27 @@ def load_callable(entrypoint: str, root: pathlib.Path | None = None) -> typing.C
         )
 
     module_path, function_name = entrypoint.rsplit(":", 1)
-    if parse.urlsplit(module_path).scheme or module_path.startswith("git@"):
+    scheme = parse.urlsplit(module_path).scheme
+    if not module_path.strip() or not function_name.isidentifier():
+        raise ValueError(f"Invalid function entrypoint: {entrypoint}")
+    if (scheme and scheme not in REMOTE_SCHEMES) or module_path.startswith("git@"):
         raise ValueError(
-            f"Remote function references cannot be loaded: {module_path}. "
-            "Use a local Python module or file instead."
+            f"Unsupported function reference scheme: {module_path}. "
+            "Use a Python module, local file, https:// URL, or s3:// URI."
         )
     if root is not None and str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
     path = pathlib.Path(module_path)
-    if path.is_absolute() or module_path.startswith(("./", "../")):
+    if scheme in REMOTE_SCHEMES:
+        location = parse.urlsplit(module_path)
+        if not location.netloc or not location.path.strip("/"):
+            raise ValueError(f"Function reference must point to a source file: {module_path}")
+        module = _load_module(module_path, _RemoteModuleLoader(module_path))
+    elif path.is_absolute() or module_path.startswith(("./", "../")):
         path = path if path.is_absolute() else (root or pathlib.Path.cwd()) / path
         path = path.resolve()
-        module_name = f"_uptimely_function_{hashlib.sha256(str(path).encode()).hexdigest()}"
-        if module_name in sys.modules:
-            module = sys.modules[module_name]
-        else:
-            module_spec = util.spec_from_file_location(module_name, path)
-            if module_spec is None or module_spec.loader is None:
-                raise ImportError(f"Cannot load Python module from {path}")
-            module = util.module_from_spec(module_spec)
-            sys.modules[module_name] = module
-            try:
-                module_spec.loader.exec_module(module)
-            except BaseException:
-                del sys.modules[module_name]
-                raise
+        module = _load_module(str(path))
     else:
         if module_path.endswith(".py"):
             module_path = module_path[:-3]
@@ -87,7 +129,8 @@ def read_signature(entrypoint: str, root: pathlib.Path | None = None) -> Functio
     """Read the annotated argument and return types of an entrypoint.
 
     Args:
-        entrypoint: ``'module.path:function'`` or ``'path/to/module.py:function'``.
+        entrypoint: An import path, local file, HTTPS URL, or S3 URI followed
+            by ``:function``. Reading signatures imports and executes the module.
         root: Directory added to ``sys.path`` so the module becomes importable.
 
     Returns:

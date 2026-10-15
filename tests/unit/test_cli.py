@@ -228,7 +228,11 @@ def test_symlinks_are_rejected(
     assert list(tmp_path.iterdir()) == []
 
 
-@pytest.mark.parametrize("data", [b"not a zip", _archive({"project/readme.md": "no examples"})])
+@pytest.mark.parametrize(
+    "data",
+    [b"not a zip", _archive({"project/readme.md": "no examples"})],
+    ids=["invalid-zip", "missing-examples"],
+)
 def test_invalid_archives_are_reported(
     tmp_path: pathlib.Path,
     github: list[str],

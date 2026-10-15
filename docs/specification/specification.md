@@ -362,32 +362,6 @@ specification root field. Missing namespaces, objects, or attributes are
 execution errors. Plain literals and structural references do not change
 between runtime environments.
 
-### Python Declaration
-
-```python
-from uptimely.spec.python_spec import bind, feature, mapping, ref, row_context
-
-calculation = mapping.Vectorize(
-    id="temperature_mean",
-    inputs=[ref.feature("bearing_temperature")],
-    outputs=[feature.Feature(id="temperature_mean", type="float")],
-    bind=bind.bind(
-        rolling_mean,
-        dataset=ref.current_dataset().dataframe,
-        column=ref.feature("bearing_temperature").id,
-        output=ref.feature("temperature_mean").id,
-        window=row_context.time(
-            "8h",
-            dimension=ref.dimension("timestamp"),
-            before="8h",
-        ),
-    ),
-)
-```
-
-Python mapping declarations use `inputs` and `outputs`; conversion places them
-under JSON `features`. Outputs can supply feature definitions directly or
-reference definitions registered on the dataset.
 
 ## Collapse Mappings
 

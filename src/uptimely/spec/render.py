@@ -8,6 +8,7 @@ import json
 import pathlib
 import typing
 from importlib import util
+from urllib import parse
 
 from uptimely import render, spec
 from uptimely.compile import entrypoint as compile_entrypoint
@@ -173,13 +174,24 @@ def _build_context(
             entrypoint = function.get("entrypoint")
             if not isinstance(entrypoint, str) or ":" not in entrypoint:
                 continue
-            module_name = entrypoint.split(":", 1)[0]
-            try:
-                module_spec = util.find_spec(module_name)
-            except (ModuleNotFoundError, ValueError):
-                module_spec = None
-            if module_spec is not None and module_spec.origin not in (None, "built-in", "frozen"):
-                function["entrypoint_file"] = pathlib.Path(module_spec.origin).resolve().as_uri()
+            module_name = entrypoint.rsplit(":", 1)[0]
+            if parse.urlsplit(module_name).scheme in compile_entrypoint.REMOTE_SCHEMES:
+                function["entrypoint_file"] = module_name
+            elif pathlib.Path(module_name).is_file():
+                function["entrypoint_file"] = pathlib.Path(module_name).resolve().as_uri()
+            else:
+                try:
+                    module_spec = util.find_spec(module_name.removesuffix(".py").replace("/", "."))
+                except (ModuleNotFoundError, ValueError):
+                    module_spec = None
+                if module_spec is not None and module_spec.origin not in (
+                    None,
+                    "built-in",
+                    "frozen",
+                ):
+                    function["entrypoint_file"] = (
+                        pathlib.Path(module_spec.origin).resolve().as_uri()
+                    )
             try:
                 return_type = compile_entrypoint.read_signature(
                     entrypoint, pathlib.Path.cwd()
