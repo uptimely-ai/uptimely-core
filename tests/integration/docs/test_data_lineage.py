@@ -78,7 +78,7 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
     assert len({step.color for step in steps.values()}) == len(steps)
     for operation in plan.operations:
         step = steps[operation.id]
-        dimensions = specification.entities[operation.entity_id].dimensions
+        dimensions = specification.entities[operation.entity_id].dimension_ids
         assert step.dataset == operation.dataset_id
         assert step.kind == operation.kind
         assert step.dependencies == sorted(

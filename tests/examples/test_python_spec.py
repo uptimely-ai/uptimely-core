@@ -73,11 +73,15 @@ def test_example_manifest_parses_complete_specification() -> None:
     assert specification_from_directory.path.endswith("spec.json")
     assert specification.dimensions["pump"].parent == "production_line"
     assert set(specification.entities) == {"pump_telemetry", "pump"}
-    assert specification.entities["pump_telemetry"].dimensions == [
+    assert specification.entities["pump_telemetry"].dimension_ids == [
         "plant",
         "production_line",
         "pump",
         "timestamp",
+    ]
+    assert specification.entities["pump_telemetry"].dimensions == [
+        specification.dimensions[identifier]
+        for identifier in ("plant", "production_line", "pump", "timestamp")
     ]
     assert isinstance(specification, uptimely_spec.Specification)
     assert specification.source.name == "python_api"

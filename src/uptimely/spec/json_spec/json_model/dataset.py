@@ -99,5 +99,15 @@ class Entity(common.StrictModel):
     id: str = pydantic.Field(exclude=True)
     name: str
     description: str | None = None
-    dimensions: list[str] = pydantic.Field(default_factory=list)
+    dimensions: list[common.Dimension] = pydantic.Field(default_factory=list)
     datasets: list[Dataset] = pydantic.Field(default_factory=list)
+
+    @property
+    def dimension_ids(self) -> list[str]:
+        """Return the identifiers of dimensions declared by this entity."""
+        return [dimension.id for dimension in self.dimensions]
+
+    @pydantic.field_serializer("dimensions")
+    def serialize_dimensions(self, dimensions: list[common.Dimension]) -> list[str]:
+        """Serialize entity dimensions as references in the specification document."""
+        return [dimension.id for dimension in dimensions]

@@ -57,7 +57,7 @@ def _resource_models(specification: uptimely_spec.Specification) -> dict[str, ty
             for identifier, dimension in specification.dimensions.items()
         },
         "entities": {
-            identifier: {"id": entity.id, "dimensions": entity.dimensions}
+            identifier: {"id": entity.id, "dimensions": entity.dimension_ids}
             for identifier, entity in specification.entities.items()
         },
         "functions": specification.function_catalog.model_dump(exclude_none=False),
@@ -142,7 +142,7 @@ class Compiler:
                 next(
                     feature
                     for feature in node.output_features
-                    if feature not in self.specification.entities[node.entity].dimensions
+                    if feature not in self.specification.entities[node.entity].dimension_ids
                 )
                 if node.operation_type == "collapse"
                 else node.feature

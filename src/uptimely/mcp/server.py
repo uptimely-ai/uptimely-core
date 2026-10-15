@@ -251,7 +251,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         entity = specification.entities.get(entity_id)
         columns = [
             name
-            for name in [*(entity.dimensions if entity else []), feature_id]
+            for name in [*(entity.dimension_ids if entity else []), feature_id]
             if name in frame.columns
         ]
         view = frame.select(columns) if columns else frame

@@ -224,9 +224,10 @@ def test_website_exports_all_reports_with_relative_navigation(
             ).group()
             column_row, type_row = re.findall(r"<tr[^>]*>(.*?)</tr>", table, re.DOTALL)
             columns = re.findall(r'<th scope="col"[^>]*>(.*?)</th>', column_row, re.DOTALL)
+            entity_dimensions = entity.dimension_ids
             expected_names = [
-                *entity.dimensions,
-                *(name for name in dataset.features if name not in entity.dimensions),
+                *entity_dimensions,
+                *(name for name in dataset.features if name not in entity_dimensions),
             ]
             assert [column.split("<span", 1)[0] for column in columns] == expected_names
             assert len(re.findall(r"<td\b", type_row)) == len(columns)
@@ -239,7 +240,7 @@ def test_website_exports_all_reports_with_relative_navigation(
                 for name in mapping.output_features
             }
             for name, column in zip(expected_names, columns, strict=True):
-                if name in entity.dimensions:
+                if name in entity_dimensions:
                     assert ">Dimension</span>" in column
                 elif name in raw_columns:
                     assert ">Raw</span>" in column
