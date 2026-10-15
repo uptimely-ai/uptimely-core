@@ -19,7 +19,7 @@ project/
 │   └── analytics/
 │       └── analytics.py
 └── _generated/
-    ├── spec/
+    ├── analytics/
     └── compile/
 ```
 
@@ -83,7 +83,7 @@ master-project/
 │   └── analytics/
 │       └── sources.json
 └── _generated/
-    ├── spec/
+    ├── analytics/
     │   └── analytics.json
     └── compile/
 ```

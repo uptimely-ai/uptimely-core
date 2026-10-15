@@ -153,7 +153,7 @@ def test_serve_builds_html_before_starting_server(
         assert host == "127.0.0.1"
         assert port == 8001
         assert (output / "index.html").is_file()
-        assert (output / "spec/overview.html").is_file()
+        assert (output / "analytics/overview.html").is_file()
         assert (output / "plan/graph.html").is_file()
 
     monkeypatch.setattr(explorer, "serve_explorer", check_website)

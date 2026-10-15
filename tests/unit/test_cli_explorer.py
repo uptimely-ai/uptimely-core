@@ -14,13 +14,13 @@ REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 ANALYTICS_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/analytics/analytics.json"
 PAGES = {
     "index.html",
-    "spec/overview.html",
-    "spec/features.html",
-    "spec/entities.html",
-    "spec/datasets.html",
-    "spec/dimensions.html",
-    "spec/functions.html",
-    "spec/graph.html",
+    "analytics/overview.html",
+    "analytics/features.html",
+    "analytics/entities.html",
+    "analytics/datasets.html",
+    "analytics/dimensions.html",
+    "analytics/functions.html",
+    "analytics/graph.html",
     "plan/overview.html",
     "plan/graph.html",
     "plan/stages.html",
@@ -67,7 +67,7 @@ def test_explorer_build_custom_output_and_timestamp(
     cli.main()
 
     assert {p.relative_to(output).as_posix() for p in output.rglob("*.html")} == PAGES
-    assert "generated 20" in (output / "spec/overview.html").read_text(encoding="utf-8")
+    assert "generated 20" in (output / "analytics/overview.html").read_text(encoding="utf-8")
 
 
 def test_explorer_build_defaults_paths_from_project_root(

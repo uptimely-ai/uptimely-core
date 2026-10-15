@@ -45,14 +45,14 @@ examples/
 │   └── _generated/
 │       ├── compile/          Compiled plans
 │       ├── explorer/         Generated analytics explorer
-│       └── spec/             Exported analytics JSON
+│       └── analytics/             Exported analytics JSON
 └── simple_analytics/
     ├── config/
     │       └── analytics/       Python analytics declarations
     ├── data/                 Data used by the Python example
     ├── functions/            Example function implementations
     └── _generated/
-        └── spec/             Exported analytics JSON
+        └── analytics/             Exported analytics JSON
 ```
 
 ## Quick start

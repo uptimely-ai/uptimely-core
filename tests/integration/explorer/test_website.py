@@ -19,13 +19,13 @@ from uptimely.explorer import explorer
 
 ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 REPORTS = {
-    "spec/overview.html": "spec",
-    "spec/features.html": "features",
-    "spec/entities.html": "entities",
-    "spec/datasets.html": "datasets",
-    "spec/dimensions.html": "dimensions",
-    "spec/functions.html": "functions",
-    "spec/graph.html": "graph",
+    "analytics/overview.html": "analytics",
+    "analytics/features.html": "features",
+    "analytics/entities.html": "entities",
+    "analytics/datasets.html": "datasets",
+    "analytics/dimensions.html": "dimensions",
+    "analytics/functions.html": "functions",
+    "analytics/graph.html": "graph",
     "plan/overview.html": "plan",
     "plan/graph.html": "plan",
     "plan/stages.html": "stages",
@@ -109,13 +109,13 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
     explorer.create_html(analytics.Analytics(), tmp_path / "index.html")
     expected = {
         "index.html": ("home", "house", "Untitled analytics project"),
-        "spec/overview.html": ("overview", "layout-dashboard", "Overview"),
-        "spec/features.html": ("features", "sparkles", "Features"),
-        "spec/entities.html": ("entities", "boxes", "Entities"),
-        "spec/datasets.html": ("datasets", "table", "Datasets"),
-        "spec/dimensions.html": ("dimensions", "layers-3", "Dimensions"),
-        "spec/functions.html": ("functions", "braces", "Functions"),
-        "spec/graph.html": ("lineage", "git-fork", "Feature lineage"),
+        "analytics/overview.html": ("overview", "layout-dashboard", "Overview"),
+        "analytics/features.html": ("features", "sparkles", "Features"),
+        "analytics/entities.html": ("entities", "boxes", "Entities"),
+        "analytics/datasets.html": ("datasets", "table", "Datasets"),
+        "analytics/dimensions.html": ("dimensions", "layers-3", "Dimensions"),
+        "analytics/functions.html": ("functions", "braces", "Functions"),
+        "analytics/graph.html": ("lineage", "git-fork", "Feature lineage"),
         "plan/overview.html": ("execution", "workflow", "Overview"),
         "plan/graph.html": ("execution-graph", "network", "Execution graph"),
         "plan/stages.html": ("stages", "list-ordered", "Stages"),
@@ -167,7 +167,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert index == pathlib.Path("_generated/explorer/index.html")
     assert {path.name for path in index.parent.iterdir()} == {
         "index.html",
-        "spec",
+        "analytics",
         "plan",
         "execution",
     }
@@ -186,8 +186,10 @@ def test_website_exports_all_reports_with_relative_navigation(
             page_file.resolve()
         ]
         assert "<iframe" not in document
-    assert "Pump telemetry" in (index.parent / "spec/features.html").read_text(encoding="utf-8")
-    features = (index.parent / "spec/features.html").read_text(encoding="utf-8")
+    assert "Pump telemetry" in (index.parent / "analytics/features.html").read_text(
+        encoding="utf-8"
+    )
+    features = (index.parent / "analytics/features.html").read_text(encoding="utf-8")
     assert "Entity:" in features
     assert "Dataset name" in features
     assert features.index("Dataset name:") < features.index(
@@ -197,10 +199,10 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "read · read_pump_telemetry" in features
     assert "vectorize · health_signal_normalized" in features
     assert "Row context:" not in features
-    entities = (index.parent / "spec/entities.html").read_text(encoding="utf-8")
+    entities = (index.parent / "analytics/entities.html").read_text(encoding="utf-8")
     assert "pump_telemetry" in entities
     assert "Pump telemetry" in entities
-    datasets = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
+    datasets = (index.parent / "analytics/datasets.html").read_text(encoding="utf-8")
     assert "One row per pump and timestamp" in datasets
     assert "read · read_pump_telemetry" in datasets
     assert datasets.count("data-dataset-schema=") == 2
@@ -256,15 +258,17 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "scrollbar-width: thin" in datasets
     assert "scrollbar-color: #475569 #0f172a" in datasets
     assert ".dataset-table-scroll::-webkit-scrollbar" in datasets
-    assert "Pump analytics" in (index.parent / "spec/overview.html").read_text(encoding="utf-8")
-    graph_2d = (index.parent / "spec/graph.html").read_text(encoding="utf-8")
+    assert "Pump analytics" in (index.parent / "analytics/overview.html").read_text(
+        encoding="utf-8"
+    )
+    graph_2d = (index.parent / "analytics/graph.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_2d
     assert "force-graph@1.52.0/dist/force-graph.min.js" in graph_2d
     assert ".height(graphContainer.clientHeight)" in graph_2d
     assert "3d-force-graph" in graph_2d
     assert 'aria-label="Feature graph views"' not in graph_2d
     assert re.search(
-        r'href="../spec/graph.html" aria-current="page">'
+        r'href="../analytics/graph.html" aria-current="page">'
         r'<i class="site-icon icon--lineage nav-icon" '
         r'data-lucide="git-fork"',
         graph_2d,
@@ -319,8 +323,8 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         "execution",
     ]
     for href, action in (
-        ("spec/overview.html", "Explore analytics"),
-        ("spec/graph.html", "Trace dependencies"),
+        ("analytics/overview.html", "Explore analytics"),
+        ("analytics/graph.html", "Trace dependencies"),
         ("plan/overview.html", "Inspect the plan"),
     ):
         assert f'<a href="{href}">{action}' in document
@@ -350,12 +354,12 @@ def test_homepage_handles_unnamed_and_escaped_projects(
 @pytest.mark.parametrize(
     ("filename", "section_id", "title"),
     [
-        ("spec/overview.html", "overview", "Overview"),
-        ("spec/features.html", "entities", "Features"),
-        ("spec/entities.html", "entities", "Entities"),
-        ("spec/datasets.html", "datasets", "Datasets"),
-        ("spec/dimensions.html", "dimensions", "Dimensions"),
-        ("spec/functions.html", "functions", "Functions"),
+        ("analytics/overview.html", "overview", "Overview"),
+        ("analytics/features.html", "entities", "Features"),
+        ("analytics/entities.html", "entities", "Entities"),
+        ("analytics/datasets.html", "datasets", "Datasets"),
+        ("analytics/dimensions.html", "dimensions", "Dimensions"),
+        ("analytics/functions.html", "functions", "Functions"),
     ],
 )
 def test_analytics_pages_render_only_their_section(
@@ -381,7 +385,7 @@ def test_analytics_pages_render_only_their_section(
 def test_analytics_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
     analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
     explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
-    document = (tmp_path / "spec/overview.html").read_text(encoding="utf-8")
+    document = (tmp_path / "analytics/overview.html").read_text(encoding="utf-8")
 
     assert "Pump analytics" in document
     assert 'data-source-name="python_api" data-generated="true"' in document
@@ -548,7 +552,7 @@ def test_execution_plan_pages_render_only_their_section(
     assert ("force-graph@1.52.0" in document) == is_graph
 
 
-@pytest.mark.parametrize("filename", ["spec/graph.html", "plan/graph.html"])
+@pytest.mark.parametrize("filename", ["analytics/graph.html", "plan/graph.html"])
 def test_graph_pages_have_one_selector_and_shared_data(
     tmp_path: pathlib.Path, filename: str
 ) -> None:
@@ -589,7 +593,7 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
     assert all(not (tmp_path / filename).exists() for filename in obsolete)
     assert (tmp_path / "custom.html").read_text(encoding="utf-8") == "old"
     assert (tmp_path / "graph/custom.html").read_text(encoding="utf-8") == "custom graph"
-    assert (tmp_path / "spec/graph.html").is_file()
+    assert (tmp_path / "analytics/graph.html").is_file()
 
 
 def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> None:
@@ -691,7 +695,7 @@ def test_website_propagates_compilation_errors_without_writing_reports(
 @pytest.mark.parametrize(
     ("filename", "variable"),
     [
-        ("spec/graph.html", "data"),
+        ("analytics/graph.html", "data"),
         ("plan/graph.html", "callableGraphData"),
     ],
 )
@@ -753,5 +757,5 @@ def test_website_can_include_analytics_timestamp(tmp_path: pathlib.Path) -> None
 
     assert re.search(
         r"generated \d{4}-\d{2}-\d{2}T",
-        (tmp_path / "spec/overview.html").read_text(encoding="utf-8"),
+        (tmp_path / "analytics/overview.html").read_text(encoding="utf-8"),
     )

@@ -108,7 +108,7 @@ def test_html_explorer_overview_counts_match_analytics(tmp_path: pathlib.Path) -
     expected_counts = _explorer_counts(analytics_definition)
 
     explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
-    output_path = tmp_path / "spec/overview.html"
+    output_path = tmp_path / "analytics/overview.html"
     parser = TextCollector()
     parser.feed(output_path.read_text(encoding="utf-8"))
 

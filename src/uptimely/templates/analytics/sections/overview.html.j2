@@ -1,4 +1,4 @@
-{% from "spec/section_header.html.j2" import section_header with context %}
+{% from "analytics/section_header.html.j2" import section_header with context %}
 <section id="overview" class="mb-16">
   {{ section_header("Overview", "A summary of the entities, datasets, features, and functions declared in this analytics.") }}
   {% set source = configuration.get("source", {}) %}

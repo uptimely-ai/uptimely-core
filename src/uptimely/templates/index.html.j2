@@ -131,7 +131,7 @@
     <p class="dashboard-section-intro">Start with the declarations, trace their dependencies, then inspect the compiled workflow.</p>
     <ol class="analytics-journey" aria-label="Analytics journey">
       {% for accent, number, title, description, href, action in [
-        ("analytics", "01", "Analytics", "The source of truth. Browse entities, datasets, features, dimensions, and the functions bound to them.", website_pages["spec"]["overview"], "Explore analytics"),
+        ("analytics", "01", "Analytics", "The source of truth. Browse entities, datasets, features, dimensions, and the functions bound to them.", website_pages["analytics"]["overview"], "Explore analytics"),
         ("lineage", "02", "Feature lineage", "The connections behind each result. Follow upstream inputs and the functions that produce downstream features in 2D or 3D.", website_pages["graph"]["lineage"], "Trace dependencies"),
         ("execution", "03", "Plan", "The path to execution. Inspect compiled operations, argument bindings, and dependency-ordered stages with potential parallelism.", website_pages["plan"]["overview"], "Inspect the plan")
       ] %}
