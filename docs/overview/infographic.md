@@ -225,13 +225,13 @@ document. Author it directly or generate it from Python or another client.
 <div class="concepts-visual">
   <div class="cv-operation">
     <span class="cv-tag">ONE ANALYTICS DOCUMENT / STRUCTURE</span>
-    <div class="cv-spec-tree">
+    <div class="cv-analytics-tree">
       <div><strong>dimensions</strong><span>Shared observation keys</span><code>pump, timestamp</code></div>
       <div><strong>functions</strong><span>Reusable implementations and argument types</span><code>vectorize.divide</code></div>
-      <div class="cv-spec-entity"><strong>entities</strong><span>Analytical subjects</span><div class="cv-spec-nested"><strong>pump_telemetry</strong><div class="cv-spec-nested"><strong>datasets</strong><span>Row scope, features, mappings, and writes</span><code>features / mappings / write</code></div></div></div>
+      <div class="cv-analytics-entity"><strong>entities</strong><span>Analytical subjects</span><div class="cv-analytics-nested"><strong>pump_telemetry</strong><div class="cv-analytics-nested"><strong>datasets</strong><span>Row scope, features, mappings, and writes</span><code>features / mappings / write</code></div></div></div>
     </div>
-    <div class="cv-spec-example">
-      <div class="cv-spec-code">
+    <div class="cv-analytics-example">
+      <div class="cv-analytics-code">
         <span class="cv-tag">EXCERPT / A DATASET'S FEATURES AND MAPPINGS</span>
         <pre><code>{
   <span class="cv-teal">"features"</span>: {
@@ -258,7 +258,7 @@ document. Author it directly or generate it from Python or another client.
   }
 }</code></pre>
       </div>
-      <dl class="cv-spec-notes">
+      <dl class="cv-analytics-notes">
         <div><dt class="cv-amber">Feature registry</dt><dd>pressure_ratio is declared once as a feature with metadata.</dd></div>
         <div><dt>Function binding</dt><dd>divide receives the dataframe and column identifiers, then returns a dataframe with the observation keys and named result.</dd></div>
         <div><dt class="cv-violet">Mapping outputs</dt><dd>The mapping associates its function binding with pressure_ratio.</dd></div>

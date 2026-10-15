@@ -124,7 +124,7 @@ def test_explorer_requires_valid_arguments(
     "failure",
     [
         PermissionError("Cannot write website"),
-        ValueError("Invalid specification"),
+        ValueError("Invalid analytics"),
         ModuleNotFoundError("Missing function module"),
         AttributeError("Missing function"),
         TypeError("Invalid callable signature"),

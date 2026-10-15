@@ -64,11 +64,11 @@ generated output.
 ## Decentralized
 
 !!! caution
-    Automatic composition of specifications from multiple repositories is not
+    Automatic composition of analytics documents from multiple repositories is not
     supported. This pattern requires project-specific assembly tooling.
 
 A master project brings multiple scattered analytics repositories and their
-specifications together in one place. Each contributing repository maintains its
+analytics documents together in one place. Each contributing repository maintains its
 own analytical code and analytics document. The master project assembles those
 definitions into unified analytics, making dependencies across repositories
 visible and allowing the combined system to be documented, compiled, and executed.
@@ -101,11 +101,11 @@ analytics-package/
 ```
 
 In this illustrative layout, `sources.json` is a project-defined manifest of
-contributing repositories, versions, and specification locations; it is not a
+contributing repositories, versions, and analytics document locations; it is not a
 configuration format supported by Uptimely. Each analytics repository contributes its
 `config/analytics/analytics.json`, either authored directly or exported from Python declarations.
 
-Project-specific assembly tooling retrieves those specifications, combines their
+Project-specific assembly tooling retrieves those analytics documents, combines their
 definitions, and resolves identifier conflicts and cross-repository references.
 It produces one complete `_generated/analytics/analytics.json` analytics document for Uptimely to load.
 Uptimely does not discover repositories or merge analytics documents

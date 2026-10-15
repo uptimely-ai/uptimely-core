@@ -7,8 +7,8 @@ portable plan format if they implement its operations and required backend.
 
 ## Engine settings
 
-Engine settings are supplied to `Engine`, not stored in the Open Analytics
-specification. The engine implementation decides which configuration values
+Engine settings are supplied to `Engine`, not stored in the Analytics
+document. The engine implementation decides which configuration values
 to use.
 
 The built-in Python engine only uses `dataframe` to validate backend
@@ -29,10 +29,10 @@ JSON key | Type | Purpose
 `backend.batch_size` | integer, `"*"`, or `null` | Reserved. Validates positive integers, `"*"`, or `null`, but does not change how many records are read at a time.
 `bind` | object | Runtime values keyed by namespace, object identifier, and attribute for resolving placeholders.
 
-`backend` is not a specification field. A compiled plan records its backend
+`backend` is not an Analytics field. A compiled plan records its backend
 claim as `required_backend`; the built-in engine rejects values other than
 `polars`. Orchestration is a deployment concern and is not represented in the
-specification.
+Analytics document.
 
 ## Dataframe backend
 
@@ -121,7 +121,7 @@ Runtime configuration substitution is already supported. Supply a different
 `bind` mapping when constructing the engine to run the same
 compiled plan against dev, test, or prod resources without recompilation.
 The plan must already contain placeholders for the values you want to vary.
-This does not modify the specification or replace literal arguments, functions,
+This does not modify Analytics or replace literal arguments, functions,
 features, or dependencies.
 
 An environment-specific engine JSON file groups backend settings and runtime
@@ -280,7 +280,7 @@ Vectorize operations consume features only from their own dataset. Fragment
 operations may explicitly receive another dataset through a `$datasets.<id>`
 reference in their binding arguments and return a new fragment for the target
 dataset. The engine never joins features from another dataset implicitly. The
-specification declares dataframe-producing resources under `read`, `conform`,
+Analytics document declares dataframe-producing resources under `read`, `conform`,
 `expand`, and `collapse`. Each fragment produces a runtime dataframe, includes
 the entity's dimension columns, and should follow the dataset `row_scope`
 contract.
@@ -324,7 +324,7 @@ returned dataframes:
 - Each complete dimension key occurs at most once within a fragment.
 - The join has a one-to-one key relationship.
 
-The specification author and fragment implementations remain responsible for
+The analytics author and fragment implementations remain responsible for
 semantic conditions:
 
 - Fragments in one dataset represent the same grain, filtering, and intended

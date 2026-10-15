@@ -17,12 +17,14 @@ ANALYTICS_PATH = (
 )
 CONFIG_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "config" / "engine.json"
 
-pytestmark = pytest.mark.skipif(not ANALYTICS_PATH.exists(), reason="example spec is not generated")
+pytestmark = pytest.mark.skipif(
+    not ANALYTICS_PATH.exists(), reason="example analytics is not generated"
+)
 
 
 @pytest.fixture()
 def state() -> server.ServerState:
-    """Provide server state bound to the pump analytics specification."""
+    """Provide server state bound to the pump analytics document."""
     engine_config, bind = server._load_engine_config(CONFIG_PATH)
     return server.ServerState(
         analytics_path=ANALYTICS_PATH,
@@ -150,7 +152,7 @@ async def test_compile_plan_subset(state: server.ServerState) -> None:
 
 @pytest.mark.anyio
 async def test_compile_plan_empty_subset_is_empty(state: server.ServerState) -> None:
-    """An explicit empty feature subset does not compile the full specification."""
+    """An explicit empty feature subset does not compile the full analytics document."""
     payload = await _call(state, "compile_plan", {"feature_ids": []})
     assert payload["features"] == []
     assert payload["stages"] == []

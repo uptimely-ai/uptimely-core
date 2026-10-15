@@ -54,7 +54,7 @@ Use an **`expand`** mapping for this pattern:
 [Pump Telemetry Dataset]  (grain: pump + timestamp)
 ```
 
-In the specification, the mapping declares the function binding and target features:
+In Analytics, the mapping declares the function binding and target features:
 
 ```json
 "mappings": {
@@ -124,7 +124,7 @@ def attach_pump_reference(telemetry: pl.LazyFrame, reference: pl.LazyFrame) -> p
 
 ### Do you need to declare join keys?
 
-**No.** In the specification, join keys are not declared on the mapping:
+**No.** In Analytics, join keys are not declared on the mapping:
 
 * The **target entity's dimensions** define the expected observation key contract.
 * The function implementation receives the source dataset and current target dataset context.
@@ -153,7 +153,7 @@ Use a **`collapse`** mapping for this pattern:
 [Pump Daily Summary]      (grain: pump)
 ```
 
-In the specification:
+In Analytics:
 
 ```json
 "mappings": {

@@ -34,12 +34,12 @@ See [runtime overrides](specification/engine.md#runtime-overrides) for usage.
 
 Future work includes automatic environment selection, layered configuration
 merging, and a mechanism for calculation constants. Runtime configuration
-substitution does not currently override arbitrary specification fields or
+substitution does not currently override arbitrary analytics fields or
 literal arguments.
 
-## Add constants to spec
+## Add constants to Analytics
 
-Add section to spec to define something like this:
+Add a section to Analytics to define something like this:
 
 ```json
 {

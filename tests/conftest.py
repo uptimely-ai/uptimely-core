@@ -20,7 +20,7 @@ for path in [str(REPOSITORY_ROOT), *(str(directory) for directory in EXAMPLE_ANA
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    """Export the example specifications required by the test suite."""
+    """Export the example analytics required by the test suite."""
     if hasattr(config, "workerinput"):
         return
 
