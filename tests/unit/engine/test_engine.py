@@ -38,7 +38,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
 
     assert set(result.callable_statuses.values()) == {"succeeded"}
     assert result.failures == {}
-    assert result.plan_version == "2.0.0"
+    assert result.plan_version == "0.2.0"
     assert isinstance(result.calculated_outputs["asset", "telemetry", "doubled"], pl.DataFrame)
     assert result.datasets["asset", "telemetry"].select("doubled").to_series().to_list() == [
         4,
@@ -74,7 +74,7 @@ def test_execute_stops_after_a_failed_operation() -> None:
     assert called is False
 
 
-def test_engine_validates_plan_backend_and_analytics_version() -> None:
+def test_engine_validates_plan_backend() -> None:
     plan = _plan().plan
 
     with pytest.raises(ValueError, match="Unsupported plan backend"):
@@ -82,12 +82,6 @@ def test_engine_validates_plan_backend_and_analytics_version() -> None:
             uptimely_plan.ExecutionPlan(
                 uptimely_plan.Plan(**{**plan.__dict__, "required_backend": "pandas"})
             )
-        )
-
-    with pytest.raises(ValueError, match="Analytics version mismatch"):
-        uptimely_engine.Engine(
-            _plan(),
-            resources={"analytics_version": "0.3.0"},
         )
 
 
@@ -190,11 +184,9 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
     )
     plan = uptimely_plan.ExecutionPlan(
         uptimely_plan.Plan(
-            plan_version="2.0.0",
-            analytics_version="0.2.0",
+            plan_version="0.2.0",
             required_backend="polars",
             resources={
-                "analytics_version": "0.2.0",
                 "entities": {"asset": {"dimensions": ["asset_id"]}},
                 "functions": {
                     "load": {"operation": "read", "args": {}},

@@ -7,8 +7,7 @@ from uptimely import plan as uptimely_plan
 
 def _sample_plan() -> uptimely_plan.Plan:
     return uptimely_plan.Plan(
-        plan_version="2.0.0",
-        analytics_version="0.2.0",
+        plan_version="0.2.0",
         required_backend="polars",
         resources={
             "signatures": {
@@ -97,7 +96,6 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
     assert execution_plan.to_dict() == plan.to_dict()
     assert set(execution_plan.to_dict()) == {
         "plan_version",
-        "analytics_version",
         "required_backend",
         "resources",
         "callables",
@@ -118,9 +116,7 @@ def test_plan_json_helpers_round_trip(tmp_path) -> None:
     assert recreated.callables[0].id == "callable:read:load:pump:pump_dataset:pressure"
 
 
-@pytest.mark.parametrize(
-    "missing_field", ["analytics_version", "callables", "required_backend", "stages"]
-)
+@pytest.mark.parametrize("missing_field", ["callables", "required_backend", "stages"])
 def test_plan_rejects_missing_required_fields(missing_field: str) -> None:
     payload = _sample_plan().to_dict()
     del payload[missing_field]
@@ -129,12 +125,23 @@ def test_plan_rejects_missing_required_fields(missing_field: str) -> None:
         uptimely_plan.Plan.from_dict(payload)
 
 
-def test_plan_rejects_legacy_version_field() -> None:
+def test_plan_rejects_analytics_version_field() -> None:
     payload = _sample_plan().to_dict()
-    payload["specification_version"] = payload.pop("analytics_version")
+    payload["analytics_version"] = "0.2.0"
 
-    with pytest.raises(ValueError, match="Plan is missing required fields: analytics_version"):
+    with pytest.raises(ValueError, match="Plan contains unknown fields: analytics_version"):
         uptimely_plan.Plan.from_dict(payload)
+
+
+@pytest.mark.parametrize("version", ["0.1.0", "1.0.0", "2.0.0", "unsupported", None])
+def test_plan_rejects_unsupported_versions(version: object) -> None:
+    payload = _sample_plan().to_dict()
+    payload["plan_version"] = version
+
+    with pytest.raises(ValueError, match="Unsupported plan version"):
+        uptimely_plan.Plan.from_dict(payload)
+    with pytest.raises(ValueError, match="Unsupported plan version"):
+        uptimely_plan.Plan(**{**_sample_plan().__dict__, "plan_version": version})
 
 
 def test_plan_rejects_unknown_dependency_and_stage_callable() -> None:

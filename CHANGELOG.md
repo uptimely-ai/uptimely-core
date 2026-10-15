@@ -19,8 +19,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
-- Renamed the plan's `specification_version` field to `analytics_version`, including
-  its resource metadata. Regenerate saved plans; the old field is no longer accepted.
+- Portable plans now declare `plan_version` (`0.2.0`) and omit
+  `analytics_version`. The built-in loader rejects unsupported plan versions;
+  regenerate saved plans to use the current format.
 - Python function bindings now require `ref.function(callable_or_entrypoint)`,
   accepting a Python callable or a `path:function` string. Local Python files,
   HTTPS source URLs, and S3 source URIs support signature inspection and execution.

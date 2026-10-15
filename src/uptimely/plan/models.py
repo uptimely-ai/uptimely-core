@@ -9,6 +9,8 @@ import typing
 
 from uptimely import row_context as uptimely_row_context
 
+PLAN_VERSION = "0.2.0"
+
 
 @dataclasses.dataclass(frozen=True)
 class Callable:
@@ -53,17 +55,19 @@ class Plan:
     """Portable, JSON-serializable execution plan."""
 
     plan_version: str
-    analytics_version: str | None
     required_backend: str
     resources: dict[str, typing.Any]
     callables: list[Callable]
     stages: list[list[str]]
 
+    def __post_init__(self) -> None:
+        """Reject plan schemas this runtime does not support."""
+        _validate_plan_version(self.plan_version)
+
     def to_dict(self) -> dict[str, typing.Any]:
         """Return the plan as JSON-compatible data."""
         return {
             "plan_version": self.plan_version,
-            "analytics_version": self.analytics_version,
             "required_backend": self.required_backend,
             "resources": self.resources,
             "callables": [
@@ -92,7 +96,6 @@ class Plan:
         """Load a portable plan from a decoded JSON object."""
         required = {
             "plan_version",
-            "analytics_version",
             "required_backend",
             "resources",
             "callables",
@@ -104,6 +107,7 @@ class Plan:
         unexpected = sorted(payload.keys() - required)
         if unexpected:
             raise ValueError("Plan contains unknown fields: " + ", ".join(unexpected))
+        _validate_plan_version(payload["plan_version"])
         callables = [Callable(**callable) for callable in payload["callables"]]
         callable_ids = {callable.id for callable in callables}
         if len(callable_ids) != len(callables):
@@ -133,11 +137,18 @@ class Plan:
                 )
         return cls(
             plan_version=payload["plan_version"],
-            analytics_version=payload["analytics_version"],
             required_backend=payload["required_backend"],
             resources=payload["resources"],
             callables=callables,
             stages=payload["stages"],
+        )
+
+
+def _validate_plan_version(version: object) -> None:
+    """Reject plan versions this runtime cannot load."""
+    if version != PLAN_VERSION:
+        raise ValueError(
+            f"Unsupported plan version: {version!r}. Supported version is {PLAN_VERSION}."
         )
 
 

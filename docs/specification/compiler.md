@@ -138,8 +138,7 @@ The serialized plan contains these top-level fields:
 
 | Field | Meaning |
 | --- | --- |
-| `plan_version` | Version of the portable plan format. |
-| `analytics_version` | Analytics format version used to create the plan, not a project revision. |
+| `plan_version` | Portable plan format version. The built-in engine accepts `0.2.0`. |
 | `required_backend` | Backend required by the plan. The built-in engine currently supports `polars`. |
 | `resources` | Runtime metadata needed by an engine, including dimensions, entities, function templates, and signatures. |
 | `callables` | Executable function invocations in the dependency graph. |
@@ -149,7 +148,8 @@ The compiler copies only the information needed at runtime into `resources`.
 The plan carries callable entrypoints, binding arguments, and each callable's
 `operation` (`read`, `conform`, `expand`, `collapse`, `vectorize`, or `write`),
 but remains distinct from the source Analytics document. The current portable
-plan format is version `2.0.0`.
+plan format is version `0.2.0`. Loaders reject plans declaring an unsupported
+version rather than interpreting them as the current format.
 
 ### Callables
 
@@ -267,8 +267,8 @@ For a compatible compiler:
    portable arguments, output identifiers, and explicit dependency identifiers.
 4. Schedule every callable exactly once, placing each dependency in an earlier
    stage than the callable that consumes it.
-5. Include the resources required by the target engine and declare the plan
-   version, Analytics format version (`analytics_version`), and required backend accurately.
+5. Include the resources required by the target engine and declare the
+   compatible plan version and required backend accurately.
 6. Preserve runtime placeholders for the engine rather than embedding
    environment-specific storage locations during compilation.
 
