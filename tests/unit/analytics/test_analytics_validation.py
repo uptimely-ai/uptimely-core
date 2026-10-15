@@ -44,11 +44,14 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         "binding": {
             "function": "expand_telemetry",
             "args": {
-                "source": "$datasets.@.dataframe",
+                "source": "$datasets.pump_dataset.dataframe",
                 "target": "$datasets.@.dataframe",
             },
         },
-        "features": {"inputs": [], "outputs": ["$features.expanded_feature"]},
+        "features": {
+            "inputs": ["$features.bearing_temperature_max"],
+            "outputs": ["$features.expanded_feature"],
+        },
     }
 
     analytics_path = tmp_path / "valid_mappings_analytics.json"
@@ -81,12 +84,81 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         "bad_transform"
     ] = {
         "binding": {"function": "missing_expand", "args": {}},
-        "features": {"inputs": [], "outputs": ["$features.bad_transform_feature"]},
+        "features": {
+            "inputs": ["$features.bearing_temperature_max"],
+            "outputs": ["$features.bad_transform_feature"],
+        },
     }
     bad_transform_path = tmp_path / "bad_transform.json"
     bad_transform_path.write_text(json.dumps(bad_transform_config), encoding="utf-8")
     with pytest.raises(ValueError, match="mappings reference unknown functions"):
         analytics.Analytics(json=bad_transform_path)
+
+
+def test_expand_mapping_requires_lower_dimensional_feature_input(tmp_path: pathlib.Path) -> None:
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
+    configuration["functions"]["expand_telemetry"] = {
+        "operation": "expand",
+        "returns": "dataframe",
+        "entrypoint": "examples.pump_analytics.functions.source:read_pump_telemetry",
+        "args": {
+            "source": {"type": "dataframe"},
+            "target": {"type": "dataframe"},
+        },
+    }
+    target = configuration["entities"]["pump_telemetry"]["datasets"][0]
+    target["features"]["expanded_feature"] = {"type": "float"}
+    target["mappings"]["expand_op"] = {
+        "binding": {
+            "function": "expand_telemetry",
+            "args": {
+                "source": "$datasets.pump_dataset.dataframe",
+                "target": "$datasets.@.dataframe",
+            },
+        },
+        "features": {
+            "inputs": ["$features.bearing_temperature"],
+            "outputs": ["$features.expanded_feature"],
+        },
+    }
+    path = tmp_path / "invalid_expand_input.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="declared feature from a lower-dimensional dataset"):
+        analytics.Analytics(json=path)
+
+
+def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Path) -> None:
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
+    configuration["functions"]["conform_telemetry"] = {
+        "operation": "conform",
+        "returns": "dataframe",
+        "entrypoint": "examples.pump_analytics.functions.source:read_pump_telemetry",
+        "args": {
+            "source": {"type": "dataframe"},
+            "target": {"type": "dataframe"},
+        },
+    }
+    target = configuration["entities"]["pump"]["datasets"][0]
+    target["features"]["conformed_feature"] = {"type": "float"}
+    target["mappings"]["conform_op"] = {
+        "binding": {
+            "function": "conform_telemetry",
+            "args": {
+                "source": "$datasets.pump_telemetry_dataset.dataframe",
+                "target": "$datasets.@.dataframe",
+            },
+        },
+        "features": {
+            "inputs": ["$features.bearing_temperature"],
+            "outputs": ["$features.conformed_feature"],
+        },
+    }
+    path = tmp_path / "invalid_conform_dimensions.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must preserve target dimensionality"):
+        analytics.Analytics(json=path)
 
 
 @pytest.mark.parametrize("mapping_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
