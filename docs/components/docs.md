@@ -1,7 +1,7 @@
 # Analytics documentation
 
 Uptimely generates documentation from an
-[Open Analytics Specification](../../specification/index.md). Feature definitions,
+[Open Analytics Specification](../specification/index.md). Feature definitions,
 function bindings, and declared dependencies become a static website with four
 connected views:
 
@@ -23,7 +23,7 @@ Counts describe declared resources and the compiled plan, not live execution
 results. The dashboard does not run analytics. This website documents the
 analytics project, not the Uptimely package itself.
 
-![Specification reference overview](../../assets/img/open-analytics-specification-overview.png)
+![Specification reference overview](../assets/img/open-analytics-specification-overview.png)
 
 ## Build the website
 
@@ -278,7 +278,7 @@ Both renderings include the same node details. Open Feature graph in the
 sidebar and select **2D** or **3D** above the visualization.
 
 The feature graph explains logical lineage; the
-[execution plan](../compiler/index.md) separately shows callable dependencies and
+[execution plan](compiler.md) separately shows callable dependencies and
 execution stages.
 
 ### Focus on a feature
@@ -329,11 +329,11 @@ It contains the specification configuration, summary counts, feature
 dependencies, and optional generation timestamp. Neither `Documentation.create_html`
 nor `uptimely docs build` automatically writes this JSON.
 
-![Specification feature reference](../../assets/img/open-analytics-specification-features.png)
+![Specification feature reference](../assets/img/open-analytics-specification-features.png)
 
-See the [Python API reference](../../reference/api.md#analytics-documentation) for
+See the [Python API reference](../reference/api.md#analytics-documentation) for
 the documentation interface and the
-[feature graph API](../../reference/api.md#dependency-graphs) for graph operations.
+[feature graph API](../reference/api.md#dependency-graphs) for graph operations.
 
 ## Template organization
 

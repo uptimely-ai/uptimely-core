@@ -75,7 +75,7 @@ arguments. The batch engine does not pass this metadata to functions or use it
 to sort, retain rows, or delay output. Future stateful implementations can inspect
 the declarations, but must distinguish unknown context from explicit zero
 context and account for grouping performed by functions and dependency chains. See
-[row context](../../specification/specification.md#row-context) for the contract.
+[row context](../specification/specification.md#row-context) for the contract.
 
 ## Runtime placeholders
 
@@ -153,7 +153,7 @@ if result.failures:
     raise RuntimeError(f"Execution failed: {result.failures}")
 ```
 
-The [MCP CLI](../ai/index.md#running-the-server) loads this JSON file through
+The [MCP CLI](ai.md#running-the-server) loads this JSON file through
 `--config`, reading backend settings from `backend` and runtime values from
 `bind`. Neither interface automatically selects an
 environment or merges multiple configuration files. Each supplied mapping must
