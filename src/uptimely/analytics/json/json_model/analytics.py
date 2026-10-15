@@ -12,7 +12,7 @@ from . import common, resolved
 from . import dataset as dataset_module
 from . import functions as functions_module
 
-SUPPORTED_ANALYTICS_VERSION = "0.1.0"
+SUPPORTED_ANALYTICS_VERSION = "0.2.0"
 
 
 def _with_mapping_ids(value: typing.Any) -> typing.Any:
@@ -42,7 +42,7 @@ class Analytics(common.StrictModel):
 
     path: str | None = pydantic.Field(default=None, exclude=True)
     name: str | None = None
-    version: typing.Literal["0.1.0"] = SUPPORTED_ANALYTICS_VERSION
+    version: typing.Literal["0.2.0"] = SUPPORTED_ANALYTICS_VERSION
     source: common.AnalyticsSource = pydantic.Field(
         default_factory=lambda: common.AnalyticsSource(name="manual", generated=False)
     )
@@ -110,12 +110,9 @@ class Analytics(common.StrictModel):
         normalized["dimensions"] = _with_mapping_ids(normalized.get("dimensions", {}) or {})
 
         if "functions" in normalized:
-            functions = dict(normalized.get("functions", {}) or {})
-            for category in functions_module.FUNCTION_CATEGORIES:
-                functions[category] = _normalize_nested_mappings(
-                    functions.get(category, {}) or {}, ("args",)
-                )
-            normalized["functions"] = functions
+            normalized["functions"] = _normalize_nested_mappings(
+                normalized.get("functions", {}) or {}, ("args",)
+            )
 
         if "entities" not in normalized:
             return normalized

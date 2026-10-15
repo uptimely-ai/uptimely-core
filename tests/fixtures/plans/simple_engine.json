@@ -1,9 +1,9 @@
 {
   "plan_version": "1.0.0",
-  "analytics_version": "0.1.0",
+  "analytics_version": "0.2.0",
   "required_backend": "polars",
   "resources": {
-    "analytics_version": "0.1.0",
+    "analytics_version": "0.2.0",
     "entities": {
       "asset": {
         "dimensions": [
@@ -12,36 +12,33 @@
       }
     },
     "functions": {
-      "read": {
-        "load": {
-          "args": {
-            "source": {
-              "type": "string"
-            }
+      "load": {
+        "operation": "read",
+        "args": {
+          "source": {
+            "type": "string"
           }
         }
       },
-      "vectorize": {
-        "double": {
-          "args": {
-            "column": {
-              "type": "string"
-            },
-            "dataset": {
-              "type": "dataframe"
-            }
+      "double": {
+        "operation": "vectorize",
+        "args": {
+          "column": {
+            "type": "string"
+          },
+          "dataset": {
+            "type": "dataframe"
           }
         }
       },
-      "write": {
-        "save": {
-          "args": {
-            "dataset": {
-              "type": "dataframe"
-            },
-            "features": {
-              "type": "array[string]"
-            }
+      "save": {
+        "operation": "write",
+        "args": {
+          "dataset": {
+            "type": "dataframe"
+          },
+          "features": {
+            "type": "array[string]"
           }
         }
       }
@@ -55,7 +52,9 @@
       "entity_id": "asset",
       "dataset_id": "telemetry",
       "output": "reading",
-      "output_features": ["reading"],
+      "output_features": [
+        "reading"
+      ],
       "arguments": {
         "source": "?storage.source.path"
       },
@@ -68,8 +67,12 @@
       "entity_id": "asset",
       "dataset_id": "telemetry",
       "output": "doubled",
-      "input_features": ["reading"],
-      "output_features": ["doubled"],
+      "input_features": [
+        "reading"
+      ],
+      "output_features": [
+        "doubled"
+      ],
       "arguments": {
         "column": "reading",
         "dataset": "telemetry"

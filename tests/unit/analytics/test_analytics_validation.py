@@ -8,13 +8,31 @@ from uptimely import analytics
 ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 
 
+@pytest.mark.parametrize(
+    "document",
+    [
+        {"version": "0.1.0"},
+        {
+            "version": "0.2.0",
+            "functions": {"read": {"legacy_reader": {"entrypoint": "reader:load"}}},
+        },
+    ],
+)
+def test_legacy_function_catalog_schemas_are_rejected(
+    tmp_path: pathlib.Path, document: dict[str, object]
+) -> None:
+    path = tmp_path / "legacy.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    with pytest.raises(ValueError):
+        analytics.Analytics(json=path)
+
+
 def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
-    configuration["functions"]["expand"] = {
-        "expand_telemetry": {
-            "entrypoint": "examples.pump_analytics.functions.source:read_pump_telemetry",
-            "args": {},
-        }
+    configuration["functions"]["expand_telemetry"] = {
+        "operation": "expand",
+        "entrypoint": "examples.pump_analytics.functions.source:read_pump_telemetry",
+        "args": {},
     }
     dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]
     dataset["features"]["expanded_feature"] = {"type": "float", "description": "Expanded feature"}
@@ -137,7 +155,7 @@ def test_removed_aggregation_and_wrapper_schemas_are_rejected(
         "bearing_temperature_by_pump"
     ]
     if legacy == "catalog":
-        configuration["functions"]["aggregate"] = configuration["functions"].pop("collapse")
+        configuration["functions"]["maximum"]["operation"] = "aggregate"
     else:
         collapse[legacy] = {}
     path = tmp_path / "legacy.json"
@@ -157,7 +175,7 @@ def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Pat
 
 def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
-    configuration["functions"]["collapse"]["maximum"].pop("entrypoint")
+    configuration["functions"]["maximum"].pop("entrypoint")
     path = tmp_path / "missing_entrypoint.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="entrypoint"):

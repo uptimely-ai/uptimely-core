@@ -60,7 +60,7 @@ def test_export_example_in_fresh_process(
     assert set(analytics_definition.entities) == entities
     assert analytics_definition.source.name == "python_api"
     assert analytics_definition.source.generated is True
-    assert analytics_definition.functions.read
+    assert analytics_definition.function_catalog.by_operation("read")
 
 
 @pytest.mark.parametrize("explicit_root", [False, True])

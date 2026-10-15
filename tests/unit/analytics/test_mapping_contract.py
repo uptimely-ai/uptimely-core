@@ -161,7 +161,7 @@ def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
     path = tmp_path / "analytics.json"
     _analytics().to_json(path)
     configuration = json.loads(path.read_text())
-    configuration["functions"]["vectorize"]["add_one"]["args"]["dataset"]["type"] = "string"
+    configuration["functions"]["add_one"]["args"]["dataset"]["type"] = "string"
     path.write_text(json.dumps(configuration))
     with pytest.raises(ValueError, match="requires argument type dataframe"):
         analytics.Analytics(json=path)
@@ -213,7 +213,8 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     dataset["mappings"]["read_values"]["features"]["outputs"] = ["$features.value"]
     dataset["mappings"]["result"]["features"]["inputs"].append("$features.id")
     if with_sink:
-        configuration["functions"]["write"]["write_ids"] = {
+        configuration["functions"]["write_ids"] = {
+            "operation": "write",
             "entrypoint": f"{__name__}:write_ids",
             "args": {"dataset": {"type": "dataframe"}, "column": {"type": "string"}},
         }

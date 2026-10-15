@@ -25,14 +25,7 @@ from uptimely.analytics.json import json_model
 
 logger = logging.getLogger(__name__)
 
-FUNCTION_CATEGORIES = (
-    "read",
-    "write",
-    "vectorize",
-    "collapse",
-    "expand",
-    "conform",
-)
+FUNCTION_OPERATIONS = json_model.FUNCTION_OPERATIONS
 
 
 @dataclasses.dataclass
@@ -82,34 +75,31 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
 
     @mcp.tool()
     def list_functions() -> str:
-        """List the function catalog: every function id grouped by category."""
+        """List every function id and its operation."""
         catalog = state.load_analytics().function_catalog
         return _to_json(
-            {category: sorted(getattr(catalog, category)) for category in FUNCTION_CATEGORIES}
+            [
+                {"id": function_id, "operation": function.operation}
+                for function_id, function in sorted(catalog.root.items())
+            ]
         )
 
     @mcp.tool()
-    def describe_function(category: str, function_id: str) -> str:
+    def describe_function(function_id: str) -> str:
         """Describe one catalog function: entrypoint, declared args, Python signature.
 
         Args:
-            category: Function category, one of: read, write, vectorize,
-                collapse, expand, conform.
             function_id: The function id from `list_functions`.
         """
         catalog = state.load_analytics().function_catalog
-        if category not in FUNCTION_CATEGORIES:
-            raise ValueError(
-                f"Unknown category: {category}. Expected one of: {', '.join(FUNCTION_CATEGORIES)}"
-            )
-        template = getattr(catalog, category).get(function_id)
+        template = catalog.get(function_id)
         if template is None:
-            raise ValueError(f"Unknown {category} function: {function_id}")
+            raise ValueError(f"Unknown function: {function_id}")
         signature = compile.read_signature(template.entrypoint, root=state.project_root)
         return _to_json(
             {
                 "id": function_id,
-                "category": category,
+                "operation": template.operation,
                 "entrypoint": template.entrypoint,
                 "declared_args": {
                     name: {"type": argument.type, "comment": argument.comment}
@@ -133,7 +123,11 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 for dataset in entity.datasets
                 for mapping in dataset.mappings.values()
                 if hasattr(mapping, "binding")
-                if mapping.binding.function in analytics_definition.functions.vectorize
+                if (
+                    mapping.binding.function in analytics_definition.functions
+                    and analytics_definition.functions[mapping.binding.function].operation
+                    == "vectorize"
+                )
                 for feature_id in mapping.output_features
             }
         )
@@ -281,8 +275,11 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 "analytics": str(state.analytics_path),
                 "entities": sorted(analytics_definition.entities),
                 "functions": {
-                    category: len(getattr(analytics_definition.function_catalog, category))
-                    for category in FUNCTION_CATEGORIES
+                    operation: sum(
+                        function.operation == operation
+                        for function in analytics_definition.function_catalog.root.values()
+                    )
+                    for operation in FUNCTION_OPERATIONS
                 },
             }
         )

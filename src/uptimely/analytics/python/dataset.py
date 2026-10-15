@@ -118,13 +118,7 @@ class Dataset:
         def argument(name: str, value: typing.Any) -> json_analytics.json_model.Argument:
             return json_analytics.json_model.Argument(id=name, **bind._argument_definition(value))
 
-        read: dict[str, json_analytics.json_model.ReadFunction] = {}
-        vectorize: dict[str, json_analytics.json_model.VectorizeFunction] = {}
-        collapse: dict[str, json_analytics.json_model.CollapseFunction] = {}
-        expand: dict[str, json_analytics.json_model.ExpandFunction] = {}
-        conform: dict[str, json_analytics.json_model.ConformFunction] = {}
-
-        write: dict[str, json_analytics.json_model.WriteFunction] = {}
+        functions: dict[str, json_analytics.json_model.FunctionTemplate] = {}
 
         def register(
             declaration: mapping_declarations.Vectorize
@@ -136,8 +130,9 @@ class Dataset:
         ) -> None:
             if isinstance(declaration, mapping_declarations.Write):
                 function_id = bind._operation_id(declaration.bind, None)
-                write[function_id] = json_analytics.json_model.WriteFunction(
+                functions[function_id] = json_analytics.json_model.FunctionTemplate(
                     id=function_id,
+                    operation="write",
                     entrypoint=bind._entrypoint(declaration.bind.function),
                     args={
                         name: argument(name, value) for name, value in declaration.bind.args.items()
@@ -157,27 +152,12 @@ class Dataset:
                     "must use a category-specific mapping declaration"
                 )
             function_id = bind._operation_id(declaration.bind, None)
-            function = {
-                "read": json_analytics.json_model.ReadFunction,
-                "vectorize": json_analytics.json_model.VectorizeFunction,
-                "expand": json_analytics.json_model.ExpandFunction,
-                "collapse": json_analytics.json_model.CollapseFunction,
-                "conform": json_analytics.json_model.ConformFunction,
-            }.get(operation_type)
-            if function is None:
-                raise ValueError(f"Unsupported mapping operation type: {operation_type}")
-            catalog = {
-                "read": read,
-                "vectorize": vectorize,
-                "expand": expand,
-                "collapse": collapse,
-                "conform": conform,
-            }[operation_type]
             arguments = {
                 name: argument(name, value) for name, value in declaration.bind.args.items()
             }
-            catalog[function_id] = function(
+            functions[function_id] = json_analytics.json_model.FunctionTemplate(
                 id=function_id,
+                operation=operation_type,
                 entrypoint=bind._entrypoint(declaration.bind.function),
                 args=arguments,
             )
@@ -185,11 +165,4 @@ class Dataset:
         for declaration in self.mappings:
             register(declaration)
 
-        return json_analytics.json_model.FunctionCatalog(
-            read=read,
-            write=write,
-            vectorize=vectorize,
-            collapse=collapse,
-            expand=expand,
-            conform=conform,
-        )
+        return json_analytics.json_model.FunctionCatalog(root=functions)

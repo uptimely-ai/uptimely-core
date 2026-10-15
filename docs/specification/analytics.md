@@ -9,7 +9,9 @@ analytical declarations and the tools that validate, document, and compile them.
 The root is one JSON object. Dimensions, entities, function templates, features,
 arguments, and mappings use object keys as identifiers; do not repeat their
 `id` inside those entries. Datasets are array entries and require an explicit
-`id`. Identifiers should be stable, lowercase, and descriptive.
+`id`. Identifiers should be stable, lowercase, and descriptive. Format version
+`0.2.0` uses the function registry and operation attribute documented below;
+`0.1.0` documents are not supported.
 
 Tables describe the current parser contract. A default applies when a field is
 omitted; it does not generally make explicit `null` valid. Unknown fields are
@@ -21,10 +23,10 @@ document is authored or consumed.
 | Field | JSON type | Required / default | Meaning |
 | --- | --- | --- | --- |
 | `name` | string or null | No; null | Display name. |
-| `version` | string | No; `"0.1.0"` | Format version; only `0.1.0` is supported. |
+| `version` | string | No; `"0.2.0"` | Format version; only `0.2.0` is supported. |
 | `source` | object | No; manual source | Authoring metadata. |
 | `dimensions` | object | No; `{}` | Dimension definitions keyed by identifier. |
-| `functions` | object | No; empty catalog | Reusable operation templates grouped by category. |
+| `functions` | object | No; empty catalog | Reusable function definitions keyed by identifier. |
 | `entities` | object | No; `{}` | Entity definitions keyed by identifier. |
 
 When supplied, `source` requires `name` (string) and `generated` (boolean).
@@ -71,16 +73,15 @@ columns to an entity, group calculations, or expand observations.
 | `row_scope` | object | No; empty descriptions | Observation grain, filtering, and coverage. |
 | `order` | array of objects | No; `[]` | Logical ordering by entity dimensions. |
 | `features` | object | No; `{}` | Feature metadata keyed by identifier. |
-| `mappings` | object | No; `{}` | Operations keyed by identifier, unique within this dataset. |
+| `mappings` | object | No; `{}` | Function bindings keyed by identifier, unique within this dataset. |
 
 ### Feature and Mapping Identifiers
 
 Each key under `features` identifies a column's metadata. Each key under
-`mappings` identifies one executable binding, unique within its dataset.
+`mappings` identifies one function binding, unique within its dataset.
 A mapping identifier names a binding instance, not a reusable function or an
 output feature. Multiple mappings can invoke the same function with different
-arguments. The catalog category of that function determines their operation
-kind.
+arguments.
 
 ### Row Scope
 
@@ -141,41 +142,40 @@ behavior are described in the [execution engine guide](engine.md).
 
 ## Functions
 
-Here function is a logical function definition bound to an implementation. Each
+A function is a logical function definition bound to an implementation. Each
 function declares one `operation` describing its analytical role, an
 `entrypoint`, and an `args` schema. Each argument definition contains `type`
 and optional `comment`. A mapping binds a function to concrete arguments and
 feature inputs and outputs. Compilation turns each mapping into a callable in
 the execution plan.
 
-### Function Templates
+### Function Definitions
 
-Each category is an object keyed by function identifier and defaults to `{}`.
-All templates require an `entrypoint` string and accept an `args` object,
-defaulting to `{}`. Only vectorize templates currently support an optional
-`description` string or null; other categories reject that field.
+The function catalog is an object keyed by globally unique function
+identifiers. Each definition requires an `operation` and `entrypoint` string
+and accepts an `args` object, defaulting to `{}`. Definitions may include an
+optional `description` string or null.
 
-An entrypoint identifies the implementation associated with a template. Its
+An entrypoint identifies the implementation associated with a function. Its
 resolution is determined by the execution environment. The value below is
 symbolic; a concrete runtime defines its accepted entrypoint syntax.
 
 ```json
-"vectorize": {
-  "sum_features": {
-    "entrypoint": "analytics.sum_features",
-    "args": {
-      "dataset": {"type": "dataframe"},
-      "left_feature": {"type": "string"},
-      "right_feature": {"type": "string"},
-      "output": {"type": "string"}
-    }
+"sum_features": {
+  "operation": "vectorize",
+  "entrypoint": "analytics.sum_features",
+  "args": {
+    "dataset": {"type": "dataframe"},
+    "left_feature": {"type": "string"},
+    "right_feature": {"type": "string"},
+    "output": {"type": "string"}
   }
 }
 ```
 
 Use operation-oriented function names. Mapping identifiers and feature names
-can differ from the template identifier. A bound function must resolve to
-exactly one catalog category.
+can differ from the function identifier. Each mapping binds one function, whose
+declared operation determines its analytical role.
 
 ### Function Operations
 
@@ -270,7 +270,7 @@ A mapping separates analytical requirements from the implementation binding:
 | `features.outputs` | array of strings | No; `[]` | Features produced in the owning dataset. |
 | `row_context` | object or null | No; null | Surrounding-observation requirements. |
 | `binding` | object | Yes | Function invocation. |
-| `binding.function` | string | Yes | Template identifier, resolving to exactly one category. |
+| `binding.function` | string | Yes | Identifier of the function definition to bind. |
 | `binding.args` | object | No; `{}` | Concrete arguments matching the template schema. |
 
 Input and output lists contain distinct `$features.<id>` references, without
@@ -457,27 +457,25 @@ the document can also be compiled and executed by the test suite.
 ```json
 {
   "name": "Observation totals",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "dimensions": {
     "id": {
       "type": "integer"
     }
   },
   "functions": {
-    "read": {
-      "read_observations": {
-        "entrypoint": "examples.simple_analytics.functions.functions:read_data"
-      }
+    "read_observations": {
+      "operation": "read",
+      "entrypoint": "examples.simple_analytics.functions.functions:read_data"
     },
-    "vectorize": {
-      "sum_features": {
-        "entrypoint": "examples.simple_analytics.functions.functions:sum_features",
-        "args": {
-          "left_feature": {"type": "string"},
-          "right_feature": {"type": "string"},
-          "output": {"type": "string"},
-          "dataset": {"type": "dataframe"}
-        }
+    "sum_features": {
+      "operation": "vectorize",
+      "entrypoint": "examples.simple_analytics.functions.functions:sum_features",
+      "args": {
+        "left_feature": {"type": "string"},
+        "right_feature": {"type": "string"},
+        "output": {"type": "string"},
+        "dataset": {"type": "dataframe"}
       }
     }
   },

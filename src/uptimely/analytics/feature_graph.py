@@ -153,10 +153,8 @@ class FeatureGraph(GraphBase):
         for entity_id, entity in analytics.entities.items():
             for dataset in entity.datasets:
                 for operation_id, mapping in dataset.mappings.items():
-                    operation_type = bindings.mapping_category(mapping, analytics.functions)
-                    template = getattr(analytics.functions, operation_type)[
-                        mapping.binding.function
-                    ]
+                    operation_type = bindings.mapping_operation(mapping, analytics.functions)
+                    template = analytics.functions[mapping.binding.function]
                     function = (
                         vectorize_functions.get(mapping.binding.function)
                         if operation_type == "vectorize"
@@ -268,7 +266,7 @@ class FeatureGraph(GraphBase):
         for entity_id, entity in self.analytics.entities.items():
             for dataset in entity.datasets:
                 for mapping in dataset.mappings.values():
-                    operation_type = bindings.mapping_category(mapping, self.analytics.functions)
+                    operation_type = bindings.mapping_operation(mapping, self.analytics.functions)
                     for name in mapping.output_features:
                         feature = dataset.features[name]
                         register_feature_metadata(

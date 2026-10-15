@@ -43,7 +43,7 @@ class CallableGraph:
             for dataset in entity.datasets:
                 dataset_key = (entity_id, dataset.id)
                 for mapping in dataset.mappings.values():
-                    operation_type = bindings.mapping_category(mapping, self.analytics.functions)
+                    operation_type = bindings.mapping_operation(mapping, self.analytics.functions)
                     primary_feature = (
                         mapping.output_features[0] if mapping.output_features else None
                     )

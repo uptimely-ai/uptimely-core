@@ -313,7 +313,7 @@ def test_analytics_plan_and_batch_execution_preserve_context_and_arguments(
         "row_context"
         not in exported["entities"]["entity"]["datasets"][0]["mappings"]["result"]["binding"]
     )
-    assert analytics_definition.functions.vectorize["calculate"].args["column"].type == "string"
+    assert analytics_definition.functions["calculate"].args["column"].type == "string"
 
     plan = compile.Compiler(restored_analytics).compile()
     operation = next(item for item in plan.operations if item.kind == "vectorize")

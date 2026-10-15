@@ -1,8 +1,6 @@
 {% from "analytics/section_header.html.j2" import section_header with context %}
-{% macro mapping_category(mapping, functions) -%}
-  {%- for category in ["read", "conform", "expand", "collapse", "vectorize", "write"] -%}
-    {%- if mapping.binding.function in functions.get(category, {}) -%}{{- category -}}{%- endif -%}
-  {%- endfor -%}
+{% macro mapping_operation(mapping, functions) -%}
+  {{- functions.get(mapping.binding.function, {}).get("operation", "") -}}
 {%- endmacro %}
 {% set total = namespace(feature_count=0) %}
 {% for entity in configuration.entities.values() %}
@@ -41,7 +39,7 @@
           <p class="border-b border-slate-800 py-3 font-mono text-xs text-slate-400">{{ ns.feature_count }} features</p>
           <div class="divide-y divide-slate-800">
           {% for mapping_id, mapping in dataset.mappings.items() %}
-            {% set operation_type = mapping_category(mapping, configuration.functions) %}
+            {% set operation_type = mapping_operation(mapping, configuration.functions) %}
             {% for reference in mapping.features.outputs if operation_type != "vectorize" %}
               {% set feature_id = reference.removeprefix("$features.") %}
               {% set feature = dataset.features[feature_id] %}
@@ -57,7 +55,7 @@
               </div>
             {% endfor %}
           {% endfor %}
-          {% for mapping_id, mapping in dataset.mappings.items() if mapping_category(mapping, configuration.functions) == "vectorize" %}
+          {% for mapping_id, mapping in dataset.mappings.items() if mapping_operation(mapping, configuration.functions) == "vectorize" %}
           {% for reference in mapping.features.outputs %}
           {% set feature_id = reference.removeprefix("$features.") %}
           {% set feature = dataset.features[feature_id] %}

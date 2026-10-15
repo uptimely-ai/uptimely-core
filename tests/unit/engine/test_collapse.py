@@ -192,8 +192,9 @@ def test_collapse_consumes_expanded_features(lazy):
         ),
         features={"inputs": ["$features.value"], "outputs": ["$features.expanded"]},
     )
-    analytics_definition.functions.expand["expanded_values"] = json_model.ExpandFunction(
+    analytics_definition.functions.root["expanded_values"] = json_model.FunctionTemplate(
         id="expanded_values",
+        operation="expand",
         entrypoint=f"{__name__}:expanded_values",
         args={"dataset": json_model.Argument(id="dataset", type="dataframe")},
     )
@@ -215,8 +216,9 @@ def test_collapse_consumes_expanded_features(lazy):
             },
         )
     }
-    analytics_definition.functions.collapse["nested_maximum"] = json_model.CollapseFunction(
+    analytics_definition.functions.root["nested_maximum"] = json_model.FunctionTemplate(
         id="nested_maximum",
+        operation="collapse",
         entrypoint=f"{__name__}:nested_maximum",
         args={
             "dataset": json_model.Argument(id="dataset", type="dataframe"),
@@ -269,7 +271,7 @@ def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
 @pytest.mark.parametrize("lazy", [False, True])
 def test_collapse_preserves_null_group_keys(lazy):
     analytics_definition = _analytics(lazy=lazy)
-    analytics_definition.functions.read["read_values"].entrypoint = f"{__name__}:read_null_groups"
+    analytics_definition.functions["read_values"].entrypoint = f"{__name__}:read_null_groups"
     result = engine.Engine(
         compile.Compiler(analytics_definition, features=["maximum"]).compile()
     ).execute()

@@ -204,9 +204,12 @@ def test_explorer_build_imports_project_functions_in_fresh_process(
     analytics_definition.write_text(
         json.dumps(
             {
-                "version": "0.1.0",
+                "version": "0.2.0",
                 "functions": {
-                    "read": {"read_values": {"entrypoint": "analytics_functions:read_values"}}
+                    "read_values": {
+                        "operation": "read",
+                        "entrypoint": "analytics_functions:read_values",
+                    }
                 },
                 "entities": {
                     "sample": {

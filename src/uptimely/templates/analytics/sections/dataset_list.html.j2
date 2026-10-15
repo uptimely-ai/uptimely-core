@@ -1,8 +1,6 @@
 {% from "analytics/section_header.html.j2" import section_header with context %}
-{% macro mapping_category(mapping, functions) -%}
-  {%- for category in ["read", "conform", "expand", "collapse", "vectorize", "write"] -%}
-    {%- if mapping.binding.function in functions.get(category, {}) -%}{{- category -}}{%- endif -%}
-  {%- endfor -%}
+{% macro mapping_operation(mapping, functions) -%}
+  {{- functions.get(mapping.binding.function, {}).get("operation", "") -}}
 {%- endmacro %}
 {% set column_colors = {
   "dimension": "bg-[#172b46] text-[#b5d4f8]",
@@ -17,8 +15,8 @@
       {% for dataset in entity.datasets %}
       {% set schema = namespace(columns=[], producers={}) %}
       {% for mapping in dataset.mappings.values() %}
-        {% set category = mapping_category(mapping, configuration.functions) %}
-        {% if category in ["vectorize", "collapse"] %}
+        {% set operation = mapping_operation(mapping, configuration.functions) %}
+        {% if operation in ["vectorize", "collapse"] %}
           {% set color = "amber" %}
         {% else %}
           {% set color = "teal" %}
@@ -74,7 +72,7 @@
         {% endif %}
         {% set ns = namespace(mapping_count=0) %}
         {% for mapping in dataset.mappings.values() %}
-          {% if mapping_category(mapping, configuration.functions) != "vectorize" %}
+          {% if mapping_operation(mapping, configuration.functions) != "vectorize" %}
             {% set ns.mapping_count = ns.mapping_count + 1 %}
           {% endif %}
         {% endfor %}
@@ -104,9 +102,9 @@
             <div>
               <p class="mb-3 text-xs text-slate-500">Dataframe mappings</p>
               <div class="flex flex-wrap gap-3">
-            {% for mapping_id, mapping in dataset.mappings.items() if mapping_category(mapping, configuration.functions) != "vectorize" %}
-              <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ mapping_category(mapping, configuration.functions) }} · {{ mapping_id }}</span>
-              {% if mapping_category(mapping, configuration.functions) == "collapse" %}
+            {% for mapping_id, mapping in dataset.mappings.items() if mapping_operation(mapping, configuration.functions) != "vectorize" %}
+              <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ mapping_operation(mapping, configuration.functions) }} · {{ mapping_id }}</span>
+              {% if mapping_operation(mapping, configuration.functions) == "collapse" %}
               <div class="w-full font-mono text-xs text-slate-400">
                 Input dataset inferred from bound features · Group by entity dimensions: {{ entity.dimensions | tojson }}
                 <p>{{ mapping.binding.function }}({{ mapping.binding.args | tojson }})</p>

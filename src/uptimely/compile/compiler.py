@@ -21,12 +21,9 @@ ExecutionPlan = uptimely_plan.ExecutionPlan
 
 def _resolve_function(analytics_definition: analytics.Analytics, node: node_module.CallableNode):
     """Return the function definition for an operation node."""
-    catalog = analytics_definition.function_catalog
-    function_catalog = getattr(catalog, node.callable_type, None)
-    if function_catalog is not None:
-        function = function_catalog.get(node.function_id)
-        if function is not None:
-            return function
+    function = analytics_definition.function_catalog.get(node.function_id)
+    if function is not None:
+        return function
     return next(
         (
             function

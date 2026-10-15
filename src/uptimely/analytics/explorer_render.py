@@ -68,6 +68,14 @@ def _render_document(
     template = f"analytics/{section}.html.j2"
     document = environment.get_template(template).render(
         configuration=context["configuration"],
+        function_groups={
+            operation: {
+                function_id: function
+                for function_id, function in context["configuration"]["functions"].items()
+                if function.get("operation") == operation
+            }
+            for operation in ("read", "write", "vectorize", "collapse", "expand", "conform")
+        },
         summary=context["summary"],
         feature_dependencies=context["feature_dependencies"],
         generated_at=context["generated_at"],
@@ -111,26 +119,13 @@ def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], lis
         for dataset in entity.get("datasets", []):
             for mapping in dataset.get("mappings", {}).values():
                 function_id = mapping.get("binding", {}).get("function")
-                category = next(
-                    (
-                        name
-                        for name in (
-                            "read",
-                            "conform",
-                            "expand",
-                            "collapse",
-                            "vectorize",
-                            "write",
-                        )
-                        if function_id in functions.get(name, {})
-                    ),
-                    None,
-                )
+                function = functions.get(function_id, {})
+                operation = function.get("operation")
                 for reference in mapping.get("features", {}).get("outputs", []):
                     feature_id = reference.removeprefix("$features.")
                     feature = dict(dataset.get("features", {}).get(feature_id, {}))
                     feature["id"] = feature_id
-                    if category == "vectorize":
+                    if operation == "vectorize":
                         calculated_features.append(
                             {
                                 **feature,
@@ -166,42 +161,39 @@ def _build_context(
                 datasets[index]["id"] = dataset.id
     entities = configuration.get("entities", {})
     dimensions = configuration.get("dimensions", {})
-    function_groups = configuration.get("functions", {})
-    for group in function_groups.values():
-        if not isinstance(group, dict):
+    function_definitions = configuration.get("functions", {})
+    function_groups: dict[str, dict[str, dict[str, typing.Any]]] = {}
+    for function_id, function in function_definitions.items():
+        if not isinstance(function, dict):
             continue
-        for function in group.values():
-            if not isinstance(function, dict):
-                continue
-            entrypoint = function.get("entrypoint")
-            if not isinstance(entrypoint, str) or ":" not in entrypoint:
-                continue
-            module_name = entrypoint.rsplit(":", 1)[0]
-            if parse.urlsplit(module_name).scheme in compile_entrypoint.REMOTE_SCHEMES:
-                function["entrypoint_file"] = module_name
-            elif pathlib.Path(module_name).is_file():
-                function["entrypoint_file"] = pathlib.Path(module_name).resolve().as_uri()
-            else:
-                try:
-                    module_spec = util.find_spec(module_name.removesuffix(".py").replace("/", "."))
-                except (ModuleNotFoundError, ValueError):
-                    module_spec = None
-                if module_spec is not None and module_spec.origin not in (
-                    None,
-                    "built-in",
-                    "frozen",
-                ):
-                    function["entrypoint_file"] = (
-                        pathlib.Path(module_spec.origin).resolve().as_uri()
-                    )
+        operation = function.get("operation")
+        if isinstance(operation, str):
+            function_groups.setdefault(operation, {})[function_id] = function
+        entrypoint = function.get("entrypoint")
+        if not isinstance(entrypoint, str) or ":" not in entrypoint:
+            continue
+        module_name = entrypoint.rsplit(":", 1)[0]
+        if parse.urlsplit(module_name).scheme in compile_entrypoint.REMOTE_SCHEMES:
+            function["entrypoint_file"] = module_name
+        elif pathlib.Path(module_name).is_file():
+            function["entrypoint_file"] = pathlib.Path(module_name).resolve().as_uri()
+        else:
             try:
-                return_type = compile_entrypoint.read_signature(
-                    entrypoint, pathlib.Path.cwd()
-                ).returns
-            except (AttributeError, ImportError, ModuleNotFoundError, TypeError, ValueError):
-                return_type = None
-            if return_type:
-                function["return_type"] = return_type
+                module_spec = util.find_spec(module_name.removesuffix(".py").replace("/", "."))
+            except (ModuleNotFoundError, ValueError):
+                module_spec = None
+            if module_spec is not None and module_spec.origin not in (
+                None,
+                "built-in",
+                "frozen",
+            ):
+                function["entrypoint_file"] = pathlib.Path(module_spec.origin).resolve().as_uri()
+        try:
+            return_type = compile_entrypoint.read_signature(entrypoint, pathlib.Path.cwd()).returns
+        except (AttributeError, ImportError, ModuleNotFoundError, TypeError, ValueError):
+            return_type = None
+        if return_type:
+            function["return_type"] = return_type
     fragment_features, calculated_features, referenced_features = _feature_data(configuration)
     feature_buckets = {
         "input": len(fragment_features),
@@ -213,10 +205,8 @@ def _build_context(
         ),
     }
     function_buckets = {
-        group_name: len(function_groups.get(group_name, {}))
-        if isinstance(function_groups.get(group_name, {}), dict)
-        else 0
-        for group_name in ("read", "write", "vectorize", "collapse", "expand", "conform")
+        operation: len(function_groups.get(operation, {}))
+        for operation in ("read", "write", "vectorize", "collapse", "expand", "conform")
     }
     dataset_count = sum(len(entity.get("datasets", [])) for entity in entities.values())
     mapping_count = sum(
@@ -225,8 +215,8 @@ def _build_context(
         for dataset in entity.get("datasets", [])
         for mapping in dataset.get("mappings", {}).values()
         if any(
-            mapping.get("binding", {}).get("function") in function_groups.get(category, {})
-            for category in ("read", "conform", "expand", "collapse")
+            mapping.get("binding", {}).get("function") in function_groups.get(operation, {})
+            for operation in ("read", "conform", "expand", "collapse")
         )
     )
     summary = ExplorerSummary(

@@ -57,7 +57,7 @@ def test_string_locations_are_preserved_without_importing(
 
     payload = json_functions.python_to_analytics_dict(datasets=[declaration])
 
-    assert payload["functions"]["vectorize"]["ceil"]["entrypoint"] == f"{location}:ceil"
+    assert payload["functions"]["ceil"]["entrypoint"] == f"{location}:ceil"
     assert payload["entities"]["entity"]["datasets"][0]["mappings"]["ceil"]["binding"] == {
         "function": "ceil",
         "args": {"x": 1.2},
@@ -73,10 +73,11 @@ def test_references_supply_catalog_ids_and_preserve_overrides(
     declaration = mapping_type(id="calculate", bind=binding)
     catalog = dataset.Dataset(id="values", mappings=[declaration]).function_catalog()
     identifier = function_id or "ceil"
-    category = mapping_type.__name__.lower()
+    operation = mapping_type.__name__.lower()
 
-    assert getattr(catalog, category)[identifier].entrypoint == "math:ceil"
-    assert getattr(catalog, category)[identifier].args["x"].type == "float"
+    assert catalog[identifier].operation == operation
+    assert catalog[identifier].entrypoint == "math:ceil"
+    assert catalog[identifier].args["x"].type == "float"
     model = declaration.to_model()
     assert model.id == "calculate"
     assert model.binding.function == identifier
