@@ -226,7 +226,7 @@ from uptimely.docs import docs
 index_path = docs.create_html(specification)
 ```
 
-`uptimely docs build` provides the same website. Its execution-plan section
+`uptimely explorer build` provides the same website. Its execution-plan section
 has Overview, Graph, and Stages pages. The Graph page defaults to 2D and provides
 a 2D/3D selector without navigating away. Both views use compiled callable operations and their
 dependency edges; feature lineage is shown separately under Feature graph.

@@ -1,17 +1,17 @@
 # Examples
 
-The examples demonstrate how Uptimely Core describes industrial analytics as a declarative specification, resolves feature dependencies, and produces executable plans and documentation.
+The examples demonstrate how Uptimely Core describes industrial analytics as a declarative specification, resolves feature dependencies, and produces executable plans and an interactive analytics explorer.
 
-## View the example documentation
+## Explore the example project
 
 From the project root, export the specification, then build and serve the pump
-analytics documentation with:
+analytics explorer with:
 
 ```sh
 uptimely spec export \
   --module examples.pump_analytics.config.spec.spec \
   --output examples/pump_analytics/_generated/spec/spec.json
-uptimely docs serve --project-root examples/pump_analytics
+uptimely explorer serve --project-root examples/pump_analytics
 ```
 
 Open <http://localhost:8001/> to view it. Stop the server with **Ctrl+C**.
@@ -42,7 +42,7 @@ examples/
 │   ├── functions/            Read, vectorize, and write function implementations
 │   └── _generated/
 │       ├── compile/          Compiled plans
-│       ├── docs/             Generated documentation
+│       ├── explorer/         Generated analytics explorer
 │       └── spec/             Exported declarative analytics specification
 └── simple_analytics/
     ├── config/
@@ -55,12 +55,12 @@ examples/
 
 ## Quick start
 
-With Python 3.13 or newer, install the package, download the examples and explore the analytics documentation site:
+With Python 3.13 or newer, install the package, download the examples and explore the analytics project:
 
 ```sh
 pip install uptimely-core
 uptimely examples download
-uptimely docs serve --project-root examples/pump_analytics
+uptimely explorer serve --project-root examples/pump_analytics
 ```
 
 Additional commands to try:
@@ -85,7 +85,7 @@ Generated artifacts are written beneath each example's `_generated/` directory.
 ## Export Python specifications
 
 The workflow commands consume JSON, so export the Python declarations before
-building plans or documentation. Re-export after changing the declarations.
+building plans or the explorer. Re-export after changing the declarations.
 From the repository root (or the parent of downloaded examples), run:
 
 ```sh

@@ -14,7 +14,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="uptimely")
     commands = parser.add_subparsers(dest="command", required=True)
     examples.configure_parser(commands.add_parser("examples", help="Manage example projects"))
-    docs.configure_parser(commands.add_parser("docs", help="Manage analytics documentation"))
+    docs.configure_parser(
+        commands.add_parser(
+            "explorer", help="Explore analytics specifications, lineage, and execution plans"
+        )
+    )
     spec.configure_parser(
         commands.add_parser("spec", help="Export and inspect analytics specifications")
     )
@@ -23,7 +27,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.command == "examples":
         examples.run(args, parser)
-    elif args.command == "docs":
+    elif args.command == "explorer":
         docs.run(args, parser)
     elif args.command == "spec":
         spec.run(args, parser)

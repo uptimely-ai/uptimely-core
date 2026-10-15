@@ -130,7 +130,7 @@ def test_website_exports_plan_pages_to_default_path(tmp_path: pathlib.Path, monk
 
     index = docs.Documentation(specification).create_html()
 
-    assert index == pathlib.Path("_generated/docs/index.html")
+    assert index == pathlib.Path("_generated/explorer/index.html")
     for filename in (
         "plan/overview.html",
         "plan/graph.html",

@@ -164,7 +164,7 @@ def test_website_exports_all_reports_with_relative_navigation(
 
     index = docs.Documentation(specification).create_html()
 
-    assert index == pathlib.Path("_generated/docs/index.html")
+    assert index == pathlib.Path("_generated/explorer/index.html")
     assert {path.name for path in index.parent.iterdir()} == {
         "index.html",
         "spec",

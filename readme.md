@@ -31,7 +31,7 @@ With pip:
 ```sh
 pip install uptimely-core
 uptimely examples download
-uptimely docs serve --project-root examples/pump_analytics
+uptimely explorer serve --project-root examples/pump_analytics
 ```
 
 With Poetry, from your Poetry project:
@@ -39,7 +39,7 @@ With Poetry, from your Poetry project:
 ```sh
 poetry add uptimely-core
 poetry run uptimely examples download
-poetry run uptimely docs serve --project-root examples/pump_analytics
+poetry run uptimely explorer serve --project-root examples/pump_analytics
 ```
 
 More use cases in [examples](examples/README.md). Explore the examples files, generated resources and modify for the needs of your own project.
