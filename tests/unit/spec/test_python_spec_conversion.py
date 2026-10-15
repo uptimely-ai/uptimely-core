@@ -43,7 +43,10 @@ def _declaration(
 
 def _entity(identifier: str, datasets: list[dataset.Dataset]) -> entity.Entity:
     return entity.Entity(
-        id=identifier, name=identifier.title(), dimensions=["pump"], datasets=datasets
+        id=identifier,
+        name=identifier.title(),
+        dimensions=[dimension.Dimension(id="pump", type="string")],
+        datasets=datasets,
     )
 
 

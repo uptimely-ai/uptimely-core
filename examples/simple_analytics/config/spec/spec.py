@@ -13,13 +13,12 @@ from uptimely.spec.python_spec import (
 
 from ...functions import functions
 
-dimensions = [
-    dimension.Dimension(
-        id="id",
-        type="integer",
-        description="Stable identifier for each input row",
-    ),
-]
+id_dimension = dimension.Dimension(
+    id="id",
+    type="integer",
+    description="Stable identifier for each input row",
+)
+dimensions = [id_dimension]
 
 features = [
     feature.Feature(id="input_1", description="Input feature: input_1"),
@@ -88,7 +87,7 @@ dataset_ = dataset.Dataset(
 entity_ = entity.Entity(
     id="simple_analytics",
     name="Simple analytics",
-    dimensions=["id"],
+    dimensions=[id_dimension],
     datasets=[dataset_],
     description="Simple analytics entity.",
 )

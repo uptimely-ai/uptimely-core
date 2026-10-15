@@ -7,6 +7,7 @@ import dataclasses
 from uptimely.spec import json_spec
 
 from . import dataset as dataset_module
+from . import dimension as dimension_module
 
 __all__ = [
     "Entity",
@@ -19,7 +20,7 @@ class Entity:
 
     id: str
     name: str
-    dimensions: list[str]
+    dimensions: list[dimension_module.Dimension]
     datasets: list[dataset_module.Dataset]
     description: str | None = None
 
@@ -29,7 +30,7 @@ class Entity:
             id=self.id,
             name=self.name,
             description=self.description,
-            dimensions=self.dimensions,
+            dimensions=[dimension.id for dimension in self.dimensions],
             datasets=[
                 json_spec.json_model.Dataset(
                     id=dataset.id,

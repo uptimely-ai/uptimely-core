@@ -34,14 +34,14 @@ def _dataset(identifier: str, conflicting: bool = False) -> dataset.Dataset:
 @pytest.mark.parametrize("as_entities", [False, True])
 def test_auto_catalog_converts_declaration_lists_and_dicts(keyed: bool, as_entities: bool) -> None:
     declarations = [_dataset("first"), _dataset("second")]
+    pump = dimension.Dimension(id="pump", type="string")
     if as_entities:
         resources = [
-            entity.Entity(id="assets", name="Assets", dimensions=["pump"], datasets=declarations)
+            entity.Entity(id="assets", name="Assets", dimensions=[pump], datasets=declarations)
         ]
     else:
         resources = declarations
     inputs = {resource.id: resource for resource in resources} if keyed else resources
-    pump = dimension.Dimension(id="pump", type="string")
 
     payload = json_functions.python_to_spec_dict(
         **({"entities": inputs} if as_entities else {"datasets": inputs}),

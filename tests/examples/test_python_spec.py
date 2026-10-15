@@ -40,13 +40,11 @@ def test_pump_entities_are_collected_in_declaration_order() -> None:
     for declaration in expected:
         assert pump_entities.by_id[declaration.id] is declaration
     assert pump_telemetry_spec.entities is pump_entities.entities
-    assert pump_entities.PUMP_TELEMETRY.dimensions == [
-        item.id for item in pump_dimensions.dimensions
-    ]
+    assert pump_entities.PUMP_TELEMETRY.dimensions == pump_dimensions.dimensions
     assert pump_entities.PUMP.dimensions == [
-        pump_dimensions.PLANT.id,
-        pump_dimensions.PRODUCTION_LINE.id,
-        pump_dimensions.PUMP.id,
+        pump_dimensions.PLANT,
+        pump_dimensions.PRODUCTION_LINE,
+        pump_dimensions.PUMP,
     ]
 
 
