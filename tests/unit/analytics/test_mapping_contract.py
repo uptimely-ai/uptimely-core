@@ -25,11 +25,16 @@ def write_ids(dataset: pl.DataFrame, column: str) -> None:
     assert dataset.sort(column)[column].to_list() == [1, 2]
 
 
-def copy_values(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
+def copy_values(dataset: pl.DataFrame, other_dataset: pl.DataFrame, output: str) -> pl.DataFrame:
     return dataset.select("id", pl.col("value").alias(output))
 
 
-def dataset_identifier(identifier: str, output: str) -> pl.DataFrame:
+def dataset_identifier(
+    dataset: pl.DataFrame,
+    other_dataset: pl.DataFrame,
+    identifier: str,
+    output: str,
+) -> pl.DataFrame:
     return pl.DataFrame({"id": [1], output: [identifier]})
 
 
@@ -215,6 +220,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     if with_sink:
         configuration["functions"]["write_ids"] = {
             "operation": "write",
+            "returns": "none",
             "entrypoint": f"{__name__}:write_ids",
             "args": {"dataset": {"type": "dataframe"}, "column": {"type": "string"}},
         }
@@ -261,11 +267,14 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
                             bind.bind(
                                 ref.function(copy_values),
                                 dataset=source_reference.dataframe,
+                                other_dataset=source_reference.dataframe,
                                 output=ref.feature("copied").id,
                             )
                             if dataframe
                             else bind.bind(
                                 ref.function(dataset_identifier),
+                                dataset=source_reference.dataframe,
+                                other_dataset=source_reference.dataframe,
                                 identifier=source_reference.id,
                                 output=ref.feature("copied").id,
                             )
@@ -276,7 +285,7 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
         ],
     )
     compiled = compile.Compiler(analytics_definition, features=["copied"]).compile()
-    assert len(compiled.operations) == (2 if dataframe else 1)
+    assert len(compiled.operations) == 2
     execution = engine.Engine(compiled).execute()
     assert not execution.failures
     assert execution.datasets["entity", "target"].sort("id")["copied"].to_list() == (

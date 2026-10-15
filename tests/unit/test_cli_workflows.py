@@ -321,6 +321,7 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
                 "functions": {
                     "read_values": {
                         "operation": "read",
+                        "returns": "dataframe",
                         "entrypoint": "cli_project_functions:read_values",
                         "args": {"path": {"type": "string"}},
                     }

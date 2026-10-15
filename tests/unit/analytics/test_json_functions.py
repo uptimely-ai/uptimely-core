@@ -56,6 +56,7 @@ def test_auto_catalog_converts_declaration_lists_and_dicts(keyed: bool, as_entit
     assert payload["functions"] == {
         "source": {
             "operation": "read",
+            "returns": "dataframe",
             "entrypoint": f"{__name__}:_source",
             "args": {
                 "path": {"type": "string", "comment": None},
@@ -101,6 +102,7 @@ def test_explicit_catalog_preserves_argument_metadata(
             "source": json_model.FunctionTemplate(
                 id="source",
                 operation="read",
+                returns="dataframe",
                 entrypoint="custom.reader:load",
                 args={
                     "path": json_model.Argument(id="path", type="string", comment="Input path"),
@@ -125,6 +127,7 @@ def test_explicit_catalog_preserves_argument_metadata(
 
     assert payload["functions"]["source"] == {
         "operation": "read",
+        "returns": "dataframe",
         "entrypoint": "custom.reader:load",
         "args": {
             "path": {"type": "string", "comment": "Input path"},
@@ -142,6 +145,7 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
         functions={
             "configured": {
                 "operation": "read",
+                "returns": "dataframe",
                 "entrypoint": "reader:load",
                 "args": {"value": {"type": "object", "comment": None}},
             }
@@ -150,6 +154,7 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
 
     assert payload["functions"]["configured"] == {
         "operation": "read",
+        "returns": "dataframe",
         "entrypoint": "reader:load",
         "args": {"value": {"type": "object", "comment": None}},
     }

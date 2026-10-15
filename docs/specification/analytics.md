@@ -152,9 +152,12 @@ the execution plan.
 ### Function Definitions
 
 The function catalog is an object keyed by globally unique function
-identifiers. Each definition requires an `operation` and `entrypoint` string
-and accepts an `args` object, defaulting to `{}`. Definitions may include an
-optional `description` string or null.
+identifiers. Each definition requires an `operation`, a `returns` contract, and
+an `entrypoint` string. It accepts an `args` object, defaulting to `{}`.
+Definitions may include an optional `description` string or null. `returns` is
+`dataframe` for data-producing operations and `none` for `write`; the Python
+entrypoint must declare a compatible return annotation. An unannotated return
+is invalid.
 
 An entrypoint identifies the implementation associated with a function. Its
 resolution is determined by the execution environment. The value below is
@@ -163,6 +166,7 @@ symbolic; a concrete runtime defines its accepted entrypoint syntax.
 ```json
 "sum_features": {
   "operation": "vectorize",
+  "returns": "dataframe",
   "entrypoint": "analytics.sum_features",
   "args": {
     "dataset": {"type": "dataframe"},
@@ -192,6 +196,11 @@ output counts for each operation:
 | `expand` | 2 | 1 | Transfer or join observations into target dimensional coverage. |
 | `vectorize` | 1 | 1 | Calculate features while preserving observation keys. |
 | `write` | 1 | 0 | Persist or evaluate selected data. |
+
+The `args` schema must declare exactly the number of `dataframe` arguments
+listed for the function's operation. A dataframe argument represents a dataset
+input; other arguments may carry identifiers, features, or external resource
+settings.
 
 Here, a dataset input is a dataframe consumed by the function, not a scalar
 dataset identifier or external resource configuration. A data-producing
@@ -466,10 +475,12 @@ the document can also be compiled and executed by the test suite.
   "functions": {
     "read_observations": {
       "operation": "read",
+      "returns": "dataframe",
       "entrypoint": "examples.simple_analytics.functions.functions:read_data"
     },
     "sum_features": {
       "operation": "vectorize",
+      "returns": "dataframe",
       "entrypoint": "examples.simple_analytics.functions.functions:sum_features",
       "args": {
         "left_feature": {"type": "string"},

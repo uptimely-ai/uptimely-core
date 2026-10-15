@@ -133,6 +133,7 @@ class Dataset:
                 functions[function_id] = json_analytics.json_model.FunctionTemplate(
                     id=function_id,
                     operation="write",
+                    returns="none",
                     entrypoint=bind._entrypoint(declaration.bind.function),
                     args={
                         name: argument(name, value) for name, value in declaration.bind.args.items()
@@ -158,6 +159,7 @@ class Dataset:
             functions[function_id] = json_analytics.json_model.FunctionTemplate(
                 id=function_id,
                 operation=operation_type,
+                returns="dataframe",
                 entrypoint=bind._entrypoint(declaration.bind.function),
                 args=arguments,
             )

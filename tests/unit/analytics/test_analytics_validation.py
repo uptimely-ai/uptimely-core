@@ -31,13 +31,23 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
         "operation": "expand",
+        "returns": "dataframe",
         "entrypoint": "examples.pump_analytics.functions.source:read_pump_telemetry",
-        "args": {},
+        "args": {
+            "source": {"type": "dataframe"},
+            "target": {"type": "dataframe"},
+        },
     }
     dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]
     dataset["features"]["expanded_feature"] = {"type": "float", "description": "Expanded feature"}
     dataset["mappings"]["expand_op"] = {
-        "binding": {"function": "expand_telemetry", "args": {}},
+        "binding": {
+            "function": "expand_telemetry",
+            "args": {
+                "source": "$datasets.@.dataframe",
+                "target": "$datasets.@.dataframe",
+            },
+        },
         "features": {"inputs": [], "outputs": ["$features.expanded_feature"]},
     }
 
@@ -179,6 +189,32 @@ def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -
     path = tmp_path / "missing_entrypoint.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="entrypoint"):
+        analytics.Analytics(json=path)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("returns", "none", "must declare returns=dataframe"),
+        ("args", {}, "requires 1 dataframe argument"),
+    ],
+)
+def test_function_contract_validates_operation_inputs_and_return(
+    tmp_path: pathlib.Path, field: str, value: object, message: str
+) -> None:
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
+    if field == "returns":
+        configuration["functions"]["maximum"][field] = value
+    else:
+        configuration["functions"]["unmapped_vectorize"] = {
+            "operation": "vectorize",
+            "returns": "dataframe",
+            "entrypoint": "examples.pump_analytics.functions.calculation:maximum",
+            "args": value,
+        }
+    path = tmp_path / "invalid_function_contract.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+    with pytest.raises(ValueError, match=message):
         analytics.Analytics(json=path)
 
 

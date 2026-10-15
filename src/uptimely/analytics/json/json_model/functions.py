@@ -18,6 +18,7 @@ FUNCTION_OPERATIONS = (
     "conform",
 )
 FunctionOperation = typing.Literal["read", "write", "vectorize", "collapse", "expand", "conform"]
+FunctionReturns = typing.Literal["dataframe", "none"]
 
 
 class FunctionTemplate(common.StrictModel):
@@ -25,6 +26,7 @@ class FunctionTemplate(common.StrictModel):
 
     id: str = pydantic.Field(exclude=True)
     operation: FunctionOperation
+    returns: FunctionReturns
     entrypoint: str
     args: dict[str, common.Argument] = pydantic.Field(default_factory=dict)
     description: str | None = None

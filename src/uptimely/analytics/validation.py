@@ -445,6 +445,36 @@ def _validate_binding_contracts(
                     )
 
 
+def _validate_function_contracts(model: typing.Any) -> None:
+    """Validate function return and dataframe-input contracts for each operation."""
+    dataframe_inputs = {
+        "read": 0,
+        "collapse": 1,
+        "conform": 2,
+        "expand": 2,
+        "vectorize": 1,
+        "write": 1,
+    }
+    for function_id, function in model.functions.root.items():
+        expected_returns = "none" if function.operation == "write" else "dataframe"
+        path = ("functions", function_id)
+        if function.returns != expected_returns:
+            raise AnalyticsError(
+                f"Operation {function.operation} must declare returns={expected_returns}",
+                code="invalid_function_return_contract",
+                path=(*path, "returns"),
+            )
+        actual_inputs = sum(argument.type == "dataframe" for argument in function.args.values())
+        expected_inputs = dataframe_inputs[function.operation]
+        if actual_inputs != expected_inputs:
+            raise AnalyticsError(
+                f"Operation {function.operation} requires {expected_inputs} dataframe "
+                f"argument(s), got {actual_inputs}",
+                code="invalid_function_input_contract",
+                path=(*path, "args"),
+            )
+
+
 def _feature_names(model: typing.Any) -> set[str]:
     """Collect declared feature identifiers."""
     return {
@@ -482,4 +512,5 @@ def validate_analytics(model: typing.Any, calls: list[typing.Any]) -> None:
     _validate_collapses(model)
     _validate_mapping_inputs(model)
     _validate_binding_contracts(model, categories)
+    _validate_function_contracts(model)
     _validate_feature_dependencies(calls, _feature_names(model), dimensions)
