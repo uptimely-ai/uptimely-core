@@ -81,7 +81,7 @@ def _build_stages(
     for stage in ordered_stages:
         steps: list[DataLineageStep] = []
         for operation in stage:
-            dimensions = specification.entities[operation.entity_id].dimensions
+            dimensions = specification.entities[operation.entity_id].dimension_ids
             columns = [
                 DataLineageColumn(
                     name, specification.dimensions[name].type, "Dimension", "#93c5fd", None

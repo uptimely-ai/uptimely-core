@@ -263,7 +263,7 @@ class SpecificationParser:
                     foreign_features = sorted(
                         feature
                         for feature in sink_features
-                        if feature not in entity.dimensions
+                        if feature not in entity.dimension_ids
                         and dataset_of_feature.get(feature) != dataset_key
                     )
                     if foreign_features:

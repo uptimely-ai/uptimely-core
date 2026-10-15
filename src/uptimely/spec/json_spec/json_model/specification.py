@@ -109,6 +109,12 @@ class Specification(common.StrictModel):
         for entity in normalized["entities"].values():
             if not isinstance(entity, dict):
                 continue
+            entity["dimensions"] = [
+                normalized["dimensions"].get(dimension, dimension)
+                if isinstance(dimension, str)
+                else dimension
+                for dimension in entity.get("dimensions", []) or []
+            ]
             for dataset in entity.get("datasets", []) or []:
                 if isinstance(dataset, dict):
                     dataset["features"] = _with_mapping_ids(dataset.get("features", {}) or {})

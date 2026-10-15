@@ -95,7 +95,7 @@ def validate_dataset_ids(model: typing.Any) -> None:
 def _validate_entity_dimensions(model: typing.Any, dimensions: set[str]) -> None:
     """Validate that entities refer only to declared dimensions."""
     for entity_id, entity in model.entities.items():
-        unknown_dimensions = sorted(set(entity.dimensions) - dimensions)
+        unknown_dimensions = sorted(set(entity.dimension_ids) - dimensions)
         if unknown_dimensions:
             raise ValueError(
                 f"Entity {entity_id} references unknown dimensions: "
@@ -107,7 +107,7 @@ def _validate_calculation_bindings(
     entity: typing.Any, categories: dict[str, dict[str, typing.Any]]
 ) -> None:
     """Require mappings to reference registered features and unique outputs."""
-    dimensions = set(entity.dimensions)
+    dimensions = set(entity.dimension_ids)
     for dataset in entity.datasets:
         owners: dict[str, str] = {}
         for mapping_id, mapping in dataset.mappings.items():
@@ -181,7 +181,7 @@ def _validate_calculation_bindings(
 def _validate_dataset_order(model: typing.Any) -> None:
     """Require distinct ordering keys belonging to the dataset's entity."""
     for entity_id, entity in model.entities.items():
-        dimensions = set(entity.dimensions)
+        dimensions = set(entity.dimension_ids)
         for dataset in entity.datasets:
             seen: set[str] = set()
             for index, key in enumerate(dataset.order):
@@ -217,13 +217,13 @@ def _validate_collapses(model: typing.Any) -> None:
                     raise ValueError(
                         f"Collapse {mapping.id} cannot use its target dataset as source"
                     )
-                keys = entity.dimensions
-                if not set(keys).issubset(source_entity.dimensions):
+                keys = entity.dimension_ids
+                if not set(keys).issubset(source_entity.dimension_ids):
                     raise ValueError(
                         f"Collapse {mapping.id} grouping dimensions must exist "
                         f"in source {source_id}"
                     )
-                source_features = set(source.features) | set(source_entity.dimensions)
+                source_features = set(source.features) | set(source_entity.dimension_ids)
                 inputs = mapping.input_features
                 if not inputs:
                     raise ValueError(f"Collapse {mapping.id} must reference a source feature")
@@ -235,7 +235,7 @@ def _validate_collapses(model: typing.Any) -> None:
                     )
                 unknown_dimensions = set(
                     _structural_references(binding.args, "$dimensions.")
-                ) - set(source_entity.dimensions)
+                ) - set(source_entity.dimension_ids)
                 if unknown_dimensions:
                     raise ValueError(
                         f"Collapse {mapping.id} references unknown source dimensions: "
@@ -270,7 +270,7 @@ def _validate_mapping_inputs(model: typing.Any) -> None:
                         f"Mapping {mapping.id} references unknown input feature: {name}"
                     )
                 if category in {"vectorize", "write"} and name not in (
-                    set(dataset.features) | set(entity.dimensions)
+                    set(dataset.features) | set(entity.dimension_ids)
                 ):
                     raise ValueError(
                         f"Mapping {mapping.id} cannot read feature {name} from another dataset"
@@ -304,7 +304,7 @@ def _validate_mapping_inputs(model: typing.Any) -> None:
                         if category == "collapse"
                         else entity
                     )
-                    if identifier not in context_entity.dimensions:
+                    if identifier not in context_entity.dimension_ids:
                         raise ValueError(
                             f"Mapping {mapping.id} context dimension is not in the input entity: "
                             f"{identifier}"

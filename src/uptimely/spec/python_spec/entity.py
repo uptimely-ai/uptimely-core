@@ -30,7 +30,7 @@ class Entity:
             id=self.id,
             name=self.name,
             description=self.description,
-            dimensions=[dimension.id for dimension in self.dimensions],
+            dimensions=[dimension.to_model() for dimension in self.dimensions],
             datasets=[
                 json_spec.json_model.Dataset(
                     id=dataset.id,
