@@ -56,9 +56,10 @@ nav:
   - Specification:
       - About Specification: specification/index.md
       - Open Analytics Specification: specification/specification.md
+      - Compiler: specification/compiler.md
+      - Execution engine: specification/engine.md
   - Components:
-      - Compiler: components/compiler.md
-      - Engine: components/engine.md
+      - Overview: components/index.md
       - Analytics documentation: components/docs.md
       - AI agents: components/ai.md
   - Development:

@@ -1,13 +1,12 @@
-# Compiler
+# Specification compiler
 
-The compiler translates an [Open Analytics specification](../specification/index.md)
-into a portable execution plan. It resolves declared dependencies, creates
-operations from function bindings, and organizes those operations into execution
-stages.
+The compiler turns an [Open Analytics specification](index.md) into a portable
+execution plan. It connects declared feature requirements to function calls,
+resolves their dependencies, and schedules the resulting operations into stages.
 
-Compilation prepares the workflow; it does not run the analytical operations.
-The resulting plan is the hand-off format to an [engine](engine.md), which
-loads it and executes the operations against runtime data.
+Compilation prepares a workflow but does not run its analytical functions. The
+portable plan is the boundary between planning and execution: an
+[execution engine](engine.md) loads the plan and runs it against runtime data.
 
 ## Compilation workflow
 
@@ -18,8 +17,8 @@ The built-in Python compiler:
 3. Selects the required dependency closure when a feature subset is requested.
 4. Resolves structural references into portable operation arguments and records
    each operation's dependencies.
-5. Groups operations into stages based on the graph topology.
-6. Records runtime resource metadata and callable return signatures in the plan.
+5. Groups operations into dependency-ordered stages.
+6. Copies the runtime resources and callable signatures needed by the plan.
 
 The compiler reads signatures by importing the declared Python entrypoints.
 Their modules and dependencies must therefore be importable in the compilation
@@ -60,10 +59,40 @@ plan = Compiler(
 ).compile()
 ```
 
-Pass a collection of feature identifiers, not a single string. Subset compilation
-includes the owning datasets' writes; it does not create a calculation-only
-workflow. A sink that requires features outside the subset may fail at execution
-time.
+Pass a collection of feature identifiers, not a single string. The compiler
+includes their transitive prerequisites and the writes configured for the
+selected datasets; subset compilation does not create a calculation-only
+workflow. A retained sink that needs features outside the selected closure may
+fail during execution.
+
+Subset plans retain configured dataset writes and do not trim literal
+feature lists passed to those write functions. Declare all required features
+as mapping inputs; an operation that requests a feature outside the selected
+closure can fail because that value was not materialized.
+
+## Dependency resolution
+
+Explicit mapping inputs define feature dependencies. The compiler uses those
+edges to include required producers in a feature-subset plan and to order
+operations. Feature or dataset identifiers passed as arguments do not, by
+themselves, declare a calculated-feature dependency. A dataset dataframe
+argument requires its source observations, but not every calculated feature
+available in that dataset; list each consumed feature as an input.
+
+Vectorize and write inputs belong to their owning dataset. Other operation
+categories can transfer data between datasets when the mapping declares those
+inputs. Independent mappings can be scheduled in the same stage.
+
+The compiler requires an acyclic execution graph. Semantic validation checks
+that feature dependencies have valid producers and ownership, bindings refer
+to known function categories and arguments, and row-context dimensions and
+order declarations are consistent. Structural validation rejects unknown
+fields and malformed declarations. The compiler also checks bound argument
+names and explicit selector/type agreement; it does not validate or coerce
+arbitrary literal values against declared types. These checks cannot infer
+hidden data dependencies inside a function or establish that its calculations
+are correct. Test function implementations together with the mappings that
+declare them.
 
 ## Compilation and runtime boundaries
 
@@ -71,6 +100,14 @@ Structural references such as `$features.<id>`, `$datasets.@`, and
 `$dimensions.<id>` describe relationships in the specification. The compiler
 resolves them to identifiers in the plan; the engine binds those identifiers to
 live dataframes and feature values.
+
+The `@` dataset reference names the owning dataset, not its final completed
+state. The compiler makes the mapping's declared inputs available first. A
+single-output `$features.@.id` reference can only be used when the mapping has
+one calculated output. Dataset `.id` references are metadata; they do not add
+feature dependencies. Structural selector types must agree with their declared
+argument types, but the compiler does not check arbitrary literal values or
+confirm that the implementation accepts them.
 
 Runtime placeholders such as `?storage.telemetry_source.path` remain in the
 compiled arguments. The engine resolves them against its `bind` mapping,
@@ -82,12 +119,12 @@ that claim at runtime. Deployment and orchestration are outside the compiler's
 responsibility.
 
 Row-context metadata is preserved separately from operation arguments. When any
-operation declares context, planned datasets' ordering and row scopes are included under
-`resources.datasets`, so an exported plan does not need the original specification
-to interpret its context requirements. Context is local to each binding; the
-compiler does not infer transitive retention across chained calculations.
-Calculated-feature context is read from the feature declaration, not copied
-through its binding or derived call.
+operation declares context, planned datasets' ordering and row scopes are
+included under `resources.datasets`, so an exported plan does not need the
+original specification to interpret those requirements. Context is local to
+each binding; the compiler does not infer transitive retention across chained
+calculations. Calculated-feature context is read from the feature declaration,
+not copied through its binding or derived call.
 
 ## Generated execution plan
 
@@ -108,10 +145,9 @@ The serialized plan contains these top-level fields:
 | `operations` | The executable operations in the dependency graph. |
 | `stages` | Lists of operation identifiers grouped by dependency level. |
 
-The compiler copies only the specification information required at runtime
-into `resources`. The plan therefore carries the implementation entrypoints
-and binding arguments needed to invoke operations, but it is not a replacement
-for the authoring specification.
+The compiler copies only the information needed at runtime into `resources`.
+The plan carries callable entrypoints and binding arguments, but remains
+distinct from the authoring specification.
 
 ### Operations
 
@@ -127,11 +163,10 @@ Each operation represents one callable invocation:
 | `output` | Operation output identifier, such as a calculated feature. |
 | `arguments` | Portable compiled argument values. Structural references are resolved to identifiers; runtime dataframe binding is deferred to the engine. |
 | `dependency_ids` | Operation identifiers that must complete before this operation. |
-| `row_context` | Input-context requirements from a vectorized feature; `null` when undeclared. Stored separately from function arguments. |
+| `row_context` | Mapping input-context requirements; `null` when undeclared. Stored separately from function arguments. |
 
-Fragment operations return dataframes. Vectorize operations return one feature
-element, which the engine materializes as the declared output column. Write
-operations consume the assembled dataset state. The plan records these
+Every data-producing operation returns a dataframe with its declared outputs.
+Write operations consume the assembled dataset state. The plan records
 operation contracts and dependencies; it does not execute them.
 
 ### Execution stages
@@ -204,17 +239,16 @@ Bar charts show the operation-type breakdown and each stage's size. Stage size
 indicates potential parallelism, not how many operations the engine actually
 runs concurrently.
 
-The [Engine documentation](engine.md) describes how the built-in engine
-executes the loaded plan and accumulates runtime dataframes. The plan itself
-remains independent of that engine's dataframe implementation and orchestration
-environment.
+The [execution engine](engine.md) describes how the built-in runtime executes
+the plan and accumulates dataframes. The plan contract is separate from any one
+engine implementation or orchestration environment.
 
 ## Create your own compiler
 
 The built-in compiler is a reference implementation, not a required part of every
 deployment. You can create another compiler to target a different execution
 environment or apply backend-specific planning strategies while retaining the
-[specification](../specification/index.md) as the source of truth.
+[specification](index.md) as the source of truth.
 
 Start by deciding which engine will consume the output. A compiler targeting the
 built-in engine must produce its existing execution plan contract. A compiler
@@ -248,6 +282,6 @@ ordering, but those structural checks do not establish semantic equivalence.
 Also test the compiler with representative specifications, feature subsets, and
 the target engine to verify that it produces the intended numerical results.
 
-The current built-in engine supports only `polars`; targeting another backend
-requires an engine that supports it. An alternative compiler can be written in
-another language, provided its output meets the chosen engine's contract.
+The built-in engine currently supports only `polars`; another backend needs an
+engine that implements it. A compiler may be written in another language, as
+long as its output meets the chosen engine's plan contract.
