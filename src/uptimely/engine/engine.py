@@ -119,16 +119,6 @@ class Engine:
                 f"Unsupported plan backend: {self.plan.plan.required_backend}. "
                 f"Expected {self.backend.name}."
             )
-        resource_version = self.resources.get("analytics_version")
-        self._verify_analytics_version(resource_version)
-
-    def _verify_analytics_version(self, version: str | None) -> None:
-        """Verify the plan and supplied resource analytics versions agree."""
-        if version != self.plan.plan.analytics_version:
-            raise ValueError(
-                "Analytics version mismatch: "
-                f"plan={self.plan.plan.analytics_version!r}, resources={version!r}"
-            )
 
     def execute(self) -> result_module.ExecutionResult:
         """Execute plan stages and return explicit runtime state and statuses."""
