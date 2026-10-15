@@ -1,4 +1,4 @@
-"""Tests for exporting Python specifications from the command line."""
+"""Tests for the analytics command-line interface."""
 
 import json
 import pathlib
@@ -15,7 +15,7 @@ PUMP_MODULE = "examples.pump_analytics.config.spec.spec"
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
-    monkeypatch.setattr(sys, "argv", ["uptimely", "spec", "export", *arguments])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "analytics", "export", *arguments])
     cli.main()
 
 
@@ -35,7 +35,7 @@ def test_export_example_in_fresh_process(
             sys.executable,
             "-m",
             "uptimely.cli.cli",
-            "spec",
+            "analytics",
             "export",
             "--module",
             module,
