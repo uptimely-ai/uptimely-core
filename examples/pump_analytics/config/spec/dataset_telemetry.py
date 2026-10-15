@@ -116,7 +116,9 @@ telemetry_mappings = [
     mapping.Vectorize(
         id="recommended_flow_rate",
         bind=bind.bind(
-            ref.function(functions.calculation.extract_recommendation_value),
+            ref.function(
+                "examples.pump_analytics.functions.calculation:extract_recommendation_value"
+            ),
             optimization_attribute="recommended_flow_rate",
             column=ref.feature("operating_point_recommendation"),
             dataset=ref.current_dataset().dataframe,
