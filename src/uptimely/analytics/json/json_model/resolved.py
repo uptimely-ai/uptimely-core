@@ -1,4 +1,4 @@
-"""Derived callable models resolved from specification declarations."""
+"""Derived callable models resolved from analytics declarations."""
 
 from __future__ import annotations
 

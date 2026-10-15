@@ -13,11 +13,11 @@ import pytest
 from examples.pump_analytics.functions import source
 
 from uptimely import analytics, compile
-from uptimely.analytics import explorer_render as spec_render
+from uptimely.analytics import explorer_render as analytics_render
 from uptimely.analytics import graph_render
 from uptimely.explorer import explorer
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 REPORTS = {
     "spec/overview.html": "spec",
     "spec/features.html": "features",
@@ -123,7 +123,7 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
     }
     palette = {
         "home": "#93c5fd",
-        "specification": "#67e8f9",
+        "analytics": "#67e8f9",
         "overview": "#93c5fd",
         "features": "#f9a8d4",
         "entities": "#fdba74",
@@ -159,10 +159,10 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
 def test_website_exports_all_reports_with_relative_navigation(
     tmp_path: pathlib.Path, monkeypatch
 ) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
     monkeypatch.chdir(tmp_path)
 
-    index = explorer.Explorer(specification).create_html()
+    index = explorer.Explorer(analytics_definition).create_html()
 
     assert index == pathlib.Path("_generated/explorer/index.html")
     assert {path.name for path in index.parent.iterdir()} == {
@@ -217,7 +217,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "bg-[#392e19] text-[#efcf89]" in datasets
     assert "Column metadata" not in datasets
     assert "Type / unit" not in datasets
-    for entity in specification.entities.values():
+    for entity in analytics_definition.entities.values():
         for dataset in entity.datasets:
             table = re.search(
                 rf'<table data-dataset-schema="{dataset.id}".*?</table>', datasets, re.DOTALL
@@ -234,9 +234,9 @@ def test_website_exports_all_reports_with_relative_navigation(
             raw_columns = {
                 name
                 for mapping in dataset.mappings.values()
-                if mapping.binding.function in specification.functions.read
-                or mapping.binding.function in specification.functions.conform
-                or mapping.binding.function in specification.functions.expand
+                if mapping.binding.function in analytics_definition.functions.read
+                or mapping.binding.function in analytics_definition.functions.conform
+                or mapping.binding.function in analytics_definition.functions.expand
                 for name in mapping.output_features
             }
             for name, column in zip(expected_names, columns, strict=True):
@@ -279,8 +279,8 @@ def test_website_exports_all_reports_with_relative_navigation(
 
 
 def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monkeypatch) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    expected_plan = compile.Compiler(specification).compile()
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    expected_plan = compile.Compiler(analytics_definition).compile()
     compile_calls = 0
     original_compile = compile.Compiler.compile
 
@@ -291,35 +291,35 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         return original_compile(self)
 
     monkeypatch.setattr(compile.Compiler, "compile", count_compile)
-    index = explorer.create_html(specification, tmp_path / "index.html")
+    index = explorer.create_html(analytics_definition, tmp_path / "index.html")
     document = index.read_text(encoding="utf-8")
 
     assert compile_calls == 1
     assert "<title>Pump analytics | OpenAnalytics</title>" in document
     assert heading_titles(document) == ["Pump analytics"]
     datasets = [
-        dataset for entity in specification.entities.values() for dataset in entity.datasets
+        dataset for entity in analytics_definition.entities.values() for dataset in entity.datasets
     ]
     assert dict(re.findall(r'data-stat="([^"]+)" data-value="(\d+)"', document)) == {
-        "Entities": str(len(specification.entities)),
+        "Entities": str(len(analytics_definition.entities)),
         "Datasets": str(len(datasets)),
         "Features": str(sum(len(dataset.features) for dataset in datasets)),
         "Functions": str(
-            sum(len(group) for group in specification.functions.model_dump().values())
+            sum(len(group) for group in analytics_definition.functions.model_dump().values())
         ),
         "Operations": str(len(expected_plan.operations)),
         "Stages": str(len(expected_plan.execution_stages)),
     }
-    assert "Specification 0.1.0" in document
+    assert "Analytics 0.1.0" in document
     assert 'aria-label="Project counts"' in document
     assert 'aria-label="Analytics journey"' in document
     assert re.findall(r'<li class="journey-step (\S+) icon--\1">', document) == [
-        "specification",
+        "analytics",
         "lineage",
         "execution",
     ]
     for href, action in (
-        ("spec/overview.html", "Explore specification"),
+        ("spec/overview.html", "Explore analytics"),
         ("spec/graph.html", "Trace dependencies"),
         ("plan/overview.html", "Inspect the plan"),
     ):
@@ -358,16 +358,16 @@ def test_homepage_handles_unnamed_and_escaped_projects(
         ("spec/functions.html", "functions", "Functions"),
     ],
 )
-def test_specification_pages_render_only_their_section(
+def test_analytics_pages_render_only_their_section(
     tmp_path: pathlib.Path, filename: str, section_id: str, title: str
 ) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    explorer.Explorer(specification).create_html(tmp_path / "index.html")
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     for candidate in ("overview", "entities", "datasets", "dimensions", "functions"):
         assert (f'<section id="{candidate}"' in document) == (candidate == section_id)
-    assert 'aria-label="Specification sections"' in document
+    assert 'aria-label="Analytics sections"' in document
     assert 'aria-label="Documentation sections"' not in document
     headings = re.findall(r'<h1 class="([^"]+)">.*?<span>([^<]+)</span></h1>', document)
     assert len(headings) == 1
@@ -378,9 +378,9 @@ def test_specification_pages_render_only_their_section(
     assert "sm:text-6xl" not in document
 
 
-def test_specification_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    explorer.Explorer(specification).create_html(tmp_path / "index.html")
+def test_analytics_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / "spec/overview.html").read_text(encoding="utf-8")
 
     assert "Pump analytics" in document
@@ -393,11 +393,11 @@ def test_specification_overview_displays_source_profile(tmp_path: pathlib.Path) 
     assert "rounded-3xl border border-cyan-900/60 bg-gradient-to-br" in document
 
 
-def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    specification.path = None
+def test_website_supports_custom_index_path_and_in_memory_analytics(tmp_path: pathlib.Path) -> None:
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition.path = None
 
-    index = explorer.create_html(specification, tmp_path / "nested" / "analytics.htm")
+    index = explorer.create_html(analytics_definition, tmp_path / "nested" / "analytics.htm")
 
     assert index == tmp_path / "nested" / "analytics.html"
     assert index.is_file()
@@ -462,8 +462,8 @@ def test_relocated_website_navigation_works_under_url_prefix(
 def test_execution_plan_pages_render_only_their_section(
     tmp_path: pathlib.Path, filename: str, title: str
 ) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    explorer.Explorer(specification).create_html(tmp_path / "index.html")
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert 'aria-label="Plan sections"' in document
@@ -552,7 +552,7 @@ def test_execution_plan_pages_render_only_their_section(
 def test_graph_pages_have_one_selector_and_shared_data(
     tmp_path: pathlib.Path, filename: str
 ) -> None:
-    explorer.create_html(analytics.Analytics(json=SPEC_PATH), tmp_path / "index.html")
+    explorer.create_html(analytics.Analytics(json=ANALYTICS_PATH), tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert document.count('aria-label="Graph view"') == 1
@@ -593,18 +593,18 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
 
 
 def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    first = explorer.Explorer(specification).create_html(tmp_path / "first" / "index.html")
-    second = explorer.Explorer(specification).create_html(tmp_path / "second" / "index.html")
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    first = explorer.Explorer(analytics_definition).create_html(tmp_path / "first" / "index.html")
+    second = explorer.Explorer(analytics_definition).create_html(tmp_path / "second" / "index.html")
 
     for filename in ("index.html", *REPORTS):
         assert (first.parent / filename).read_bytes() == (second.parent / filename).read_bytes()
 
 
 def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    plan = compile.Compiler(specification).compile()
-    explorer.Explorer(specification).create_html(tmp_path / "index.html")
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    plan = compile.Compiler(analytics_definition).compile()
+    explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
     cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
     assert cards == {
@@ -646,9 +646,9 @@ def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> Non
     "filename", ["overview.html", "features.html", "graph.html", "stages.html"]
 )
 def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filename: str) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
 
-    index = explorer.Explorer(specification).create_html(tmp_path / filename)
+    index = explorer.Explorer(analytics_definition).create_html(tmp_path / filename)
     assert index.is_file()
     for report in REPORTS:
         page = tmp_path / report
@@ -662,14 +662,14 @@ def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filen
 
 
 def test_standalone_html_apis_are_removed() -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    graph = analytics.FeatureGraph(specification)
-    assert not hasattr(specification, "create_html")
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    graph = analytics.FeatureGraph(analytics_definition)
+    assert not hasattr(analytics_definition, "create_html")
     assert not hasattr(graph, "export_html")
     assert not hasattr(graph.subset(["health_signal_normalized"]), "export_html")
-    assert not hasattr(compile.Compiler(specification).compile(), "export_html")
-    assert not hasattr(spec_render, "create_html")
-    assert not hasattr(spec_render, "create_website_pages")
+    assert not hasattr(compile.Compiler(analytics_definition).compile(), "export_html")
+    assert not hasattr(analytics_render, "create_html")
+    assert not hasattr(analytics_render, "create_website_pages")
     assert not hasattr(graph_render, "render_graph_html")
     assert not hasattr(graph_render, "export_graph_html")
 
@@ -677,13 +677,13 @@ def test_standalone_html_apis_are_removed() -> None:
 def test_website_propagates_compilation_errors_without_writing_reports(
     tmp_path: pathlib.Path,
 ) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    specification.functions.read[
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition.functions.read[
         "read_pump_telemetry"
     ].entrypoint = "missing_functions:read_pump_telemetry"
 
     with pytest.raises((ImportError, ValueError), match="missing_functions"):
-        explorer.Explorer(specification).create_html(tmp_path / "index.html")
+        explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
 
     assert not list(tmp_path.iterdir())
 
@@ -698,8 +698,8 @@ def test_website_propagates_compilation_errors_without_writing_reports(
 def test_website_graph_links_reference_exported_nodes(
     tmp_path: pathlib.Path, filename: str, variable: str
 ) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    explorer.Explorer(specification).create_html(tmp_path / "index.html")
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
     match = re.search(rf"const {variable} = (.+);", document)
     assert match is not None
@@ -715,9 +715,9 @@ def test_website_graph_links_reference_exported_nodes(
 
 
 def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    plan = compile.Compiler(specification).compile()
-    explorer.Explorer(specification).create_html(tmp_path / "index.html")
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    plan = compile.Compiler(analytics_definition).compile()
+    explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / "plan/graph.html").read_text(encoding="utf-8")
     match = re.search(r"const callableGraphData = (.+);", document)
     assert match is not None
@@ -739,15 +739,17 @@ def test_website_does_not_execute_analytics(tmp_path: pathlib.Path, monkeypatch)
         raise AssertionError("Website generation must not execute analytics")
 
     monkeypatch.setattr(source, "read_pump_telemetry", fail_if_executed)
-    specification = analytics.Analytics(json=SPEC_PATH)
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
 
-    assert explorer.Explorer(specification).create_html(tmp_path / "index.html").is_file()
+    assert explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html").is_file()
 
 
-def test_website_can_include_specification_timestamp(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
+def test_website_can_include_analytics_timestamp(tmp_path: pathlib.Path) -> None:
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
 
-    explorer.Explorer(specification).create_html(tmp_path / "index.html", include_generated_at=True)
+    explorer.Explorer(analytics_definition).create_html(
+        tmp_path / "index.html", include_generated_at=True
+    )
 
     assert re.search(
         r"generated \d{4}-\d{2}-\d{2}T",

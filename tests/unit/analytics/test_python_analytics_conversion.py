@@ -58,24 +58,24 @@ def _entity(identifier: str, datasets: list[dataset.Dataset]) -> entity.Entity:
     )
 
 
-def test_empty_specification_has_no_datasets_or_functions() -> None:
-    specification = PythonAnalytics()
+def test_empty_analytics_has_no_datasets_or_functions() -> None:
+    analytics_definition = PythonAnalytics()
 
-    assert specification.iter_datasets() == []
-    assert specification.function_catalog() == json_model.FunctionCatalog()
+    assert analytics_definition.iter_datasets() == []
+    assert analytics_definition.function_catalog() == json_model.FunctionCatalog()
     with pytest.raises(ValueError, match="At least one entity is required"):
-        specification.to_spec_dict()
+        analytics_definition.to_analytics_dict()
 
 
 def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
     first = dataset.Dataset(id="first")
     second = dataset.Dataset(id="second")
     third = dataset.Dataset(id="third")
-    specification = PythonAnalytics(
+    analytics_definition = PythonAnalytics(
         entities=[_entity("empty", []), _entity("one", [first, second]), _entity("two", [third])]
     )
 
-    assert specification.iter_datasets() == [first, second, third]
+    assert analytics_definition.iter_datasets() == [first, second, third]
 
 
 def test_function_catalog_keeps_distinct_functions_and_categories() -> None:
@@ -83,14 +83,14 @@ def test_function_catalog_keeps_distinct_functions_and_categories() -> None:
         id="additional",
         mappings=[mapping.Read(bind=bind.bind(ref.function(_other_source)))],
     )
-    specification = PythonAnalytics(
+    analytics_definition = PythonAnalytics(
         entities=[
             _entity("one", [_declaration("first", "read")]),
             _entity("two", [additional, _declaration("calculated", "vectorize")]),
         ]
     )
 
-    catalog = specification.function_catalog()
+    catalog = analytics_definition.function_catalog()
 
     assert set(catalog.read) == {"shared", "_other_source"}
     assert catalog.read["_other_source"].entrypoint == f"{__name__}:_other_source"
@@ -104,15 +104,17 @@ def test_function_catalog_keeps_distinct_functions_and_categories() -> None:
 def test_function_catalog_merges_and_deduplicates_each_category(category: str) -> None:
     first = _declaration("first", category)
     second = _declaration("second", category)
-    specification = PythonAnalytics(entities=[_entity("one", [first]), _entity("two", [second])])
+    analytics_definition = PythonAnalytics(
+        entities=[_entity("one", [first]), _entity("two", [second])]
+    )
 
-    catalog = specification.function_catalog()
+    catalog = analytics_definition.function_catalog()
 
     assert catalog == first.function_catalog()
     assert getattr(catalog, category)["shared"].entrypoint == f"{__name__}:_source"
     assert getattr(catalog, category)["shared"].args["dataset"].type == "dataframe"
     assert getattr(catalog, category)["shared"].args["columns"].type == "array[string]"
-    payload = specification.to_spec_dict()
+    payload = analytics_definition.to_analytics_dict()
     assert payload["functions"][category] == {
         "shared": {
             "entrypoint": f"{__name__}:_source",
@@ -132,7 +134,7 @@ def test_function_catalog_merges_and_deduplicates_each_category(category: str) -
     "category", ["read", "write", "vectorize", "collapse", "expand", "conform"]
 )
 def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None:
-    specification = PythonAnalytics(
+    analytics_definition = PythonAnalytics(
         entities=[
             _entity("one", [_declaration("first", category)]),
             _entity("two", [_declaration("second", category, _other_source)]),
@@ -142,13 +144,13 @@ def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None
     with pytest.raises(
         ValueError, match=f"Conflicting function id 'shared' for {category}"
     ) as error:
-        specification.to_spec_dict()
+        analytics_definition.to_analytics_dict()
 
     assert f"{__name__}:_source vs {__name__}:_other_source" in str(error.value)
 
 
 @pytest.mark.parametrize("keyed_dimensions", [False, True])
-def test_to_spec_dict_preserves_name_dimensions_and_dataset_metadata(
+def test_to_analytics_dict_preserves_name_dimensions_and_dataset_metadata(
     keyed_dimensions: bool,
 ) -> None:
     pump = dimension.Dimension(id="pump", type="string", description="Asset ID")
@@ -158,13 +160,13 @@ def test_to_spec_dict_preserves_name_dimensions_and_dataset_metadata(
         row_scope=dataset.RowScope(grain="One row per pump", coverage="All pumps"),
         order=[dataset.Order(dimension=ref.dimension("pump"), direction="desc")],
     )
-    specification = PythonAnalytics(
+    analytics_definition = PythonAnalytics(
         name="Pump analytics",
         entities=[_entity("assets", [declaration])],
         dimensions={"pump": pump} if keyed_dimensions else [pump],
     )
 
-    payload = specification.to_spec_dict()
+    payload = analytics_definition.to_analytics_dict()
 
     assert payload["name"] == "Pump analytics"
     assert payload["version"] == "0.1.0"

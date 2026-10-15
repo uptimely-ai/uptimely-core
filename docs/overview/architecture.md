@@ -1,6 +1,6 @@
 # Project architecture
 
-Uptimely Core separates authoring, specification, planning, and execution into
+Uptimely Core separates authoring, analytics, planning, and execution into
 distinct layers. Each layer has a different responsibility and a different
 level of portability.
 
@@ -9,21 +9,21 @@ level of portability.
 ```mermaid
 flowchart LR
     subgraph resources["Produced resources and definitions"]
-        python_spec["Python spec"]
-        json_spec["JSON specification"]
+        python_analytics["Python analytics"]
+        json_analytics["Analytics JSON"]
         plan["Execution plan"]
         result["Analytical results"]
     end
 
     subgraph actions["Actions"]
-        parse["Parse Python spec"]
-        compile["Compile JSON spec"]
+        parse["Export Python analytics"]
+        compile["Compile analytics"]
         execute["Execute plan"]
     end
 
-    python_spec -->|input to| parse
-    parse -->|produces| json_spec
-    json_spec -->|input to| compile
+    python_analytics -->|input to| parse
+    parse -->|produces| json_analytics
+    json_analytics -->|input to| compile
     compile -->|produces| plan
     plan -->|input to| execute
     execute -->|produces| result
@@ -31,68 +31,70 @@ flowchart LR
     classDef resource fill:#e8f1fb,stroke:#2563eb,stroke-width:1px
     classDef action fill:#fff3cd,stroke:#b7791f,stroke-width:1px
 
-    class python_spec,json_spec,plan,result resource
+    class python_analytics,json_analytics,plan,result resource
     class parse,compile,execute action
 ```
 
 ```text
-Python spec -> Parse Python spec -> JSON specification -> Compile JSON spec -> Execution plan -> Execute plan -> Execution result
+Python analytics -> Export Python analytics -> Analytics JSON -> Compile analytics -> Execution plan -> Execute plan -> Execution result
 ```
 
-The Python spec is optional. It is a developer-friendly definition that may be
-written in Python and then converted into the authoritative JSON specification.
+Python authoring is optional. It is a developer-friendly definition that may be
+written in Python and then converted into the authoritative Analytics JSON.
 
-**The JSON specification is the definitive declarative contract**: it describes
+**The Analytics JSON is the definitive declarative contract**: it describes
 the data and calculations the analytical system needs without prescribing every
 operational step for producing them. The compiler turns that contract into a
 portable execution plan. The plan defines what runs, in what order, and under
 which declared execution context. The engine reads the plan and executes it
 against live runtime state.
 
-## Python Spec
+## Python Authoring
 
-The Python specification is a definition layer for authoring analytics.
+Python authoring is a definition layer for analytics.
 
-It lets developers describe a specification with Python objects, imports,
+It lets developers describe analytics with Python objects, imports,
 helpers, reuse, and editor support. This is useful when a project wants a
-maintainable source format for larger specifications or generated fragments.
+maintainable source format for larger analytics definitions or generated fragments.
 
-The Python spec is not the authoritative runtime document. Its purpose is to
-produce the same specification structure that could also be written directly as
+Python authoring is not the authoritative runtime document. Its purpose is to
+produce the same analytics structure that could also be written directly as
 JSON.
 
-Use the Python spec when developers want autocomplete and type checking,
-repeated specification patterns, or a higher-level authoring format that exports
+Use Python authoring when developers want autocomplete and type checking,
+repeated analytics patterns, or a higher-level authoring format that exports
 to JSON.
 
-For enterprise setup the original meta data might be scattered even in several systems which Python reads and generates the JSON specification in standard format.
+For enterprise setup, source metadata may be scattered across systems. Python
+can read it and generate the standard Analytics JSON document.
 
-## Python parser
+## Python-to-Analytics conversion
 
-This step reads the Python specification and materializes the equivalent JSON
-spec structure so that the result can be validated, documented, and compiled.
+This step reads Python declarations and produces the equivalent Analytics
+JSON document so that the result can be validated, documented, and compiled.
 
-## JSON Spec
+## Analytics JSON
 
-The JSON specification document is the source of truth for the definitions.
+The Analytics JSON document is the source of truth for the definitions.
 
 It is the portable contract for an analytics workflow. It describes entities,
 datasets, dimensions, function catalogs, feature registries, mappings,
 bindings, and engine hints in a format that does not depend on Python
 authoring code. Physical fragments are created by compilation and belong to
-the compiler and engine, not the logical specification.
+the compiler and engine, not the analytics definition.
 
-In fact, the specification uses primitive function and argument data type definitions, so it is agnostic of tools and programming languages.
+The analytics document uses primitive function and argument data type
+definitions, so it is agnostic of tools and programming languages.
 
-Other tools should treat the JSON spec as the source of truth. Documentation,
+Other tools should treat the Analytics JSON as the source of truth. Documentation,
 validation, graph generation, compilation, and execution should all be possible
 from this document.
 
-The JSON specification is adviced to keep under version control system such as git.
+Keep the Analytics JSON document under version control, such as Git.
 
 ## Compiler
 
-The compiler is an action that turns the definitive JSON specification into a
+The compiler is an action that turns the definitive Analytics JSON document into a
 portable execution plan.
 
 It decides what runs, in what order, and under which declared execution
@@ -112,7 +114,7 @@ runtime according to the function template's primitive argument types.
 Version 0.1 declares `polars` as the only supported dataframe backend. The
 compiled plan records that executable claim as `required_backend`, and the
 engine validates compatibility at runtime. Orchestration is outside the
-specification and plan contracts.
+analytics and plan contracts.
 
 Separated definition, planning and execution enables versatile use cases. In
 cloud environments with unlimited resources, it may be possible to execute the
@@ -154,7 +156,7 @@ The Python engine resolves `?<namespace>.<object>.<attribute>` runtime
 placeholders (such as `?storage.telemetry_source.path`) against engine `bind`
 supplied when the engine is constructed. This is how a compiled plan runs against
 different physical storage locations in different environments without
-recompiling the specification.
+recompiling Analytics JSON.
 
 The engine in this repository executes plans with Python functions and the
 Polars backend. Its runtime state is returned as an execution result containing
@@ -167,21 +169,21 @@ The main boundary is between definitions and actions.
 
 Definitions describe the intended state of the system:
 
-- Python spec (definition)
-- JSON spec (definition)
+- Python authoring (definition)
+- Analytics JSON (definition)
 - Plan (definition)
 
 Actions transform or execute those definitions:
 
-- Python parses (action)
+- Python-to-Analytics conversion (action)
 - Compiler (action)
 - Engine (action, reads plan and executes)
 
 ```text
-Python spec (definition) -> Python parses (action) -> JSON spec (definition)
-JSON spec (definition) -> Compiler (action) -> Plan (definition)
+Python authoring (definition) -> Python-to-Analytics conversion (action) -> Analytics JSON (definition)
+Analytics JSON (definition) -> Compiler (action) -> Plan (definition)
 Plan (definition) -> Engine (action, reads plan and executes)
 ```
 
-This separation keeps the JSON specification stable, the compiler deterministic,
+This separation keeps the Analytics JSON stable, the compiler deterministic,
 and engine implementations replaceable.

@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import typing
 
-from uptimely.analytics import json as json_spec
+from uptimely.analytics import json as json_analytics
 
 from . import bind, feature, ref
 from . import mappings as mapping_declarations
@@ -25,9 +25,9 @@ class RowScope:
     filtering: str = ""
     coverage: str = ""
 
-    def to_model(self) -> json_spec.json_model.RowScope:
+    def to_model(self) -> json_analytics.json_model.RowScope:
         """Convert this row scope definition to its canonical model."""
-        return json_spec.json_model.RowScope(
+        return json_analytics.json_model.RowScope(
             grain=self.grain,
             filtering=self.filtering,
             coverage=self.coverage,
@@ -47,9 +47,9 @@ class Order:
     dimension: ref.Reference | str
     direction: typing.Literal["asc", "desc"]
 
-    def to_model(self) -> json_spec.json_model.Order:
+    def to_model(self) -> json_analytics.json_model.Order:
         """Convert this ordering key to its canonical model."""
-        return json_spec.json_model.Order(
+        return json_analytics.json_model.Order(
             dimension=(
                 self.dimension.to_model()
                 if isinstance(self.dimension, ref.Reference)
@@ -77,9 +77,9 @@ class Dataset:
     row_scope: RowScope = dataclasses.field(default_factory=RowScope)
     order: list[Order] = dataclasses.field(default_factory=list)
 
-    def to_model(self) -> json_spec.json_model.Dataset:
+    def to_model(self) -> json_analytics.json_model.Dataset:
         """Convert this declaration to the canonical Pydantic dataset model."""
-        mappings: dict[str, json_spec.json_model.Mapping] = {}
+        mappings: dict[str, json_analytics.json_model.Mapping] = {}
         feature_models = {item.id: item.to_model() for item in self.features}
         for declaration in self.mappings:
             model = declaration.to_model()
@@ -103,7 +103,7 @@ class Dataset:
                     raise ValueError(
                         f"Mapping '{model.id}' references undeclared feature '{output}'"
                     )
-        return json_spec.json_model.Dataset(
+        return json_analytics.json_model.Dataset(
             id=self.id,
             description=self.description,
             row_scope=self.row_scope.to_model(),
@@ -112,19 +112,19 @@ class Dataset:
             mappings=mappings,
         )
 
-    def function_catalog(self) -> json_spec.json_model.FunctionCatalog:
+    def function_catalog(self) -> json_analytics.json_model.FunctionCatalog:
         """Build the function templates required by this dataset declaration."""
 
-        def argument(name: str, value: typing.Any) -> json_spec.json_model.Argument:
-            return json_spec.json_model.Argument(id=name, **bind._argument_definition(value))
+        def argument(name: str, value: typing.Any) -> json_analytics.json_model.Argument:
+            return json_analytics.json_model.Argument(id=name, **bind._argument_definition(value))
 
-        read: dict[str, json_spec.json_model.ReadFunction] = {}
-        vectorize: dict[str, json_spec.json_model.VectorizeFunction] = {}
-        collapse: dict[str, json_spec.json_model.CollapseFunction] = {}
-        expand: dict[str, json_spec.json_model.ExpandFunction] = {}
-        conform: dict[str, json_spec.json_model.ConformFunction] = {}
+        read: dict[str, json_analytics.json_model.ReadFunction] = {}
+        vectorize: dict[str, json_analytics.json_model.VectorizeFunction] = {}
+        collapse: dict[str, json_analytics.json_model.CollapseFunction] = {}
+        expand: dict[str, json_analytics.json_model.ExpandFunction] = {}
+        conform: dict[str, json_analytics.json_model.ConformFunction] = {}
 
-        write: dict[str, json_spec.json_model.WriteFunction] = {}
+        write: dict[str, json_analytics.json_model.WriteFunction] = {}
 
         def register(
             declaration: mapping_declarations.Vectorize
@@ -136,7 +136,7 @@ class Dataset:
         ) -> None:
             if isinstance(declaration, mapping_declarations.Write):
                 function_id = bind._operation_id(declaration.bind, None)
-                write[function_id] = json_spec.json_model.WriteFunction(
+                write[function_id] = json_analytics.json_model.WriteFunction(
                     id=function_id,
                     entrypoint=bind._entrypoint(declaration.bind.function),
                     args={
@@ -158,11 +158,11 @@ class Dataset:
                 )
             function_id = bind._operation_id(declaration.bind, None)
             function = {
-                "read": json_spec.json_model.ReadFunction,
-                "vectorize": json_spec.json_model.VectorizeFunction,
-                "expand": json_spec.json_model.ExpandFunction,
-                "collapse": json_spec.json_model.CollapseFunction,
-                "conform": json_spec.json_model.ConformFunction,
+                "read": json_analytics.json_model.ReadFunction,
+                "vectorize": json_analytics.json_model.VectorizeFunction,
+                "expand": json_analytics.json_model.ExpandFunction,
+                "collapse": json_analytics.json_model.CollapseFunction,
+                "conform": json_analytics.json_model.ConformFunction,
             }.get(operation_type)
             if function is None:
                 raise ValueError(f"Unsupported mapping operation type: {operation_type}")
@@ -185,7 +185,7 @@ class Dataset:
         for declaration in self.mappings:
             register(declaration)
 
-        return json_spec.json_model.FunctionCatalog(
+        return json_analytics.json_model.FunctionCatalog(
             read=read,
             write=write,
             vectorize=vectorize,

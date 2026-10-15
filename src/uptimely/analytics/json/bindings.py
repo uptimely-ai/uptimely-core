@@ -1,4 +1,4 @@
-"""Canonical traversal and resolution helpers for specification bindings."""
+"""Canonical traversal and resolution helpers for analytics bindings."""
 
 from __future__ import annotations
 
@@ -26,12 +26,12 @@ def mapping_category(mapping: json_model.Mapping, catalog: json_model.FunctionCa
 
 
 def collapse_input_dataset(
-    specification: json_model.Analytics, mapping: json_model.Mapping
+    analytics_definition: json_model.Analytics, mapping: json_model.Mapping
 ) -> tuple[json_model.Entity, json_model.Dataset]:
     """Infer one input dataset from a collapse's bound non-dimension features.
 
     Args:
-        specification: Canonical specification containing feature ownership.
+        analytics_definition: Analytics model containing feature ownership.
         mapping: Collapse binding whose inputs determine the dataset.
 
     Returns:
@@ -43,7 +43,7 @@ def collapse_input_dataset(
     inputs = [
         feature
         for feature in mapping.input_features
-        if feature != "@" and feature not in specification.dimensions
+        if feature != "@" and feature not in analytics_definition.dimensions
     ]
     if not inputs:
         raise ValueError(f"Collapse {mapping.id} must reference a source feature")
@@ -51,7 +51,7 @@ def collapse_input_dataset(
     for feature in inputs:
         matches = [
             (entity, dataset)
-            for entity in specification.entities.values()
+            for entity in analytics_definition.entities.values()
             for dataset in entity.datasets
             if feature in dataset.features
         ]

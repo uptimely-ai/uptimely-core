@@ -12,10 +12,12 @@ import fastmcp as fastmcp_  # noqa: E402
 from uptimely.mcp import server  # noqa: E402
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
-SPEC_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "_generated" / "spec" / "spec.json"
+ANALYTICS_PATH = (
+    REPOSITORY_ROOT / "examples" / "pump_analytics" / "_generated" / "spec" / "spec.json"
+)
 CONFIG_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "config" / "engine.json"
 
-pytestmark = pytest.mark.skipif(not SPEC_PATH.exists(), reason="example spec is not generated")
+pytestmark = pytest.mark.skipif(not ANALYTICS_PATH.exists(), reason="example spec is not generated")
 
 
 @pytest.fixture()
@@ -23,7 +25,7 @@ def state() -> server.ServerState:
     """Provide server state bound to the pump analytics specification."""
     engine_config, bind = server._load_engine_config(CONFIG_PATH)
     return server.ServerState(
-        spec_path=SPEC_PATH,
+        analytics_path=ANALYTICS_PATH,
         project_root=REPOSITORY_ROOT,
         engine_config=engine_config,
         bind=bind,
@@ -49,7 +51,7 @@ async def test_lists_all_tools(state: server.ServerState) -> None:
         "describe_feature",
         "compile_plan",
         "execute_feature",
-        "reload_specification",
+        "reload_analytics",
     } <= tools
 
 
@@ -187,7 +189,7 @@ async def test_execute_feature_rejects_nonpositive_row_limit(
 
 
 @pytest.mark.anyio
-async def test_reload_specification(state: server.ServerState) -> None:
-    """reload_specification re-parses the spec and reports its contents."""
-    payload = await _call(state, "reload_specification")
+async def test_reload_analytics(state: server.ServerState) -> None:
+    """reload_analytics re-parses the analytics file and reports its contents."""
+    payload = await _call(state, "reload_analytics")
     assert payload["entities"] == ["pump", "pump_telemetry"]

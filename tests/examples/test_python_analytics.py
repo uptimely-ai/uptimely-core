@@ -1,18 +1,18 @@
 import json
 import pathlib
 
-from examples.pump_analytics.config.spec import dimension as pump_dimensions
-from examples.pump_analytics.config.spec import entity as pump_entities
-from examples.pump_analytics.config.spec import spec as pump_telemetry_spec
+from examples.pump_analytics.config.analytics import analytics as pump_telemetry_analytics
+from examples.pump_analytics.config.analytics import dimension as pump_dimensions
+from examples.pump_analytics.config.analytics import entity as pump_entities
 from examples.pump_analytics.functions import calculation
-from examples.simple_analytics.config.spec import spec as simple_analytics_spec
+from examples.simple_analytics.config.analytics import analytics as simple_analytics_module
 from examples.simple_analytics.functions import functions
 
 from uptimely import analytics
-from uptimely.analytics import python as python_spec
+from uptimely.analytics import python as python_analytics
 from uptimely.analytics.python import bind
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def test_pump_dimensions_are_collected_in_declaration_order() -> None:
@@ -27,7 +27,7 @@ def test_pump_dimensions_are_collected_in_declaration_order() -> None:
     assert list(pump_dimensions.by_id) == ["plant", "production_line", "pump", "timestamp"]
     for declaration in expected:
         assert pump_dimensions.by_id[declaration.id] is declaration
-    assert pump_telemetry_spec.dimensions is pump_dimensions.dimensions
+    assert pump_telemetry_analytics.dimensions is pump_dimensions.dimensions
     assert pump_dimensions.PRODUCTION_LINE.parent == pump_dimensions.PLANT.id
     assert pump_dimensions.PUMP.parent == pump_dimensions.PRODUCTION_LINE.id
 
@@ -39,7 +39,7 @@ def test_pump_entities_are_collected_in_declaration_order() -> None:
     assert list(pump_entities.by_id) == ["pump_telemetry", "pump"]
     for declaration in expected:
         assert pump_entities.by_id[declaration.id] is declaration
-    assert pump_telemetry_spec.entities is pump_entities.entities
+    assert pump_telemetry_analytics.entities is pump_entities.entities
     assert pump_entities.PUMP_TELEMETRY.dimensions == pump_dimensions.dimensions
     assert pump_entities.PUMP.dimensions == [
         pump_dimensions.PLANT,
@@ -53,40 +53,40 @@ def test_argument_definition_supports_recursive_compact_types() -> None:
     assert bind._argument_definition({"value": {"nested": 1.0}}) == {
         "type": "object{str: object{str: float}}"
     }
-    assert bind._argument_definition({"dimensions": [python_spec.ref.dimension("plant")]}) == {
+    assert bind._argument_definition({"dimensions": [python_analytics.ref.dimension("plant")]}) == {
         "type": "object{str: array[string]}"
     }
     assert bind._argument_definition({"value": 1.0, "other": "text"}) == {"type": "object"}
 
 
 def test_function_catalog_uses_vectorize_category() -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
 
-    categories = set(specification.functions.model_dump(exclude_none=True))
+    categories = set(analytics_definition.functions.model_dump(exclude_none=True))
     assert "vectorize" in categories
 
 
-def test_example_manifest_parses_complete_specification() -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    specification_from_directory = analytics.Analytics(json=SPEC_PATH.parent)
+def test_example_manifest_parses_complete_analytics() -> None:
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_from_directory = analytics.Analytics(json=ANALYTICS_PATH.parent)
 
-    assert specification_from_directory.path.endswith("spec.json")
-    assert specification.dimensions["pump"].parent == "production_line"
-    assert set(specification.entities) == {"pump_telemetry", "pump"}
-    assert specification.entities["pump_telemetry"].dimension_ids == [
+    assert analytics_from_directory.path.endswith("spec.json")
+    assert analytics_definition.dimensions["pump"].parent == "production_line"
+    assert set(analytics_definition.entities) == {"pump_telemetry", "pump"}
+    assert analytics_definition.entities["pump_telemetry"].dimension_ids == [
         "plant",
         "production_line",
         "pump",
         "timestamp",
     ]
-    assert specification.entities["pump_telemetry"].dimensions == [
-        specification.dimensions[identifier]
+    assert analytics_definition.entities["pump_telemetry"].dimensions == [
+        analytics_definition.dimensions[identifier]
         for identifier in ("plant", "production_line", "pump", "timestamp")
     ]
-    assert isinstance(specification, analytics.Analytics)
-    assert specification.source.name == "python_api"
-    assert specification.source.generated is True
-    assert set(specification.functions.model_dump(exclude_none=True)) == {
+    assert isinstance(analytics_definition, analytics.Analytics)
+    assert analytics_definition.source.name == "python_api"
+    assert analytics_definition.source.generated is True
+    assert set(analytics_definition.functions.model_dump(exclude_none=True)) == {
         "read",
         "write",
         "vectorize",
@@ -94,54 +94,57 @@ def test_example_manifest_parses_complete_specification() -> None:
         "expand",
         "conform",
     }
-    assert set(specification.functions.vectorize) - {"maximum"} == {
-        function.id for function in specification.resolved_functions
+    assert set(analytics_definition.functions.vectorize) - {"maximum"} == {
+        function.id for function in analytics_definition.resolved_functions
     }
-    assert len(specification.resolved_functions) == 7
+    assert len(analytics_definition.resolved_functions) == 7
 
-    pump_dataset = specification.entities["pump"].datasets[0]
+    pump_dataset = analytics_definition.entities["pump"].datasets[0]
     collapse = pump_dataset.mappings["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.binding.function == "maximum"
     assert "bearing_temperature_max" in collapse.output_features
 
 
-def test_spec_from_entities_python_api(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics.from_python(
-        entities=simple_analytics_spec.python_specification.entities,
-        dimensions=simple_analytics_spec.python_specification.dimensions,
-        name=simple_analytics_spec.python_specification.name,
+def test_analytics_from_entities_python_api(tmp_path: pathlib.Path) -> None:
+    analytics_definition = analytics.Analytics.from_python(
+        entities=simple_analytics_module.python_analytics.entities,
+        dimensions=simple_analytics_module.python_analytics.dimensions,
+        name=simple_analytics_module.python_analytics.name,
     )
 
-    assert specification.entities["simple_analytics"].datasets[0].id == "my_beautiful_dataset"
-    assert specification.name == "Simple analytics"
-    assert specification.source.name == "python_api"
-    assert specification.source.generated is True
-    assert specification.functions.read
+    assert (
+        analytics_definition.entities["simple_analytics"].datasets[0].id == "my_beautiful_dataset"
+    )
+    assert analytics_definition.name == "Simple analytics"
+    assert analytics_definition.source.name == "python_api"
+    assert analytics_definition.source.generated is True
+    assert analytics_definition.functions.read
 
 
 def test_example_timestamp_order_matches_python_declaration() -> None:
     authored = analytics.Analytics.from_python(
-        entities=pump_telemetry_spec.entities, dimensions=pump_telemetry_spec.dimensions
+        entities=pump_telemetry_analytics.entities, dimensions=pump_telemetry_analytics.dimensions
     )
-    exported = analytics.Analytics(json=SPEC_PATH)
+    exported = analytics.Analytics(json=ANALYTICS_PATH)
     expected = [{"dimension": "$dimensions.timestamp", "direction": "asc"}]
-    for specification in (authored, exported):
+    for analytics_definition in (authored, exported):
         assert [
-            key.model_dump() for key in specification.entities["pump_telemetry"].datasets[0].order
+            key.model_dump()
+            for key in analytics_definition.entities["pump_telemetry"].datasets[0].order
         ] == expected
-        assert specification.entities["pump"].datasets[0].order == []
+        assert analytics_definition.entities["pump"].datasets[0].order == []
 
 
-def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics.from_python(
-        datasets=[simple_analytics_spec.dataset_],
-        functions=simple_analytics_spec.dataset_.function_catalog(),
+def test_analytics_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None:
+    analytics_definition = analytics.Analytics.from_python(
+        datasets=[simple_analytics_module.dataset_],
+        functions=simple_analytics_module.dataset_.function_catalog(),
         name="simple_analytics",
-        dimensions=simple_analytics_spec.dimensions,
+        dimensions=simple_analytics_module.dimensions,
     )
     output_path = tmp_path / "spec.json"
-    specification.to_json(output_path)
+    analytics_definition.to_json(output_path)
 
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     dataset_payload = payload["entities"]["simple_analytics"]["datasets"][0]
@@ -191,50 +194,52 @@ def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None
     }
 
 
-def test_sources_and_transforms_python_spec() -> None:
-    declaration = python_spec.dataset.Dataset(
+def test_sources_and_transforms_python_analytics() -> None:
+    declaration = python_analytics.dataset.Dataset(
         id="transformed_dataset",
         mappings=[
-            python_spec.mapping.Read(
+            python_analytics.mapping.Read(
                 id="read",
-                bind=bind.bind(python_spec.ref.function(functions.read_data)),
-                outputs=[python_spec.feature.Feature(id="input_1")],
+                bind=bind.bind(python_analytics.ref.function(functions.read_data)),
+                outputs=[python_analytics.feature.Feature(id="input_1")],
             ),
-            python_spec.mapping.Expand(
+            python_analytics.mapping.Expand(
                 id="expand_data",
                 bind=bind.bind(
-                    python_spec.ref.function(functions.expand_data),
-                    df1=python_spec.ref.dataset("transformed_dataset"),
-                    df2=python_spec.ref.dataset("transformed_dataset"),
+                    python_analytics.ref.function(functions.expand_data),
+                    df1=python_analytics.ref.dataset("transformed_dataset"),
+                    df2=python_analytics.ref.dataset("transformed_dataset"),
                 ),
-                outputs=[python_spec.feature.Feature(id="input_2")],
+                outputs=[python_analytics.feature.Feature(id="input_2")],
             ),
         ],
     )
-    summary = python_spec.dataset.Dataset(
+    summary = python_analytics.dataset.Dataset(
         id="summary",
         mappings=[
-            python_spec.mapping.Collapse(
+            python_analytics.mapping.Collapse(
                 id="collapse_data",
                 bind=bind.bind(
-                    python_spec.ref.function(calculation.maximum),
-                    feature=python_spec.ref.feature("input_1"),
+                    python_analytics.ref.function(calculation.maximum),
+                    feature=python_analytics.ref.feature("input_1"),
                 ),
-                inputs=[python_spec.ref.feature("input_1")],
-                outputs=[python_spec.feature.Feature(id="collapsed_feature")],
+                inputs=[python_analytics.ref.feature("input_1")],
+                outputs=[python_analytics.feature.Feature(id="collapsed_feature")],
             )
         ],
     )
-    spec = analytics.Analytics.from_python(
+    analytics_definition = analytics.Analytics.from_python(
         datasets=[declaration, summary],
         name="transforms_test",
     )
 
-    ds_model = spec.entities["transforms_test"].datasets[0]
+    ds_model = analytics_definition.entities["transforms_test"].datasets[0]
     assert set(ds_model.mappings) == {"read", "expand_data"}
     assert {"input_1", "input_2"} <= set(ds_model.all_features)
-    collapse = spec.entities["transforms_test"].datasets[1].mappings["collapse_data"]
+    collapse = (
+        analytics_definition.entities["transforms_test"].datasets[1].mappings["collapse_data"]
+    )
     assert collapse.binding.function == "maximum"
     assert collapse.binding.args == {"feature": "$features.input_1"}
     assert collapse.output_features == ["collapsed_feature"]
-    assert "maximum" in spec.functions.collapse
+    assert "maximum" in analytics_definition.functions.collapse

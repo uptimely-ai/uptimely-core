@@ -1,4 +1,4 @@
-"""Compilation of specifications into executable callable plans."""
+"""Compilation of analytics into executable callable plans."""
 
 from .compiler import Compiler, ExecutionPlan
 from .entrypoint import FunctionSignature, load_callable, read_signature

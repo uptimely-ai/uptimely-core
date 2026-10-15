@@ -1,4 +1,4 @@
-"""Semantic validation for parsed Uptimely specifications."""
+"""Semantic validation for parsed analytics."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import typing
 from .json import bindings
 
 
-class SpecificationError(ValueError):
-    """A semantic specification error with a stable code and resource path."""
+class AnalyticsError(ValueError):
+    """A semantic analytics error with a stable code and resource path."""
 
     def __init__(self, message: str, *, code: str, path: tuple[str | int, ...]):
         self.code = code
@@ -66,7 +66,7 @@ def _validate_dimensions(model: typing.Any) -> set[str]:
         while current is not None:
             if current in lineage:
                 cycle = lineage[lineage.index(current) :] + [current]
-                raise SpecificationError(
+                raise AnalyticsError(
                     "Dimension parent cycle: " + " -> ".join(cycle),
                     code="dimension_parent_cycle",
                     path=("dimensions", dimension_id, "parent"),
@@ -84,7 +84,7 @@ def validate_dataset_ids(model: typing.Any) -> None:
         for dataset in entity.datasets:
             owner = owners.get(dataset.id)
             if owner is not None:
-                raise SpecificationError(
+                raise AnalyticsError(
                     f"Duplicate dataset id {dataset.id}; already declared by entity {owner}",
                     code="duplicate_dataset_id",
                     path=("entities", entity_id, "datasets", dataset.id),
@@ -188,14 +188,14 @@ def _validate_dataset_order(model: typing.Any) -> None:
                 dimension = key.dimension.removeprefix("$dimensions.")
                 path = ("entities", entity_id, "datasets", dataset.id, "order", index, "dimension")
                 if dimension not in dimensions:
-                    raise SpecificationError(
+                    raise AnalyticsError(
                         f"Dataset {dataset.id} order references a dimension not declared "
                         f"by entity {entity_id}: {dimension}",
                         code="invalid_order_dimension",
                         path=path,
                     )
                 if dimension in seen:
-                    raise SpecificationError(
+                    raise AnalyticsError(
                         f"Dataset {dataset.id} order repeats dimension: {dimension}",
                         code="duplicate_order_dimension",
                         path=path,
@@ -381,7 +381,7 @@ def _validate_binding_contract(
             details.append("missing arguments: " + ", ".join(missing))
         if unknown:
             details.append("unknown arguments: " + ", ".join(unknown))
-        raise SpecificationError(
+        raise AnalyticsError(
             f"Binding for function {binding.function} has " + "; ".join(details),
             code="invalid_binding_arguments",
             path=path,
@@ -396,7 +396,7 @@ def _validate_binding_contract(
             else:
                 return
             if argument_type != expected:
-                raise SpecificationError(
+                raise AnalyticsError(
                     f"Reference {value} requires argument type {expected}, got {argument_type}",
                     code="invalid_binding_reference_type",
                     path=path,
@@ -470,7 +470,7 @@ def _validate_feature_dependencies(
                 )
 
 
-def validate_specification(model: typing.Any, calls: list[typing.Any]) -> None:
+def validate_analytics(model: typing.Any, calls: list[typing.Any]) -> None:
     """Validate references and invariants after the structural model is parsed."""
     dimensions = _validate_dimensions(model)
     validate_dataset_ids(model)

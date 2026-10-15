@@ -1,6 +1,6 @@
-# Specification compiler
+# Compiler
 
-The compiler turns an [Open Analytics specification](index.md) into a portable
+The compiler turns the [Analytics document](analytics.md) into a portable
 execution plan. It connects declared feature requirements to function calls,
 resolves their dependencies, and schedules the resulting operations into stages.
 
@@ -12,7 +12,7 @@ portable plan is the boundary between planning and execution: an
 
 The built-in Python compiler:
 
-1. Uses an in-memory specification or loads one from a JSON file.
+1. Uses an in-memory `Analytics` object or loads Analytics from a JSON file.
 2. Builds a callable dependency graph from the declared bindings.
 3. Selects the required dependency closure when a feature subset is requested.
 4. Resolves structural references into portable operation arguments and records
@@ -27,7 +27,7 @@ Missing entrypoints or unreadable signatures cause compilation to fail.
 
 ## Compiling a plan
 
-`Compiler` accepts an `Analytics` object or a JSON specification path as a
+`Compiler` accepts an `Analytics` object or a path to Analytics JSON as a
 string or `Path`. Calling `compile()` returns an `ExecutionPlan`.
 
 ```python
@@ -54,7 +54,7 @@ selected datasets.
 
 ```python
 plan = Compiler(
-    specification,
+    analytics_definition,
     features=["health_signal_normalized"],
 ).compile()
 ```
@@ -97,7 +97,7 @@ declare them.
 ## Compilation and runtime boundaries
 
 Structural references such as `$features.<id>`, `$datasets.@`, and
-`$dimensions.<id>` describe relationships in the specification. The compiler
+`$dimensions.<id>` describe relationships in Analytics. The compiler
 resolves them to identifiers in the plan; the engine binds those identifiers to
 live dataframes and feature values.
 
@@ -121,7 +121,7 @@ responsibility.
 Row-context metadata is preserved separately from operation arguments. When any
 operation declares context, planned datasets' ordering and row scopes are
 included under `resources.datasets`, so an exported plan does not need the
-original specification to interpret those requirements. Context is local to
+original Analytics document to interpret those requirements. Context is local to
 each binding; the compiler does not infer transitive retention across chained
 calculations. Calculated-feature context is read from the feature declaration,
 not copied through its binding or derived call.
@@ -130,7 +130,7 @@ not copied through its binding or derived call.
 
 An execution plan describes the workflow without retaining the compiler's live
 dependency graph. An engine can load it without loading or recompiling the
-original specification. An alternative engine may use another language or
+original Analytics document. An alternative engine may use another language or
 runtime, provided it implements the plan contract and supports the declared
 backend.
 
@@ -139,7 +139,7 @@ The serialized plan contains these top-level fields:
 | Field | Meaning |
 | --- | --- |
 | `plan_version` | Version of the portable plan format. |
-| `specification_version` | Version of the specification used to create the plan. |
+| `specification_version` | Version of the Analytics document used to create the plan. |
 | `required_backend` | Backend required by the plan. Version 0.1 uses `polars`. |
 | `resources` | Runtime metadata needed by an engine, including dimensions, entities, function templates, and signatures. |
 | `operations` | The executable operations in the dependency graph. |
@@ -147,7 +147,7 @@ The serialized plan contains these top-level fields:
 
 The compiler copies only the information needed at runtime into `resources`.
 The plan carries callable entrypoints and binding arguments, but remains
-distinct from the authoring specification.
+distinct from the source Analytics document.
 
 ### Operations
 
@@ -201,12 +201,12 @@ operation objects:
 ```
 
 The exact identifiers depend on the entity, dataset, operation, and function
-declarations in the source specification.
+declarations in the source Analytics document.
 
 ## Exporting and executing a plan
 
 An exported plan can be inspected, transferred, or executed later without
-recompiling the specification:
+recompiling Analytics JSON:
 
 ```python
 from uptimely.engine import Engine
@@ -218,12 +218,12 @@ result = Engine(plan).execute()
 
 `ExecutionPlan` exposes serialized operations and resolved execution stages.
 To inspect operation order and dependencies in HTML, generate the full website
-from the original specification:
+from the original Analytics document:
 
 ```python
 from uptimely.explorer import explorer
 
-index_path = explorer.create_html(specification)
+index_path = explorer.create_html(analytics_definition)
 ```
 
 `uptimely explorer build` provides the same website. Its execution-plan section
@@ -248,7 +248,7 @@ engine implementation or orchestration environment.
 The built-in compiler is a reference implementation, not a required part of every
 deployment. You can create another compiler to target a different execution
 environment or apply backend-specific planning strategies while retaining the
-[specification](index.md) as the source of truth.
+[Analytics document](analytics.md) as the source of truth.
 
 Start by deciding which engine will consume the output. A compiler targeting the
 built-in engine must produce its existing execution plan contract. A compiler
@@ -257,7 +257,7 @@ output format alone does not make it executable by the built-in engine.
 
 For a compatible compiler:
 
-1. Parse and validate the specification without changing the meaning of its
+1. Parse and validate Analytics without changing the meaning of its
    bindings, features, and dimensions.
 2. Resolve the dependency graph, including upstream dependencies and dataset
    writes when supporting feature subsets.
@@ -266,7 +266,7 @@ For a compatible compiler:
 4. Schedule every operation exactly once, placing each dependency in an earlier
    stage than the operation that consumes it.
 5. Include the resources required by the target engine and declare the plan
-   version, specification version, and required backend accurately.
+   version, Analytics version (`specification_version`), and required backend accurately.
 6. Preserve runtime placeholders for the engine rather than embedding
    environment-specific storage locations during compilation.
 
@@ -279,7 +279,7 @@ methods as an extension API.
 Validate exported plans by loading them through `ExecutionPlan.from_json()`.
 The loader checks operation identifiers, dependency references, and stage
 ordering, but those structural checks do not establish semantic equivalence.
-Also test the compiler with representative specifications, feature subsets, and
+Also test the compiler with representative Analytics documents, feature subsets, and
 the target engine to verify that it produces the intended numerical results.
 
 The built-in engine currently supports only `polars`; another backend needs an

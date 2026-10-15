@@ -1,4 +1,4 @@
-"""Analytics parser and JSON specification loading helpers."""
+"""Analytics parser and JSON loading helpers."""
 
 from __future__ import annotations
 
@@ -12,10 +12,10 @@ from . import bindings, json_functions, json_model, json_serializer
 
 
 class AnalyticsParser:
-    """Parse, resolve, validate, and export a JSON specification."""
+    """Parse, resolve, validate, and export JSON analytics."""
 
     def __init__(self, path: str | pathlib.Path | None = None):
-        """Initialize an empty specification and optionally parse ``path``."""
+        """Initialize an empty parser and optionally parse ``path``."""
         self.path: str | None = None
         self.model = json_model.Analytics()
         self.functions: list[json_model.Function] = []
@@ -26,9 +26,9 @@ class AnalyticsParser:
 
     @classmethod
     def from_json(cls, path: str | pathlib.Path) -> json_model.Analytics:
-        """Create a specification from a JSON file."""
-        specification = cls()
-        return specification.parse(path)
+        """Create analytics from a JSON file."""
+        parser = cls()
+        return parser.parse(path)
 
     @classmethod
     def from_python(
@@ -40,31 +40,31 @@ class AnalyticsParser:
         *,
         entities: object | None = None,
     ) -> json_model.Analytics:
-        """Create a specification from Python authoring models."""
-        specification = cls()
-        spec = json_functions.python_to_spec_dict(
+        """Create analytics from Python authoring models."""
+        parser = cls()
+        analytics_data = json_functions.python_to_analytics_dict(
             datasets=datasets,
             functions=functions,
             name=name,
             dimensions=dimensions,
             entities=entities,
         )
-        specification._apply_model(json_model.Analytics.model_validate(spec))
-        specification._resolve_functions()
-        specification.validate()
-        return specification.model
+        parser._apply_model(json_model.Analytics.model_validate(analytics_data))
+        parser._resolve_functions()
+        parser.validate()
+        return parser.model
 
     def to_json(self, path: str | pathlib.Path) -> str:
-        """Write the current specification to disk and return its path."""
+        """Write the current analytics document to disk and return its path."""
         result = json_serializer.AnalyticsSerializer.to_json(self.model, path)
         self.path = self.model.path
         return result
 
-    def _apply_model(self, spec: json_model.Analytics) -> None:
-        """Apply a validated specification model."""
-        self.model = spec
-        self.functions = spec.resolved_functions
-        self.calls = spec.calls
+    def _apply_model(self, analytics_definition: json_model.Analytics) -> None:
+        """Apply a validated analytics model."""
+        self.model = analytics_definition
+        self.functions = analytics_definition.resolved_functions
+        self.calls = analytics_definition.calls
 
     @property
     def version(self) -> str | None:
@@ -181,23 +181,25 @@ class AnalyticsParser:
         return bindings.resolve_binding_args(args, dataset_id, feature_id)
 
     def parse(self, path: str | pathlib.Path | None = None) -> json_model.Analytics:
-        """Load, resolve, and validate a specification from JSON."""
-        spec_path = self._spec_path(path)
-        spec = self._load_spec(spec_path)
-        self.path = spec_path
-        self._apply_model(json_model.Analytics.model_validate(spec))
-        self.model.path = spec_path
+        """Load, resolve, and validate analytics from JSON."""
+        analytics_path = self._analytics_path(path)
+        analytics_definition = self._load_analytics(analytics_path)
+        self.path = analytics_path
+        self._apply_model(json_model.Analytics.model_validate(analytics_definition))
+        self.model.path = analytics_path
         self._resolve_functions()
         self.validate()
         return self.model
 
     @staticmethod
-    def _load_spec(path: str | pathlib.Path) -> dict:
-        """Load a single JSON specification file."""
-        spec = json.loads(storage.Storage.read(path))
-        if spec.get("includes", []) or spec.get("external_specs", []):
-            raise ValueError("A specification must be defined in a single JSON file")
-        return spec
+    def _load_analytics(path: str | pathlib.Path) -> dict:
+        """Load one JSON analytics document."""
+        analytics_definition = json.loads(storage.Storage.read(path))
+        if analytics_definition.get("includes", []) or analytics_definition.get(
+            "external_specs", []
+        ):
+            raise ValueError("Analytics must be defined in a single JSON file")
+        return analytics_definition
 
     def validate(
         self,
@@ -317,13 +319,13 @@ class AnalyticsParser:
                     f"unknown function: {call.function}"
                 )
 
-        validation.validate_specification(self.model, calls)
+        validation.validate_analytics(self.model, calls)
 
-    def _spec_path(self, path: str | pathlib.Path | None) -> str:
-        """Resolve a supplied path to the JSON specification file."""
+    def _analytics_path(self, path: str | pathlib.Path | None) -> str:
+        """Resolve a supplied path to the analytics JSON file."""
         if path is None:
             if self.path is None:
-                raise ValueError("A specification path is required")
+                raise ValueError("An analytics path is required")
             return self.path
         target = str(path)
         if storage.Storage.is_dir(target):

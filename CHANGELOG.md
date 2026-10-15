@@ -10,10 +10,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
-- `uptimely spec export` exports a module's `PythonSpecification` to JSON,
+- `uptimely analytics export` exports a module's `PythonAnalytics` to JSON,
   replacing the removed example export runners in documentation CI and MCP setup.
 - CLI commands for compiling execution plans (`uptimely plan build`), inspecting
-  feature dependencies (`uptimely spec feature_graph`), and running workflows
+  feature dependencies (`uptimely analytics feature-graph`), and running workflows
   (`uptimely engine run`). Engine execution compiles by default; use
   `--compile false` to run a saved plan.
 
@@ -22,9 +22,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Python function bindings now require `ref.function(callable_or_entrypoint)`,
   accepting a Python callable or a `path:function` string. Local Python files,
   HTTPS source URLs, and S3 source URIs support signature inspection and execution.
-- `uptimely explorer serve` now builds the website from the project's specification before serving it.
+- `uptimely explorer serve` now builds the website from the project's Analytics before serving it.
 - Renamed the analytics documentation CLI command from `docs` to `explorer`.
-- Example project specifications and engine settings now live under `config/`;
+- Example project analytics and engine settings now live under `config/`;
   `uptimely engine run` defaults to `config/engine.json` beneath the project root.
 
 ## [0.1.0] - 2026-10-14

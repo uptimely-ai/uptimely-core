@@ -33,7 +33,7 @@ def dataset_identifier(identifier: str, output: str) -> pl.DataFrame:
     return pl.DataFrame({"id": [1], output: [identifier]})
 
 
-def _specification() -> analytics.Analytics:
+def _analytics() -> analytics.Analytics:
     return analytics.Analytics.from_python(
         datasets=[
             dataset.Dataset(
@@ -73,15 +73,15 @@ def _specification() -> analytics.Analytics:
 
 
 def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
-    specification = _specification()
-    computed = compile.Compiler(specification, features=["result"]).compile()
+    analytics_definition = _analytics()
+    computed = compile.Compiler(analytics_definition, features=["result"]).compile()
     assert len(computed.operations) == 2
     assert next(
         item for item in computed.operations if item.kind == "vectorize"
     ).input_features == [
         "value",
     ]
-    metadata = compile.Compiler(specification, features=["metadata"]).compile()
+    metadata = compile.Compiler(analytics_definition, features=["metadata"]).compile()
     assert all("result" not in item.output_features for item in metadata.operations)
     execution = engine.Engine(metadata).execute()
     assert not execution.failures
@@ -101,7 +101,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
 def test_dataframe_returns_are_validated(
     monkeypatch: pytest.MonkeyPatch, shape: str, message: str
 ) -> None:
-    compiled = compile.Compiler(_specification(), features=["result"]).compile()
+    compiled = compile.Compiler(_analytics(), features=["result"]).compile()
 
     def invalid(dataset: pl.DataFrame, output: str) -> object:
         if shape == "missing":
@@ -121,7 +121,7 @@ def test_dataframe_returns_are_validated(
 
 
 def test_returned_row_order_does_not_control_alignment(monkeypatch: pytest.MonkeyPatch) -> None:
-    compiled = compile.Compiler(_specification(), features=["result"]).compile()
+    compiled = compile.Compiler(_analytics(), features=["result"]).compile()
 
     def reversed_result(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
         return dataset.with_columns((pl.col("value") + 1).alias(output)).reverse()
@@ -147,7 +147,7 @@ def test_invalid_input_contracts_are_rejected(
     tmp_path: pathlib.Path, inputs: list[str], message: str
 ) -> None:
     path = tmp_path / "spec.json"
-    _specification().to_json(path)
+    _analytics().to_json(path)
     configuration = json.loads(path.read_text())
     configuration["entities"]["entity"]["datasets"][0]["mappings"]["result"]["features"][
         "inputs"
@@ -159,7 +159,7 @@ def test_invalid_input_contracts_are_rejected(
 
 def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
     path = tmp_path / "spec.json"
-    _specification().to_json(path)
+    _analytics().to_json(path)
     configuration = json.loads(path.read_text())
     configuration["functions"]["vectorize"]["add_one"]["args"]["dataset"]["type"] = "string"
     path.write_text(json.dumps(configuration))
@@ -168,7 +168,7 @@ def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
 
 
 def test_nested_arguments_preserve_literals_and_resolve_dataframes() -> None:
-    compiled = compile.Compiler(_specification()).compile()
+    compiled = compile.Compiler(_analytics()).compile()
     runtime = engine.Engine(compiled)
     frame = read_values()
     runtime._runtime_datasets = {("entity", "observations"): frame}
@@ -184,10 +184,10 @@ def test_nested_arguments_preserve_literals_and_resolve_dataframes() -> None:
 def test_implicit_dimensions_have_runtime_type_validation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    specification = _specification()
-    source = next(iter(specification.entities["entity"].datasets[0].mappings.values()))
+    analytics_definition = _analytics()
+    source = next(iter(analytics_definition.entities["entity"].datasets[0].mappings.values()))
     source.features.outputs = ["$features.value"]
-    compiled = compile.Compiler(specification, features=["result"]).compile()
+    compiled = compile.Compiler(analytics_definition, features=["result"]).compile()
 
     def wrong_dimension() -> pl.DataFrame:
         return read_values_original().with_columns(pl.col("id").cast(pl.String))
@@ -206,7 +206,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     tmp_path: pathlib.Path, with_sink: bool
 ) -> None:
     path = tmp_path / "spec.json"
-    _specification().to_json(path)
+    _analytics().to_json(path)
     configuration = json.loads(path.read_text())
     dataset = configuration["entities"]["entity"]["datasets"][0]
     del dataset["features"]["id"]
@@ -234,7 +234,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
 @pytest.mark.parametrize("dataframe", [False, True])
 def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: bool) -> None:
     source_reference = ref.dataset("source")
-    specification = analytics.Analytics.from_python(
+    analytics_definition = analytics.Analytics.from_python(
         dimensions=[dimension.Dimension(id="id", type="integer")],
         datasets=[
             dataset.Dataset(
@@ -274,7 +274,7 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
             ),
         ],
     )
-    compiled = compile.Compiler(specification, features=["copied"]).compile()
+    compiled = compile.Compiler(analytics_definition, features=["copied"]).compile()
     assert len(compiled.operations) == (2 if dataframe else 1)
     execution = engine.Engine(compiled).execute()
     assert not execution.failures

@@ -36,12 +36,12 @@ class DataLineageStep:
 
 
 def _build_stages(
-    specification: analytics.Analytics, execution_plan: plan.ExecutionPlan
+    analytics_definition: analytics.Analytics, execution_plan: plan.ExecutionPlan
 ) -> list[list[DataLineageStep]]:
     """Build typed table schemas with colors inherited from feature producers.
 
     Args:
-        specification: Declared dimensions, datasets, and column metadata.
+        analytics_definition: Declared dimensions, datasets, and column metadata.
         execution_plan: Compiled operations and their dependencies.
 
     Returns:
@@ -61,30 +61,30 @@ def _build_stages(
         feature: operation
         for operation in operations
         for feature in operation.output_features
-        if feature not in specification.dimensions
+        if feature not in analytics_definition.dimensions
     }
     datasets = {
         dataset.id: dataset
-        for entity in specification.entities.values()
+        for entity in analytics_definition.entities.values()
         for dataset in entity.datasets
     }
     feature_types = {
         name: feature.type or "Unspecified"
         for dataset in datasets.values()
         for name, feature in dataset.features.items()
-        if name not in specification.dimensions
+        if name not in analytics_definition.dimensions
     }
     feature_types.update(
-        {name: dimension.type for name, dimension in specification.dimensions.items()}
+        {name: dimension.type for name, dimension in analytics_definition.dimensions.items()}
     )
     stages: list[list[DataLineageStep]] = []
     for stage in ordered_stages:
         steps: list[DataLineageStep] = []
         for operation in stage:
-            dimensions = specification.entities[operation.entity_id].dimension_ids
+            dimensions = analytics_definition.entities[operation.entity_id].dimension_ids
             columns = [
                 DataLineageColumn(
-                    name, specification.dimensions[name].type, "Dimension", "#93c5fd", None
+                    name, analytics_definition.dimensions[name].type, "Dimension", "#93c5fd", None
                 )
                 for name in dimensions
             ]
@@ -104,7 +104,7 @@ def _build_stages(
                             colors[producer.id]
                             if producer
                             else "#93c5fd"
-                            if feature in specification.dimensions
+                            if feature in analytics_definition.dimensions
                             else "#cbd5e1",
                             numbers[producer.id] if producer else None,
                         )
@@ -131,7 +131,7 @@ def _build_stages(
 
 
 def _create_website_page(
-    specification: analytics.Analytics,
+    analytics_definition: analytics.Analytics,
     execution_plan: plan.ExecutionPlan,
     output_directory: pathlib.Path,
     *,
@@ -140,7 +140,7 @@ def _create_website_page(
     """Write the linked data-lineage page from the already compiled plan.
 
     Args:
-        specification: Canonical analytics specification.
+        analytics_definition: Canonical analytics model.
         execution_plan: Compiled plan; no analytical functions are called.
         output_directory: Directory shared by the website pages.
         index_filename: Filename of the website dashboard.
@@ -149,7 +149,7 @@ def _create_website_page(
         render.html_environment()
         .get_template("execution/data_lineage.html.j2")
         .render(
-            stages=_build_stages(specification, execution_plan),
+            stages=_build_stages(analytics_definition, execution_plan),
             include_navigation=True,
             active_page="execution",
             active_section="lineage",

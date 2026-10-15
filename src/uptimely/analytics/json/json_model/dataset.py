@@ -109,5 +109,5 @@ class Entity(common.StrictModel):
 
     @pydantic.field_serializer("dimensions")
     def serialize_dimensions(self, dimensions: list[common.Dimension]) -> list[str]:
-        """Serialize entity dimensions as references in the specification document."""
+        """Serialize entity dimensions as references in the analytics document."""
         return [dimension.id for dimension in dimensions]

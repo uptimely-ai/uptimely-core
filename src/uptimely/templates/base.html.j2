@@ -50,10 +50,10 @@
   {% set rel_root = root_path or "" %}
   <nav class="site-nav" aria-label="Explorer pages">
     <a class="site-brand" href="{{ rel_root }}{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>{{ icon("home", "nav-icon") }}<span>openanalytics/explorer</span></a>
-    {% for page, label, icon_key in [("spec", "Specification", "specification"), ("plan", "Plan", "execution"), ("execution", "Execution", "execution")] %}
+    {% for page, label, icon_key in [("spec", "Analytics", "analytics"), ("plan", "Plan", "execution"), ("execution", "Execution", "execution")] %}
     <a href="{{ rel_root }}{{ website_pages[page]['lineage' if page == 'execution' else 'overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
     {% if page == "spec" %}
-    <div class="site-subnav" role="group" aria-label="Specification sections">
+    <div class="site-subnav" role="group" aria-label="Analytics sections">
       {% for section, section_label, section_icon in [
         ("overview", "Overview", "overview"),
         ("features", "Features", "features"),

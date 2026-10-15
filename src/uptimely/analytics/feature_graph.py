@@ -6,8 +6,7 @@ import graphable as graphable_
 from graphable import views
 
 from . import models
-from .json import bindings
-from .json import json_model as spec
+from .json import bindings, json_model
 
 Node = graphable_.graphable.Graphable
 NodeMeta = models.FunctionNode | models.FeatureNode
@@ -18,7 +17,7 @@ class GraphBase:
 
     graph: graphable_.graph.Graph
     _node_index: dict[str, Node]
-    _function_catalog: dict[str, spec.Function]
+    _function_catalog: dict[str, json_model.Function]
     _explicit_output_names: list[str] | None
 
     @staticmethod
@@ -141,23 +140,27 @@ class GraphBase:
 class FeatureGraph(GraphBase):
     """Global dependency graph built from all feature mappings."""
 
-    def __init__(self, specs: spec.Analytics) -> None:
+    def __init__(self, analytics: json_model.Analytics) -> None:
         """Load analytics function calls and build the complete dependency graph."""
         self.functions = [
-            function for function in specs.resolved_functions if function.role == "analytics"
+            function for function in analytics.resolved_functions if function.role == "analytics"
         ]
-        self._graph_operations: list[tuple[spec.Function, str, str, list[str], list[str]]] = []
+        self._graph_operations: list[
+            tuple[json_model.Function, str, str, list[str], list[str]]
+        ] = []
         vectorize_functions = {function.id: function for function in self.functions}
 
-        for entity_id, entity in specs.entities.items():
+        for entity_id, entity in analytics.entities.items():
             for dataset in entity.datasets:
                 for operation_id, mapping in dataset.mappings.items():
-                    operation_type = bindings.mapping_category(mapping, specs.functions)
-                    template = getattr(specs.functions, operation_type)[mapping.binding.function]
+                    operation_type = bindings.mapping_category(mapping, analytics.functions)
+                    template = getattr(analytics.functions, operation_type)[
+                        mapping.binding.function
+                    ]
                     function = (
                         vectorize_functions.get(mapping.binding.function)
                         if operation_type == "vectorize"
-                        else spec.Function(
+                        else json_model.Function(
                             id=mapping.binding.function,
                             type="python_function",
                             return_type="dataframe",
@@ -182,13 +185,13 @@ class FeatureGraph(GraphBase):
                             [
                                 feature_id
                                 for feature_id in mapping.output_features
-                                if feature_id not in specs.dimensions
+                                if feature_id not in analytics.dimensions
                             ],
                             list(dict.fromkeys(dependencies)),
                         )
                     )
 
-        self.specification = specs
+        self.analytics = analytics
         self._function_catalog = {function.id: function for function in self.functions}
         self._node_index: dict[str, Node] = {}
         self._explicit_output_names = None
@@ -198,7 +201,7 @@ class FeatureGraph(GraphBase):
         self,
         function_name: str,
         dependencies: list[str],
-        function: spec.Function | None = None,
+        function: json_model.Function | None = None,
     ) -> set[str]:
         """Return direct parent feature names for a bound feature."""
         function = function or self._function_catalog.get(function_name)
@@ -234,7 +237,7 @@ class FeatureGraph(GraphBase):
             output
             for _function, _entity, _operation_id, outputs, _dependencies in self._graph_operations
             for output in outputs
-            if output not in self.specification.dimensions
+            if output not in self.analytics.dimensions
         }
         dependency_names = {
             parent
@@ -262,12 +265,10 @@ class FeatureGraph(GraphBase):
                 ),
             )
 
-        for entity_id, entity in self.specification.entities.items():
+        for entity_id, entity in self.analytics.entities.items():
             for dataset in entity.datasets:
                 for mapping in dataset.mappings.values():
-                    operation_type = bindings.mapping_category(
-                        mapping, self.specification.functions
-                    )
+                    operation_type = bindings.mapping_category(mapping, self.analytics.functions)
                     for name in mapping.output_features:
                         feature = dataset.features[name]
                         register_feature_metadata(
@@ -292,7 +293,7 @@ class FeatureGraph(GraphBase):
 
         def feature_meta(
             name: str,
-            function: spec.Function | None = None,
+            function: json_model.Function | None = None,
             entity: str | None = None,
             data_type: str | None = None,
         ) -> models.FeatureNode:

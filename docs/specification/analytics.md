@@ -1,6 +1,6 @@
-# Open Analytics Specification
+# Analytics
 
-The specification is a single JSON document describing datasets, feature
+Analytics is a single JSON document describing datasets, feature
 dependencies, and function bindings. JSON is the canonical contract between
 analytical declarations and the tools that validate, document, and compile them.
 
@@ -429,12 +429,12 @@ time/step context. The JSON key remains `mappings`.
 
 Vectorize and collapse operations produce dimension-keyed tabular results.
 Grouping, output naming, and literal construction belong to the operation.
-Revalidate specifications and recompile plans; old expression-based plans are
+Revalidate analytics and recompile plans; old expression-based plans are
 not supported.
 
 ## Complete JSON Example
 
-This small specification reads two input features and produces their sum for
+This small analytics document reads two input features and produces their sum for
 each observation. Its function entrypoints use the runnable example project so
 the document can also be compiled and executed by the test suite.
 

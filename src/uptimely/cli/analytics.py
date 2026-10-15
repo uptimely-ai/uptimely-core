@@ -1,4 +1,4 @@
-"""Command-line tools for exporting and inspecting specifications."""
+"""Command-line tools for exporting and inspecting analytics."""
 
 import argparse
 import importlib
@@ -6,18 +6,18 @@ import pathlib
 
 from uptimely import analytics
 from uptimely.analytics import feature_graph
-from uptimely.analytics import python as python_spec
+from uptimely.analytics import python as python_analytics
 from uptimely.cli import common
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure specification export and feature-graph actions."""
+    """Configure analytics export and feature-graph actions."""
     actions = parser.add_subparsers(dest="action", required=True)
-    export = actions.add_parser("export", help="Export a Python specification to JSON")
+    export = actions.add_parser("export", help="Export Python analytics to JSON")
     export.add_argument(
         "--module",
         required=True,
-        help="Importable module exposing a PythonAnalytics named python_specification",
+        help="Importable module exposing a PythonAnalytics named python_analytics",
     )
     export.add_argument(
         "--project-root",
@@ -33,52 +33,56 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     common.configure_project_arguments(graph)
 
 
-def export_specification(module: str, output: pathlib.Path, project_root: pathlib.Path) -> str:
-    """Export a module's Python declaration as a canonical JSON specification.
+def export_analytics(module: str, output: pathlib.Path, project_root: pathlib.Path) -> str:
+    """Export a module's Python declaration as canonical analytics JSON.
 
     Args:
-        module: Importable module exposing ``python_specification``.
-        output: Destination for the JSON specification.
+        module: Importable module exposing ``python_analytics``.
+        output: Destination for analytics JSON.
         project_root: Directory added to the Python import path.
 
     Returns:
-        The written specification path.
+        The written analytics path.
 
     Raises:
         ImportError: The declaration module or a dependency cannot be imported.
-        AttributeError: The module does not expose ``python_specification``.
+        AttributeError: The module does not expose ``python_analytics``.
         TypeError: The declaration is not a PythonAnalytics.
-        ValueError: The specification is invalid.
+        ValueError: The analytics declaration is invalid.
         OSError: The output cannot be written.
     """
     common.prepare_project_root(project_root)
-    declaration = importlib.import_module(module).python_specification
-    if not isinstance(declaration, python_spec.PythonAnalytics):
-        raise TypeError(f"{module}.python_specification must be a PythonAnalytics")
-    specification = analytics.Analytics.from_python(
+    declaration = importlib.import_module(module).python_analytics
+    if not isinstance(declaration, python_analytics.PythonAnalytics):
+        raise TypeError(f"{module}.python_analytics must be a PythonAnalytics")
+    analytics_definition = analytics.Analytics.from_python(
         entities=declaration.entities,
         dimensions=declaration.dimensions,
         name=declaration.name,
     )
-    return specification.to_json(output)
+    return analytics_definition.to_json(output)
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    """Export a specification or print feature graph summaries and trees."""
+    """Export analytics or print feature graph summaries and trees."""
     if args.action == "export":
-        output = common.project_path(args.output, args.project_root, common.GENERATED_SPEC_PATH)
+        output = common.project_path(
+            args.output, args.project_root, common.GENERATED_ANALYTICS_PATH
+        )
         try:
-            path = export_specification(
-                args.module, output, args.project_root or pathlib.Path.cwd()
-            )
+            path = export_analytics(args.module, output, args.project_root or pathlib.Path.cwd())
         except (OSError, ValueError, ImportError, AttributeError, TypeError) as error:
             parser.exit(1, f"uptimely: error: {error}\n")
         print(f"Analytics written to {path}")
         return
-    spec = common.project_path(args.spec, args.project_root, common.GENERATED_SPEC_PATH)
+    analytics_definition = common.project_path(
+        args.spec, args.project_root, common.GENERATED_ANALYTICS_PATH
+    )
     try:
-        specification = common.load_specification(spec, args.project_root or pathlib.Path.cwd())
-        graph = feature_graph.FeatureGraph(specification)
+        analytics_definition = common.load_analytics(
+            analytics_definition, args.project_root or pathlib.Path.cwd()
+        )
+        graph = feature_graph.FeatureGraph(analytics_definition)
         subset = graph.subset(args.features) if args.features is not None else None
         print(f"Feature graph: {len(graph.feature_names)} features")
         if subset is not None:

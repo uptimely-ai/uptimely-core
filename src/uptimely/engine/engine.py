@@ -49,7 +49,7 @@ class EngineConfig:
 
 
 class Engine:
-    """Execute a portable plan without recompiling its specification."""
+    """Execute a portable plan without recompiling its analytics definition."""
 
     def __init__(
         self,
@@ -62,17 +62,17 @@ class Engine:
         callable_loader: backend_module.CallableLoader | None = None,
         bind: dict[str, dict[str, dict[str, typing.Any]]] | None = None,
     ) -> None:
-        """Prepare an engine from a plan, with specification convenience support."""
-        self._specification: json_model.Analytics | None = None
+        """Prepare an engine from a plan, with analytics convenience support."""
+        self._analytics: json_model.Analytics | None = None
         if isinstance(plan, plan_module.ExecutionPlan):
             self.plan = plan
         elif isinstance(plan, (str, pathlib.Path, json_model.Analytics)):
-            self._specification = (
+            self._analytics = (
                 json_model.Analytics(json=plan) if isinstance(plan, (str, pathlib.Path)) else plan
             )
-            self.plan = compile.Compiler(self._specification).compile()
+            self.plan = compile.Compiler(self._analytics).compile()
         else:
-            raise ValueError("plan must be an ExecutionPlan, specification, or specification path")
+            raise ValueError("plan must be an ExecutionPlan, Analytics, or analytics path")
 
         self.resources = dict(self.plan.plan.resources)
         if resources is not None:
@@ -92,25 +92,25 @@ class Engine:
         self._verify_plan()
 
     @classmethod
-    def from_specification(
+    def from_analytics(
         cls,
-        specification: str | pathlib.Path | json_model.Analytics,
+        analytics_definition: str | pathlib.Path | json_model.Analytics,
         features: list[str] | None = None,
         *,
         config: EngineConfig | None = None,
     ) -> "Engine":
-        """Compile a specification and return an engine for the resulting plan."""
+        """Compile analytics and return an engine for the resulting plan."""
         return cls(
-            compile.Compiler(specification, features=features).compile(),
+            compile.Compiler(analytics_definition, features=features).compile(),
             config=config,
         )
 
     @property
-    def specification(self) -> json_model.Analytics:
-        """Return the convenience specification when one was supplied."""
-        if self._specification is None:
-            raise AttributeError("Portable-plan engines do not retain a Analytics")
-        return self._specification
+    def analytics(self) -> json_model.Analytics:
+        """Return the Analytics instance when one was supplied."""
+        if self._analytics is None:
+            raise AttributeError("Portable-plan engines do not retain an Analytics instance")
+        return self._analytics
 
     def _verify_plan(self) -> None:
         """Verify that this runtime supports the portable plan."""
@@ -120,10 +120,10 @@ class Engine:
                 f"Expected {self.backend.name}."
             )
         resource_version = self.resources.get("specification_version")
-        self._verify_specification_version(resource_version)
+        self._verify_analytics_version(resource_version)
 
-    def _verify_specification_version(self, version: str | None) -> None:
-        """Verify the plan and supplied resource specification versions agree."""
+    def _verify_analytics_version(self, version: str | None) -> None:
+        """Verify the plan and supplied resource analytics versions agree."""
         if version != self.plan.plan.specification_version:
             raise ValueError(
                 "Analytics version mismatch: "

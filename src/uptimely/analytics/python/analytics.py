@@ -1,11 +1,11 @@
-"""Python-friendly specification declarations."""
+"""Python-friendly analytics declarations."""
 
 from __future__ import annotations
 
 import dataclasses
 import typing
 
-from uptimely.analytics import json as json_spec
+from uptimely.analytics import json as json_analytics
 from uptimely.analytics.json import json_functions
 
 from . import dataset as dataset_module
@@ -19,14 +19,14 @@ __all__ = [
 
 @dataclasses.dataclass(frozen=True)
 class PythonAnalytics:
-    """Build a canonical specification from Python authoring declarations."""
+    """Build canonical analytics from Python authoring declarations."""
 
     entities: list[entity_module.Entity] = dataclasses.field(default_factory=list)
     dimensions: list[dimension.Dimension] | dict[str, dimension.Dimension] | None = None
     name: str | None = None
 
     def iter_datasets(self) -> list[dataset_module.Dataset]:
-        """Yield all dataset declarations owned by this specification."""
+        """Yield all dataset declarations owned by this analytics model."""
         if not self.entities:
             return []
         datasets: list[dataset_module.Dataset] = []
@@ -34,9 +34,9 @@ class PythonAnalytics:
             datasets.extend(entity.datasets)
         return datasets
 
-    def function_catalog(self) -> json_spec.json_model.FunctionCatalog:
+    def function_catalog(self) -> json_analytics.json_model.FunctionCatalog:
         """Collect and merge the function catalog across all entities."""
-        catalog = json_spec.json_model.FunctionCatalog()
+        catalog = json_analytics.json_model.FunctionCatalog()
         for dataset in self.iter_datasets():
             dataset_catalog = dataset.function_catalog()
             for category in (
@@ -64,9 +64,9 @@ class PythonAnalytics:
                 setattr(catalog, category, existing)
         return catalog
 
-    def to_spec_dict(self) -> dict[str, typing.Any]:
-        """Return the canonical specification dictionary for the configured entities."""
-        return json_functions.python_to_spec_dict(
+    def to_analytics_dict(self) -> dict[str, typing.Any]:
+        """Return the canonical analytics dictionary for the configured entities."""
+        return json_functions.python_to_analytics_dict(
             entities=self.entities,
             functions=self.function_catalog(),
             name=self.name,

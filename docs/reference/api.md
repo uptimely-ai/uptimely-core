@@ -6,7 +6,7 @@ compiling, executing, and inspecting analytics.
 
 For a runnable workflow, see the
 [repository examples](https://github.com/uptimely-ai/uptimely-core/tree/main/examples).
-The [specification format reference](../specification/specification.md) describes
+The [analytics format reference](../specification/analytics.md) describes
 the declarative contract.
 
 ## Analytics model and parsing
@@ -89,8 +89,8 @@ the declarative contract.
 ::: uptimely.explorer.explorer.Explorer
 
 `Explorer.create_html` and the module-level `uptimely.explorer.explorer.create_html`
-helper generate the complete static website with specification, feature graph,
+helper generate the complete static website with analytics, feature graph,
 and execution plan pages. Individual HTML report exports are not supported.
-`Explorer.create_json` exports reference data; specification and portable-plan
+`Explorer.create_json` exports reference data; analytics and portable-plan
 JSON exports remain available. These outputs describe analytics, not this Python API reference.
 See [Analytics Explorer](../components/docs.md).

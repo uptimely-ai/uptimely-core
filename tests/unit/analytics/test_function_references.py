@@ -55,7 +55,7 @@ def test_string_locations_are_preserved_without_importing(
         mappings=[mapping.Vectorize(bind=bind.bind(reference, x=1.2))],
     )
 
-    payload = json_functions.python_to_spec_dict(datasets=[declaration])
+    payload = json_functions.python_to_analytics_dict(datasets=[declaration])
 
     assert payload["functions"]["vectorize"]["ceil"]["entrypoint"] == f"{location}:ceil"
     assert payload["entities"]["entity"]["datasets"][0]["mappings"]["ceil"]["binding"] == {

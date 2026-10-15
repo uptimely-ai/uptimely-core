@@ -1,4 +1,4 @@
-"""The canonical specification document model."""
+"""The canonical analytics document model."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from . import common, resolved
 from . import dataset as dataset_module
 from . import functions as functions_module
 
-SUPPORTED_SPECIFICATION_VERSION = "0.1.0"
+SUPPORTED_ANALYTICS_VERSION = "0.1.0"
 
 
 def _with_mapping_ids(value: typing.Any) -> typing.Any:
@@ -38,13 +38,13 @@ def _normalize_nested_mappings(value: typing.Any, fields: tuple[str, ...]) -> ty
 
 
 class Analytics(common.StrictModel):
-    """The complete JSON specification document."""
+    """The complete JSON analytics document."""
 
     path: str | None = pydantic.Field(default=None, exclude=True)
     name: str | None = None
-    version: typing.Literal["0.1.0"] = SUPPORTED_SPECIFICATION_VERSION
-    source: common.SpecificationSource = pydantic.Field(
-        default_factory=lambda: common.SpecificationSource(name="manual", generated=False)
+    version: typing.Literal["0.1.0"] = SUPPORTED_ANALYTICS_VERSION
+    source: common.AnalyticsSource = pydantic.Field(
+        default_factory=lambda: common.AnalyticsSource(name="manual", generated=False)
     )
     dimensions: dict[str, common.Dimension] = pydantic.Field(default_factory=dict)
     functions: functions_module.FunctionCatalog = pydantic.Field(
@@ -88,7 +88,7 @@ class Analytics(common.StrictModel):
         *,
         entities: object | None = None,
     ) -> Analytics:
-        """Create a specification from Python authoring models."""
+        """Create analytics from Python authoring models."""
         return json_parser.AnalyticsParser.from_python(
             datasets=datasets,
             functions=functions,
@@ -98,7 +98,7 @@ class Analytics(common.StrictModel):
         )
 
     def to_json(self, path: str | pathlib.Path) -> str:
-        """Write the specification document to disk and return its path."""
+        """Write the analytics document to disk and return its path."""
         return json_serializer.AnalyticsSerializer.to_json(self, path)
 
     @pydantic.model_validator(mode="before")

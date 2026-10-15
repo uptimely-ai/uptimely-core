@@ -12,7 +12,7 @@ import pytest
 from uptimely.cli import cli, explorer
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
+ANALYTICS_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
 
 
 @pytest.mark.parametrize(
@@ -35,8 +35,9 @@ def test_serve_arguments(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda spec, directory, project_root: (
-            calls.append(("build", spec, directory, project_root)) or directory / "index.html"
+        lambda analytics_definition, directory, project_root: (
+            calls.append(("build", analytics_definition, directory, project_root))
+            or directory / "index.html"
         ),
     )
     monkeypatch.setattr(
@@ -60,15 +61,16 @@ def test_serve_arguments(
     ]
 
 
-def test_serve_builds_custom_spec_before_starting_server(
+def test_serve_builds_custom_analytics_before_starting_server(
     monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
 ) -> None:
     calls: list[tuple[object, ...]] = []
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda spec, directory, project_root: (
-            calls.append(("build", spec, directory, project_root)) or directory / "index.html"
+        lambda analytics_definition, directory, project_root: (
+            calls.append(("build", analytics_definition, directory, project_root))
+            or directory / "index.html"
         ),
     )
     monkeypatch.setattr(
@@ -76,7 +78,7 @@ def test_serve_builds_custom_spec_before_starting_server(
         "serve_explorer",
         lambda directory, host, port: calls.append(("serve", directory, host, port)),
     )
-    specification = tmp_path / "spec.json"
+    analytics_definition = tmp_path / "spec.json"
     output = tmp_path / "website"
     project_root = tmp_path / "project"
     monkeypatch.setattr(
@@ -87,7 +89,7 @@ def test_serve_builds_custom_spec_before_starting_server(
             "explorer",
             "serve",
             "--spec",
-            str(specification),
+            str(analytics_definition),
             "--directory",
             str(output),
             "--project-root",
@@ -98,7 +100,7 @@ def test_serve_builds_custom_spec_before_starting_server(
     cli.main()
 
     assert calls == [
-        ("build", specification, output, project_root),
+        ("build", analytics_definition, output, project_root),
         ("serve", output, "127.0.0.1", 8001),
     ]
 
@@ -110,8 +112,9 @@ def test_serve_defaults_paths_from_project_root(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda spec, directory, project_root: (
-            calls.append(("build", spec, directory, project_root)) or directory / "index.html"
+        lambda analytics_definition, directory, project_root: (
+            calls.append(("build", analytics_definition, directory, project_root))
+            or directory / "index.html"
         ),
     )
     monkeypatch.setattr(
@@ -162,7 +165,7 @@ def test_serve_builds_html_before_starting_server(
             "explorer",
             "serve",
             "--spec",
-            str(SPEC_PATH),
+            str(ANALYTICS_PATH),
             "--project-root",
             str(project_root),
             "--directory",
@@ -198,7 +201,7 @@ def test_serve_reports_missing_website(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda spec, output, project_root: output / "index.html",
+        lambda analytics_definition, output, project_root: output / "index.html",
     )
     monkeypatch.setattr(
         sys,
@@ -267,7 +270,7 @@ def test_serve_reports_occupied_port(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda spec, output, project_root: output / "index.html",
+        lambda analytics_definition, output, project_root: output / "index.html",
     )
     with http_server.ThreadingHTTPServer(
         ("127.0.0.1", 0), http_server.SimpleHTTPRequestHandler

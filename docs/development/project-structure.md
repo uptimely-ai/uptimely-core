@@ -16,8 +16,8 @@ project/
 │   └── calculation.py
 ├── config/
 │   ├── engine.json
-│   └── spec/
-│       ├── spec.py
+│   └── analytics/
+│       ├── analytics.py
 │       ├── dataset_<name>.py
 │       ├── entity.py
 │       ├── dimension.py
@@ -33,20 +33,22 @@ project/
 
 - data: raw or reference datasets used by the analytics workflow.
 - functions: reusable source, calculation, and write functions.
-- config/spec: Python declarations that define entities, datasets, and relationships.
-- _generated: output created by the tooling, such as exported JSON specifications, compiled plans, graphs, and documentation.
+- config/analytics: Python declarations that define entities, datasets, and relationships.
+- _generated: output created by the tooling, such as exported analytics JSON, compiled plans, graphs, and documentation.
 - config/engine.json: engine settings and bind values used to resolve runtime placeholders.
 
-This separation keeps the project easy to reason about: configuration and specification sources live in config, runtime logic lives in functions, and generated resources stay clearly separate from source inputs.
+This separation keeps the project easy to reason about: analytics declarations
+live in config, runtime logic lives in functions, and generated resources stay
+clearly separate from source inputs.
 
 The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/pump_analytics/README.md) uses CLI commands
-for specification export, compilation, execution, documentation, and feature
+for analytics export, compilation, execution, documentation, and feature
 graphs. `uptimely analytics export --module <module>` imports a module exposing
-`python_specification`, a `PythonAnalytics` instance, and writes JSON.
+`python_analytics`, a `PythonAnalytics` instance, and writes JSON.
 `uptimely explorer build` writes a linked website to `_generated/explorer/`.
 All HTML pages are generated together by that command.
-Specification and plan JSON exports live in `_generated/spec/` and
+Analytics and plan JSON exports live in `_generated/spec/` and
 `_generated/compile/`; `uptimely analytics feature-graph` prints graph summaries and,
 with `--verbose`, dependency trees without writing HTML.
 The [smaller Python example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/simple_analytics/README.md) demonstrates
-specification export without the full compilation and execution workflow.
+analytics export without the full compilation and execution workflow.

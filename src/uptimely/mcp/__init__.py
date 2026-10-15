@@ -1,4 +1,4 @@
-"""MCP server exposing uptimely specifications as agent tools."""
+"""MCP server exposing analytics introspection and execution as agent tools."""
 
 from .server import create_server, main
 

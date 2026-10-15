@@ -1,20 +1,20 @@
 # Analytics Explorer
 
-Uptimely generates documentation from an
-[Open Analytics Specification](../specification/index.md). Feature definitions,
+Uptimely generates documentation from
+[analytics](../specification/index.md). Feature definitions,
 function bindings, and declared dependencies become a static website with four
 connected views:
 
 | Page | Purpose |
 | --- | --- |
-| Specification | Overview, Features, Entities, Datasets, Dimensions, and Functions pages, linked beneath Specification in the sidebar. Features are summarized per dataset with their producing mapping. |
+| Analytics | Overview, Features, Entities, Datasets, Dimensions, and Functions pages, linked beneath Analytics in the sidebar. Features are summarized per dataset with their producing mapping. |
 | Feature lineage | One interactive graph page with a 2D/3D selector. |
 | Plan | Overview summary, one selectable 2D/3D callable graph, and detailed parallel execution stages. |
 | Execution | A step-by-step callable walkthrough with illustrative input and output tables. |
 
-The home page is a project dashboard: the specification name and version,
+The home page is a project dashboard: the analytics name and version,
 compact counts for entities, datasets, features, functions, compiled operations,
-and execution stages, a visual journey through the specification, feature graph,
+and execution stages, a visual journey through analytics, feature graph,
 and plan, and a link to data lineage. The site
 brand returns to this dashboard from any page. Projects without a name display
 "Untitled analytics project".
@@ -23,7 +23,7 @@ Counts describe declared resources and the compiled plan, not live execution
 results. The dashboard does not run analytics. This website documents the
 analytics project, not the Uptimely package itself.
 
-![Specification reference overview](../assets/img/open-analytics-specification-overview.png)
+![Analytics reference overview](../assets/img/open-analytics-specification-overview.png)
 
 ## Build the website
 
@@ -54,12 +54,12 @@ _generated/explorer/
     └── data_lineage.html
 ```
 
-Start at `index.html`. `spec/overview.html` contains the specification overview; the other
-specification pages contain only their respective sections. The Specification
+Start at `index.html`. `spec/overview.html` contains the analytics overview; the other
+analytics pages contain only their respective sections. The Analytics
 sidebar group provides subnavigation and highlights the current section. The
 Features page summarizes features by dataset and identifies the producing
 mapping; the Entities and Datasets pages provide focused views of those
-specification resources.
+analytics resources.
 Dataset tables put column names first, followed by Dimension, Raw, or Feature labels,
 types, and units. Dimensions come first in the
 entity's declared order; feature columns follow their declaration order in the
@@ -70,7 +70,7 @@ Expand **Dataset details** for descriptions, filtering, coverage, logical order,
 and dataframe mappings.
 Wide tables scroll horizontally with a thin scrollbar matching the dark page.
 These tables describe schemas, not sample records or runtime results.
-Feature graph opens `spec/graph.html` beneath Specification. Plan has Overview, Graph,
+Feature graph opens `spec/graph.html` beneath Analytics. Plan has Overview, Graph,
 and Stages subnavigation in `plan/`; its graph is in `plan/graph.html`.
 Each graph starts in 2D. Use the **2D / 3D** buttons above it to switch views
 without leaving the page. Selected node details remain visible across switches.
@@ -132,10 +132,10 @@ The build options are:
 
 | Option | Behavior |
 | --- | --- |
-| `--spec` | Required path to a JSON specification. |
+| `--spec` | Required path to the analytics JSON document. |
 | `--output` | Website directory; defaults to `_generated/explorer`. |
 | `--project-root` | Directory added to Python's import path; defaults to the working directory. |
-| `--include-generated-at` | Show a build timestamp on the specification page. |
+| `--include-generated-at` | Show a build timestamp on the analytics page. |
 
 For a project outside the working directory:
 
@@ -146,13 +146,13 @@ uptimely explorer build \
   --output public/analytics
 ```
 
-Specification and output paths are relative to the working directory, not to
+Analytics and output paths are relative to the working directory, not to
 `--project-root`. The import root lets Uptimely inspect the declared function
 entrypoints when compiling the execution plan.
 
 Building imports function modules and inspects signatures, but does not invoke
-analytical functions or run the engine. Use trusted specifications and
-implementations, with their dependencies installed. Invalid specifications,
+analytical functions or run the engine. Use trusted analytics documents and
+implementations, with their dependencies installed. Invalid analytics documents,
 compilation failures, and export errors produce an error message and a nonzero
 exit status.
 
@@ -186,11 +186,11 @@ does not conflict with either section's overview page.
 HTML generation always produces the complete website; exporting an individual
 report or a graph subset as HTML is not supported.
 
-The module-level `uptimely.explorer.explorer.create_html(specification, output_path=...)`
+The module-level `uptimely.explorer.explorer.create_html(analytics_definition, output_path=...)`
 helper generates the same complete website and returns its index path.
 
 Timestamps are disabled by default for reproducible exports. Pass
-`include_generated_at=True` to display one on each specification section page.
+`include_generated_at=True` to display one on each analytics section page.
 
 ## Preview and publish
 
@@ -209,7 +209,7 @@ The same project-relative defaults apply to `uptimely explorer build`. It uses
 
 | Option | Behavior |
 | --- | --- |
-| `--spec` | JSON specification path; defaults to `<project-root>/_generated/spec/spec.json` when `--project-root` is set, or `_generated/spec/spec.json` otherwise. |
+| `--spec` | Analytics JSON path; defaults to `<project-root>/_generated/spec/spec.json` when `--project-root` is set, or `_generated/spec/spec.json` otherwise. |
 | `--directory` / `--output` | Website output directory for `serve` / `build`; defaults to `<project-root>/_generated/explorer` when `--project-root` is set, or `_generated/explorer` otherwise. |
 | `--project-root` | Project root added to Python's import path. When set, it also bases the default `--spec` and `--directory` paths. |
 | `--host` | Bind address; defaults to `127.0.0.1`, restricting access to the local machine. |
@@ -234,7 +234,7 @@ symlinks to private content.
 
 For deployment, publish the generated directory through a static web host. No
 Python application server is needed. Use authenticated hosting for private
-specifications. The pages currently load styling, fonts, icons, and graph
+analytics documents. The pages currently load styling, fonts, icons, and graph
 libraries from external services; full styling and visualization require network
 access.
 
@@ -251,7 +251,7 @@ calculation produces `B` from `A`, what their types are, or which downstream
 features consume `B`. Reading `calculate_b(a)` in Python also leaves questions
 about its inputs, outputs, and surrounding workflow.
 
-The specification declares those relationships explicitly. Uptimely visualizes
+Analytics declares those relationships explicitly. Uptimely visualizes
 them without trying to infer arbitrary Python behavior from source code. The
 graph reflects the declared model, not dependencies or side effects that
 functions leave undeclared.
@@ -272,7 +272,7 @@ functions. Select a node to inspect its feature or function metadata.
 Choose the 2D lineage view when you want to follow upstream inputs through
 calculations to downstream features. It keeps the standard layered node-card
 layout and directional links, with horizontal swim lanes labeled by
-specification entity. Nodes are stacked vertically within each lane and rank
+analytics entity. Nodes are stacked vertically within each lane and rank
 without overlapping. Nodes without an entity are grouped in an `Unassigned` lane.
 Both renderings include the same node details. Open Feature graph in the
 sidebar and select **2D** or **3D** above the visualization.
@@ -287,9 +287,11 @@ The Python graph API can inspect the upstream dependency subset needed for a
 selected feature without exporting HTML:
 
 ```python
+from uptimely import Analytics
 from uptimely.analytics import FeatureGraph
 
-graph = FeatureGraph(specification)
+analytics_definition = Analytics(json="_generated/spec/spec.json")
+graph = FeatureGraph(analytics_definition)
 subset = graph.subset(["health_signal_normalized"])
 subset.print_graph()
 ```
@@ -301,20 +303,20 @@ available in Python, while the website displays the full feature graph.
 
 The standalone methods `Analytics.create_html`, `FeatureGraph.export_html`
 (including subsets), and `ExecutionPlan.export_html` have been removed. Replace
-those calls with a single website-generation call using the original specification:
+those calls with a single website-generation call using the original Analytics:
 
 ```python
 from uptimely.explorer import explorer
 
 index_path = explorer.create_html(
-    specification,
+    analytics_definition,
     output_path="public/analytics/index.html",
 )
 ```
 
 Publish or move the entire output directory, not just its index. A portable plan
-alone is not a website input: generation needs the specification and importable
-function entrypoints. Specification JSON export, plan JSON export, and graph
+alone is not a website input: generation needs Analytics and importable
+function entrypoints. Analytics JSON export, plan JSON export, and graph
 analysis are unchanged.
 
 ## Reference data
@@ -325,11 +327,11 @@ Reference JSON is a separate export:
 data_path = explorer.create_json()  # _generated/explorer/explorer.json
 ```
 
-It contains the specification configuration, summary counts, feature
+It contains the analytics configuration, summary counts, feature
 dependencies, and optional generation timestamp. Neither `Explorer.create_html`
 nor `uptimely explorer build` automatically writes this JSON.
 
-![Specification feature reference](../assets/img/open-analytics-specification-features.png)
+![Analytics feature reference](../assets/img/open-analytics-specification-features.png)
 
 See the [Python API reference](../reference/api.md#analytics-explorer) for
 the documentation interface and the
@@ -340,7 +342,7 @@ the documentation interface and the
 All website pages use Jinja templates in `src/uptimely/templates/`. The root
 `base.html.j2` provides the shared layout and website navigation.
 The root `index.html.j2` renders the website landing page. Subdirectories group
-the specification reference, individual page templates, and shared sections (`spec/`),
+the Analytics reference, individual page templates, and shared sections (`spec/`),
 feature graph (`graph/`), and
 execution plan (`plan/`).
 

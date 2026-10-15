@@ -1,10 +1,10 @@
-"""Build an analytics explorer website from a specification."""
+"""Build an analytics explorer website."""
 
 import pathlib
 
 from uptimely import analytics, compile
 from uptimely import render as uptimely_render
-from uptimely.analytics import explorer_render as spec_render
+from uptimely.analytics import explorer_render as analytics_render
 from uptimely.analytics import graph_render
 from uptimely.compile import render
 
@@ -14,17 +14,17 @@ EXPLORER_OUTPUT_DIR = pathlib.Path("_generated") / "explorer"
 
 
 class Explorer:
-    """Generate a linked specification, plan, and data-lineage website."""
+    """Generate a linked analytics, plan, and data-lineage website."""
 
-    def __init__(self, specification: analytics.Analytics) -> None:
-        self.spec = specification
+    def __init__(self, analytics_definition: analytics.Analytics) -> None:
+        self.analytics = analytics_definition
 
     def create_json(
         self,
         output_path: str | pathlib.Path | None = None,
         include_generated_at: bool = False,
     ) -> pathlib.Path:
-        """Export specification reference data as JSON.
+        """Export analytics reference data as JSON.
 
         Args:
             output_path: Output file; defaults to ``_generated/explorer/explorer.json``.
@@ -38,7 +38,7 @@ class Explorer:
             if output_path is not None
             else EXPLORER_OUTPUT_DIR / "explorer.json"
         )
-        return spec_render.create_json(self.spec, target, include_generated_at)
+        return analytics_render.create_json(self.analytics, target, include_generated_at)
 
     def create_html(
         self,
@@ -53,9 +53,9 @@ class Explorer:
 
         Args:
             output_path: Index file; defaults to ``_generated/explorer/index.html``.
-                Section pages are written in spec, plan, and execution subdirectories
+                Section pages are written in analytics, plan, and execution subdirectories
                 beneath the index directory.
-            include_generated_at: Include a timestamp on the specification page.
+            include_generated_at: Include a timestamp on the analytics page.
 
         Returns:
             The path to the website index.
@@ -66,18 +66,20 @@ class Explorer:
             else EXPLORER_OUTPUT_DIR / "index.html"
         )
         target = target.with_suffix(".html")
-        plan = compile.Compiler(self.spec).compile()
-        graph = analytics.FeatureGraph(self.spec)
-        context = spec_render._build_context(self.spec, include_generated_at)
-        spec_render._create_website_pages(context, target.parent, index_filename=target.name)
+        plan = compile.Compiler(self.analytics).compile()
+        graph = analytics.FeatureGraph(self.analytics)
+        context = analytics_render._build_context(self.analytics, include_generated_at)
+        analytics_render._create_website_pages(context, target.parent, index_filename=target.name)
         graph_render._create_website_pages(graph, target.parent, index_filename=target.name)
         render._create_website_pages(plan, target.parent, index_filename=target.name)
-        lineage._create_website_page(self.spec, plan, target.parent, index_filename=target.name)
+        lineage._create_website_page(
+            self.analytics, plan, target.parent, index_filename=target.name
+        )
         document = (
             uptimely_render.html_environment()
             .get_template("index.html.j2")
             .render(
-                specification=self.spec,
+                analytics_definition=self.analytics,
                 summary=context.summary,
                 operation_count=len(plan.operations),
                 stage_count=len(plan.execution_stages),
@@ -102,27 +104,27 @@ class Explorer:
 
 
 def create_json(
-    specification: analytics.Analytics,
+    analytics_definition: analytics.Analytics,
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
 ) -> pathlib.Path:
-    """Export specification reference data as JSON."""
-    return Explorer(specification).create_json(output_path, include_generated_at)
+    """Export analytics reference data as JSON."""
+    return Explorer(analytics_definition).create_json(output_path, include_generated_at)
 
 
 def create_html(
-    specification: analytics.Analytics,
+    analytics_definition: analytics.Analytics,
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
 ) -> pathlib.Path:
     """Export the complete analytics explorer website.
 
     Args:
-        specification: The canonical analytics specification.
+        analytics_definition: The canonical analytics model.
         output_path: Index file; defaults to ``_generated/explorer/index.html``.
-        include_generated_at: Include a timestamp on specification pages.
+        include_generated_at: Include a timestamp on analytics pages.
 
     Returns:
         The path to the website index.
     """
-    return Explorer(specification).create_html(output_path, include_generated_at)
+    return Explorer(analytics_definition).create_html(output_path, include_generated_at)
