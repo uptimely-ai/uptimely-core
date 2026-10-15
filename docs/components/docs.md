@@ -38,7 +38,7 @@ The command exports this directory:
 ```text
 _generated/explorer/
 ├── index.html
-├── spec/
+├── analytics/
 │   ├── overview.html
 │   ├── features.html
 │   ├── entities.html
@@ -54,7 +54,7 @@ _generated/explorer/
     └── data_lineage.html
 ```
 
-Start at `index.html`. `spec/overview.html` contains the analytics overview; the other
+Start at `index.html`. `analytics/overview.html` contains the analytics overview; the other
 analytics pages contain only their respective sections. The Analytics
 sidebar group provides subnavigation and highlights the current section. The
 Features page summarizes features by dataset and identifies the producing
@@ -70,7 +70,7 @@ Expand **Dataset details** for descriptions, filtering, coverage, logical order,
 and dataframe mappings.
 Wide tables scroll horizontally with a thin scrollbar matching the dark page.
 These tables describe schemas, not sample records or runtime results.
-Feature graph opens `spec/graph.html` beneath Analytics. Plan has Overview, Graph,
+Feature graph opens `analytics/graph.html` beneath Analytics. Plan has Overview, Graph,
 and Stages subnavigation in `plan/`; its graph is in `plan/graph.html`.
 Each graph starts in 2D. Use the **2D / 3D** buttons above it to switch views
 without leaving the page. Selected node details remain visible across switches.
@@ -179,7 +179,7 @@ index_path = explorer.create_html(
 )
 ```
 
-Section pages are written in `spec/`, `plan/`, and `execution/` beneath the index
+Section pages are written in `analytics/`, `plan/`, and `execution/` beneath the index
 directory. All navigation is relative to the page containing it, including links
 back to a custom index filename. An index named `overview.html`, for example,
 does not conflict with either section's overview page.
@@ -342,13 +342,13 @@ the documentation interface and the
 All website pages use Jinja templates in `src/uptimely/templates/`. The root
 `base.html.j2` provides the shared layout and website navigation.
 The root `index.html.j2` renders the website landing page. Subdirectories group
-the Analytics reference, individual page templates, and shared sections (`spec/`),
+the Analytics reference, individual page templates, and shared sections (`analytics/`),
 feature graph (`graph/`), and
 execution plan (`plan/`).
 
 Renderers stay in their component modules and share the package template loader
 in `uptimely.render`. Template inheritance and includes use paths relative to the
-central template directory, such as `spec/sections/entities.html.j2`. The
+central template directory, such as `analytics/sections/entities.html.j2`. The
 templates are included in the installed Python package, so website generation
 works outside a repository checkout. Component page renderers are internal
 implementation details, not alternative public HTML export APIs.

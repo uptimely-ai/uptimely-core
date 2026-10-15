@@ -16,7 +16,7 @@ from uptimely.compile import entrypoint as compile_entrypoint
 from .json import json_model
 
 OUTPUT_DIR = pathlib.Path("_generated") / "analytics"
-ANALYTICS_PAGES = render.WEBSITE_PAGES["spec"]
+ANALYTICS_PAGES = render.WEBSITE_PAGES["analytics"]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -65,14 +65,14 @@ def _render_document(
 ) -> pathlib.Path:
     """Write one analytics section within the explorer website."""
     environment = render.html_environment()
-    template = f"spec/{section}.html.j2"
+    template = f"analytics/{section}.html.j2"
     document = environment.get_template(template).render(
         configuration=context["configuration"],
         summary=context["summary"],
         feature_dependencies=context["feature_dependencies"],
         generated_at=context["generated_at"],
         include_navigation=True,
-        active_page="spec",
+        active_page="analytics",
         active_section=section,
         index_filename=index_filename,
         root_path="../",

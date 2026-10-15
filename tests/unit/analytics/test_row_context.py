@@ -266,7 +266,7 @@ def test_analytics_plan_execution_and_explorer_preserve_context(tmp_path: pathli
     frame = result.datasets["entity", "observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
     explorer.Explorer(restored).create_html(tmp_path / "index.html")
-    assert "Row context:" not in (tmp_path / "spec/features.html").read_text()
+    assert "Row context:" not in (tmp_path / "analytics/features.html").read_text()
     assert "Row context" in (tmp_path / "plan/stages.html").read_text()
 
 
@@ -341,7 +341,7 @@ def test_analytics_plan_and_batch_execution_preserve_context_and_arguments(
     ]
 
     explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
-    features_html = (tmp_path / "spec/features.html").read_text(encoding="utf-8")
+    features_html = (tmp_path / "analytics/features.html").read_text(encoding="utf-8")
     assert "result" in features_html
     assert "Row context:" not in features_html
     html = (tmp_path / "plan/stages.html").read_text(encoding="utf-8")

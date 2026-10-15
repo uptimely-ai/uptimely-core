@@ -103,11 +103,11 @@ def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
     pages = {
         filename: (document_path.parent / filename).read_text(encoding="utf-8")
         for filename in (
-            "spec/overview.html",
-            "spec/features.html",
-            "spec/datasets.html",
-            "spec/dimensions.html",
-            "spec/functions.html",
+            "analytics/overview.html",
+            "analytics/features.html",
+            "analytics/datasets.html",
+            "analytics/dimensions.html",
+            "analytics/functions.html",
         )
     }
     document = "\n".join(pages.values())
@@ -122,10 +122,10 @@ def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
     assert ">source<" in document
     assert "space-y-5" in document
     for filename, section in (
-        ("spec/overview.html", "overview"),
-        ("spec/features.html", "entities"),
-        ("spec/dimensions.html", "dimensions"),
-        ("spec/functions.html", "functions"),
+        ("analytics/overview.html", "overview"),
+        ("analytics/features.html", "entities"),
+        ("analytics/dimensions.html", "dimensions"),
+        ("analytics/functions.html", "functions"),
     ):
         assert f'id="{section}"' in pages[filename]
     assert "Pump telemetry" in document

@@ -1,4 +1,4 @@
-{% from "spec/section_header.html.j2" import section_header with context %}
+{% from "analytics/section_header.html.j2" import section_header with context %}
 {% macro function_card(function_id, function, category=none) %}
 <article class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
   {% if category %}<p class="mb-2 font-mono text-[10px] uppercase tracking-wider text-cyan-300">{{ category }} function</p>{% endif %}

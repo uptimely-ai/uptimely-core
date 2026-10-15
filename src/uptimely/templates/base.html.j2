@@ -50,9 +50,9 @@
   {% set rel_root = root_path or "" %}
   <nav class="site-nav" aria-label="Explorer pages">
     <a class="site-brand" href="{{ rel_root }}{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>{{ icon("home", "nav-icon") }}<span>openanalytics/explorer</span></a>
-    {% for page, label, icon_key in [("spec", "Analytics", "analytics"), ("plan", "Plan", "execution"), ("execution", "Execution", "execution")] %}
+    {% for page, label, icon_key in [("analytics", "Analytics", "analytics"), ("plan", "Plan", "execution"), ("execution", "Execution", "execution")] %}
     <a href="{{ rel_root }}{{ website_pages[page]['lineage' if page == 'execution' else 'overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
-    {% if page == "spec" %}
+    {% if page == "analytics" %}
     <div class="site-subnav" role="group" aria-label="Analytics sections">
       {% for section, section_label, section_icon in [
         ("overview", "Overview", "overview"),
@@ -63,8 +63,8 @@
         ("functions", "Functions", "functions"),
         ("graph", "Feature graph", "lineage")
       ] %}
-      {% set section_href = website_pages["graph"]["lineage"] if section == "graph" else website_pages["spec"][section] %}
-      <a href="{{ rel_root }}{{ section_href }}"{% if (active_page == "spec" and active_section == section) or (active_page == "graph" and section == "graph") %} aria-current="page"{% endif %}>{{ icon(section_icon, "nav-icon") }}<span>{{ section_label }}</span></a>
+      {% set section_href = website_pages["graph"]["lineage"] if section == "graph" else website_pages["analytics"][section] %}
+      <a href="{{ rel_root }}{{ section_href }}"{% if (active_page == "analytics" and active_section == section) or (active_page == "graph" and section == "graph") %} aria-current="page"{% endif %}>{{ icon(section_icon, "nav-icon") }}<span>{{ section_label }}</span></a>
       {% endfor %}
     </div>
     {% elif page == "plan" %}

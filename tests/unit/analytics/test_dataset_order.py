@@ -200,10 +200,10 @@ def test_dataset_order_appears_in_reference_json_and_html(tmp_path: pathlib.Path
     assert payload["configuration"]["entities"]["telemetry"]["datasets"][0]["order"] == ORDER
 
     explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
-    html = (tmp_path / "spec/datasets.html").read_text(encoding="utf-8")
+    html = (tmp_path / "analytics/datasets.html").read_text(encoding="utf-8")
     assert "Logical order (not a physical row-order guarantee)" in html
     assert html.index("$dimensions.machine asc") < html.index("$dimensions.timestamp desc")
-    assert "Logical order" not in (tmp_path / "spec/features.html").read_text(encoding="utf-8")
+    assert "Logical order" not in (tmp_path / "analytics/features.html").read_text(encoding="utf-8")
 
 
 def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:

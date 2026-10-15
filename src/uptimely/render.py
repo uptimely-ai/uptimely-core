@@ -3,11 +3,11 @@
 import jinja2
 
 WEBSITE_PAGES = {
-    "spec": {
-        section: f"spec/{section}.html"
+    "analytics": {
+        section: f"analytics/{section}.html"
         for section in ("overview", "features", "entities", "datasets", "dimensions", "functions")
     },
-    "graph": {"lineage": "spec/graph.html"},
+    "graph": {"lineage": "analytics/graph.html"},
     "plan": {section: f"plan/{section}.html" for section in ("overview", "graph", "stages")},
     "execution": {"lineage": "execution/data_lineage.html"},
 }
