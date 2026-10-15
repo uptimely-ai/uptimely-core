@@ -13,12 +13,12 @@ from . import dimension
 from . import entity as entity_module
 
 __all__ = [
-    "PythonSpecification",
+    "PythonAnalytics",
 ]
 
 
 @dataclasses.dataclass(frozen=True)
-class PythonSpecification:
+class PythonAnalytics:
     """Build a canonical specification from Python authoring declarations."""
 
     entities: list[entity_module.Entity] = dataclasses.field(default_factory=list)

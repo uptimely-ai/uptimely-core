@@ -1,7 +1,7 @@
 """Dataset declarations for simple analytics."""
 
 from uptimely.analytics.python import (
-    PythonSpecification,
+    PythonAnalytics,
     bind,
     dataset,
     dimension,
@@ -92,7 +92,7 @@ entity_ = entity.Entity(
     description="Simple analytics entity.",
 )
 
-python_specification = PythonSpecification(
+python_specification = PythonAnalytics(
     entities=[entity_],
     dimensions=dimensions,
     name="Simple analytics",

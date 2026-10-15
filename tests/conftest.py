@@ -29,7 +29,7 @@ def pytest_configure(config: pytest.Config) -> None:
     specifications = (
         (
             "pump_analytics",
-            spec.Specification.from_python(
+            spec.Analytics.from_python(
                 entities=pump_spec.entities,
                 dimensions=pump_spec.dimensions,
                 name="Pump analytics",
@@ -37,7 +37,7 @@ def pytest_configure(config: pytest.Config) -> None:
         ),
         (
             "simple_analytics",
-            spec.Specification.from_python(
+            spec.Analytics.from_python(
                 entities=simple_spec.python_specification.entities,
                 dimensions=simple_spec.python_specification.dimensions,
                 name=simple_spec.python_specification.name,

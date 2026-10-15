@@ -53,7 +53,7 @@ class Engine:
 
     def __init__(
         self,
-        plan: plan_module.ExecutionPlan | str | pathlib.Path | json_model.Specification,
+        plan: plan_module.ExecutionPlan | str | pathlib.Path | json_model.Analytics,
         resources: dict[str, typing.Any] | None = None,
         *,
         config: EngineConfig | None = None,
@@ -63,12 +63,12 @@ class Engine:
         bind: dict[str, dict[str, dict[str, typing.Any]]] | None = None,
     ) -> None:
         """Prepare an engine from a plan, with specification convenience support."""
-        self._specification: json_model.Specification | None = None
+        self._specification: json_model.Analytics | None = None
         if isinstance(plan, plan_module.ExecutionPlan):
             self.plan = plan
-        elif isinstance(plan, (str, pathlib.Path, json_model.Specification)):
+        elif isinstance(plan, (str, pathlib.Path, json_model.Analytics)):
             self._specification = (
-                json_model.Specification.from_json(plan)
+                json_model.Analytics.from_json(plan)
                 if isinstance(plan, (str, pathlib.Path))
                 else plan
             )
@@ -96,7 +96,7 @@ class Engine:
     @classmethod
     def from_specification(
         cls,
-        specification: str | pathlib.Path | json_model.Specification,
+        specification: str | pathlib.Path | json_model.Analytics,
         features: list[str] | None = None,
         *,
         config: EngineConfig | None = None,
@@ -108,10 +108,10 @@ class Engine:
         )
 
     @property
-    def specification(self) -> json_model.Specification:
+    def specification(self) -> json_model.Analytics:
         """Return the convenience specification when one was supplied."""
         if self._specification is None:
-            raise AttributeError("Portable-plan engines do not retain a Specification")
+            raise AttributeError("Portable-plan engines do not retain a Analytics")
         return self._specification
 
     def _verify_plan(self) -> None:
@@ -128,7 +128,7 @@ class Engine:
         """Verify the plan and supplied resource specification versions agree."""
         if version != self.plan.plan.specification_version:
             raise ValueError(
-                "Specification version mismatch: "
+                "Analytics version mismatch: "
                 f"plan={self.plan.plan.specification_version!r}, resources={version!r}"
             )
 

@@ -160,14 +160,14 @@ exit status.
 
 ```python
 from uptimely.explorer.explorer import Explorer
-from uptimely.analytics import Specification
+from uptimely.analytics import Analytics
 
-specification = Specification.from_json("_generated/spec/spec.json")
+specification = Analytics.from_json("_generated/spec/spec.json")
 explorer = Explorer(specification)
 index_path = explorer.create_html()
 ```
 
-The generator also accepts an in-memory `Specification`; no source JSON path is
+The generator also accepts an in-memory `Analytics`; no source JSON path is
 required. Function entrypoints must still be importable.
 
 Unlike the CLI's `--output` directory, the Python API's `output_path` is an
@@ -299,7 +299,7 @@ available in Python, while the website displays the full feature graph.
 
 ## Migrating from standalone HTML reports
 
-The standalone methods `Specification.create_html`, `FeatureGraph.export_html`
+The standalone methods `Analytics.create_html`, `FeatureGraph.export_html`
 (including subsets), and `ExecutionPlan.export_html` have been removed. Replace
 those calls with a single website-generation call using the original specification:
 

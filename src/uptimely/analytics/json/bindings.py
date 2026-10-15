@@ -26,7 +26,7 @@ def mapping_category(mapping: json_model.Mapping, catalog: json_model.FunctionCa
 
 
 def collapse_input_dataset(
-    specification: json_model.Specification, mapping: json_model.Mapping
+    specification: json_model.Analytics, mapping: json_model.Mapping
 ) -> tuple[json_model.Entity, json_model.Dataset]:
     """Infer one input dataset from a collapse's bound non-dimension features.
 

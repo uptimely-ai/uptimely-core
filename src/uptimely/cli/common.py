@@ -43,7 +43,7 @@ def prepare_project_root(project_root: pathlib.Path) -> None:
         sys.path.insert(0, root)
 
 
-def load_specification(path: pathlib.Path, project_root: pathlib.Path) -> spec.Specification:
+def load_specification(path: pathlib.Path, project_root: pathlib.Path) -> spec.Analytics:
     """Load a JSON specification with its project functions on the import path."""
     prepare_project_root(project_root)
-    return spec.Specification.from_json(path)
+    return spec.Analytics.from_json(path)

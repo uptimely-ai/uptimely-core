@@ -1,4 +1,4 @@
-"""Specification parser and JSON specification loading helpers."""
+"""Analytics parser and JSON specification loading helpers."""
 
 from __future__ import annotations
 
@@ -11,13 +11,13 @@ from .. import storage, validation
 from . import bindings, json_functions, json_model, json_serializer
 
 
-class SpecificationParser:
+class AnalyticsParser:
     """Parse, resolve, validate, and export a JSON specification."""
 
     def __init__(self, path: str | pathlib.Path | None = None):
         """Initialize an empty specification and optionally parse ``path``."""
         self.path: str | None = None
-        self.model = json_model.Specification()
+        self.model = json_model.Analytics()
         self.functions: list[json_model.Function] = []
         self.calls: list[json_model.Call] = []
 
@@ -25,7 +25,7 @@ class SpecificationParser:
             self.parse(path)
 
     @classmethod
-    def from_json(cls, path: str | pathlib.Path) -> json_model.Specification:
+    def from_json(cls, path: str | pathlib.Path) -> json_model.Analytics:
         """Create a specification from a JSON file."""
         specification = cls()
         return specification.parse(path)
@@ -39,7 +39,7 @@ class SpecificationParser:
         dimensions: dict[str, json_model.Dimension] | list[json_model.Dimension] | None = None,
         *,
         entities: object | None = None,
-    ) -> json_model.Specification:
+    ) -> json_model.Analytics:
         """Create a specification from Python authoring models."""
         specification = cls()
         spec = json_functions.python_to_spec_dict(
@@ -49,18 +49,18 @@ class SpecificationParser:
             dimensions=dimensions,
             entities=entities,
         )
-        specification._apply_model(json_model.Specification.model_validate(spec))
+        specification._apply_model(json_model.Analytics.model_validate(spec))
         specification._resolve_functions()
         specification.validate()
         return specification.model
 
     def to_json(self, path: str | pathlib.Path) -> str:
         """Write the current specification to disk and return its path."""
-        result = json_serializer.SpecificationSerializer.to_json(self.model, path)
+        result = json_serializer.AnalyticsSerializer.to_json(self.model, path)
         self.path = self.model.path
         return result
 
-    def _apply_model(self, spec: json_model.Specification) -> None:
+    def _apply_model(self, spec: json_model.Analytics) -> None:
         """Apply a validated specification model."""
         self.model = spec
         self.functions = spec.resolved_functions
@@ -167,9 +167,7 @@ class SpecificationParser:
             function=function_name,
             entity=entity_id,
             feature=feature_name,
-            args=SpecificationParser._replace_arg_placeholders(
-                binding.args, dataset_id, feature_name
-            ),
+            args=AnalyticsParser._replace_arg_placeholders(binding.args, dataset_id, feature_name),
             depends_on_features=inputs,
         )
 
@@ -182,12 +180,12 @@ class SpecificationParser:
         """Resolve typed binding references in callable arguments."""
         return bindings.resolve_binding_args(args, dataset_id, feature_id)
 
-    def parse(self, path: str | pathlib.Path | None = None) -> json_model.Specification:
+    def parse(self, path: str | pathlib.Path | None = None) -> json_model.Analytics:
         """Load, resolve, and validate a specification from JSON."""
         spec_path = self._spec_path(path)
         spec = self._load_spec(spec_path)
         self.path = spec_path
-        self._apply_model(json_model.Specification.model_validate(spec))
+        self._apply_model(json_model.Analytics.model_validate(spec))
         self.model.path = spec_path
         self._resolve_functions()
         self.validate()
@@ -338,4 +336,4 @@ class SpecificationParser:
         return target
 
 
-__all__ = ["SpecificationParser"]
+__all__ = ["AnalyticsParser"]

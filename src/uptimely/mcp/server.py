@@ -45,12 +45,12 @@ class ServerState:
         default_factory=uptimely_engine.EngineConfig
     )
     bind: dict[str, dict[str, dict[str, typing.Any]]] = dataclasses.field(default_factory=dict)
-    specification: spec.Specification | None = dataclasses.field(default=None, repr=False)
+    specification: spec.Analytics | None = dataclasses.field(default=None, repr=False)
 
-    def load_specification(self, *, reload: bool = False) -> spec.Specification:
+    def load_specification(self, *, reload: bool = False) -> spec.Analytics:
         """Return the specification, parsing it on first use or when reloaded."""
         if self.specification is None or reload:
-            self.specification = spec.Specification.from_json(self.spec_path)
+            self.specification = spec.Analytics.from_json(self.spec_path)
         return self.specification
 
 

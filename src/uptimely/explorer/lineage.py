@@ -37,7 +37,7 @@ class DataLineageStep:
 
 
 def _build_stages(
-    specification: spec.Specification, execution_plan: plan.ExecutionPlan
+    specification: spec.Analytics, execution_plan: plan.ExecutionPlan
 ) -> list[list[DataLineageStep]]:
     """Build typed table schemas with colors inherited from feature producers.
 
@@ -132,7 +132,7 @@ def _build_stages(
 
 
 def _create_website_page(
-    specification: spec.Specification,
+    specification: spec.Analytics,
     execution_plan: plan.ExecutionPlan,
     output_directory: pathlib.Path,
     *,

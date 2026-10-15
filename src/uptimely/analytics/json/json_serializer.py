@@ -8,11 +8,11 @@ if typing.TYPE_CHECKING:
     from . import json_model
 
 
-class SpecificationSerializer:
+class AnalyticsSerializer:
     """Serialize specification models to JSON documents."""
 
     @staticmethod
-    def to_json(specification: "json_model.Specification", path: str | pathlib.Path) -> str:
+    def to_json(specification: "json_model.Analytics", path: str | pathlib.Path) -> str:
         """Write the specification document to disk and return its path."""
         target = pathlib.Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -29,4 +29,4 @@ class SpecificationSerializer:
         return str(target)
 
 
-__all__ = ["SpecificationSerializer"]
+__all__ = ["AnalyticsSerializer"]

@@ -49,9 +49,9 @@ def test_export_example_in_fresh_process(
         text=True,
         check=True,
     )
-    assert f"Specification written to {output}" in result.stdout
+    assert f"Analytics written to {output}" in result.stdout
     assert not result.stderr
-    specification = spec_module.Specification.from_json(output)
+    specification = spec_module.Analytics.from_json(output)
     assert specification.name == name
     assert set(specification.entities) == entities
     assert specification.source.name == "python_api"
@@ -79,7 +79,7 @@ def test_export_default_output_and_import_root(
     invoke(monkeypatch, *arguments)
     output = tmp_path / "_generated/spec/spec.json"
     assert json.loads(output.read_text(encoding="utf-8"))["name"] == "Simple analytics"
-    assert "Specification written to" in capsys.readouterr().out
+    assert "Analytics written to" in capsys.readouterr().out
 
 
 def test_export_explicit_output_is_relative_to_working_directory(
@@ -106,7 +106,7 @@ def test_export_explicit_output_is_relative_to_working_directory(
         (
             "invalid_export_declaration",
             "python_specification = {}",
-            "must be a PythonSpecification",
+            "must be a PythonAnalytics",
         ),
         (
             "broken_export_dependency",
@@ -116,7 +116,7 @@ def test_export_explicit_output_is_relative_to_working_directory(
         (
             "invalid_export_specification",
             "from uptimely.analytics import python as python_spec\n"
-            "python_specification = python_spec.PythonSpecification()",
+            "python_specification = python_spec.PythonAnalytics()",
             "At least one entity is required",
         ),
     ],

@@ -9,14 +9,14 @@ For a runnable workflow, see the
 The [specification format reference](../specification/specification.md) describes
 the declarative contract.
 
-## Specifications
+## Analytics model and parsing
 
 ::: uptimely.analytics
     options:
       members:
-        - Specification
-        - SpecificationParser
-        - SpecificationSerializer
+        - Analytics
+        - AnalyticsParser
+        - AnalyticsSerializer
         - Entity
         - Dataset
         - Order
@@ -29,7 +29,7 @@ the declarative contract.
 
 ## Python authoring
 
-::: uptimely.analytics.python.spec
+::: uptimely.analytics.python.analytics
 
 ::: uptimely.analytics.python.entity
 

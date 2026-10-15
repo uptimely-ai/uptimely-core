@@ -42,7 +42,7 @@ This separation keeps the project easy to reason about: configuration and specif
 The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/pump_analytics/README.md) uses CLI commands
 for specification export, compilation, execution, documentation, and feature
 graphs. `uptimely spec export --module <module>` imports a module exposing
-`python_specification`, a `PythonSpecification` instance, and writes JSON.
+`python_specification`, a `PythonAnalytics` instance, and writes JSON.
 `uptimely explorer build` writes a linked website to `_generated/explorer/`.
 All HTML pages are generated together by that command.
 Specification and plan JSON exports live in `_generated/spec/` and

@@ -27,14 +27,14 @@ Missing entrypoints or unreadable signatures cause compilation to fail.
 
 ## Compiling a plan
 
-`Compiler` accepts a `Specification` object or a JSON specification path as a
+`Compiler` accepts an `Analytics` object or a JSON specification path as a
 string or `Path`. Calling `compile()` returns an `ExecutionPlan`.
 
 ```python
 from uptimely.compile import Compiler
-from uptimely.analytics import Specification
+from uptimely.analytics import Analytics
 
-specification = Specification.from_json("_generated/spec/spec.json")
+specification = Analytics.from_json("_generated/spec/spec.json")
 plan = Compiler(specification).compile()
 plan.export_json("_generated/compile/execution_plan.json")
 ```
