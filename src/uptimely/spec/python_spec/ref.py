@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import dataclasses
+from collections import abc
 
 __all__ = [
     "Reference",
+    "FunctionReference",
+    "function",
     "current_dataset",
     "dataset",
     "source",
@@ -13,6 +16,63 @@ __all__ = [
     "feature",
     "dimension",
 ]
+
+
+@dataclasses.dataclass(frozen=True)
+class FunctionReference:
+    """A function location normalized without importing or executing its module."""
+
+    module: str
+    name: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.module, str):
+            raise TypeError("Function reference module must be a string")
+        if not self.module.strip():
+            raise ValueError("Function reference module must not be empty")
+        if not isinstance(self.name, str):
+            raise TypeError("Function reference name must be a string")
+        if not self.name.isidentifier():
+            raise ValueError("Function reference name must be a Python identifier")
+
+    @property
+    def entrypoint(self) -> str:
+        """Return the canonical module-and-function entrypoint."""
+        return f"{self.module}:{self.name}"
+
+
+def function(
+    function: abc.Callable[..., object] | str,
+) -> FunctionReference:
+    """Reference a callable or a ``module:function`` entrypoint string.
+
+    Args:
+        function: A named Python callable such as ``module.calculate``, or an
+            entrypoint string such as ``path/to/module.py:calculate``. Remote
+            locations are recorded only, not downloaded.
+
+    Returns:
+        A reference containing the module location and function name.
+
+    Raises:
+        TypeError: If the argument is neither callable nor a string.
+        ValueError: If the entrypoint is invalid or the callable has no valid
+            module and function name.
+    """
+    if isinstance(function, str):
+        module, separator, name = function.rpartition(":")
+        if not separator:
+            raise ValueError("Function entrypoint must use 'module:function' or 'path:function'")
+    else:
+        if not callable(function):
+            raise TypeError("function must be a Python callable or a string")
+        module = getattr(function, "__module__", None)
+        name = getattr(function, "__name__", None)
+        if not isinstance(module, str) or not isinstance(name, str):
+            raise ValueError(
+                "Callable must have a module and function name; pass an entrypoint string instead"
+            )
+    return FunctionReference(module=module, name=name)
 
 
 @dataclasses.dataclass(frozen=True)

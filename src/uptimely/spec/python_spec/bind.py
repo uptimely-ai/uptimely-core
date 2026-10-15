@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import dataclasses
 import typing
-from collections import abc
 
 from . import ref, row_context
 
@@ -16,35 +15,45 @@ __all__ = [
 
 @dataclasses.dataclass(frozen=True)
 class Bind:
-    """A callable and its Python-friendly argument bindings."""
+    """A function reference and its Python-friendly argument bindings."""
 
-    function: abc.Callable[..., object]
+    function: ref.FunctionReference
     args: dict[str, typing.Any]
     function_id: str | None = None
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.function, ref.FunctionReference):
+            raise TypeError(
+                "Bind.function must be a reference created with "
+                "ref.function(callable_or_entrypoint)"
+            )
+
 
 def bind(
-    function: abc.Callable[..., object],
+    function: ref.FunctionReference,
     /,
     function_id: str | None = None,
     **args: typing.Any,
 ) -> Bind:
-    """Bind named arguments to a plain function.
+    """Bind named arguments to a function reference.
 
     Args:
-        function: The callable to invoke.
+        function: A reference created with ``ref.function(callable_or_entrypoint)``.
         function_id: Optional catalog identifier.
         **args: Actual function arguments, optionally annotated with row context.
 
     Returns:
         A declaration preserving primitive arguments and separate metadata.
+
+    Raises:
+        TypeError: If function is not a reference created with ``ref.function``.
     """
     return Bind(function=function, args=args, function_id=function_id)
 
 
-def _entrypoint(function: abc.Callable[..., object]) -> str:
-    """Return the importable entrypoint for a declared Python function."""
-    return f"{function.__module__}:{function.__name__}"
+def _entrypoint(function: ref.FunctionReference) -> str:
+    """Return the entrypoint for a declared function reference."""
+    return function.entrypoint
 
 
 def _binding_value(value: typing.Any) -> typing.Any:
@@ -98,8 +107,8 @@ def _argument_definition(value: typing.Any) -> dict[str, typing.Any]:
 
 
 def _operation_id(bind: Bind, identifier: str | None) -> str:
-    """Return the explicit or callable-derived identifier for an operation."""
-    return identifier or bind.function_id or bind.function.__name__
+    """Return the explicit or reference-derived identifier for an operation."""
+    return identifier or bind.function_id or bind.function.name
 
 
 def _binding_args(bind: Bind) -> dict[str, typing.Any]:

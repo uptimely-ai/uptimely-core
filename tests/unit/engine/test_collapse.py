@@ -61,12 +61,12 @@ def _specification(*, lazy=False, empty=False):
         id="observations",
         mappings=[
             mapping.Read(
-                bind=bind.bind(read_values, lazy=lazy, empty=empty),
+                bind=bind.bind(ref.function(read_values), lazy=lazy, empty=empty),
                 outputs=[feature.Feature(id=name) for name in ("group", "id", "value")],
             ),
             mapping.Vectorize(
                 bind=bind.bind(
-                    double,
+                    ref.function(double),
                     dataset=ref.current_dataset().dataframe,
                     column=ref.feature("value").id,
                     output=ref.feature("doubled").id,
@@ -77,7 +77,7 @@ def _specification(*, lazy=False, empty=False):
             mapping.Vectorize(
                 id="unneeded",
                 bind=bind.bind(
-                    double,
+                    ref.function(double),
                     dataset=ref.current_dataset().dataframe,
                     column=ref.feature("value").id,
                     output=ref.feature("unneeded").id,
@@ -93,7 +93,7 @@ def _specification(*, lazy=False, empty=False):
             mapping.Collapse(
                 id="group_summary",
                 bind=bind.bind(
-                    summarize,
+                    ref.function(summarize),
                     dataset=ref.dataset("observations").dataframe,
                     column=ref.feature("value").id,
                     calculated=ref.feature("doubled").id,
@@ -108,13 +108,13 @@ def _specification(*, lazy=False, empty=False):
         mappings=[
             mapping.Collapse(
                 id="global_total",
-                bind=bind.bind(total, dataset=ref.dataset("summary").dataframe),
+                bind=bind.bind(ref.function(total), dataset=ref.dataset("summary").dataframe),
                 inputs=[ref.feature("maximum")],
                 outputs=[feature.Feature(id="total")],
             ),
             mapping.Collapse(
                 id="global_maximum",
-                bind=bind.bind(maximum, dataset=ref.dataset("summary").dataframe),
+                bind=bind.bind(ref.function(maximum), dataset=ref.dataset("summary").dataframe),
                 inputs=[ref.feature("maximum")],
                 outputs=[feature.Feature(id="global_max")],
             ),

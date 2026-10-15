@@ -217,7 +217,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
         mappings=[
             python_spec.mapping.Read(
                 id="read",
-                bind=python_spec.bind.bind(functions.read_data),
+                bind=python_spec.bind.bind(python_spec.ref.function(functions.read_data)),
                 outputs=[
                     python_spec.ref.feature("input_1"),
                     python_spec.ref.feature("input_2"),
@@ -227,7 +227,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
             python_spec.mapping.Vectorize(
                 id="sum",
                 bind=python_spec.bind.bind(
-                    functions.sum_features,
+                    python_spec.ref.function(functions.sum_features),
                     left_feature=python_spec.ref.feature("input_1"),
                     right_feature=python_spec.ref.feature("input_2"),
                     output="sum",

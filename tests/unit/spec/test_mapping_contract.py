@@ -40,7 +40,7 @@ def _specification() -> spec.Specification:
                 id="observations",
                 mappings=[
                     mapping.Read(
-                        bind=bind.bind(read_values),
+                        bind=bind.bind(ref.function(read_values)),
                         outputs=[
                             feature.Feature(id="id", type="integer"),
                             feature.Feature(id="value", type="integer"),
@@ -51,7 +51,7 @@ def _specification() -> spec.Specification:
                         inputs=[ref.feature("value")],
                         outputs=[feature.Feature(id="result", type="integer")],
                         bind=bind.bind(
-                            add_one,
+                            ref.function(add_one),
                             dataset=ref.current_dataset().dataframe,
                             output=ref.feature("result").id,
                         ),
@@ -60,7 +60,7 @@ def _specification() -> spec.Specification:
                         id="metadata",
                         outputs=[feature.Feature(id="metadata", type="integer")],
                         bind=bind.bind(
-                            metadata_only,
+                            ref.function(metadata_only),
                             dataset=ref.current_dataset().dataframe,
                             identifier=ref.feature("result").id,
                         ),
@@ -241,7 +241,7 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
                 id="source",
                 mappings=[
                     mapping.Read(
-                        bind=bind.bind(read_values),
+                        bind=bind.bind(ref.function(read_values)),
                         outputs=[
                             feature.Feature(id="id", type="integer"),
                             feature.Feature(id="value", type="integer"),
@@ -258,13 +258,13 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
                         ],
                         bind=(
                             bind.bind(
-                                copy_values,
+                                ref.function(copy_values),
                                 dataset=source_reference.dataframe,
                                 output=ref.feature("copied").id,
                             )
                             if dataframe
                             else bind.bind(
-                                dataset_identifier,
+                                ref.function(dataset_identifier),
                                 identifier=source_reference.id,
                                 output=ref.feature("copied").id,
                             )
