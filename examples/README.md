@@ -55,15 +55,22 @@ examples/
 
 ## Quick start
 
-With Python 3.13 or newer, install the package and download the examples:
+With Python 3.13 or newer, install the package, download the examples and explore the analytics documentation site:
 
 ```sh
 pip install uptimely-core
 uptimely examples download
+uptimely docs serve --project-root examples/pump_analytics
+```
+
+Additional commands to try:
+
+```sh
 uptimely spec export --module examples.pump_analytics.config.spec.spec --output examples/pump_analytics/_generated/spec/spec.json
 uptimely spec feature-graph --project-root examples/pump_analytics --verbose
 uptimely plan build --project-root examples/pump_analytics
 uptimely engine run --project-root examples/pump_analytics
+
 ```
 
 Run these commands from the parent of the downloaded `examples/` directory.
