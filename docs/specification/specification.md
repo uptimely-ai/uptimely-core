@@ -135,33 +135,9 @@ describe the types of its individual columns.
 Non-dimension feature identifiers must be globally unique and have exactly
 one producer. Dimension columns can recur across datasets.
 
-### Column Types and Tabular Results
-
-The execution engine validates non-null declared column types using these
-logical names:
-
-| Logical type | Meaning |
-| --- | --- |
-| `string` | Text value. |
-| `integer` | Integer value. |
-| `float` | Floating-point value. |
-| `numeric` | Numeric value. |
-| `boolean` | Boolean value. |
-| `datetime` | Datetime value, optionally timezone-aware. |
-| `date` | Calendar date. |
-| `object` | Structured value. |
-| `array` | List or array value. |
-
-The engine does not automatically convert values. Unknown logical column types
-fail runtime validation; omitted feature types skip that column's type check.
-Dimension types come from the root registry, even when their columns are not
-listed as mapping outputs. Repeated dimension feature metadata does not
-override the root dimension type.
-
-Tabular arguments refer to materialized datasets; they do not carry a separate
-schema declaration. Entity dimensions and feature metadata define the result's
-expected columns. A result may carry extra columns, but only the declared
-outputs and dimension keys enter the accumulated dataset.
+Feature and dimension registries describe the columns expected in tabular
+results. Runtime type checks, supported logical types, and dataframe merge
+behavior are described in the [execution engine guide](engine.md).
 
 ## Functions
 
@@ -239,13 +215,10 @@ Argument types describe implementation values, not data dependencies.
 Each argument requires a `type` string; `comment` is an optional string or null.
 Nested expressions such as `object{str: array[string]}` are supported.
 
-The parser checks bound argument names and explicit selector/type agreement;
-it does not perform general validation or coercion of literal values against
-the declared types, or verify that the implementation accepts those arguments.
-The compiler resolves implementations, but column schemas still come from
-the dimension and feature registries.
-Use typed collections for nested table references so the engine knows
-which members to resolve as data.
+Structural and semantic checks are described in the
+[compiler guide](compiler.md); runtime argument and dataframe behavior is
+covered by the [execution engine guide](engine.md). Use typed collections for
+nested table references so the engine knows which members to resolve as data.
 
 ## Feature Mappings
 
@@ -296,28 +269,15 @@ Data-producing mappings require at least one output. Vectorize outputs cannot
 redeclare entity dimensions. Collapse must produce at least one non-dimension
 feature. There is no binding-level `return` field.
 
-### Dimension-Keyed Alignment
+### Returned tables
 
-The returned table must contain the complete target dimension key and every
-declared output column. Keys must be unique; dimensionless datasets allow at
-most one row. Results are joined by keys, never by physical row position.
-Null key values match corresponding null keys.
-
-Only dimension columns and declared outputs are merged. An operation may return
-its input table with added columns, but it cannot overwrite unrelated
-features through that return. The engine checks declared output types.
-
-Vectorize returns must preserve the dataset's exact observation keys, although
-their physical order may differ. Other tabular operations may change coverage
-to construct their target row scope. The engine does not verify descriptive
-grain, filtering, or coverage: non-vectorize fragments are full-joined and may
-leave null feature values where another fragment has no matching observation.
-
-Join keys are not separate mapping fields. Entity dimensions define the keys
-used by the engine to merge returned fragments. An expand or conform function
-chooses its own lookup or temporal matching keys internally, then returns the
-complete target dimension key. Dimension parent metadata does not choose those
-internal join keys or perform joins automatically.
+Each mapping declares its outputs and the entity dimensions that identify its
+observations. The engine's requirements for returned columns, unique keys,
+vectorize key preservation, and fragment alignment are documented in the
+[execution engine guide](engine.md#runtime-dataframes). Entity dimensions define
+the keys used to align fragments; a conform or expand implementation chooses
+its own internal lookup keys and returns rows with the complete target key.
+Dimension parent metadata does not choose join keys or perform joins.
 
 ### Structural Binding References
 
@@ -334,31 +294,9 @@ Unsuffixed references remain supported; their template argument type determines
 whether a dataset identifier is resolved to data. Prefer explicit selectors
 when writing new declarations. `.id` arguments require `string`, and
 `.dataframe` arguments require `dataframe`. Use only the reference forms above;
-there is no generic JSON-path or attribute traversal.
-
-`@` names the owning dataset, not its final completed state. Its required inputs
-are materialized first. A single-output placeholder cannot be used with multiple
-calculated outputs.
-
-Other JSON values are literals. Runtime placeholders such as
-`?storage.telemetry_source.path` remain unchanged during compilation and are
-resolved against the engine's runtime configuration. They do not establish dependencies.
-
-Runtime placeholders have exactly the form
-`?<namespace>.<object>.<attribute>`. For example, the engine resolves
-`?storage.telemetry_source.path` from:
-
-```json
-{
-  "storage": {
-    "telemetry_source": {"path": "/data/telemetry.json"}
-  }
-}
-```
-
-Supply that mapping through the execution environment, not as a specification
-root field. Missing namespaces, objects, or attributes are execution errors.
-Plain literals and structural references do not change between environments.
+there is no generic JSON-path or attribute traversal. See the
+[compiler](compiler.md) and [execution engine](engine.md) guides for how these
+references and runtime placeholders are handled.
 
 
 ## Collapse Mappings
@@ -436,33 +374,22 @@ rows. An eight-hour window ending two hours ago needs ten hours before.
 Declarations must describe actual reach, not merely the window parameter.
 
 The JSON declaration records context requirements explicitly; the compiler
-does not infer window semantics from argument names.
+does not infer window semantics from argument names. See the [compiler
+guide](compiler.md) for how context metadata is carried into a plan, and the
+[execution engine guide](engine.md) for its current runtime behavior.
 
-## Dependency Semantics
+## Dependencies and validation
 
-Explicit inputs establish producer-to-consumer edges. The compiler includes
-required producers in feature-subset plans. Semantic validation rejects explicit
-feature-dependency cycles; the compiler also requires an acyclic execution graph.
-Argument identifiers alone do not establish feature dependencies.
-Dataset table arguments require their source observations to be available;
-dataset `.id` arguments are metadata only. A table argument does not imply
-that all calculated features in that dataset are needed: declare consumed
-features as inputs.
+The format defines explicit inputs as feature requirements. The compiler guide
+describes how these become dependency edges and affect feature-subset plans.
 
-Vectorize and write inputs belong to their owning dataset. Other operations
-can transfer data between datasets explicitly. Independent mappings can run in
-the same plan stage.
+Validation responsibilities are split between the compiler and engine:
+structural and semantic checks are described in the [compiler guide](compiler.md),
+while runtime checks on materialized inputs and results are described in the
+[execution engine guide](engine.md). Neither can establish analytical
+correctness or infer hidden function dependencies; test implementations with
+their declarations.
 
-## Validation Responsibilities
-
-Structural validation rejects unsupported fields and malformed context.
-Semantic validation checks identifiers, unique producers, input ownership,
-function categories, argument names, context dimensions, and logical order.
-Runtime validation checks materialized inputs, returned table keys, output
-columns and declared types, and vectorize observation preservation.
-
-Validation cannot prove analytical correctness or infer a function's hidden
-data dependencies. Functions and their declarations should be tested together.
 
 ## Write Mappings
 
@@ -490,10 +417,8 @@ Register a matching template in `functions.write` with `dataset: dataframe`,
 `columns: array[string]`, and `sink: string` argument definitions. Explicit
 inputs establish dependencies; the `columns` argument independently identifies
 the values to persist. The bound operation defines how they are persisted.
-Column-list order does not schedule calculations, and feature-subset compilation
-does not trim bound lists. Configured dataset sinks are retained in subset
-plans; a sink requiring a feature outside the selected closure can fail with
-unavailable input.
+The compiler includes writes according to its subset planning rules; see the
+[compiler guide](compiler.md).
 
 ## Contract Migration
 

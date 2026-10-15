@@ -1,10 +1,15 @@
-# Execution Engine
+# Execution engine
 
-This page describes the built-in engine shipped with Uptimely Core. It is the reference execution implementation for the project, but it is not the only possible engine. Any engine that can read the portable compiled plan and execute its operations according to the plan contract may be used instead. An alternative engine may be implemented in another language or runtime, as long as it respects the portable execution model and the plan's declared backend compatibility.
+This page describes the built-in Uptimely Core runtime and its execution
+contract. It consumes a compiled plan, resolves runtime resources, invokes
+functions, and accumulates their tabular results. Other engines can use the same
+portable plan format if they implement its operations and required backend.
 
 ## Engine settings
 
-Engine settings are supplied to `Engine`, not stored in the Open Analytics specification. The engine implementation decides which configuration values to use.
+Engine settings are supplied to `Engine`, not stored in the Open Analytics
+specification. The engine implementation decides which configuration values
+to use.
 
 The built-in Python engine only uses `dataframe` to validate backend
 compatibility. `evaluation` and `batch_size` are reserved settings: they are
@@ -24,9 +29,9 @@ JSON key | Type | Purpose
 `backend.batch_size` | integer, `"*"`, or `null` | Reserved. Validates positive integers, `"*"`, or `null`, but does not change how many records are read at a time.
 `bind` | object | Runtime values keyed by namespace, object identifier, and attribute for resolving placeholders.
 
-`backend` is not a specification or engine configuration field. A compiled plan records its backend
-claim as `required_backend`; the built-in engine rejects values other than `polars`.
-Orchestration is a deployment concern and is not represented in the
+`backend` is not a specification field. A compiled plan records its backend
+claim as `required_backend`; the built-in engine rejects values other than
+`polars`. Orchestration is a deployment concern and is not represented in the
 specification.
 
 ## Dataframe backend
@@ -53,10 +58,10 @@ engine = Engine(plan, config=EngineConfig(dataframe="polars"))
 result = engine.execute()
 ```
 
-`Compiler.features` is optional. The argument names output features produced by
-calculations. When provided, it creates a callable-graph subset containing the
-required calculations and their input or calculated-feature dependencies.
-Engine executes the resulting plan without special subset logic.
+`Compiler.features` is optional. It names calculated output features; when
+provided, the compiler includes their prerequisite calculations and
+dependencies. The engine executes the resulting plan without special subset
+logic.
 
 An exported plan can be loaded and executed without recompilation:
 
@@ -74,8 +79,8 @@ Operations can carry `row_context` requirements independently of their primitive
 arguments. The batch engine does not pass this metadata to functions or use it
 to sort, retain rows, or delay output. Future stateful implementations can inspect
 the declarations, but must distinguish unknown context from explicit zero
-context and account for grouping performed by functions and dependency chains. See
-[row context](../specification/specification.md#row-context) for the contract.
+context and account for grouping performed by functions and dependency chains.
+See the [row context contract](specification.md#row-context).
 
 ## Runtime placeholders
 
@@ -142,7 +147,7 @@ application before constructing the engine:
 import json
 from pathlib import Path
 
-from uptimely.engine import Engine
+from uptimely.engine import Engine, EngineConfig
 from uptimely.plan import ExecutionPlan
 
 plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
@@ -153,14 +158,14 @@ if result.failures:
     raise RuntimeError(f"Execution failed: {result.failures}")
 ```
 
-The [MCP CLI](ai.md#running-the-server) loads this JSON file through
+The [MCP CLI](../components/ai.md#running-the-server) loads this JSON file through
 `--config`, reading backend settings from `backend` and runtime values from
 `bind`. Neither interface automatically selects an
 environment or merges multiple configuration files. Each supplied mapping must
 provide all values required by the operations being executed; missing values
 are errors, not fallbacks to another environment.
 
-## Engine execution
+## Execution state
 
 At runtime, the engine does not keep a separate dataframe for every fragment or
 feature in isolation. Instead, it maintains one accumulated dataframe per
@@ -178,14 +183,55 @@ sorting operations into a plan. Logical order does not change fragment alignment
 or guarantee physical row order. Order-sensitive functions must explicitly
 declare and implement their ordering inputs.
 
-The loop is: verify materialized inputs, invoke the function, validate its
-dataframe keys and output schema, then join the fragment into the dataset.
+For each operation, the engine checks that its inputs are materialized, invokes
+the function, validates the returned keys and schema, and then joins the
+fragment into the dataset.
 Vectorize results must preserve the existing dimension-key set. No expression,
 series, dictionary, or scalar return adapters are used.
 
 All data-producing mapping categories use the same execution path. Validation
 is separate from merging, and runtime outputs are registered only after the
 fragment has been successfully merged.
+
+## Runtime dataframes
+
+Feature and dimension metadata provide the expected schema; tabular arguments
+do not carry a separate schema. The built-in engine checks declared, non-null
+column types against these logical types:
+
+| Logical type | Meaning |
+| --- | --- |
+| `string` | Text value. |
+| `integer` | Integer value. |
+| `float` | Floating-point value. |
+| `numeric` | Numeric value. |
+| `boolean` | Boolean value. |
+| `datetime` | Datetime value, optionally timezone-aware. |
+| `date` | Calendar date. |
+| `object` | Structured value. |
+| `array` | List or array value. |
+
+Values are not automatically converted. An unknown declared type fails
+validation; an omitted feature type skips that feature's type check. Dimension
+types come from the root dimension registry, even when dimension columns are
+not listed as mapping outputs. Repeated dimension feature metadata does not
+override the root type.
+
+Each returned dataframe must include every dimension column for its entity and
+every declared output. Complete dimension keys must be unique; a dimensionless
+dataset can contain at most one row. Keys, including null keys, are aligned by
+value rather than row position. Only dimension columns and declared outputs
+are merged into the accumulated dataset, so returning an input dataframe with
+extra columns cannot overwrite unrelated features. Output types are checked
+against the feature registry.
+
+Vectorize results must preserve the exact existing key set, though row order
+may differ. Other data-producing operations may change coverage to create their
+target row scope. The engine full-joins fragments and preserves keys that occur
+in only one fragment, leaving nulls for values absent from the other. It does
+not prove that fragments meet their descriptive grain, filtering, or coverage.
+Functions are responsible for their internal grouping, matching, output names,
+and constructed literal values.
 
 ## Write Functions
 
@@ -199,13 +245,25 @@ ordinarily a `?storage.<id>.<attribute>` runtime placeholder, resolved against
 persists the required output.
 
 ```json
-"args": {
-    "sink": "?storage.pump_telemetry_sink.path",
-    "dataset": "$datasets.@",
-    "features": [
-        "$features.bearing_temperature_max",
-        "$features.health_signal_normalized"
-    ]
+"write_pump_results": {
+  "features": {
+    "inputs": [
+      "$features.bearing_temperature_max",
+      "$features.health_signal_normalized"
+    ],
+    "outputs": []
+  },
+  "binding": {
+    "function": "write_pump_results",
+    "args": {
+      "sink": "?storage.pump_telemetry_sink.path",
+      "dataset": "$datasets.@.dataframe",
+      "columns": [
+        "$features.bearing_temperature_max.id",
+        "$features.health_signal_normalized.id"
+      ]
+    }
+  }
 }
 ```
 
@@ -214,16 +272,16 @@ Subset plans retain configured dataset sinks; a sink requiring additional
 features outside the subset reports an unavailable-input failure rather than
 receiving missing data silently.
 
-## Dataset Isolation and Fragment Resources
+## Dataset isolation and fragments
 
 Vectorize operations consume features only from their own dataset. Fragment
 operations may explicitly receive another dataset through a `$datasets.<id>`
-reference in their binding arguments and return a new fragment for the target dataset. The
-engine never joins features from another dataset implicitly. The specification
-declares dataframe-producing resources under `read`, `conform`, `expand`,
-and `collapse`.
-Each fragment produces a runtime dataframe, includes the entity's dimension columns, and
-follows the dataset `row_scope` contract.
+reference in their binding arguments and return a new fragment for the target
+dataset. The engine never joins features from another dataset implicitly. The
+specification declares dataframe-producing resources under `read`, `conform`,
+`expand`, and `collapse`. Each fragment produces a runtime dataframe, includes
+the entity's dimension columns, and should follow the dataset `row_scope`
+contract.
 
 With the Polars backend, functions return `pl.DataFrame` or `pl.LazyFrame`.
 `calculated_outputs` stores dimension-keyed frames for individual vectorized

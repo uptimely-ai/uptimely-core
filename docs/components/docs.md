@@ -278,7 +278,7 @@ Both renderings include the same node details. Open Feature graph in the
 sidebar and select **2D** or **3D** above the visualization.
 
 The feature graph explains logical lineage; the
-[execution plan](compiler.md) separately shows callable dependencies and
+[execution plan](../specification/compiler.md) separately shows callable dependencies and
 execution stages.
 
 ### Focus on a feature

@@ -7,6 +7,9 @@ dependencies in a shared contract that tools can validate, document, and compile
 Read the [format reference](specification.md) for the document structure and
 semantic rules.
 
+The [compiler](compiler.md) turns a specification into a portable execution
+plan; the [execution engine](engine.md) runs that plan against runtime data.
+
 ## What the specification enables
 
 - Declare an analytical system in one document rather than scattering its
