@@ -8,7 +8,7 @@ from uptimely import plan as uptimely_plan
 def _sample_plan() -> uptimely_plan.Plan:
     return uptimely_plan.Plan(
         plan_version="1.0.0",
-        specification_version="2024.01",
+        analytics_version="0.1.0",
         required_backend="polars",
         resources={
             "signatures": {
@@ -97,7 +97,7 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
     assert execution_plan.to_dict() == plan.to_dict()
     assert set(execution_plan.to_dict()) == {
         "plan_version",
-        "specification_version",
+        "analytics_version",
         "required_backend",
         "resources",
         "operations",
@@ -118,12 +118,22 @@ def test_plan_json_helpers_round_trip(tmp_path) -> None:
     assert recreated.operations[0].id == "callable:read:load:pump:pump_dataset:pressure"
 
 
-@pytest.mark.parametrize("missing_field", ["operations", "required_backend", "stages"])
+@pytest.mark.parametrize(
+    "missing_field", ["analytics_version", "operations", "required_backend", "stages"]
+)
 def test_plan_rejects_missing_required_fields(missing_field: str) -> None:
     payload = _sample_plan().to_dict()
     del payload[missing_field]
 
     with pytest.raises(ValueError, match=f"Plan is missing required fields: {missing_field}"):
+        uptimely_plan.Plan.from_dict(payload)
+
+
+def test_plan_rejects_legacy_version_field() -> None:
+    payload = _sample_plan().to_dict()
+    payload["specification_version"] = payload.pop("analytics_version")
+
+    with pytest.raises(ValueError, match="Plan is missing required fields: analytics_version"):
         uptimely_plan.Plan.from_dict(payload)
 
 

@@ -40,9 +40,12 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
     metadata = json.loads(output_path.read_text(encoding="utf-8"))
 
     assert metadata == plan.plan.to_dict()
+    assert metadata["analytics_version"] == "0.1.0"
+    assert metadata["resources"]["analytics_version"] == metadata["analytics_version"]
+    assert "specification_version" not in metadata["resources"]
     assert set(metadata) == {
         "plan_version",
-        "specification_version",
+        "analytics_version",
         "required_backend",
         "resources",
         "operations",

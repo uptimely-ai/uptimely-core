@@ -53,7 +53,7 @@ class Plan:
     """Portable, JSON-serializable execution plan."""
 
     plan_version: str
-    specification_version: str | None
+    analytics_version: str | None
     required_backend: str
     resources: dict[str, typing.Any]
     operations: list[Operation]
@@ -63,7 +63,7 @@ class Plan:
         """Return the plan as JSON-compatible data."""
         return {
             "plan_version": self.plan_version,
-            "specification_version": self.specification_version,
+            "analytics_version": self.analytics_version,
             "required_backend": self.required_backend,
             "resources": self.resources,
             "operations": [
@@ -94,7 +94,7 @@ class Plan:
         """Load a portable plan from a decoded JSON object."""
         required = {
             "plan_version",
-            "specification_version",
+            "analytics_version",
             "required_backend",
             "resources",
             "operations",
@@ -135,7 +135,7 @@ class Plan:
                 )
         return cls(
             plan_version=payload["plan_version"],
-            specification_version=payload["specification_version"],
+            analytics_version=payload["analytics_version"],
             required_backend=payload["required_backend"],
             resources=payload["resources"],
             operations=operations,

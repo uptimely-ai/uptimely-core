@@ -51,7 +51,7 @@ def _portable_value(value: object) -> object:
 def _resource_models(analytics_definition: analytics.Analytics) -> dict[str, typing.Any]:
     """Export analytics data required by the engine at runtime."""
     return {
-        "specification_version": analytics_definition.version,
+        "analytics_version": analytics_definition.version,
         "dimensions": {
             identifier: dimension.model_dump(exclude_none=False)
             for identifier, dimension in analytics_definition.dimensions.items()
@@ -121,7 +121,7 @@ class Compiler:
         }
         plan = uptimely_plan.Plan(
             plan_version="1.0.0",
-            specification_version=self.analytics.version,
+            analytics_version=self.analytics.version,
             required_backend="polars",
             resources=resources,
             operations=operations,
