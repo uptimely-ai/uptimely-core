@@ -319,16 +319,17 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
     assert 'aria-label="Analytics journey"' in document
     assert re.findall(r'<li class="journey-step (\S+) icon--\1">', document) == [
         "analytics",
-        "lineage",
         "execution",
+        "lineage",
     ]
     for href, action in (
         ("analytics/overview.html", "Explore analytics"),
-        ("analytics/graph.html", "Trace dependencies"),
         ("plan/overview.html", "Inspect the plan"),
+        ("execution/data_lineage.html", "Explore execution"),
     ):
         assert f'<a href="{href}">{action}' in document
         assert (index.parent / href).is_file()
+    assert re.findall(r"<h3>(.*?)</h3>", document) == ["Analytics", "Plan", "Execution"]
     assert "does not run analytical operations" in document
     assert "prefers-reduced-motion: reduce" in document
 
