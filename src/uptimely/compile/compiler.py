@@ -1,4 +1,4 @@
-"""Compile specifications into portable execution plans."""
+"""Compile analytics into portable execution plans."""
 
 from __future__ import annotations
 
@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 ExecutionPlan = uptimely_plan.ExecutionPlan
 
 
-def _resolve_function(specification: analytics.Analytics, node: node_module.CallableNode):
+def _resolve_function(analytics_definition: analytics.Analytics, node: node_module.CallableNode):
     """Return the function definition for an operation node."""
-    catalog = specification.function_catalog
+    catalog = analytics_definition.function_catalog
     function_catalog = getattr(catalog, node.callable_type, None)
     if function_catalog is not None:
         function = function_catalog.get(node.function_id)
@@ -30,7 +30,7 @@ def _resolve_function(specification: analytics.Analytics, node: node_module.Call
     return next(
         (
             function
-            for function in specification.resolved_functions
+            for function in analytics_definition.resolved_functions
             if function.id == node.function_id
         ),
         None,
@@ -48,19 +48,19 @@ def _portable_value(value: object) -> object:
     return value
 
 
-def _resource_models(specification: analytics.Analytics) -> dict[str, typing.Any]:
-    """Export the specification data required by the engine at runtime."""
+def _resource_models(analytics_definition: analytics.Analytics) -> dict[str, typing.Any]:
+    """Export analytics data required by the engine at runtime."""
     return {
-        "specification_version": specification.version,
+        "specification_version": analytics_definition.version,
         "dimensions": {
             identifier: dimension.model_dump(exclude_none=False)
-            for identifier, dimension in specification.dimensions.items()
+            for identifier, dimension in analytics_definition.dimensions.items()
         },
         "entities": {
             identifier: {"id": entity.id, "dimensions": entity.dimension_ids}
-            for identifier, entity in specification.entities.items()
+            for identifier, entity in analytics_definition.entities.items()
         },
-        "functions": specification.function_catalog.model_dump(exclude_none=False),
+        "functions": analytics_definition.function_catalog.model_dump(exclude_none=False),
         "datasets": {
             dataset.id: {
                 "features": {
@@ -70,38 +70,40 @@ def _resource_models(specification: analytics.Analytics) -> dict[str, typing.Any
                 "order": [key.model_dump() for key in dataset.order],
                 "row_scope": dataset.row_scope.model_dump(),
             }
-            for entity in specification.entities.values()
+            for entity in analytics_definition.entities.values()
             for dataset in entity.datasets
         },
     }
 
 
 class Compiler:
-    """Turn a specification into a portable execution plan."""
+    """Turn an Analytics instance or JSON path into a portable execution plan."""
 
     def __init__(
         self,
-        spec: str | pathlib.Path | analytics.Analytics,
+        analytics_definition: str | pathlib.Path | analytics.Analytics,
         features: abc.Collection[str] | None = None,
     ) -> None:
-        """Initialize the compiler with a specification or JSON path."""
-        self.spec_path: pathlib.Path | None = None
-        self.specification: analytics.Analytics | None = None
+        """Initialize the compiler with analytics or a JSON path."""
+        self.analytics_path: pathlib.Path | None = None
+        self.analytics: analytics.Analytics | None = None
         self.features = self._validate_features(features)
-        if isinstance(spec, analytics.Analytics):
-            self.specification = spec
-            self.spec_path = pathlib.Path(spec.path) if spec.path else None
+        if isinstance(analytics_definition, analytics.Analytics):
+            self.analytics = analytics_definition
+            self.analytics_path = (
+                pathlib.Path(analytics_definition.path) if analytics_definition.path else None
+            )
         else:
-            self.spec_path = pathlib.Path(spec)
+            self.analytics_path = pathlib.Path(analytics_definition)
 
     def compile(self) -> uptimely_plan.ExecutionPlan:
         """Build and serialize the dependency graph into a portable plan."""
-        if self.specification is None:
-            if self.spec_path is None:
-                raise ValueError("No specification or specification path provided.")
-            self.specification = analytics.Analytics(json=self.spec_path)
+        if self.analytics is None:
+            if self.analytics_path is None:
+                raise ValueError("No analytics or analytics path provided.")
+            self.analytics = analytics.Analytics(json=self.analytics_path)
 
-        callable_graph = execution_graph.CallableGraph(self.specification)
+        callable_graph = execution_graph.CallableGraph(self.analytics)
         if self.features is not None:
             logger.debug("Compiling feature subset: %s", sorted(self.features))
             callable_graph = callable_graph.subset(self.features)
@@ -113,13 +115,13 @@ class Compiler:
             [node.node_id for node in stage if node.node_id in operation_ids]
             for stage in execution_stages
         ]
-        resources = _resource_models(self.specification)
+        resources = _resource_models(self.analytics)
         resources["signatures"] = {
             node_id: signature.returns for node_id, signature in signatures.items()
         }
         plan = uptimely_plan.Plan(
             plan_version="1.0.0",
-            specification_version=self.specification.version,
+            specification_version=self.analytics.version,
             required_backend="polars",
             resources=resources,
             operations=operations,
@@ -132,7 +134,7 @@ class Compiler:
         self, graph: execution_graph.CallableGraph, node: node_module.CallableNode
     ) -> uptimely_plan.Operation:
         """Convert one live graph node into a portable operation DTO."""
-        function = _resolve_function(self.specification, node)
+        function = _resolve_function(self.analytics, node)
         if function is None or not function.entrypoint:
             raise ValueError(f"Missing entrypoint for function: {node.function_id}")
         arguments = bindings.resolve_binding_args(
@@ -142,7 +144,7 @@ class Compiler:
                 next(
                     feature
                     for feature in node.output_features
-                    if feature not in self.specification.entities[node.entity].dimension_ids
+                    if feature not in self.analytics.entities[node.entity].dimension_ids
                 )
                 if node.operation_type == "collapse"
                 else node.feature
@@ -160,7 +162,7 @@ class Compiler:
             output_features=list(node.output_features),
             input_features=next(
                 dataset.mappings[node.operation_id].input_features
-                for dataset in self.specification.entities[node.entity].datasets
+                for dataset in self.analytics.entities[node.entity].datasets
                 if dataset.id == node.dataset_id
             ),
             arguments=_portable_value(arguments),
@@ -181,7 +183,7 @@ class Compiler:
         """Read callable signatures for compiler diagnostics."""
         signatures: dict[str, object] = {}
         for node in callable_graph.callables:
-            function = _resolve_function(self.specification, node)
+            function = _resolve_function(self.analytics, node)
             if function is None or not function.entrypoint:
                 continue
             try:

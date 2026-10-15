@@ -1,4 +1,4 @@
-"""Entity declarations for the pump analytics specification."""
+"""Entity declarations for pump analytics."""
 
 from uptimely.analytics.python import entity
 

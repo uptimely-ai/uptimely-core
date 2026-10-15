@@ -74,7 +74,7 @@ def test_execute_stops_after_a_failed_operation() -> None:
     assert called is False
 
 
-def test_engine_validates_plan_backend_and_specification_version() -> None:
+def test_engine_validates_plan_backend_and_analytics_version() -> None:
     plan = _plan().plan
 
     with pytest.raises(ValueError, match="Unsupported plan backend"):

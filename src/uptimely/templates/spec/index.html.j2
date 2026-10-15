@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% block title %}OpenAnalytics specification{% endblock %}
+{% block title %}OpenAnalytics analytics{% endblock %}
 {% block style %}
   .dataset-table-scroll { scrollbar-width: thin; scrollbar-color: #475569 #0f172a; }
   .dataset-table-scroll::-webkit-scrollbar { height: 6px; }
@@ -13,7 +13,7 @@
     <div class="mb-6 flex flex-wrap items-center gap-3 font-mono text-[10px] text-slate-500"><span class="rounded-md border border-slate-800 px-2 py-1">OpenAnalytics {{ configuration.version }}</span>{% if generated_at %}<span>generated {{ generated_at }}</span>{% endif %}</div>
     <div>
       <main>
-        {% block specification_sections %}
+        {% block analytics_sections %}
         {% include "spec/sections/overview.html.j2" %}
         {% include "spec/sections/entities.html.j2" %}
         {% include "spec/sections/dataset_list.html.j2" %}

@@ -1,4 +1,4 @@
-"""Shared project paths and specification loading for CLI commands."""
+"""Shared project paths and analytics loading for CLI commands."""
 
 import argparse
 import pathlib
@@ -6,17 +6,17 @@ import sys
 
 from uptimely import analytics
 
-GENERATED_SPEC_PATH = pathlib.Path("_generated/spec/spec.json")
+GENERATED_ANALYTICS_PATH = pathlib.Path("_generated/spec/spec.json")
 GENERATED_PLAN_PATH = pathlib.Path("_generated/compile/execution_plan.json")
 ENGINE_CONFIG_PATH = pathlib.Path("config/engine.json")
 
 
 def configure_project_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add specification, import-root, feature-selection, and diagnostic options."""
+    """Add analytics, import-root, feature-selection, and diagnostic options."""
     parser.add_argument(
         "--spec",
         type=pathlib.Path,
-        help="JSON specification (default: _generated/spec/spec.json under --project-root)",
+        help="Analytics JSON (default: _generated/spec/spec.json under --project-root)",
     )
     parser.add_argument(
         "--project-root",
@@ -43,7 +43,7 @@ def prepare_project_root(project_root: pathlib.Path) -> None:
         sys.path.insert(0, root)
 
 
-def load_specification(path: pathlib.Path, project_root: pathlib.Path) -> analytics.Analytics:
-    """Load a JSON specification with its project functions on the import path."""
+def load_analytics(path: pathlib.Path, project_root: pathlib.Path) -> analytics.Analytics:
+    """Load an analytics document with project functions on the import path."""
     prepare_project_root(project_root)
     return analytics.Analytics(json=path)

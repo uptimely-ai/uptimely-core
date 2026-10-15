@@ -9,12 +9,12 @@ import pytest
 from uptimely import analytics
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
-EXAMPLE_SPEC_DIRS = [
-    REPOSITORY_ROOT / "examples" / "pump_analytics" / "config" / "spec",
-    REPOSITORY_ROOT / "examples" / "simple_analytics" / "config" / "spec",
+EXAMPLE_ANALYTICS_DIRS = [
+    REPOSITORY_ROOT / "examples" / "pump_analytics" / "config" / "analytics",
+    REPOSITORY_ROOT / "examples" / "simple_analytics" / "config" / "analytics",
 ]
 
-for path in [str(REPOSITORY_ROOT), *(str(directory) for directory in EXAMPLE_SPEC_DIRS)]:
+for path in [str(REPOSITORY_ROOT), *(str(directory) for directory in EXAMPLE_ANALYTICS_DIRS)]:
     if path not in sys.path:
         sys.path.insert(0, path)
 
@@ -24,27 +24,31 @@ def pytest_configure(config: pytest.Config) -> None:
     if hasattr(config, "workerinput"):
         return
 
-    pump_spec = importlib.import_module("examples.pump_analytics.config.spec.spec")
-    simple_spec = importlib.import_module("examples.simple_analytics.config.spec.spec")
-    specifications = (
+    pump_analytics_module = importlib.import_module(
+        "examples.pump_analytics.config.analytics.analytics"
+    )
+    simple_analytics_module = importlib.import_module(
+        "examples.simple_analytics.config.analytics.analytics"
+    )
+    analytics_definitions = (
         (
             "pump_analytics",
             analytics.Analytics.from_python(
-                entities=pump_spec.entities,
-                dimensions=pump_spec.dimensions,
+                entities=pump_analytics_module.entities,
+                dimensions=pump_analytics_module.dimensions,
                 name="Pump analytics",
             ),
         ),
         (
             "simple_analytics",
             analytics.Analytics.from_python(
-                entities=simple_spec.python_specification.entities,
-                dimensions=simple_spec.python_specification.dimensions,
-                name=simple_spec.python_specification.name,
+                entities=simple_analytics_module.python_analytics.entities,
+                dimensions=simple_analytics_module.python_analytics.dimensions,
+                name=simple_analytics_module.python_analytics.name,
             ),
         ),
     )
-    for project, specification in specifications:
+    for project, analytics_definition in analytics_definitions:
         output_path = REPOSITORY_ROOT / "examples" / project / "_generated" / "spec" / "spec.json"
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        specification.to_json(output_path)
+        analytics_definition.to_json(output_path)

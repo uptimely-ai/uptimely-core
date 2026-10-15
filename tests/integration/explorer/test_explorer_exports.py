@@ -10,15 +10,15 @@ import pytest
 from uptimely import analytics, compile, engine
 from uptimely.explorer import explorer
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
-REFERENCE_PATH = pathlib.Path("docs/specification/specification.md")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+REFERENCE_PATH = pathlib.Path("docs/specification/analytics.md")
 
 
 @pytest.mark.parametrize(
     ("language", "snippet"),
     re.findall(r"```(json|python)\n(.*?)\n```", REFERENCE_PATH.read_text(), re.DOTALL),
 )
-def test_specification_reference_snippet_syntax(language: str, snippet: str) -> None:
+def test_analytics_reference_snippet_syntax(language: str, snippet: str) -> None:
     if language == "python":
         ast.parse(snippet)
     else:
@@ -26,7 +26,7 @@ def test_specification_reference_snippet_syntax(language: str, snippet: str) -> 
         json.loads(document)
 
 
-def test_specification_reference_example_parses_compiles_and_executes(
+def test_analytics_reference_example_parses_compiles_and_executes(
     tmp_path: pathlib.Path,
 ) -> None:
     reference = REFERENCE_PATH.read_text(encoding="utf-8")
@@ -35,8 +35,8 @@ def test_specification_reference_example_parses_compiles_and_executes(
     path = tmp_path / "spec.json"
     path.write_text(example, encoding="utf-8")
 
-    specification = analytics.Analytics(json=path)
-    compiled = compile.Compiler(specification, features=["total"]).compile()
+    analytics_definition = analytics.Analytics(json=path)
+    compiled = compile.Compiler(analytics_definition, features=["total"]).compile()
     execution = engine.Engine(compiled).execute()
 
     assert len(compiled.operations) == 2
@@ -50,9 +50,9 @@ def test_specification_reference_example_parses_compiles_and_executes(
 def test_reference_exports_to_default_directory(
     tmp_path: pathlib.Path, monkeypatch, output_format: str
 ) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
     monkeypatch.chdir(tmp_path)
-    explorer_instance = explorer.Explorer(specification)
+    explorer_instance = explorer.Explorer(analytics_definition)
 
     document_path = (
         explorer_instance.create_json()
@@ -71,10 +71,10 @@ def test_reference_exports_to_default_directory(
 
 
 def test_generate_json_reference(tmp_path: pathlib.Path, monkeypatch) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
     monkeypatch.setattr("uptimely.explorer.explorer.EXPLORER_OUTPUT_DIR", tmp_path / "_generated")
 
-    data_path = explorer.Explorer(specification).create_json()
+    data_path = explorer.Explorer(analytics_definition).create_json()
     data = json.loads(data_path.read_text(encoding="utf-8"))
 
     assert data_path.name == "explorer.json"
@@ -94,12 +94,12 @@ def test_generate_json_reference(tmp_path: pathlib.Path, monkeypatch) -> None:
 
 
 def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
     monkeypatch.setattr(
         "uptimely.explorer.explorer.EXPLORER_OUTPUT_DIR", tmp_path / "_generated" / "explorer"
     )
 
-    document_path = explorer.Explorer(specification).create_html()
+    document_path = explorer.Explorer(analytics_definition).create_html()
     pages = {
         filename: (document_path.parent / filename).read_text(encoding="utf-8")
         for filename in (
@@ -157,32 +157,32 @@ def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
     assert "Collapse function" in document
 
 
-def test_generate_json_reference_from_in_memory_spec_is_deterministic(
+def test_generate_json_reference_from_in_memory_analytics_is_deterministic(
     tmp_path: pathlib.Path,
 ) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    specification.path = None
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition.path = None
 
-    first_path = explorer.Explorer(specification).create_json(
+    first_path = explorer.Explorer(analytics_definition).create_json(
         output_path=tmp_path / "first" / "explorer.json",
     )
-    second_path = explorer.Explorer(specification).create_json(
+    second_path = explorer.Explorer(analytics_definition).create_json(
         output_path=tmp_path / "second" / "explorer.json",
     )
 
     assert first_path.read_bytes() == second_path.read_bytes()
 
 
-def test_generate_html_explorer_from_in_memory_spec_is_deterministic(
+def test_generate_html_explorer_from_in_memory_analytics_is_deterministic(
     tmp_path: pathlib.Path,
 ) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    specification.path = None
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition.path = None
 
-    first_path = explorer.Explorer(specification).create_html(
+    first_path = explorer.Explorer(analytics_definition).create_html(
         output_path=tmp_path / "first" / "index.html",
     )
-    second_path = explorer.Explorer(specification).create_html(
+    second_path = explorer.Explorer(analytics_definition).create_html(
         output_path=tmp_path / "second" / "index.html",
     )
 

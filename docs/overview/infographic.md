@@ -217,14 +217,14 @@ analytical functions calculate output features within each group.
   </div>
 </div>
 
-## Specification
+## Analytics
 
-The specification connects the data model and its calculations in one JSON
+The Analytics document connects the data model and its calculations in one JSON
 document. Author it directly or generate it from Python or another client.
 
 <div class="concepts-visual">
   <div class="cv-operation">
-    <span class="cv-tag">ONE SPECIFICATION / STRUCTURE</span>
+    <span class="cv-tag">ONE ANALYTICS DOCUMENT / STRUCTURE</span>
     <div class="cv-spec-tree">
       <div><strong>dimensions</strong><span>Shared observation keys</span><code>pump, timestamp</code></div>
       <div><strong>functions</strong><span>Reusable implementations and argument types</span><code>vectorize.divide</code></div>
@@ -265,11 +265,11 @@ document. Author it directly or generate it from Python or another client.
         <div><dt>Input references</dt><dd>Explicit inputs <span class="cv-teal">pressure</span> and <span class="cv-violet">limit</span> declare dependencies; identifier arguments alone do not.</dd></div>
       </dl>
     </div>
-    <p class="cv-takeaway">This excerpt assumes pressure, limit, and divide are declared elsewhere in the specification. The compiler resolves the references and may group mappings into physical fragments; the engine calculates the values.</p>
+    <p class="cv-takeaway">This excerpt assumes pressure, limit, and divide are declared elsewhere in the Analytics document. The compiler resolves the references and may group mappings into physical fragments; the engine calculates the values.</p>
   </div>
 </div>
 
-See the [Open Analytics Specification](../specification/specification.md) for
+See the [Analytics reference](../specification/analytics.md) for
 the complete document structure and reference rules, and
 [Project architecture](architecture.md) for the authoring, compilation, and
 execution boundaries.

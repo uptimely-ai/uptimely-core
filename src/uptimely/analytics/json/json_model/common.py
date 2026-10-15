@@ -1,4 +1,4 @@
-"""Shared types for canonical specification models."""
+"""Shared types for canonical analytics models."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ import pydantic
 
 
 class StrictModel(pydantic.BaseModel):
-    """Base model that rejects fields outside the specification contract."""
+    """Base model that rejects fields outside the analytics contract."""
 
     model_config = pydantic.ConfigDict(extra="forbid")
 
 
-class SpecificationSource(StrictModel):
-    """Describe how a specification document was authored or generated."""
+class AnalyticsSource(StrictModel):
+    """Describe how an analytics document was authored or generated."""
 
     name: str
     generated: bool

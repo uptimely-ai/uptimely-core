@@ -10,12 +10,12 @@ import jinja2
 from uptimely.cli import common
 from uptimely.explorer import explorer as explorer_module
 
-GENERATED_SPEC_PATH: pathlib.Path = common.GENERATED_SPEC_PATH
+GENERATED_ANALYTICS_PATH: pathlib.Path = common.GENERATED_ANALYTICS_PATH
 GENERATED_EXPLORER_PATH: pathlib.Path = pathlib.Path("_generated/explorer")
 
 
 def build_explorer(
-    spec: pathlib.Path,
+    analytics_definition: pathlib.Path,
     output: pathlib.Path,
     project_root: pathlib.Path,
     include_generated_at: bool = False,
@@ -23,16 +23,16 @@ def build_explorer(
     """Build the static analytics explorer website.
 
     Args:
-        spec: Path to the JSON specification.
+        analytics_definition: Path to the JSON analytics document.
         output: Directory for the website index and report pages.
         project_root: Directory added to the import path for function entrypoints.
-        include_generated_at: Include a timestamp on the specification page.
+        include_generated_at: Include a timestamp on the analytics page.
 
     Returns:
         The path to the website index.
     """
-    specification = common.load_specification(spec, project_root)
-    return explorer_module.Explorer(specification).create_html(
+    analytics_definition = common.load_analytics(analytics_definition, project_root)
+    return explorer_module.Explorer(analytics_definition).create_html(
         output / "index.html", include_generated_at=include_generated_at
     )
 
@@ -89,13 +89,13 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the explorer command and its build and serve actions."""
     actions = parser.add_subparsers(dest="action", required=True)
     build = actions.add_parser(
-        "build", help="Build the specification, feature graph, and execution plan website"
+        "build", help="Build the analytics, feature graph, and execution plan website"
     )
     build.add_argument(
         "--spec",
         type=pathlib.Path,
         help=(
-            "JSON specification path (required unless --project-root is set; "
+            "Analytics JSON path (required unless --project-root is set; "
             "then defaults to _generated/spec/spec.json under that root)"
         ),
     )
@@ -115,7 +115,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     build.add_argument(
         "--include-generated-at",
         action="store_true",
-        help="Include a build timestamp on the specification page",
+        help="Include a build timestamp on the analytics page",
     )
     serve = actions.add_parser(
         "serve", help="Build and serve the generated website for local preview"
@@ -124,7 +124,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         "--spec",
         type=pathlib.Path,
         help=(
-            "JSON specification path (defaults to _generated/spec/spec.json under "
+            "Analytics JSON path (defaults to _generated/spec/spec.json under "
             "--project-root, or _generated/spec/spec.json otherwise)"
         ),
     )
@@ -151,13 +151,13 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Build or serve the analytics explorer using parsed command-line arguments."""
     project_root = args.project_root or pathlib.Path.cwd()
     project_path = args.project_root or pathlib.Path()
-    default_spec = project_path / GENERATED_SPEC_PATH
+    default_analytics_path = project_path / GENERATED_ANALYTICS_PATH
     default_output = project_path / GENERATED_EXPLORER_PATH
     if args.action == "serve":
-        spec = args.spec or default_spec
+        analytics_definition = args.spec or default_analytics_path
         directory = args.directory or default_output
         try:
-            build_explorer(spec, directory, project_root)
+            build_explorer(analytics_definition, directory, project_root)
         except (
             OSError,
             ValueError,
@@ -174,10 +174,12 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         return
     if args.spec is None and args.project_root is None:
         parser.error("explorer build requires --spec unless --project-root is set")
-    spec = args.spec or default_spec
+    analytics_definition = args.spec or default_analytics_path
     output = args.output or default_output
     try:
-        index = build_explorer(spec, output, project_root, args.include_generated_at)
+        index = build_explorer(
+            analytics_definition, output, project_root, args.include_generated_at
+        )
     except (
         OSError,
         ValueError,

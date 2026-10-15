@@ -1,6 +1,6 @@
 import dataclasses
 
-from .json import json_model as spec
+from .json import json_model
 
 
 def _filled_fields(**fields: object) -> dict:
@@ -15,7 +15,9 @@ class FunctionNode:
     name: str
     features: tuple[str, ...]
     entity: str | None
-    function: spec.Function | None = dataclasses.field(default=None, compare=False, hash=False)
+    function: json_model.Function | None = dataclasses.field(
+        default=None, compare=False, hash=False
+    )
 
     @property
     def node_id(self) -> str:

@@ -1,4 +1,4 @@
-"""Dimension declarations for the pump analytics specification."""
+"""Dimension declarations for pump analytics."""
 
 from uptimely.analytics.python import dimension
 

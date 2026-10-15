@@ -5,11 +5,11 @@ import pytest
 
 from uptimely import analytics
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def test_mapping_validation(tmp_path: pathlib.Path) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand"] = {
         "expand_telemetry": {
             "entrypoint": "examples.pump_analytics.functions.source:read_pump_telemetry",
@@ -23,10 +23,10 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         "features": {"inputs": [], "outputs": ["$features.expanded_feature"]},
     }
 
-    spec_path = tmp_path / "valid_mappings_spec.json"
-    spec_path.write_text(json.dumps(configuration), encoding="utf-8")
-    parsed_spec = analytics.Analytics(json=spec_path)
-    ds = parsed_spec.entities["pump_telemetry"].datasets[0]
+    analytics_path = tmp_path / "valid_mappings_spec.json"
+    analytics_path.write_text(json.dumps(configuration), encoding="utf-8")
+    parsed_analytics = analytics.Analytics(json=analytics_path)
+    ds = parsed_analytics.entities["pump_telemetry"].datasets[0]
 
     assert "read_pump_telemetry" in ds.mappings
     assert "expand_op" in ds.mappings
@@ -63,7 +63,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
 
 @pytest.mark.parametrize("mapping_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
 def test_mapping_rejects_explicit_source(tmp_path: pathlib.Path, mapping_id: str) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
     configuration["entities"]["pump"]["datasets"][0]["mappings"][mapping_id]["source"] = (
         "$datasets.pump_telemetry_dataset"
     )
@@ -93,7 +93,7 @@ def test_mapping_rejects_explicit_source(tmp_path: pathlib.Path, mapping_id: str
 def test_collapse_validates_source_grouping_and_output_contract(
     tmp_path: pathlib.Path, field: str, value: object, message: str
 ) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
         "bearing_temperature_by_pump"
     ]
@@ -117,7 +117,7 @@ def test_collapse_validates_source_grouping_and_output_contract(
 def test_collapse_validates_explicit_inputs(
     tmp_path: pathlib.Path, inputs: list, message: str
 ) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
         "bearing_temperature_by_pump"
     ]
@@ -132,7 +132,7 @@ def test_collapse_validates_explicit_inputs(
 def test_removed_aggregation_and_wrapper_schemas_are_rejected(
     tmp_path: pathlib.Path, legacy: str
 ) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
         "bearing_temperature_by_pump"
     ]
@@ -147,7 +147,7 @@ def test_removed_aggregation_and_wrapper_schemas_are_rejected(
 
 
 def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Path) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
     configuration["entities"]["pump_telemetry"]["dimensions"].remove("pump")
     path = tmp_path / "invalid_dimensions.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -156,7 +156,7 @@ def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Pat
 
 
 def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["collapse"]["maximum"].pop("entrypoint")
     path = tmp_path / "missing_entrypoint.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -167,7 +167,7 @@ def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -
 def test_collapse_rejects_inputs_from_multiple_datasets(
     tmp_path: pathlib.Path,
 ) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
     references = ["$features.bearing_temperature", "$features.health_signal_normalized"]
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
         "bearing_temperature_by_pump"
@@ -182,7 +182,7 @@ def test_collapse_rejects_inputs_from_multiple_datasets(
 def test_collapse_dimensions_alone_do_not_identify_input_dataset(
     tmp_path: pathlib.Path,
 ) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
     collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
         "bearing_temperature_by_pump"
     ]

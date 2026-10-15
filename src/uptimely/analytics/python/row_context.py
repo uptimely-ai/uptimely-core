@@ -46,7 +46,7 @@ def time[T](
         after: Required following duration, or ``UNBOUNDED``.
 
     Returns:
-        A binding annotation that is unwrapped during specification conversion.
+        A binding annotation that is unwrapped during Analytics conversion.
 
     Raises:
         ValueError: If an extent is not a supported fixed duration.

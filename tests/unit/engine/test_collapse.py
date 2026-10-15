@@ -56,7 +56,7 @@ def nested_maximum(dataset: pl.DataFrame | pl.LazyFrame, columns: list[str]):
     return dataset.group_by("group").agg(pl.sum_horizontal(columns).max().alias("combined_maximum"))
 
 
-def _specification(*, lazy=False, empty=False):
+def _analytics(*, lazy=False, empty=False):
     source = dataset.Dataset(
         id="observations",
         mappings=[
@@ -139,8 +139,8 @@ def _specification(*, lazy=False, empty=False):
 
 @pytest.mark.parametrize("lazy", [False, True])
 def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
-    specification = _specification(lazy=lazy)
-    plan = compile.Compiler(specification, features=["average"]).compile()
+    analytics_definition = _analytics(lazy=lazy)
+    plan = compile.Compiler(analytics_definition, features=["average"]).compile()
     assert not any("unneeded" in item.output_features for item in plan.operations)
     collapse = next(item for item in plan.operations if item.kind == "collapse")
     assert collapse.input_features == ["value", "doubled"]
@@ -159,9 +159,9 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("empty", [False, True])
 def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path):
-    specification = _specification(lazy=lazy, empty=empty)
+    analytics_definition = _analytics(lazy=lazy, empty=empty)
     path = tmp_path / "spec.json"
-    specification.to_json(path)
+    analytics_definition.to_json(path)
     restored = analytics.Analytics(json=path)
     plan = compile.Compiler(restored).compile()
     portable = plan_module.ExecutionPlan(
@@ -178,9 +178,9 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
 
 @pytest.mark.parametrize("lazy", [False, True])
 def test_collapse_consumes_expanded_features(lazy):
-    specification = _specification(lazy=lazy)
-    specification.entities.pop("global")
-    source = specification.entities["observation"].datasets[0]
+    analytics_definition = _analytics(lazy=lazy)
+    analytics_definition.entities.pop("global")
+    source = analytics_definition.entities["observation"].datasets[0]
     source.features["expanded"] = analytics.Feature(id="expanded")
     from uptimely.analytics.json import json_model
 
@@ -192,12 +192,12 @@ def test_collapse_consumes_expanded_features(lazy):
         ),
         features={"inputs": ["$features.value"], "outputs": ["$features.expanded"]},
     )
-    specification.functions.expand["expanded_values"] = json_model.ExpandFunction(
+    analytics_definition.functions.expand["expanded_values"] = json_model.ExpandFunction(
         id="expanded_values",
         entrypoint=f"{__name__}:expanded_values",
         args={"dataset": json_model.Argument(id="dataset", type="dataframe")},
     )
-    summary = specification.entities["group"].datasets[0]
+    summary = analytics_definition.entities["group"].datasets[0]
     summary.features = {"combined_maximum": analytics.Feature(id="combined_maximum")}
     summary.mappings = {
         "nested": json_model.Mapping(
@@ -215,7 +215,7 @@ def test_collapse_consumes_expanded_features(lazy):
             },
         )
     }
-    specification.functions.collapse["nested_maximum"] = json_model.CollapseFunction(
+    analytics_definition.functions.collapse["nested_maximum"] = json_model.CollapseFunction(
         id="nested_maximum",
         entrypoint=f"{__name__}:nested_maximum",
         args={
@@ -224,7 +224,7 @@ def test_collapse_consumes_expanded_features(lazy):
         },
     )
     result = engine.Engine(
-        compile.Compiler(specification, features=["combined_maximum"]).compile()
+        compile.Compiler(analytics_definition, features=["combined_maximum"]).compile()
     ).execute()
     assert not result.failures
     frame = result.datasets["group", "summary"]
@@ -247,7 +247,7 @@ def test_collapse_consumes_expanded_features(lazy):
     ],
 )
 def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
-    plan = compile.Compiler(_specification(), features=["average"]).compile()
+    plan = compile.Compiler(_analytics(), features=["average"]).compile()
     original = summarize
 
     def invalid(dataset, column, calculated):
@@ -268,10 +268,10 @@ def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
 
 @pytest.mark.parametrize("lazy", [False, True])
 def test_collapse_preserves_null_group_keys(lazy):
-    specification = _specification(lazy=lazy)
-    specification.functions.read["read_values"].entrypoint = f"{__name__}:read_null_groups"
+    analytics_definition = _analytics(lazy=lazy)
+    analytics_definition.functions.read["read_values"].entrypoint = f"{__name__}:read_null_groups"
     result = engine.Engine(
-        compile.Compiler(specification, features=["maximum"]).compile()
+        compile.Compiler(analytics_definition, features=["maximum"]).compile()
     ).execute()
     assert not result.failures
     frame = result.datasets["group", "summary"]

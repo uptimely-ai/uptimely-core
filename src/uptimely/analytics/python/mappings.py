@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import typing
 
-from uptimely.analytics import json as json_spec
+from uptimely.analytics import json as json_analytics
 
 from . import bind as bind_module
 from . import feature as feature_module
@@ -43,13 +43,13 @@ class _Mapping:
             self, "row_context", row_context_module._context(self.bind.args, self.row_context)
         )
 
-    def to_model(self) -> json_spec.json_model.Mapping:
+    def to_model(self) -> json_analytics.json_model.Mapping:
         """Convert this mapping declaration to its canonical model."""
         identifier = bind_module._operation_id(self.bind, self.id)
         arguments = bind_module._binding_args(self.bind)
-        return json_spec.json_model.Mapping(
+        return json_analytics.json_model.Mapping(
             id=identifier,
-            binding=json_spec.json_model.Binding(
+            binding=json_analytics.json_model.Binding(
                 function=bind_module._operation_id(self.bind, None),
                 args=arguments,
             ),

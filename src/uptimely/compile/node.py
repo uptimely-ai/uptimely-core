@@ -33,7 +33,7 @@ class CallableNode:
 
     @property
     def callable_type(self) -> str:
-        """Return the specification function category for this operation."""
+        """Return the analytics function category for this operation."""
         if self.callable_type_override is not None:
             return self.callable_type_override
         return {

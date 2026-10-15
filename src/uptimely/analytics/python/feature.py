@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from uptimely.analytics import json as json_spec
+from uptimely.analytics import json as json_analytics
 
 __all__ = ["Feature"]
 
@@ -18,9 +18,9 @@ class Feature:
     type: str | None = None
     unit: str | None = None
 
-    def to_model(self) -> json_spec.json_model.Feature:
+    def to_model(self) -> json_analytics.json_model.Feature:
         """Convert this feature declaration to its JSON model."""
-        return json_spec.json_model.Feature(
+        return json_analytics.json_model.Feature(
             id=self.id,
             description=self.description,
             type=self.type,

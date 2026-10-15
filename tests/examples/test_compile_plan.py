@@ -9,7 +9,7 @@ from uptimely import analytics, compile
 from uptimely.cli import cli
 from uptimely.explorer import explorer
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def test_execution_plan_cli_exports_only_json(
@@ -23,7 +23,7 @@ def test_execution_plan_cli_exports_only_json(
             "plan",
             "build",
             "--spec",
-            str(SPEC_PATH),
+            str(ANALYTICS_PATH),
             "--output",
             str(tmp_path / "compile" / "execution_plan.json"),
         ],
@@ -34,7 +34,7 @@ def test_execution_plan_cli_exports_only_json(
 
 
 def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) -> None:
-    plan = compile.Compiler(SPEC_PATH).compile()
+    plan = compile.Compiler(ANALYTICS_PATH).compile()
 
     output_path = plan.export_json(tmp_path / "execution_plan.json")
     metadata = json.loads(output_path.read_text(encoding="utf-8"))
@@ -74,7 +74,7 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
 
 
 def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> None:
-    explorer.Explorer(analytics.Analytics(json=SPEC_PATH)).create_html(tmp_path / "index.html")
+    explorer.Explorer(analytics.Analytics(json=ANALYTICS_PATH)).create_html(tmp_path / "index.html")
     report_path = tmp_path / "plan/stages.html"
     report = report_path.read_text(encoding="utf-8")
 
@@ -125,10 +125,10 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
 
 
 def test_website_exports_plan_pages_to_default_path(tmp_path: pathlib.Path, monkeypatch) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
     monkeypatch.chdir(tmp_path)
 
-    index = explorer.Explorer(specification).create_html()
+    index = explorer.Explorer(analytics_definition).create_html()
 
     assert index == pathlib.Path("_generated/explorer/index.html")
     for filename in (

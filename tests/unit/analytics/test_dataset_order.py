@@ -6,11 +6,11 @@ import typing
 import polars as pl
 import pydantic
 import pytest
-from examples.simple_analytics.config.spec import spec as spec_module
+from examples.simple_analytics.config.analytics import analytics as analytics_module
 from examples.simple_analytics.functions import functions
 
 from uptimely import analytics, compile, engine
-from uptimely.analytics import python as python_spec
+from uptimely.analytics import python as python_analytics
 from uptimely.analytics import validation
 from uptimely.explorer import explorer
 
@@ -48,12 +48,12 @@ def _parse(tmp_path: pathlib.Path, order: object) -> analytics.Analytics:
 
 
 def test_dataset_order_json_round_trip_preserves_precedence(tmp_path: pathlib.Path) -> None:
-    specification = _parse(tmp_path, ORDER)
-    keys = specification.entities["telemetry"].datasets[0].order
+    analytics_definition = _parse(tmp_path, ORDER)
+    keys = analytics_definition.entities["telemetry"].datasets[0].order
     assert keys == [analytics.Order(**key) for key in ORDER]
 
     path = tmp_path / "export.json"
-    specification.to_json(path)
+    analytics_definition.to_json(path)
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["entities"]["telemetry"]["datasets"][0]["order"] == ORDER
     assert analytics.Analytics(json=path).entities["telemetry"].datasets[0].order == keys
@@ -72,8 +72,8 @@ def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.
     first.order.append(analytics.Order(**ORDER[0]))
     assert second.order == []
     assert (
-        python_spec.dataset.Dataset(id="first").order
-        is not python_spec.dataset.Dataset(id="second").order
+        python_analytics.dataset.Dataset(id="first").order
+        is not python_analytics.dataset.Dataset(id="second").order
     )
 
 
@@ -104,7 +104,7 @@ def test_dataset_order_rejects_invalid_structure(tmp_path: pathlib.Path, order: 
 def test_dataset_order_requires_owning_entity_dimensions(
     tmp_path: pathlib.Path, identifier: str
 ) -> None:
-    with pytest.raises(validation.SpecificationError) as error:
+    with pytest.raises(validation.AnalyticsError) as error:
         _parse(tmp_path, [{"dimension": f"$dimensions.{identifier}", "direction": "asc"}])
 
     assert error.value.code == "invalid_order_dimension"
@@ -121,7 +121,7 @@ def test_dataset_order_requires_owning_entity_dimensions(
 
 @pytest.mark.parametrize("direction", ["asc", "desc"])
 def test_dataset_order_rejects_repeated_dimensions(tmp_path: pathlib.Path, direction: str) -> None:
-    with pytest.raises(validation.SpecificationError) as error:
+    with pytest.raises(validation.AnalyticsError) as error:
         _parse(tmp_path, [ORDER[0], {"dimension": "$dimensions.machine", "direction": direction}])
 
     assert error.value.code == "duplicate_order_dimension"
@@ -132,23 +132,23 @@ def test_dataset_order_rejects_repeated_dimensions(tmp_path: pathlib.Path, direc
 def test_dataset_order_python_authoring_matches_json(
     tmp_path: pathlib.Path, use_entities: bool
 ) -> None:
-    declaration = python_spec.dataset.Dataset(
+    declaration = python_analytics.dataset.Dataset(
         id="observations",
         order=[
-            python_spec.dataset.Order(
-                dimension=python_spec.ref.dimension("machine"), direction="asc"
+            python_analytics.dataset.Order(
+                dimension=python_analytics.ref.dimension("machine"), direction="asc"
             ),
-            python_spec.dataset.Order(dimension="$dimensions.timestamp", direction="desc"),
+            python_analytics.dataset.Order(dimension="$dimensions.timestamp", direction="desc"),
         ],
     )
     dimensions = [
-        python_spec.dimension.Dimension(id="machine", type="string"),
-        python_spec.dimension.Dimension(id="timestamp", type="datetime"),
+        python_analytics.dimension.Dimension(id="machine", type="string"),
+        python_analytics.dimension.Dimension(id="timestamp", type="datetime"),
     ]
     if use_entities:
-        specification = analytics.Analytics.from_python(
+        analytics_definition = analytics.Analytics.from_python(
             entities=[
-                python_spec.entity.Entity(
+                python_analytics.entity.Entity(
                     id="telemetry",
                     name="Telemetry",
                     dimensions=dimensions,
@@ -158,14 +158,14 @@ def test_dataset_order_python_authoring_matches_json(
             dimensions=dimensions,
         )
     else:
-        specification = analytics.Analytics.from_python(
+        analytics_definition = analytics.Analytics.from_python(
             datasets=[declaration], dimensions=dimensions, name="telemetry"
         )
-    assert specification.entities["telemetry"].datasets[0].order == (
+    assert analytics_definition.entities["telemetry"].datasets[0].order == (
         _parse(tmp_path, ORDER).entities["telemetry"].datasets[0].order
     )
     path = tmp_path / "python.json"
-    specification.to_json(path)
+    analytics_definition.to_json(path)
     assert analytics.Analytics(json=path).entities["telemetry"].datasets[0].order == [
         analytics.Order(**key) for key in ORDER
     ]
@@ -173,18 +173,18 @@ def test_dataset_order_python_authoring_matches_json(
 
 def test_dataset_order_python_authoring_validates_references() -> None:
     with pytest.raises(pydantic.ValidationError):
-        python_spec.dataset.Order(
-            dimension=python_spec.ref.feature("machine"), direction="asc"
+        python_analytics.dataset.Order(
+            dimension=python_analytics.ref.feature("machine"), direction="asc"
         ).to_model()
 
-    with pytest.raises(validation.SpecificationError, match="not declared by entity"):
+    with pytest.raises(validation.AnalyticsError, match="not declared by entity"):
         analytics.Analytics.from_python(
             datasets=[
-                python_spec.dataset.Dataset(
+                python_analytics.dataset.Dataset(
                     id="observations",
                     order=[
-                        python_spec.dataset.Order(
-                            dimension=python_spec.ref.dimension("missing"),
+                        python_analytics.dataset.Order(
+                            dimension=python_analytics.ref.dimension("missing"),
                             direction="asc",
                         )
                     ],
@@ -194,12 +194,12 @@ def test_dataset_order_python_authoring_validates_references() -> None:
 
 
 def test_dataset_order_appears_in_reference_json_and_html(tmp_path: pathlib.Path) -> None:
-    specification = _parse(tmp_path, ORDER)
-    path = explorer.Explorer(specification).create_json(tmp_path / "explorer.json")
+    analytics_definition = _parse(tmp_path, ORDER)
+    path = explorer.Explorer(analytics_definition).create_json(tmp_path / "explorer.json")
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["configuration"]["entities"]["telemetry"]["datasets"][0]["order"] == ORDER
 
-    explorer.Explorer(specification).create_html(tmp_path / "index.html")
+    explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     html = (tmp_path / "spec/datasets.html").read_text(encoding="utf-8")
     assert "Logical order (not a physical row-order guarantee)" in html
     assert html.index("$dimensions.machine asc") < html.index("$dimensions.timestamp desc")
@@ -207,53 +207,56 @@ def test_dataset_order_appears_in_reference_json_and_html(tmp_path: pathlib.Path
 
 
 def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
-    declaration = python_spec.dataset.Dataset(
-        id=spec_module.dataset_.id,
+    declaration = python_analytics.dataset.Dataset(
+        id=analytics_module.dataset_.id,
         features=[
-            python_spec.feature.Feature(id="input_1"),
-            python_spec.feature.Feature(id="input_2"),
-            python_spec.feature.Feature(id="id", type="integer"),
-            python_spec.feature.Feature(id="sum"),
+            python_analytics.feature.Feature(id="input_1"),
+            python_analytics.feature.Feature(id="input_2"),
+            python_analytics.feature.Feature(id="id", type="integer"),
+            python_analytics.feature.Feature(id="sum"),
         ],
         mappings=[
-            python_spec.mapping.Read(
+            python_analytics.mapping.Read(
                 id="read",
-                bind=python_spec.bind.bind(python_spec.ref.function(functions.read_data)),
+                bind=python_analytics.bind.bind(python_analytics.ref.function(functions.read_data)),
                 outputs=[
-                    python_spec.ref.feature("input_1"),
-                    python_spec.ref.feature("input_2"),
-                    python_spec.ref.feature("id"),
+                    python_analytics.ref.feature("input_1"),
+                    python_analytics.ref.feature("input_2"),
+                    python_analytics.ref.feature("id"),
                 ],
             ),
-            python_spec.mapping.Vectorize(
+            python_analytics.mapping.Vectorize(
                 id="sum",
-                bind=python_spec.bind.bind(
-                    python_spec.ref.function(functions.sum_features),
-                    left_feature=python_spec.ref.feature("input_1"),
-                    right_feature=python_spec.ref.feature("input_2"),
+                bind=python_analytics.bind.bind(
+                    python_analytics.ref.function(functions.sum_features),
+                    left_feature=python_analytics.ref.feature("input_1"),
+                    right_feature=python_analytics.ref.feature("input_2"),
                     output="sum",
-                    dataset=python_spec.ref.current_dataset().dataframe,
+                    dataset=python_analytics.ref.current_dataset().dataframe,
                 ),
-                inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
-                outputs=[python_spec.ref.feature("sum")],
+                inputs=[
+                    python_analytics.ref.feature("input_1"),
+                    python_analytics.ref.feature("input_2"),
+                ],
+                outputs=[python_analytics.ref.feature("sum")],
             ),
         ],
     )
     unordered = analytics.Analytics.from_python(
-        datasets=[declaration], dimensions=spec_module.dimensions
+        datasets=[declaration], dimensions=analytics_module.dimensions
     )
     ordered = analytics.Analytics.from_python(
         datasets=[
             dataclasses.replace(
                 declaration,
                 order=[
-                    python_spec.dataset.Order(
-                        dimension=python_spec.ref.dimension("id"), direction="desc"
+                    python_analytics.dataset.Order(
+                        dimension=python_analytics.ref.dimension("id"), direction="desc"
                     )
                 ],
             )
         ],
-        dimensions=spec_module.dimensions,
+        dimensions=analytics_module.dimensions,
     )
     assert (
         compile.Compiler(ordered).compile().operations

@@ -17,15 +17,15 @@ NodeMeta = node_module.CallableNode
 class CallableGraph:
     """Dependency graph built from callable invocations and their feature dependencies."""
 
-    def __init__(self, specs: analytics.Analytics) -> None:
+    def __init__(self, analytics: analytics.Analytics) -> None:
         """Load analytics functions and build the callable dependency graph.
 
         Args:
-            specs: The specification containing all functions and their callable invocations.
+            analytics: The analytics document containing function declarations and invocations.
         """
-        self.specification = specs
+        self.analytics = analytics
         self.functions = [
-            function for function in specs.resolved_functions if function.role == "analytics"
+            function for function in analytics.resolved_functions if function.role == "analytics"
         ]
         # Index all callables by (function_id, entity, feature) to resolve dependencies
         self._callable_index: dict[tuple[str, str, str], node_module.CallableNode] = {}
@@ -39,20 +39,18 @@ class CallableGraph:
         """Build a graph where nodes are callables and edges represent feature dependencies."""
         nodes: dict[str, Node] = {}
 
-        for entity_id, entity in self.specification.entities.items():
+        for entity_id, entity in self.analytics.entities.items():
             for dataset in entity.datasets:
                 dataset_key = (entity_id, dataset.id)
                 for mapping in dataset.mappings.values():
-                    operation_type = bindings.mapping_category(
-                        mapping, self.specification.functions
-                    )
+                    operation_type = bindings.mapping_category(mapping, self.analytics.functions)
                     primary_feature = (
                         mapping.output_features[0] if mapping.output_features else None
                     )
                     call = next(
                         (
                             call
-                            for call in self.specification.calls
+                            for call in self.analytics.calls
                             if call.entity == entity_id and call.feature in mapping.output_features
                         ),
                         None,
@@ -76,7 +74,7 @@ class CallableGraph:
                     elif operation_type != "vectorize":
                         self._dataset_sources.setdefault(dataset_key, []).append(node)
                     for feature in mapping.output_features:
-                        if feature in self.specification.dimensions:
+                        if feature in self.analytics.dimensions:
                             continue
                         self._feature_producers[feature] = node
                         if operation_type == "vectorize":
@@ -93,7 +91,7 @@ class CallableGraph:
         # Mapping inputs create feature-level prerequisites.
         for graph_node in list(nodes.values()):
             consumer = graph_node.reference
-            entity = self.specification.entities[consumer.entity]
+            entity = self.analytics.entities[consumer.entity]
             dataset = next(item for item in entity.datasets if item.id == consumer.dataset_id)
             mapping = dataset.mappings[consumer.operation_id]
             references = mapping.input_features
@@ -146,7 +144,7 @@ class CallableGraph:
                 sink_node = nodes[sink.node_id]
                 for source in sources:
                     graph.add_edge(nodes[source.node_id], sink_node)
-                entity = self.specification.entities[sink.entity]
+                entity = self.analytics.entities[sink.entity]
                 dataset = next(item for item in entity.datasets if item.id == sink.dataset_id)
                 referenced = set(dataset.mappings[sink.operation_id].input_features)
                 dependencies = (
@@ -160,13 +158,13 @@ class CallableGraph:
         return graph
 
     def collapse_input_dataset_id(self, node: node_module.CallableNode) -> str:
-        """Infer the input dataset from a collapse node's specification binding."""
+        """Infer the input dataset from a collapse node's analytics binding."""
         if node.operation_type != "collapse" or node.operation_id is None:
             raise ValueError(f"Expected a collapse mapping node: {node.node_id}")
-        entity = self.specification.entities[node.entity]
+        entity = self.analytics.entities[node.entity]
         dataset = next(dataset for dataset in entity.datasets if dataset.id == node.dataset_id)
         mapping = dataset.mappings[node.operation_id]
-        return bindings.collapse_input_dataset(self.specification, mapping)[1].id
+        return bindings.collapse_input_dataset(self.analytics, mapping)[1].id
 
     @staticmethod
     def _node_key(node: node_module.CallableNode) -> str:
@@ -208,7 +206,7 @@ class CallableGraph:
             nodes.update(self.graph.ancestors(node))
 
         subset = self.__class__.__new__(self.__class__)
-        subset.specification = self.specification
+        subset.analytics = self.analytics
         subset.functions = self.functions
         subset._callable_index = self._callable_index
         subset._feature_producers = self._feature_producers

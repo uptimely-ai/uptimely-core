@@ -1,4 +1,4 @@
-"""Serve specification introspection and feature execution over MCP.
+"""Serve analytics introspection and feature execution over MCP.
 
 The server exposes two layers of tools:
 
@@ -21,6 +21,7 @@ import polars as pl
 
 from uptimely import analytics, compile
 from uptimely import engine as uptimely_engine
+from uptimely.analytics.json import json_model
 
 logger = logging.getLogger(__name__)
 
@@ -36,21 +37,21 @@ FUNCTION_CATEGORIES = (
 
 @dataclasses.dataclass
 class ServerState:
-    """Engine configuration, runtime bindings, and cached specification."""
+    """Engine configuration, runtime bindings, and cached analytics."""
 
-    spec_path: pathlib.Path
+    analytics_path: pathlib.Path
     project_root: pathlib.Path
     engine_config: uptimely_engine.EngineConfig = dataclasses.field(
         default_factory=uptimely_engine.EngineConfig
     )
     bind: dict[str, dict[str, dict[str, typing.Any]]] = dataclasses.field(default_factory=dict)
-    specification: analytics.Analytics | None = dataclasses.field(default=None, repr=False)
+    analytics: json_model.Analytics | None = dataclasses.field(default=None, repr=False)
 
-    def load_specification(self, *, reload: bool = False) -> analytics.Analytics:
-        """Return the specification, parsing it on first use or when reloaded."""
-        if self.specification is None or reload:
-            self.specification = analytics.Analytics(json=self.spec_path)
-        return self.specification
+    def load_analytics(self, *, reload: bool = False) -> json_model.Analytics:
+        """Return analytics, parsing it on first use or when reloaded."""
+        if self.analytics is None or reload:
+            self.analytics = analytics.Analytics(json=self.analytics_path)
+        return self.analytics
 
 
 def _to_json(payload: object) -> str:
@@ -82,7 +83,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
     @mcp.tool()
     def list_functions() -> str:
         """List the function catalog: every function id grouped by category."""
-        catalog = state.load_specification().function_catalog
+        catalog = state.load_analytics().function_catalog
         return _to_json(
             {category: sorted(getattr(catalog, category)) for category in FUNCTION_CATEGORIES}
         )
@@ -96,7 +97,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 collapse, expand, conform.
             function_id: The function id from `list_functions`.
         """
-        catalog = state.load_specification().function_catalog
+        catalog = state.load_analytics().function_catalog
         if category not in FUNCTION_CATEGORIES:
             raise ValueError(
                 f"Unknown category: {category}. Expected one of: {', '.join(FUNCTION_CATEGORIES)}"
@@ -124,15 +125,15 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
     @mcp.tool()
     def list_calculated_features() -> str:
         """List calculated feature ids; each can be run with execute_feature."""
-        specification = state.load_specification()
+        analytics_definition = state.load_analytics()
         payload = sorted(
             {
                 feature_id
-                for entity in specification.entities.values()
+                for entity in analytics_definition.entities.values()
                 for dataset in entity.datasets
                 for mapping in dataset.mappings.values()
                 if hasattr(mapping, "binding")
-                if mapping.binding.function in specification.functions.vectorize
+                if mapping.binding.function in analytics_definition.functions.vectorize
                 for feature_id in mapping.output_features
             }
         )
@@ -150,8 +151,8 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             binding, and the full transitive closure of calculated and input
             features needed to compute it.
         """
-        specification = state.load_specification()
-        by_feature = {call.feature: call for call in specification.calls}
+        analytics_definition = state.load_analytics()
+        by_feature = {call.feature: call for call in analytics_definition.calls}
         call = by_feature.get(feature_id)
         if call is None:
             raise ValueError(
@@ -186,14 +187,14 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
 
     @mcp.tool()
     def compile_plan(feature_ids: list[str] | None = None) -> str:
-        """Compile the specification and report plan stages and operation counts.
+        """Compile analytics and report plan stages and operation counts.
 
         Args:
             feature_ids: Optional subset of calculated features to compile;
-                compiles the full specification when omitted.
+                compiles the full analytics document when omitted.
         """
-        specification = state.load_specification()
-        plan = compile.Compiler(specification, features=feature_ids).compile()
+        analytics_definition = state.load_analytics()
+        plan = compile.Compiler(analytics_definition, features=feature_ids).compile()
         return _to_json(
             {
                 "features": feature_ids,
@@ -227,8 +228,8 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         if max_rows < 1:
             raise ValueError("max_rows must be a positive integer")
 
-        specification = state.load_specification()
-        plan = compile.Compiler(specification, features=[feature_id]).compile()
+        analytics_definition = state.load_analytics()
+        plan = compile.Compiler(analytics_definition, features=[feature_id]).compile()
         engine = uptimely_engine.Engine(
             plan,
             config=state.engine_config,
@@ -248,7 +249,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                     "message": "Execution succeeded but produced no dataset for this feature.",
                 }
             )
-        entity = specification.entities.get(entity_id)
+        entity = analytics_definition.entities.get(entity_id)
         columns = [
             name
             for name in [*(entity.dimension_ids if entity else []), feature_id]
@@ -272,15 +273,15 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         return _to_json(payload)
 
     @mcp.tool()
-    def reload_specification() -> str:
-        """Re-parse the specification file; use after editing the spec or functions."""
-        specification = state.load_specification(reload=True)
+    def reload_analytics() -> str:
+        """Re-parse the analytics file after editing it or its function entrypoints."""
+        analytics_definition = state.load_analytics(reload=True)
         return _to_json(
             {
-                "spec": str(state.spec_path),
-                "entities": sorted(specification.entities),
+                "spec": str(state.analytics_path),
+                "entities": sorted(analytics_definition.entities),
                 "functions": {
-                    category: len(getattr(specification.function_catalog, category))
+                    category: len(getattr(analytics_definition.function_catalog, category))
                     for category in FUNCTION_CATEGORIES
                 },
             }
@@ -313,9 +314,7 @@ def _load_engine_config(
 def main() -> None:
     """Launch the uptimely MCP server over stdio."""
     parser = argparse.ArgumentParser(description="Uptimely MCP server")
-    parser.add_argument(
-        "--spec", required=True, type=pathlib.Path, help="Path to the JSON specification"
-    )
+    parser.add_argument("--spec", required=True, type=pathlib.Path, help="Path to analytics JSON")
     parser.add_argument(
         "--project-root",
         type=pathlib.Path,
@@ -332,11 +331,11 @@ def main() -> None:
 
     # Log to stderr only: stdout is the MCP protocol channel.
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
-    logger.info("Starting uptimely MCP server for spec %s", args.analytics)
+    logger.info("Starting uptimely MCP server for analytics %s", args.spec)
 
     engine_config, bind = _load_engine_config(args.config)
     state = ServerState(
-        spec_path=args.analytics,
+        analytics_path=args.spec,
         project_root=args.project_root,
         engine_config=engine_config,
         bind=bind,

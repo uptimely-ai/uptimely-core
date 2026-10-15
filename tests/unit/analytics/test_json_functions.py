@@ -43,7 +43,7 @@ def test_auto_catalog_converts_declaration_lists_and_dicts(keyed: bool, as_entit
         resources = declarations
     inputs = {resource.id: resource for resource in resources} if keyed else resources
 
-    payload = json_functions.python_to_spec_dict(
+    payload = json_functions.python_to_analytics_dict(
         **({"entities": inputs} if as_entities else {"datasets": inputs}),
         dimensions=[pump],
     )
@@ -78,9 +78,9 @@ def test_legacy_entities_in_datasets_match_explicit_entities() -> None:
         entity.Entity(id="assets", name="Assets", dimensions=[], datasets=[_dataset("readings")])
     ]
 
-    assert json_functions.python_to_spec_dict(
+    assert json_functions.python_to_analytics_dict(
         datasets=declarations
-    ) == json_functions.python_to_spec_dict(entities=declarations)
+    ) == json_functions.python_to_analytics_dict(entities=declarations)
 
 
 @pytest.mark.parametrize("as_entities", [False, True])
@@ -93,7 +93,7 @@ def test_auto_catalog_rejects_conflicting_entrypoints(as_entities: bool) -> None
     )
 
     with pytest.raises(ValueError, match="Conflicting function id 'source' for read"):
-        json_functions.python_to_spec_dict(
+        json_functions.python_to_analytics_dict(
             **({"entities": inputs} if as_entities else {"datasets": inputs})
         )
 
@@ -123,7 +123,7 @@ def test_explicit_catalog_preserves_argument_metadata(
     }[catalog_form]
     pump = dimension.Dimension(id="pump", type="string")
 
-    payload = json_functions.python_to_spec_dict(
+    payload = json_functions.python_to_analytics_dict(
         datasets=[declaration.to_model() if canonical_dataset else declaration],
         functions=functions,
         name="Readings",
@@ -145,7 +145,7 @@ def test_explicit_catalog_preserves_argument_metadata(
 
 
 def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_functions() -> None:
-    payload = json_functions.python_to_spec_dict(
+    payload = json_functions.python_to_analytics_dict(
         datasets=[_dataset("readings").to_model()],
         functions={"read": {"configured": {"entrypoint": "reader:load", "args": {"value": {}}}}},
     )
@@ -213,4 +213,4 @@ def test_conversion_rejects_invalid_inputs(
     kwargs: dict[str, object], error_type: type[Exception], message: str
 ) -> None:
     with pytest.raises(error_type, match=message):
-        json_functions.python_to_spec_dict(**kwargs)
+        json_functions.python_to_analytics_dict(**kwargs)

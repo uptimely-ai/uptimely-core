@@ -11,7 +11,7 @@ from uptimely import plan as plan_module
 from uptimely.cli import cli, engine, plan
 
 PROJECT = pathlib.Path(__file__).parents[2] / "examples/pump_analytics"
-SPEC = PROJECT / "_generated/spec/spec.json"
+ANALYTICS_PATH = PROJECT / "_generated/spec/spec.json"
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
@@ -23,7 +23,7 @@ def test_plan_build_defaults_and_verbose(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     (tmp_path / "_generated/spec").mkdir(parents=True)
-    (tmp_path / "_generated/spec/spec.json").write_bytes(SPEC.read_bytes())
+    (tmp_path / "_generated/spec/spec.json").write_bytes(ANALYTICS_PATH.read_bytes())
     invoke(monkeypatch, "plan", "build", "--project-root", str(tmp_path), "--verbose")
 
     restored = plan_module.ExecutionPlan.from_json(
@@ -46,7 +46,7 @@ def test_plan_build_explicit_paths_and_subset(
         "plan",
         "build",
         "--spec",
-        str(SPEC),
+        str(ANALYTICS_PATH),
         "--output",
         str(output),
         "--features",
@@ -165,7 +165,9 @@ def test_unknown_feature_is_reported(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], command: list[str]
 ) -> None:
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, *command, "--spec", str(SPEC), "--features", "unknown_feature")
+        invoke(
+            monkeypatch, *command, "--spec", str(ANALYTICS_PATH), "--features", "unknown_feature"
+        )
     assert error.value.code == 1
     assert "unknown_feature" in capsys.readouterr().err
 
@@ -180,7 +182,7 @@ def test_engine_invalid_config_is_reported(
     config = tmp_path / "engine.json"
     config.write_text(content, encoding="utf-8")
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, "engine", "run", "--spec", str(SPEC), "--config", str(config))
+        invoke(monkeypatch, "engine", "run", "--spec", str(ANALYTICS_PATH), "--config", str(config))
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
@@ -193,7 +195,7 @@ def test_engine_operation_failures_are_reported(
     config = tmp_path / "engine.json"
     config.write_text("{}", encoding="utf-8")
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, "engine", "run", "--spec", str(SPEC), "--config", str(config))
+        invoke(monkeypatch, "engine", "run", "--spec", str(ANALYTICS_PATH), "--config", str(config))
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "Engine flow failed:" in result.err
@@ -240,16 +242,16 @@ def test_engine_saved_plan_errors_are_reported(
 
 
 @pytest.mark.parametrize("command", [["plan", "build"], ["analytics", "feature-graph"]])
-def test_invalid_specification_is_reported(
+def test_invalid_analytics_is_reported(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     command: list[str],
 ) -> None:
-    specification = tmp_path / "spec.json"
-    specification.write_text("not JSON", encoding="utf-8")
+    analytics_definition = tmp_path / "spec.json"
+    analytics_definition.write_text("not JSON", encoding="utf-8")
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, *command, "--spec", str(specification))
+        invoke(monkeypatch, *command, "--spec", str(analytics_definition))
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
@@ -262,7 +264,15 @@ def test_plan_write_errors_are_reported(
     output = tmp_path / "plan.json"
     output.mkdir()
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, "plan", "build", "--spec", str(SPEC), "--output", str(output))
+        invoke(
+            monkeypatch,
+            "plan",
+            "build",
+            "--spec",
+            str(ANALYTICS_PATH),
+            "--output",
+            str(output),
+        )
     assert error.value.code == 1
     assert "uptimely: error:" in capsys.readouterr().err
 

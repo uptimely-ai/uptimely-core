@@ -92,7 +92,7 @@ entity_ = entity.Entity(
     description="Simple analytics entity.",
 )
 
-python_specification = PythonAnalytics(
+python_analytics = PythonAnalytics(
     entities=[entity_],
     dimensions=dimensions,
     name="Simple analytics",

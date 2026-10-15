@@ -1,7 +1,7 @@
 {% from "icons.html.j2" import icon %}
 {% macro section_header(title, description, count=none, count_label="") %}
 <header class="mb-8 border-b border-slate-800 pb-6">
-  <p class="mb-3 font-mono text-[10px] uppercase tracking-[.18em] text-slate-500">Specification reference</p>
+  <p class="mb-3 font-mono text-[10px] uppercase tracking-[.18em] text-slate-500">Analytics reference</p>
   <div class="flex flex-wrap items-center gap-3">
     <h1 class="title-with-icon font-display text-3xl font-semibold tracking-tight text-white">{{ icon(title|lower, "title-icon") }}<span>{{ title }}</span></h1>
     {% if count is not none %}

@@ -1,6 +1,6 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
 <section id="overview" class="mb-16">
-  {{ section_header("Overview", "A summary of the entities, datasets, features, and functions declared in this specification.") }}
+  {{ section_header("Overview", "A summary of the entities, datasets, features, and functions declared in this analytics.") }}
   {% set source = configuration.get("source", {}) %}
   {% set source_name = source.get("name", "manual") %}
   {% set source_generated = source.get("generated", false) %}
@@ -8,8 +8,8 @@
        data-source-name="{{ source_name }}" data-generated="{{ 'true' if source_generated else 'false' }}">
     <div class="pointer-events-none absolute -right-12 -top-20 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" aria-hidden="true"></div>
     <div class="relative">
-      <p class="font-mono text-[10px] uppercase tracking-[.2em] text-cyan-300/70">Specification profile</p>
-      <h2 class="mt-3 break-words font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">{{ configuration.name or "Untitled specification" }}</h2>
+      <p class="font-mono text-[10px] uppercase tracking-[.2em] text-cyan-300/70">Analytics profile</p>
+      <h2 class="mt-3 break-words font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">{{ configuration.name or "Untitled analytics" }}</h2>
       <div class="mt-6 flex flex-wrap gap-3">
         <div class="min-w-40 rounded-xl border border-slate-700/80 bg-slate-950/40 px-4 py-3">
           <p class="font-mono text-[10px] uppercase tracking-[.16em] text-slate-500">Source</p>

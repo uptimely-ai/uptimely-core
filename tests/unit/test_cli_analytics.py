@@ -11,7 +11,7 @@ from uptimely import analytics
 from uptimely.cli import cli
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-PUMP_MODULE = "examples.pump_analytics.config.spec.spec"
+PUMP_MODULE = "examples.pump_analytics.config.analytics.analytics"
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
@@ -23,7 +23,11 @@ def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
     ("module", "name", "entities"),
     [
         (PUMP_MODULE, "Pump analytics", {"pump", "pump_telemetry"}),
-        ("examples.simple_analytics.config.spec.spec", "Simple analytics", {"simple_analytics"}),
+        (
+            "examples.simple_analytics.config.analytics.analytics",
+            "Simple analytics",
+            {"simple_analytics"},
+        ),
     ],
 )
 def test_export_example_in_fresh_process(
@@ -51,12 +55,12 @@ def test_export_example_in_fresh_process(
     )
     assert f"Analytics written to {output}" in result.stdout
     assert not result.stderr
-    specification = analytics.Analytics(json=output)
-    assert specification.name == name
-    assert set(specification.entities) == entities
-    assert specification.source.name == "python_api"
-    assert specification.source.generated is True
-    assert specification.functions.read
+    analytics_definition = analytics.Analytics(json=output)
+    assert analytics_definition.name == name
+    assert set(analytics_definition.entities) == entities
+    assert analytics_definition.source.name == "python_api"
+    assert analytics_definition.source.generated is True
+    assert analytics_definition.functions.read
 
 
 @pytest.mark.parametrize("explicit_root", [False, True])
@@ -68,7 +72,7 @@ def test_export_default_output_and_import_root(
 ) -> None:
     module = f"export_default_{explicit_root}"
     (tmp_path / f"{module}.py").write_text(
-        "from examples.simple_analytics.config.spec.spec import python_specification\n",
+        "from examples.simple_analytics.config.analytics.analytics import python_analytics\n",
         encoding="utf-8",
     )
     arguments = ["--module", module]
@@ -102,10 +106,10 @@ def test_export_explicit_output_is_relative_to_working_directory(
     ("module", "content", "error_text"),
     [
         ("missing_export_module", None, "No module named"),
-        ("missing_export_declaration", "", "python_specification"),
+        ("missing_export_declaration", "", "python_analytics"),
         (
             "invalid_export_declaration",
-            "python_specification = {}",
+            "python_analytics = {}",
             "must be a PythonAnalytics",
         ),
         (
@@ -114,9 +118,9 @@ def test_export_explicit_output_is_relative_to_working_directory(
             "missing_export_dependency",
         ),
         (
-            "invalid_export_specification",
-            "from uptimely.analytics import python as python_spec\n"
-            "python_specification = python_spec.PythonAnalytics()",
+            "invalid_export_analytics",
+            "from uptimely.analytics import python as python_analytics\n"
+            "python_analytics = python_analytics.PythonAnalytics()",
             "At least one entity is required",
         ),
     ],

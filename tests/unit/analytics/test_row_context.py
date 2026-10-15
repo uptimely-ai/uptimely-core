@@ -32,7 +32,7 @@ def maximum(dataset: pl.DataFrame, column: str, output: str) -> pl.DataFrame:
     return dataset.select(pl.col(column).max().alias(output))
 
 
-def _specification(context=None, *, ordered=True, dimension_type="datetime"):
+def _analytics(context=None, *, ordered=True, dimension_type="datetime"):
     return analytics.Analytics.from_python(
         datasets=[
             dataset.Dataset(
@@ -234,23 +234,23 @@ def test_unbounded_dominates_bounded_directional_requirements():
 )
 def test_context_dimension_is_validated(context, dimension_type, message):
     with pytest.raises(ValueError, match=message):
-        _specification(context, dimension_type=dimension_type)
+        _analytics(context, dimension_type=dimension_type)
 
 
 def test_directional_context_requires_dataset_order():
     with pytest.raises(ValueError, match="requires dataset order"):
-        _specification(authoring.rows(1, before=1).row_context, ordered=False)
-    _specification(authoring.current(), ordered=False)
-    _specification(authoring.dataset(), ordered=False)
+        _analytics(authoring.rows(1, before=1).row_context, ordered=False)
+    _analytics(authoring.current(), ordered=False)
+    _analytics(authoring.dataset(), ordered=False)
 
 
-def test_specification_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Path):
+def test_analytics_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Path):
     context = authoring.time(
         "24h", dimension=ref.dimension("timestamp"), before="24h", after="2h"
     ).row_context
-    specification = _specification(context)
+    analytics_definition = _analytics(context)
     path = tmp_path / "spec.json"
-    specification.to_json(path)
+    analytics_definition.to_json(path)
     payload = json.loads(path.read_text())
     authored_dataset = payload["entities"]["entity"]["datasets"][0]
     assert "row_context" not in authored_dataset["features"]["result"]
@@ -284,23 +284,26 @@ def test_all_data_mappings_preserve_annotated_context(kind):
     assert declaration.to_model().binding.args == {"configuration": {"windows": [8]}}
 
 
-def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
+def test_analytics_plan_and_batch_execution_preserve_context_and_arguments(
     tmp_path: pathlib.Path,
 ) -> None:
     context = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h").row_context
-    specification = _specification(context)
-    spec_path = tmp_path / "spec.json"
-    specification.to_json(spec_path)
-    restored_specification = analytics.Analytics(json=spec_path)
-    original_mapping = specification.entities["entity"].datasets[0].mappings["result"]
-    restored_mapping = restored_specification.entities["entity"].datasets[0].mappings["result"]
+    analytics_definition = _analytics(context)
+    analytics_path = tmp_path / "spec.json"
+    analytics_definition.to_json(analytics_path)
+    restored_analytics = analytics.Analytics(json=analytics_path)
+    original_mapping = analytics_definition.entities["entity"].datasets[0].mappings["result"]
+    restored_mapping = restored_analytics.entities["entity"].datasets[0].mappings["result"]
     assert restored_mapping.row_context == original_mapping.row_context == context
     assert (
         "row_context"
-        not in specification.entities["entity"].datasets[0].mappings["result"].binding.model_dump()
+        not in analytics_definition.entities["entity"]
+        .datasets[0]
+        .mappings["result"]
+        .binding.model_dump()
     )
-    assert "row_context" not in specification.calls[0].model_dump()
-    exported = json.loads(spec_path.read_text())
+    assert "row_context" not in analytics_definition.calls[0].model_dump()
+    exported = json.loads(analytics_path.read_text())
     exported_dataset = exported["entities"]["entity"]["datasets"][0]
     exported_feature = exported_dataset["features"]["result"]
     assert "row_context" not in exported_feature
@@ -310,9 +313,9 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
         "row_context"
         not in exported["entities"]["entity"]["datasets"][0]["mappings"]["result"]["binding"]
     )
-    assert specification.functions.vectorize["calculate"].args["column"].type == "string"
+    assert analytics_definition.functions.vectorize["calculate"].args["column"].type == "string"
 
-    plan = compile.Compiler(restored_specification).compile()
+    plan = compile.Compiler(restored_analytics).compile()
     operation = next(item for item in plan.operations if item.kind == "vectorize")
     assert operation.row_context == context
     assert all(item.row_context is None for item in plan.operations if item.kind != "vectorize")
@@ -337,7 +340,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
         datetime.datetime(2026, 1, 1),
     ]
 
-    explorer.Explorer(specification).create_html(tmp_path / "index.html")
+    explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     features_html = (tmp_path / "spec/features.html").read_text(encoding="utf-8")
     assert "result" in features_html
     assert "Row context:" not in features_html
@@ -346,7 +349,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
 
 
 def test_plan_context_is_present_in_portable_operations() -> None:
-    plan = compile.Compiler(_specification(context=authoring.current())).compile()
+    plan = compile.Compiler(_analytics(context=authoring.current())).compile()
     operation = next(item for item in plan.operations if item.output == "result")
     assert operation.row_context == authoring.current()
 
@@ -381,7 +384,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         ],
     )
     timestamp = dimension.Dimension(id="timestamp", type="datetime")
-    specification = analytics.Analytics.from_python(
+    analytics_definition = analytics.Analytics.from_python(
         entities=[
             entity.Entity(
                 id="observation", name="Observation", dimensions=[timestamp], datasets=[source]
@@ -390,7 +393,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         ],
         dimensions=[timestamp],
     )
-    plan = compile.Compiler(specification).compile()
+    plan = compile.Compiler(analytics_definition).compile()
     operation = next(item for item in plan.operations if item.kind == "collapse")
     assert operation.row_context is None
     assert operation.entrypoint.endswith(":maximum")
@@ -399,7 +402,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         "column": "temperature",
         "output": "temperature_max",
     }
-    output_dataset = specification.entities["summary"].datasets[0]
+    output_dataset = analytics_definition.entities["summary"].datasets[0]
     output = output_dataset.mappings["summary"]
     assert output.row_context is None
     payload = output.model_dump()

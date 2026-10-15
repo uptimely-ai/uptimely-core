@@ -1,4 +1,4 @@
-"""Generate deterministic reference data and HTML from canonical specifications."""
+"""Generate deterministic reference data and HTML from canonical analytics."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from urllib import parse
 from uptimely import render
 from uptimely.compile import entrypoint as compile_entrypoint
 
-from .json import json_model as spec
+from .json import json_model
 
 OUTPUT_DIR = pathlib.Path("_generated") / "spec"
-SPECIFICATION_PAGES = render.WEBSITE_PAGES["spec"]
+ANALYTICS_PAGES = render.WEBSITE_PAGES["spec"]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -63,7 +63,7 @@ def _render_document(
     section: str,
     index_filename: str,
 ) -> pathlib.Path:
-    """Write one specification section within the explorer website."""
+    """Write one analytics section within the explorer website."""
     environment = render.html_environment()
     template = f"spec/{section}.html.j2"
     document = environment.get_template(template).render(
@@ -88,7 +88,7 @@ def _create_website_pages(
     *,
     index_filename: str = "index.html",
 ) -> None:
-    """Export separate specification sections with shared website navigation.
+    """Export separate analytics sections with shared website navigation.
 
     Args:
         context: Reference data shared with the website dashboard.
@@ -96,7 +96,7 @@ def _create_website_pages(
         index_filename: Filename of the website dashboard.
     """
     data = dataclasses.asdict(context)
-    for section, filename in SPECIFICATION_PAGES.items():
+    for section, filename in ANALYTICS_PAGES.items():
         _render_document(data, output_directory / filename, section, index_filename)
 
 
@@ -151,10 +151,12 @@ def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], lis
     return fragment_features, calculated_features, referenced_features
 
 
-def _build_context(specification: spec.Analytics, include_generated_at: bool) -> ExplorerContext:
-    """Build the typed template context from a canonical specification model."""
-    configuration = specification.model_dump(mode="json", exclude_none=True)
-    for entity_id, entity in specification.entities.items():
+def _build_context(
+    analytics_definition: json_model.Analytics, include_generated_at: bool
+) -> ExplorerContext:
+    """Build the typed template context from a canonical analytics model."""
+    configuration = analytics_definition.model_dump(mode="json", exclude_none=True)
+    for entity_id, entity in analytics_definition.entities.items():
         serialized_entity = configuration.get("entities", {}).get(entity_id)
         if not isinstance(serialized_entity, dict):
             continue
@@ -247,7 +249,7 @@ def _build_context(specification: spec.Analytics, include_generated_at: bool) ->
             "feature": call.feature,
             "dependencies": call.depends_on_features,
         }
-        for call in specification.calls
+        for call in analytics_definition.calls
     ]
     generated_at = (
         datetime.datetime.now().astimezone().isoformat(timespec="seconds")
@@ -263,14 +265,14 @@ def _build_context(specification: spec.Analytics, include_generated_at: bool) ->
 
 
 def create_json(
-    specification: spec.Analytics,
+    analytics_definition: json_model.Analytics,
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
 ) -> pathlib.Path:
-    """Export specification reference data as JSON.
+    """Export analytics reference data as JSON.
 
     Args:
-        specification: The canonical analytics specification.
+        analytics_definition: The canonical analytics model.
         output_path: Destination for the reference data.
         include_generated_at: Include a build timestamp.
 
@@ -278,7 +280,7 @@ def create_json(
         The path to the written JSON document.
     """
     target = pathlib.Path(output_path) if output_path is not None else OUTPUT_DIR / "docs.json"
-    context = _build_context(specification, include_generated_at)
+    context = _build_context(analytics_definition, include_generated_at)
     target = target.with_suffix(".json")
     _write_document_data(context, target)
     return target

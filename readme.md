@@ -1,8 +1,11 @@
 # Uptimely Core
 
-Uptimely Core is an open source Python package for declarative numerical analytics with complex dependencies at scale.
+Uptimely Core is an open source Python package for declarative numerical
+analytics with complex dependencies at scale.
 
-It describes analytics workflows in a specification similar to OpenAPI, uses a declarative model inspired by Kubernetes. The framework generates plans, graphs, and documentation from that specification.
+Analytics definitions describe workflows in JSON, using a declarative model
+inspired by OpenAPI and Kubernetes. The compiler generates plans from the
+analytics; the package can also render dependency graphs and documentation.
 
 Ships with simple engine and plans to integrate to common execution backends.
 
@@ -55,7 +58,7 @@ Explore the [documentation site](https://uptimely-ai.github.io/uptimely-core/).
 | [`docs/`](docs/index.md) | Architecture, specification, and development documentation. |
 | [`examples/`](examples/README.md) | Runnable examples and generated artifacts. |
 | [`scripts/`](scripts) | Code snippets for repository management |
-| [`src/uptimely/`](src/uptimely/) | Package implementation for specifications, compilation, dependencies, documentation, and engine. |
+| [`src/uptimely/`](src/uptimely/) | Package implementation for analytics, compilation, dependencies, documentation, and execution. |
 | [`tests/`](tests/) | Automated tests for the package and examples. |
 
 ## Development

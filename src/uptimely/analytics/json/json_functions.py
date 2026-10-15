@@ -13,7 +13,7 @@ def _argument_metadata(argument: typing.Any) -> dict[str, typing.Any]:
     return {"type": argument.type, "comment": argument.comment}
 
 
-def python_to_spec_dict(
+def python_to_analytics_dict(
     datasets: object | None = None,
     functions: typing.Any = None,
     name: str | None = None,
@@ -61,7 +61,7 @@ def python_to_spec_dict(
     if resolved_functions is None:
         resolved_functions = _auto_function_catalog(declarations)
 
-    return _static_datasets_to_spec(
+    return _static_datasets_to_analytics(
         dataset_values,
         name,
         resolved_functions,
@@ -153,14 +153,14 @@ def _auto_function_catalog(declarations: object) -> dict[str, typing.Any]:
     return merged
 
 
-def _static_datasets_to_spec(
+def _static_datasets_to_analytics(
     datasets: dict[str, pydantic.BaseModel],
     name: str | None,
     functions: dict[str, typing.Any],
     dimensions: dict[str, json_model.Dimension],
     entities: dict[str, pydantic.BaseModel] | None = None,
 ) -> dict[str, typing.Any]:
-    """Convert specification-layer dataset models into a specification."""
+    """Convert Python dataset models into an analytics document."""
     entity_id = name or "entity"
     dataset_entries: list[dict[str, typing.Any]] = []
 

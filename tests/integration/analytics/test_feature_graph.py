@@ -8,7 +8,7 @@ from uptimely.analytics import models
 from uptimely.cli import cli
 from uptimely.explorer import explorer
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 @pytest.mark.parametrize("verbose", [False, True])
@@ -23,7 +23,7 @@ def test_feature_graph_cli_inspects_without_exporting(
         "analytics",
         "feature-graph",
         "--spec",
-        str(SPEC_PATH.resolve()),
+        str(ANALYTICS_PATH.resolve()),
         "--features",
         "health_signal_normalized",
     ]
@@ -42,8 +42,8 @@ def test_feature_graph_cli_inspects_without_exporting(
 
 
 def test_system_graph_connects_functions_to_feature_outputs() -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    system = analytics.FeatureGraph(specification)
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    system = analytics.FeatureGraph(analytics_definition)
 
     function_nodes = {function.id: function for function in system.functions}
     assert "maximum" in function_nodes
@@ -89,12 +89,12 @@ def test_system_graph_connects_functions_to_feature_outputs() -> None:
 
 
 def test_system_graph_contains_function_nodes() -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    non_analytics = specification.resolved_functions[0].model_copy(
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    non_analytics = analytics_definition.resolved_functions[0].model_copy(
         update={"id": "non_analytics_function", "role": "serving"}
     )
-    specification.resolved_functions.append(non_analytics)
-    system = analytics.FeatureGraph(specification)
+    analytics_definition.resolved_functions.append(non_analytics)
+    system = analytics.FeatureGraph(analytics_definition)
 
     function_nodes = [
         node.reference for node in system.graph if isinstance(node.reference, models.FunctionNode)
@@ -114,23 +114,23 @@ def test_system_graph_contains_function_nodes() -> None:
 
 
 def test_subset_raises_helpful_error_for_missing_output() -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    system = analytics.FeatureGraph(specification)
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    system = analytics.FeatureGraph(analytics_definition)
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): temperature_3"):
         system.subset(["temperature_3"])
 
 
 def test_system_graph_builds_from_entity_feature_bindings() -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    system = analytics.FeatureGraph(specification)
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    system = analytics.FeatureGraph(analytics_definition)
 
     assert "bearing_temperature_max" in system.feature_names
     assert "health_signal_normalized" in system.feature_names
 
 
 def test_dependency_features_keep_their_producer_entity_without_becoming_source_inputs() -> None:
-    system = analytics.FeatureGraph(analytics.Analytics(json=SPEC_PATH))
+    system = analytics.FeatureGraph(analytics.Analytics(json=ANALYTICS_PATH))
     features = {
         node.reference.name: node.reference
         for node in system.graph
@@ -144,8 +144,8 @@ def test_dependency_features_keep_their_producer_entity_without_becoming_source_
 
 
 def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    explorer.Explorer(specification).create_html(tmp_path / "index.html")
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     output = tmp_path / "spec/graph.html"
     html = output.read_text(encoding="utf-8")
 
@@ -175,8 +175,8 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
 
 
 def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
-    specification = analytics.Analytics(json=SPEC_PATH)
-    explorer.Explorer(specification).create_html(tmp_path / "index.html")
+    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     output = tmp_path / "spec/graph.html"
     html = output.read_text(encoding="utf-8")
 

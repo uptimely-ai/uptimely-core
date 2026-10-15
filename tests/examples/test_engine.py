@@ -10,7 +10,7 @@ from uptimely import compile
 from uptimely import engine as uptimely_engine
 from uptimely.cli import cli
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 ENGINE_CONFIG_PATH = pathlib.Path("examples/pump_analytics/config/engine.json")
 
 
@@ -20,7 +20,7 @@ def _engine_bind() -> dict[str, object]:
 
 
 def test_engine_returns_calculated_features_without_writing_output() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH, bind=_engine_bind())
+    engine = uptimely_engine.Engine(ANALYTICS_PATH, bind=_engine_bind())
 
     result = engine.execute()
 
@@ -109,7 +109,7 @@ def test_engine_cli_reports_calculated_feature_ids(
 
 
 def test_engine_rejects_unknown_runtime_namespace() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH, bind={})
+    engine = uptimely_engine.Engine(ANALYTICS_PATH, bind={})
 
     result = engine.execute()
 
@@ -119,7 +119,7 @@ def test_engine_rejects_unknown_runtime_namespace() -> None:
 
 
 def test_engine_rejects_unknown_runtime_object() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH, bind={"storage": {}})
+    engine = uptimely_engine.Engine(ANALYTICS_PATH, bind={"storage": {}})
 
     result = engine.execute()
 
@@ -130,7 +130,7 @@ def test_engine_rejects_unknown_runtime_object() -> None:
 
 
 def test_engine_rejects_unknown_runtime_attribute() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH, bind={"storage": {"telemetry_source": {}}})
+    engine = uptimely_engine.Engine(ANALYTICS_PATH, bind={"storage": {"telemetry_source": {}}})
 
     result = engine.execute()
 
@@ -141,7 +141,7 @@ def test_engine_rejects_unknown_runtime_attribute() -> None:
 
 
 def test_engine_merges_fragments_by_entity_dimensions() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH)
+    engine = uptimely_engine.Engine(ANALYTICS_PATH)
     engine._runtime_datasets = {
         ("pump", "pump_dataset"): pl.LazyFrame(
             {
@@ -194,7 +194,7 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
     ],
 )
 def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH)
+    engine = uptimely_engine.Engine(ANALYTICS_PATH)
     operation = next(
         operation
         for operation in engine.plan.operations
@@ -211,7 +211,7 @@ def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> Non
 
 
 def test_engine_rejects_ambiguous_dataset_references() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH)
+    engine = uptimely_engine.Engine(ANALYTICS_PATH)
     engine._runtime_datasets = {
         ("first", "shared"): pl.LazyFrame({"id": [1]}),
         ("second", "shared"): pl.LazyFrame({"id": [2]}),
@@ -263,7 +263,7 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
 
 
 def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathlib.Path) -> None:
-    plan = compile.Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
+    plan = compile.Compiler(ANALYTICS_PATH, features=["health_signal_normalized"]).compile()
     engine = uptimely_engine.Engine(plan, bind=_engine_bind())
     assert [
         operation.output

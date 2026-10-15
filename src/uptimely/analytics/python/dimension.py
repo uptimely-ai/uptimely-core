@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from uptimely.analytics import json as json_spec
+from uptimely.analytics import json as json_analytics
 
 __all__ = [
     "Dimension",
@@ -20,9 +20,9 @@ class Dimension:
     description: str | None = None
     parent: str | None = None
 
-    def to_model(self) -> json_spec.json_model.Dimension:
+    def to_model(self) -> json_analytics.json_model.Dimension:
         """Convert this dimension declaration to its JSON model."""
-        return json_spec.json_model.Dimension(
+        return json_analytics.json_model.Dimension(
             id=self.id,
             type=self.type,
             description=self.description,

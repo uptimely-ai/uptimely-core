@@ -1,4 +1,4 @@
-"""Python authoring declarations for analytics specifications."""
+"""Python authoring declarations for analytics."""
 
 from . import feature
 from . import mappings as mapping

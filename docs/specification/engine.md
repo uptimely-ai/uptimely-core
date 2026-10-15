@@ -82,7 +82,7 @@ arguments. The batch engine does not pass this metadata to functions or use it
 to sort, retain rows, or delay output. Future stateful implementations can inspect
 the declarations, but must distinguish unknown context from explicit zero
 context and account for grouping performed by functions and dependency chains.
-See the [row context contract](specification.md#row-context).
+See the [row context contract](analytics.md#row-context).
 
 ## Runtime placeholders
 

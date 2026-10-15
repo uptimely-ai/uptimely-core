@@ -1,12 +1,12 @@
-"""Canonical Pydantic models for the OpenAnalytics specification."""
+"""Canonical Pydantic models for analytics."""
 
-from .analytics import SUPPORTED_SPECIFICATION_VERSION, Analytics
+from .analytics import SUPPORTED_ANALYTICS_VERSION, Analytics
 from .common import (
+    AnalyticsSource,
     Argument,
     Binding,
     BindingArgument,
     Dimension,
-    SpecificationSource,
     StrictModel,
 )
 from .dataset import (
@@ -35,7 +35,7 @@ from .resolved import Call, Function
 __all__ = [
     "FUNCTION_CATEGORIES",
     "FUNCTION_TYPES",
-    "SUPPORTED_SPECIFICATION_VERSION",
+    "SUPPORTED_ANALYTICS_VERSION",
     "Argument",
     "Binding",
     "BindingArgument",
@@ -56,7 +56,7 @@ __all__ = [
     "ReadFunction",
     "RowScope",
     "Analytics",
-    "SpecificationSource",
+    "AnalyticsSource",
     "StrictModel",
     "VectorizeFunction",
     "WriteFunction",
