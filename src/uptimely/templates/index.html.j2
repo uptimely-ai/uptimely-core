@@ -84,8 +84,8 @@
       <p class="eyebrow">OpenAnalytics / Project explorer</p>
       <h1 class="title-with-icon">{{ icon("home", "title-icon") }}<span>{{ analytics_definition.name or "Untitled analytics project" }}</span></h1>
       <p class="dashboard-intro">From declared data to a dependency-aware plan.
-        Explore what this analytics project defines, how its features connect,
-        and the operations that bring it together.</p>
+        Explore what this analytics project defines, how its plan is compiled,
+        and how its data flows through execution.</p>
       <span class="dashboard-version">Analytics {{ analytics_definition.version }}</span>
     </div>
     <svg class="dashboard-art" viewBox="0 0 420 280" fill="none" aria-hidden="true" focusable="false">
@@ -128,12 +128,12 @@
   <section aria-labelledby="journey-heading">
     <p class="eyebrow">Three perspectives. One project.</p>
     <h2 class="dashboard-section-title" id="journey-heading">Follow the analytics journey</h2>
-    <p class="dashboard-section-intro">Start with the declarations, trace their dependencies, then inspect the compiled workflow.</p>
+    <p class="dashboard-section-intro">Start with the declarations, inspect the compiled plan, then explore execution.</p>
     <ol class="analytics-journey" aria-label="Analytics journey">
       {% for accent, number, title, description, href, action in [
         ("analytics", "01", "Analytics", "The source of truth. Browse entities, datasets, features, dimensions, and the functions bound to them.", website_pages["analytics"]["overview"], "Explore analytics"),
-        ("lineage", "02", "Feature lineage", "The connections behind each result. Follow upstream inputs and the functions that produce downstream features in 2D or 3D.", website_pages["graph"]["lineage"], "Trace dependencies"),
-        ("execution", "03", "Plan", "The path to execution. Inspect compiled operations, argument bindings, and dependency-ordered stages with potential parallelism.", website_pages["plan"]["overview"], "Inspect the plan")
+        ("execution", "02", "Plan", "The path to execution. Inspect compiled operations, argument bindings, and dependency-ordered stages with potential parallelism.", website_pages["plan"]["overview"], "Inspect the plan"),
+        ("lineage", "03", "Execution", "Follow color-coded processing tables and the dependencies connecting them.", website_pages["execution"]["lineage"], "Explore execution")
       ] %}
       <li class="journey-step {{ accent }} icon--{{ accent }}">
         <div class="journey-step-header">
@@ -147,8 +147,6 @@
       {% endfor %}
     </ol>
   </section>
-  <p class="dashboard-note">Explore <a class="text-violet-300 underline" href="{{ website_pages['execution']['lineage'] }}">Execution / Data lineage</a>
-    for color-coded processing tables and the dependencies connecting them.</p>
   <p class="dashboard-note">A view of your declared analytics, not a live execution monitor.
     Counts describe the analytics and its compiled plan; building this website does not run analytical operations.</p>
 </main>
