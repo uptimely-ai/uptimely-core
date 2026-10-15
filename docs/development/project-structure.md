@@ -18,7 +18,10 @@ project/
 │   ├── engine.json
 │   └── spec/
 │       ├── spec.py
-│       └── datasets/
+│       ├── dataset_<name>.py
+│       ├── entity.py
+│       ├── dimension.py
+│       └── functions.py
 └── _generated/
     ├── spec/
     │   └── spec.json

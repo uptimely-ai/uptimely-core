@@ -1,49 +1,11 @@
 """Combined pump analytics Python specification."""
 
-from examples.pump_analytics.config.spec.datasets import pump, telemetry
-
 from uptimely.spec import python_spec
-from uptimely.spec.python_spec import dimension, entity
 
-dimensions = [
-    dimension.Dimension(id="plant", type="string", description="Manufacturing plant identifier"),
-    dimension.Dimension(
-        id="production_line",
-        type="string",
-        description="Production line identifier",
-        parent="plant",
-    ),
-    dimension.Dimension(
-        id="pump",
-        type="string",
-        description="Centrifugal pump asset identifier",
-        parent="production_line",
-    ),
-    dimension.Dimension(
-        id="timestamp",
-        type="datetime",
-        description="UTC timestamp of pump telemetry at one-minute grain",
-    ),
-]
+from . import dimension, entity
 
-entities = [
-    entity.Entity(
-        id="pump_telemetry",
-        name="Pump telemetry",
-        description=(
-            "A one-minute pump record identified by plant, production line, pump, and timestamp"
-        ),
-        dimensions=["plant", "production_line", "pump", "timestamp"],
-        datasets=[telemetry.telemetry_dataset],
-    ),
-    entity.Entity(
-        id="pump",
-        name="Pump",
-        description="Pump-level information collapsed from timestamped telemetry",
-        dimensions=["plant", "production_line", "pump"],
-        datasets=[pump.pump_dataset],
-    ),
-]
+dimensions = dimension.dimensions
+entities = entity.entities
 
 python_specification = python_spec.PythonSpecification(
     entities=entities,
