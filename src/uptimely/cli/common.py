@@ -6,7 +6,7 @@ import sys
 
 from uptimely import analytics
 
-GENERATED_ANALYTICS_PATH = pathlib.Path("_generated/spec/spec.json")
+GENERATED_ANALYTICS_PATH = pathlib.Path("_generated/analytics/analytics.json")
 GENERATED_PLAN_PATH = pathlib.Path("_generated/compile/execution_plan.json")
 ENGINE_CONFIG_PATH = pathlib.Path("config/engine.json")
 
@@ -14,9 +14,9 @@ ENGINE_CONFIG_PATH = pathlib.Path("config/engine.json")
 def configure_project_arguments(parser: argparse.ArgumentParser) -> None:
     """Add analytics, import-root, feature-selection, and diagnostic options."""
     parser.add_argument(
-        "--spec",
+        "--analytics",
         type=pathlib.Path,
-        help="Analytics JSON (default: _generated/spec/spec.json under --project-root)",
+        help="Analytics JSON (default: _generated/analytics/analytics.json under --project-root)",
     )
     parser.add_argument(
         "--project-root",

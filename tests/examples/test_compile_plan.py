@@ -9,7 +9,7 @@ from uptimely import analytics, compile
 from uptimely.cli import cli
 from uptimely.explorer import explorer
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 
 
 def test_execution_plan_cli_exports_only_json(
@@ -22,7 +22,7 @@ def test_execution_plan_cli_exports_only_json(
             "uptimely",
             "plan",
             "build",
-            "--spec",
+            "--analytics",
             str(ANALYTICS_PATH),
             "--output",
             str(tmp_path / "compile" / "execution_plan.json"),

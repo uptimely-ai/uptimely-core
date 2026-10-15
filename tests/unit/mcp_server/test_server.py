@@ -13,7 +13,7 @@ from uptimely.mcp import server  # noqa: E402
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
 ANALYTICS_PATH = (
-    REPOSITORY_ROOT / "examples" / "pump_analytics" / "_generated" / "spec" / "spec.json"
+    REPOSITORY_ROOT / "examples" / "pump_analytics" / "_generated" / "analytics" / "analytics.json"
 )
 CONFIG_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "config" / "engine.json"
 

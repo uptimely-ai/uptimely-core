@@ -26,11 +26,11 @@ jobs:
         run: |
           poetry run uptimely analytics export \
             --module examples.pump_analytics.config.analytics.analytics \
-            --output examples/pump_analytics/_generated/spec/spec.json
+            --output examples/pump_analytics/_generated/analytics/analytics.json
       - name: Build pump analytics explorer
         run: |
           poetry run uptimely explorer build \
-            --spec examples/pump_analytics/_generated/spec/spec.json \
+            --analytics examples/pump_analytics/_generated/analytics/analytics.json \
             --output docs/examples/pump_analytics
       - run: poetry run mkdocs build
       - uses: actions/upload-pages-artifact@v3

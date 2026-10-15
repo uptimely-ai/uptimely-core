@@ -12,7 +12,7 @@ import pytest
 from uptimely.cli import cli, explorer
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-ANALYTICS_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
+ANALYTICS_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/analytics/analytics.json"
 
 
 @pytest.mark.parametrize(
@@ -53,7 +53,7 @@ def test_serve_arguments(
     assert calls == [
         (
             "build",
-            pathlib.Path("_generated/spec/spec.json"),
+            pathlib.Path("_generated/analytics/analytics.json"),
             directory,
             pathlib.Path.cwd(),
         ),
@@ -78,7 +78,7 @@ def test_serve_builds_custom_analytics_before_starting_server(
         "serve_explorer",
         lambda directory, host, port: calls.append(("serve", directory, host, port)),
     )
-    analytics_definition = tmp_path / "spec.json"
+    analytics_definition = tmp_path / "analytics.json"
     output = tmp_path / "website"
     project_root = tmp_path / "project"
     monkeypatch.setattr(
@@ -88,7 +88,7 @@ def test_serve_builds_custom_analytics_before_starting_server(
             "uptimely",
             "explorer",
             "serve",
-            "--spec",
+            "--analytics",
             str(analytics_definition),
             "--directory",
             str(output),
@@ -134,7 +134,7 @@ def test_serve_defaults_paths_from_project_root(
     assert calls == [
         (
             "build",
-            tmp_path / "_generated/spec/spec.json",
+            tmp_path / "_generated/analytics/analytics.json",
             directory,
             tmp_path,
         ),
@@ -164,7 +164,7 @@ def test_serve_builds_html_before_starting_server(
             "uptimely",
             "explorer",
             "serve",
-            "--spec",
+            "--analytics",
             str(ANALYTICS_PATH),
             "--project-root",
             str(project_root),

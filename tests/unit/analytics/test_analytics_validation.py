@@ -5,7 +5,7 @@ import pytest
 
 from uptimely import analytics
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 
 
 def test_mapping_validation(tmp_path: pathlib.Path) -> None:
@@ -23,7 +23,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         "features": {"inputs": [], "outputs": ["$features.expanded_feature"]},
     }
 
-    analytics_path = tmp_path / "valid_mappings_spec.json"
+    analytics_path = tmp_path / "valid_mappings_analytics.json"
     analytics_path.write_text(json.dumps(configuration), encoding="utf-8")
     parsed_analytics = analytics.Analytics(json=analytics_path)
     ds = parsed_analytics.entities["pump_telemetry"].datasets[0]

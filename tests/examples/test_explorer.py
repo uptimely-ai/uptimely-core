@@ -7,7 +7,7 @@ from examples.pump_analytics.config.analytics import analytics as pump_analytics
 from uptimely import analytics
 from uptimely.explorer import explorer
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 
 
 def test_analytics_exports_only_json(tmp_path: pathlib.Path) -> None:
@@ -16,10 +16,10 @@ def test_analytics_exports_only_json(tmp_path: pathlib.Path) -> None:
         dimensions=pump_analytics_module.dimensions,
         name="Pump analytics",
     )
-    analytics_definition.to_json(tmp_path / "spec.json")
+    analytics_definition.to_json(tmp_path / "analytics.json")
 
-    assert {path.name for path in tmp_path.iterdir()} == {"spec.json"}
-    assert analytics.Analytics(json=tmp_path / "spec.json").name == "Pump analytics"
+    assert {path.name for path in tmp_path.iterdir()} == {"analytics.json"}
+    assert analytics.Analytics(json=tmp_path / "analytics.json").name == "Pump analytics"
 
 
 class TextCollector(html_parser.HTMLParser):

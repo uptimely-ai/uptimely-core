@@ -23,7 +23,7 @@ project/
     └── compile/
 ```
 
-Python declarations in `config/analytics/` are exported to `_generated/spec/spec.json`.
+Python declarations in `config/analytics/` are exported to `_generated/analytics/analytics.json`.
 The compiler produces `_generated/compile/execution_plan.json`, and the engine
 executes the plan.
 Functions describe the read, transformation, and write logic; CLI commands
@@ -80,11 +80,11 @@ than maintained as a separate copy of every team's definitions.
 ```text
 master-project/
 ├── config/
-│   └── spec/
+│   └── analytics/
 │       └── sources.json
 └── _generated/
     ├── spec/
-    │   └── spec.json
+    │   └── analytics.json
     └── compile/
 ```
 
@@ -97,17 +97,17 @@ analytics-package/
 │       └── calculation.py
 └── config/
     └── analytics/
-        └── spec.json
+        └── analytics.json
 ```
 
 In this illustrative layout, `sources.json` is a project-defined manifest of
 contributing repositories, versions, and specification locations; it is not a
 configuration format supported by Uptimely. Each analytics repository contributes its
-`config/analytics/spec.json`, either authored directly or exported from Python declarations.
+`config/analytics/analytics.json`, either authored directly or exported from Python declarations.
 
 Project-specific assembly tooling retrieves those specifications, combines their
 definitions, and resolves identifier conflicts and cross-repository references.
-It produces one complete `_generated/spec/spec.json` analytics document for Uptimely to load.
+It produces one complete `_generated/analytics/analytics.json` analytics document for Uptimely to load.
 Uptimely does not discover repositories or merge analytics documents
 automatically.
 

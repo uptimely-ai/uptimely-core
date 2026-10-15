@@ -30,7 +30,7 @@ analytics project, not the Uptimely package itself.
 ### Command line
 
 ```sh
-uptimely explorer build --spec _generated/spec/spec.json
+uptimely explorer build --analytics _generated/analytics/analytics.json
 ```
 
 The command exports this directory:
@@ -132,7 +132,7 @@ The build options are:
 
 | Option | Behavior |
 | --- | --- |
-| `--spec` | Required path to the analytics JSON document. |
+| `--analytics` | Required path to the analytics JSON document. |
 | `--output` | Website directory; defaults to `_generated/explorer`. |
 | `--project-root` | Directory added to Python's import path; defaults to the working directory. |
 | `--include-generated-at` | Show a build timestamp on the analytics page. |
@@ -141,7 +141,7 @@ For a project outside the working directory:
 
 ```sh
 uptimely explorer build \
-  --spec analytics/_generated/spec/spec.json \
+  --analytics analytics/_generated/analytics/analytics.json \
   --project-root analytics \
   --output public/analytics
 ```
@@ -162,7 +162,7 @@ exit status.
 from uptimely.explorer.explorer import Explorer
 from uptimely import Analytics
 
-analytics_definition = Analytics(json="_generated/spec/spec.json")
+analytics_definition = Analytics(json="_generated/analytics/analytics.json")
 explorer = Explorer(analytics_definition)
 index_path = explorer.create_html()
 ```
@@ -198,20 +198,20 @@ Timestamps are disabled by default for reproducible exports. Pass
 uptimely explorer serve
 ```
 
-This builds the website from `_generated/spec/spec.json` into
+This builds the website from `_generated/analytics/analytics.json` into
 `_generated/explorer/`, then serves it at
 <http://127.0.0.1:8001/>. Port **8001** is separate from the project documentation's
 MkDocs preview on port **8000**.
 
 The same project-relative defaults apply to `uptimely explorer build`. It uses
-`--output` instead of `--directory`, and requires `--spec` unless
+`--output` instead of `--directory`, and requires `--analytics` unless
 `--project-root` is set.
 
 | Option | Behavior |
 | --- | --- |
-| `--spec` | Analytics JSON path; defaults to `<project-root>/_generated/spec/spec.json` when `--project-root` is set, or `_generated/spec/spec.json` otherwise. |
+| `--analytics` | Analytics JSON path; defaults to `<project-root>/_generated/analytics/analytics.json` when `--project-root` is set, or `_generated/analytics/analytics.json` otherwise. |
 | `--directory` / `--output` | Website output directory for `serve` / `build`; defaults to `<project-root>/_generated/explorer` when `--project-root` is set, or `_generated/explorer` otherwise. |
-| `--project-root` | Project root added to Python's import path. When set, it also bases the default `--spec` and `--directory` paths. |
+| `--project-root` | Project root added to Python's import path. When set, it also bases the default `--analytics` and `--directory` paths. |
 | `--host` | Bind address; defaults to `127.0.0.1`, restricting access to the local machine. |
 | `--port` | TCP port; defaults to `8001`. Use `0` to select an available port. |
 
@@ -290,7 +290,7 @@ selected feature without exporting HTML:
 from uptimely import Analytics
 from uptimely.analytics import FeatureGraph
 
-analytics_definition = Analytics(json="_generated/spec/spec.json")
+analytics_definition = Analytics(json="_generated/analytics/analytics.json")
 graph = FeatureGraph(analytics_definition)
 subset = graph.subset(["health_signal_normalized"])
 subset.print_graph()

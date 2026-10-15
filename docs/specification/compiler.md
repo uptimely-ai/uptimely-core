@@ -34,7 +34,7 @@ string or `Path`. Calling `compile()` returns an `ExecutionPlan`.
 from uptimely import Analytics
 from uptimely.compile import Compiler
 
-analytics_definition = Analytics(json="_generated/spec/spec.json")
+analytics_definition = Analytics(json="_generated/analytics/analytics.json")
 plan = Compiler(analytics_definition).compile()
 plan.export_json("_generated/compile/execution_plan.json")
 ```
@@ -42,7 +42,7 @@ plan.export_json("_generated/compile/execution_plan.json")
 To compile directly from a file:
 
 ```python
-plan = Compiler("_generated/spec/spec.json").compile()
+plan = Compiler("_generated/analytics/analytics.json").compile()
 ```
 
 ## Compiling a feature subset

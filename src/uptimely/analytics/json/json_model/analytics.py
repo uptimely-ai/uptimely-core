@@ -58,7 +58,7 @@ class Analytics(common.StrictModel):
         """Create an analytics model, optionally loading its definition from JSON.
 
         Args:
-            json: Path to a JSON analytics file or directory containing ``spec.json``.
+            json: Path to a JSON analytics file or directory containing ``analytics.json``.
             **data: Analytics model fields. Cannot be combined with ``json``.
 
         Raises:

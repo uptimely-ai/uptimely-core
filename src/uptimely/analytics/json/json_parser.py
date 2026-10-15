@@ -329,10 +329,10 @@ class AnalyticsParser:
             return self.path
         target = str(path)
         if storage.Storage.is_dir(target):
-            candidate = storage.Storage.join(target, "spec.json")
+            candidate = storage.Storage.join(target, "analytics.json")
             if storage.Storage.exists(candidate):
                 return candidate
-            raise FileNotFoundError(f"No spec.json found in {target}")
+            raise FileNotFoundError(f"No analytics.json found in {target}")
         if not storage.Storage.exists(target):
             raise FileNotFoundError(target)
         return target

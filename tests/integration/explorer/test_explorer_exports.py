@@ -10,7 +10,7 @@ import pytest
 from uptimely import analytics, compile, engine
 from uptimely.explorer import explorer
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 REFERENCE_PATH = pathlib.Path("docs/specification/analytics.md")
 
 
@@ -32,7 +32,7 @@ def test_analytics_reference_example_parses_compiles_and_executes(
     reference = REFERENCE_PATH.read_text(encoding="utf-8")
     example_section = reference.split("## Complete JSON Example\n", 1)[1]
     example = example_section.split("```json\n", 1)[1].split("\n```", 1)[0]
-    path = tmp_path / "spec.json"
+    path = tmp_path / "analytics.json"
     path.write_text(example, encoding="utf-8")
 
     analytics_definition = analytics.Analytics(json=path)

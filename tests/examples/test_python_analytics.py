@@ -12,7 +12,7 @@ from uptimely import analytics
 from uptimely.analytics import python as python_analytics
 from uptimely.analytics.python import bind
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 
 
 def test_pump_dimensions_are_collected_in_declaration_order() -> None:
@@ -70,7 +70,7 @@ def test_example_manifest_parses_complete_analytics() -> None:
     analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
     analytics_from_directory = analytics.Analytics(json=ANALYTICS_PATH.parent)
 
-    assert analytics_from_directory.path.endswith("spec.json")
+    assert analytics_from_directory.path.endswith("analytics.json")
     assert analytics_definition.dimensions["pump"].parent == "production_line"
     assert set(analytics_definition.entities) == {"pump_telemetry", "pump"}
     assert analytics_definition.entities["pump_telemetry"].dimension_ids == [
@@ -143,7 +143,7 @@ def test_analytics_from_python_models_and_json_export(tmp_path: pathlib.Path) ->
         name="simple_analytics",
         dimensions=simple_analytics_module.dimensions,
     )
-    output_path = tmp_path / "spec.json"
+    output_path = tmp_path / "analytics.json"
     analytics_definition.to_json(output_path)
 
     payload = json.loads(output_path.read_text(encoding="utf-8"))

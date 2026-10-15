@@ -12,7 +12,7 @@ analytics explorer with:
 ```sh
 uptimely analytics export \
   --module examples.pump_analytics.config.analytics.analytics \
-  --output examples/pump_analytics/_generated/spec/spec.json
+  --output examples/pump_analytics/_generated/analytics/analytics.json
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
@@ -68,7 +68,7 @@ uptimely explorer serve --project-root examples/pump_analytics
 Additional commands to try:
 
 ```sh
-uptimely analytics export --module examples.pump_analytics.config.analytics.analytics --output examples/pump_analytics/_generated/spec/spec.json
+uptimely analytics export --module examples.pump_analytics.config.analytics.analytics --output examples/pump_analytics/_generated/analytics/analytics.json
 uptimely analytics feature-graph --project-root examples/pump_analytics --verbose
 uptimely plan build --project-root examples/pump_analytics
 uptimely engine run --project-root examples/pump_analytics
@@ -93,17 +93,17 @@ From the repository root (or the parent of downloaded examples), run:
 ```sh
 uptimely analytics export \
   --module examples.pump_analytics.config.analytics.analytics \
-  --output examples/pump_analytics/_generated/spec/spec.json
+  --output examples/pump_analytics/_generated/analytics/analytics.json
 uptimely analytics export \
   --module examples.simple_analytics.config.analytics.analytics \
-  --output examples/simple_analytics/_generated/spec/spec.json
+  --output examples/simple_analytics/_generated/analytics/analytics.json
 ```
 
 Prefix commands with `poetry run` in a Poetry environment.
 Each declaration module exposes a `python_analytics` instance of
 `uptimely.analytics.python.PythonAnalytics`. The module is imported using
 the current working directory unless `--project-root` supplies an import root.
-Without `--output`, JSON is written to `_generated/spec/spec.json` beneath
+Without `--output`, JSON is written to `_generated/analytics/analytics.json` beneath
 that root. An explicit output path is relative to the current working directory.
 
 See each example's README for details.

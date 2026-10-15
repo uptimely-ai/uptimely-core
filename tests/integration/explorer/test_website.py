@@ -17,7 +17,7 @@ from uptimely.analytics import explorer_render as analytics_render
 from uptimely.analytics import graph_render
 from uptimely.explorer import explorer
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 REPORTS = {
     "spec/overview.html": "spec",
     "spec/features.html": "features",
@@ -274,7 +274,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     plan = (index.parent / "plan/graph.html").read_text(encoding="utf-8")
     assert 'id="callable-graph"' in plan
     assert "normalize_health_signal" in plan
-    assert not pathlib.Path("_generated/spec").exists()
+    assert not pathlib.Path("_generated/analytics").exists()
     assert not pathlib.Path("_generated/compile").exists()
 
 

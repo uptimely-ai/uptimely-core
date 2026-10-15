@@ -15,7 +15,7 @@ from uptimely.compile import entrypoint as compile_entrypoint
 
 from .json import json_model
 
-OUTPUT_DIR = pathlib.Path("_generated") / "spec"
+OUTPUT_DIR = pathlib.Path("_generated") / "analytics"
 ANALYTICS_PAGES = render.WEBSITE_PAGES["spec"]
 
 

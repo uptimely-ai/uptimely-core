@@ -8,7 +8,7 @@ from uptimely.analytics import models
 from uptimely.cli import cli
 from uptimely.explorer import explorer
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 
 
 @pytest.mark.parametrize("verbose", [False, True])
@@ -22,7 +22,7 @@ def test_feature_graph_cli_inspects_without_exporting(
         "uptimely",
         "analytics",
         "feature-graph",
-        "--spec",
+        "--analytics",
         str(ANALYTICS_PATH.resolve()),
         "--features",
         "health_signal_normalized",
