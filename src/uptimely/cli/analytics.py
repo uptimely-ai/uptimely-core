@@ -4,7 +4,7 @@ import argparse
 import importlib
 import pathlib
 
-from uptimely import analytics as spec_module
+from uptimely import analytics
 from uptimely.analytics import feature_graph
 from uptimely.analytics import python as python_spec
 from uptimely.cli import common
@@ -55,7 +55,7 @@ def export_specification(module: str, output: pathlib.Path, project_root: pathli
     declaration = importlib.import_module(module).python_specification
     if not isinstance(declaration, python_spec.PythonAnalytics):
         raise TypeError(f"{module}.python_specification must be a PythonAnalytics")
-    specification = spec_module.Analytics.from_python(
+    specification = analytics.Analytics.from_python(
         entities=declaration.entities,
         dimensions=declaration.dimensions,
         name=declaration.name,

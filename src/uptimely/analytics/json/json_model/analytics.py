@@ -54,15 +54,29 @@ class Analytics(common.StrictModel):
     resolved_functions: list[resolved.Function] = pydantic.Field(default_factory=list, exclude=True)
     calls: list[resolved.Call] = pydantic.Field(default_factory=list, exclude=True)
 
+    def __init__(self, *, json: str | pathlib.Path | None = None, **data: typing.Any) -> None:
+        """Create an analytics model, optionally loading its definition from JSON.
+
+        Args:
+            json: Path to a JSON analytics file or directory containing ``spec.json``.
+            **data: Analytics model fields. Cannot be combined with ``json``.
+
+        Raises:
+            ValueError: If ``json`` is combined with model fields or the document is invalid.
+            OSError: If the JSON file cannot be read.
+        """
+        if json is not None:
+            if data:
+                raise ValueError("Provide either json or analytics fields, not both")
+            parsed = json_parser.AnalyticsParser.from_json(json)
+            data = parsed.__dict__.copy()
+            data["path"] = parsed.path
+        super().__init__(**data)
+
     @property
     def function_catalog(self) -> functions_module.FunctionCatalog:
         """Return the declared function catalog."""
         return self.functions
-
-    @classmethod
-    def from_json(cls, path: str | pathlib.Path) -> Analytics:
-        """Create a specification from a JSON file."""
-        return json_parser.AnalyticsParser.from_json(path)
 
     @classmethod
     def from_python(

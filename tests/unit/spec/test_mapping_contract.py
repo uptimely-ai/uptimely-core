@@ -4,8 +4,7 @@ import pathlib
 import polars as pl
 import pytest
 
-from uptimely import analytics as spec
-from uptimely import compile, engine
+from uptimely import analytics, compile, engine
 from uptimely.analytics.python import bind, dataset, dimension, feature, mapping, ref
 
 
@@ -34,8 +33,8 @@ def dataset_identifier(identifier: str, output: str) -> pl.DataFrame:
     return pl.DataFrame({"id": [1], output: [identifier]})
 
 
-def _specification() -> spec.Analytics:
-    return spec.Analytics.from_python(
+def _specification() -> analytics.Analytics:
+    return analytics.Analytics.from_python(
         datasets=[
             dataset.Dataset(
                 id="observations",
@@ -155,7 +154,7 @@ def test_invalid_input_contracts_are_rejected(
     ] = inputs
     path.write_text(json.dumps(configuration))
     with pytest.raises(ValueError, match=message):
-        spec.Analytics.from_json(path)
+        analytics.Analytics(json=path)
 
 
 def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
@@ -165,7 +164,7 @@ def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
     configuration["functions"]["vectorize"]["add_one"]["args"]["dataset"]["type"] = "string"
     path.write_text(json.dumps(configuration))
     with pytest.raises(ValueError, match="requires argument type dataframe"):
-        spec.Analytics.from_json(path)
+        analytics.Analytics(json=path)
 
 
 def test_nested_arguments_preserve_literals_and_resolve_dataframes() -> None:
@@ -226,7 +225,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
             },
         }
     path.write_text(json.dumps(configuration))
-    compiled = compile.Compiler(spec.Analytics.from_json(path), features=["result"]).compile()
+    compiled = compile.Compiler(analytics.Analytics(json=path), features=["result"]).compile()
     execution = engine.Engine(compiled).execute()
     assert not execution.failures
     assert execution.datasets["entity", "observations"].sort("id")["result"].to_list() == [11, 21]
@@ -235,7 +234,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
 @pytest.mark.parametrize("dataframe", [False, True])
 def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: bool) -> None:
     source_reference = ref.dataset("source")
-    specification = spec.Analytics.from_python(
+    specification = analytics.Analytics.from_python(
         dimensions=[dimension.Dimension(id="id", type="integer")],
         datasets=[
             dataset.Dataset(

@@ -4,7 +4,7 @@ import argparse
 import pathlib
 import sys
 
-from uptimely import analytics as spec
+from uptimely import analytics
 
 GENERATED_SPEC_PATH = pathlib.Path("_generated/spec/spec.json")
 GENERATED_PLAN_PATH = pathlib.Path("_generated/compile/execution_plan.json")
@@ -43,7 +43,7 @@ def prepare_project_root(project_root: pathlib.Path) -> None:
         sys.path.insert(0, root)
 
 
-def load_specification(path: pathlib.Path, project_root: pathlib.Path) -> spec.Analytics:
+def load_specification(path: pathlib.Path, project_root: pathlib.Path) -> analytics.Analytics:
     """Load a JSON specification with its project functions on the import path."""
     prepare_project_root(project_root)
-    return spec.Analytics.from_json(path)
+    return analytics.Analytics(json=path)

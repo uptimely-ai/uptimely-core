@@ -31,11 +31,11 @@ Missing entrypoints or unreadable signatures cause compilation to fail.
 string or `Path`. Calling `compile()` returns an `ExecutionPlan`.
 
 ```python
+from uptimely import Analytics
 from uptimely.compile import Compiler
-from uptimely.analytics import Analytics
 
-specification = Analytics.from_json("_generated/spec/spec.json")
-plan = Compiler(specification).compile()
+analytics_definition = Analytics(json="_generated/spec/spec.json")
+plan = Compiler(analytics_definition).compile()
 plan.export_json("_generated/compile/execution_plan.json")
 ```
 

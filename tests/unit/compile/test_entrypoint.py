@@ -7,8 +7,7 @@ from urllib import error, request
 
 import pytest
 
-from uptimely import analytics as spec
-from uptimely import compile, engine
+from uptimely import analytics, compile, engine
 from uptimely.analytics import explorer_render as spec_render
 from uptimely.analytics import storage
 from uptimely.analytics.python import bind, dataset, dimension, feature, mapping, ref
@@ -34,7 +33,7 @@ def test_compiler_rejects_string_feature_selection() -> None:
     [("vectorize", "pressure_flow_efficiency"), ("collapse", "maximum")],
 )
 def test_compiler_rejects_missing_function_entrypoints(category: str, function_id: str) -> None:
-    specification = spec.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     getattr(specification.functions, category)[function_id].entrypoint = ""
 
     with pytest.raises(ValueError, match=f"Missing entrypoint for function: {function_id}"):
@@ -42,7 +41,7 @@ def test_compiler_rejects_missing_function_entrypoints(category: str, function_i
 
 
 def test_compiler_reports_unreadable_function_signatures() -> None:
-    specification = spec.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     specification.functions.vectorize["pressure_flow_efficiency"].entrypoint = "invalid-entrypoint"
 
     with pytest.raises(ValueError, match="Could not read signature.*Invalid entrypoint"):
@@ -169,7 +168,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
 
     monkeypatch.setattr(request, "urlopen", urlopen)
     monkeypatch.setattr(storage, "boto3", types.SimpleNamespace(client=client))
-    specification = spec.Analytics.from_python(
+    specification = analytics.Analytics.from_python(
         dimensions=[dimension.Dimension(id="id", type="integer")],
         datasets=[
             dataset.Dataset(

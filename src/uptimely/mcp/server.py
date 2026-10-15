@@ -19,8 +19,7 @@ import typing
 import fastmcp
 import polars as pl
 
-from uptimely import analytics as spec
-from uptimely import compile
+from uptimely import analytics, compile
 from uptimely import engine as uptimely_engine
 
 logger = logging.getLogger(__name__)
@@ -45,12 +44,12 @@ class ServerState:
         default_factory=uptimely_engine.EngineConfig
     )
     bind: dict[str, dict[str, dict[str, typing.Any]]] = dataclasses.field(default_factory=dict)
-    specification: spec.Analytics | None = dataclasses.field(default=None, repr=False)
+    specification: analytics.Analytics | None = dataclasses.field(default=None, repr=False)
 
-    def load_specification(self, *, reload: bool = False) -> spec.Analytics:
+    def load_specification(self, *, reload: bool = False) -> analytics.Analytics:
         """Return the specification, parsing it on first use or when reloaded."""
         if self.specification is None or reload:
-            self.specification = spec.Analytics.from_json(self.spec_path)
+            self.specification = analytics.Analytics(json=self.spec_path)
         return self.specification
 
 
@@ -333,11 +332,11 @@ def main() -> None:
 
     # Log to stderr only: stdout is the MCP protocol channel.
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
-    logger.info("Starting uptimely MCP server for spec %s", args.spec)
+    logger.info("Starting uptimely MCP server for spec %s", args.analytics)
 
     engine_config, bind = _load_engine_config(args.config)
     state = ServerState(
-        spec_path=args.spec,
+        spec_path=args.analytics,
         project_root=args.project_root,
         engine_config=engine_config,
         bind=bind,

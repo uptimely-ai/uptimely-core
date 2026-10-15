@@ -5,8 +5,7 @@ import sys
 
 import pytest
 
-from uptimely import analytics as spec
-from uptimely import compile
+from uptimely import analytics, compile
 from uptimely.cli import cli
 from uptimely.explorer import explorer
 
@@ -75,7 +74,7 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
 
 
 def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> None:
-    explorer.Explorer(spec.Analytics.from_json(SPEC_PATH)).create_html(tmp_path / "index.html")
+    explorer.Explorer(analytics.Analytics(json=SPEC_PATH)).create_html(tmp_path / "index.html")
     report_path = tmp_path / "plan/stages.html"
     report = report_path.read_text(encoding="utf-8")
 
@@ -126,7 +125,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
 
 
 def test_website_exports_plan_pages_to_default_path(tmp_path: pathlib.Path, monkeypatch) -> None:
-    specification = spec.Analytics.from_json(SPEC_PATH)
+    specification = analytics.Analytics(json=SPEC_PATH)
     monkeypatch.chdir(tmp_path)
 
     index = explorer.Explorer(specification).create_html()

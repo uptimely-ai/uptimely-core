@@ -3,8 +3,7 @@ import pathlib
 
 import pytest
 
-from uptimely import analytics as spec
-from uptimely import compile
+from uptimely import analytics, compile
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
@@ -55,7 +54,7 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
 
 
 def test_callable_graph_subset_contains_requested_output_and_ancestors() -> None:
-    graph = compile.CallableGraph(spec.Analytics.from_json(SPEC_PATH))
+    graph = compile.CallableGraph(analytics.Analytics(json=SPEC_PATH))
 
     subset = graph.subset(["health_signal_normalized"])
     normalized = next(

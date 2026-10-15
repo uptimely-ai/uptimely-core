@@ -68,9 +68,7 @@ class Engine:
             self.plan = plan
         elif isinstance(plan, (str, pathlib.Path, json_model.Analytics)):
             self._specification = (
-                json_model.Analytics.from_json(plan)
-                if isinstance(plan, (str, pathlib.Path))
-                else plan
+                json_model.Analytics(json=plan) if isinstance(plan, (str, pathlib.Path)) else plan
             )
             self.plan = compile.Compiler(self._specification).compile()
         else:

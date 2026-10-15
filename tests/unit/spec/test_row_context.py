@@ -6,8 +6,7 @@ import polars as pl
 import pydantic
 import pytest
 
-from uptimely import analytics as spec
-from uptimely import compile, engine, row_context
+from uptimely import analytics, compile, engine, row_context
 from uptimely import plan as uptimely_plan
 from uptimely.analytics.python import bind, dataset, dimension, entity, feature, mapping, ref
 from uptimely.analytics.python import row_context as authoring
@@ -34,7 +33,7 @@ def maximum(dataset: pl.DataFrame, column: str, output: str) -> pl.DataFrame:
 
 
 def _specification(context=None, *, ordered=True, dimension_type="datetime"):
-    return spec.Analytics.from_python(
+    return analytics.Analytics.from_python(
         datasets=[
             dataset.Dataset(
                 id="observations",
@@ -256,7 +255,7 @@ def test_specification_plan_execution_and_explorer_preserve_context(tmp_path: pa
     authored_dataset = payload["entities"]["entity"]["datasets"][0]
     assert "row_context" not in authored_dataset["features"]["result"]
     assert authored_dataset["mappings"]["result"]["row_context"] == context.to_dict()
-    restored = spec.Analytics.from_json(path)
+    restored = analytics.Analytics(json=path)
     compiled = compile.Compiler(restored).compile()
     operation = next(item for item in compiled.operations if item.kind == "vectorize")
     assert operation.input_features == ["temperature"]
@@ -292,7 +291,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     specification = _specification(context)
     spec_path = tmp_path / "spec.json"
     specification.to_json(spec_path)
-    restored_specification = spec.Analytics.from_json(spec_path)
+    restored_specification = analytics.Analytics(json=spec_path)
     original_mapping = specification.entities["entity"].datasets[0].mappings["result"]
     restored_mapping = restored_specification.entities["entity"].datasets[0].mappings["result"]
     assert restored_mapping.row_context == original_mapping.row_context == context
@@ -382,7 +381,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         ],
     )
     timestamp = dimension.Dimension(id="timestamp", type="datetime")
-    specification = spec.Analytics.from_python(
+    specification = analytics.Analytics.from_python(
         entities=[
             entity.Entity(
                 id="observation", name="Observation", dimensions=[timestamp], datasets=[source]
