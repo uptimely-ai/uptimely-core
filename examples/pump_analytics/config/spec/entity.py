@@ -2,23 +2,32 @@
 
 from uptimely.spec.python_spec import entity
 
-from . import dataset_pump, dataset_telemetry
+from . import dataset_pump, dataset_telemetry, dimension
 
-entities = [
-    entity.Entity(
-        id="pump_telemetry",
-        name="Pump telemetry",
-        description=(
-            "A one-minute pump record identified by plant, production line, pump, and timestamp"
-        ),
-        dimensions=["plant", "production_line", "pump", "timestamp"],
-        datasets=[dataset_telemetry.telemetry_dataset],
+PUMP_TELEMETRY = entity.Entity(
+    id="pump_telemetry",
+    name="Pump telemetry",
+    description=(
+        "A one-minute pump record identified by plant, production line, pump, and timestamp"
     ),
-    entity.Entity(
-        id="pump",
-        name="Pump",
-        description="Pump-level information collapsed from timestamped telemetry",
-        dimensions=["plant", "production_line", "pump"],
-        datasets=[dataset_pump.pump_dataset],
-    ),
+    dimensions=[
+        dimension.PLANT.id,
+        dimension.PRODUCTION_LINE.id,
+        dimension.PUMP.id,
+        dimension.TIMESTAMP.id,
+    ],
+    datasets=[dataset_telemetry.telemetry_dataset],
+)
+
+PUMP = entity.Entity(
+    id="pump",
+    name="Pump",
+    description="Pump-level information collapsed from timestamped telemetry",
+    dimensions=[dimension.PLANT.id, dimension.PRODUCTION_LINE.id, dimension.PUMP.id],
+    datasets=[dataset_pump.pump_dataset],
+)
+
+entities: list[entity.Entity] = [
+    value for value in globals().copy().values() if isinstance(value, entity.Entity)
 ]
+by_id: dict[str, entity.Entity] = {item.id: item for item in entities}

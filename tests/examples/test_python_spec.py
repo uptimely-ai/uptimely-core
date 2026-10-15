@@ -1,6 +1,8 @@
 import json
 import pathlib
 
+from examples.pump_analytics.config.spec import dimension as pump_dimensions
+from examples.pump_analytics.config.spec import entity as pump_entities
 from examples.pump_analytics.config.spec import spec as pump_telemetry_spec
 from examples.pump_analytics.functions import calculation
 from examples.simple_analytics.config.spec import spec as simple_analytics_spec
@@ -11,6 +13,41 @@ from uptimely.spec import python_spec
 from uptimely.spec.python_spec import bind
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+
+
+def test_pump_dimensions_are_collected_in_declaration_order() -> None:
+    expected = [
+        pump_dimensions.PLANT,
+        pump_dimensions.PRODUCTION_LINE,
+        pump_dimensions.PUMP,
+        pump_dimensions.TIMESTAMP,
+    ]
+
+    assert pump_dimensions.dimensions == expected
+    assert list(pump_dimensions.by_id) == ["plant", "production_line", "pump", "timestamp"]
+    for declaration in expected:
+        assert pump_dimensions.by_id[declaration.id] is declaration
+    assert pump_telemetry_spec.dimensions is pump_dimensions.dimensions
+    assert pump_dimensions.PRODUCTION_LINE.parent == pump_dimensions.PLANT.id
+    assert pump_dimensions.PUMP.parent == pump_dimensions.PRODUCTION_LINE.id
+
+
+def test_pump_entities_are_collected_in_declaration_order() -> None:
+    expected = [pump_entities.PUMP_TELEMETRY, pump_entities.PUMP]
+
+    assert pump_entities.entities == expected
+    assert list(pump_entities.by_id) == ["pump_telemetry", "pump"]
+    for declaration in expected:
+        assert pump_entities.by_id[declaration.id] is declaration
+    assert pump_telemetry_spec.entities is pump_entities.entities
+    assert pump_entities.PUMP_TELEMETRY.dimensions == [
+        item.id for item in pump_dimensions.dimensions
+    ]
+    assert pump_entities.PUMP.dimensions == [
+        pump_dimensions.PLANT.id,
+        pump_dimensions.PRODUCTION_LINE.id,
+        pump_dimensions.PUMP.id,
+    ]
 
 
 def test_argument_definition_supports_recursive_compact_types() -> None:
