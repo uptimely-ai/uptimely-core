@@ -141,8 +141,12 @@ behavior are described in the [execution engine guide](engine.md).
 
 ## Functions
 
-Templates declare an `entrypoint`, optional `description` where supported, and
-an `args` schema. Each argument definition contains `type` and optional `comment`.
+Here function is a logical function definition bound to an implementation. Each
+function declares one `operation` describing its analytical role, an
+`entrypoint`, and an `args` schema. Each argument definition contains `type`
+and optional `comment`. A mapping binds a function to concrete arguments and
+feature inputs and outputs. Compilation turns each mapping into a callable in
+the execution plan.
 
 ### Function Templates
 
@@ -173,20 +177,32 @@ Use operation-oriented function names. Mapping identifiers and feature names
 can differ from the template identifier. A bound function must resolve to
 exactly one catalog category.
 
-### Operation Types
+### Function Operations
 
-| Category | Purpose | Analytical role | External I/O | Result |
-| --- | --- | --- | --- | --- |
-| `read` | Read external observations. | Ingestion. | Reads. | Dataframe fragment. |
-| `conform` | Adapt observations to the target row scope. | Row alignment and reconciliation. | None. | Dataframe fragment. |
-| `expand` | Transfer or join observations into target dimensional coverage. | Lookup and enrichment. | None. | Dataframe fragment. |
-| `collapse` | Calculate features at a coarser grain. | Grouping and aggregation. | None. | Dataframe fragment. |
-| `vectorize` | Calculate features while preserving observation keys. | Same-grain calculation. | None. | Dataframe fragment. |
-| `write` | Persist or evaluate selected data. | Output evaluation. | May write. | Ignored; no output features. |
+Each function has exactly one operation. The function's arguments determine
+which dataset data it consumes; mapping feature declarations separately state
+the feature dependencies and outputs. The table defines the dataset input and
+output counts for each operation:
 
-All data-producing operations return a table. They perform their own
+| Operation | Dataset inputs | Dataset outputs | Purpose |
+| --- | ---: | ---: | --- |
+| `read` | 0 | 1 | Read external observations into a dataset. |
+| `collapse` | 1 | 1 | Calculate features at a coarser grain. |
+| `conform` | 2 | 1 | Adapt observations to the target row scope. |
+| `expand` | 2 | 1 | Transfer or join observations into target dimensional coverage. |
+| `vectorize` | 1 | 1 | Calculate features while preserving observation keys. |
+| `write` | 1 | 0 | Persist or evaluate selected data. |
+
+Here, a dataset input is a dataframe consumed by the function, not a scalar
+dataset identifier or external resource configuration. A data-producing
+function returns one dataset; `write` consumes one dataset and has no dataset
+output. These counts describe the function contract. Mapping validation must
+also check that declared feature inputs and outputs are compatible with the
+function's arguments, result, and the participating datasets.
+
+All data-producing functions return a table. They perform their own
 calculations, grouping, output naming, and scalar broadcasting.
-Analytical operations should not perform external I/O.
+Analytical functions should not perform external I/O.
 
 `vectorize` preserves the current dataset's dimensions and observation keys.
 `conform` reconciles row scopes within an entity; `expand` transfers observations
