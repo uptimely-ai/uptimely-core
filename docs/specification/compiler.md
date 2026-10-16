@@ -1,289 +1,95 @@
 # Compiler
 
-The compiler turns the [Analytics document](analytics.md) into a portable
-execution plan. It connects declared feature requirements to function calls,
-resolves their dependencies, and schedules the resulting callables into stages.
+The compiler converts an Analytics specification into a portable execution
+plan. The plan records the operations, their dependencies, and the runtime
+resources an engine needs. It does not contain the compiler's in-memory graph
+or execute analytical functions.
 
-Compilation prepares a workflow but does not run its analytical functions. The
-portable plan is the boundary between planning and execution: an
-[execution engine](engine.md) loads the plan and runs it against runtime data.
+This page describes the generated plan. Dataset, feature, function, and mapping
+semantics are defined by the Analytics specification.
 
-## Compilation workflow
+## Plan
 
-The built-in Python compiler:
+A plan is one JSON object. Its root fields are:
 
-1. Uses an in-memory `Analytics` object or loads Analytics from a JSON file.
-2. Builds a callable dependency graph from the declared bindings.
-3. Selects the required dependency closure when a feature subset is requested.
-4. Resolves structural references into portable callable arguments and records
-   each callable's dependencies.
-5. Groups callables into dependency-ordered stages.
-6. Copies the runtime resources and callable signatures needed by the plan.
+| Field | JSON type | Meaning |
+| --- | --- | --- |
+| `plan_version` | string | Portable plan format version. The current and only supported version is `0.2.0`. |
+| `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
+| `resources` | object | Runtime metadata needed by the engine. |
+| `callables` | array of objects | Operations to execute and their declared inputs and dependencies. |
+| `stages` | array of arrays of strings | Callable identifiers grouped by dependency order. |
 
-The compiler reads signatures by importing the declared Python entrypoints.
-Their modules and dependencies must therefore be importable in the compilation
-environment, even though compilation does not invoke the analytical functions.
-Missing entrypoints or unreadable signatures cause compilation to fail.
+All root fields are required. Unknown root fields and unsupported plan versions
+are rejected.
 
-## Compiling a plan
+## Resources
 
-`Compiler` accepts an `Analytics` object or a path to Analytics JSON as a
-string or `Path`. Calling `compile()` returns an `ExecutionPlan`.
+Resources copy the parts of Analytics needed to interpret the plan. They allow
+an engine to load the plan without the original Analytics document.
 
-```python
-from uptimely import analytics
-from uptimely.compiler import Compiler
+| Resource | Contents |
+| --- | --- |
+| `dimensions` | Dimension definitions keyed by identifier. |
+| `entities` | Entity identifiers and their dimension identifiers. |
+| `functions` | Function templates used by the callables. |
+| `datasets` | Dataset features, logical order, and row scope, keyed by dataset identifier. |
+| `signatures` | Return annotations keyed by callable identifier. |
 
-analytics_definition = analytics.load_analytics("_generated/analytics/analytics.json")
-plan = Compiler(analytics_definition).compile()
-plan.export_json("_generated/compile/execution_plan.json")
-```
+## Callables
 
-To compile directly from a file:
+Each callable represents one function invocation. Its inputs declare the
+features used by that operation; dependencies identify callable invocations
+that must finish first.
 
-```python
-plan = Compiler("_generated/analytics/analytics.json").compile()
-```
+| Field | JSON type | Meaning |
+| --- | --- | --- |
+| `id` | string | Unique identifier for this invocation. |
+| `operation` | string | Operation category: `read`, `conform`, `expand`, `collapse`, `vectorize`, or `write`. |
+| `entrypoint` | string | Implementation location for the function. |
+| `entity_id` | string | Entity that scopes the invocation. |
+| `dataset_id` | string or null | Dataset receiving or supplying dataframe state. |
+| `output` | string or null | Primary output identifier. |
+| `arguments` | object | Resolved arguments passed to the function. Runtime storage placeholders remain unresolved. |
+| `input_features` | array of strings | Features declared as inputs to the operation. |
+| `output_features` | array of strings | Features produced by the operation. |
+| `dependency_ids` | array of strings | Identifiers of callable prerequisites. |
+| `row_context` | object or null | Input row-context requirement, when declared. |
 
-## Compiling a feature subset
+Structural references in Analytics are resolved to plan identifiers. Runtime
+dataframe binding is deferred to the engine. The `@` dataset reference denotes
+the owning dataset for the operation's declared inputs, not a completed dataset
+state.
 
-The compiler can produce a feature subset. The requested features form the
-starting points of a dependency closure, so the plan includes their required
-dataframe-producing mappings, calculated-feature dependencies, and writes for the
-selected datasets.
+## Stages
 
-```python
-plan = Compiler(
-    analytics_definition,
-    features=["health_signal_normalized"],
-).compile()
-```
+Each stage is a list of callable identifiers. Every callable appears exactly
+once, and each dependency must appear in an earlier stage. Callables in the same
+stage are independent according to the declared dependency graph; an engine may
+run them in parallel while preserving stage order.
 
-Pass a collection of feature identifiers, not a single string. The compiler
-includes their transitive prerequisites and the writes configured for the
-selected datasets; subset compilation does not create a calculation-only
-workflow. A retained sink that needs features outside the selected closure may
-fail during execution.
+## Dependencies
 
-Subset plans retain configured dataset writes and do not trim literal
-feature lists passed to those write functions. Declare all required features
-as mapping inputs; a callable that requests a feature outside the selected
-closure can fail because that value was not materialized.
+Mapping inputs define the feature dependencies used to select and order
+callables. Ordinary argument values do not establish dependencies by
+themselves. A plan limited to selected features also includes the features they
+depend on, along with configured writes for the selected datasets. Those writes
+may use features outside the selection.
 
-## Dependency resolution
-
-Explicit mapping inputs define feature dependencies. The compiler uses those
-edges to include required producers in a feature-subset plan and to order
-callables. Feature or dataset identifiers passed as arguments do not, by
-themselves, declare a calculated-feature dependency. A dataset dataframe
-argument requires its source observations, but not every calculated feature
-available in that dataset; list each consumed feature as an input.
-
-Vectorize and write inputs belong to their owning dataset. Other operation
-categories can transfer data between datasets when the mapping declares those
-inputs. Independent mappings can be scheduled in the same stage.
-
-The compiler requires an acyclic execution graph. Semantic validation checks
-that feature dependencies have valid producers and ownership, bindings refer
-to known function categories and arguments, and row-context dimensions and
-order declarations are consistent. Structural validation rejects unknown
-fields and malformed declarations. The compiler also checks bound argument
-names and explicit selector/type agreement; it does not validate or coerce
-arbitrary literal values against declared types. These checks cannot infer
-hidden data dependencies inside a function or establish that its calculations
-are correct. Test function implementations together with the mappings that
-declare them.
-
-## Compilation and runtime boundaries
-
-Structural references such as `$features.<id>`, `$datasets.@`, and
-`$dimensions.<id>` describe relationships in Analytics. The compiler
-resolves them to identifiers in the plan; the engine binds those identifiers to
-live dataframes and feature values.
-
-The `@` dataset reference names the owning dataset, not its final completed
-state. The compiler makes the mapping's declared inputs available first. A
-single-output `$features.@.id` reference can only be used when the mapping has
-one calculated output. Dataset `.id` references are metadata; they do not add
-feature dependencies. Structural selector types must agree with their declared
-argument types, but the compiler does not check arbitrary literal values or
-confirm that the implementation accepts them.
-
-Runtime placeholders such as `?storage.telemetry_source.path` remain in the
-compiled arguments. The engine resolves them against its `bind` mapping,
-allowing a plan to run with different physical storage locations without
-recompilation.
-
-The built-in compiler records `polars` as the required backend. The engine checks
-that claim at runtime. Deployment and orchestration are outside the compiler's
-responsibility.
-
-Row-context metadata is preserved separately from operation arguments. When any
-operation declares context, planned datasets' ordering and row scopes are
-included under `resources.datasets`, so an exported plan does not need the
-original Analytics document to interpret those requirements. Context is local to
-each binding; the compiler does not infer transitive retention across chained
-calculations. Calculated-feature context is read from the feature declaration,
-not copied through its binding or derived call.
-
-## Generated execution plan
-
-An execution plan describes the workflow without retaining the compiler's live
-dependency graph. An engine can load it without loading or recompiling the
-original Analytics document. An alternative engine may use another language or
-runtime, provided it implements the plan contract and supports the declared
+The dependency graph must be acyclic. Plan loading checks callable identifiers,
+dependency references, and stage ordering. These structural checks do not prove
+that dependencies inside function implementations are declared or that
+calculations are correct. The engine must support the plan version and declared
 backend.
 
-The serialized plan contains these top-level fields:
+## Validation
 
-| Field | Meaning |
-| --- | --- |
-| `plan_version` | Portable plan format version. The built-in engine accepts `0.2.0`. |
-| `required_backend` | Backend required by the plan. The built-in engine currently supports `polars`. |
-| `resources` | Runtime metadata needed by an engine, including dimensions, entities, function templates, and signatures. |
-| `callables` | Executable function invocations in the dependency graph. |
-| `stages` | Lists of callable identifiers grouped by dependency level. |
+Compiler validation checks that an Analytics document can be compiled into a
+valid, schedulable plan:
 
-The compiler copies only the information needed at runtime into `resources`.
-The plan carries callable entrypoints, binding arguments, and each callable's
-`operation` (`read`, `conform`, `expand`, `collapse`, `vectorize`, or `write`),
-but remains distinct from the source Analytics document. The current portable
-plan format is version `0.2.0`. Loaders reject plans declaring an unsupported
-version rather than interpreting them as the current format.
-
-### Callables
-
-Each callable represents one function invocation:
-
-| Field | Meaning |
-| --- | --- |
-| `id` | Stable identifier for the callable in the plan. |
-| `operation` | Category of the function invocation: `read`, `conform`, `expand`, `collapse`, `vectorize`, or `write`. |
-| `entrypoint` | Required Python function implementation location. |
-| `entity_id` | Entity whose dimensions and datasets scope the callable. |
-| `dataset_id` | Dataset receiving or supplying the callable's dataframe state. |
-| `output` | Callable output identifier, such as a calculated feature. |
-| `arguments` | Portable compiled argument values. Structural references are resolved to identifiers; runtime dataframe binding is deferred to the engine. |
-| `dependency_ids` | Callable identifiers that must complete before this callable. |
-| `row_context` | Mapping input-context requirements; `null` when undeclared. Stored separately from function arguments. |
-
-Every data-producing callable returns a dataframe with its declared outputs.
-Write callables consume the assembled dataset state. The plan records callable
-contracts and dependencies; it does not execute them.
-
-### Execution stages
-
-The compiler derives stages from the callable graph topology. A stage contains
-callables whose prerequisites are in earlier stages or have no remaining
-prerequisites. Callables in a later stage cannot run until their dependencies
-have completed.
-
-For example, a dataset may produce this topology:
-
-```text
-Stage 1: read telemetry
-Stage 2: vectorize bearing temperature maximum
-Stage 3: vectorize normalized health signal
-Stage 4: write pump results
-```
-
-Independent callables may appear in the same stage. The built-in Python
-engine currently processes stage members sequentially, but another engine may
-run independent callables in parallel while preserving the dependency order.
-
-Stages are represented in JSON by callable identifiers rather than duplicated
-callable objects:
-
-```json
-"stages": [
-	["callable:example:pump:read"],
-	["callable:example:pump:health_signal_normalized"],
-	["callable:example:pump:write"]
-]
-```
-
-The exact identifiers depend on the entity, dataset, operation, and function
-declarations in the source Analytics document.
-
-## Exporting and executing a plan
-
-An exported plan can be inspected, transferred, or executed later without
-recompiling Analytics JSON:
-
-```python
-from uptimely.engine import Engine
-from uptimely.compiler.plan import ExecutionPlan
-
-plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
-result = Engine(plan).execute()
-```
-
-`ExecutionPlan` exposes serialized callables and resolved execution stages.
-To inspect callable order and dependencies in HTML, generate the full website
-from the original Analytics document:
-
-```python
-from uptimely.explorer import explorer
-
-index_path = explorer.create_html(analytics_definition)
-```
-
-`uptimely explorer build` provides the same website. Its execution-plan section
-has Overview, Graph, and Stages pages. The Graph page defaults to 2D and provides
-a 2D/3D selector without navigating away. Both views use compiled callables and their
-dependency edges; feature lineage is shown separately under Feature graph.
-Standalone plan HTML export is not supported; portable-plan JSON export and
-loading do not require website generation.
-
-The overview summarizes callable, function, entity, and feature counts, along
-with stages, dependency edges, and the largest number of callables in a stage.
-Bar charts show the operation breakdown and each stage's size. Stage size
-indicates potential parallelism, not how many callables the engine actually
-runs concurrently.
-
-The [execution engine](engine.md) describes how the built-in runtime executes
-the plan and accumulates dataframes. The plan contract is separate from any one
-engine implementation or orchestration environment.
-
-## Create your own compiler
-
-The built-in compiler is a reference implementation, not a required part of every
-deployment. You can create another compiler to target a different execution
-environment or apply backend-specific planning strategies while retaining the
-[Analytics document](analytics.md) as the source of truth.
-
-Start by deciding which engine will consume the output. A compiler targeting the
-built-in engine must produce its existing execution plan contract. A compiler
-that emits another format needs a corresponding engine or adapter; changing the
-output format alone does not make it executable by the built-in engine.
-
-For a compatible compiler:
-
-1. Parse and validate Analytics without changing the meaning of its
-   bindings, features, and dimensions.
-2. Resolve the dependency graph, including upstream dependencies and dataset
-   writes when supporting feature subsets.
-3. Generate callables with unique identifiers, implementation entrypoints,
-   portable arguments, output identifiers, and explicit dependency identifiers.
-4. Schedule every callable exactly once, placing each dependency in an earlier
-   stage than the callable that consumes it.
-5. Include the resources required by the target engine and declare the
-   compatible plan version and required backend accurately.
-6. Preserve runtime placeholders for the engine rather than embedding
-   environment-specific storage locations during compilation.
-
-In Python, reuse the `Callable`, `Plan`, and `ExecutionPlan` models exported by
-`uptimely.compiler.plan`. The built-in `Compiler.compile()` implementation shows how
-dependency resolution, callable construction, signature inspection, and resource
-export fit together. Reuse those concepts rather than depending on its private
-methods as an extension API.
-
-Validate exported plans by loading them through `ExecutionPlan.from_json()`.
-The loader checks callable identifiers, dependency references, and stage
-ordering, but those structural checks do not establish semantic equivalence.
-Also test the compiler with representative Analytics documents, feature subsets, and
-the target engine to verify that it produces the intended numerical results.
-
-The built-in engine currently supports only `polars`; another backend needs an
-engine that implements it. A compiler may be written in another language, as
-long as its output meets the chosen engine's plan contract.
+- Analytics declarations are prepared and semantically validated.
+- Selected output features exist, and the dependency graph is acyclic.
+- Function entrypoints resolve and Python return annotations match the declared
+  return contracts.
+- Loaded plans use a supported version and valid root fields, callable IDs,
+  dependency references, and stage ordering.

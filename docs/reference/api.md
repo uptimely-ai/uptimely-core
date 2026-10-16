@@ -1,107 +1,50 @@
 # Python API reference
 
-This reference is generated from the package's Python source, type annotations,
-and Google-style docstrings. It covers the main interfaces for authoring,
-compiling, executing, and inspecting analytics.
+Browse the API by its location under `src/uptimely/`. Each package page groups
+classes and functions by their defining module, with signatures, parameters,
+and return values generated from the Python source.
+
+<div class="api-reference" markdown="1">
+
+## Package map
+
+| Package or module | Reference | Purpose |
+| --- | --- | --- |
+| `uptimely.analytics` | <span id="analytics-models-and-operations"></span>[Analytics](api/analytics.md) | Load, validate, prepare, and serialize analytics definitions. |
+| `uptimely.analytics.python` | <span id="python-authoring"></span>[Python authoring](api/python.md) | Declare analytics using Python classes and helpers. |
+| `uptimely.analytics.feature_graph` | <span id="dependency-graphs"></span>[Feature graphs](api/feature-graph.md) | Inspect dependencies and select feature subgraphs. |
+| `uptimely.analytics.validation` | [Analytics validation](api/analytics/validation.md) | Validate document relationships and handle structured errors. |
+| `uptimely.compiler` | <span id="compilation"></span><span id="portable-plans"></span>[Compiler and plans](api/compiler.md) | Compile analytics and read or write portable plans. |
+| `uptimely.engine` | <span id="execution"></span>[Execution engine](api/engine.md) | Execute plans with configurable runtime adapters. |
+| `uptimely.explorer` | <span id="analytics-explorer"></span>[Analytics Explorer](api/explorer.md) | Generate an analytics website and reference data. |
+| `uptimely.row_context` | [Row context](api/row-context.md) | Describe row windows passed to analytical functions. |
+| `uptimely.entrypoint` | [Python entrypoints](api/entrypoint.md) | Load Python callables and inspect their signatures. |
+| `uptimely.storage` | [Storage](api/storage.md) | Read local files and S3 objects through a shared interface. |
+| `uptimely.contracts` | [Function contracts](api/contracts.md) | Inspect operation types, return kinds, and reference syntax. |
+
+## Finding the right interface
+
+- **Author an analytics definition:** start with [Python authoring](api/python.md)
+  or the [analytics format reference](../specification/analytics.md).
+- **Load or prepare a definition:** use the
+  [analytics operations](api/analytics/api.md).
+- **Compile and run it:** use the [compiler](api/compiler.md), then the
+  [engine](api/engine.md).
+- **Inspect or publish it:** use [feature graphs](api/feature-graph.md) and
+  [Explorer](api/explorer.md).
+
+The pages follow the source layout rather than repeating package-level
+re-exports. Public convenience imports such as `uptimely.analytics.Analytics`
+and `uptimely.engine.Engine` remain available.
+
+This reference covers public Python interfaces, including exported types,
+constants, and validation functions. Internal resolution, runtime-state, and
+rendering helpers are not included. CLI command handlers and MCP server internals
+are also outside its scope.
 
 For a runnable workflow, see the
 [repository examples](https://github.com/uptimely-ai/uptimely-core/tree/main/examples).
-The [analytics format reference](../specification/analytics.md) describes
-the declarative contract.
+The [architecture overview](../overview/architecture.md) explains how the
+packages fit together.
 
-## Analytics models and operations
-
-::: uptimely.analytics
-    options:
-      members:
-        - Analytics
-        - load_analytics
-        - from_python
-        - prepare_analytics
-        - write_document
-        - PreparedAnalytics
-        - Entity
-        - Dataset
-        - Order
-        - Dimension
-        - Function
-        - FunctionCatalog
-        - Binding
-        - RowContext
-        - Call
-
-Canonical contract types live in `uptimely.analytics.model`. `Analytics` contains
-only document fields; loading, writing, and semantic preparation are explicit
-operations. Derived functions and calls belong to `PreparedAnalytics`, not the
-document. See [package boundaries and migration](../overview/architecture.md#analytics-package-boundaries).
-
-## Python authoring
-
-::: uptimely.analytics.python.analytics
-
-::: uptimely.analytics.python.entity
-
-::: uptimely.analytics.python.dataset
-
-::: uptimely.analytics.python.dimension
-
-::: uptimely.analytics.python.feature
-
-::: uptimely.analytics.python.mappings
-
-::: uptimely.analytics.python.bind
-
-::: uptimely.analytics.python.ref
-
-::: uptimely.analytics.python.row_context
-
-::: uptimely.analytics.python.conversion
-
-## Compilation
-
-::: uptimely.compiler
-    options:
-      members:
-        - Compiler
-        - CallableGraph
-        - CallableNode
-
-## Portable plans
-
-::: uptimely.compiler.plan
-
-## Execution
-
-::: uptimely.engine
-    options:
-      members:
-        - Engine
-        - EngineConfig
-        - ExecutionResult
-        - DataFrameBackend
-        - ResourceResolver
-        - CallableLoader
-        - PolarsBackend
-        - PlanResourceResolver
-        - EntrypointLoader
-
-## Dependency graphs
-
-::: uptimely.analytics
-    options:
-      members:
-        - FeatureGraph
-        - SubGraph
-
-## Analytics Explorer
-
-::: uptimely.explorer.explorer.Explorer
-
-::: uptimely.explorer.graph_render.GraphStyle
-
-`Explorer.create_html` and the module-level `uptimely.explorer.explorer.create_html`
-helper generate the complete static website with analytics, feature graph,
-and execution plan pages. Individual HTML report exports are not supported.
-`Explorer.create_json` exports reference data; analytics and portable-plan
-JSON exports remain available. These outputs describe analytics, not this Python API reference.
-See [Analytics Explorer](../components/docs.md).
+</div>

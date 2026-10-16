@@ -23,29 +23,6 @@ in an existing development environment. For example,
 [`install-mcp.sh`](scripts/install-mcp.sh) installs the optional MCP extra and
 prepares the example specification.
 
-## Previewing project documentation
-
-The documentation site uses MkDocs and mkdocstrings for the Python API
-reference.
-
-Start the documentation preview from the repository root:
-
-```sh
-poetry run mkdocs serve --dev-addr 0.0.0.0:8000
-```
-
-To include the pump analytics demo, first run the specification export and
-documentation build commands from
-[the documentation workflow](.github/workflows/docs.yml).
-
-Open <http://localhost:8000> using the forwarded port. MkDocs rebuilds the site
-when documentation or Python source files change. Stop the server with `Ctrl+C`.
-
-### Automatic publishing
-
-[The documentation workflow](.github/workflows/docs.yml) builds the site and
-publishes it from `main`. It can also be run manually from the Actions tab.
-
 ## Development process
 
 1. Create a branch from `main`.
@@ -83,59 +60,52 @@ version or date for an individual PR; release preparation moves these entries
 under a version heading. Internal refactors and chores that do not affect users
 do not normally need an entry.
 
-## Branching strategy
+## Branching and releases
 
-This project uses **trunk-based development**:
+### Branching strategy
 
-- `main` is the only long-lived branch and is always releasable.
-- Create short-lived branches off `main`, and merge them back via pull
-  requests. Branch lifetimes are measured in days, not weeks.
-- Releases are tags on `main` (`v0.1.0`, ...); there are no `develop` or
-  `release/*` branches. Tagging a commit runs the CI release workflow that
-  publishes to PyPI and GitHub Releases.
-- Keep `main` green: merge changes that pass CI, and split large work into
-  reviewable steps that each keep the test suite passing. Gate unfinished
-  behavior behind an opt-in code path rather than a long-lived branch.
-- Breaking changes land on `main` like everything else; the `0.x` version
-  policy below covers them.
+The project uses trunk-based development. `main` is the only long-lived branch
+and should always be releasable. Create short-lived branches from `main` and
+merge them back through pull requests; keep `main` green by merging changes
+that pass CI and splitting larger work into reviewable steps. Gate unfinished
+behavior behind an opt-in code path rather than keeping a long-lived branch.
+Releases are tags on `main`; there are no `develop` or `release/*` branches.
 
-## Branch naming
+Name branches `<type>/<short-slug>`, where `<type>` is one of:
 
-Branches are named `<type>/<short-slug>`:
+| Prefix | Use |
+| --- | --- |
+| `feature` | Add a user-facing feature or capability. |
+| `fix` | Correct a bug or unintended behavior. |
+| `docs` | Change documentation. |
+| `refactor` | Restructure code without changing behavior. |
+| `chore` | Perform maintenance or repository upkeep. |
+| `test` | Add or update tests. |
 
-- `<type>` is one of `feature`, `fix`, `docs`, `refactor`, `chore`, `test`.
-  Match the type to changelog intent: `feature` and `fix` usually produce a
-  `CHANGELOG.md` entry, `refactor` and `chore` usually do not.
-- `<short-slug>` is 2–5 lowercase hyphenated words describing what changes.
+`<short-slug>` is 2–5 lowercase, hyphenated words describing the change. For
+example: `feature/multi-output-calculations` or
+`fix/empty-spread-health-score`. Prefix the slug with an issue number when one
+exists (for example, `fix/123-empty-spread`), and link the issue in the PR body
+(for example, `Closes #123`). Do not use personal namespaces, version numbers,
+or dates in branch names. Feature and fix branches usually result in changelog
+entries; refactor and chore branches usually do not.
 
-Examples: `feature/multi-output-calculations`, `fix/empty-spread-health-score`,
-`docs/branching-strategy`. Prefix the slug with an issue number when one
-exists (`fix/123-empty-spread`), but keep the issue link in the PR body too
-(`Closes #123`).
+### Versioning policy
 
-Do not use personal namespaces, version numbers, or dates in branch names —
-releases are tags, and branches are deleted on merge.
+The project follows [Semantic Versioning](https://semver.org). Before `1.0.0`,
+the API is unstable: minor releases may include breaking changes, and patch
+releases may change behavior. From `1.0.0` onward, breaking changes will ship
+only in major releases, with deprecations announced at least one minor release
+in advance.
 
-## Versioning
+### Preparing and publishing releases
 
-This project follows [Semantic Versioning](https://semver.org). While the
-version is `0.x`, the API is unstable: minor releases may include breaking
-changes, and patch releases may change behavior. From `1.0.0` onwards,
-breaking changes will only ship in major releases, with deprecations
-announced at least one minor release in advance.
+Prepare releases in a short-lived PR to `main`, not on a `release/*` branch.
 
-### Preparing and publishing a release
+For a stable release:
 
-Releases are prepared in a short-lived PR to `main`, not on a long-lived
-`release/*` branch.
-
-#### Stable releases
-
-Keep the stable release PR focused on release metadata:
-
-1. Choose the next version according to the versioning policy above.
+1. Choose the next version according to the versioning policy.
 2. Update `version` under `[project]` in [`pyproject.toml`](pyproject.toml).
-   This is the active package version used to build distributions.
 3. In [`CHANGELOG.md`](CHANGELOG.md), change `## [Unreleased]` to
    `## [<version>] - YYYY-MM-DD`, keeping its entries and categories, then add
    a fresh, empty `## [Unreleased]` section above it.
@@ -143,8 +113,8 @@ Keep the stable release PR focused on release metadata:
    `chore/prepare-0-2-0`), run the normal checks, and open a PR against `main`.
    Merge after review and CI pass.
 
-After the release PR merges, run the stable release script from the repository
-root:
+After the PR merges, create and push the release tag from an up-to-date `main`
+checkout using the repository's stable release script:
 
 ```sh
 git switch main
@@ -152,18 +122,13 @@ git pull --ff-only
 ./scripts/tag/stable-release.sh
 ```
 
-The script checks the release version and repository state, then creates and
-pushes the tag. The release workflow verifies the package version and
-`CHANGELOG.md` heading before publishing.
-
-After a stable release, open a follow-up PR to set the next development version
-in `pyproject.toml` and keep a fresh `Unreleased` section in the changelog.
-
-#### Development releases
+The script checks the release version and repository state. After the stable
+release, open a follow-up PR to set the next development version in
+`pyproject.toml` and keep a fresh `Unreleased` section in the changelog.
 
 For a development release, set the package version to a PEP 440 development
-version in a PR to `main`, then merge it after review and CI pass. From the
-repository root, run:
+version in a PR to `main`, then merge it after review and CI pass. From an
+up-to-date `main` checkout, run:
 
 ```sh
 git switch main
@@ -171,16 +136,14 @@ git pull --ff-only
 ./scripts/tag/dev-release.sh
 ```
 
-Increment the development release number for each upload; PyPI does not allow
-replacing an already-published version. Keep changelog entries under
-`Unreleased`.
+Increment the development release number for each upload because PyPI does not
+allow replacing a published version. Keep development-release changelog entries
+under `Unreleased`.
 
-#### PyPI and GitHub publishing
-
-Pushing a release tag triggers
-[`.github/workflows/release.yml`](.github/workflows/release.yml), which
-publishes the package and creates a GitHub release. Merge workflow changes
-before creating a tag so the tagged commit includes them.
+Pushing a release tag triggers the release workflow, which verifies the package
+version and changelog heading before publishing the package to PyPI and
+creating a GitHub release. Merge release-workflow changes before creating a
+tag so the tagged commit includes them.
 
 ## Commit and PR conventions
 

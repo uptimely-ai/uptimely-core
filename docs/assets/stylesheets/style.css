@@ -1,0 +1,47 @@
+.md-typeset pre:has(> code.language-console) {
+  overflow-x: auto;
+  padding: 0;
+  border: 1px solid #374151;
+  border-radius: .65rem;
+  background: #111827;
+  box-shadow: 0 8px 24px #0003;
+}
+.md-typeset pre:has(> code.language-console) > code {
+  background: transparent;
+  color: #e5e7eb;
+  padding: 1rem 1.25rem;
+}
+
+.api-reference > h2 {
+  margin-top: 2rem;
+  padding: .65rem .8rem;
+  border-left: .2rem solid var(--md-primary-fg-color);
+  border-radius: .2rem;
+  background-color: var(--md-default-fg-color--lightest);
+  font-weight: 600;
+}
+
+.api-reference .doc-module > .doc-contents > .doc-children > .doc-object {
+  margin-block: 1.25rem;
+  padding: 0 1rem .75rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: .35rem;
+}
+
+.api-reference .doc-module > .doc-contents > .doc-children > .doc-object > .doc-heading {
+  margin-top: 1rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.api-reference .doc-class > .doc-contents > .doc-children > .doc-object {
+  margin-block: 1rem;
+  padding-left: .75rem;
+  border-left: 1px solid var(--md-default-fg-color--lightest);
+}
+
+@media (max-width: 600px) {
+  .api-reference .doc-module > .doc-contents > .doc-children > .doc-object {
+    padding-inline: .5rem;
+  }
+}

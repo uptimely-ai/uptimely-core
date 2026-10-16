@@ -1,4 +1,4 @@
-"""Canonical function definitions and their operation contracts."""
+"""Function definitions and operation rules for analytics documents."""
 
 from __future__ import annotations
 

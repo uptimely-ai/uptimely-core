@@ -1,4 +1,4 @@
-"""The canonical analytics document model."""
+"""The analytics document model."""
 
 from __future__ import annotations
 

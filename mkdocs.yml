@@ -16,20 +16,31 @@ plugins:
           paths: [src]
           options:
             docstring_style: google
+            show_init: false
             show_signature_annotations: true
             show_root_heading: true
+            show_root_toc_entry: false
+            show_source: false
+            separate_signature: true
+            show_symbol_type_heading: true
             show_if_no_docstring: true
+            filters:
+              - "!^_"
+              - "!^__all__$"
             members_order: source
 
 markdown_extensions:
   - admonition
+  - md_in_html
   - toc:
+      toc_depth: 3
       permalink: true
 
 extra_javascript:
   - assets/javascripts/mermaid.mjs
 
 extra_css:
+  - assets/stylesheets/style.css
   - assets/stylesheets/infographic.css
 
 exclude_docs: |
@@ -47,24 +58,53 @@ validation:
 nav:
   - Home: index.md
   - Demo:
+      - Intro: demo/index.md
       - Pump Analytics: examples/pump_analytics/index.html
   - Overview:
       - The problem: overview/problem.md
-      - Infographic: overview/infographic.md
       - Architecture: overview/architecture.md
-      - Modeling patterns: overview/patterns.md
+      - Analytics: overview/analytics.md
+  - Comparisons:
+      - Analytics platforms: comparisons/analytics-platforms.md
+      - Data science work: comparisons/data-science-work.md
   - Specification:
-      - About Specification: specification/index.md
+      - About: specification/index.md
       - Analytics: specification/analytics.md
       - Compiler: specification/compiler.md
-      - Execution engine: specification/engine.md
+      - Engine: specification/engine.md
   - Components:
       - Overview: components/index.md
-      - Analytics Explorer: components/docs.md
+      - Explorer: components/explorer.md
       - AI agents: components/ai.md
-  - Development:
+  - Analytics development:
       - Project structure: development/project-structure.md
       - Organizing analytics: development/organize.md
       - Analytical functions: development/analytical-functions.md
-  - Roadmap: roadmap.md
-  - Python API: reference/api.md
+  - Roadmap:
+      - Development roadmap: roadmap/index.md
+      - Backlog: roadmap/backlog.md
+  - CLI:
+      - Overview: reference/cli.md
+      - analytics: reference/cli/analytics.md
+      - engine: reference/cli/engine.md
+      - examples: reference/cli/examples.md
+      - explorer: reference/cli/explorer.md
+      - plan: reference/cli/plan.md
+  - Python API:
+      - Overview: reference/api.md
+      - analytics:
+          - Overview: reference/api/analytics.md
+          - api: reference/api/analytics/api.md
+          - model: reference/api/analytics/model.md
+          - resolved: reference/api/analytics/resolved.md
+          - json: reference/api/analytics/json.md
+          - validation: reference/api/analytics/validation.md
+          - python: reference/api/python.md
+          - feature_graph: reference/api/feature-graph.md
+      - compiler: reference/api/compiler.md
+      - engine: reference/api/engine.md
+      - explorer: reference/api/explorer.md
+      - row_context: reference/api/row-context.md
+      - entrypoint: reference/api/entrypoint.md
+      - storage: reference/api/storage.md
+      - contracts: reference/api/contracts.md

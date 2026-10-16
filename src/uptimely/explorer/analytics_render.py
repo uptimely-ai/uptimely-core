@@ -1,4 +1,4 @@
-"""Generate deterministic reference data and HTML from canonical analytics."""
+"""Generate deterministic reference data and HTML from analytics documents."""
 
 from __future__ import annotations
 
@@ -161,7 +161,7 @@ def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], lis
 def _build_context(
     analytics_definition: analytics_model.Analytics, include_generated_at: bool
 ) -> ExplorerContext:
-    """Build the typed template context from a canonical analytics model."""
+    """Build the typed template context from an analytics document model."""
     configuration = analytics_definition.model_dump(mode="json", exclude_none=True)
     for entity_id, entity in analytics_definition.entities.items():
         serialized_entity = configuration.get("entities", {}).get(entity_id)
@@ -274,7 +274,7 @@ def create_json(
     """Export analytics reference data as JSON.
 
     Args:
-        analytics_definition: The canonical analytics model.
+        analytics_definition: The analytics document model.
         output_path: Destination for the reference data.
         include_generated_at: Include a build timestamp.
 

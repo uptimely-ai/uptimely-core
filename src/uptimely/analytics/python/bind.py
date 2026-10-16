@@ -57,7 +57,7 @@ def _entrypoint(function: ref.FunctionReference) -> str:
 
 
 def _binding_value(value: typing.Any) -> typing.Any:
-    """Convert Python references recursively to canonical binding values."""
+    """Convert Python references recursively to document binding values."""
     if isinstance(value, row_context.RowContextBinding):
         return _binding_value(value.value)
     if isinstance(value, ref.Reference):
@@ -117,5 +117,5 @@ def _mapping_id(bind: Bind, identifier: str | None) -> str:
 
 
 def _binding_args(bind: Bind) -> dict[str, typing.Any]:
-    """Convert a Python binding's arguments to canonical binding values."""
+    """Convert a Python binding's arguments to document binding values."""
     return {name: _binding_value(value) for name, value in bind.args.items()}

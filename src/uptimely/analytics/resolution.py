@@ -1,4 +1,4 @@
-"""Derive vectorize functions and calls from canonical analytics declarations."""
+"""Derive vectorize functions and calls from analytics document declarations."""
 
 from __future__ import annotations
 

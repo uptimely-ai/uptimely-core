@@ -23,7 +23,7 @@ def load_document(path: str | pathlib.Path) -> dict[str, typing.Any]:
 
 
 def to_document(analytics_definition: analytics_model.Analytics) -> dict[str, typing.Any]:
-    """Encode canonical models using the analytics document's identifier rules."""
+    """Encode document models using the analytics document's identifier rules."""
     payload = analytics_definition.model_dump(exclude_none=False)
     for entity_id, entity in analytics_definition.entities.items():
         serialized_entity = payload["entities"][entity_id]

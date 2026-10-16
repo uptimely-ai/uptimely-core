@@ -140,7 +140,7 @@ def _create_website_page(
     """Write the linked data-lineage page from the already compiled plan.
 
     Args:
-        analytics_definition: Canonical analytics model.
+        analytics_definition: Analytics document model.
         execution_plan: Compiled plan; no analytical functions are called.
         output_directory: Directory shared by the website pages.
         index_filename: Filename of the website dashboard.

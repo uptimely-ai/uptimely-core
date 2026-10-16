@@ -1,4 +1,4 @@
-"""Shared types for canonical analytics models."""
+"""Shared types for analytics document models."""
 
 from __future__ import annotations
 
