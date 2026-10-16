@@ -60,17 +60,17 @@ def test_argument_definition_supports_recursive_compact_types() -> None:
 
 
 def test_function_catalog_functions_declare_operations() -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
 
     operations = {function.operation for function in analytics_definition.functions.root.values()}
     assert "vectorize" in operations
 
 
 def test_example_manifest_parses_complete_analytics() -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
-    analytics_from_directory = analytics.Analytics(json=ANALYTICS_PATH.parent)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    analytics_from_directory = analytics.load_analytics(ANALYTICS_PATH.parent)
 
-    assert analytics_from_directory.path.endswith("analytics.json")
+    assert analytics_from_directory == analytics_definition
     assert analytics_definition.dimensions["pump"].parent == "production_line"
     assert set(analytics_definition.entities) == {"pump_telemetry", "pump"}
     assert analytics_definition.entities["pump_telemetry"].dimension_ids == [
@@ -92,10 +92,10 @@ def test_example_manifest_parses_complete_analytics() -> None:
         "vectorize",
         "collapse",
     }
-    assert set(analytics_definition.function_catalog.by_operation("vectorize")) - {"maximum"} == {
-        function.id for function in analytics_definition.resolved_functions
+    assert set(analytics_definition.functions.by_operation("vectorize")) - {"maximum"} == {
+        function.id for function in analytics.prepare_analytics(analytics_definition).functions
     }
-    assert len(analytics_definition.resolved_functions) == 7
+    assert len(analytics.prepare_analytics(analytics_definition).functions) == 7
 
     pump_dataset = analytics_definition.entities["pump"].datasets[0]
     collapse = pump_dataset.mappings["bearing_temperature_by_pump"]
@@ -105,7 +105,7 @@ def test_example_manifest_parses_complete_analytics() -> None:
 
 
 def test_analytics_from_entities_python_api(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics.from_python(
+    analytics_definition = analytics.from_python(
         entities=simple_analytics_module.python_analytics.entities,
         dimensions=simple_analytics_module.python_analytics.dimensions,
         name=simple_analytics_module.python_analytics.name,
@@ -117,14 +117,14 @@ def test_analytics_from_entities_python_api(tmp_path: pathlib.Path) -> None:
     assert analytics_definition.name == "Simple analytics"
     assert analytics_definition.source.name == "python_api"
     assert analytics_definition.source.generated is True
-    assert analytics_definition.function_catalog.by_operation("read")
+    assert analytics_definition.functions.by_operation("read")
 
 
 def test_example_timestamp_order_matches_python_declaration() -> None:
-    authored = analytics.Analytics.from_python(
+    authored = analytics.from_python(
         entities=pump_telemetry_analytics.entities, dimensions=pump_telemetry_analytics.dimensions
     )
-    exported = analytics.Analytics(json=ANALYTICS_PATH)
+    exported = analytics.load_analytics(ANALYTICS_PATH)
     expected = [{"dimension": "$dimensions.timestamp", "direction": "asc"}]
     for analytics_definition in (authored, exported):
         assert [
@@ -135,14 +135,14 @@ def test_example_timestamp_order_matches_python_declaration() -> None:
 
 
 def test_analytics_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics.from_python(
+    analytics_definition = analytics.from_python(
         datasets=[simple_analytics_module.dataset_],
         functions=simple_analytics_module.dataset_.function_catalog(),
         name="simple_analytics",
         dimensions=simple_analytics_module.dimensions,
     )
     output_path = tmp_path / "analytics.json"
-    analytics_definition.to_json(output_path)
+    analytics.write_document(analytics_definition, output_path)
 
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     dataset_payload = payload["entities"]["simple_analytics"]["datasets"][0]
@@ -199,9 +199,11 @@ def test_sources_and_transforms_python_analytics() -> None:
             python_analytics.dataset.Dataset(
                 id="transformed_dataset",
                 mappings=[
-                    python_analytics.mapping.Read(
+                    python_analytics.mapping.Mapping(
                         id="read",
-                        bind=bind.bind(python_analytics.ref.function(functions.read_data)),
+                        bind=bind.bind(
+                            python_analytics.ref.function(functions.read_data, operation="read")
+                        ),
                         outputs=[python_analytics.feature.Feature(id="input_1")],
                     ),
                 ],
@@ -216,16 +218,20 @@ def test_sources_and_transforms_python_analytics() -> None:
             python_analytics.dataset.Dataset(
                 id="target",
                 mappings=[
-                    python_analytics.mapping.Read(
+                    python_analytics.mapping.Mapping(
                         id="read",
-                        bind=bind.bind(python_analytics.ref.function(functions.read_data)),
+                        bind=bind.bind(
+                            python_analytics.ref.function(functions.read_data, operation="read")
+                        ),
                         outputs=[python_analytics.feature.Feature(id="target_value")],
                     ),
-                    python_analytics.mapping.Expand(
+                    python_analytics.mapping.Mapping(
                         id="expand_data",
                         inputs=[python_analytics.ref.feature("input_1")],
                         bind=bind.bind(
-                            python_analytics.ref.function(functions.expand_data),
+                            python_analytics.ref.function(
+                                functions.expand_data, operation="expand"
+                            ),
                             df1=python_analytics.ref.dataset("transformed_dataset").dataframe,
                             df2=python_analytics.ref.current_dataset().dataframe,
                         ),
@@ -243,10 +249,12 @@ def test_sources_and_transforms_python_analytics() -> None:
             python_analytics.dataset.Dataset(
                 id="summary",
                 mappings=[
-                    python_analytics.mapping.Collapse(
+                    python_analytics.mapping.Mapping(
                         id="collapse_data",
                         bind=bind.bind(
-                            python_analytics.ref.function(calculation.maximum),
+                            python_analytics.ref.function(
+                                calculation.maximum, operation="collapse"
+                            ),
                             dataset=python_analytics.ref.dataset("target").dataframe,
                             feature=python_analytics.ref.feature("input_2"),
                         ),
@@ -257,7 +265,7 @@ def test_sources_and_transforms_python_analytics() -> None:
             )
         ],
     )
-    analytics_definition = analytics.Analytics.from_python(
+    analytics_definition = analytics.from_python(
         entities=[source, target, summary],
         dimensions=[id_dimension, region_dimension],
         name="transforms_test",

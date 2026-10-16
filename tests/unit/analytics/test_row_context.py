@@ -6,10 +6,10 @@ import polars as pl
 import pydantic
 import pytest
 
-from uptimely import analytics, compile, engine, row_context
-from uptimely import plan as uptimely_plan
+from uptimely import analytics, compiler, engine, row_context
 from uptimely.analytics.python import bind, dataset, dimension, entity, feature, mapping, ref
 from uptimely.analytics.python import row_context as authoring
+from uptimely.compiler import plan as uptimely_plan
 from uptimely.explorer import explorer
 
 
@@ -33,26 +33,26 @@ def maximum(dataset: pl.DataFrame, column: str, output: str) -> pl.DataFrame:
 
 
 def _analytics(context=None, *, ordered=True, dimension_type="datetime"):
-    return analytics.Analytics.from_python(
+    return analytics.from_python(
         datasets=[
             dataset.Dataset(
                 id="observations",
                 order=[dataset.Order(ref.dimension("timestamp"), "asc")] if ordered else [],
                 mappings=[
-                    mapping.Read(
-                        bind=bind.bind(ref.function(read_observations)),
+                    mapping.Mapping(
+                        bind=bind.bind(ref.function(read_observations, operation="read")),
                         outputs=[
                             feature.Feature(id="timestamp", type=dimension_type),
                             feature.Feature(id="temperature", type="integer"),
                         ],
                     ),
-                    mapping.Vectorize(
+                    mapping.Mapping(
                         id="result",
                         inputs=[ref.feature("temperature")],
                         outputs=[feature.Feature(id="result", type="integer")],
                         row_context=context,
                         bind=bind.bind(
-                            ref.function(calculate),
+                            ref.function(calculate, operation="vectorize"),
                             dataset=ref.current_dataset().dataframe,
                             column=ref.feature("temperature").id,
                             output=ref.feature("result").id,
@@ -116,9 +116,9 @@ def test_count_extents_require_nonnegative_integers(factory, value):
 
 
 def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
-    declaration = mapping.Vectorize(
+    declaration = mapping.Mapping(
         bind=bind.bind(
-            ref.function(calculate),
+            ref.function(calculate, operation="vectorize"),
             configuration={
                 "windows": [
                     authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h"),
@@ -145,11 +145,15 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
     first = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h")
     second = authoring.time("8h", dimension=ref.dimension("other"), before="8h")
     with pytest.raises(ValueError, match="one dimension"):
-        mapping.Vectorize(bind=bind.bind(ref.function(calculate), configuration=[first, second]))
-    with pytest.raises(ValueError, match="one measurement"):
-        mapping.Vectorize(
+        mapping.Mapping(
             bind=bind.bind(
-                ref.function(calculate),
+                ref.function(calculate, operation="vectorize"), configuration=[first, second]
+            )
+        )
+    with pytest.raises(ValueError, match="one measurement"):
+        mapping.Mapping(
+            bind=bind.bind(
+                ref.function(calculate, operation="vectorize"),
                 configuration=[
                     first,
                     authoring.rows(8, before=7),
@@ -184,7 +188,10 @@ def test_context_rejects_invalid_metadata(payload):
 
 
 def test_unknown_current_and_whole_dataset_context_are_distinct():
-    assert mapping.Vectorize(bind=bind.bind(ref.function(calculate))).row_context is None
+    assert (
+        mapping.Mapping(bind=bind.bind(ref.function(calculate, operation="vectorize"))).row_context
+        is None
+    )
     assert authoring.current().to_dict() == {"before": {}, "after": {}}
     whole = authoring.dataset()
     assert whole.to_dict() == {"before": "unbounded", "after": "unbounded"}
@@ -250,13 +257,13 @@ def test_analytics_plan_execution_and_explorer_preserve_context(tmp_path: pathli
     ).row_context
     analytics_definition = _analytics(context)
     path = tmp_path / "analytics.json"
-    analytics_definition.to_json(path)
+    analytics.write_document(analytics_definition, path)
     payload = json.loads(path.read_text())
     authored_dataset = payload["entities"]["entity"]["datasets"][0]
     assert "row_context" not in authored_dataset["features"]["result"]
     assert authored_dataset["mappings"]["result"]["row_context"] == context.to_dict()
-    restored = analytics.Analytics(json=path)
-    compiled = compile.Compiler(restored).compile()
+    restored = analytics.load_analytics(path)
+    compiled = compiler.Compiler(restored).compile()
     operation = next(item for item in compiled.callables if item.operation == "vectorize")
     assert operation.input_features == ["temperature"]
     assert operation.row_context == context
@@ -270,13 +277,11 @@ def test_analytics_plan_execution_and_explorer_preserve_context(tmp_path: pathli
     assert "Row context" in (tmp_path / "plan/stages.html").read_text()
 
 
-@pytest.mark.parametrize(
-    "kind", [mapping.Read, mapping.Expand, mapping.Collapse, mapping.Vectorize]
-)
-def test_all_data_mappings_preserve_annotated_context(kind):
-    declaration = kind(
+@pytest.mark.parametrize("operation", ["read", "expand", "collapse", "vectorize"])
+def test_all_data_mappings_preserve_annotated_context(operation):
+    declaration = mapping.Mapping(
         bind=bind.bind(
-            ref.function(calculate),
+            ref.function(calculate, operation=operation),
             configuration={"windows": [authoring.rows(8, before=7)]},
         )
     )
@@ -290,8 +295,8 @@ def test_analytics_plan_and_batch_execution_preserve_context_and_arguments(
     context = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h").row_context
     analytics_definition = _analytics(context)
     analytics_path = tmp_path / "analytics.json"
-    analytics_definition.to_json(analytics_path)
-    restored_analytics = analytics.Analytics(json=analytics_path)
+    analytics.write_document(analytics_definition, analytics_path)
+    restored_analytics = analytics.load_analytics(analytics_path)
     original_mapping = analytics_definition.entities["entity"].datasets[0].mappings["result"]
     restored_mapping = restored_analytics.entities["entity"].datasets[0].mappings["result"]
     assert restored_mapping.row_context == original_mapping.row_context == context
@@ -302,7 +307,9 @@ def test_analytics_plan_and_batch_execution_preserve_context_and_arguments(
         .mappings["result"]
         .binding.model_dump()
     )
-    assert "row_context" not in analytics_definition.calls[0].model_dump()
+    assert (
+        "row_context" not in analytics.prepare_analytics(analytics_definition).calls[0].model_dump()
+    )
     exported = json.loads(analytics_path.read_text())
     exported_dataset = exported["entities"]["entity"]["datasets"][0]
     exported_feature = exported_dataset["features"]["result"]
@@ -315,7 +322,7 @@ def test_analytics_plan_and_batch_execution_preserve_context_and_arguments(
     )
     assert analytics_definition.functions["calculate"].args["column"].type == "string"
 
-    plan = compile.Compiler(restored_analytics).compile()
+    plan = compiler.Compiler(restored_analytics).compile()
     operation = next(item for item in plan.callables if item.operation == "vectorize")
     assert operation.row_context == context
     assert all(item.row_context is None for item in plan.callables if item.operation != "vectorize")
@@ -349,7 +356,7 @@ def test_analytics_plan_and_batch_execution_preserve_context_and_arguments(
 
 
 def test_plan_context_is_present_in_portable_operations() -> None:
-    plan = compile.Compiler(_analytics(context=authoring.current())).compile()
+    plan = compiler.Compiler(_analytics(context=authoring.current())).compile()
     operation = next(item for item in plan.callables if item.output == "result")
     assert operation.row_context == authoring.current()
 
@@ -358,8 +365,8 @@ def test_collapse_functions_execute_without_row_context() -> None:
     source = dataset.Dataset(
         id="observations",
         mappings=[
-            mapping.Read(
-                bind=bind.bind(ref.function(read_observations)),
+            mapping.Mapping(
+                bind=bind.bind(ref.function(read_observations, operation="read")),
                 outputs=[
                     feature.Feature(id="timestamp", type="datetime"),
                     feature.Feature(id="temperature", type="integer"),
@@ -370,10 +377,10 @@ def test_collapse_functions_execute_without_row_context() -> None:
     summary = dataset.Dataset(
         id="summary",
         mappings=[
-            mapping.Collapse(
+            mapping.Mapping(
                 id="summary",
                 bind=bind.bind(
-                    ref.function(maximum),
+                    ref.function(maximum, operation="collapse"),
                     dataset=ref.dataset("observations").dataframe,
                     column=ref.feature("temperature").id,
                     output=ref.feature("temperature_max").id,
@@ -384,7 +391,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         ],
     )
     timestamp = dimension.Dimension(id="timestamp", type="datetime")
-    analytics_definition = analytics.Analytics.from_python(
+    analytics_definition = analytics.from_python(
         entities=[
             entity.Entity(
                 id="observation", name="Observation", dimensions=[timestamp], datasets=[source]
@@ -393,7 +400,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         ],
         dimensions=[timestamp],
     )
-    plan = compile.Compiler(analytics_definition).compile()
+    plan = compiler.Compiler(analytics_definition).compile()
     operation = next(item for item in plan.callables if item.operation == "collapse")
     assert operation.row_context is None
     assert operation.entrypoint.endswith(":maximum")

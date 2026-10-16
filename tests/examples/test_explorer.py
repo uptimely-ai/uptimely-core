@@ -11,15 +11,15 @@ ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/anal
 
 
 def test_analytics_exports_only_json(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics.from_python(
+    analytics_definition = analytics.from_python(
         entities=pump_analytics_module.entities,
         dimensions=pump_analytics_module.dimensions,
         name="Pump analytics",
     )
-    analytics_definition.to_json(tmp_path / "analytics.json")
+    analytics.write_document(analytics_definition, tmp_path / "analytics.json")
 
     assert {path.name for path in tmp_path.iterdir()} == {"analytics.json"}
-    assert analytics.Analytics(json=tmp_path / "analytics.json").name == "Pump analytics"
+    assert analytics.load_analytics(tmp_path / "analytics.json").name == "Pump analytics"
 
 
 class TextCollector(html_parser.HTMLParser):
@@ -53,7 +53,7 @@ def _explorer_counts(analytics_definition: analytics.Analytics) -> dict[str, int
 
 
 def test_json_explorer_have_expected_keys(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
 
     output_path = explorer.Explorer(analytics_definition).create_json(tmp_path / "explorer.json")
     document = json.loads(output_path.read_text(encoding="utf-8"))
@@ -82,7 +82,7 @@ def test_json_explorer_have_expected_keys(tmp_path: pathlib.Path) -> None:
 
 
 def test_json_explorer_counts_match_analytics(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     expected_counts = _explorer_counts(analytics_definition)
 
     output_path = explorer.Explorer(analytics_definition).create_json(tmp_path / "explorer.json")
@@ -96,11 +96,13 @@ def test_json_explorer_counts_match_analytics(tmp_path: pathlib.Path) -> None:
         == expected_counts["dataset_count"]
     )
     assert document["summary"] | expected_counts == document["summary"]
-    assert len(document["feature_dependencies"]) == len(analytics_definition.calls)
+    assert len(document["feature_dependencies"]) == len(
+        analytics.prepare_analytics(analytics_definition).calls
+    )
 
 
 def test_html_explorer_overview_counts_match_analytics(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     analytics_definition.name = "Pump analytics"
     expected_counts = _explorer_counts(analytics_definition)
 

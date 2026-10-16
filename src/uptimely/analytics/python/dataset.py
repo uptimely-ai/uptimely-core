@@ -5,7 +5,9 @@ from __future__ import annotations
 import dataclasses
 import typing
 
-from uptimely.analytics import json as json_analytics
+from uptimely import contracts
+from uptimely.analytics import catalog as function_catalog
+from uptimely.analytics import model as analytics_model
 
 from . import bind, feature, ref
 from . import mappings as mapping_declarations
@@ -25,9 +27,9 @@ class RowScope:
     filtering: str = ""
     coverage: str = ""
 
-    def to_model(self) -> json_analytics.json_model.RowScope:
+    def to_model(self) -> analytics_model.RowScope:
         """Convert this row scope definition to its canonical model."""
-        return json_analytics.json_model.RowScope(
+        return analytics_model.RowScope(
             grain=self.grain,
             filtering=self.filtering,
             coverage=self.coverage,
@@ -47,9 +49,9 @@ class Order:
     dimension: ref.Reference | str
     direction: typing.Literal["asc", "desc"]
 
-    def to_model(self) -> json_analytics.json_model.Order:
+    def to_model(self) -> analytics_model.Order:
         """Convert this ordering key to its canonical model."""
-        return json_analytics.json_model.Order(
+        return analytics_model.Order(
             dimension=(
                 self.dimension.to_model()
                 if isinstance(self.dimension, ref.Reference)
@@ -65,21 +67,14 @@ class Dataset:
 
     id: str
     features: list[feature.Feature] = dataclasses.field(default_factory=list)
-    mappings: list[
-        mapping_declarations.Vectorize
-        | mapping_declarations.Read
-        | mapping_declarations.Conform
-        | mapping_declarations.Expand
-        | mapping_declarations.Collapse
-        | mapping_declarations.Write
-    ] = dataclasses.field(default_factory=list)
+    mappings: list[mapping_declarations.Mapping] = dataclasses.field(default_factory=list)
     description: str | None = None
     row_scope: RowScope = dataclasses.field(default_factory=RowScope)
     order: list[Order] = dataclasses.field(default_factory=list)
 
-    def to_model(self) -> json_analytics.json_model.Dataset:
+    def to_model(self) -> analytics_model.Dataset:
         """Convert this declaration to the canonical Pydantic dataset model."""
-        mappings: dict[str, json_analytics.json_model.Mapping] = {}
+        mappings: dict[str, analytics_model.Mapping] = {}
         feature_models = {item.id: item.to_model() for item in self.features}
         for declaration in self.mappings:
             model = declaration.to_model()
@@ -88,13 +83,13 @@ class Dataset:
                 if isinstance(output, feature.Feature):
                     feature_models.setdefault(output.id, output.to_model())
                 elif isinstance(output, ref.Reference):
-                    feature_id = output.value.removeprefix("$features.")
+                    feature_id = output.value.removeprefix(contracts.FEATURE_PREFIX)
                     if feature_id not in feature_models:
                         raise ValueError(
                             f"Mapping '{model.id}' references undeclared feature '{feature_id}'"
                         )
-                elif output.startswith("$features."):
-                    feature_id = output.removeprefix("$features.")
+                elif output.startswith(contracts.FEATURE_PREFIX):
+                    feature_id = output.removeprefix(contracts.FEATURE_PREFIX)
                     if feature_id not in feature_models:
                         raise ValueError(
                             f"Mapping '{model.id}' references undeclared feature '{feature_id}'"
@@ -103,7 +98,7 @@ class Dataset:
                     raise ValueError(
                         f"Mapping '{model.id}' references undeclared feature '{output}'"
                     )
-        return json_analytics.json_model.Dataset(
+        return analytics_model.Dataset(
             id=self.id,
             description=self.description,
             row_scope=self.row_scope.to_model(),
@@ -112,59 +107,36 @@ class Dataset:
             mappings=mappings,
         )
 
-    def function_catalog(self) -> json_analytics.json_model.FunctionCatalog:
+    def function_catalog(self) -> analytics_model.FunctionCatalog:
         """Build the function templates required by this dataset declaration."""
 
-        def argument(name: str, value: typing.Any) -> json_analytics.json_model.Argument:
-            return json_analytics.json_model.Argument(id=name, **bind._argument_definition(value))
+        def argument(name: str, value: typing.Any) -> analytics_model.Argument:
+            return analytics_model.Argument(id=name, **bind._argument_definition(value))
 
-        functions: dict[str, json_analytics.json_model.FunctionTemplate] = {}
+        catalogs: list[analytics_model.FunctionCatalog] = []
 
-        def register(
-            declaration: mapping_declarations.Vectorize
-            | mapping_declarations.Read
-            | mapping_declarations.Conform
-            | mapping_declarations.Expand
-            | mapping_declarations.Collapse
-            | mapping_declarations.Write,
-        ) -> None:
-            if isinstance(declaration, mapping_declarations.Write):
-                function_id = bind._function_id(declaration.bind)
-                functions[function_id] = json_analytics.json_model.FunctionTemplate(
-                    id=function_id,
-                    operation="write",
-                    returns="none",
-                    entrypoint=bind._entrypoint(declaration.bind.function),
-                    args={
-                        name: argument(name, value) for name, value in declaration.bind.args.items()
-                    },
-                )
-                return
-            operation = {
-                mapping_declarations.Read: "read",
-                mapping_declarations.Conform: "conform",
-                mapping_declarations.Expand: "expand",
-                mapping_declarations.Collapse: "collapse",
-                mapping_declarations.Vectorize: "vectorize",
-            }.get(type(declaration))
-            if operation is None:
-                raise ValueError(
-                    f"Mapping '{bind._mapping_id(declaration.bind, declaration.id)}' "
-                    "must use a category-specific mapping declaration"
-                )
+        def register(declaration: mapping_declarations.Mapping) -> None:
+            operation = declaration.operation
             function_id = bind._function_id(declaration.bind)
             arguments = {
                 name: argument(name, value) for name, value in declaration.bind.args.items()
             }
-            functions[function_id] = json_analytics.json_model.FunctionTemplate(
-                id=function_id,
-                operation=operation,
-                returns="dataframe",
-                entrypoint=bind._entrypoint(declaration.bind.function),
-                args=arguments,
+            catalogs.append(
+                analytics_model.FunctionCatalog(
+                    root={
+                        function_id: function_catalog.function_template(
+                            function_id=function_id,
+                            operation=operation,
+                            entrypoint=bind._entrypoint(declaration.bind.function),
+                            args=arguments,
+                        )
+                    }
+                )
             )
 
         for declaration in self.mappings:
             register(declaration)
 
-        return json_analytics.json_model.FunctionCatalog(root=functions)
+        return analytics_model.FunctionCatalog(
+            root=function_catalog.merge_function_catalogs(catalogs)
+        )

@@ -4,8 +4,10 @@ import pathlib
 import polars as pl
 import pytest
 
-from uptimely import analytics, compile, engine
+from uptimely import analytics, compiler, engine
 from uptimely.analytics.python import bind, dataset, dimension, entity, feature, mapping, ref
+from uptimely.engine import bindings as bindings_module
+from uptimely.engine import state as state_module
 
 
 def read_values() -> pl.DataFrame:
@@ -58,33 +60,33 @@ def dataset_identifier(
 
 
 def _analytics() -> analytics.Analytics:
-    return analytics.Analytics.from_python(
+    return analytics.from_python(
         datasets=[
             dataset.Dataset(
                 id="observations",
                 mappings=[
-                    mapping.Read(
-                        bind=bind.bind(ref.function(read_values)),
+                    mapping.Mapping(
+                        bind=bind.bind(ref.function(read_values, operation="read")),
                         outputs=[
                             feature.Feature(id="id", type="integer"),
                             feature.Feature(id="value", type="integer"),
                         ],
                     ),
-                    mapping.Vectorize(
+                    mapping.Mapping(
                         id="result",
                         inputs=[ref.feature("value")],
                         outputs=[feature.Feature(id="result", type="integer")],
                         bind=bind.bind(
-                            ref.function(add_one),
+                            ref.function(add_one, operation="vectorize"),
                             dataset=ref.current_dataset().dataframe,
                             output=ref.feature("result").id,
                         ),
                     ),
-                    mapping.Vectorize(
+                    mapping.Mapping(
                         id="metadata",
                         outputs=[feature.Feature(id="metadata", type="integer")],
                         bind=bind.bind(
-                            ref.function(metadata_only),
+                            ref.function(metadata_only, operation="vectorize"),
                             dataset=ref.current_dataset().dataframe,
                             identifier=ref.feature("result").id,
                         ),
@@ -98,14 +100,14 @@ def _analytics() -> analytics.Analytics:
 
 def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     analytics_definition = _analytics()
-    computed = compile.Compiler(analytics_definition, features=["result"]).compile()
+    computed = compiler.Compiler(analytics_definition, features=["result"]).compile()
     assert len(computed.callables) == 2
     assert next(
         item for item in computed.callables if item.operation == "vectorize"
     ).input_features == [
         "value",
     ]
-    metadata = compile.Compiler(analytics_definition, features=["metadata"]).compile()
+    metadata = compiler.Compiler(analytics_definition, features=["metadata"]).compile()
     assert all("result" not in item.output_features for item in metadata.callables)
     execution = engine.Engine(metadata).execute()
     assert not execution.failures
@@ -125,7 +127,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
 def test_dataframe_returns_are_validated(
     monkeypatch: pytest.MonkeyPatch, shape: str, message: str
 ) -> None:
-    compiled = compile.Compiler(_analytics(), features=["result"]).compile()
+    compiled = compiler.Compiler(_analytics(), features=["result"]).compile()
 
     def invalid(dataset: pl.DataFrame, output: str) -> object:
         if shape == "missing":
@@ -145,7 +147,7 @@ def test_dataframe_returns_are_validated(
 
 
 def test_returned_row_order_does_not_control_alignment(monkeypatch: pytest.MonkeyPatch) -> None:
-    compiled = compile.Compiler(_analytics(), features=["result"]).compile()
+    compiled = compiler.Compiler(_analytics(), features=["result"]).compile()
 
     def reversed_result(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
         return dataset.with_columns((pl.col("value") + 1).alias(output)).reverse()
@@ -171,38 +173,36 @@ def test_invalid_input_contracts_are_rejected(
     tmp_path: pathlib.Path, inputs: list[str], message: str
 ) -> None:
     path = tmp_path / "analytics.json"
-    _analytics().to_json(path)
+    analytics.write_document(_analytics(), path)
     configuration = json.loads(path.read_text())
     configuration["entities"]["entity"]["datasets"][0]["mappings"]["result"]["features"][
         "inputs"
     ] = inputs
     path.write_text(json.dumps(configuration))
     with pytest.raises(ValueError, match=message):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
     path = tmp_path / "analytics.json"
-    _analytics().to_json(path)
+    analytics.write_document(_analytics(), path)
     configuration = json.loads(path.read_text())
     configuration["functions"]["add_one"]["args"]["dataset"]["type"] = "string"
     path.write_text(json.dumps(configuration))
     with pytest.raises(ValueError, match="requires argument type dataframe"):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 def test_nested_arguments_preserve_literals_and_resolve_dataframes() -> None:
-    compiled = compile.Compiler(_analytics()).compile()
-    runtime = engine.Engine(compiled)
+    compiled = compiler.Compiler(_analytics()).compile()
     frame = read_values()
-    runtime._runtime_datasets = {("entity", "observations"): frame}
-    assert runtime._resolve_value([None, 1], None, None) == [None, 1]
-    resolved = runtime._resolve_value(
-        {"frames": ["observations"]}, None, None, "object{str: array[dataframe]}"
-    )
+    state = state_module.RuntimeState(datasets={("entity", "observations"): frame})
+    bindings = bindings_module.RuntimeBindings(compiled.plan.resources, state, {})
+    assert bindings.resolve_value([None, 1]) == [None, 1]
+    resolved = bindings.resolve_value({"frames": ["observations"]}, "object{str: array[dataframe]}")
     assert resolved["frames"][0] is frame
     with pytest.raises(ValueError, match="dataframe is unavailable"):
-        runtime._resolve_value("missing", None, None, "dataframe")
+        bindings.resolve_value("missing", "dataframe")
 
 
 def test_implicit_dimensions_have_runtime_type_validation(
@@ -211,7 +211,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
     analytics_definition = _analytics()
     source = next(iter(analytics_definition.entities["entity"].datasets[0].mappings.values()))
     source.features.outputs = ["$features.value"]
-    compiled = compile.Compiler(analytics_definition, features=["result"]).compile()
+    compiled = compiler.Compiler(analytics_definition, features=["result"]).compile()
 
     def wrong_dimension() -> pl.DataFrame:
         return read_values_original().with_columns(pl.col("id").cast(pl.String))
@@ -230,7 +230,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     tmp_path: pathlib.Path, with_sink: bool
 ) -> None:
     path = tmp_path / "analytics.json"
-    _analytics().to_json(path)
+    analytics.write_document(_analytics(), path)
     configuration = json.loads(path.read_text())
     dataset = configuration["entities"]["entity"]["datasets"][0]
     del dataset["features"]["id"]
@@ -251,7 +251,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
             },
         }
     path.write_text(json.dumps(configuration))
-    compiled = compile.Compiler(analytics.Analytics(json=path), features=["result"]).compile()
+    compiled = compiler.Compiler(analytics.load_analytics(path), features=["result"]).compile()
     execution = engine.Engine(compiled).execute()
     assert not execution.failures
     assert execution.datasets["entity", "observations"].sort("id")["result"].to_list() == [11, 21]
@@ -260,7 +260,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
 @pytest.mark.parametrize("dataframe", [False, True])
 def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: bool) -> None:
     source_reference = ref.dataset("source")
-    analytics_definition = analytics.Analytics.from_python(
+    analytics_definition = analytics.from_python(
         dimensions=[
             dimension.Dimension(id="id", type="integer"),
             dimension.Dimension(id="region", type="string"),
@@ -274,8 +274,8 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
                     dataset.Dataset(
                         id="source",
                         mappings=[
-                            mapping.Read(
-                                bind=bind.bind(ref.function(read_lower_grain)),
+                            mapping.Mapping(
+                                bind=bind.bind(ref.function(read_lower_grain, operation="read")),
                                 outputs=[
                                     feature.Feature(id="value", type="integer"),
                                 ],
@@ -295,13 +295,14 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
                     dataset.Dataset(
                         id="target",
                         mappings=[
-                            mapping.Read(
+                            mapping.Mapping(
                                 bind=bind.bind(
-                                    ref.function(read_target_grain), include_second=dataframe
+                                    ref.function(read_target_grain, operation="read"),
+                                    include_second=dataframe,
                                 ),
                                 outputs=[feature.Feature(id="target_value", type="integer")],
                             ),
-                            mapping.Expand(
+                            mapping.Mapping(
                                 inputs=[ref.feature("value")],
                                 outputs=[
                                     feature.Feature(
@@ -310,14 +311,14 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
                                 ],
                                 bind=(
                                     bind.bind(
-                                        ref.function(copy_values),
+                                        ref.function(copy_values, operation="expand"),
                                         dataset=source_reference.dataframe,
                                         other_dataset=ref.current_dataset().dataframe,
                                         output=ref.feature("copied").id,
                                     )
                                     if dataframe
                                     else bind.bind(
-                                        ref.function(dataset_identifier),
+                                        ref.function(dataset_identifier, operation="expand"),
                                         dataset=source_reference.dataframe,
                                         other_dataset=ref.current_dataset().dataframe,
                                         identifier=source_reference.id,
@@ -331,7 +332,7 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
             ),
         ],
     )
-    compiled = compile.Compiler(analytics_definition, features=["copied"]).compile()
+    compiled = compiler.Compiler(analytics_definition, features=["copied"]).compile()
     assert len(compiled.callables) == 3
     execution = engine.Engine(compiled).execute()
     assert not execution.failures

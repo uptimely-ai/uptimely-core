@@ -94,10 +94,10 @@ telemetry_features = [
 ]
 
 telemetry_mappings = [
-    mapping.Read(
+    mapping.Mapping(
         id="read_pump_telemetry",
         bind=bind.bind(
-            ref.function(functions.source.read_pump_telemetry),
+            ref.function(functions.source.read_pump_telemetry, operation="read"),
             source=ref.source("telemetry_source"),
             environment="development",
         ),
@@ -113,11 +113,12 @@ telemetry_mappings = [
             ref.feature("motor_power"),
         ],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="recommended_flow_rate",
         bind=bind.bind(
             ref.function(
-                "examples.pump_analytics.functions.calculation:extract_recommendation_value"
+                "examples.pump_analytics.functions.calculation:extract_recommendation_value",
+                operation="vectorize",
             ),
             optimization_attribute="recommended_flow_rate",
             column=ref.feature("operating_point_recommendation"),
@@ -127,10 +128,10 @@ telemetry_mappings = [
         inputs=[ref.feature("operating_point_recommendation")],
         outputs=[ref.feature("recommended_flow_rate")],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="recommended_discharge_pressure",
         bind=bind.bind(
-            ref.function(functions.calculation.extract_recommendation_value),
+            ref.function(functions.calculation.extract_recommendation_value, operation="vectorize"),
             optimization_attribute="recommended_discharge_pressure",
             column=ref.feature("operating_point_recommendation"),
             dataset=ref.current_dataset().dataframe,
@@ -139,10 +140,10 @@ telemetry_mappings = [
         inputs=[ref.feature("operating_point_recommendation")],
         outputs=[ref.feature("recommended_discharge_pressure")],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="energy_cost_score",
         bind=bind.bind(
-            ref.function(functions.calculation.extract_recommendation_value),
+            ref.function(functions.calculation.extract_recommendation_value, operation="vectorize"),
             optimization_attribute="energy_cost_score",
             column=ref.feature("operating_point_recommendation"),
             dataset=ref.current_dataset().dataframe,
@@ -151,10 +152,10 @@ telemetry_mappings = [
         inputs=[ref.feature("operating_point_recommendation")],
         outputs=[ref.feature("energy_cost_score")],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="converged",
         bind=bind.bind(
-            ref.function(functions.calculation.extract_recommendation_value),
+            ref.function(functions.calculation.extract_recommendation_value, operation="vectorize"),
             optimization_attribute="converged",
             column=ref.feature("operating_point_recommendation"),
             dataset=ref.current_dataset().dataframe,
@@ -163,11 +164,12 @@ telemetry_mappings = [
         inputs=[ref.feature("operating_point_recommendation")],
         outputs=[ref.feature("converged")],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="pressure_flow_efficiency",
         bind=bind.bind(
             ref.function(
-                "examples/pump_analytics/functions/calculation.py:pressure_flow_efficiency"
+                "examples/pump_analytics/functions/calculation.py:pressure_flow_efficiency",
+                operation="vectorize",
             ),
             pressure_features=[
                 ref.feature("discharge_pressure"),
@@ -180,11 +182,11 @@ telemetry_mappings = [
         inputs=[ref.feature(name) for name in ("discharge_pressure", "flow_rate", "motor_power")],
         outputs=[ref.feature("pressure_flow_efficiency")],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="bearing_temperature_delta",
         row_context=row_context.rows(1, before=1),
         bind=bind.bind(
-            ref.function(functions.calculation.bearing_temperature_delta),
+            ref.function(functions.calculation.bearing_temperature_delta, operation="vectorize"),
             temperature=ref.feature("bearing_temperature"),
             partition_by=[
                 ref.dimension("plant"),
@@ -198,11 +200,13 @@ telemetry_mappings = [
         inputs=[ref.feature("bearing_temperature")],
         outputs=[ref.feature("bearing_temperature_delta")],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="vibration_delta",
         row_context=row_context.rows(1, before=1),
         bind=bind.bind(
-            ref.function(functions.calculation.vibration_delta_from_previous),
+            ref.function(
+                functions.calculation.vibration_delta_from_previous, operation="vectorize"
+            ),
             function_id="vibration_delta_from_previous",
             vibration=ref.feature("vibration_rms"),
             partition_by=[
@@ -217,10 +221,10 @@ telemetry_mappings = [
         inputs=[ref.feature("vibration_rms")],
         outputs=[ref.feature("vibration_delta")],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="pump_health_score",
         bind=bind.bind(
-            ref.function(functions.calculation.pump_health_score),
+            ref.function(functions.calculation.pump_health_score, operation="vectorize"),
             health_features=[
                 ref.feature("bearing_temperature_delta"),
                 ref.feature("vibration_delta"),
@@ -235,10 +239,12 @@ telemetry_mappings = [
         ],
         outputs=[ref.feature("pump_health_score")],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="operating_point_recommendation",
         bind=bind.bind(
-            ref.function(functions.calculation.optimize_pump_operating_point),
+            ref.function(
+                functions.calculation.optimize_pump_operating_point, operation="vectorize"
+            ),
             optimization_features=[
                 ref.feature("discharge_pressure"),
                 ref.feature("flow_rate"),
@@ -261,7 +267,7 @@ telemetry_mappings = [
         ],
         outputs=[ref.feature("operating_point_recommendation")],
     ),
-    mapping.Write(
+    mapping.Mapping(
         id="write_pump_telemetry",
         inputs=[
             ref.feature(name)
@@ -278,7 +284,7 @@ telemetry_mappings = [
             )
         ],
         bind=bind.bind(
-            ref.function(functions.sink.write_pump_telemetry),
+            ref.function(functions.sink.write_pump_telemetry, operation="write"),
             dataset=ref.current_dataset(),
             features=[
                 ref.feature("recommended_flow_rate"),

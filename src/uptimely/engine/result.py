@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import dataclasses
+import typing
+
+type CallableStatus = typing.Literal["succeeded", "failed", "skipped"]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -11,7 +14,7 @@ class ExecutionResult:
 
     datasets: dict[tuple[str, str], object]
     calculated_outputs: dict[tuple[str, str, str], object]
-    callable_statuses: dict[str, str]
+    callable_statuses: dict[str, CallableStatus]
     durations: dict[str, float]
     failures: dict[str, str]
     plan_version: str

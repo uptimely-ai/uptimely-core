@@ -5,7 +5,8 @@ import pydantic
 import pytest
 
 from uptimely import analytics
-from uptimely.analytics import models, validation
+from uptimely.analytics import references, validation
+from uptimely.analytics.feature_graph import models
 
 ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 
@@ -21,31 +22,34 @@ def test_analytics_rejects_unknown_fields(tmp_path: pathlib.Path) -> None:
     configuration["unexpected"] = True
 
     with pytest.raises(pydantic.ValidationError, match="unexpected"):
-        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "unknown.json"))
+        analytics.load_analytics(_write_configuration(tmp_path, configuration, "unknown.json"))
 
 
 def test_analytics_accepts_top_level_name(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
     configuration["name"] = "Pump analytics"
 
-    analytics_definition = analytics.Analytics(
-        json=_write_configuration(tmp_path, configuration, "named.json")
+    analytics_definition = analytics.load_analytics(
+        _write_configuration(tmp_path, configuration, "named.json")
     )
 
     assert analytics_definition.name == "Pump analytics"
 
 
-def test_analytics_json_constructor_preserves_resolved_data() -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+def test_preparation_keeps_resolved_data_separate_from_the_document() -> None:
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
 
-    assert analytics_definition.path == str(ANALYTICS_PATH)
-    assert analytics_definition.resolved_functions
-    assert analytics_definition.calls
+    prepared = analytics.prepare_analytics(analytics_definition)
+    assert prepared.document is analytics_definition
+    assert prepared.functions
+    assert prepared.calls
+    assert not hasattr(analytics_definition, "calls")
+    assert not hasattr(analytics_definition, "path")
 
 
-def test_analytics_json_constructor_rejects_model_fields() -> None:
-    with pytest.raises(ValueError, match="either json or analytics fields"):
-        analytics.Analytics(json=ANALYTICS_PATH, name="Pump analytics")
+def test_canonical_model_rejects_file_loading_arguments() -> None:
+    with pytest.raises(pydantic.ValidationError, match="json"):
+        analytics.Analytics.model_validate({"json": str(ANALYTICS_PATH)})
 
 
 def test_analytics_rejects_unsupported_version(tmp_path: pathlib.Path) -> None:
@@ -53,7 +57,7 @@ def test_analytics_rejects_unsupported_version(tmp_path: pathlib.Path) -> None:
     configuration["version"] = "9.9.9"
 
     with pytest.raises(pydantic.ValidationError, match="version"):
-        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "version.json"))
+        analytics.load_analytics(_write_configuration(tmp_path, configuration, "version.json"))
 
 
 def test_analytics_rejects_dimension_parent_cycles(tmp_path: pathlib.Path) -> None:
@@ -61,7 +65,7 @@ def test_analytics_rejects_dimension_parent_cycles(tmp_path: pathlib.Path) -> No
     configuration["dimensions"]["plant"]["parent"] = "pump"
 
     with pytest.raises(ValueError, match="Dimension parent cycle.*plant"):
-        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "cycle.json"))
+        analytics.load_analytics(_write_configuration(tmp_path, configuration, "cycle.json"))
 
 
 def test_analytics_rejects_duplicate_dataset_ids(tmp_path: pathlib.Path) -> None:
@@ -70,7 +74,7 @@ def test_analytics_rejects_duplicate_dataset_ids(tmp_path: pathlib.Path) -> None
     configuration["entities"]["pump"]["datasets"].append(duplicate)
 
     with pytest.raises(ValueError, match="Duplicate dataset id.*pump_dataset"):
-        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "datasets.json"))
+        analytics.load_analytics(_write_configuration(tmp_path, configuration, "datasets.json"))
 
 
 def test_analytics_errors_expose_stable_code_and_path(tmp_path: pathlib.Path) -> None:
@@ -79,7 +83,24 @@ def test_analytics_errors_expose_stable_code_and_path(tmp_path: pathlib.Path) ->
     configuration["entities"]["pump_telemetry"]["datasets"].append(duplicate)
 
     with pytest.raises(validation.AnalyticsError) as error:
-        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "datasets.json"))
+        analytics.load_analytics(_write_configuration(tmp_path, configuration, "datasets.json"))
+
+    assert error.value.code == "duplicate_dataset_id"
+    assert error.value.path == ("entities", "pump", "datasets", "pump_dataset")
+
+
+def test_validation_reports_duplicate_dataset_before_invalid_dimension_parent(
+    tmp_path: pathlib.Path,
+) -> None:
+    configuration = json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
+    duplicate = dict(configuration["entities"]["pump"]["datasets"][0])
+    configuration["entities"]["pump_telemetry"]["datasets"].append(duplicate)
+    configuration["dimensions"]["plant"]["parent"] = "missing_dimension"
+
+    with pytest.raises(validation.AnalyticsError) as error:
+        analytics.load_analytics(
+            _write_configuration(tmp_path, configuration, "multiple_errors.json")
+        )
 
     assert error.value.code == "duplicate_dataset_id"
     assert error.value.path == ("entities", "pump", "datasets", "pump_dataset")
@@ -91,7 +112,7 @@ def test_analytics_rejects_unknown_write_function(tmp_path: pathlib.Path) -> Non
     dataset["mappings"]["write_pump_telemetry"]["binding"]["function"] = "missing_write"
 
     with pytest.raises(ValueError, match="mappings reference unknown functions: missing_write"):
-        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "write.json"))
+        analytics.load_analytics(_write_configuration(tmp_path, configuration, "write.json"))
 
 
 def test_analytics_rejects_undeclared_binding_arguments(tmp_path: pathlib.Path) -> None:
@@ -105,7 +126,7 @@ def test_analytics_rejects_undeclared_binding_arguments(tmp_path: pathlib.Path) 
         ValueError,
         match="Binding for function read_pump_telemetry has unknown arguments: unexpected",
     ):
-        analytics.Analytics(json=_write_configuration(tmp_path, configuration, "arguments.json"))
+        analytics.load_analytics(_write_configuration(tmp_path, configuration, "arguments.json"))
 
 
 def test_feature_references_are_explicit_and_recursive() -> None:
@@ -115,7 +136,7 @@ def test_feature_references_are_explicit_and_recursive() -> None:
         "nested": {"columns": ["$features.flow_rate", "$features.bearing_temperature"]},
     }
 
-    assert analytics.AnalyticsParser._replace_arg_placeholders(args, "telemetry") == {
+    assert references.resolve_binding_args(args, "telemetry") == {
         "feature": "bearing_temperature",
         "literal": "bearing_temperature_max",
         "nested": {"columns": ["flow_rate", "bearing_temperature"]},
@@ -125,9 +146,9 @@ def test_feature_references_are_explicit_and_recursive() -> None:
 def test_feature_placeholder_resolves_to_bound_feature_id() -> None:
     args = {"output": "$features.@"}
 
-    assert analytics.AnalyticsParser._replace_arg_placeholders(
-        args, "dataset", "calculated_feature"
-    ) == {"output": "calculated_feature"}
+    assert references.resolve_binding_args(args, "dataset", "calculated_feature") == {
+        "output": "calculated_feature"
+    }
 
 
 def test_structural_references_compile_to_identifiers() -> None:
@@ -137,16 +158,44 @@ def test_structural_references_compile_to_identifiers() -> None:
         "dimension": "$dimensions.pump",
     }
 
-    assert analytics.AnalyticsParser._replace_arg_placeholders(args, "pump_telemetry_dataset") == {
+    assert references.resolve_binding_args(args, "pump_telemetry_dataset") == {
         "current": "pump_telemetry_dataset",
         "specific": "pump_units",
         "dimension": "pump",
     }
 
 
+def test_nested_selectors_resolve_without_changing_literal_values() -> None:
+    args = {
+        "nested": [
+            "$datasets.@.dataframe",
+            {"dataset": "$datasets.other.id", "feature": "$features.@.id"},
+            "$dimensions.pump.id",
+            "ordinary.id",
+            0,
+            None,
+        ]
+    }
+
+    assert references.resolve_binding_args(args, "telemetry", "calculated") == {
+        "nested": [
+            "telemetry",
+            {"dataset": "other", "feature": "calculated"},
+            "pump",
+            "ordinary.id",
+            0,
+            None,
+        ]
+    }
+    assert references.dataset_dependencies(args, "telemetry") == ["telemetry"]
+    assert references.resolve_binding_args({"feature": "$features.@.id"}, "telemetry") == {
+        "feature": "$features.@.id"
+    }
+
+
 def test_system_and_subset_support_multiple_variables() -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
-    assert len(analytics_definition.resolved_functions) == 7
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    assert len(analytics.prepare_analytics(analytics_definition).functions) == 7
     collapse = (
         analytics_definition.entities["pump"].datasets[0].mappings["bearing_temperature_by_pump"]
     )
@@ -186,8 +235,8 @@ def test_system_and_subset_support_multiple_variables() -> None:
 
 
 def test_analytics_validation_rejects_missing_output_variables() -> None:
-    analytics_definition = analytics.AnalyticsParser()
-    analytics_definition.functions = [
+    analytics_definition = analytics.Analytics()
+    functions = [
         analytics.Function(
             id="broken.function",
             type="python_function",
@@ -195,7 +244,7 @@ def test_analytics_validation_rejects_missing_output_variables() -> None:
             info={},
         )
     ]
-    analytics_definition.calls = [
+    calls = [
         analytics.Call(
             function="broken.function",
             entity="temperature",
@@ -204,7 +253,7 @@ def test_analytics_validation_rejects_missing_output_variables() -> None:
     ]
 
     with pytest.raises(ValueError, match="Every call must define a non-empty output feature name"):
-        analytics_definition.validate()
+        validation.validate_prepared(analytics_definition, functions, calls)
 
 
 def test_analytics_validation_rejects_duplicate_feature_names(tmp_path: pathlib.Path) -> None:
@@ -229,7 +278,7 @@ def test_analytics_validation_rejects_duplicate_feature_names(tmp_path: pathlib.
     analytics_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(ValueError, match="Duplicate feature name: pressure_flow_efficiency"):
-        analytics.Analytics(json=analytics_path)
+        analytics.load_analytics(analytics_path)
 
 
 def test_analytics_validation_rejects_duplicate_fragment_input_names(
@@ -247,7 +296,7 @@ def test_analytics_validation_rejects_duplicate_fragment_input_names(
         ValueError,
         match="Feature bearing_temperature is produced by multiple mappings",
     ):
-        analytics.Analytics(json=analytics_path)
+        analytics.load_analytics(analytics_path)
 
 
 def test_dimension_outputs_are_implicit_in_mapping(
@@ -260,7 +309,7 @@ def test_dimension_outputs_are_implicit_in_mapping(
     analytics_path = tmp_path / "analytics.json"
     analytics_path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    analytics.Analytics(json=analytics_path)
+    analytics.load_analytics(analytics_path)
 
 
 def test_analytics_validation_rejects_unknown_vectorize_template(
@@ -277,7 +326,7 @@ def test_analytics_validation_rejects_unknown_vectorize_template(
         ValueError,
         match="mappings reference unknown functions: missing_vectorize_template",
     ):
-        analytics.Analytics(json=analytics_path)
+        analytics.load_analytics(analytics_path)
 
 
 def test_analytics_validation_rejects_feature_dimension_name_collision(
@@ -297,7 +346,7 @@ def test_analytics_validation_rejects_feature_dimension_name_collision(
         ValueError,
         match="Calculated feature names cannot duplicate entity dimensions: pump",
     ):
-        analytics.Analytics(json=analytics_path)
+        analytics.load_analytics(analytics_path)
 
 
 def test_analytics_validation_rejects_cross_dataset_feature_dependency(
@@ -330,4 +379,4 @@ def test_analytics_validation_rejects_cross_dataset_feature_dependency(
         ValueError,
         match="use a source resource operation",
     ):
-        analytics.Analytics(json=analytics_path)
+        analytics.load_analytics(analytics_path)

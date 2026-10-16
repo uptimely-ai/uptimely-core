@@ -5,6 +5,8 @@ from __future__ import annotations
 import dataclasses
 from collections import abc
 
+from uptimely import contracts
+
 __all__ = [
     "Reference",
     "FunctionReference",
@@ -24,6 +26,7 @@ class FunctionReference:
 
     module: str
     name: str
+    operation: contracts.FunctionOperation | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.module, str):
@@ -34,6 +37,8 @@ class FunctionReference:
             raise TypeError("Function reference name must be a string")
         if not self.name.isidentifier():
             raise ValueError("Function reference name must be a Python identifier")
+        if self.operation is not None and self.operation not in contracts.FUNCTION_OPERATIONS:
+            raise ValueError(f"Unsupported function operation: {self.operation}")
 
     @property
     def entrypoint(self) -> str:
@@ -43,6 +48,8 @@ class FunctionReference:
 
 def function(
     function: abc.Callable[..., object] | str,
+    *,
+    operation: contracts.FunctionOperation | None = None,
 ) -> FunctionReference:
     """Reference a callable or a ``module:function`` entrypoint string.
 
@@ -52,6 +59,7 @@ def function(
             ``https://example.org/module.py:calculate``, or
             ``s3://bucket/module.py:calculate``. Creating a reference does not
             load code; compilation and execution do.
+        operation: Optional operation metadata for generic mapping declarations.
 
     Returns:
         A reference containing the module location and function name.
@@ -59,7 +67,7 @@ def function(
     Raises:
         TypeError: If the argument is neither callable nor a string.
         ValueError: If the entrypoint is invalid or the callable has no valid
-            module and function name.
+            module and function name, or if operation is unsupported.
     """
     if isinstance(function, str):
         module, separator, name = function.rpartition(":")
@@ -74,7 +82,7 @@ def function(
             raise ValueError(
                 "Callable must have a module and function name; pass an entrypoint string instead"
             )
-    return FunctionReference(module=module, name=name)
+    return FunctionReference(module=module, name=name, operation=operation)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -91,24 +99,24 @@ class Reference:
     @property
     def id(self) -> Reference:
         """Pass the referenced resource's identifier as a string argument."""
-        return Reference(type="string", value=f"{self.value}.id")
+        return Reference(type="string", value=f"{self.value}{contracts.ID_SELECTOR}")
 
     @property
     def dataframe(self) -> Reference:
         """Pass a dataset's materialized dataframe as an argument."""
         if self.type != "dataset":
             raise ValueError("Only dataset references have a dataframe selector")
-        return Reference(type="dataset", value=f"{self.value}.dataframe")
+        return Reference(type="dataset", value=f"{self.value}{contracts.DATAFRAME_SELECTOR}")
 
 
 def current_dataset() -> Reference:
     """Reference the dataset currently being evaluated."""
-    return Reference(type="dataset", value="$datasets.@")
+    return Reference(type="dataset", value=f"{contracts.DATASET_PREFIX}{contracts.CURRENT_ID}")
 
 
 def dataset(name: str) -> Reference:
     """Reference a dataset by name."""
-    return Reference(type="dataset", value=f"$datasets.{name}")
+    return Reference(type="dataset", value=f"{contracts.DATASET_PREFIX}{name}")
 
 
 def source(name: str, attribute: str = "path") -> str:
@@ -123,9 +131,9 @@ def sink(name: str, attribute: str = "path") -> str:
 
 def feature(name: str) -> Reference:
     """Reference a source or calculated feature by name."""
-    return Reference(type="feature", value=f"$features.{name}")
+    return Reference(type="feature", value=f"{contracts.FEATURE_PREFIX}{name}")
 
 
 def dimension(name: str) -> Reference:
     """Reference a dataset dimension by name."""
-    return Reference(type="dimension", value=f"$dimensions.{name}")
+    return Reference(type="dimension", value=f"{contracts.DIMENSION_PREFIX}{name}")

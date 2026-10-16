@@ -4,8 +4,11 @@ import pathlib
 import polars as pl
 import pytest
 
+from uptimely import compiler as uptimely_compiler
 from uptimely import engine as uptimely_engine
-from uptimely import plan as uptimely_plan
+from uptimely.compiler import plan as uptimely_plan
+from uptimely.engine import bindings as bindings_module
+from uptimely.engine import state as state_module
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
 
@@ -48,6 +51,71 @@ def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
     assert written["dataset"].select("asset_id", "doubled").rows() == [("A", 4), ("B", 6)]
 
 
+def test_saved_plan_executes_without_compiler(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    saved_plan = _plan()
+
+    def read(source: str) -> pl.DataFrame:
+        assert source == "/tmp/telemetry.parquet"
+        return pl.DataFrame({"asset_id": ["A", "B"], "reading": [2, 3]})
+
+    def double(column: str, dataset: pl.DataFrame) -> pl.DataFrame:
+        return dataset.with_columns((pl.col(column) * 2).alias("doubled"))
+
+    def write(dataset: pl.DataFrame, features: list[str]) -> None:
+        assert features == ["doubled"]
+
+    def fail_compile(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("Saved-plan execution must not compile analytics")
+
+    monkeypatch.setattr(uptimely_compiler.Compiler, "compile", fail_compile)
+    engine = uptimely_engine.Engine(
+        saved_plan,
+        bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
+        callable_loader=_Loader({"test:read": read, "test:double": double, "test:write": write}),
+    )
+
+    result = engine.execute()
+
+    assert result.failures == {}
+    assert result.datasets["asset", "telemetry"]["doubled"].to_list() == [4, 6]
+
+
+def test_repeated_execution_does_not_leak_runtime_state() -> None:
+    read_count = 0
+
+    def read(source: str) -> pl.DataFrame:
+        nonlocal read_count
+        assert source == "/tmp/telemetry.parquet"
+        read_count += 1
+        return pl.DataFrame({"asset_id": ["A", "B"], "reading": [read_count, read_count + 1]})
+
+    def double(column: str, dataset: pl.DataFrame) -> pl.DataFrame:
+        return dataset.with_columns((pl.col(column) * 2).alias("doubled"))
+
+    def write(dataset: pl.DataFrame, features: list[str]) -> None:
+        assert features == ["doubled"]
+        assert dataset["doubled"].to_list() in ([2, 4], [4, 6])
+
+    engine = uptimely_engine.Engine(
+        _plan(),
+        bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
+        callable_loader=_Loader({"test:read": read, "test:double": double, "test:write": write}),
+    )
+
+    first_result = engine.execute()
+    second_result = engine.execute()
+
+    assert first_result.failures == second_result.failures == {}
+    assert first_result.datasets is not second_result.datasets
+    assert first_result.calculated_outputs is not second_result.calculated_outputs
+    assert first_result.datasets["asset", "telemetry"]["doubled"].to_list() == [2, 4]
+    assert second_result.datasets["asset", "telemetry"]["doubled"].to_list() == [4, 6]
+    first_output = first_result.calculated_outputs["asset", "telemetry", "doubled"]
+    assert first_output["doubled"].to_list() == [2, 4]
+
+
 def test_execute_stops_after_a_failed_operation() -> None:
     called = False
 
@@ -71,6 +139,11 @@ def test_execute_stops_after_a_failed_operation() -> None:
     assert result.callable_statuses[read_id] == "failed"
     assert "source unavailable" in result.failures[read_id]
     assert result.callable_statuses[write_id] == "skipped"
+    assert result.callable_statuses == {
+        callable.id: "failed" if callable.id == read_id else "skipped"
+        for callable in engine.plan.callables
+    }
+    assert set(result.durations) == {read_id}
     assert called is False
 
 
@@ -93,20 +166,43 @@ def test_engine_rejects_execution_plan_as_resource_override() -> None:
 @pytest.mark.parametrize("reference", ["?", "?storage.source", "?storage.source.path.extra"])
 def test_engine_rejects_malformed_runtime_references(reference: str) -> None:
     engine = uptimely_engine.Engine(_plan())
+    bindings = bindings_module.RuntimeBindings(
+        engine.resources, state_module.RuntimeState(), engine.bind
+    )
 
     with pytest.raises(ValueError, match="Malformed runtime reference"):
-        engine._resolve_runtime_reference(reference)
+        bindings.resolve_runtime_reference(reference)
 
 
 def test_engine_rejects_ambiguous_fragment_references() -> None:
-    engine = uptimely_engine.Engine(_plan())
-    engine._runtime_fragments = {
-        ("first", "shared"): pl.DataFrame({"asset_id": ["A"]}),
-        ("second", "shared"): pl.DataFrame({"asset_id": ["B"]}),
-    }
+    state = state_module.RuntimeState(
+        fragments={
+            ("first", "shared"): pl.DataFrame({"asset_id": ["A"]}),
+            ("second", "shared"): pl.DataFrame({"asset_id": ["B"]}),
+        }
+    )
 
     with pytest.raises(ValueError, match="Ambiguous fragment reference: shared"):
-        engine._dataframe_by_id("shared")
+        state.dataframe_by_id("shared")
+
+
+def test_runtime_state_prefers_dataset_to_fragment_lookup() -> None:
+    dataset = pl.DataFrame({"asset_id": ["dataset"]})
+    fragment = pl.DataFrame({"asset_id": ["fragment"]})
+    state = state_module.RuntimeState(
+        datasets={("first", "shared"): dataset},
+        fragments={("first", "shared"): fragment},
+    )
+
+    assert state.dataframe_by_id("shared") is dataset
+
+
+def test_runtime_state_is_not_shared_between_instances() -> None:
+    first = state_module.RuntimeState()
+    second = state_module.RuntimeState()
+    first.datasets["asset", "telemetry"] = pl.DataFrame({"asset_id": ["A"]})
+
+    assert second.datasets == {}
 
 
 def test_execute_reports_unsupported_operation_types() -> None:

@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from uptimely import plan as uptimely_plan
+from uptimely.compiler import plan as uptimely_plan
 
 
 def _sample_plan() -> uptimely_plan.Plan:

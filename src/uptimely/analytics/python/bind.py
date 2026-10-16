@@ -119,9 +119,3 @@ def _mapping_id(bind: Bind, identifier: str | None) -> str:
 def _binding_args(bind: Bind) -> dict[str, typing.Any]:
     """Convert a Python binding's arguments to canonical binding values."""
     return {name: _binding_value(value) for name, value in bind.args.items()}
-
-
-def _models_by_id(declarations: list[typing.Any]) -> dict[str, typing.Any]:
-    """Convert declarations once and return their canonical models keyed by ID."""
-    models = [declaration.to_model() for declaration in declarations]
-    return {model.id: model for model in models}

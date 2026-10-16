@@ -7,7 +7,7 @@ import re
 
 import pytest
 
-from uptimely import analytics, compile, engine
+from uptimely import analytics, compiler, engine
 from uptimely.explorer import explorer
 
 ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
@@ -35,8 +35,8 @@ def test_analytics_reference_example_parses_compiles_and_executes(
     path = tmp_path / "analytics.json"
     path.write_text(example, encoding="utf-8")
 
-    analytics_definition = analytics.Analytics(json=path)
-    compiled = compile.Compiler(analytics_definition, features=["total"]).compile()
+    analytics_definition = analytics.load_analytics(path)
+    compiled = compiler.Compiler(analytics_definition, features=["total"]).compile()
     execution = engine.Engine(compiled).execute()
 
     assert len(compiled.callables) == 2
@@ -50,7 +50,7 @@ def test_analytics_reference_example_parses_compiles_and_executes(
 def test_reference_exports_to_default_directory(
     tmp_path: pathlib.Path, monkeypatch, output_format: str
 ) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     monkeypatch.chdir(tmp_path)
     explorer_instance = explorer.Explorer(analytics_definition)
 
@@ -71,7 +71,7 @@ def test_reference_exports_to_default_directory(
 
 
 def test_generate_json_reference(tmp_path: pathlib.Path, monkeypatch) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     monkeypatch.setattr("uptimely.explorer.explorer.EXPLORER_OUTPUT_DIR", tmp_path / "_generated")
 
     data_path = explorer.Explorer(analytics_definition).create_json()
@@ -88,13 +88,28 @@ def test_generate_json_reference(tmp_path: pathlib.Path, monkeypatch) -> None:
     )
     assert data["summary"]["entity_count"] == 2
     assert data["summary"]["dataset_count"] == 2
+    assert list(data["summary"]["function_buckets"]) == [
+        "collapse",
+        "conform",
+        "expand",
+        "read",
+        "vectorize",
+        "write",
+    ]
+    assert data["summary"]["function_buckets"] == {
+        operation: sum(
+            function.operation == operation
+            for function in analytics_definition.functions.root.values()
+        )
+        for operation in ("read", "write", "vectorize", "collapse", "expand", "conform")
+    }
     assert data["feature_dependencies"]
     assert data["generated_at"] is None
     assert not data_path.with_suffix(".html").exists()
 
 
 def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     monkeypatch.setattr(
         "uptimely.explorer.explorer.EXPLORER_OUTPUT_DIR", tmp_path / "_generated" / "explorer"
     )
@@ -160,8 +175,7 @@ def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
 def test_generate_json_reference_from_in_memory_analytics_is_deterministic(
     tmp_path: pathlib.Path,
 ) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
-    analytics_definition.path = None
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
 
     first_path = explorer.Explorer(analytics_definition).create_json(
         output_path=tmp_path / "first" / "explorer.json",
@@ -176,8 +190,7 @@ def test_generate_json_reference_from_in_memory_analytics_is_deterministic(
 def test_generate_html_explorer_from_in_memory_analytics_is_deterministic(
     tmp_path: pathlib.Path,
 ) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
-    analytics_definition.path = None
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
 
     first_path = explorer.Explorer(analytics_definition).create_html(
         output_path=tmp_path / "first" / "index.html",

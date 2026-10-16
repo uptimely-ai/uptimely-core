@@ -4,9 +4,10 @@ import pathlib
 import polars as pl
 import pytest
 
-from uptimely import analytics, compile, engine
-from uptimely import plan as plan_module
+from uptimely import analytics, compiler, engine
+from uptimely.analytics import model as analytics_model
 from uptimely.analytics.python import bind, dataset, dimension, entity, feature, mapping, ref
+from uptimely.compiler import plan as plan_module
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -58,6 +59,11 @@ def expanded_values(
     return dataset.select("group", "id", (pl.col("value") * 3).alias("expanded"))
 
 
+def read_expansion_input(lazy: bool) -> pl.DataFrame | pl.LazyFrame:
+    frame = pl.DataFrame({"group": ["A", "B"], "expansion_value": [1, 1]})
+    return frame.lazy() if lazy else frame
+
+
 def nested_maximum(
     dataset: pl.DataFrame | pl.LazyFrame, columns: list[str]
 ) -> pl.DataFrame | pl.LazyFrame:
@@ -68,13 +74,13 @@ def _analytics(*, lazy=False, empty=False):
     source = dataset.Dataset(
         id="observations",
         mappings=[
-            mapping.Read(
-                bind=bind.bind(ref.function(read_values), lazy=lazy, empty=empty),
+            mapping.Mapping(
+                bind=bind.bind(ref.function(read_values, operation="read"), lazy=lazy, empty=empty),
                 outputs=[feature.Feature(id=name) for name in ("group", "id", "value")],
             ),
-            mapping.Vectorize(
+            mapping.Mapping(
                 bind=bind.bind(
-                    ref.function(double),
+                    ref.function(double, operation="vectorize"),
                     dataset=ref.current_dataset().dataframe,
                     column=ref.feature("value").id,
                     output=ref.feature("doubled").id,
@@ -82,10 +88,10 @@ def _analytics(*, lazy=False, empty=False):
                 inputs=[ref.feature("value")],
                 outputs=[feature.Feature(id="doubled")],
             ),
-            mapping.Vectorize(
+            mapping.Mapping(
                 id="unneeded",
                 bind=bind.bind(
-                    ref.function(double),
+                    ref.function(double, operation="vectorize"),
                     dataset=ref.current_dataset().dataframe,
                     column=ref.feature("value").id,
                     output=ref.feature("unneeded").id,
@@ -98,10 +104,10 @@ def _analytics(*, lazy=False, empty=False):
     summary = dataset.Dataset(
         id="summary",
         mappings=[
-            mapping.Collapse(
+            mapping.Mapping(
                 id="group_summary",
                 bind=bind.bind(
-                    ref.function(summarize),
+                    ref.function(summarize, operation="collapse"),
                     dataset=ref.dataset("observations").dataframe,
                     column=ref.feature("value").id,
                     calculated=ref.feature("doubled").id,
@@ -114,15 +120,21 @@ def _analytics(*, lazy=False, empty=False):
     global_summary = dataset.Dataset(
         id="global",
         mappings=[
-            mapping.Collapse(
+            mapping.Mapping(
                 id="global_total",
-                bind=bind.bind(ref.function(total), dataset=ref.dataset("summary").dataframe),
+                bind=bind.bind(
+                    ref.function(total, operation="collapse"),
+                    dataset=ref.dataset("summary").dataframe,
+                ),
                 inputs=[ref.feature("maximum")],
                 outputs=[feature.Feature(id="total")],
             ),
-            mapping.Collapse(
+            mapping.Mapping(
                 id="global_maximum",
-                bind=bind.bind(ref.function(maximum), dataset=ref.dataset("summary").dataframe),
+                bind=bind.bind(
+                    ref.function(maximum, operation="collapse"),
+                    dataset=ref.dataset("summary").dataframe,
+                ),
                 inputs=[ref.feature("maximum")],
                 outputs=[feature.Feature(id="global_max")],
             ),
@@ -130,7 +142,7 @@ def _analytics(*, lazy=False, empty=False):
     )
     group = dimension.Dimension(id="group", type="string")
     identifier = dimension.Dimension(id="id", type="integer")
-    return analytics.Analytics.from_python(
+    return analytics.from_python(
         entities=[
             entity.Entity(
                 id="observation",
@@ -148,7 +160,7 @@ def _analytics(*, lazy=False, empty=False):
 @pytest.mark.parametrize("lazy", [False, True])
 def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
     analytics_definition = _analytics(lazy=lazy)
-    plan = compile.Compiler(analytics_definition, features=["average"]).compile()
+    plan = compiler.Compiler(analytics_definition, features=["average"]).compile()
     assert not any("unneeded" in item.output_features for item in plan.callables)
     collapse = next(item for item in plan.callables if item.operation == "collapse")
     assert collapse.input_features == ["value", "doubled"]
@@ -169,9 +181,9 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
 def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path):
     analytics_definition = _analytics(lazy=lazy, empty=empty)
     path = tmp_path / "analytics.json"
-    analytics_definition.to_json(path)
-    restored = analytics.Analytics(json=path)
-    plan = compile.Compiler(restored).compile()
+    analytics.write_document(analytics_definition, path)
+    restored = analytics.load_analytics(path)
+    plan = compiler.Compiler(restored).compile()
     portable = plan_module.ExecutionPlan(
         plan_module.Plan.from_dict(json.loads(json.dumps(plan.to_dict())))
     )
@@ -190,35 +202,62 @@ def test_collapse_consumes_expanded_features(lazy):
     analytics_definition.entities.pop("global")
     source = analytics_definition.entities["observation"].datasets[0]
     source.features["expanded"] = analytics.Feature(id="expanded")
-    from uptimely.analytics.json import json_model
-
-    source.mappings["expanded"] = json_model.Mapping(
+    auxiliary = analytics_model.Dataset(
+        id="expansion_input",
+        features={"expansion_value": analytics_model.Feature(id="expansion_value")},
+        mappings={
+            "read_expansion": analytics_model.Mapping(
+                id="read_expansion",
+                binding=analytics_model.Binding(
+                    function="read_expansion_input", args={"lazy": lazy}
+                ),
+                features={"outputs": ["$features.expansion_value"]},
+            )
+        },
+    )
+    analytics_definition.entities["expansion"] = analytics_model.Entity(
+        id="expansion",
+        name="Expansion",
+        dimensions=[analytics_definition.dimensions["group"]],
+        datasets=[auxiliary],
+    )
+    analytics_definition.functions.root["read_expansion_input"] = analytics_model.FunctionTemplate(
+        id="read_expansion_input",
+        operation="read",
+        returns="dataframe",
+        entrypoint=f"{__name__}:read_expansion_input",
+        args={"lazy": analytics_model.Argument(id="lazy", type="boolean")},
+    )
+    source.mappings["expanded"] = analytics_model.Mapping(
         id="expanded",
-        binding=json_model.Binding(
+        binding=analytics_model.Binding(
             function="expanded_values",
             args={
                 "dataset": "$datasets.observations.dataframe",
-                "other_dataset": "$datasets.observations.dataframe",
+                "other_dataset": "$datasets.expansion_input.dataframe",
             },
         ),
-        features={"inputs": ["$features.value"], "outputs": ["$features.expanded"]},
+        features={
+            "inputs": ["$features.value", "$features.expansion_value"],
+            "outputs": ["$features.expanded"],
+        },
     )
-    analytics_definition.functions.root["expanded_values"] = json_model.FunctionTemplate(
+    analytics_definition.functions.root["expanded_values"] = analytics_model.FunctionTemplate(
         id="expanded_values",
         operation="expand",
         returns="dataframe",
         entrypoint=f"{__name__}:expanded_values",
         args={
-            "dataset": json_model.Argument(id="dataset", type="dataframe"),
-            "other_dataset": json_model.Argument(id="other_dataset", type="dataframe"),
+            "dataset": analytics_model.Argument(id="dataset", type="dataframe"),
+            "other_dataset": analytics_model.Argument(id="other_dataset", type="dataframe"),
         },
     )
     summary = analytics_definition.entities["group"].datasets[0]
     summary.features = {"combined_maximum": analytics.Feature(id="combined_maximum")}
     summary.mappings = {
-        "nested": json_model.Mapping(
+        "nested": analytics_model.Mapping(
             id="nested",
-            binding=json_model.Binding(
+            binding=analytics_model.Binding(
                 function="nested_maximum",
                 args={
                     "dataset": "$datasets.observations.dataframe",
@@ -231,18 +270,18 @@ def test_collapse_consumes_expanded_features(lazy):
             },
         )
     }
-    analytics_definition.functions.root["nested_maximum"] = json_model.FunctionTemplate(
+    analytics_definition.functions.root["nested_maximum"] = analytics_model.FunctionTemplate(
         id="nested_maximum",
         operation="collapse",
         returns="dataframe",
         entrypoint=f"{__name__}:nested_maximum",
         args={
-            "dataset": json_model.Argument(id="dataset", type="dataframe"),
-            "columns": json_model.Argument(id="columns", type="array[string]"),
+            "dataset": analytics_model.Argument(id="dataset", type="dataframe"),
+            "columns": analytics_model.Argument(id="columns", type="array[string]"),
         },
     )
     result = engine.Engine(
-        compile.Compiler(analytics_definition, features=["combined_maximum"]).compile()
+        compiler.Compiler(analytics_definition, features=["combined_maximum"]).compile()
     ).execute()
     assert not result.failures
     frame = result.datasets["group", "summary"]
@@ -265,7 +304,7 @@ def test_collapse_consumes_expanded_features(lazy):
     ],
 )
 def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
-    plan = compile.Compiler(_analytics(), features=["average"]).compile()
+    plan = compiler.Compiler(_analytics(), features=["average"]).compile()
     original = summarize
 
     def invalid(dataset, column, calculated):
@@ -289,7 +328,7 @@ def test_collapse_preserves_null_group_keys(lazy):
     analytics_definition = _analytics(lazy=lazy)
     analytics_definition.functions["read_values"].entrypoint = f"{__name__}:read_null_groups"
     result = engine.Engine(
-        compile.Compiler(analytics_definition, features=["maximum"]).compile()
+        compiler.Compiler(analytics_definition, features=["maximum"]).compile()
     ).execute()
     assert not result.failures
     frame = result.datasets["group", "summary"]

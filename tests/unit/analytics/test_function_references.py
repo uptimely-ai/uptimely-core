@@ -6,8 +6,8 @@ from collections import abc
 
 import pytest
 
-from uptimely.analytics.json import json_functions
-from uptimely.analytics.python import bind, dataset, mapping, ref
+from uptimely import contracts
+from uptimely.analytics.python import bind, conversion, dataset, mapping, ref
 
 MODULE_LOCATIONS = [
     "math",
@@ -18,14 +18,14 @@ MODULE_LOCATIONS = [
     "https://example.org/team/repository.git",
     "git@example.org:team/repository.git",
 ]
-MAPPING_TYPES = [
-    mapping.Read,
-    mapping.Write,
-    mapping.Vectorize,
-    mapping.Collapse,
-    mapping.Expand,
-    mapping.Conform,
-]
+MAPPING_OPERATIONS: tuple[contracts.FunctionOperation, ...] = (
+    "read",
+    "write",
+    "vectorize",
+    "collapse",
+    "expand",
+    "conform",
+)
 
 
 @pytest.mark.parametrize("function", [math.ceil, "math:ceil"])
@@ -41,6 +41,11 @@ def test_callable_and_string_forms_have_identical_entrypoints(
         reference.name = "floor"
 
 
+def test_function_reference_rejects_unsupported_operation() -> None:
+    with pytest.raises(ValueError, match="Unsupported function operation"):
+        ref.function("math:ceil", operation=typing.cast(contracts.FunctionOperation, "unknown"))
+
+
 @pytest.mark.parametrize("location", MODULE_LOCATIONS)
 def test_string_locations_are_preserved_without_importing(
     location: str, monkeypatch: pytest.MonkeyPatch
@@ -49,13 +54,13 @@ def test_string_locations_are_preserved_without_importing(
         pytest.fail("Creating or exporting a function reference must not import its module")
 
     monkeypatch.setattr(importlib, "import_module", unexpected_import)
-    reference = ref.function(f"{location}:ceil")
+    reference = ref.function(f"{location}:ceil", operation="vectorize")
     declaration = dataset.Dataset(
         id="observations",
-        mappings=[mapping.Vectorize(bind=bind.bind(reference, x=1.2))],
+        mappings=[mapping.Mapping(bind=bind.bind(reference, x=1.2))],
     )
 
-    payload = json_functions.python_to_analytics_dict(datasets=[declaration])
+    payload = conversion.to_dict(datasets=[declaration])
 
     assert payload["functions"]["ceil"]["entrypoint"] == f"{location}:ceil"
     assert payload["entities"]["entity"]["datasets"][0]["mappings"]["ceil"]["binding"] == {
@@ -64,16 +69,61 @@ def test_string_locations_are_preserved_without_importing(
     }
 
 
-@pytest.mark.parametrize("mapping_type", MAPPING_TYPES)
+@pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
+def test_generic_mapping_exports_function_operation_without_importing(
+    operation: contracts.FunctionOperation, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unexpected_import(*_args: object, **_kwargs: object) -> typing.NoReturn:
+        pytest.fail(f"Unexpected function import during authoring: {_args!r} {_kwargs!r}")
+
+    monkeypatch.setattr(importlib, "import_module", unexpected_import)
+    declaration = dataset.Dataset(
+        id="observations",
+        mappings=[
+            mapping.Mapping(
+                bind=bind.bind(
+                    ref.function("https://example.org/functions.py:calculate", operation=operation),
+                    function_id="calculate",
+                    dataset=ref.current_dataset().dataframe,
+                )
+            )
+        ],
+    )
+
+    catalog = declaration.function_catalog()
+
+    assert catalog["calculate"].operation == operation
+    assert catalog["calculate"].returns == ("none" if operation == "write" else "dataframe")
+    assert catalog["calculate"].entrypoint == "https://example.org/functions.py:calculate"
+
+
+def test_generic_mapping_requires_operation_metadata() -> None:
+    with pytest.raises(ValueError, match="requires operation metadata"):
+        mapping.Mapping(bind=bind.bind(ref.function("math:ceil"), x=1.2))
+
+
+@pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
+def test_generic_mapping_accepts_operation_metadata(
+    operation: contracts.FunctionOperation,
+) -> None:
+    declaration = mapping.Mapping(
+        bind=bind.bind(ref.function("math:ceil", operation=operation), x=1.2)
+    )
+
+    assert declaration.operation == operation
+
+
+@pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
 @pytest.mark.parametrize("function_id", [None, "rounded"])
 def test_references_supply_catalog_ids_and_preserve_overrides(
-    mapping_type: typing.Any, function_id: str | None
+    operation: contracts.FunctionOperation, function_id: str | None
 ) -> None:
-    binding = bind.bind(ref.function("math:ceil"), function_id=function_id, x=1.2)
-    declaration = mapping_type(id="calculate", bind=binding)
+    binding = bind.bind(
+        ref.function("math:ceil", operation=operation), function_id=function_id, x=1.2
+    )
+    declaration = mapping.Mapping(id="calculate", bind=binding)
     catalog = dataset.Dataset(id="values", mappings=[declaration]).function_catalog()
     identifier = function_id or "ceil"
-    operation = mapping_type.__name__.lower()
 
     assert catalog[identifier].operation == operation
     assert catalog[identifier].entrypoint == "math:ceil"

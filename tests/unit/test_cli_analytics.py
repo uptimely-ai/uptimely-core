@@ -55,12 +55,12 @@ def test_export_example_in_fresh_process(
     )
     assert f"Analytics written to {output}" in result.stdout
     assert not result.stderr
-    analytics_definition = analytics.Analytics(json=output)
+    analytics_definition = analytics.load_analytics(output)
     assert analytics_definition.name == name
     assert set(analytics_definition.entities) == entities
     assert analytics_definition.source.name == "python_api"
     assert analytics_definition.source.generated is True
-    assert analytics_definition.function_catalog.by_operation("read")
+    assert analytics_definition.functions.by_operation("read")
 
 
 @pytest.mark.parametrize("explicit_root", [False, True])

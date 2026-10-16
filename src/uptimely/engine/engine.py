@@ -1,51 +1,23 @@
 """Execution engine for portable analytics plans."""
 
-import dataclasses
 import logging
 import pathlib
 import time
 import typing
 
-from uptimely import compile
-from uptimely import plan as plan_module
-from uptimely.analytics.json import json_model
+from uptimely import analytics, contracts
+from uptimely import compiler as compiler_module
+from uptimely.analytics import model as analytics_model
+from uptimely.compiler import plan as plan_module
 
 from . import backend as backend_module
+from . import bindings as bindings_module
+from . import config as config_module
+from . import dataframe as dataframe_module
 from . import result as result_module
+from . import state as state_module
 
 logger = logging.getLogger(__name__)
-
-
-@dataclasses.dataclass(frozen=True)
-class EngineConfig:
-    """Runtime configuration supplied to an execution engine.
-
-    ``evaluation`` and ``batch_size`` are reserved and do not currently affect
-    execution.
-    """
-
-    type: str = "python_venv"
-    definition: str | None = None
-    dataframe: str = "polars"
-    evaluation: str = "eager"
-    batch_size: int | str | None = None
-
-    def __post_init__(self) -> None:
-        """Validate configuration values before execution begins."""
-        if not isinstance(self.dataframe, str) or self.dataframe.lower() != "polars":
-            raise ValueError(
-                "Unsupported dataframe backend: "
-                f"{self.dataframe}. Version 0.1 supports only polars."
-            )
-        if self.batch_size is not None and (
-            not (
-                isinstance(self.batch_size, int)
-                and not isinstance(self.batch_size, bool)
-                and self.batch_size > 0
-            )
-            and self.batch_size != "*"
-        ):
-            raise ValueError("batch_size must be a positive integer, '*', or None")
 
 
 class Engine:
@@ -53,24 +25,24 @@ class Engine:
 
     def __init__(
         self,
-        plan: plan_module.ExecutionPlan | str | pathlib.Path | json_model.Analytics,
+        plan: plan_module.ExecutionPlan | str | pathlib.Path | analytics_model.Analytics,
         resources: dict[str, typing.Any] | None = None,
         *,
-        config: EngineConfig | None = None,
+        config: config_module.EngineConfig | None = None,
         backend: backend_module.DataFrameBackend | None = None,
         resource_resolver: backend_module.ResourceResolver | None = None,
         callable_loader: backend_module.CallableLoader | None = None,
         bind: dict[str, dict[str, dict[str, typing.Any]]] | None = None,
     ) -> None:
         """Prepare an engine from a plan, with analytics convenience support."""
-        self._analytics: json_model.Analytics | None = None
+        self._analytics: analytics_model.Analytics | None = None
         if isinstance(plan, plan_module.ExecutionPlan):
             self.plan = plan
-        elif isinstance(plan, (str, pathlib.Path, json_model.Analytics)):
+        elif isinstance(plan, (str, pathlib.Path, analytics_model.Analytics)):
             self._analytics = (
-                json_model.Analytics(json=plan) if isinstance(plan, (str, pathlib.Path)) else plan
+                analytics.load_analytics(plan) if isinstance(plan, (str, pathlib.Path)) else plan
             )
-            self.plan = compile.Compiler(self._analytics).compile()
+            self.plan = compiler_module.Compiler(self._analytics).compile()
         else:
             raise ValueError("plan must be an ExecutionPlan, Analytics, or analytics path")
 
@@ -79,34 +51,31 @@ class Engine:
             if not isinstance(resources, dict):
                 raise TypeError("resources must be a dictionary of plan resource overrides")
             self.resources.update(resources)
-        self.config = config or EngineConfig()
+        self.config = config or config_module.EngineConfig()
         self.backend = backend or backend_module.PolarsBackend()
         self.resource_resolver = resource_resolver or backend_module.PlanResourceResolver(
             self.resources
         )
         self.callable_loader = callable_loader or backend_module.EntrypointLoader()
-        self._runtime_datasets: dict[tuple[str, str], object] = {}
-        self._runtime_fragments: dict[tuple[str, str], object] = {}
-        self._runtime_calculations: dict[tuple[str, str, str], object] = {}
         self.bind = bind or {}
         self._verify_plan()
 
     @classmethod
     def from_analytics(
         cls,
-        analytics_definition: str | pathlib.Path | json_model.Analytics,
+        analytics_definition: str | pathlib.Path | analytics_model.Analytics,
         features: list[str] | None = None,
         *,
-        config: EngineConfig | None = None,
+        config: config_module.EngineConfig | None = None,
     ) -> "Engine":
         """Compile analytics and return an engine for the resulting plan."""
         return cls(
-            compile.Compiler(analytics_definition, features=features).compile(),
+            compiler_module.Compiler(analytics_definition, features=features).compile(),
             config=config,
         )
 
     @property
-    def analytics(self) -> json_model.Analytics:
+    def analytics(self) -> analytics_model.Analytics:
         """Return the Analytics instance when one was supplied."""
         if self._analytics is None:
             raise AttributeError("Portable-plan engines do not retain an Analytics instance")
@@ -122,15 +91,12 @@ class Engine:
 
     def execute(self) -> result_module.ExecutionResult:
         """Execute plan stages and return explicit runtime state and statuses."""
-        datasets: dict[tuple[str, str], object] = {}
-        fragments: dict[tuple[str, str], object] = {}
-        calculations: dict[tuple[str, str, str], object] = {}
-        statuses: dict[str, str] = {}
+        state = state_module.RuntimeState()
+        bindings = bindings_module.RuntimeBindings(self.resources, state, self.bind)
+        dataframe = dataframe_module.DataFrameExecution(self.backend, self.resources, state)
+        statuses: dict[str, result_module.CallableStatus] = {}
         durations: dict[str, float] = {}
         failures: dict[str, str] = {}
-        self._runtime_datasets = datasets
-        self._runtime_fragments = fragments
-        self._runtime_calculations = calculations
 
         def _mark_unrun_callables_skipped() -> None:
             """Mark callables that never ran as skipped."""
@@ -143,11 +109,11 @@ class Engine:
                 started = time.perf_counter()
                 logger.debug("Running %s callable %s", callable.operation, callable.id)
                 try:
-                    self._validate_inputs(callable)
-                    if callable.operation in {"read", "expand", "conform", "collapse", "vectorize"}:
-                        self._execute_dataframe_mapping(callable)
-                    elif callable.operation == "write":
-                        self._execute_sink(callable)
+                    dataframe.validate_inputs(callable)
+                    if contracts.OPERATION_RETURN_KINDS.get(callable.operation) == "dataframe":
+                        self._execute_dataframe_mapping(callable, state, bindings, dataframe)
+                    elif contracts.OPERATION_RETURN_KINDS.get(callable.operation) == "none":
+                        self._execute_sink(callable, state, bindings)
                     else:
                         raise ValueError(f"Unsupported callable operation: {callable.operation}")
                 except Exception as error:
@@ -164,234 +130,49 @@ class Engine:
         _mark_unrun_callables_skipped()
 
         return result_module.ExecutionResult(
-            datasets=dict(datasets),
-            calculated_outputs=dict(calculations),
+            datasets=dict(state.datasets),
+            calculated_outputs=dict(state.calculated_outputs),
             callable_statuses=statuses,
             durations=durations,
             failures=failures,
             plan_version=self.plan.plan.plan_version,
         )
 
-    def _execute_dataframe_mapping(self, callable: plan_module.Callable) -> None:
+    def _execute_dataframe_mapping(
+        self,
+        callable: plan_module.Callable,
+        state: state_module.RuntimeState,
+        bindings: bindings_module.RuntimeBindings,
+        dataframe: dataframe_module.DataFrameExecution,
+    ) -> None:
         """Invoke a data-producing mapping, validate its result, and update the dataset."""
         dataset_key = (callable.entity_id, callable.dataset_id)
-        frame = self._runtime_datasets.get(dataset_key)
-        kwargs = self._resolve_args(callable, dataset_frame=frame)
+        frame = state.datasets.get(dataset_key)
+        kwargs = bindings.resolve_args(callable)
         result = self.callable_loader.load(callable.entrypoint)(**kwargs)
         dimensions = self.resource_resolver.entity_dimensions(callable.entity_id)
-        self._validate_dataframe_result(callable, result, frame, dimensions)
+        dataframe.validate_result(callable, result, frame, dimensions)
         columns = list(dict.fromkeys([*dimensions, *callable.output_features]))
         fragment = self.backend.select(result, columns)
-        merged = self._merge_fragment(frame, fragment, dimensions)
+        merged = dataframe.merge_fragment(frame, fragment, dimensions)
 
-        self._runtime_datasets[dataset_key] = merged
-        self._runtime_fragments[(callable.entity_id, callable.output or callable.id)] = fragment
+        state.datasets[dataset_key] = merged
+        state.fragments[(callable.entity_id, callable.output or callable.id)] = fragment
         if callable.operation == "vectorize":
             for output in callable.output_features:
-                self._runtime_calculations[(*dataset_key, output)] = self.backend.select(
+                state.calculated_outputs[(*dataset_key, output)] = self.backend.select(
                     fragment, [*dimensions, output]
                 )
 
-    def _validate_dataframe_result(
+    def _execute_sink(
         self,
         callable: plan_module.Callable,
-        result: object,
-        input_frame: object,
-        dimensions: list[str],
+        state: state_module.RuntimeState,
+        bindings: bindings_module.RuntimeBindings,
     ) -> None:
-        """Check the returned dataframe's keys, declared outputs, and logical types."""
-        if not self.backend.is_frame(result):
-            raise ValueError(
-                f"Fragment {callable.function_id} must return a Polars DataFrame or LazyFrame"
-            )
-        self._validate_fragment_keys(callable, result, dimensions)
-        columns = set(self.backend.column_names(result))
-        missing = sorted(set(callable.output_features) - columns)
-        if missing:
-            raise ValueError(
-                f"Mapping {callable.id} is missing output columns: " + ", ".join(missing)
-            )
-        dimension_definitions = self.resources.get("dimensions", {})
-        feature_definitions = (
-            self.resources.get("datasets", {}).get(callable.dataset_id, {}).get("features", {})
-        )
-        types: dict[str, str] = {}
-        for name in dict.fromkeys([*dimensions, *callable.output_features]):
-            definitions = dimension_definitions if name in dimensions else feature_definitions
-            column_type = definitions.get(name, {}).get("type")
-            if column_type is not None:
-                types[name] = column_type
-        self.backend.validate_types(result, types)
-        if callable.operation == "vectorize" and (
-            input_frame is None or not self.backend.same_keys(input_frame, result, dimensions)
-        ):
-            raise ValueError(
-                f"Vectorize mapping {callable.id} must preserve the dataset dimension keys"
-            )
-
-    def _validate_inputs(self, callable: plan_module.Callable) -> None:
-        """Require declared input columns to be materialized before invocation."""
-        for feature in callable.input_features:
-            frames = [
-                frame
-                for frame in self._runtime_datasets.values()
-                if feature in self.backend.column_names(frame)
-            ]
-            current = self._runtime_datasets.get((callable.entity_id, callable.dataset_id))
-            if current is not None and feature in self.backend.column_names(current):
-                continue
-            if len(frames) != 1:
-                raise ValueError(
-                    f"Mapping {callable.id} input feature is unavailable or ambiguous: {feature}"
-                )
-
-    def _merge_fragment(self, existing: object, fragment: object, dimensions: list[str]) -> object:
-        """Join a validated fragment without replacing existing feature columns."""
-        if existing is None:
-            return fragment
-        existing_columns = set(self.backend.column_names(existing))
-        new_columns = [
-            column
-            for column in self.backend.column_names(fragment)
-            if column not in existing_columns and column not in dimensions
-        ]
-        if not new_columns:
-            return existing
-        right = self.backend.select(fragment, [*dimensions, *new_columns])
-        left = existing
-        if type(existing) is not type(right):
-            left = self.backend.lazy(existing)
-            right = self.backend.lazy(right)
-        return self.backend.join(left, right, dimensions)
-
-    def _validate_fragment_keys(
-        self, callable: plan_module.Callable, fragment: object, dimensions: list[str]
-    ) -> None:
-        """Validate the dimension-key contract of one dataframe fragment."""
-        columns = set(self.backend.column_names(fragment))
-        missing = sorted(set(dimensions) - columns)
-        if missing:
-            raise ValueError(
-                f"Fragment {callable.function_id} is missing dimension columns: "
-                + ", ".join(missing)
-            )
-        if not dimensions:
-            if self.backend.row_count(fragment) > 1:
-                raise ValueError(
-                    f"Fragment {callable.function_id} contains duplicate dimension keys "
-                    "(dimensionless datasets allow at most one row)"
-                )
-            return
-        keys = self.backend.select(fragment, dimensions)
-        if not isinstance(keys, type(fragment)):
-            keys = self.backend.collect(keys)
-        if self.backend.is_duplicated(keys):
-            raise ValueError(f"Fragment {callable.function_id} contains duplicate dimension keys")
-
-    def _execute_sink(self, callable: plan_module.Callable) -> None:
         """Persist the selected columns of the accumulated dataset."""
-        frame = self._runtime_datasets[(callable.entity_id, callable.dataset_id)]
-        kwargs = self._resolve_args(
-            callable, dataset_frame=frame, dataset_key=(callable.entity_id, callable.dataset_id)
-        )
+        dataset_key = (callable.entity_id, callable.dataset_id)
+        if dataset_key not in state.datasets:
+            raise KeyError(dataset_key)
+        kwargs = bindings.resolve_args(callable)
         self.callable_loader.load(callable.entrypoint)(**kwargs)
-
-    def _resolve_args(
-        self,
-        callable: plan_module.Callable,
-        dataset_frame: object = None,
-        dataset_key: tuple[str, str] | None = None,
-    ) -> dict[str, object]:
-        """Bind compiled IDs to physical runtime arguments using template types."""
-        function = self.resources["functions"][callable.function_id]
-        if function["operation"] != callable.operation:
-            raise ValueError(
-                f"Callable {callable.id} operation {callable.operation} does not match "
-                f"function {callable.function_id} operation {function['operation']}"
-            )
-        arguments = function.get("args", {})
-        return {
-            name: self._resolve_value(
-                value, dataset_frame, dataset_key, arguments.get(name, {}).get("type")
-            )
-            for name, value in callable.arguments.items()
-        }
-
-    def _resolve_value(
-        self,
-        value: object,
-        dataset_frame: object,
-        dataset_key: tuple[str, str] | None,
-        argument_type: str | None = None,
-    ) -> object:
-        """Recursively resolve one typed plan binding value."""
-        if hasattr(value, "model_dump"):
-            value = value.model_dump()
-        if argument_type == "dataframe" and isinstance(value, str):
-            frame = self._dataframe_by_id(value)
-            if frame is None:
-                raise ValueError(f"Dataset dataframe is unavailable: {value}")
-            return frame
-        if isinstance(value, str) and value.startswith("?"):
-            return self._resolve_runtime_reference(value)
-        if isinstance(value, list):
-            element_type = (
-                argument_type[6:-1]
-                if argument_type is not None and argument_type.startswith("array[")
-                else None
-            )
-            return [
-                self._resolve_value(item, dataset_frame, dataset_key, element_type)
-                for item in value
-            ]
-        if isinstance(value, dict):
-            value_type = (
-                argument_type[12:-1]
-                if argument_type is not None and argument_type.startswith("object{str: ")
-                else None
-            )
-            return {
-                name: self._resolve_value(item, dataset_frame, dataset_key, value_type)
-                for name, item in value.items()
-            }
-        return value
-
-    def _resolve_runtime_reference(self, value: str) -> object:
-        """Resolve a `?<namespace>.<object>.<attribute>` runtime placeholder."""
-        parts = value.removeprefix("?").split(".")
-        if len(parts) != 3:
-            raise ValueError(f"Malformed runtime reference: {value}")
-        namespace, object_id, attribute = parts
-        namespace_bindings = self.bind.get(namespace)
-        if namespace_bindings is None:
-            raise ValueError(f"Unknown runtime namespace: {namespace}")
-        object_bindings = namespace_bindings.get(object_id)
-        if object_bindings is None:
-            raise ValueError(f"Unknown {namespace} object: {object_id}")
-        if attribute not in object_bindings:
-            raise ValueError(f"{namespace} object {object_id} has no attribute: {attribute}")
-        return object_bindings[attribute]
-
-    def _dataset_by_id(self, dataset_id: str) -> object | None:
-        matches = [
-            frame
-            for (_, current_id), frame in self._runtime_datasets.items()
-            if current_id == dataset_id
-        ]
-        if len(matches) > 1:
-            raise ValueError(f"Ambiguous dataset reference: {dataset_id}")
-        return matches[0] if matches else None
-
-    def _dataframe_by_id(self, identifier: str) -> object | None:
-        """Return the unique live dataset or fragment identified by a compiled binding."""
-        dataset = self._dataset_by_id(identifier)
-        if dataset is not None:
-            return dataset
-        matches = [
-            frame
-            for (_, fragment_id), frame in self._runtime_fragments.items()
-            if fragment_id == identifier
-        ]
-        if len(matches) > 1:
-            raise ValueError(f"Ambiguous fragment reference: {identifier}")
-        return matches[0] if matches else None

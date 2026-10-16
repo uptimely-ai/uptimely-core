@@ -7,11 +7,10 @@ from urllib import error, request
 
 import pytest
 
-from uptimely import analytics, compile, engine
-from uptimely.analytics import explorer_render as analytics_render
-from uptimely.analytics import storage
+from uptimely import analytics, compiler, engine, storage
+from uptimely import entrypoint as shared_entrypoint
 from uptimely.analytics.python import bind, dataset, dimension, feature, mapping, ref
-from uptimely.compile import entrypoint as compile_entrypoint
+from uptimely.explorer import analytics_render
 
 ANALYTICS_PATH = (
     pathlib.Path(__file__).parents[3]
@@ -25,7 +24,7 @@ ANALYTICS_PATH = (
 
 def test_compiler_rejects_string_feature_selection() -> None:
     with pytest.raises(ValueError, match="features must be a collection"):
-        compile.Compiler(ANALYTICS_PATH, features="health_signal_normalized")
+        compiler.Compiler(ANALYTICS_PATH, features="health_signal_normalized")
 
 
 @pytest.mark.parametrize(
@@ -33,26 +32,26 @@ def test_compiler_rejects_string_feature_selection() -> None:
     [("vectorize", "pressure_flow_efficiency"), ("collapse", "maximum")],
 )
 def test_compiler_rejects_missing_function_entrypoints(category: str, function_id: str) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     analytics_definition.functions[function_id].entrypoint = ""
 
     with pytest.raises(ValueError, match=f"Missing entrypoint for function: {function_id}"):
-        compile.Compiler(analytics_definition).compile()
+        compiler.Compiler(analytics_definition).compile()
 
 
 def test_compiler_reports_unreadable_function_signatures() -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     analytics_definition.functions["pressure_flow_efficiency"].entrypoint = "invalid-entrypoint"
 
     with pytest.raises(ValueError, match="Could not read signature.*Invalid entrypoint"):
-        compile.Compiler(analytics_definition).compile()
+        compiler.Compiler(analytics_definition).compile()
 
 
 @pytest.mark.parametrize(
     ("entrypoint", "error"),
     [
         ("invalid-entrypoint", ValueError),
-        ("uptimely.plan.models:not_a_function", AttributeError),
+        ("uptimely.compiler.plan.models:not_a_function", AttributeError),
     ],
 )
 def test_load_callable_rejects_invalid_entrypoints(
@@ -60,13 +59,13 @@ def test_load_callable_rejects_invalid_entrypoints(
     error: type[Exception],
 ) -> None:
     with pytest.raises(error):
-        compile_entrypoint.load_callable(entrypoint)
+        shared_entrypoint.load_callable(entrypoint)
 
 
 def test_load_callable_accepts_a_function_reference_entrypoint() -> None:
     reference = ref.function(math.ceil)
 
-    assert compile_entrypoint.load_callable(reference.entrypoint)(1.2) == 2
+    assert shared_entrypoint.load_callable(reference.entrypoint)(1.2) == 2
 
 
 @pytest.mark.parametrize("relative", [False, True, "plain"])
@@ -80,11 +79,11 @@ def test_load_callable_accepts_local_file_references(
     )
     reference = ref.function(f"{location}:increment")
 
-    function = compile_entrypoint.load_callable(reference.entrypoint, root=tmp_path)
+    function = shared_entrypoint.load_callable(reference.entrypoint, root=tmp_path)
 
     assert function(2) == 3
-    assert compile_entrypoint.load_callable(reference.entrypoint, root=tmp_path) is function
-    assert compile_entrypoint.read_signature(reference.entrypoint, root=tmp_path).returns == "int"
+    assert shared_entrypoint.load_callable(reference.entrypoint, root=tmp_path) is function
+    assert shared_entrypoint.read_signature(reference.entrypoint, root=tmp_path).returns == "int"
 
 
 @pytest.mark.parametrize(
@@ -100,7 +99,7 @@ def test_unsupported_remote_schemes_are_not_loaded(location: str) -> None:
     reference = ref.function(f"{location}:calculate")
 
     with pytest.raises(ValueError, match="Unsupported function reference scheme"):
-        compile_entrypoint.load_callable(reference.entrypoint)
+        shared_entrypoint.load_callable(reference.entrypoint)
 
 
 def test_local_file_import_failures_are_not_cached(tmp_path: pathlib.Path) -> None:
@@ -110,12 +109,12 @@ def test_local_file_import_failures_are_not_cached(tmp_path: pathlib.Path) -> No
 
     for _ in range(2):
         with pytest.raises(RuntimeError, match="module failed"):
-            compile_entrypoint.load_callable(reference.entrypoint)
+            shared_entrypoint.load_callable(reference.entrypoint)
 
 
 def test_load_callable_rejects_noncallable_attributes() -> None:
     with pytest.raises(TypeError, match="is not callable"):
-        compile_entrypoint.load_callable("math:pi")
+        shared_entrypoint.load_callable("math:pi")
 
 
 class _Response(io.BytesIO):
@@ -149,7 +148,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
     responses: list[io.BytesIO] = []
 
     def urlopen(url: str, *, timeout: int) -> _Response:
-        assert timeout == compile_entrypoint.REMOTE_READ_TIMEOUT
+        assert timeout == shared_entrypoint.REMOTE_READ_TIMEOUT
         downloads.append(url)
         response = _Response(source, url)
         responses.append(response)
@@ -168,22 +167,22 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
 
     monkeypatch.setattr(request, "urlopen", urlopen)
     monkeypatch.setattr(storage, "boto3", types.SimpleNamespace(client=client))
-    analytics_definition = analytics.Analytics.from_python(
+    analytics_definition = analytics.from_python(
         dimensions=[dimension.Dimension(id="id", type="integer")],
         datasets=[
             dataset.Dataset(
                 id="observations",
                 mappings=[
-                    mapping.Read(
-                        bind=bind.bind(ref.function(f"{location}:read_values")),
+                    mapping.Mapping(
+                        bind=bind.bind(ref.function(f"{location}:read_values", operation="read")),
                         outputs=[
                             feature.Feature(id="id", type="integer"),
                             feature.Feature(id="value", type="integer"),
                         ],
                     ),
-                    mapping.Vectorize(
+                    mapping.Mapping(
                         bind=bind.bind(
-                            ref.function(f"{location}:calculate"),
+                            ref.function(f"{location}:calculate", operation="vectorize"),
                             dataset=ref.current_dataset().dataframe,
                             output="result",
                         ),
@@ -195,7 +194,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
         ],
     )
 
-    compiled = compile.Compiler(analytics_definition).compile()
+    compiled = compiler.Compiler(analytics_definition).compile()
     result = engine.Engine(compiled).execute()
 
     assert not result.failures
@@ -204,7 +203,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
     assert downloads == expected_downloads
     if scheme == "https":
         assert all(response.closed for response in responses)
-    assert compile_entrypoint.read_signature(f"{location}:calculate").args == {
+    assert shared_entrypoint.read_signature(f"{location}:calculate").args == {
         "dataset": "DataFrame",
         "output": "str",
     }
@@ -226,13 +225,13 @@ def test_https_loading_propagates_download_errors_and_can_retry(
     monkeypatch.setattr(request, "urlopen", failure)
     for _ in range(2):
         with pytest.raises(error.HTTPError, match="403"):
-            compile_entrypoint.load_callable(f"{location}:calculate")
+            shared_entrypoint.load_callable(f"{location}:calculate")
 
     def success(url: str, *, timeout: int) -> _Response:
         return _Response(b"def calculate():\n    return 42\n", url)
 
     monkeypatch.setattr(request, "urlopen", success)
-    assert compile_entrypoint.load_callable(f"{location}:calculate")() == 42
+    assert shared_entrypoint.load_callable(f"{location}:calculate")() == 42
 
 
 def test_s3_loading_reports_missing_optional_dependencies(
@@ -240,7 +239,7 @@ def test_s3_loading_reports_missing_optional_dependencies(
 ) -> None:
     monkeypatch.setattr(storage, "boto3", None)
     with pytest.raises(ModuleNotFoundError, match=r"uptimely-core\[s3\]"):
-        compile_entrypoint.load_callable(f"s3://bucket/{tmp_path.name}/module.py:calculate")
+        shared_entrypoint.load_callable(f"s3://bucket/{tmp_path.name}/module.py:calculate")
 
 
 def test_remote_source_execution_failures_are_not_cached(
@@ -252,7 +251,7 @@ def test_remote_source_execution_failures_are_not_cached(
     monkeypatch.setattr(request, "urlopen", failure)
     for _ in range(2):
         with pytest.raises(RuntimeError, match="module failed"):
-            compile_entrypoint.load_callable(
+            shared_entrypoint.load_callable(
                 f"https://example.org/{tmp_path.name}/module.py:calculate"
             )
 
@@ -260,7 +259,7 @@ def test_remote_source_execution_failures_are_not_cached(
 @pytest.mark.parametrize("location", ["https://example.org", "s3://bucket/"])
 def test_remote_locations_must_identify_source_files(location: str) -> None:
     with pytest.raises(ValueError, match="must point to a source file"):
-        compile_entrypoint.load_callable(f"{location}:calculate")
+        shared_entrypoint.load_callable(f"{location}:calculate")
 
 
 def test_https_loading_rejects_redirects_to_other_schemes(
@@ -271,4 +270,4 @@ def test_https_loading_rejects_redirects_to_other_schemes(
 
     monkeypatch.setattr(request, "urlopen", redirect)
     with pytest.raises(ValueError, match="must not redirect"):
-        compile_entrypoint.load_callable(f"https://example.org/{tmp_path.name}/module.py:calculate")
+        shared_entrypoint.load_callable(f"https://example.org/{tmp_path.name}/module.py:calculate")

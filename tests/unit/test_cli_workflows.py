@@ -7,8 +7,8 @@ import sys
 
 import pytest
 
-from uptimely import plan as plan_module
 from uptimely.cli import cli, engine, plan
+from uptimely.compiler import plan as plan_module
 
 PROJECT = pathlib.Path(__file__).parents[2] / "examples/pump_analytics"
 ANALYTICS_PATH = PROJECT / "_generated/analytics/analytics.json"

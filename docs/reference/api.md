@@ -9,14 +9,17 @@ For a runnable workflow, see the
 The [analytics format reference](../specification/analytics.md) describes
 the declarative contract.
 
-## Analytics model and parsing
+## Analytics models and operations
 
 ::: uptimely.analytics
     options:
       members:
         - Analytics
-        - AnalyticsParser
-        - AnalyticsSerializer
+        - load_analytics
+        - from_python
+        - prepare_analytics
+        - write_document
+        - PreparedAnalytics
         - Entity
         - Dataset
         - Order
@@ -26,6 +29,11 @@ the declarative contract.
         - Binding
         - RowContext
         - Call
+
+Canonical contract types live in `uptimely.analytics.model`. `Analytics` contains
+only document fields; loading, writing, and semantic preparation are explicit
+operations. Derived functions and calls belong to `PreparedAnalytics`, not the
+document. See [package boundaries and migration](../overview/architecture.md#analytics-package-boundaries).
 
 ## Python authoring
 
@@ -47,9 +55,11 @@ the declarative contract.
 
 ::: uptimely.analytics.python.row_context
 
+::: uptimely.analytics.python.conversion
+
 ## Compilation
 
-::: uptimely.compile
+::: uptimely.compiler
     options:
       members:
         - Compiler
@@ -58,7 +68,7 @@ the declarative contract.
 
 ## Portable plans
 
-::: uptimely.plan
+::: uptimely.compiler.plan
 
 ## Execution
 
@@ -82,11 +92,12 @@ the declarative contract.
       members:
         - FeatureGraph
         - SubGraph
-        - GraphStyle
 
 ## Analytics Explorer
 
 ::: uptimely.explorer.explorer.Explorer
+
+::: uptimely.explorer.graph_render.GraphStyle
 
 `Explorer.create_html` and the module-level `uptimely.explorer.explorer.create_html`
 helper generate the complete static website with analytics, feature graph,

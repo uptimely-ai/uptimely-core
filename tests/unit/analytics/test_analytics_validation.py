@@ -4,8 +4,28 @@ import pathlib
 import pytest
 
 from uptimely import analytics
+from uptimely.analytics import model as analytics_model
+from uptimely.analytics.validation import context
 
 ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
+
+
+def test_validation_context_retains_duplicate_index_candidates() -> None:
+    model = analytics_model.Analytics.model_validate(
+        json.loads(ANALYTICS_PATH.read_text(encoding="utf-8"))
+    )
+    pump_dataset = model.entities["pump"].datasets[0]
+    model.entities["pump"].datasets.append(pump_dataset.model_copy(deep=True))
+
+    validation_context = context.AnalyticsValidationContext.build(model)
+
+    assert len(validation_context.datasets_by_id[pump_dataset.id]) == 2
+    feature_id = next(
+        feature_id
+        for feature_id in pump_dataset.features
+        if feature_id not in validation_context.dimension_ids
+    )
+    assert len(validation_context.feature_owners[feature_id]) == 2
 
 
 @pytest.mark.parametrize(
@@ -24,7 +44,7 @@ def test_legacy_function_catalog_schemas_are_rejected(
     path = tmp_path / "legacy.json"
     path.write_text(json.dumps(document), encoding="utf-8")
     with pytest.raises(ValueError):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 def test_mapping_validation(tmp_path: pathlib.Path) -> None:
@@ -56,7 +76,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
 
     analytics_path = tmp_path / "valid_mappings_analytics.json"
     analytics_path.write_text(json.dumps(configuration), encoding="utf-8")
-    parsed_analytics = analytics.Analytics(json=analytics_path)
+    parsed_analytics = analytics.load_analytics(analytics_path)
     ds = parsed_analytics.entities["pump_telemetry"].datasets[0]
 
     assert "read_pump_telemetry" in ds.mappings
@@ -74,7 +94,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     bad_source_path = tmp_path / "bad_source.json"
     bad_source_path.write_text(json.dumps(bad_source_config), encoding="utf-8")
     with pytest.raises(ValueError, match="mappings reference unknown functions"):
-        analytics.Analytics(json=bad_source_path)
+        analytics.load_analytics(bad_source_path)
 
     bad_transform_config = json.loads(json.dumps(configuration))
     bad_transform_config["entities"]["pump_telemetry"]["datasets"][0]["features"][
@@ -92,7 +112,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     bad_transform_path = tmp_path / "bad_transform.json"
     bad_transform_path.write_text(json.dumps(bad_transform_config), encoding="utf-8")
     with pytest.raises(ValueError, match="mappings reference unknown functions"):
-        analytics.Analytics(json=bad_transform_path)
+        analytics.load_analytics(bad_transform_path)
 
 
 def test_expand_mapping_requires_lower_dimensional_feature_input(tmp_path: pathlib.Path) -> None:
@@ -125,7 +145,7 @@ def test_expand_mapping_requires_lower_dimensional_feature_input(tmp_path: pathl
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(ValueError, match="declared feature from a lower-dimensional dataset"):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Path) -> None:
@@ -158,7 +178,7 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(ValueError, match="must preserve target dimensionality"):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 @pytest.mark.parametrize("mapping_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
@@ -171,7 +191,7 @@ def test_mapping_rejects_explicit_source(tmp_path: pathlib.Path, mapping_id: str
     invalid_operation_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(ValueError, match="source"):
-        analytics.Analytics(json=invalid_operation_path)
+        analytics.load_analytics(invalid_operation_path)
 
 
 @pytest.mark.parametrize(
@@ -201,7 +221,7 @@ def test_collapse_validates_source_grouping_and_output_contract(
     path = tmp_path / "invalid.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 @pytest.mark.parametrize(
@@ -225,7 +245,7 @@ def test_collapse_validates_explicit_inputs(
     path = tmp_path / "invalid.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 @pytest.mark.parametrize("legacy", ["catalog", "source", "group_by", "operations", "aggregations"])
@@ -243,7 +263,7 @@ def test_removed_aggregation_and_wrapper_schemas_are_rejected(
     path = tmp_path / "legacy.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Path) -> None:
@@ -252,7 +272,7 @@ def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Pat
     path = tmp_path / "invalid_dimensions.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="grouping dimensions must exist in source"):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -> None:
@@ -261,7 +281,7 @@ def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -
     path = tmp_path / "missing_entrypoint.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="entrypoint"):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 @pytest.mark.parametrize(
@@ -287,7 +307,7 @@ def test_function_contract_validates_operation_inputs_and_return(
     path = tmp_path / "invalid_function_contract.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 def test_collapse_rejects_inputs_from_multiple_datasets(
@@ -302,7 +322,7 @@ def test_collapse_rejects_inputs_from_multiple_datasets(
     path = tmp_path / "mixed_inputs.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="one dataset; use expand"):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)
 
 
 def test_collapse_dimensions_alone_do_not_identify_input_dataset(
@@ -316,4 +336,4 @@ def test_collapse_dimensions_alone_do_not_identify_input_dataset(
     path = tmp_path / "dimension_input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="must reference a source feature"):
-        analytics.Analytics(json=path)
+        analytics.load_analytics(path)

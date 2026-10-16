@@ -2,10 +2,11 @@ from collections import abc
 
 import pytest
 
-from uptimely.analytics.json import json_model
+from uptimely.analytics import model as analytics_model
 from uptimely.analytics.python import (
     PythonAnalytics,
     bind,
+    conversion,
     dataset,
     dimension,
     entity,
@@ -26,23 +27,15 @@ def _other_source() -> None:
 def _declaration(
     identifier: str, category: str, function: abc.Callable[..., object] = _source
 ) -> dataset.Dataset:
-    mapping_type = {
-        "read": mapping.Read,
-        "write": mapping.Write,
-        "vectorize": mapping.Vectorize,
-        "collapse": mapping.Collapse,
-        "expand": mapping.Expand,
-        "conform": mapping.Conform,
-    }[category]
     is_expand = category == "expand"
     is_conform = category == "conform"
     return dataset.Dataset(
         id=identifier,
         mappings=[
-            mapping_type(
+            mapping.Mapping(
                 id=f"{identifier}_mapping",
                 bind=bind.bind(
-                    ref.function(function),
+                    ref.function(function, operation=category),
                     function_id=f"{category}_shared",
                     **(
                         {"dataset": ref.current_dataset().dataframe}
@@ -85,8 +78,8 @@ def _mapping_source(dimensions: list[dimension.Dimension]) -> entity.Entity:
             dataset.Dataset(
                 id="shared_source",
                 mappings=[
-                    mapping.Read(
-                        bind=bind.bind(ref.function(_other_source)),
+                    mapping.Mapping(
+                        bind=bind.bind(ref.function(_other_source, operation="read")),
                         outputs=[feature.Feature(id="temperature")],
                     )
                 ],
@@ -99,8 +92,8 @@ def _conform_source(identifier: str) -> dataset.Dataset:
     return dataset.Dataset(
         id=f"{identifier}_source",
         mappings=[
-            mapping.Read(
-                bind=bind.bind(ref.function(_other_source)),
+            mapping.Mapping(
+                bind=bind.bind(ref.function(_other_source, operation="read")),
                 outputs=[feature.Feature(id="temperature")],
             )
         ],
@@ -111,9 +104,9 @@ def test_empty_analytics_has_no_datasets_or_functions() -> None:
     analytics_definition = PythonAnalytics()
 
     assert analytics_definition.iter_datasets() == []
-    assert analytics_definition.function_catalog() == json_model.FunctionCatalog()
+    assert analytics_definition.function_catalog() == analytics_model.FunctionCatalog()
     with pytest.raises(ValueError, match="At least one entity is required"):
-        analytics_definition.to_analytics_dict()
+        analytics_definition.to_dict()
 
 
 def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
@@ -130,7 +123,7 @@ def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
 def test_function_catalog_keeps_distinct_functions_and_operations() -> None:
     additional = dataset.Dataset(
         id="additional",
-        mappings=[mapping.Read(bind=bind.bind(ref.function(_other_source)))],
+        mappings=[mapping.Mapping(bind=bind.bind(ref.function(_other_source, operation="read")))],
     )
     analytics_definition = PythonAnalytics(
         entities=[
@@ -183,8 +176,9 @@ def test_function_catalog_merges_and_deduplicates_each_operation(category: str) 
         expected_dataframe_inputs
     )
     assert catalog[function_id].args["columns"].type == "array[string]"
-    payload = analytics_definition.to_analytics_dict()
+    payload = analytics_definition.to_dict()
     assert payload["functions"][function_id] == {
+        "description": None,
         "operation": category,
         "returns": "none" if category == "write" else "dataframe",
         "entrypoint": f"{__name__}:_source",
@@ -239,16 +233,49 @@ def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None
 
     with pytest.raises(
         ValueError, match=f"Conflicting function definition for '{category}_shared'"
-    ) as error:
-        analytics_definition.to_analytics_dict()
+    ):
+        analytics_definition.to_dict()
 
-    assert f"{category}/{__name__}:_source vs {category}/{__name__}:_other_source" in str(
-        error.value
+
+def test_catalog_conflicts_are_rejected_consistently() -> None:
+    first = dataset.Dataset(
+        id="first",
+        mappings=[
+            mapping.Mapping(
+                bind=bind.bind(
+                    ref.function(_source, operation="read"),
+                    function_id="shared",
+                    path="readings.json",
+                )
+            )
+        ],
     )
+    second = dataset.Dataset(
+        id="second",
+        mappings=[
+            mapping.Mapping(
+                bind=bind.bind(
+                    ref.function(_source, operation="read"),
+                    function_id="shared",
+                    path=42,
+                )
+            )
+        ],
+    )
+    analytics_definition = PythonAnalytics(entities=[_entity("one", [first, second])])
+
+    with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):
+        analytics_definition.function_catalog()
+    with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):
+        conversion.to_dict(datasets=[first, second])
+
+    combined = dataset.Dataset(id="combined", mappings=[*first.mappings, *second.mappings])
+    with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):
+        combined.function_catalog()
 
 
 @pytest.mark.parametrize("keyed_dimensions", [False, True])
-def test_to_analytics_dict_preserves_name_dimensions_and_dataset_metadata(
+def test_to_dict_preserves_name_dimensions_and_dataset_metadata(
     keyed_dimensions: bool,
 ) -> None:
     pump = dimension.Dimension(id="pump", type="string", description="Asset ID")
@@ -264,7 +291,7 @@ def test_to_analytics_dict_preserves_name_dimensions_and_dataset_metadata(
         dimensions={"pump": pump} if keyed_dimensions else [pump],
     )
 
-    payload = analytics_definition.to_analytics_dict()
+    payload = analytics_definition.to_dict()
 
     assert payload["name"] == "Pump analytics"
     assert payload["version"] == "0.2.0"
@@ -274,7 +301,6 @@ def test_to_analytics_dict_preserves_name_dimensions_and_dataset_metadata(
     }
     assert payload["entities"] == {
         "assets": {
-            "id": "assets",
             "name": "Assets",
             "description": None,
             "dimensions": ["pump"],

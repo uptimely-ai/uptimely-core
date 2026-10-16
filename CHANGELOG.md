@@ -19,6 +19,21 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Analytics now separates canonical models, Python authoring, JSON I/O, and
+  prepared analysis. Removed the old JSON model/helper modules and
+  `AnalyticsParser`/`AnalyticsSerializer`; use `load_analytics`, `from_python`,
+  `prepare_analytics`, and `write_document` instead of model I/O methods.
+  Python declarations use `to_model()` and `to_dict()`, with one canonical
+  document encoding. Derived calls/functions are stored in `PreparedAnalytics`,
+  not `Analytics`. Automatic function catalogs reject all conflicting metadata,
+  and entity declarations must be passed through `entities=`, not `datasets=`.
+- Feature graph HTML rendering and `GraphStyle` now belong to
+  `uptimely.explorer.graph_render`; imports from
+  `uptimely.analytics.feature_graph.render`,
+  `uptimely.analytics.feature_graph.GraphStyle`, and
+  `uptimely.analytics.GraphStyle` have been removed.
+- Python analytics declarations now use `mapping.Mapping` with operation metadata
+  on `ref.function`; operation-specific mapping classes have been removed.
 - Portable plans now declare `plan_version` (`0.2.0`) and omit
   `analytics_version`. The built-in loader rejects unsupported plan versions;
   regenerate saved plans to use the current format.

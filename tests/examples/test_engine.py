@@ -6,9 +6,11 @@ import polars as pl
 import pytest
 from examples.pump_analytics.functions import calculation
 
-from uptimely import compile
+from uptimely import compiler
 from uptimely import engine as uptimely_engine
 from uptimely.cli import cli
+from uptimely.engine import dataframe as dataframe_module
+from uptimely.engine import state as state_module
 
 ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 ENGINE_CONFIG_PATH = pathlib.Path("examples/pump_analytics/config/engine.json")
@@ -142,16 +144,17 @@ def test_engine_rejects_unknown_runtime_attribute() -> None:
 
 def test_engine_merges_fragments_by_entity_dimensions() -> None:
     engine = uptimely_engine.Engine(ANALYTICS_PATH)
-    engine._runtime_datasets = {
-        ("pump", "pump_dataset"): pl.LazyFrame(
-            {
-                "plant": ["PLANT-01", "PLANT-01"],
-                "production_line": ["LINE-A", "LINE-B"],
-                "pump": ["PUMP-101", "PUMP-201"],
-                "existing": [1, 2],
-            }
-        )
-    }
+    dataframe = dataframe_module.DataFrameExecution(
+        engine.backend, engine.resources, state_module.RuntimeState()
+    )
+    existing = pl.LazyFrame(
+        {
+            "plant": ["PLANT-01", "PLANT-01"],
+            "production_line": ["LINE-A", "LINE-B"],
+            "pump": ["PUMP-101", "PUMP-201"],
+            "existing": [1, 2],
+        }
+    )
     fragment = pl.LazyFrame(
         {
             "plant": ["PLANT-01", "PLANT-01"],
@@ -167,8 +170,7 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
         if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
     )
     dimensions = engine.resource_resolver.entity_dimensions(operation.entity_id)
-    existing = engine._runtime_datasets[operation.entity_id, operation.dataset_id]
-    merged = engine._merge_fragment(existing, fragment, dimensions).collect()
+    merged = dataframe.merge_fragment(existing, fragment, dimensions).collect()
 
     assert merged.select("pump", "existing", "new").sort("pump").rows() == [
         ("PUMP-101", 1, 10),
@@ -195,6 +197,9 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
 )
 def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> None:
     engine = uptimely_engine.Engine(ANALYTICS_PATH)
+    dataframe = dataframe_module.DataFrameExecution(
+        engine.backend, engine.resources, state_module.RuntimeState()
+    )
     operation = next(
         operation
         for operation in engine.plan.callables
@@ -202,7 +207,7 @@ def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> Non
     )
 
     with pytest.raises(ValueError, match=message):
-        engine._validate_dataframe_result(
+        dataframe.validate_result(
             operation,
             fragment,
             None,
@@ -211,14 +216,15 @@ def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> Non
 
 
 def test_engine_rejects_ambiguous_dataset_references() -> None:
-    engine = uptimely_engine.Engine(ANALYTICS_PATH)
-    engine._runtime_datasets = {
-        ("first", "shared"): pl.LazyFrame({"id": [1]}),
-        ("second", "shared"): pl.LazyFrame({"id": [2]}),
-    }
+    state = state_module.RuntimeState(
+        datasets={
+            ("first", "shared"): pl.LazyFrame({"id": [1]}),
+            ("second", "shared"): pl.LazyFrame({"id": [2]}),
+        }
+    )
 
     with pytest.raises(ValueError, match="Ambiguous dataset reference: shared"):
-        engine._dataset_by_id("shared")
+        state.dataset_by_id("shared")
 
 
 def test_example_deltas_are_partitioned_and_ordered() -> None:
@@ -263,7 +269,7 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
 
 
 def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathlib.Path) -> None:
-    plan = compile.Compiler(ANALYTICS_PATH, features=["health_signal_normalized"]).compile()
+    plan = compiler.Compiler(ANALYTICS_PATH, features=["health_signal_normalized"]).compile()
     engine = uptimely_engine.Engine(plan, bind=_engine_bind())
     assert [
         operation.output

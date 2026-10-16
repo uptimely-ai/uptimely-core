@@ -55,12 +55,12 @@ def export_analytics(module: str, output: pathlib.Path, project_root: pathlib.Pa
     declaration = importlib.import_module(module).python_analytics
     if not isinstance(declaration, python_analytics.PythonAnalytics):
         raise TypeError(f"{module}.python_analytics must be a PythonAnalytics")
-    analytics_definition = analytics.Analytics.from_python(
+    analytics_definition = analytics.from_python(
         entities=declaration.entities,
         dimensions=declaration.dimensions,
         name=declaration.name,
     )
-    return analytics_definition.to_json(output)
+    return analytics.write_document(analytics_definition, output)
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:

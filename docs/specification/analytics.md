@@ -323,7 +323,6 @@ there is no generic JSON-path or attribute traversal. See the
 [compiler](compiler.md) and [execution engine](engine.md) guides for how these
 references and runtime placeholders are handled.
 
-
 ## Collapse Mappings
 
 Collapse operations transform a source table to the target grain. For example,

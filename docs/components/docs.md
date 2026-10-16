@@ -160,9 +160,9 @@ exit status.
 
 ```python
 from uptimely.explorer.explorer import Explorer
-from uptimely import Analytics
+from uptimely import analytics
 
-analytics_definition = Analytics(json="_generated/analytics/analytics.json")
+analytics_definition = analytics.load_analytics("_generated/analytics/analytics.json")
 explorer = Explorer(analytics_definition)
 index_path = explorer.create_html()
 ```
@@ -287,10 +287,10 @@ The Python graph API can inspect the upstream dependency subset needed for a
 selected feature without exporting HTML:
 
 ```python
-from uptimely import Analytics
+from uptimely import analytics
 from uptimely.analytics import FeatureGraph
 
-analytics_definition = Analytics(json="_generated/analytics/analytics.json")
+analytics_definition = analytics.load_analytics("_generated/analytics/analytics.json")
 graph = FeatureGraph(analytics_definition)
 subset = graph.subset(["health_signal_normalized"])
 subset.print_graph()

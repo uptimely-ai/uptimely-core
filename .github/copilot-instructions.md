@@ -32,16 +32,9 @@ Before making project-wide changes, consult the relevant guides:
 - Write Google-style docstrings. Use `Args:`, `Returns:`, and `Raises:` sections
   when applicable.
 - Import modules rather than individual classes, functions, or constants.
-  Prefer `from parent import module` and qualify references, for example:
-
-  ```python
-  from uptimely import plan
-  from uptimely.engine import backend
-
-  callable = plan.Callable(...)
-  dataframe_backend = backend.PolarsBackend()
-  ```
-
+  Use absolute imports from the owning package across packages
+  (`from uptimely.compiler import plan`), and relative imports for siblings
+  (`from . import backend`). Avoid multi-level relative imports.
 - Keep imports at module scope. Use an alias if a module name conflicts with a
   local name.
 - Use postponed annotations where they prevent circular-import problems.
@@ -49,6 +42,7 @@ Before making project-wide changes, consult the relevant guides:
 - Import optional dependencies at module scope with a guard, and report an
   explicit error if the feature is requested without that dependency.
 - Preserve public re-exports from package `__init__.py` files.
+  Relative imports of individual public symbols are allowed there.
 
 ## Documentation
 
