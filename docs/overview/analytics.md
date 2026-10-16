@@ -1,4 +1,4 @@
-# Infographic
+# Analytics
 
 The examples below use pump measurements to show how entities, datasets,
 features, mappings, and functions describe an analytical system.
@@ -45,6 +45,9 @@ Other datasets could represent:
 | Daily pump summaries | One pump on one day | Maximum pressure, average flow |
 | Maintenance events | One maintenance event for a pump | Event type, downtime |
 
+Note that this is analytical representation.
+Data might be stored physically in different way.
+
 <div class="concepts-visual">
   <div class="cv-dataset">
     <div class="cv-scope">
@@ -78,33 +81,6 @@ Other datasets could represent:
 
 The combined dataset is a conceptual view, not a requirement to store all
 intermediate columns in one physical table.
-
-## Mapping
-
-<p class="cv-function-subtitle">A function binding associated with one or more output features</p>
-
-A mapping connects a function binding to the feature identifiers it produces.
-The two mappings below account for the teal and violet feature columns in the
-dataset above. This is a logical relationship; compilation may group mappings
-into physical fragments for execution.
-
-<div class="concepts-visual">
-  <div class="cv-mappings">
-    <div class="cv-mapping-grid">
-      <div class="cv-mini-card cv-mapping-a">
-        <span class="cv-tag">MAPPING A / telemetry</span>
-        <p>One function binding is associated with pressure and flow.</p>
-        <table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-key">time</th><th class="cv-teal">pressure</th><th class="cv-teal">flow</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-teal">12</td></tr></tbody></table>
-      </div>
-      <div class="cv-mini-card cv-mapping-b">
-        <span class="cv-tag">MAPPING B / limits</span>
-        <p>Another function binding is associated with the matching limit.</p>
-        <table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-key">time</th><th class="cv-violet">limit</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-violet">8</td></tr></tbody></table>
-      </div>
-    </div>
-    <p class="cv-takeaway"><strong>One binding, declared outputs.</strong> Mapping A produces multiple features; mapping B produces another feature. The compiler and engine determine how these outputs are physically grouped and aligned.</p>
-  </div>
-</div>
 
 ## Functions
 
@@ -184,18 +160,9 @@ analytical functions calculate output features within each group.
 
 <div class="concepts-visual">
   <div class="cv-operation">
-    <div class="cv-transform cv-collapse-transform">
+    <div class="cv-transform">
       <div><span class="cv-tag">SOURCE / pump + time grain</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-key">time</th><th class="cv-teal">pressure</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-teal">6</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:01</td><td class="cv-teal">8</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:02</td><td class="cv-teal">4</td></tr></tbody></table></div>
-      <div class="cv-collapse-operation">
-        <span class="cv-tag">COLLAPSE OPERATION</span>
-        <p>Group by <span class="cv-key">pump</span></p>
-        <div class="cv-aggregate-function">
-          <strong>Collapse function</strong>
-          <code>maximum(pressure)</code>
-          <p><span class="cv-teal">6, 8, 4</span> &#8594; <span class="cv-amber">8</span></p>
-        </div>
-        <p class="cv-detail">Return group keys and calculated features.</p>
-      </div>
+      <div class="cv-arrow"><span>collapse</span><b aria-hidden="true">&#8594;</b></div>
       <div><span class="cv-tag">TARGET / pump grain</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-amber">max_pressure</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-amber">8</td></tr></tbody></table><p class="cv-detail">One row summarizes the three moments.</p></div>
     </div>
     <p class="cv-takeaway">Each collapse function binding produces one feature per group. The engine evaluates multiple bindings together to calculate multiple summary features.</p>
@@ -217,59 +184,44 @@ analytical functions calculate output features within each group.
   </div>
 </div>
 
-## Analytics
+## Mapping
 
-The Analytics document connects the data model and its calculations in one JSON
-document. Author it directly or generate it from Python or another client.
+<p class="cv-function-subtitle">Connect feature dependencies and outputs to a function binding</p>
+
+A mapping declares which features a function needs and produces, then binds
+that function to concrete arguments. In this example, `divide` receives the
+current dataset and feature identifiers, and returns `pressure_ratio`.
 
 <div class="concepts-visual">
-  <div class="cv-operation">
-    <span class="cv-tag">ONE ANALYTICS DOCUMENT / STRUCTURE</span>
-    <div class="cv-analytics-tree">
-      <div><strong>dimensions</strong><span>Shared observation keys</span><code>pump, timestamp</code></div>
-      <div><strong>functions</strong><span>Reusable implementations and argument types</span><code>vectorize.divide</code></div>
-      <div class="cv-analytics-entity"><strong>entities</strong><span>Analytical subjects</span><div class="cv-analytics-nested"><strong>pump_telemetry</strong><div class="cv-analytics-nested"><strong>datasets</strong><span>Row scope, features, mappings, and writes</span><code>features / mappings / write</code></div></div></div>
+  <div class="cv-operation cv-mapping-flow" role="group" aria-label="Input dataframe, JSON mapping, and output dataframe">
+    <div class="cv-mapping-stage cv-mapping-inputs">
+      <span class="cv-tag">INPUT DATAFRAME / declared features</span>
+      <table class="cv-table"><thead><tr><th class="cv-key">time</th><th class="cv-teal">pressure</th><th class="cv-violet">limit</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">09:01</td><td class="cv-teal">8</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">09:02</td><td class="cv-teal">4</td><td class="cv-violet">8</td></tr></tbody></table>
     </div>
-    <div class="cv-analytics-example">
-      <div class="cv-analytics-code">
-        <span class="cv-tag">EXCERPT / A DATASET'S FEATURES AND MAPPINGS</span>
-        <pre><code>{
-  <span class="cv-teal">"features"</span>: {
-    <span class="cv-amber">"pressure_ratio"</span>: {
-      "type": "float"
+    <div class="cv-mapping-arrow" aria-hidden="true">&#8595;</div>
+    <div class="cv-mapping-stage cv-mapping-call">
+      <span class="cv-tag">MAPPING / JSON</span>
+      <pre class="cv-mapping-code"><code>{
+  <span class="cv-teal">"binding"</span>: {
+    <span class="cv-teal">"function"</span>: <span class="cv-amber">"divide"</span>,
+    <span class="cv-teal">"args"</span>: {
+      <span class="cv-teal">"dataset"</span>: <span>"$datasets.@.dataframe"</span>,
+      <span class="cv-teal">"numerator"</span>: <span class="cv-teal">"$features.pressure.id"</span>,
+      <span class="cv-teal">"denominator"</span>: <span class="cv-violet">"$features.limit.id"</span>,
+      <span class="cv-teal">"output"</span>: <span class="cv-amber">"$features.pressure_ratio.id"</span>
     }
   },
-  <span class="cv-violet">"mappings"</span>: {
-    "pressure_ratio": {
-      "binding": {
-        "function": "divide",
-        "args": {
-          "dataset": "$datasets.@.dataframe",
-          "numerator": "$features.pressure.id",
-          "denominator": "$features.limit.id",
-          "output": "$features.pressure_ratio.id"
-        }
-      },
-      "features": {
-        "inputs": ["$features.pressure", "$features.limit"],
-        "outputs": ["$features.pressure_ratio"]
-      }
-    }
+  <span class="cv-violet">"features"</span>: {
+    <span class="cv-teal">"inputs"</span>: [<span class="cv-teal">"$features.pressure"</span>, <span class="cv-violet">"$features.limit"</span>],
+    <span class="cv-teal">"outputs"</span>: [<span class="cv-amber">"$features.pressure_ratio"</span>]
   }
 }</code></pre>
-      </div>
-      <dl class="cv-analytics-notes">
-        <div><dt class="cv-amber">Feature registry</dt><dd>pressure_ratio is declared once as a feature with metadata.</dd></div>
-        <div><dt>Function binding</dt><dd>divide receives the dataframe and column identifiers, then returns a dataframe with the observation keys and named result.</dd></div>
-        <div><dt class="cv-violet">Mapping outputs</dt><dd>The mapping associates its function binding with pressure_ratio.</dd></div>
-        <div><dt>Input references</dt><dd>Explicit inputs <span class="cv-teal">pressure</span> and <span class="cv-violet">limit</span> declare dependencies; identifier arguments alone do not.</dd></div>
-      </dl>
     </div>
-    <p class="cv-takeaway">This excerpt assumes pressure, limit, and divide are declared elsewhere in the Analytics document. The compiler resolves the references and may group mappings into physical fragments; the engine calculates the values.</p>
+    <div class="cv-mapping-arrow" aria-hidden="true">&#8595;</div>
+    <div class="cv-mapping-stage cv-mapping-outputs">
+      <span class="cv-tag">OUTPUT DATAFRAME / declared feature</span>
+      <table class="cv-table"><thead><tr><th class="cv-key">time</th><th class="cv-teal">pressure</th><th class="cv-violet">limit</th><th class="cv-amber">pressure_ratio</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-violet">8</td><td class="cv-amber">0.75</td></tr><tr><td class="cv-key">09:01</td><td class="cv-teal">8</td><td class="cv-violet">8</td><td class="cv-amber">1.00</td></tr><tr><td class="cv-key">09:02</td><td class="cv-teal">4</td><td class="cv-violet">8</td><td class="cv-amber">0.50</td></tr></tbody></table>
+    </div>
+    <p class="cv-takeaway"><strong>Two complementary declarations.</strong> Feature inputs and outputs describe data dependencies. Binding arguments provide the dataframe and feature identifiers the function uses; an identifier argument alone does not declare an input dependency.</p>
   </div>
 </div>
-
-See the [Analytics reference](../specification/analytics.md) for
-the complete document structure and reference rules, and
-[Project architecture](architecture.md) for the authoring, compilation, and
-execution boundaries.

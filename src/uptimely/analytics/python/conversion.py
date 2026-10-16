@@ -1,4 +1,4 @@
-"""Convert Python declarations to the canonical analytics contract."""
+"""Convert Python declarations to the analytics document format."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def to_model(
 
     Raises:
         ValueError: No declarations were supplied or function definitions conflict.
-        TypeError: A resource is not a supported declaration or canonical model.
+        TypeError: A resource is not a supported declaration or document model.
     """
     if datasets is not None and entities is not None:
         raise ValueError("Use either 'datasets' or 'entities', not both.")

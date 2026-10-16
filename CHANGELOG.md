@@ -8,6 +8,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Devcontainers mount the checkout's parent directory at its host path so
+  sibling Git worktrees remain visible to Git and VS Code.
+
 ### Added
 
 - `uptimely analytics export` exports a module's `PythonAnalytics` to JSON,
@@ -19,12 +24,16 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
-- Analytics now separates canonical models, Python authoring, JSON I/O, and
+- Python API documentation now follows the source package layout, with separate
+  package pages, module navigation, and visually separated class and function
+  entries. Coverage includes entrypoint loading, storage, function contracts,
+  validation, JSON helpers, and exported graph types.
+- Analytics now separates document models, Python authoring, JSON I/O, and
   prepared analysis. Removed the old JSON model/helper modules and
   `AnalyticsParser`/`AnalyticsSerializer`; use `load_analytics`, `from_python`,
   `prepare_analytics`, and `write_document` instead of model I/O methods.
-  Python declarations use `to_model()` and `to_dict()`, with one canonical
-  document encoding. Derived calls/functions are stored in `PreparedAnalytics`,
+  Python declarations use `to_model()` and `to_dict()`, with one shared
+  JSON document format. Derived calls/functions are stored in `PreparedAnalytics`,
   not `Analytics`. Automatic function catalogs reject all conflicting metadata,
   and entity declarations must be passed through `entities=`, not `datasets=`.
 - Feature graph HTML rendering and `GraphStyle` now belong to

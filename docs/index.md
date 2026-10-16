@@ -2,7 +2,17 @@
 
 Uptimely Core is an open source Python package to manage massive scale numerical calculations with complex dependencies for industrial needs.
 
-The framework standardizes the _unit of analytics_. A **feature** is a piece of information belonging to an entity.
+The framework standardizes the _atomic components of analytical pipelines_.
+
+
+Unit | Atomic nature
+--- | ---
+Feature | Piece of information in a dataset.
+Dimension | Feature identifiers.
+Dataset | Characterized by dimensions and grain.
+Entity | Datasets belonging to same dimension
+Function | Data processing unit with strict input and output contracts.
+
 
 !!! note
     In machine learning, "feature" has a specific meaning. In this framework,
@@ -33,4 +43,5 @@ The package has been developed especially for industrial organizations working w
 
 See [examples from the repository](https://github.com/uptimely-ai/uptimely-core/tree/main/examples) to see how it works in practice.
 
-Use the [Python API reference](reference/api.md) for class and function signatures.
+Use the [CLI reference](reference/cli.md) for commands and options, and the
+[Python API reference](reference/api.md) for class and function signatures.

@@ -117,7 +117,7 @@ def create_html(
     """Export the complete analytics explorer website.
 
     Args:
-        analytics_definition: The canonical analytics model.
+        analytics_definition: The analytics document model.
         output_path: Index file; defaults to ``_generated/explorer/index.html``.
         include_generated_at: Include a timestamp on analytics pages.
 

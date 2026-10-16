@@ -19,7 +19,7 @@ __all__ = [
 
 @dataclasses.dataclass(frozen=True)
 class PythonAnalytics:
-    """Build canonical analytics from Python authoring declarations."""
+    """Build an analytics document from Python authoring declarations."""
 
     entities: list[entity_module.Entity] = dataclasses.field(default_factory=list)
     dimensions: list[dimension.Dimension] | dict[str, dimension.Dimension] | None = None
@@ -42,7 +42,7 @@ class PythonAnalytics:
         return analytics_model.FunctionCatalog(root=functions)
 
     def to_model(self) -> analytics_model.Analytics:
-        """Return the canonical structural model without resolving entrypoints."""
+        """Return the analytics document model without resolving entrypoints."""
         return conversion.to_model(
             entities=self.entities,
             functions=self.function_catalog(),
@@ -51,7 +51,7 @@ class PythonAnalytics:
         )
 
     def to_dict(self) -> dict[str, typing.Any]:
-        """Return the canonical analytics document dictionary."""
+        """Return the analytics document as a dictionary."""
         return conversion.to_dict(
             entities=self.entities,
             functions=self.function_catalog(),

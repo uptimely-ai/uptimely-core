@@ -16,7 +16,7 @@ def prepare_analytics(document: model.Analytics) -> resolved.PreparedAnalytics:
     Rebuild the result after changing the document; it is not an automatic cache.
 
     Args:
-        document: Structurally valid canonical analytics.
+        document: An analytics document that conforms to the document model.
 
     Returns:
         The document paired with its resolved functions and calls.
@@ -36,7 +36,7 @@ def load_analytics(path: str | pathlib.Path) -> model.Analytics:
         path: A JSON document or a directory containing ``analytics.json``.
 
     Returns:
-        Validated canonical analytics without attached derived state.
+        A validated analytics document without attached derived state.
 
     Raises:
         OSError: The JSON document cannot be read.
@@ -65,7 +65,7 @@ def from_python(
         entities: Explicit entity declarations, mutually exclusive with datasets.
 
     Returns:
-        Validated canonical analytics without attached derived state.
+        A validated analytics document without attached derived state.
 
     Raises:
         TypeError: Declarations have unsupported types.

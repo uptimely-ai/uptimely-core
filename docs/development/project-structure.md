@@ -25,17 +25,24 @@ project/
 └── _generated/
     ├── analytics/
     │   └── analytics.json
-    └── compile/
-        └── execution_plan.json
+    ├── compile/
+    │   └── execution_plan.json
+    └── explorer/
+        ├── index.html
+        ├── analytics/
+        ├── plan/
+        └── execution/
 ```
 
 ## Folder responsibilities
 
-- data: raw or reference datasets used by the analytics workflow.
-- functions: reusable source, calculation, and write functions.
-- config/analytics: Python declarations that define entities, datasets, and relationships.
-- _generated: output created by the tooling, such as exported analytics JSON, compiled plans, graphs, and documentation.
-- config/engine.json: engine settings and bind values used to resolve runtime placeholders.
+| Path | Responsibility |
+| --- | --- |
+| `data/` | Raw or reference datasets used by the analytics workflow. |
+| `functions/` | Reusable source, calculation, and write functions. |
+| `config/analytics/` | Python declarations that define entities, datasets, and relationships. |
+| `_generated/` | Output created by the tooling, such as exported analytics JSON, compiled plans, graphs, and documentation. |
+| `config/engine.json` | Engine settings and bind values used to resolve runtime placeholders. |
 
 This separation keeps the project easy to reason about: analytics declarations
 live in config, runtime logic lives in functions, and generated resources stay

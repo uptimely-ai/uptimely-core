@@ -53,7 +53,7 @@ class Function(common.StrictModel):
 
 @dataclasses.dataclass(frozen=True)
 class PreparedAnalytics:
-    """A canonical document paired with its resolved and validated analysis."""
+    """An analytics document paired with its resolved and validated analysis."""
 
     document: model.Analytics
     functions: list[Function]

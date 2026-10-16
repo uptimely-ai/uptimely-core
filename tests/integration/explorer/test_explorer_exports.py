@@ -12,6 +12,7 @@ from uptimely.explorer import explorer
 
 ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 REFERENCE_PATH = pathlib.Path("docs/specification/analytics.md")
+OBSERVATION_TOTALS_PATH = pathlib.Path("tests/fixtures/analytics/observation_totals.json")
 
 
 @pytest.mark.parametrize(
@@ -26,16 +27,8 @@ def test_analytics_reference_snippet_syntax(language: str, snippet: str) -> None
         json.loads(document)
 
 
-def test_analytics_reference_example_parses_compiles_and_executes(
-    tmp_path: pathlib.Path,
-) -> None:
-    reference = REFERENCE_PATH.read_text(encoding="utf-8")
-    example_section = reference.split("## Complete JSON Example\n", 1)[1]
-    example = example_section.split("```json\n", 1)[1].split("\n```", 1)[0]
-    path = tmp_path / "analytics.json"
-    path.write_text(example, encoding="utf-8")
-
-    analytics_definition = analytics.load_analytics(path)
+def test_analytics_json_parses_compiles_and_executes() -> None:
+    analytics_definition = analytics.load_analytics(OBSERVATION_TOTALS_PATH)
     compiled = compiler.Compiler(analytics_definition, features=["total"]).compile()
     execution = engine.Engine(compiled).execute()
 

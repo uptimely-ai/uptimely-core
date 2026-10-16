@@ -34,7 +34,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def export_analytics(module: str, output: pathlib.Path, project_root: pathlib.Path) -> str:
-    """Export a module's Python declaration as canonical analytics JSON.
+    """Export a module's Python declaration in the analytics JSON format.
 
     Args:
         module: Importable module exposing ``python_analytics``.

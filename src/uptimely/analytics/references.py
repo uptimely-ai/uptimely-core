@@ -1,4 +1,4 @@
-"""Canonical traversal and resolution helpers for analytics bindings."""
+"""Traversal and resolution helpers for analytics document bindings."""
 
 from __future__ import annotations
 

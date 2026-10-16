@@ -1,4 +1,4 @@
-"""Canonical compiler implementation for portable execution plans."""
+"""Compile analytics into portable execution plans."""
 
 from .callable_node import CallableNode
 from .compiler import Compiler, ExecutionPlan

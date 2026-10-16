@@ -1,4 +1,4 @@
-"""Canonical dataset and entity models."""
+"""Dataset and entity models for analytics documents."""
 
 from __future__ import annotations
 

@@ -15,7 +15,7 @@ def function_template(
     entrypoint: str,
     args: dict[str, analytics_model.Argument],
 ) -> analytics_model.FunctionTemplate:
-    """Create a canonical function template from its authoring components."""
+    """Create a function template for the analytics document from its declarations."""
     return analytics_model.FunctionTemplate(
         id=function_id,
         operation=operation,

@@ -42,7 +42,7 @@ class FunctionReference:
 
     @property
     def entrypoint(self) -> str:
-        """Return the canonical module-and-function entrypoint."""
+        """Return the entrypoint in ``module:function`` format."""
         return f"{self.module}:{self.name}"
 
 
@@ -93,7 +93,7 @@ class Reference:
     value: str
 
     def to_model(self) -> str:
-        """Convert this reference to its canonical structural reference string."""
+        """Convert this reference to the analytics document's reference string format."""
         return self.value
 
     @property

@@ -28,7 +28,7 @@ class RowScope:
     coverage: str = ""
 
     def to_model(self) -> analytics_model.RowScope:
-        """Convert this row scope definition to its canonical model."""
+        """Convert this row scope definition to its document model."""
         return analytics_model.RowScope(
             grain=self.grain,
             filtering=self.filtering,
@@ -42,7 +42,7 @@ class Order:
 
     Args:
         dimension: A dimension reference created by ``ref.dimension`` or its
-            canonical ``$dimensions.<id>`` string.
+            ``$dimensions.<id>`` reference string used in analytics documents.
         direction: Ascending (``asc``) or descending (``desc``) order.
     """
 
@@ -50,7 +50,7 @@ class Order:
     direction: typing.Literal["asc", "desc"]
 
     def to_model(self) -> analytics_model.Order:
-        """Convert this ordering key to its canonical model."""
+        """Convert this ordering key to its document model."""
         return analytics_model.Order(
             dimension=(
                 self.dimension.to_model()
@@ -73,7 +73,7 @@ class Dataset:
     order: list[Order] = dataclasses.field(default_factory=list)
 
     def to_model(self) -> analytics_model.Dataset:
-        """Convert this declaration to the canonical Pydantic dataset model."""
+        """Convert this declaration to the Pydantic dataset document model."""
         mappings: dict[str, analytics_model.Mapping] = {}
         feature_models = {item.id: item.to_model() for item in self.features}
         for declaration in self.mappings:

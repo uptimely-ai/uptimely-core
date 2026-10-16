@@ -1,4 +1,4 @@
-"""Canonical analytics contract, independent of its authoring format."""
+"""Analytics document models, independent of their authoring format."""
 
 from .analytics import SUPPORTED_ANALYTICS_VERSION, Analytics
 from .common import (

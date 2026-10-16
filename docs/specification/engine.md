@@ -3,7 +3,8 @@
 This page describes the built-in Uptimely Core runtime and its execution
 contract. It consumes a compiled plan, resolves runtime resources, invokes
 functions, and accumulates their tabular results. Other engines can use the same
-portable plan format if they implement callable execution and the required backend.
+portable plan format if they implement callable execution and the required
+backend.
 
 ## Engine settings
 
@@ -29,53 +30,21 @@ JSON key | Type | Purpose
 `backend.batch_size` | integer, `"*"`, or `null` | Reserved. Validates positive integers, `"*"`, or `null`, but does not change how many records are read at a time.
 `bind` | object | Runtime values keyed by namespace, object identifier, and attribute for resolving placeholders.
 
-`backend` is not an Analytics field. A compiled plan records its backend
+A compiled plan records its backend
 claim as `required_backend`; the built-in engine rejects values other than
 `polars`. Orchestration is a deployment concern and is not represented in the
 Analytics document.
 
-## Dataframe backend
-
-The built-in Python engine currently uses columnar DataFrames and supports
-Polars `DataFrame` and `LazyFrame` values. Alternative data representations and
-processing models, such as Arrow, Beam, and tensor formats, may be explored in
-the future; they are not supported by the built-in engine today.
-
 ## Executing a compiled plan
 
-The current Python engine is initialized from a compiled portable plan. An
-`Analytics` object can still be used indirectly by compiling it first or by using the
-convenience constructors, but the runtime engine itself primarily works with the
-plan object.
+The engine executes a compiled portable plan. A plan can be compiled for
+selected output features; the compiler includes their prerequisite calculations
+and dependencies, so the engine needs no special subset logic. An exported plan
+can also be executed without recompilation.
 
-```python
-from uptimely import analytics
-
-analytics_definition = analytics.load_analytics(
-    "examples/pump_analytics/_generated/analytics/analytics.json"
-)
-plan = Compiler(
-    analytics_definition,
-    features=["health_signal_normalized"],
-).compile()
-engine = Engine(plan, config=EngineConfig(dataframe="polars"))
-result = engine.execute()
-```
-
-`Compiler.features` is optional. It names calculated output features; when
-provided, the compiler includes their prerequisite calculations and
-dependencies. The engine executes the resulting plan without special subset
-logic.
-
-An exported plan can be loaded and executed without recompilation:
-
-```python
-plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
-result = Engine(plan).execute()
-```
-
-`result` is an `ExecutionResult` containing `datasets`, `calculated_outputs`,
-`callable_statuses`, `durations`, `failures`, and `plan_version`.
+Execution returns datasets, calculated outputs, per-callable statuses and
+durations, failures, and the plan version. A failed callable is reported in the
+result, and execution stops; callables that did not run are marked skipped.
 
 ### Row-context metadata
 
@@ -92,18 +61,7 @@ A binding argument can hold a literal string of the form
 `?<namespace>.<object>.<attribute>`, for example `?storage.telemetry_source.path`.
 Unlike `$`-prefixed structural references, the compiler leaves this form
 untouched — it carries no graph dependency and is resolved only by the engine,
-at execution time, against the engine's `bind` mapping:
-
-```python
-engine = Engine(
-    plan,
-    bind={
-        "storage": {
-            "telemetry_source": {"path": "test_fixtures/pump_telemetry.json"},
-        },
-    },
-)
-```
+at execution time, against the engine's `bind` mapping.
 
 `bind` is keyed by namespace, then by object identifier, then by
 attribute name. Every operation referencing the same placeholder receives the
@@ -144,64 +102,80 @@ bindings under `backend` and `bind`:
 }
 ```
 
-`Engine` accepts the decoded mapping, not a file path. Load the file in your
-application before constructing the engine:
-
-```python
-import json
-from pathlib import Path
-
-from uptimely.engine import Engine, EngineConfig
-from uptimely.compiler.plan import ExecutionPlan
-
-plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
-engine_json = json.loads(Path("engine.prod.json").read_text(encoding="utf-8"))
-engine_config = EngineConfig(**engine_json["backend"])
-result = Engine(plan, config=engine_config, bind=engine_json["bind"]).execute()
-if result.failures:
-    raise RuntimeError(f"Execution failed: {result.failures}")
-```
-
-The [MCP CLI](../components/ai.md#running-the-server) loads this JSON file through
+The engine accepts decoded configuration values rather than a file path. The
+[MCP CLI](../components/ai.md#running-the-server) can load this JSON file through
 `--config`, reading backend settings from `backend` and runtime values from
 `bind`. Neither interface automatically selects an
 environment or merges multiple configuration files. Each supplied mapping must
 provide all values required by the callables being executed; missing values
 are errors, not fallbacks to another environment.
 
-## Execution state
+## Fragments
 
-At runtime, the engine does not keep a separate dataframe for every fragment or
-feature in isolation. Instead, it maintains one accumulated dataframe per
-`(entity_id, dataset_id)` pair and grows it incrementally as execution proceeds.
+A fragment is a subset of a dataset's columns, keyed by the owning entity's
+dimensions. It contains those dimension columns and the feature columns declared
+as outputs by one data-producing mapping. The engine adds validated fragments
+to an accumulated dataset; it does not keep a separate dataset for each
+feature.
 
-Each fragment resource initializes or updates that working dataframe by joining
-the fragment's rows on the entity dimensions. Once a fragment is loaded, the
-engine materializes the feature columns produced by each vectorize step into the
-same accumulated dataset. Every data-producing function returns a dataframe
-containing the dimension keys and its declared outputs. The engine merges only
-those columns; functions handle grouping, output naming, and literal values.
+Data-producing mappings are declared under `read`, `conform`, `expand`, and
+`collapse`. Each produces a fragment for the dataset that declares it.
+`conform` and `expand` can explicitly use another dataset through a
+`$datasets.<id>` binding reference; the operation must transform or reconcile
+that input before returning a fragment for its target dataset. Vectorize
+operations consume features from their own dataset. The engine never joins
+another dataset implicitly.
 
-The built-in compiler and engine do not apply dataset `order` metadata or insert
-sorting operations into a plan. Logical order does not change fragment alignment
-or guarantee physical row order. Order-sensitive functions must explicitly
-declare and implement their ordering inputs.
+| Type | Meaning |
+| --- | --- |
+| `read` | Reads data from an external source and returns it as a fragment. |
+| `collapse` | Groups input data, usually at a coarser grain, and returns a fragment. |
+| `expand` | Uses another dataset to produce a fragment with expanded dimensional coverage. |
+| `conform` | Reconciles or narrows data from another dataset in the same entity to the target row scope. |
 
-For each callable, the engine checks that its inputs are materialized, invokes
-the function, validates the returned keys and schema, and then joins the
-fragment into the dataset.
-Vectorize results must preserve the existing dimension-key set. No expression,
-series, dictionary, or scalar return adapters are used.
+Collapse inputs must identify one source dataset, distinct from the target.
+Combining sources requires an explicit expand operation first. Functions are
+responsible for grouping, matching, output names, and constructing literal
+values.
 
-All data-producing mapping categories use the same execution path. Validation
-is separate from merging, and runtime outputs are registered only after the
-fragment has been successfully merged.
+The compiled plan groups independent callables into stages. The built-in engine
+processes stages and callables sequentially. Dataset `order` metadata does not
+sort data or guarantee physical row order; order-sensitive functions must
+explicitly declare and implement their ordering inputs.
 
-## Runtime dataframes
+## Fragment joins and row scope
 
-Feature and dimension metadata provide the expected schema; tabular arguments
-do not carry a separate schema. The built-in engine checks declared, non-null
-column types against these logical types:
+Fragments in a dataset are combined by the owning entity's complete dimension
+key, never by row position. The built-in Polars backend uses a full join,
+coalesces key columns, treats null keys as equal, and requires a one-to-one
+key relationship. Keys present on only one side are retained, with nulls for
+the other fragment's absent values.
+
+The join is intentionally permissive about coverage: it does not prove that
+fragments satisfy the dataset's declared grain, filtering, or `row_scope`.
+Fragments for one dataset should represent the same intended observations.
+Include a key with an explicit null feature value when an observation belongs
+to the dataset but its value is missing; put genuinely different row scopes in
+separate datasets. A `conform` operation is responsible for reconciling its
+source to the target dataset's row scope before returning a fragment.
+
+## Runtime validation
+
+Before invoking a callable, the engine checks that its declared feature inputs
+are materialized and resolves its arguments, including runtime placeholders.
+Missing inputs or bindings fail that callable. For data-producing mappings,
+the built-in Polars backend accepts `DataFrame` and `LazyFrame` results. The
+engine then validates the returned fragment before merging it:
+
+| Check | Runtime requirement |
+| --- | --- |
+| Dimensions | Every dimension of the entity is present as a column. |
+| Outputs | Every declared output feature is present as a column. |
+| Keys | Complete dimension keys are unique; dimensionless datasets contain at most one row. |
+| Types | Declared dimension and feature types match the returned schema. |
+| Vectorize coverage | The result has exactly the existing dataset key set; row order may differ. |
+
+Logical types used for validation are:
 
 | Logical type | Meaning |
 | --- | --- |
@@ -215,156 +189,12 @@ column types against these logical types:
 | `object` | Structured value. |
 | `array` | List or array value. |
 
-Values are not automatically converted. An unknown declared type fails
-validation; an omitted feature type skips that feature's type check. Dimension
-types come from the root dimension registry, even when dimension columns are
-not listed as mapping outputs. Repeated dimension feature metadata does not
-override the root type.
+Types are checked against feature metadata and the root dimension registry;
+repeated dimension feature metadata does not override the root type. Values
+are not automatically converted. An unknown declared type fails validation,
+while an omitted feature type skips that feature's type check.
 
-Each returned dataframe must include every dimension column for its entity and
-every declared output. Complete dimension keys must be unique; a dimensionless
-dataset can contain at most one row. Keys, including null keys, are aligned by
-value rather than row position. Only dimension columns and declared outputs
-are merged into the accumulated dataset, so returning an input dataframe with
-extra columns cannot overwrite unrelated features. Output types are checked
-against the feature registry.
-
-Vectorize results must preserve the exact existing key set, though row order
-may differ. Other data-producing operations may change coverage to create their
-target row scope. The engine full-joins fragments and preserves keys that occur
-in only one fragment, leaving nulls for values absent from the other. It does
-not prove that fragments meet their descriptive grain, filtering, or coverage.
-Functions are responsible for their internal grouping, matching, output names,
-and constructed literal values.
-
-## Write Functions
-
-A write callable is the final node for a dataset in the execution plan. Its
-binding uses structural references, which the compiler resolves to IDs. At
-runtime the engine uses the function template's mapped primitive types to bind
-`dataframe` IDs to physical dataframes; feature and dimension IDs remain
-strings for the implementation to interpret. `sink` (like `source`) is
-ordinarily a `?storage.<id>.<attribute>` runtime placeholder, resolved against
-`bind` values at execution time. The write implementation prepares and
-persists the required output.
-
-```json
-"write_pump_results": {
-  "features": {
-    "inputs": [
-      "$features.bearing_temperature_max",
-      "$features.health_signal_normalized"
-    ],
-    "outputs": []
-  },
-  "binding": {
-    "function": "write_pump_results",
-    "args": {
-      "sink": "?storage.pump_telemetry_sink.path",
-      "dataset": "$datasets.@.dataframe",
-      "columns": [
-        "$features.bearing_temperature_max.id",
-        "$features.health_signal_normalized.id"
-      ]
-    }
-  }
-}
-```
-
-The accumulated dataset contains columns materialized by completed mappings.
-Subset plans retain configured dataset sinks; a sink requiring additional
-features outside the subset reports an unavailable-input failure rather than
-receiving missing data silently.
-
-## Dataset isolation and fragments
-
-Vectorize operations consume features only from their own dataset. Fragment
-operations may explicitly receive another dataset through a `$datasets.<id>`
-reference in their binding arguments and return a new fragment for the target
-dataset. The engine never joins features from another dataset implicitly. The
-Analytics document declares dataframe-producing resources under `read`, `conform`,
-`expand`, and `collapse`. Each fragment produces a runtime dataframe, includes
-the entity's dimension columns, and should follow the dataset `row_scope`
-contract.
-
-With the Polars backend, functions return `pl.DataFrame` or `pl.LazyFrame`.
-`calculated_outputs` stores dimension-keyed frames for individual vectorized
-outputs. Scalar construction and column naming belong inside the function.
-
-The compiled plan groups independent callables into stages. The current engine
-processes those stages and their callables sequentially; another engine may
-execute independent callables in parallel while preserving dependency order.
-
-### Fragment Join Behavior
-
-The Polars backend currently combines fragments with a full outer join on all
-dimensions declared by the owning entity. It coalesces the join-key columns and
-validates a one-to-one relationship:
-
-```python
-left.join(
-    right,
-    on=entity_dimensions,
-    how="full",
-    coalesce=True,
-    validate="1:1",
-    nulls_equal=True,
-)
-```
-
-A full join preserves every dimension key returned by either fragment. This
-avoids silently discarding observations when fragment coverage differs. If a
-key occurs in only one fragment, columns contributed by the other fragment
-contain null values. This is permissive current behavior; it does not prove
-that the fragments satisfy the same `row_scope`.
-
-The engine validates structural conditions that can be determined from the
-returned dataframes:
-
-- Each fragment is a supported dataframe type.
-- Every entity dimension is present as a column.
-- Each complete dimension key occurs at most once within a fragment.
-- The join has a one-to-one key relationship.
-
-The analytics author and fragment implementations remain responsible for
-semantic conditions:
-
-- Fragments in one dataset represent the same grain, filtering, and intended
-    observation set.
-- Missing feature values are represented intentionally. When an observation
-    belongs to the dataset but lacks a value, the fragment should normally include
-    its dimension key and an explicit null value.
-- Fragments with genuinely different row scopes belong in different datasets.
-- A `conform` operation must reconcile or narrow data from another dataset in
-    the same entity before returning a fragment that conforms to the target
-    dataset's row scope.
-
-Vectorize results must match the existing complete key set. Other categories
-may change coverage: their omitted keys are preserved by the full join and
-exposed as nulls. The engine does not prove declared filtering or coverage.
-
-The function catalog defines these dataframe-producing categories:
-
-| Type | Meaning |
-| --- | --- |
-| `read` | Reads another dataset from an external source such as a file or database and returns it as a fragment. |
-| `collapse` | Returns data grouped by the analytical function, usually at a coarser grain. |
-| `expand` | Retrieves another dataset and returns it at expanded dimensional coverage. |
-| `conform` | Retrieves another dataset in the same entity and reconciles or narrows it to the target dataset's row scope. |
-
-All dataframe-producing mappings produce data for the dataset that declares
-them. For
-`conform` and `expand`, the binding usually identifies
-another dataset explicitly; the operation function performs the required pull,
-transformation, or reconciliation before returning the fragment. The returned
-fragment must conform to the target dataset's dimensions and row scope.
-
-Collapse declares explicit input and output feature lists and a normal binding.
-Its input features must identify one source dataset, different from the target.
-Combining sources requires an explicit expand operation first.
-The source dataframe is passed through a dataset argument. The function performs
-grouping and returns the target dimension keys alongside its named output
-columns. An entity without dimensions has at most one returned observation.
-
-Fragments are combined by the owning entity's complete dimension key. The
-engine never combines fragments by row position, so differing row order is safe.
+After validation, only dimension and declared output columns are merged.
+Additional columns returned by a function are ignored, so they cannot replace
+other dataset features. Other data-producing operations may change coverage to
+create their target row scope.

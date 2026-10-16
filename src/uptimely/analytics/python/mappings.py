@@ -52,7 +52,7 @@ class Mapping:
         return operation
 
     def to_model(self) -> analytics_model.Mapping:
-        """Convert this mapping declaration to its canonical model."""
+        """Convert this mapping declaration to its document model."""
         identifier = bind_module._mapping_id(self.bind, self.id)
         arguments = bind_module._binding_args(self.bind)
         return analytics_model.Mapping(
