@@ -19,13 +19,13 @@ import typing
 import fastmcp
 import polars as pl
 
-from uptimely import analytics, compile
+from uptimely import analytics, compiler, entrypoint
 from uptimely import engine as uptimely_engine
-from uptimely.analytics.json import json_model
+from uptimely.analytics import model as analytics_model
 
 logger = logging.getLogger(__name__)
 
-FUNCTION_OPERATIONS = json_model.FUNCTION_OPERATIONS
+FUNCTION_OPERATIONS = analytics_model.FUNCTION_OPERATIONS
 
 
 @dataclasses.dataclass
@@ -38,12 +38,12 @@ class ServerState:
         default_factory=uptimely_engine.EngineConfig
     )
     bind: dict[str, dict[str, dict[str, typing.Any]]] = dataclasses.field(default_factory=dict)
-    analytics: json_model.Analytics | None = dataclasses.field(default=None, repr=False)
+    analytics: analytics_model.Analytics | None = dataclasses.field(default=None, repr=False)
 
-    def load_analytics(self, *, reload: bool = False) -> json_model.Analytics:
+    def load_analytics(self, *, reload: bool = False) -> analytics_model.Analytics:
         """Return analytics, parsing it on first use or when reloaded."""
         if self.analytics is None or reload:
-            self.analytics = analytics.Analytics(json=self.analytics_path)
+            self.analytics = analytics.load_analytics(self.analytics_path)
         return self.analytics
 
 
@@ -76,7 +76,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
     @mcp.tool()
     def list_functions() -> str:
         """List every function id and its operation."""
-        catalog = state.load_analytics().function_catalog
+        catalog = state.load_analytics().functions
         return _to_json(
             [
                 {"id": function_id, "operation": function.operation}
@@ -91,11 +91,11 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         Args:
             function_id: The function id from `list_functions`.
         """
-        catalog = state.load_analytics().function_catalog
+        catalog = state.load_analytics().functions
         template = catalog.get(function_id)
         if template is None:
             raise ValueError(f"Unknown function: {function_id}")
-        signature = compile.read_signature(template.entrypoint, root=state.project_root)
+        signature = entrypoint.read_signature(template.entrypoint, root=state.project_root)
         return _to_json(
             {
                 "id": function_id,
@@ -146,7 +146,9 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             features needed to compute it.
         """
         analytics_definition = state.load_analytics()
-        by_feature = {call.feature: call for call in analytics_definition.calls}
+        by_feature = {
+            call.feature: call for call in analytics.prepare_analytics(analytics_definition).calls
+        }
         call = by_feature.get(feature_id)
         if call is None:
             raise ValueError(
@@ -188,7 +190,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 compiles the full analytics document when omitted.
         """
         analytics_definition = state.load_analytics()
-        plan = compile.Compiler(analytics_definition, features=feature_ids).compile()
+        plan = compiler.Compiler(analytics_definition, features=feature_ids).compile()
         return _to_json(
             {
                 "features": feature_ids,
@@ -223,7 +225,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             raise ValueError("max_rows must be a positive integer")
 
         analytics_definition = state.load_analytics()
-        plan = compile.Compiler(analytics_definition, features=[feature_id]).compile()
+        plan = compiler.Compiler(analytics_definition, features=[feature_id]).compile()
         engine = uptimely_engine.Engine(
             plan,
             config=state.engine_config,
@@ -277,7 +279,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 "functions": {
                     operation: sum(
                         function.operation == operation
-                        for function in analytics_definition.function_catalog.root.values()
+                        for function in analytics_definition.functions.root.values()
                     )
                     for operation in FUNCTION_OPERATIONS
                 },

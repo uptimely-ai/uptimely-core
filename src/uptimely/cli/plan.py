@@ -3,9 +3,9 @@
 import argparse
 import pathlib
 
-from uptimely import compile
-from uptimely import plan as plan_module
+from uptimely import compiler
 from uptimely.cli import common
+from uptimely.compiler import plan as plan_module
 
 
 def compile_plan(
@@ -15,7 +15,7 @@ def compile_plan(
 ) -> plan_module.ExecutionPlan:
     """Compile analytics, optionally selecting features and their dependencies."""
     analytics_definition = common.load_analytics(analytics_definition, project_root)
-    return compile.Compiler(analytics_definition, features=features).compile()
+    return compiler.Compiler(analytics_definition, features=features).compile()
 
 
 def print_stages(plan: plan_module.ExecutionPlan) -> None:

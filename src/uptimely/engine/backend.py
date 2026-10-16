@@ -8,7 +8,7 @@ from collections import abc
 
 import polars as pl
 
-from uptimely.compile import entrypoint as entrypoint_module
+from uptimely import entrypoint as entrypoint_module
 
 
 class DataFrameBackend(typing.Protocol):

@@ -33,7 +33,7 @@ def pytest_configure(config: pytest.Config) -> None:
     analytics_definitions = (
         (
             "pump_analytics",
-            analytics.Analytics.from_python(
+            analytics.from_python(
                 entities=pump_analytics_module.entities,
                 dimensions=pump_analytics_module.dimensions,
                 name="Pump analytics",
@@ -41,7 +41,7 @@ def pytest_configure(config: pytest.Config) -> None:
         ),
         (
             "simple_analytics",
-            analytics.Analytics.from_python(
+            analytics.from_python(
                 entities=simple_analytics_module.python_analytics.entities,
                 dimensions=simple_analytics_module.python_analytics.dimensions,
                 name=simple_analytics_module.python_analytics.name,
@@ -53,4 +53,4 @@ def pytest_configure(config: pytest.Config) -> None:
             REPOSITORY_ROOT / "examples" / project / "_generated" / "analytics" / "analytics.json"
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        analytics_definition.to_json(output_path)
+        analytics.write_document(analytics_definition, output_path)

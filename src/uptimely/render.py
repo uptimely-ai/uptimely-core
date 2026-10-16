@@ -1,4 +1,4 @@
-"""Shared template loading for the documentation website."""
+"""Shared render-data filtering and template loading for the documentation website."""
 
 import jinja2
 
@@ -11,6 +11,11 @@ WEBSITE_PAGES = {
     "plan": {section: f"plan/{section}.html" for section in ("overview", "graph", "stages")},
     "execution": {"lineage": "execution/data_lineage.html"},
 }
+
+
+def filled_fields(**fields: object) -> dict[str, object]:
+    """Return render fields without None values, preserving other falsy values."""
+    return {key: value for key, value in fields.items() if value is not None}
 
 
 def html_environment() -> jinja2.Environment:

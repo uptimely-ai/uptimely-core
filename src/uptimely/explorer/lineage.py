@@ -5,7 +5,8 @@ from __future__ import annotations
 import dataclasses
 import pathlib
 
-from uptimely import analytics, plan, render
+from uptimely import analytics, render
+from uptimely.compiler import plan
 
 
 @dataclasses.dataclass(frozen=True)

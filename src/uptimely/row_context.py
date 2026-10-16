@@ -8,6 +8,8 @@ import typing
 
 import pydantic
 
+from uptimely import contracts
+
 UNBOUNDED: typing.Literal["unbounded"] = "unbounded"
 CountExtent = typing.Annotated[int, pydantic.Field(strict=True, ge=0)] | typing.Literal["unbounded"]
 TimeExtent = str
@@ -123,7 +125,9 @@ class RowContext(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True)
 
-    dimension: str | None = pydantic.Field(default=None, pattern=r"^\$dimensions\.[^.]+$")
+    dimension: str | None = pydantic.Field(
+        default=None, pattern=rf"^{re.escape(contracts.DIMENSION_PREFIX)}[^.]+$"
+    )
     before: ContextExtent | typing.Literal["unbounded"] = pydantic.Field(
         default_factory=ContextExtent
     )

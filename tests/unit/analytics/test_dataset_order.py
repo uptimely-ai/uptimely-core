@@ -9,7 +9,7 @@ import pytest
 from examples.simple_analytics.config.analytics import analytics as analytics_module
 from examples.simple_analytics.functions import functions
 
-from uptimely import analytics, compile, engine
+from uptimely import analytics, compiler, engine
 from uptimely.analytics import python as python_analytics
 from uptimely.analytics import validation
 from uptimely.explorer import explorer
@@ -44,7 +44,7 @@ def _parse(tmp_path: pathlib.Path, order: object) -> analytics.Analytics:
     configuration["entities"]["telemetry"]["datasets"][0]["order"] = order
     path = tmp_path / "input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    return analytics.Analytics(json=path)
+    return analytics.load_analytics(path)
 
 
 def test_dataset_order_json_round_trip_preserves_precedence(tmp_path: pathlib.Path) -> None:
@@ -53,10 +53,10 @@ def test_dataset_order_json_round_trip_preserves_precedence(tmp_path: pathlib.Pa
     assert keys == [analytics.Order(**key) for key in ORDER]
 
     path = tmp_path / "export.json"
-    analytics_definition.to_json(path)
+    analytics.write_document(analytics_definition, path)
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["entities"]["telemetry"]["datasets"][0]["order"] == ORDER
-    assert analytics.Analytics(json=path).entities["telemetry"].datasets[0].order == keys
+    assert analytics.load_analytics(path).entities["telemetry"].datasets[0].order == keys
 
 
 def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.Path) -> None:
@@ -65,7 +65,7 @@ def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.
     del configuration["entities"]["telemetry"]["datasets"][0]["order"]
     path = tmp_path / "omitted.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    assert analytics.Analytics(json=path).entities["telemetry"].datasets[0].order == []
+    assert analytics.load_analytics(path).entities["telemetry"].datasets[0].order == []
 
     first = analytics.Dataset(id="first")
     second = analytics.Dataset(id="second")
@@ -146,7 +146,7 @@ def test_dataset_order_python_authoring_matches_json(
         python_analytics.dimension.Dimension(id="timestamp", type="datetime"),
     ]
     if use_entities:
-        analytics_definition = analytics.Analytics.from_python(
+        analytics_definition = analytics.from_python(
             entities=[
                 python_analytics.entity.Entity(
                     id="telemetry",
@@ -158,15 +158,15 @@ def test_dataset_order_python_authoring_matches_json(
             dimensions=dimensions,
         )
     else:
-        analytics_definition = analytics.Analytics.from_python(
+        analytics_definition = analytics.from_python(
             datasets=[declaration], dimensions=dimensions, name="telemetry"
         )
     assert analytics_definition.entities["telemetry"].datasets[0].order == (
         _parse(tmp_path, ORDER).entities["telemetry"].datasets[0].order
     )
     path = tmp_path / "python.json"
-    analytics_definition.to_json(path)
-    assert analytics.Analytics(json=path).entities["telemetry"].datasets[0].order == [
+    analytics.write_document(analytics_definition, path)
+    assert analytics.load_analytics(path).entities["telemetry"].datasets[0].order == [
         analytics.Order(**key) for key in ORDER
     ]
 
@@ -178,7 +178,7 @@ def test_dataset_order_python_authoring_validates_references() -> None:
         ).to_model()
 
     with pytest.raises(validation.AnalyticsError, match="not declared by entity"):
-        analytics.Analytics.from_python(
+        analytics.from_python(
             datasets=[
                 python_analytics.dataset.Dataset(
                     id="observations",
@@ -216,19 +216,21 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
             python_analytics.feature.Feature(id="sum"),
         ],
         mappings=[
-            python_analytics.mapping.Read(
+            python_analytics.mapping.Mapping(
                 id="read",
-                bind=python_analytics.bind.bind(python_analytics.ref.function(functions.read_data)),
+                bind=python_analytics.bind.bind(
+                    python_analytics.ref.function(functions.read_data, operation="read")
+                ),
                 outputs=[
                     python_analytics.ref.feature("input_1"),
                     python_analytics.ref.feature("input_2"),
                     python_analytics.ref.feature("id"),
                 ],
             ),
-            python_analytics.mapping.Vectorize(
+            python_analytics.mapping.Mapping(
                 id="sum",
                 bind=python_analytics.bind.bind(
-                    python_analytics.ref.function(functions.sum_features),
+                    python_analytics.ref.function(functions.sum_features, operation="vectorize"),
                     left_feature=python_analytics.ref.feature("input_1"),
                     right_feature=python_analytics.ref.feature("input_2"),
                     output="sum",
@@ -242,10 +244,10 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
             ),
         ],
     )
-    unordered = analytics.Analytics.from_python(
+    unordered = analytics.from_python(
         datasets=[declaration], dimensions=analytics_module.dimensions
     )
-    ordered = analytics.Analytics.from_python(
+    ordered = analytics.from_python(
         datasets=[
             dataclasses.replace(
                 declaration,
@@ -259,8 +261,8 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
         dimensions=analytics_module.dimensions,
     )
     assert (
-        compile.Compiler(ordered).compile().callables
-        == compile.Compiler(unordered).compile().callables
+        compiler.Compiler(ordered).compile().callables
+        == compiler.Compiler(unordered).compile().callables
     )
 
     result = engine.Engine(ordered).execute()

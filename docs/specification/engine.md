@@ -49,9 +49,11 @@ convenience constructors, but the runtime engine itself primarily works with the
 plan object.
 
 ```python
-from uptimely import Analytics
+from uptimely import analytics
 
-analytics_definition = Analytics(json="examples/pump_analytics/_generated/analytics/analytics.json")
+analytics_definition = analytics.load_analytics(
+    "examples/pump_analytics/_generated/analytics/analytics.json"
+)
 plan = Compiler(
     analytics_definition,
     features=["health_signal_normalized"],
@@ -150,7 +152,7 @@ import json
 from pathlib import Path
 
 from uptimely.engine import Engine, EngineConfig
-from uptimely.plan import ExecutionPlan
+from uptimely.compiler.plan import ExecutionPlan
 
 plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
 engine_json = json.loads(Path("engine.prod.json").read_text(encoding="utf-8"))

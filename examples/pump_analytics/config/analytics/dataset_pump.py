@@ -22,10 +22,10 @@ pump_features = [
 ]
 
 pump_mappings = [
-    mapping.Collapse(
+    mapping.Mapping(
         id="bearing_temperature_by_pump",
         bind=bind.bind(
-            ref.function(functions.calculation.maximum),
+            ref.function(functions.calculation.maximum, operation="collapse"),
             feature=ref.feature("bearing_temperature"),
             dataset=ref.dataset("pump_telemetry_dataset").dataframe,
             dimensions=[ref.dimension(name).id for name in ("plant", "production_line", "pump")],
@@ -39,10 +39,10 @@ pump_mappings = [
             ref.feature("bearing_temperature_max"),
         ],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="health_signal_normalized",
         bind=bind.bind(
-            ref.function(functions.calculation.normalize_health_signal),
+            ref.function(functions.calculation.normalize_health_signal, operation="vectorize"),
             scale_feature=ref.feature("bearing_temperature_max"),
             lower_bound=-1.0,
             upper_bound=1.0,

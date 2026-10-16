@@ -31,10 +31,10 @@ Missing entrypoints or unreadable signatures cause compilation to fail.
 string or `Path`. Calling `compile()` returns an `ExecutionPlan`.
 
 ```python
-from uptimely import Analytics
-from uptimely.compile import Compiler
+from uptimely import analytics
+from uptimely.compiler import Compiler
 
-analytics_definition = Analytics(json="_generated/analytics/analytics.json")
+analytics_definition = analytics.load_analytics("_generated/analytics/analytics.json")
 plan = Compiler(analytics_definition).compile()
 plan.export_json("_generated/compile/execution_plan.json")
 ```
@@ -212,7 +212,7 @@ recompiling Analytics JSON:
 
 ```python
 from uptimely.engine import Engine
-from uptimely.plan import ExecutionPlan
+from uptimely.compiler.plan import ExecutionPlan
 
 plan = ExecutionPlan.from_json("_generated/compile/execution_plan.json")
 result = Engine(plan).execute()
@@ -273,7 +273,7 @@ For a compatible compiler:
    environment-specific storage locations during compilation.
 
 In Python, reuse the `Callable`, `Plan`, and `ExecutionPlan` models exported by
-`uptimely.plan`. The built-in `Compiler.compile()` implementation shows how
+`uptimely.compiler.plan`. The built-in `Compiler.compile()` implementation shows how
 dependency resolution, callable construction, signature inspection, and resource
 export fit together. Reuse those concepts rather than depending on its private
 methods as an extension API.

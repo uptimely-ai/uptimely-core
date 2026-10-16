@@ -65,6 +65,14 @@ tests when Python files are staged.
 Follow the project's coding conventions in
 [`.github/copilot-instructions.md`](.github/copilot-instructions.md).
 
+### Python imports
+
+Import modules and qualify their members. Use absolute imports from the owning
+package across packages (`from uptimely.compiler import plan`), and single-dot
+relative imports for siblings (`from . import errors`). Avoid multi-level
+relative imports. Package `__init__.py` files may re-export individual public
+symbols using relative imports.
+
 ### Changelog entries
 
 For each pull request that changes behavior or adds something users can see,

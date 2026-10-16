@@ -12,10 +12,8 @@ from urllib import request
 import pytest
 from examples.pump_analytics.functions import source
 
-from uptimely import analytics, compile
-from uptimely.analytics import explorer_render as analytics_render
-from uptimely.analytics import graph_render
-from uptimely.explorer import explorer
+from uptimely import analytics, compiler
+from uptimely.explorer import analytics_render, explorer, graph_render
 
 ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 REPORTS = {
@@ -159,7 +157,7 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
 def test_website_exports_all_reports_with_relative_navigation(
     tmp_path: pathlib.Path, monkeypatch
 ) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     monkeypatch.chdir(tmp_path)
 
     index = explorer.Explorer(analytics_definition).create_html()
@@ -281,11 +279,26 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert not pathlib.Path("_generated/compile").exists()
 
 
+def test_feature_graph_payload_uses_explorer_graph_renderer() -> None:
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    graph = analytics.FeatureGraph(analytics_definition)
+
+    nodes, links = graph_render.graph_payload_from_cytoscape(graph)
+
+    node_ids = {node["id"] for node in nodes}
+    assert "health_signal_normalized" in node_ids
+    assert any(
+        link["source"] == "function:analytics:normalize_health_signal"
+        and link["target"] == "health_signal_normalized"
+        for link in links
+    )
+
+
 def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monkeypatch) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
-    expected_plan = compile.Compiler(analytics_definition).compile()
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    expected_plan = compiler.Compiler(analytics_definition).compile()
     compile_calls = 0
-    original_compile = compile.Compiler.compile
+    original_compile = compiler.Compiler.compile
 
     @functools.wraps(original_compile)
     def count_compile(self):
@@ -293,7 +306,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         compile_calls += 1
         return original_compile(self)
 
-    monkeypatch.setattr(compile.Compiler, "compile", count_compile)
+    monkeypatch.setattr(compiler.Compiler, "compile", count_compile)
     index = explorer.create_html(analytics_definition, tmp_path / "index.html")
     document = index.read_text(encoding="utf-8")
 
@@ -363,7 +376,7 @@ def test_homepage_handles_unnamed_and_escaped_projects(
 def test_analytics_pages_render_only_their_section(
     tmp_path: pathlib.Path, filename: str, section_id: str, title: str
 ) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
@@ -381,7 +394,7 @@ def test_analytics_pages_render_only_their_section(
 
 
 def test_analytics_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / "analytics/overview.html").read_text(encoding="utf-8")
 
@@ -396,8 +409,7 @@ def test_analytics_overview_displays_source_profile(tmp_path: pathlib.Path) -> N
 
 
 def test_website_supports_custom_index_path_and_in_memory_analytics(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
-    analytics_definition.path = None
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
 
     index = explorer.create_html(analytics_definition, tmp_path / "nested" / "analytics.htm")
 
@@ -464,7 +476,7 @@ def test_relocated_website_navigation_works_under_url_prefix(
 def test_execution_plan_pages_render_only_their_section(
     tmp_path: pathlib.Path, filename: str, title: str
 ) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
@@ -554,7 +566,7 @@ def test_execution_plan_pages_render_only_their_section(
 def test_graph_pages_have_one_selector_and_shared_data(
     tmp_path: pathlib.Path, filename: str
 ) -> None:
-    explorer.create_html(analytics.Analytics(json=ANALYTICS_PATH), tmp_path / "index.html")
+    explorer.create_html(analytics.load_analytics(ANALYTICS_PATH), tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert document.count('aria-label="Graph view"') == 1
@@ -595,7 +607,7 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
 
 
 def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     first = explorer.Explorer(analytics_definition).create_html(tmp_path / "first" / "index.html")
     second = explorer.Explorer(analytics_definition).create_html(tmp_path / "second" / "index.html")
 
@@ -604,8 +616,8 @@ def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> N
 
 
 def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
-    plan = compile.Compiler(analytics_definition).compile()
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    plan = compiler.Compiler(analytics_definition).compile()
     explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
     cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
@@ -648,7 +660,7 @@ def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> Non
     "filename", ["overview.html", "features.html", "graph.html", "stages.html"]
 )
 def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filename: str) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
 
     index = explorer.Explorer(analytics_definition).create_html(tmp_path / filename)
     assert index.is_file()
@@ -664,12 +676,12 @@ def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filen
 
 
 def test_standalone_html_apis_are_removed() -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     graph = analytics.FeatureGraph(analytics_definition)
     assert not hasattr(analytics_definition, "create_html")
     assert not hasattr(graph, "export_html")
     assert not hasattr(graph.subset(["health_signal_normalized"]), "export_html")
-    assert not hasattr(compile.Compiler(analytics_definition).compile(), "export_html")
+    assert not hasattr(compiler.Compiler(analytics_definition).compile(), "export_html")
     assert not hasattr(analytics_render, "create_html")
     assert not hasattr(analytics_render, "create_website_pages")
     assert not hasattr(graph_render, "render_graph_html")
@@ -679,7 +691,7 @@ def test_standalone_html_apis_are_removed() -> None:
 def test_website_propagates_compilation_errors_without_writing_reports(
     tmp_path: pathlib.Path,
 ) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     analytics_definition.functions[
         "read_pump_telemetry"
     ].entrypoint = "missing_functions:read_pump_telemetry"
@@ -700,7 +712,7 @@ def test_website_propagates_compilation_errors_without_writing_reports(
 def test_website_graph_links_reference_exported_nodes(
     tmp_path: pathlib.Path, filename: str, variable: str
 ) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
     match = re.search(rf"const {variable} = (.+);", document)
@@ -717,8 +729,8 @@ def test_website_graph_links_reference_exported_nodes(
 
 
 def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
-    plan = compile.Compiler(analytics_definition).compile()
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    plan = compiler.Compiler(analytics_definition).compile()
     explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     document = (tmp_path / "plan/graph.html").read_text(encoding="utf-8")
     match = re.search(r"const callableGraphData = (.+);", document)
@@ -739,13 +751,13 @@ def test_website_does_not_execute_analytics(tmp_path: pathlib.Path, monkeypatch)
         raise AssertionError("Website generation must not execute analytics")
 
     monkeypatch.setattr(source, "read_pump_telemetry", fail_if_executed)
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
 
     assert explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html").is_file()
 
 
 def test_website_can_include_analytics_timestamp(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.Analytics(json=ANALYTICS_PATH)
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
 
     explorer.Explorer(analytics_definition).create_html(
         tmp_path / "index.html", include_generated_at=True

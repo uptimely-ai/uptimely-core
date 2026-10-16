@@ -7,8 +7,8 @@ import typing
 import pydantic
 
 from uptimely import engine as engine_module
-from uptimely import plan as plan_module
 from uptimely.cli import common, plan
+from uptimely.compiler import plan as plan_module
 
 
 class EngineSettings(pydantic.BaseModel):

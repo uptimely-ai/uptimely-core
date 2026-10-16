@@ -29,19 +29,19 @@ features = [
 ]
 
 mappings = [
-    mapping.Read(
+    mapping.Mapping(
         id="read",
-        bind=bind.bind(ref.function(functions.read_data), function_id="read"),
+        bind=bind.bind(ref.function(functions.read_data, operation="read"), function_id="read"),
         outputs=[
             ref.feature("input_1"),
             ref.feature("input_2"),
             ref.feature("id"),
         ],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="column_3",
         bind=bind.bind(
-            ref.function(functions.sum_features),
+            ref.function(functions.sum_features, operation="vectorize"),
             left_feature=ref.feature("input_1"),
             right_feature=ref.feature("input_2"),
             output=ref.feature("column_3"),
@@ -50,10 +50,10 @@ mappings = [
         inputs=[ref.feature("input_1"), ref.feature("input_2")],
         outputs=[ref.feature("column_3")],
     ),
-    mapping.Vectorize(
+    mapping.Mapping(
         id="column_4",
         bind=bind.bind(
-            ref.function(functions.tag_first_item),
+            ref.function(functions.tag_first_item, operation="vectorize"),
             function_id="column_4",
             output=ref.feature("column_4"),
             id_column=ref.dimension("id"),
@@ -62,10 +62,10 @@ mappings = [
         inputs=[ref.feature("id")],
         outputs=[ref.feature("column_4")],
     ),
-    mapping.Write(
+    mapping.Mapping(
         inputs=[ref.feature("column_3"), ref.feature("column_4")],
         bind=bind.bind(
-            ref.function(functions.write_data),
+            ref.function(functions.write_data, operation="write"),
             function_id="write",
             df=ref.current_dataset(),
             cols=[ref.feature("column_3"), ref.feature("column_4")],

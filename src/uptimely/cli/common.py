@@ -46,4 +46,4 @@ def prepare_project_root(project_root: pathlib.Path) -> None:
 def load_analytics(path: pathlib.Path, project_root: pathlib.Path) -> analytics.Analytics:
     """Load an analytics document with project functions on the import path."""
     prepare_project_root(project_root)
-    return analytics.Analytics(json=path)
+    return analytics.load_analytics(path)

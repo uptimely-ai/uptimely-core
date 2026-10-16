@@ -5,7 +5,7 @@ import types
 
 import pytest
 
-from uptimely.analytics import storage
+from uptimely import storage
 
 
 def test_storage_reads_and_inspects_local_paths(tmp_path: pathlib.Path) -> None:
@@ -108,16 +108,15 @@ def test_core_imports_without_s3_dependencies() -> None:
         [
             sys.executable,
             "-c",
-            """
+            f"""
 import sys
 
 class BlockS3:
     def find_spec(self, fullname, path=None, target=None):
         if fullname.split(".")[0] in {"boto3", "botocore"}:
             raise ModuleNotFoundError(name=fullname)
-
 sys.meta_path.insert(0, BlockS3())
-from uptimely.analytics import storage
+from uptimely import storage
 assert storage.boto3 is None
 assert storage.exceptions is None
 assert storage.Storage.exists("pyproject.toml")

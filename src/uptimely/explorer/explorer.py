@@ -2,13 +2,10 @@
 
 import pathlib
 
-from uptimely import analytics, compile
+from uptimely import analytics, compiler
 from uptimely import render as uptimely_render
-from uptimely.analytics import explorer_render as analytics_render
-from uptimely.analytics import graph_render
-from uptimely.compile import render
 
-from . import lineage
+from . import analytics_render, graph_render, lineage, plan_render
 
 EXPLORER_OUTPUT_DIR = pathlib.Path("_generated") / "explorer"
 
@@ -66,12 +63,12 @@ class Explorer:
             else EXPLORER_OUTPUT_DIR / "index.html"
         )
         target = target.with_suffix(".html")
-        plan = compile.Compiler(self.analytics).compile()
+        plan = compiler.Compiler(self.analytics).compile()
         graph = analytics.FeatureGraph(self.analytics)
         context = analytics_render._build_context(self.analytics, include_generated_at)
         analytics_render._create_website_pages(context, target.parent, index_filename=target.name)
         graph_render._create_website_pages(graph, target.parent, index_filename=target.name)
-        render._create_website_pages(plan, target.parent, index_filename=target.name)
+        plan_render._create_website_pages(plan, target.parent, index_filename=target.name)
         lineage._create_website_page(
             self.analytics, plan, target.parent, index_filename=target.name
         )

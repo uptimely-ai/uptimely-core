@@ -1,1 +1,1 @@
-"""Canonical analytics JSON models, parsing, and serialization."""
+"""Analytics JSON document encoding and I/O."""
