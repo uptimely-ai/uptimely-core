@@ -29,6 +29,10 @@ jobs:
         shell: bash
         run: |
           PACKAGE_VERSION="$(poetry version -s)"
+          if [[ "$PACKAGE_VERSION" == *.dev* ]]; then
+            echo "Development release; changelog entries remain under Unreleased."
+            exit 0
+          fi
           RELEASE_ENTRY_COUNT="$(
             awk -v version="$PACKAGE_VERSION" '
               $1 == "##" && $2 == "[" version "]" && $3 == "-" &&
