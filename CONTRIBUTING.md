@@ -66,10 +66,16 @@ do not normally need an entry.
 
 The project uses trunk-based development. `main` is the only long-lived branch
 and should always be releasable. Create short-lived branches from `main` and
-merge them back through pull requests; keep `main` green by merging changes
-that pass CI and splitting larger work into reviewable steps. Gate unfinished
-behavior behind an opt-in code path rather than keeping a long-lived branch.
-Releases are tags on `main`; there are no `develop` or `release/*` branches.
+merge them back through pull requests.
+
+Keep `main` green by merging changes
+that pass CI and splitting larger work into reviewable steps. Use an opt-in
+code path to keep unfinished behavior hidden while integrating it through
+short-lived branches.
+Releases are tags on `main`.
+
+> [!WARNING]
+> There are no `develop` or `release/*` branches.
 
 Name branches `<type>/<short-slug>`, where `<type>` is one of:
 
@@ -84,10 +90,12 @@ Name branches `<type>/<short-slug>`, where `<type>` is one of:
 
 `<short-slug>` is 2–5 lowercase, hyphenated words describing the change. For
 example: `feature/multi-output-calculations` or
-`fix/empty-spread-health-score`. Prefix the slug with an issue number when one
-exists (for example, `fix/123-empty-spread`), and link the issue in the PR body
-(for example, `Closes #123`). Do not use personal namespaces, version numbers,
-or dates in branch names. Feature and fix branches usually result in changelog
+`fix/empty-spread-health-score`.
+
+> [!WARNING]
+> Do not use personal namespaces, version numbers, or dates in branch names.
+
+Feature and fix branches usually result in changelog
 entries; refactor and chore branches usually do not.
 
 ### Versioning policy
@@ -100,50 +108,57 @@ in advance.
 
 ### Preparing and publishing releases
 
-Prepare releases in a short-lived PR to `main`, not on a `release/*` branch.
+Prepare every release in a short-lived PR to `main`. Merge the PR only after review and CI pass. Once it is merged, create
+and push the release tag from an up-to-date `main` checkout; the release script
+checks the package version and repository state before creating the tag.
 
-For a stable release:
+#### Stable release
 
-1. Choose the next version according to the versioning policy.
-2. Update `version` under `[project]` in [`pyproject.toml`](pyproject.toml).
-3. In [`CHANGELOG.md`](CHANGELOG.md), change `## [Unreleased]` to
-   `## [<version>] - YYYY-MM-DD`, keeping its entries and categories, then add
-   a fresh, empty `## [Unreleased]` section above it.
-4. Name the branch `chore/prepare-<version>` (for example,
-   `chore/prepare-0-2-0`), run the normal checks, and open a PR against `main`.
-   Merge after review and CI pass.
+1. Choose the next stable version according to the versioning policy.
+2. Set `version` under `[project]` in [`pyproject.toml`](pyproject.toml) to that
+   version, using the `X.Y.Z` format (for example, `0.2.0`).
+3. In [`CHANGELOG.md`](CHANGELOG.md), replace `## [Unreleased]` with
+   `## [<version>] - YYYY-MM-DD`, keeping its entries and categories. Add a
+   fresh, empty `## [Unreleased]` section above the version heading.
+4. Create a short-lived branch with a compliant name, such as
+   `chore/prepare-release`. Run the normal checks, open a PR to `main`, and
+   merge it after review and CI pass.
+5. Update your local `main` and run the stable release script:
 
-After the PR merges, create and push the release tag from an up-to-date `main`
-checkout using the repository's stable release script:
+   ```sh
+   git switch main
+   git pull --ff-only
+   ./scripts/tag/stable-release.sh
+   ```
 
-```sh
-git switch main
-git pull --ff-only
-./scripts/tag/stable-release.sh
-```
+6. After the release, open a follow-up PR to set `pyproject.toml` to the next
+   development version, such as `0.3.0.dev0`. Keep the fresh `Unreleased`
+   changelog section in place.
 
-The script checks the release version and repository state. After the stable
-release, open a follow-up PR to set the next development version in
-`pyproject.toml` and keep a fresh `Unreleased` section in the changelog.
+#### Development release
 
-For a development release, set the package version to a PEP 440 development
-version in a PR to `main`, then merge it after review and CI pass. From an
-up-to-date `main` checkout, run:
+1. Choose the development version to publish, using the PEP 440 format
+   `X.Y.Z.devN` (for example, `0.3.0.dev1`). Increment `N` for every upload:
+   PyPI does not allow replacing an already published version.
+2. Set `version` under `[project]` in [`pyproject.toml`](pyproject.toml) to that
+   development version. Leave [`CHANGELOG.md`](CHANGELOG.md) entries under
+   `Unreleased`; do not create a dated heading for a development release.
+3. Create a short-lived branch with a compliant name, such as
+   `chore/prepare-development-release`. Run the normal checks, open a PR to
+   `main`, and merge it after review and CI pass.
+4. Update your local `main` and run the development release script:
 
-```sh
-git switch main
-git pull --ff-only
-./scripts/tag/dev-release.sh
-```
+   ```sh
+   git switch main
+   git pull --ff-only
+   ./scripts/tag/dev-release.sh
+   ```
 
-Increment the development release number for each upload because PyPI does not
-allow replacing a published version. Keep development-release changelog entries
-under `Unreleased`.
-
-Pushing a release tag triggers the release workflow, which verifies the package
-version and changelog heading before publishing the package to PyPI and
-creating a GitHub release. Merge release-workflow changes before creating a
-tag so the tagged commit includes them.
+Pushing either tag triggers the release workflow to build and publish the
+package to PyPI and create a GitHub release. Stable releases require a dated
+changelog heading matching the package version; development releases do not.
+Merge release-workflow changes before tagging so the tagged commit includes
+them.
 
 ## Commit and PR conventions
 
