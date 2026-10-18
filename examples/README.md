@@ -12,12 +12,11 @@ From the repository root, build the complete active bundle:
 uptimely project build --project-root examples/pump_analytics
 ```
 
-The Engine and Explorer consumers are migrating to this bundle separately.
-Until then, preview the example with the existing standalone artifacts:
+The explicit spec, plan, and Explorer build commands have been removed. The
+Explorer `serve` command still uses the legacy standalone artifacts until the
+Explorer consumer migration step:
 
 ```sh
-uptimely spec build --project-root examples/pump_analytics
-uptimely plan build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
@@ -70,17 +69,13 @@ With Python 3.13 or newer, install the package, download the examples and explor
 pip install uptimely-core
 uptimely examples download
 uptimely project build --project-root examples/pump_analytics
-uptimely spec build --project-root examples/pump_analytics
-uptimely plan build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
 Additional commands to try:
 
 ```sh
-uptimely spec build --project-root examples/pump_analytics
 uptimely spec feature-graph --project-root examples/pump_analytics --verbose
-uptimely plan build --project-root examples/pump_analytics
 uptimely engine run --project-root examples/pump_analytics
 
 ```
@@ -95,28 +90,27 @@ already exist.
 Generated artifacts are written beneath each example's `_generated/` directory.
 `project build` validates the complete source and publishes a manifest, spec,
 execution plan, and Explorer website under `_generated/build/` without running
-analytics functions. Individual `spec build` and `plan build` commands remain
-available during the consumer migration. See the
+analytics functions. The Engine and Explorer commands will consume this bundle
+in later migration steps. See the
 [project command reference](../docs/reference/cli/project.md).
 
-## Export specification documents from Python
+## Building from Python declarations
 
-The workflow commands consume JSON, so export the Python declarations before
-building plans or the explorer. Re-export after changing the declarations.
-From the repository root (or the parent of downloaded examples), run:
+The project builder discovers `config/spec/spec.py` or
+`config/spec/spec.json` under each project root. Build either or both examples
+from the repository root (or the parent of downloaded examples):
 
 ```sh
-uptimely spec build --project-root examples/pump_analytics
-uptimely spec build --project-root examples/simple_analytics
+uptimely project build --project-root examples/pump_analytics
+uptimely project build --project-root examples/simple_analytics
 ```
 
 Prefix commands with `poetry run` in a Poetry environment.
 Each declaration module exposes a `python_spec` instance of
-`uptimely.spec.python.PythonSpec`. By default, the command discovers
-`config/spec/spec.py` under the project root, preserving package-relative
-imports. You can also run `uptimely spec build` from inside either example.
-Use `--entrypoint module:attribute` to select a different module or declaration attribute.
-Without `--output`, JSON is written to `_generated/spec/spec.json` beneath
-that root. An explicit output path is relative to the current working directory.
+`uptimely.spec.python.PythonSpec`. Python sources are loaded with their package
+context, preserving package-relative imports. Use `--entrypoint
+module:attribute` to select a different module or declaration attribute, or
+`--spec <path>` to select a JSON source. If both standard sources exist, one
+must be selected explicitly.
 
 See each example's README for details.

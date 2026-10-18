@@ -14,49 +14,6 @@ from uptimely.compiler import plan as plan_module
 from uptimely.explorer import explorer as explorer_module
 
 
-def build_explorer(
-    spec_definition: pathlib.Path,
-    output: pathlib.Path,
-    project_root: pathlib.Path,
-    include_generated_at: bool = False,
-    *,
-    plan_path: pathlib.Path | None = None,
-) -> pathlib.Path:
-    """Build the static analytics explorer website.
-
-    Args:
-        spec_definition: Path to the JSON spec document.
-        output: Directory for the website index and report pages.
-        project_root: Directory added to the import path for function entrypoints.
-        include_generated_at: Include a timestamp on the spec page.
-        plan_path: Saved plan JSON; defaults to the standard path under project_root.
-
-    Returns:
-        The path to the website index.
-
-    Raises:
-        FileNotFoundError: An input is missing; includes a project build command.
-    """
-    plan_path = plan_path if plan_path is not None else project_root / project.EXECUTION_PLAN_FILE
-    inputs = (("Spec JSON", spec_definition), ("Execution plan JSON", plan_path))
-    missing = [f"  {label}: {path.resolve()}" for label, path in inputs if not path.exists()]
-    if missing:
-        command = shlex.join(
-            ["uptimely", "project", "build", "--project-root", str(project_root.resolve())]
-        )
-        raise FileNotFoundError(
-            "Missing Explorer input files:\n"
-            + "\n".join(missing)
-            + f"\nRun {command} to generate the standard spec JSON and execution plan."
-            "\nIf using custom inputs, check the --spec and --plan paths."
-        )
-    spec_definition = common.load_spec(spec_definition, project_root)
-    execution_plan = plan_module.ExecutionPlan.from_json(plan_path)
-    return explorer_module.Explorer(spec_definition, plan=execution_plan).create_html(
-        output / project.EXPLORER_INDEX_FILE.name, include_generated_at=include_generated_at
-    )
-
-
 def serve_explorer(directory: pathlib.Path, host: str = "127.0.0.1", port: int = 8001) -> None:
     """Serve an existing analytics explorer website for local preview.
 
@@ -77,7 +34,7 @@ def serve_explorer(directory: pathlib.Path, host: str = "127.0.0.1", port: int =
     index = directory / project.EXPLORER_INDEX_FILE.name
     if not index.is_file():
         raise FileNotFoundError(
-            f"Website index not found: {index}. Run 'uptimely explorer build' first."
+            f"Website index not found: {index}. Generate it with 'uptimely project build'."
         )
     if not 0 <= port <= 65535:
         raise ValueError("Port must be between 0 and 65535.")
@@ -106,37 +63,8 @@ def _port(value: str) -> int:
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure the explorer command and its build and serve actions."""
+    """Configure the Explorer serve action."""
     actions = parser.add_subparsers(dest="action", required=True)
-    build = actions.add_parser(
-        "build", help="Build the spec, feature graph, and execution plan website"
-    )
-    build.add_argument(
-        "--spec",
-        type=pathlib.Path,
-        help=(
-            "Spec JSON path (required unless --project-root is set; "
-            f"then defaults to {project.SPEC_JSON_FILE} under that root)"
-        ),
-    )
-    build.add_argument(
-        "--output",
-        type=pathlib.Path,
-        help=(
-            f"Website directory (defaults to {project.EXPLORER_OUTPUT_DIR} under --project-root, "
-            f"or {project.EXPLORER_OUTPUT_DIR} otherwise)"
-        ),
-    )
-    build.add_argument(
-        "--project-root",
-        type=pathlib.Path,
-        help="Root for importing function entrypoints and resolving default paths",
-    )
-    build.add_argument(
-        "--include-generated-at",
-        action="store_true",
-        help="Include a build timestamp on the spec page",
-    )
     serve = actions.add_parser(
         "serve", help="Build and serve the generated website for local preview"
     )
@@ -165,51 +93,42 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     serve.add_argument(
         "--port", type=_port, default=8001, help="TCP port (default: 8001; 0 selects a free port)"
     )
-    for action in (build, serve):
-        action.add_argument(
-            "--plan",
-            type=pathlib.Path,
-            help=f"Saved plan JSON (default: {project.EXECUTION_PLAN_FILE} under --project-root)",
-        )
+    serve.add_argument(
+        "--plan",
+        type=pathlib.Path,
+        help=f"Saved plan JSON (default: {project.EXECUTION_PLAN_FILE} under --project-root)",
+    )
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    """Build or serve the analytics explorer using parsed command-line arguments."""
+    """Build the analytics explorer for local preview and serve it."""
     project_root = args.project_root or pathlib.Path.cwd()
     project_path = args.project_root or pathlib.Path()
     default_spec_path = project_path / project.SPEC_JSON_FILE
     default_output = project_path / project.EXPLORER_OUTPUT_DIR
     plan_path = args.plan or project_path / project.EXECUTION_PLAN_FILE
-    if args.action == "serve":
-        spec_definition = args.spec or default_spec_path
-        directory = args.directory or default_output
-        try:
-            build_explorer(spec_definition, directory, project_root, plan_path=plan_path)
-        except (
-            OSError,
-            ValueError,
-            ImportError,
-            AttributeError,
-            TypeError,
-            jinja2.TemplateError,
-        ) as error:
-            parser.exit(1, f"uptimely: error: {error}\n")
-        try:
-            serve_explorer(directory, args.host, args.port)
-        except (OSError, ValueError) as error:
-            parser.exit(1, f"uptimely: error: {error}\n")
-        return
-    if args.spec is None and args.project_root is None:
-        parser.error("explorer build requires --spec unless --project-root is set")
     spec_definition = args.spec or default_spec_path
-    output = args.output or default_output
+    directory = args.directory or default_output
+    inputs = (("Spec JSON", spec_definition), ("Execution plan JSON", plan_path))
+    missing = [f"  {label}: {path.resolve()}" for label, path in inputs if not path.exists()]
+    if missing:
+        command = shlex.join(
+            ["uptimely", "project", "build", "--project-root", str(project_root.resolve())]
+        )
+        parser.exit(
+            1,
+            "uptimely: error: Missing Explorer input files:\n"
+            + "\n".join(missing)
+            + f"\nRun {command} to generate the complete active bundle."
+            "\nThis Explorer command still requires matching standalone inputs until its "
+            "bundle consumer migration is complete."
+            "\nIf using custom inputs, check the --spec and --plan paths.\n",
+        )
     try:
-        index = build_explorer(
-            spec_definition,
-            output,
-            project_root,
-            args.include_generated_at,
-            plan_path=plan_path,
+        spec_model = common.load_spec(spec_definition, project_root)
+        execution_plan = plan_module.ExecutionPlan.from_json(plan_path)
+        explorer_module.Explorer(spec_model, plan=execution_plan).create_html(
+            directory / project.EXPLORER_INDEX_FILE.name
         )
     except (
         OSError,
@@ -220,4 +139,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         jinja2.TemplateError,
     ) as error:
         parser.exit(1, f"uptimely: error: {error}\n")
-    print(f"Spec explorer built at {index}")
+    try:
+        serve_explorer(directory, args.host, args.port)
+    except (OSError, ValueError) as error:
+        parser.exit(1, f"uptimely: error: {error}\n")

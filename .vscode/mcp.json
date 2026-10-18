@@ -6,7 +6,7 @@
       "cwd": "${workspaceFolder}",
       "args": [
         "--spec",
-        "${workspaceFolder}/examples/pump_analytics/_generated/spec/spec.json",
+        "${workspaceFolder}/examples/pump_analytics/_generated/build/spec.json",
         "--project-root",
         "${workspaceFolder}",
         "--config",

@@ -3,7 +3,6 @@
 import argparse
 import pathlib
 
-from uptimely.cli import spec
 from uptimely.project import build as project_build
 
 
@@ -14,7 +13,22 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         "build",
         help="Build and publish a complete project bundle without running workflows",
     )
-    spec.configure_build_source_arguments(build)
+    source = build.add_mutually_exclusive_group()
+    source.add_argument(
+        "--entrypoint",
+        metavar="MODULE:ATTRIBUTE",
+        help="Importable module and attribute containing a PythonSpec instance",
+    )
+    source.add_argument(
+        "--spec",
+        type=pathlib.Path,
+        help="Source spec JSON path (overrides standard source discovery)",
+    )
+    build.add_argument(
+        "--project-root",
+        type=pathlib.Path,
+        help="Root added to the import path and used to resolve the output bundle",
+    )
     build.add_argument(
         "--features",
         nargs="+",

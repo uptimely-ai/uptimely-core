@@ -25,11 +25,10 @@ jobs:
       - name: Build pump analytics project
         run: |
           poetry run uptimely project build --project-root examples/pump_analytics
-      - name: Build pump analytics explorer
+      - name: Copy pump analytics explorer into documentation
         run: |
-          poetry run uptimely explorer build \
-            --project-root examples/pump_analytics \
-            --output docs/examples/pump_analytics
+          mkdir -p docs/examples/pump_analytics
+          cp -R examples/pump_analytics/_generated/build/explorer/. docs/examples/pump_analytics/
       - run: poetry run mkdocs build
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

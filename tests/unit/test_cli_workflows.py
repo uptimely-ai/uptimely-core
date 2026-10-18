@@ -8,7 +8,6 @@ import sys
 import pytest
 
 from uptimely.cli import cli, engine, plan
-from uptimely.compiler import plan as plan_module
 
 PROJECT = pathlib.Path(__file__).parents[2] / "examples/pump_analytics"
 SPEC_PATH = PROJECT / "_generated/spec/spec.json"
@@ -17,47 +16,6 @@ SPEC_PATH = PROJECT / "_generated/spec/spec.json"
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
     monkeypatch.setattr(sys, "argv", ["uptimely", *arguments])
     cli.main()
-
-
-def test_plan_build_defaults_and_verbose(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    (tmp_path / "_generated/spec").mkdir(parents=True)
-    (tmp_path / "_generated/spec/spec.json").write_bytes(SPEC_PATH.read_bytes())
-    invoke(monkeypatch, "plan", "build", "--project-root", str(tmp_path), "--verbose")
-
-    restored = plan_module.ExecutionPlan.from_json(
-        tmp_path / "_generated/compile/execution_plan.json"
-    )
-    assert len(restored.callables) == 13
-    text = capsys.readouterr().out
-    assert "Compiled 13 callables" in text
-    assert "Execution stages" in text
-    assert "normalize_health_signal(pump)" in text
-    assert " <- [" in text
-
-
-def test_plan_build_explicit_paths_and_subset(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    output = tmp_path / "custom/plan.json"
-    invoke(
-        monkeypatch,
-        "plan",
-        "build",
-        "--spec",
-        str(SPEC_PATH),
-        "--output",
-        str(output),
-        "--features",
-        "health_signal_normalized",
-    )
-    restored = plan_module.ExecutionPlan.from_json(output)
-    assert {callable.function_id for callable in restored.callables} == {
-        "read_pump_telemetry",
-        "maximum",
-        "normalize_health_signal",
-    }
 
 
 def test_feature_graph_summary_subset_and_tree(
@@ -92,17 +50,7 @@ def test_engine_run_compile_and_saved_plan(
         arguments.extend(["--features", "health_signal_normalized"])
     else:
         output = tmp_path / "plan.json"
-        invoke(
-            monkeypatch,
-            "plan",
-            "build",
-            "--project-root",
-            str(PROJECT),
-            "--features",
-            "health_signal_normalized",
-            "--output",
-            str(output),
-        )
+        plan.compile_plan(SPEC_PATH, PROJECT, ["health_signal_normalized"]).export_json(output)
         capsys.readouterr()
 
         # Loading a saved plan must neither compile nor require spec.
@@ -144,7 +92,7 @@ def test_workflow_argument_errors(monkeypatch: pytest.MonkeyPatch, arguments: li
 
 @pytest.mark.parametrize(
     "command",
-    [["plan", "build"], ["spec", "feature-graph"], ["engine", "run"]],
+    [["spec", "feature-graph"], ["engine", "run"]],
 )
 def test_workflow_missing_inputs_are_reported(
     tmp_path: pathlib.Path,
@@ -160,7 +108,7 @@ def test_workflow_missing_inputs_are_reported(
     assert not result.out
 
 
-@pytest.mark.parametrize("command", [["plan", "build"], ["spec", "feature-graph"]])
+@pytest.mark.parametrize("command", [["spec", "feature-graph"]])
 def test_unknown_feature_is_reported(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], command: list[str]
 ) -> None:
@@ -262,7 +210,7 @@ def test_engine_saved_plan_errors_are_reported(
     assert not result.out
 
 
-@pytest.mark.parametrize("command", [["plan", "build"], ["spec", "feature-graph"]])
+@pytest.mark.parametrize("command", [["spec", "feature-graph"]])
 def test_invalid_spec_is_reported(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -277,25 +225,6 @@ def test_invalid_spec_is_reported(
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
     assert not result.out
-
-
-def test_plan_write_errors_are_reported(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    output = tmp_path / "plan.json"
-    output.mkdir()
-    with pytest.raises(SystemExit) as error:
-        invoke(
-            monkeypatch,
-            "plan",
-            "build",
-            "--spec",
-            str(SPEC_PATH),
-            "--output",
-            str(output),
-        )
-    assert error.value.code == 1
-    assert "uptimely: error:" in capsys.readouterr().err
 
 
 def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.Path) -> None:
@@ -350,8 +279,10 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
         ),
         encoding="utf-8",
     )
+    plan.compile_plan(project / "_generated/spec/spec.json", project).export_json(
+        project / "_generated/compile/execution_plan.json"
+    )
     for command in (
-        ["plan", "build"],
         ["spec", "feature-graph", "--verbose"],
         ["engine", "run", "--verbose"],
         ["engine", "run", "--compile", "false", "--verbose"],
