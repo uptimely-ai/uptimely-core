@@ -35,6 +35,7 @@ With pip:
 pip install uptimely-core
 uptimely examples download
 uptimely project build --project-root examples/pump_analytics
+uptimely explorer serve --project-root examples/pump_analytics
 ```
 
 With Poetry, from your Poetry project:
@@ -43,14 +44,10 @@ With Poetry, from your Poetry project:
 poetry add uptimely-core
 poetry run uptimely examples download
 poetry run uptimely project build --project-root examples/pump_analytics
+poetry run uptimely engine run --project-root examples/pump_analytics
+poetry run uptimely explorer serve --project-root examples/pump_analytics
 ```
 
-`project build` creates the complete active bundle under
-`examples/pump_analytics/_generated/build/` without executing workflow
-functions. Engine runs the saved plan, including configured sinks that may
-have external side effects. Source changes require an explicit rebuild; failed
-builds leave the last successful bundle active. See
-[examples](examples/README.md) for the workflow.
 
 ## Documentation
 
