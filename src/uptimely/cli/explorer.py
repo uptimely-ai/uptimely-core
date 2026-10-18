@@ -7,11 +7,12 @@ from http import server as http_server
 
 import jinja2
 
+from uptimely import project
 from uptimely.cli import common
 from uptimely.explorer import explorer as explorer_module
 
 GENERATED_ANALYTICS_PATH: pathlib.Path = common.GENERATED_ANALYTICS_PATH
-GENERATED_EXPLORER_PATH: pathlib.Path = pathlib.Path("_generated/explorer")
+GENERATED_EXPLORER_PATH: pathlib.Path = project.EXPLORER_OUTPUT_DIR
 
 
 def build_explorer(

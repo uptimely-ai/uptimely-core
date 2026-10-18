@@ -4,11 +4,11 @@ import argparse
 import pathlib
 import sys
 
-from uptimely import analytics
+from uptimely import analytics, project
 
-GENERATED_ANALYTICS_PATH = pathlib.Path("_generated/analytics/analytics.json")
-GENERATED_PLAN_PATH = pathlib.Path("_generated/compile/execution_plan.json")
-ENGINE_CONFIG_PATH = pathlib.Path("config/engine.json")
+GENERATED_ANALYTICS_PATH: pathlib.Path = project.ANALYTICS_JSON_FILE
+GENERATED_PLAN_PATH: pathlib.Path = project.EXECUTION_PLAN_FILE
+ENGINE_CONFIG_PATH: pathlib.Path = project.ENGINE_CONFIG_FILE
 
 
 def configure_project_arguments(parser: argparse.ArgumentParser) -> None:
