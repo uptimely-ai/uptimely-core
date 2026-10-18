@@ -10,11 +10,11 @@ import typing
 from importlib import util
 from urllib import parse
 
-from uptimely import analytics, contracts, render
+from uptimely import analytics, contracts, project, render
 from uptimely import entrypoint as entrypoint_module
 from uptimely.analytics import model as analytics_model
 
-OUTPUT_DIR = pathlib.Path("_generated") / "analytics"
+OUTPUT_DIR: pathlib.Path = project.ANALYTICS_OUTPUT_DIR
 ANALYTICS_PAGES = render.WEBSITE_PAGES["analytics"]
 __all__ = [
     "ANALYTICS_PAGES",

@@ -2,12 +2,12 @@
 
 import pathlib
 
-from uptimely import analytics, compiler
+from uptimely import analytics, compiler, project
 from uptimely import render as uptimely_render
 
 from . import analytics_render, graph_render, lineage, plan_render
 
-EXPLORER_OUTPUT_DIR = pathlib.Path("_generated") / "explorer"
+EXPLORER_OUTPUT_DIR: pathlib.Path = project.EXPLORER_OUTPUT_DIR
 
 
 class Explorer:

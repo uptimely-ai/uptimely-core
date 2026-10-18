@@ -48,6 +48,9 @@ This separation keeps the project easy to reason about: analytics declarations
 live in config, runtime logic lives in functions, and generated resources stay
 clearly separate from source inputs.
 
+The fixed project structure enables automation of repetitive setup and tooling
+while preserving flexibility in the analytics implementation.
+
 The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/pump_analytics/README.md) uses CLI commands
 for analytics export, compilation, execution, documentation, and feature
 graphs. `uptimely analytics export --module <module>` imports a module exposing
