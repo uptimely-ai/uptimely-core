@@ -1,59 +1,59 @@
 # `uptimely project`
 
-Build the generated resources needed to inspect or execute an analytics project.
+Build the generated resources for an analytics project.
 
 ## `project build`
 
 ```console
 uptimely project build \
-  [--project-root PATH] [--entrypoint MODULE:ATTRIBUTE | --spec PATH]
+  [--project-root PATH] [--entrypoint MODULE:ATTRIBUTE | --spec PATH] \
+  [--features FEATURE [FEATURE ...]]
 ```
 
-The command runs two stages, in order:
+The command validates the complete source specification, compiles one execution
+plan, and builds a complete Explorer website. It publishes all four artifacts
+as one active bundle:
 
-1. Build and validate spec JSON at `_generated/spec/spec.json`.
-2. Compile it into `_generated/compile/execution_plan.json`.
+```text
+_generated/build/
+├── build.json
+├── spec.json
+├── execution_plan.json
+└── explorer/
+    ├── index.html
+    └── ... website assets and pages
+```
 
-Both paths are beneath the project root, or the current directory when no root
-is supplied. Missing output directories are created. Each invocation rebuilds
-both artifacts; there is no freshness check or cache.
+The spec export always contains the complete model. If `--features` is
+provided, the plan includes the selected outputs, their dependencies, and the
+compiler's associated dataset sinks; the Explorer renders that exact plan
+alongside the complete spec model. Omit `--features` to compile all features.
+Selections must be nonempty and valid. Duplicate names are normalized.
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `--project-root PATH` | No | Current working directory | Root for source discovery, importing project functions, and generated output paths. |
 | `--entrypoint MODULE:ATTRIBUTE` | No | Discover standard sources | Select a Python attribute containing a `PythonSpec` instance. Mutually exclusive with `--spec`. |
 | `--spec PATH` | No | Discover standard sources | Select source spec JSON. Mutually exclusive with `--entrypoint`. Relative to the current working directory. |
+| `--features FEATURE ...` | No | All features | Select one or more output features and their required dependencies. |
 
-Source discovery follows [`spec build`](spec.md#spec-build):
-`config/spec/spec.py` or `config/spec/spec.json`. If both
-exist, an explicit selection is required.
+Source discovery checks `config/spec/spec.py` and
+`config/spec/spec.json` beneath the project root. If both exist, select one
+explicitly with `--entrypoint` or `--spec`.
 
 ```console
 uptimely project build --project-root examples/pump_analytics
-uptimely explorer serve --project-root examples/pump_analytics
+uptimely project build --project-root examples/pump_analytics --features pump_health_score
 ```
 
-Building imports Python declarations and inspects function signatures, but does
-not execute the workflow, read input datasets, or invoke spec functions.
-It does not build Explorer HTML or generate engine configuration. The engine
-uses the saved plan with runtime configuration supplied separately.
-Importing Python modules does execute their module-level code; only build trusted
+Building may import Python declarations and inspect function signatures, but it
+does not execute workflow functions or sinks. Python module-level code still
+runs when a declaration or function module is imported; build only trusted
 project sources.
 
-To execute the saved plan without recompiling:
-
-```console
-uptimely engine run --project-root examples/pump_analytics --compile false
-```
-
-Failures identify the stage and exit nonzero. Later stages do not run after a
-failure. The build is not transactional: if compilation fails, the newly built
-spec JSON remains and any previous plan is not removed. Treat a failed build
-as incomplete; fix the error and rerun before using its outputs.
-
-Individual commands remain available:
-
-```console
-uptimely spec build --project-root examples/pump_analytics
-uptimely plan build --project-root examples/pump_analytics
-```
+Artifacts are generated in a sibling staging directory, validated, then
+published in place of the previous bundle. A generation failure leaves the
+previous active bundle untouched. Builders coordinate through a project lock;
+a build fails rather than publishing while another builder or cooperating
+consumer holds the bundle lock. Publication uses rollback if replacing the
+directory fails; it does not claim a filesystem-wide atomic directory swap.

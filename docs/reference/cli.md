@@ -18,31 +18,31 @@ available in an installed version.
 | `uptimely examples` | [Examples](cli/examples.md) | Download runnable example projects. |
 | `uptimely explorer` | [Explorer](cli/explorer.md) | Build or serve the Analytics Explorer website. |
 | `uptimely plan` | [Plan](cli/plan.md) | Compile spec into a portable execution plan. |
-| `uptimely project` | [Project](cli/project.md) | Build spec and compile the saved execution plan together. |
+| `uptimely project` | [Project](cli/project.md) | Build and publish a complete active bundle. |
 
 ## Typical workflow
 
-From an installed package, download examples and serve the pump analytics
-Analytics Explorer:
+From an installed package, download examples and build the complete active
+bundle:
 
 ```console
 uptimely examples download
 uptimely project build --project-root examples/pump_analytics
-uptimely explorer serve --project-root examples/pump_analytics
 ```
 
-Build prepares spec and plan artifacts without executing the workflow.
-To execute the saved plan:
-
-```console
-uptimely engine run --project-root examples/pump_analytics --compile false
-```
-
-You can still build and execute using individual commands:
+The Engine and Explorer commands are migrating to consume this bundle in
+separate steps. Until then, their existing workflow still uses standalone
+specification and plan artifacts:
 
 ```console
 uptimely spec build --project-root examples/pump_analytics
 uptimely plan build --project-root examples/pump_analytics
+uptimely explorer serve --project-root examples/pump_analytics
+```
+
+The Engine can still compile and execute from source:
+
+```console
 uptimely engine run --project-root examples/pump_analytics
 ```
 

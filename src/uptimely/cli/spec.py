@@ -1,13 +1,12 @@
 """Command-line tools for building and inspecting spec."""
 
 import argparse
-import importlib
 import pathlib
 
 from uptimely import project, spec
 from uptimely.cli import common
+from uptimely.project import build as project_build
 from uptimely.spec import feature_graph
-from uptimely.spec import python as python_spec
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
@@ -79,50 +78,10 @@ def build_spec(
         SyntaxError: A Python source cannot be parsed.
         OSError: A source cannot be read or the output cannot be written.
     """
-    if entrypoint is not None and source is not None:
-        raise ValueError("Specify either a Python entrypoint or a spec JSON source, not both")
-    common.prepare_project_root(project_root)
-    if entrypoint is None and source is None:
-        python_source = project_root / project.SPEC_PYTHON_ENTRY_FILE
-        json_source = project_root / project.SPEC_JSON_ENTRY_FILE
-        if python_source.is_file() and json_source.is_file():
-            raise ValueError(
-                f"Ambiguous spec sources: {python_source} and {json_source}. "
-                "Select one with --entrypoint or --spec."
-            )
-        if python_source.is_file():
-            module = ".".join(
-                python_source.resolve()
-                .relative_to(common.project_import_root(project_root))
-                .with_suffix("")
-                .parts
-            )
-            entrypoint = f"{module}:{project.DEFAULT_SPEC_ATTRIBUTE}"
-        elif json_source.is_file():
-            source = json_source
-        else:
-            raise FileNotFoundError(
-                f"No spec source found. Expected {python_source} or {json_source}. "
-                "Alternatively, specify --entrypoint or --spec."
-            )
-    if source is not None:
-        return spec.write_document(spec.load_spec(source), output)
-    if entrypoint is None:
-        raise ValueError("A spec Python entrypoint or JSON source is required")
-    module, separator, attribute = entrypoint.partition(":")
-    if (
-        not separator
-        or not all(part.isidentifier() for part in module.split("."))
-        or not attribute.isidentifier()
-    ):
-        raise ValueError(f"Invalid spec entrypoint: {entrypoint!r}. Expected 'module:attribute'.")
-    declaration = getattr(importlib.import_module(module), attribute)
-    if not isinstance(declaration, python_spec.PythonSpec):
-        raise TypeError(f"{entrypoint} must be a PythonSpec")
-    spec_definition = spec.from_python(
-        entities=declaration.entities,
-        dimensions=declaration.dimensions,
-        name=declaration.name,
+    spec_definition = project_build.load_spec_source(
+        entrypoint,
+        project_root,
+        source=source,
     )
     return spec.write_document(spec_definition, output)
 

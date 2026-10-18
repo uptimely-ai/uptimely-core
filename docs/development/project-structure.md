@@ -23,15 +23,14 @@ project/
 │       ├── dimension.py
 │       └── functions.py
 └── _generated/
-    ├── spec/
-    │   └── spec.json
-    ├── compile/
-    │   └── execution_plan.json
-    └── explorer/
-        ├── index.html
-        ├── spec/
-        ├── plan/
-        └── execution/
+    ├── build/
+    │   ├── build.json
+    │   ├── spec.json
+    │   ├── execution_plan.json
+    │   └── explorer/
+    ├── spec/                 Standalone spec output during migration
+    ├── compile/              Standalone plan output during migration
+    └── explorer/             Standalone Explorer output during migration
 ```
 
 ## Folder responsibilities
@@ -66,10 +65,12 @@ _generated/
 `build.json` records its schema version, the Uptimely version, the selected
 features (`null` means all features), relative artifact paths, and the complete
 Explorer file inventory. A scoped feature list is nonempty and normalized to
-unique, sorted names. The shared loader rejects missing or invalid artifacts
-and validates the saved execution plan. This contract is being introduced in
-stages: the current CLI build and consumer commands have not yet switched to
-this bundle layout.
+unique, sorted names. The shared loader rejects missing or invalid artifacts and validates the saved
+execution plan. `uptimely project build` produces this complete bundle. The
+shared loader validates under a reader lock; its `read_build_bundle` context
+holds that lock for consumers such as a serving process. Builders fail fast
+while a cooperating consumer holds the bundle lock. The Engine and Explorer
+consumer commands are migrating separately and do not yet consume it.
 
 The fixed project structure enables automation of repetitive setup and tooling
 while preserving flexibility in the analytics implementation.

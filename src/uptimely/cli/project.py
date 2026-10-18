@@ -3,8 +3,8 @@
 import argparse
 import pathlib
 
-from uptimely import project
-from uptimely.cli import common, plan, spec
+from uptimely.cli import spec
+from uptimely.project import build as project_build
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
@@ -12,25 +12,37 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     actions = parser.add_subparsers(dest="action", required=True)
     build = actions.add_parser(
         "build",
-        help="Build spec JSON and compile an execution plan without running spec",
+        help="Build and publish a complete project bundle without running workflows",
     )
     spec.configure_build_source_arguments(build)
+    build.add_argument(
+        "--features",
+        nargs="+",
+        metavar="FEATURE",
+        help="Select output features and their dependencies",
+    )
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    """Build spec followed by the execution plan, reporting stage failures."""
+    """Build and publish a complete project bundle."""
     root = args.project_root or pathlib.Path.cwd()
-    spec_path = common.project_path(None, args.project_root, project.SPEC_JSON_FILE)
-    plan_path = common.project_path(None, args.project_root, project.EXECUTION_PLAN_FILE)
     try:
-        written_spec = spec.build_spec(args.entrypoint, spec_path, root, source=args.spec)
-    except (OSError, ValueError, ImportError, AttributeError, TypeError, SyntaxError) as error:
-        parser.exit(1, f"uptimely: error: Spec build failed: {error}\n")
-    print(f"Spec written to {written_spec}")
-    try:
-        execution_plan = plan.compile_plan(spec_path, root)
-        written_plan = execution_plan.export_json(plan_path)
-    except (OSError, ValueError, ImportError, AttributeError, TypeError, SyntaxError) as error:
-        parser.exit(1, f"uptimely: error: Execution plan build failed: {error}\n")
-    print(f"Compiled {len(execution_plan.callables)} callables")
-    print(f"Execution plan: {written_plan}")
+        bundle = project_build.build_project(
+            root,
+            entrypoint=args.entrypoint,
+            source=args.spec,
+            features=args.features,
+        )
+    except (
+        project_build.BuildLockError,
+        project_build.ProjectBuildError,
+        OSError,
+        ValueError,
+    ) as error:
+        parser.exit(1, f"uptimely: error: {error}\n")
+    scope = (
+        "all features" if bundle.manifest.features is None else ", ".join(bundle.manifest.features)
+    )
+    print(f"Build scope: {scope}")
+    print(f"Build bundle: {bundle.root}")
+    print(f"Compiled {len(bundle.execution_plan.callables)} callables")

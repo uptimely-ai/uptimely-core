@@ -2,9 +2,9 @@
 
 import argparse
 import pathlib
-import sys
 
 from uptimely import project, spec
+from uptimely.project.build import prepare_project_root
 
 
 def configure_project_arguments(parser: argparse.ArgumentParser) -> None:
@@ -30,22 +30,6 @@ def project_path(
 ) -> pathlib.Path:
     """Resolve a default beneath the project root, preserving explicit paths."""
     return path if path is not None else (project_root or pathlib.Path()) / default
-
-
-def prepare_project_root(project_root: pathlib.Path) -> None:
-    """Make project function entrypoints importable without changing directories."""
-    for path in (project_import_root(project_root), project_root.resolve()):
-        root = str(path)
-        if root not in sys.path:
-            sys.path.insert(0, root)
-
-
-def project_import_root(project_root: pathlib.Path) -> pathlib.Path:
-    """Find the import root above a project's enclosing regular packages."""
-    root = project_root.resolve()
-    while (root / "__init__.py").is_file():
-        root = root.parent
-    return root
 
 
 def load_spec(path: pathlib.Path, project_root: pathlib.Path) -> spec.Spec:

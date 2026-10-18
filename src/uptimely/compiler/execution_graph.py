@@ -228,7 +228,9 @@ class CallableGraph:
         selected_dataset_keys = {(node.entity, node.dataset_id) for node in requested_nodes}
         for dataset_key in selected_dataset_keys:
             for sink in self._dataset_sinks.get(dataset_key, []):
-                nodes.add(self._node_by_key(sink.node_id))
+                sink_node = self._node_by_key(sink.node_id)
+                nodes.add(sink_node)
+                nodes.update(self.graph.ancestors(sink_node))
         subset.graph = graphable_.graph.Graph(nodes, discover=False).clone(include_edges=True)
         return subset
 

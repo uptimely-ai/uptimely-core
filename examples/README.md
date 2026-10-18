@@ -6,11 +6,18 @@ analytics explorer.
 
 ## Explore the example project
 
-From the repository root, build the project resources, then serve the pump
-analytics explorer with:
+From the repository root, build the complete active bundle:
 
 ```sh
 uptimely project build --project-root examples/pump_analytics
+```
+
+The Engine and Explorer consumers are migrating to this bundle separately.
+Until then, preview the example with the existing standalone artifacts:
+
+```sh
+uptimely spec build --project-root examples/pump_analytics
+uptimely plan build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
@@ -41,7 +48,8 @@ examples/
 │   ├── data/                 Input and calculated example datasets
 │   ├── functions/            Read, vectorize, and write function implementations
 │   └── _generated/
-│       ├── compile/          Compiled plans
+│       ├── build/            Active bundle: manifest, spec, plan, Explorer
+├── compile/          Compiled plans
 │       ├── explorer/         Generated analytics explorer
 │       └── spec/             Exported spec JSON
 └── simple_analytics/
@@ -50,7 +58,8 @@ examples/
     ├── data/                 Data used by the Python example
     ├── functions/            Example function implementations
     └── _generated/
-        └── spec/             Exported spec JSON
+        ├── build/            Active bundle: manifest, spec, plan, Explorer
+        └── spec/             Standalone exported spec JSON
 ```
 
 ## Quick start
@@ -61,6 +70,8 @@ With Python 3.13 or newer, install the package, download the examples and explor
 pip install uptimely-core
 uptimely examples download
 uptimely project build --project-root examples/pump_analytics
+uptimely spec build --project-root examples/pump_analytics
+uptimely plan build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
@@ -82,9 +93,11 @@ branch), or `--output` to change the destination. The destination must not
 already exist.
 
 Generated artifacts are written beneath each example's `_generated/` directory.
-`project build` rebuilds spec JSON and the execution plan without running
+`project build` validates the complete source and publishes a manifest, spec,
+execution plan, and Explorer website under `_generated/build/` without running
 analytics functions. Individual `spec build` and `plan build` commands remain
-available. See the [project command reference](../docs/reference/cli/project.md).
+available during the consumer migration. See the
+[project command reference](../docs/reference/cli/project.md).
 
 ## Export specification documents from Python
 

@@ -1,16 +1,37 @@
 """Active build bundle manifest and validation."""
 
+from __future__ import annotations
+
+import contextlib
 import dataclasses
+import importlib
+import importlib.metadata
 import json
+import os
 import pathlib
 import shlex
+import shutil
+import sys
+import tempfile
 import typing
+import uuid
 
+import jinja2
 import pydantic
 
+from uptimely import compiler, spec
 from uptimely.compiler.plan import models as plan_models
+from uptimely.spec import python as python_spec
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 from . import paths
+
+SpecSource = str | pathlib.Path | None
+FeatureSelection = typing.Collection[str] | None
 
 
 def _validate_relative_path(value: str) -> str:
@@ -152,6 +173,19 @@ class BuildError(RuntimeError):
         super().__init__(f"{descriptions[status]}. {action} with: {self.recovery_command}")
 
 
+class ProjectBuildError(RuntimeError):
+    """A failure while building or publishing an active bundle."""
+
+    def __init__(self, stage: str, detail: str) -> None:
+        self.stage = stage
+        self.detail = detail
+        super().__init__(f"Project build {stage} failed: {detail}")
+
+
+class BuildLockError(RuntimeError):
+    """A build cannot acquire the active bundle lock."""
+
+
 @dataclasses.dataclass(frozen=True)
 class BuildBundle:
     """Validated locations and execution plan for one active build."""
@@ -162,6 +196,127 @@ class BuildBundle:
     execution_plan_path: pathlib.Path
     explorer_path: pathlib.Path
     execution_plan: plan_models.ExecutionPlan
+
+
+@contextlib.contextmanager
+def build_lock(
+    project_root: str | pathlib.Path, *, exclusive: bool, wait: bool = True
+) -> typing.Generator[None]:
+    """Coordinate bundle reads and writes across builders and consumers.
+
+    Builders should acquire a nonblocking exclusive lock. Consumers acquire a
+    lock which may be held for the lifetime of a serving process. On platforms
+    with shared file locks, multiple consumers can hold it concurrently.
+    """
+    project_root = pathlib.Path(project_root).resolve()
+    lock_path = project_root / paths.GENERATED_DIR / ".build.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+b") as lock_file:
+        if os.name == "nt":
+            lock_file.seek(0)
+            if lock_file.read(1) == b"":
+                lock_file.write(b"\0")
+                lock_file.flush()
+            lock_file.seek(0)
+            mode = msvcrt.LK_LOCK if wait else msvcrt.LK_NBLCK
+            try:
+                msvcrt.locking(lock_file.fileno(), mode, 1)
+            except OSError as error:
+                raise BuildLockError(
+                    f"Cannot acquire the active build lock at {lock_path}; another build or "
+                    f"consumer may be using the bundle. Stop it or retry when it finishes: "
+                    f"{error}"
+                ) from error
+        else:
+            operation = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+            if not wait:
+                operation |= fcntl.LOCK_NB
+            try:
+                fcntl.flock(lock_file.fileno(), operation)
+            except OSError as error:
+                raise BuildLockError(
+                    f"Cannot acquire the active build lock at {lock_path}; another build or "
+                    f"consumer may be using the bundle. Stop it or retry when it finishes: "
+                    f"{error}"
+                ) from error
+        try:
+            yield
+        finally:
+            if os.name == "nt":
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+def project_import_root(project_root: pathlib.Path) -> pathlib.Path:
+    """Find the import root above a project's enclosing regular packages."""
+    root = project_root.resolve()
+    while (root / "__init__.py").is_file():
+        root = root.parent
+    return root
+
+
+def prepare_project_root(project_root: pathlib.Path) -> None:
+    """Make project function entrypoints importable without changing directories."""
+    for path in (project_import_root(project_root), project_root.resolve()):
+        root = str(path)
+        if root not in sys.path:
+            sys.path.insert(0, root)
+
+
+def load_spec_source(
+    entrypoint: str | None,
+    project_root: pathlib.Path,
+    *,
+    source: SpecSource = None,
+) -> spec.Spec:
+    """Load and validate an explicit or discovered Python or JSON spec source."""
+    if entrypoint is not None and source is not None:
+        raise ValueError("Specify either a Python entrypoint or a spec JSON source, not both")
+    prepare_project_root(project_root)
+    if entrypoint is None and source is None:
+        python_source = project_root / paths.SPEC_PYTHON_ENTRY_FILE
+        json_source = project_root / paths.SPEC_JSON_ENTRY_FILE
+        if python_source.is_file() and json_source.is_file():
+            raise ValueError(
+                f"Ambiguous spec sources: {python_source} and {json_source}. "
+                "Select one with --entrypoint or --spec."
+            )
+        if python_source.is_file():
+            module = ".".join(
+                python_source.resolve()
+                .relative_to(project_import_root(project_root))
+                .with_suffix("")
+                .parts
+            )
+            entrypoint = f"{module}:{paths.DEFAULT_SPEC_ATTRIBUTE}"
+        elif json_source.is_file():
+            source = json_source
+        else:
+            raise FileNotFoundError(
+                f"No spec source found. Expected {python_source} or {json_source}. "
+                "Alternatively, specify --entrypoint or --spec."
+            )
+    if source is not None:
+        return spec.load_spec(source)
+    if entrypoint is None:
+        raise ValueError("A spec Python entrypoint or JSON source is required")
+    module, separator, attribute = entrypoint.partition(":")
+    if (
+        not separator
+        or not all(part.isidentifier() for part in module.split("."))
+        or not attribute.isidentifier()
+    ):
+        raise ValueError(f"Invalid spec entrypoint: {entrypoint!r}. Expected 'module:attribute'.")
+    declaration = getattr(importlib.import_module(module), attribute)
+    if not isinstance(declaration, python_spec.PythonSpec):
+        raise TypeError(f"{entrypoint} must be a PythonSpec")
+    return spec.from_python(
+        entities=declaration.entities,
+        dimensions=declaration.dimensions,
+        name=declaration.name,
+    )
 
 
 def _resolve_bundle_path(
@@ -175,20 +330,9 @@ def _resolve_bundle_path(
     return path
 
 
-def load_build_bundle(project_root: str | pathlib.Path) -> BuildBundle:
-    """Load and validate the active build without compiling or regenerating artifacts.
-
-    Args:
-        project_root: Root directory of the analytics project.
-
-    Returns:
-        A validated bundle containing the saved execution plan and artifact paths.
-
-    Raises:
-        BuildError: If the bundle is missing, incomplete, or invalid.
-    """
-    project_root = pathlib.Path(project_root).resolve()
-    bundle_root = project_root / paths.BUILD_OUTPUT_DIR
+def _load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> BuildBundle:
+    """Load and validate a bundle directory while its project lock is held."""
+    bundle_root = pathlib.Path(bundle_root)
     manifest_path = bundle_root / paths.BUILD_MANIFEST_FILE.name
     if not bundle_root.exists():
         raise BuildError("missing", "", project_root)
@@ -267,3 +411,211 @@ def load_build_bundle(project_root: str | pathlib.Path) -> BuildBundle:
         explorer_path=explorer_path,
         execution_plan=execution_plan,
     )
+
+
+def load_build_bundle(project_root: str | pathlib.Path) -> BuildBundle:
+    """Load and validate the active build without compiling or regenerating artifacts.
+
+    Args:
+        project_root: Root directory of the analytics project.
+
+    Returns:
+        A validated bundle containing the saved execution plan and artifact paths.
+
+    Raises:
+        BuildError: If the bundle is missing, incomplete, or invalid.
+    """
+    with read_build_bundle(project_root) as bundle:
+        return bundle
+
+
+@contextlib.contextmanager
+def read_build_bundle(
+    project_root: str | pathlib.Path,
+) -> typing.Generator[BuildBundle]:
+    """Load a validated bundle while holding a reader lock for the context lifetime."""
+    project_root = pathlib.Path(project_root).resolve()
+    with build_lock(project_root, exclusive=False):
+        yield _load_bundle_at(project_root, project_root / paths.BUILD_OUTPUT_DIR)
+
+
+def _normalize_features(features: FeatureSelection) -> list[str] | None:
+    """Validate and normalize an optional nonempty output-feature selection."""
+    if features is None:
+        return None
+    if isinstance(features, str):
+        raise ValueError("features must be a collection of feature identifiers")
+    normalized = list(features)
+    if not normalized:
+        raise ValueError("features must select at least one output feature")
+    if any(not isinstance(feature, str) or not feature.strip() for feature in normalized):
+        raise ValueError("feature identifiers must be nonempty strings")
+    return sorted(set(normalized))
+
+
+def _remove_path(path: pathlib.Path) -> None:
+    """Remove a file, directory, or symlink created for publication."""
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.exists():
+        shutil.rmtree(path)
+
+
+def _publish_bundle(staging_root: pathlib.Path, target_root: pathlib.Path) -> None:
+    """Replace the active bundle with staged output and restore it on failure."""
+    backup_root = target_root.parent / f".build-backup-{uuid.uuid4().hex}"
+    had_previous = target_root.exists() or target_root.is_symlink()
+    if target_root.is_symlink():
+        raise OSError(f"Refusing to replace a symlink at the active build path: {target_root}")
+    if had_previous:
+        try:
+            os.replace(target_root, backup_root)
+        except OSError as error:
+            raise ProjectBuildError("publication", str(error)) from error
+    try:
+        os.replace(staging_root, target_root)
+    except OSError as error:
+        if had_previous:
+            try:
+                os.replace(backup_root, target_root)
+            except OSError as restore_error:
+                raise ProjectBuildError(
+                    "publication",
+                    f"{error}; failed to restore the previous bundle from "
+                    f"{backup_root}: {restore_error}",
+                ) from restore_error
+        raise ProjectBuildError("publication", str(error)) from error
+    if had_previous:
+        try:
+            _remove_path(backup_root)
+        except OSError as error:
+            raise ProjectBuildError(
+                "cleanup",
+                f"the new bundle was published, but the previous bundle at "
+                f"{backup_root} could not be removed: {error}",
+            ) from error
+
+
+def build_project(
+    project_root: str | pathlib.Path,
+    *,
+    entrypoint: str | None = None,
+    source: SpecSource = None,
+    features: FeatureSelection = None,
+) -> BuildBundle:
+    """Build and publish a complete spec, execution plan, and Explorer bundle.
+
+    Args:
+        project_root: Root directory of the analytics project.
+        entrypoint: Optional ``module:attribute`` containing a ``PythonSpec``.
+        source: Optional explicit spec JSON path.
+        features: Optional output features to compile with their dependencies.
+
+    Returns:
+        The validated newly published bundle.
+
+    Raises:
+        BuildLockError: Another builder or active bundle reader holds the lock.
+        ProjectBuildError: Source loading, compilation, generation, or publication fails.
+    """
+    root = pathlib.Path(project_root).resolve()
+    try:
+        selected_features = _normalize_features(features)
+    except (ValueError, TypeError) as error:
+        raise ProjectBuildError("feature selection", str(error)) from error
+    try:
+        spec_definition = load_spec_source(entrypoint, root, source=source)
+    except (
+        OSError,
+        ValueError,
+        ImportError,
+        AttributeError,
+        TypeError,
+        SyntaxError,
+    ) as error:
+        raise ProjectBuildError("source loading", str(error)) from error
+
+    with build_lock(root, exclusive=True, wait=False):
+        generated_root = root / paths.GENERATED_DIR
+        try:
+            staging_root = pathlib.Path(
+                tempfile.mkdtemp(prefix=".build-staging-", dir=generated_root)
+            )
+        except OSError as error:
+            raise ProjectBuildError("staging setup", str(error)) from error
+        try:
+            try:
+                execution_plan = compiler.Compiler(
+                    spec_definition, features=selected_features
+                ).compile()
+            except (
+                OSError,
+                ValueError,
+                ImportError,
+                AttributeError,
+                TypeError,
+                SyntaxError,
+            ) as error:
+                raise ProjectBuildError("compilation", str(error)) from error
+
+            explorer_root = staging_root / "explorer"
+            try:
+                # Explorer imports project path constants; defer it until package initialization.
+                from uptimely.explorer import explorer as explorer_module
+
+                spec.write_document(spec_definition, staging_root / "spec.json")
+                execution_plan.export_json(staging_root / "execution_plan.json")
+                explorer_module.Explorer(spec_definition, plan=execution_plan).create_html(
+                    explorer_root / "index.html"
+                )
+            except (
+                OSError,
+                ValueError,
+                ImportError,
+                AttributeError,
+                TypeError,
+                SyntaxError,
+                jinja2.TemplateError,
+            ) as error:
+                raise ProjectBuildError("artifact generation", str(error)) from error
+
+            explorer_files = sorted(
+                path.relative_to(explorer_root).as_posix()
+                for path in explorer_root.rglob("*")
+                if path.is_file()
+            )
+            try:
+                manifest = BuildManifest(
+                    schema_version=paths.BUILD_SCHEMA_VERSION,
+                    uptimely_version=importlib.metadata.version("uptimely-core"),
+                    features=selected_features,
+                    artifacts=BuildArtifactPaths(
+                        spec="spec.json",
+                        execution_plan="execution_plan.json",
+                        explorer="explorer",
+                    ),
+                    explorer_files=explorer_files,
+                )
+                (staging_root / paths.BUILD_MANIFEST_FILE.name).write_text(
+                    json.dumps(manifest.model_dump(), indent=2),
+                    encoding="utf-8",
+                )
+                _load_bundle_at(root, staging_root)
+            except (
+                OSError,
+                ValueError,
+                pydantic.ValidationError,
+                importlib.metadata.PackageNotFoundError,
+                BuildError,
+            ) as error:
+                raise ProjectBuildError("bundle validation", str(error)) from error
+
+            _publish_bundle(staging_root, root / paths.BUILD_OUTPUT_DIR)
+        finally:
+            if staging_root.exists():
+                try:
+                    shutil.rmtree(staging_root)
+                except OSError as error:
+                    raise ProjectBuildError("staging cleanup", str(error)) from error
+
+        return _load_bundle_at(root, root / paths.BUILD_OUTPUT_DIR)

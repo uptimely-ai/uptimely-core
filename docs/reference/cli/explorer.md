@@ -1,16 +1,17 @@
 # `uptimely explorer`
 
 Build or serve the Analytics Explorer website from spec JSON and a saved
-execution plan. Run `uptimely project build` first to create both artifacts.
-The CLI renders the selected plan without recompiling it. Use matching spec
-and plan artifacts from the same build.
+execution plan. During the active-build migration, the Explorer CLI still
+consumes standalone artifacts; `project build` creates a separate complete
+bundle that this command does not yet read. The CLI renders the saved plan
+without recompiling it. Use matching spec and plan artifacts from the same
+build.
 
 When either input is missing, both commands exit with status `1`, list the
-missing file paths, and show a `uptimely project build --project-root ...`
-command for the selected project. No inputs are generated automatically and
-`serve` does not start the server. This also applies when `_generated` is empty
-or absent. Project build creates the standard files; for custom inputs, correct
-the `--spec` and `--plan` paths instead.
+missing file paths, and give actionable commands to generate the standalone
+spec and plan. No inputs are generated automatically and `serve` does not start
+the server. This also applies when `_generated` is empty or absent. For custom
+inputs, correct the `--spec` and `--plan` paths instead.
 
 ## `explorer build`
 
@@ -50,7 +51,8 @@ uptimely explorer serve \
 Example:
 
 ```console
-uptimely project build --project-root examples/pump_analytics
+uptimely spec build --project-root examples/pump_analytics
+uptimely plan build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
