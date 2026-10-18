@@ -30,6 +30,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Explorer CLI commands now render a saved execution plan instead of recompiling
+  analytics. The plan defaults to `_generated/compile/execution_plan.json`; use
+  `--plan` to select another file and `uptimely project build` to prepare inputs.
+  The Python API accepts `plan=` and still compiles when it is omitted.
 - Analytics build now uses `--entrypoint module:attribute` instead of `--module`.
   The selected attribute must be a `PythonAnalytics` instance. Conventional
   discovery still selects `python_analytics` from the standard Python source.

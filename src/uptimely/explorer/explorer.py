@@ -4,15 +4,28 @@ import pathlib
 
 from uptimely import analytics, compiler, project
 from uptimely import render as uptimely_render
+from uptimely.compiler import plan as plan_module
 
 from . import analytics_render, graph_render, lineage, plan_render
 
 
 class Explorer:
-    """Generate a linked analytics, plan, and data-lineage website."""
+    """Generate a linked analytics, plan, and data-lineage website.
 
-    def __init__(self, analytics_definition: analytics.Analytics) -> None:
+    Args:
+        analytics_definition: Analytics document for model and feature pages.
+        plan: Existing plan for plan and lineage pages; compile when omitted.
+            Supply a plan built from the same analytics document.
+    """
+
+    def __init__(
+        self,
+        analytics_definition: analytics.Analytics,
+        *,
+        plan: plan_module.ExecutionPlan | None = None,
+    ) -> None:
         self.analytics = analytics_definition
+        self.plan = plan
 
     def create_html(
         self,
@@ -21,8 +34,9 @@ class Explorer:
     ) -> pathlib.Path:
         """Export the complete static website with navigation between its pages.
 
-        Compilation inspects function signatures but does not execute analytics.
-        Function entrypoints must be importable, as with plan compilation.
+        A supplied plan is rendered without recompilation. Otherwise compilation
+        inspects function signatures but does not execute analytics.
+        Function metadata inspection may import entrypoints in either mode.
         Individual HTML report and subset-graph exports are not supported.
 
         Args:
@@ -38,7 +52,7 @@ class Explorer:
             pathlib.Path(output_path) if output_path is not None else project.EXPLORER_INDEX_FILE
         )
         target = target.with_suffix(".html")
-        plan = compiler.Compiler(self.analytics).compile()
+        plan = self.plan if self.plan is not None else compiler.Compiler(self.analytics).compile()
         graph = analytics.FeatureGraph(self.analytics)
         context = analytics_render._build_context(self.analytics, include_generated_at)
         analytics_render._create_website_pages(context, target.parent, index_filename=target.name)
@@ -79,6 +93,8 @@ def create_html(
     analytics_definition: analytics.Analytics,
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
+    *,
+    plan: plan_module.ExecutionPlan | None = None,
 ) -> pathlib.Path:
     """Export the complete analytics explorer website.
 
@@ -86,8 +102,9 @@ def create_html(
         analytics_definition: The analytics document model.
         output_path: Index file; defaults to ``project.EXPLORER_INDEX_FILE``.
         include_generated_at: Include a timestamp on analytics pages.
+        plan: Existing execution plan to render; compile analytics when omitted.
 
     Returns:
         The path to the website index.
     """
-    return Explorer(analytics_definition).create_html(output_path, include_generated_at)
+    return Explorer(analytics_definition, plan=plan).create_html(output_path, include_generated_at)

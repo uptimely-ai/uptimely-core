@@ -22,15 +22,13 @@ jobs:
           cache: poetry
           cache-dependency-path: poetry.lock
       - run: poetry install --without dev,test --with docs
-      - name: Build pump analytics
+      - name: Build pump analytics project
         run: |
-          poetry run uptimely analytics build \
-            --entrypoint examples.pump_analytics.config.analytics.analytics:python_analytics \
-            --output examples/pump_analytics/_generated/analytics/analytics.json
+          poetry run uptimely project build --project-root examples/pump_analytics
       - name: Build pump analytics explorer
         run: |
           poetry run uptimely explorer build \
-            --analytics examples/pump_analytics/_generated/analytics/analytics.json \
+            --project-root examples/pump_analytics \
             --output docs/examples/pump_analytics
       - run: poetry run mkdocs build
       - uses: actions/upload-pages-artifact@v3

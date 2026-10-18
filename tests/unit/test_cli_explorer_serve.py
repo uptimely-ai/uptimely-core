@@ -9,6 +9,7 @@ from urllib import request
 
 import pytest
 
+from uptimely import analytics, compiler
 from uptimely.cli import cli, explorer
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
@@ -35,8 +36,8 @@ def test_serve_arguments(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda analytics_definition, directory, project_root: (
-            calls.append(("build", analytics_definition, directory, project_root))
+        lambda analytics_definition, directory, project_root, *, plan_path: (
+            calls.append(("build", analytics_definition, directory, project_root, plan_path))
             or directory / "index.html"
         ),
     )
@@ -56,6 +57,7 @@ def test_serve_arguments(
             pathlib.Path("_generated/analytics/analytics.json"),
             directory,
             pathlib.Path.cwd(),
+            pathlib.Path("_generated/compile/execution_plan.json"),
         ),
         ("serve", directory, host, port),
     ]
@@ -68,8 +70,8 @@ def test_serve_builds_custom_analytics_before_starting_server(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda analytics_definition, directory, project_root: (
-            calls.append(("build", analytics_definition, directory, project_root))
+        lambda analytics_definition, directory, project_root, *, plan_path: (
+            calls.append(("build", analytics_definition, directory, project_root, plan_path))
             or directory / "index.html"
         ),
     )
@@ -81,6 +83,7 @@ def test_serve_builds_custom_analytics_before_starting_server(
     analytics_definition = tmp_path / "analytics.json"
     output = tmp_path / "website"
     project_root = tmp_path / "project"
+    saved_plan = tmp_path / "custom_plan.json"
     monkeypatch.setattr(
         sys,
         "argv",
@@ -94,13 +97,15 @@ def test_serve_builds_custom_analytics_before_starting_server(
             str(output),
             "--project-root",
             str(project_root),
+            "--plan",
+            str(saved_plan),
         ],
     )
 
     cli.main()
 
     assert calls == [
-        ("build", analytics_definition, output, project_root),
+        ("build", analytics_definition, output, project_root, saved_plan),
         ("serve", output, "127.0.0.1", 8001),
     ]
 
@@ -112,8 +117,8 @@ def test_serve_defaults_paths_from_project_root(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda analytics_definition, directory, project_root: (
-            calls.append(("build", analytics_definition, directory, project_root))
+        lambda analytics_definition, directory, project_root, *, plan_path: (
+            calls.append(("build", analytics_definition, directory, project_root, plan_path))
             or directory / "index.html"
         ),
     )
@@ -137,6 +142,7 @@ def test_serve_defaults_paths_from_project_root(
             tmp_path / "_generated/analytics/analytics.json",
             directory,
             tmp_path,
+            tmp_path / "_generated/compile/execution_plan.json",
         ),
         ("serve", directory, "127.0.0.1", 8001),
     ]
@@ -147,6 +153,8 @@ def test_serve_builds_html_before_starting_server(
 ) -> None:
     output = tmp_path / "website"
     project_root = REPOSITORY_ROOT / "examples/pump_analytics"
+    saved_plan = tmp_path / "plan.json"
+    compiler.Compiler(analytics.load_analytics(ANALYTICS_PATH)).compile().export_json(saved_plan)
 
     def check_website(directory: pathlib.Path, host: str, port: int) -> None:
         assert directory == output
@@ -170,6 +178,8 @@ def test_serve_builds_html_before_starting_server(
             str(project_root),
             "--directory",
             str(output),
+            "--plan",
+            str(saved_plan),
         ],
     )
 
@@ -201,7 +211,7 @@ def test_serve_reports_missing_website(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda analytics_definition, output, project_root: output / "index.html",
+        lambda analytics_definition, output, project_root, *, plan_path: output / "index.html",
     )
     monkeypatch.setattr(
         sys,
@@ -270,7 +280,7 @@ def test_serve_reports_occupied_port(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda analytics_definition, output, project_root: output / "index.html",
+        lambda analytics_definition, output, project_root, *, plan_path: output / "index.html",
     )
     with http_server.ThreadingHTTPServer(
         ("127.0.0.1", 0), http_server.SimpleHTTPRequestHandler

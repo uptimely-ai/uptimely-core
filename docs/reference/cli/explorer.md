@@ -1,18 +1,22 @@
 # `uptimely explorer`
 
-Build or serve the Analytics Explorer website from an analytics JSON document.
+Build or serve the Analytics Explorer website from analytics JSON and a saved
+execution plan. Run `uptimely project build` first to create both artifacts.
+The CLI renders the selected plan without recompiling it. Use matching analytics
+and plan artifacts from the same build.
 
 ## `explorer build`
 
 ```console
 uptimely explorer build \
-  [--analytics PATH] [--output PATH] [--project-root PATH] \
+  [--analytics PATH] [--plan PATH] [--output PATH] [--project-root PATH] \
   [--include-generated-at]
 ```
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `--analytics PATH` | Conditional | `_generated/analytics/analytics.json` under `--project-root`; otherwise none | Analytics JSON input. Supply this option unless `--project-root` provides the default location. |
+| `--plan PATH` | No | `_generated/compile/execution_plan.json` under the project root or current working directory | Saved execution plan input. |
 | `--output PATH` | No | `_generated/explorer` under the project root or current working directory | Website output directory. |
 | `--project-root PATH` | No | Current working directory | Root for resolving defaults and importing function entrypoints. |
 | `--include-generated-at` | No | `false` | Include a build timestamp on the analytics page when enabled. |
@@ -23,13 +27,14 @@ Build the website and serve it for local preview:
 
 ```console
 uptimely explorer serve \
-  [--analytics PATH] [--directory PATH] [--project-root PATH] \
+  [--analytics PATH] [--plan PATH] [--directory PATH] [--project-root PATH] \
   [--host ADDRESS] [--port PORT]
 ```
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `--analytics PATH` | No | `_generated/analytics/analytics.json` under the project root or current working directory | Analytics JSON input. |
+| `--plan PATH` | No | `_generated/compile/execution_plan.json` under the project root or current working directory | Saved execution plan input. |
 | `--directory PATH` | No | `_generated/explorer` under the project root or current working directory | Directory for the built website. |
 | `--project-root PATH` | No | Current working directory | Root for resolving defaults and importing function entrypoints. |
 | `--host ADDRESS` | No | `127.0.0.1` | Address to bind. |
@@ -38,5 +43,9 @@ uptimely explorer serve \
 Example:
 
 ```console
+uptimely project build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
+
+Explicit input and output paths are relative to the current working directory,
+not `--project-root`.

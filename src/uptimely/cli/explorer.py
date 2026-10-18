@@ -9,6 +9,7 @@ import jinja2
 
 from uptimely import project
 from uptimely.cli import common
+from uptimely.compiler import plan as plan_module
 from uptimely.explorer import explorer as explorer_module
 
 
@@ -17,6 +18,8 @@ def build_explorer(
     output: pathlib.Path,
     project_root: pathlib.Path,
     include_generated_at: bool = False,
+    *,
+    plan_path: pathlib.Path | None = None,
 ) -> pathlib.Path:
     """Build the static analytics explorer website.
 
@@ -25,12 +28,16 @@ def build_explorer(
         output: Directory for the website index and report pages.
         project_root: Directory added to the import path for function entrypoints.
         include_generated_at: Include a timestamp on the analytics page.
+        plan_path: Saved plan JSON; defaults to the standard path under project_root.
 
     Returns:
         The path to the website index.
     """
     analytics_definition = common.load_analytics(analytics_definition, project_root)
-    return explorer_module.Explorer(analytics_definition).create_html(
+    execution_plan = plan_module.ExecutionPlan.from_json(
+        plan_path if plan_path is not None else project_root / project.EXECUTION_PLAN_FILE
+    )
+    return explorer_module.Explorer(analytics_definition, plan=execution_plan).create_html(
         output / project.EXPLORER_INDEX_FILE.name, include_generated_at=include_generated_at
     )
 
@@ -143,6 +150,12 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     serve.add_argument(
         "--port", type=_port, default=8001, help="TCP port (default: 8001; 0 selects a free port)"
     )
+    for action in (build, serve):
+        action.add_argument(
+            "--plan",
+            type=pathlib.Path,
+            help=f"Saved plan JSON (default: {project.EXECUTION_PLAN_FILE} under --project-root)",
+        )
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
@@ -151,11 +164,12 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     project_path = args.project_root or pathlib.Path()
     default_analytics_path = project_path / project.ANALYTICS_JSON_FILE
     default_output = project_path / project.EXPLORER_OUTPUT_DIR
+    plan_path = args.plan or project_path / project.EXECUTION_PLAN_FILE
     if args.action == "serve":
         analytics_definition = args.analytics or default_analytics_path
         directory = args.directory or default_output
         try:
-            build_explorer(analytics_definition, directory, project_root)
+            build_explorer(analytics_definition, directory, project_root, plan_path=plan_path)
         except (
             OSError,
             ValueError,
@@ -176,7 +190,11 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     output = args.output or default_output
     try:
         index = build_explorer(
-            analytics_definition, output, project_root, args.include_generated_at
+            analytics_definition,
+            output,
+            project_root,
+            args.include_generated_at,
+            plan_path=plan_path,
         )
     except (
         OSError,
