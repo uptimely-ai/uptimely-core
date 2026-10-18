@@ -50,6 +50,6 @@ The command defaults and options are documented on each command page. Paths
 explicitly supplied on the command line are used as given; default generated
 paths are resolved from `--project-root`, or from the current working
 directory when no project root is specified. The `uptimely-mcp` server is a
-separate optional command; see [AI agents](../components/ai.md).
+separate optional command; see [AI agents](../tools/ai.md).
 
 </div>

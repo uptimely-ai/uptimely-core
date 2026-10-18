@@ -103,7 +103,7 @@ bindings under `backend` and `bind`:
 ```
 
 The engine accepts decoded configuration values rather than a file path. The
-[MCP CLI](../components/ai.md#running-the-server) can load this JSON file through
+[MCP CLI](../tools/ai.md#running-the-server) can load this JSON file through
 `--config`, reading backend settings from `backend` and runtime values from
 `bind`. Neither interface automatically selects an
 environment or merges multiple configuration files. Each supplied mapping must

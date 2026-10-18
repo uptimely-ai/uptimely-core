@@ -31,5 +31,5 @@ and a `bind` object for runtime values:
 }
 ```
 
-See the [execution engine specification](../../specification/engine.md) for
+See the [execution engine specification](../../components/engine.md) for
 backend settings and runtime overrides.

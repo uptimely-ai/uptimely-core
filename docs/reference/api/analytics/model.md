@@ -1,7 +1,7 @@
 # Analytics models
 
 `uptimely.analytics.model` defines the analytics document structure, independent
-of its authoring format. The [analytics format reference](../../../specification/analytics.md)
+of its authoring format. The [analytics format reference](../../../components/analytics.md)
 describes the document structure.
 
 Derived functions and calls belong to [resolved](resolved.md), not these

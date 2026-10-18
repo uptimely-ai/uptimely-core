@@ -78,7 +78,7 @@ For dev, test, or prod, pass the corresponding engine configuration file to
 `bind` object to the engine; it does not select an environment or merge files
 automatically. Only values referenced by runtime placeholders are substituted,
 not arbitrary analytics fields. See the
-[runtime override guide](../specification/engine.md#runtime-overrides) for the file
+[runtime override guide](../components/engine.md#runtime-overrides) for the file
 structure and Python API usage.
 
 The server communicates over stdio and is normally launched by the MCP client,
