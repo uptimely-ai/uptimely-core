@@ -9,7 +9,6 @@ import pydantic
 from uptimely import engine as engine_module
 from uptimely import project
 from uptimely.cli import common, plan
-from uptimely.compiler import plan as plan_module
 
 
 class EngineSettings(pydantic.BaseModel):
@@ -24,18 +23,14 @@ class EngineSettings(pydantic.BaseModel):
 def configure_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the engine run action."""
     actions = parser.add_subparsers(dest="action", required=True)
-    execute = actions.add_parser("run", help="Compile and execute an analytics workflow")
-    common.configure_project_arguments(execute)
+    execute = actions.add_parser("run", help="Execute the active project's saved build")
     execute.add_argument(
-        "--compile",
-        choices=["true", "false"],
-        default="true",
-        help="Compile spec first (default: true); false loads --plan",
+        "--project-root",
+        type=pathlib.Path,
+        help="Project root containing the active build and function entrypoints",
     )
     execute.add_argument(
-        "--plan",
-        type=pathlib.Path,
-        help=(f"Saved plan JSON (default: {project.EXECUTION_PLAN_FILE} under --project-root)"),
+        "--verbose", action="store_true", help="Print execution stages and dataset details"
     )
     execute.add_argument(
         "--config",
@@ -48,36 +43,32 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    """Execute a compiled or saved plan and report failures explicitly."""
-    if args.compile == "false" and (args.spec is not None or args.features is not None):
-        parser.error("--spec and --features require --compile true")
-    if args.compile == "true" and args.plan is not None:
-        parser.error("--plan requires --compile false")
+    """Execute the active saved plan and report failures explicitly."""
     root = args.project_root or pathlib.Path.cwd()
     config = common.project_path(args.config, args.project_root, project.ENGINE_CONFIG_FILE)
-    spec_definition = common.project_path(args.spec, args.project_root, project.SPEC_JSON_FILE)
-    plan_path = common.project_path(args.plan, args.project_root, project.EXECUTION_PLAN_FILE)
     try:
         common.prepare_project_root(root)
-        settings = EngineSettings.model_validate_json(config.read_text(encoding="utf-8"))
-        execution_plan = (
-            plan.compile_plan(spec_definition, root, args.features)
-            if args.compile == "true"
-            else plan_module.ExecutionPlan.from_json(plan_path)
-        )
-        result = engine_module.Engine(
-            execution_plan, config=settings.backend, bind=settings.bind
-        ).execute()
-        if result.failures:
-            failures = "; ".join(result.failures.values())
-            raise RuntimeError(f"Engine flow failed: {failures}")
+        with project.read_build_bundle(root) as bundle:
+            settings = EngineSettings.model_validate_json(config.read_text(encoding="utf-8"))
+            execution_plan = bundle.execution_plan
+            result = engine_module.Engine(
+                execution_plan, config=settings.backend, bind=settings.bind
+            ).execute()
+            if result.failures:
+                failures = "; ".join(result.failures.values())
+                raise RuntimeError(f"Engine flow failed: {failures}")
     except (OSError, ValueError, ImportError, AttributeError, TypeError, RuntimeError) as error:
         parser.exit(1, f"uptimely: error: {error}\n")
     calculated_features = sorted({feature_id for _, _, feature_id in result.calculated_outputs})
+    scope = (
+        "all features"
+        if bundle.manifest.features is None
+        else f"selected features: {', '.join(bundle.manifest.features)}"
+    )
     print("Engine completed the flow")
+    print(f"Build scope: {scope}")
     print(f"{len(execution_plan.callables)} callables")
     print("Calculated features: " + ", ".join(calculated_features))
-    print(f"Spec: {spec_definition}" if args.compile == "true" else f"Execution plan: {plan_path}")
     if args.verbose:
         plan.print_stages(execution_plan)
         print("\nDataset registry")

@@ -29,17 +29,15 @@ uptimely examples download
 uptimely project build --project-root examples/pump_analytics
 ```
 
-The Engine still compiles and executes from source until the next migration
-checkpoint:
+Run the saved execution plan from the active build:
 
 ```console
 uptimely engine run --project-root examples/pump_analytics
 ```
 
-The command defaults and options are documented on each command page. Paths
-explicitly supplied on the command line are used as given; default generated
-paths are resolved from `--project-root`, or from the current working
-directory when no project root is specified. The `uptimely-mcp` server is a
-separate optional command; see [AI agents](../tools/ai.md).
+The command defaults and options are documented on each command page. Project
+build consumers use the active bundle under `_generated/build/`; rebuild it
+with `uptimely project build` to change the saved plan or feature scope. The
+`uptimely-mcp` server is a separate optional command; see [AI agents](../tools/ai.md).
 
 </div>

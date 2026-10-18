@@ -2,12 +2,14 @@
 
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 
 import pytest
 
-from uptimely.cli import cli, engine, plan
+from uptimely import project as project_module
+from uptimely.cli import cli, engine
 
 PROJECT = pathlib.Path(__file__).parents[2] / "examples/pump_analytics"
 SPEC_PATH = PROJECT / "_generated/spec/spec.json"
@@ -16,6 +18,13 @@ SPEC_PATH = PROJECT / "_generated/spec/spec.json"
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
     monkeypatch.setattr(sys, "argv", ["uptimely", *arguments])
     cli.main()
+
+
+def _copy_pump_project(tmp_path: pathlib.Path) -> pathlib.Path:
+    project_root = tmp_path / "examples" / "pump_analytics"
+    shutil.copytree(PROJECT, project_root, ignore=shutil.ignore_patterns("_generated"))
+    (project_root.parent / "__init__.py").write_text("", encoding="utf-8")
+    return project_root
 
 
 def test_feature_graph_summary_subset_and_tree(
@@ -38,30 +47,22 @@ def test_feature_graph_summary_subset_and_tree(
     assert "Selected feature subset\n" in text
 
 
-@pytest.mark.parametrize("compile_first", [True, False])
-def test_engine_run_compile_and_saved_plan(
+def test_engine_run_consumes_scoped_build_without_compiling(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
-    compile_first: bool,
 ) -> None:
-    arguments = ["engine", "run", "--project-root", str(PROJECT), "--verbose"]
-    if compile_first:
-        arguments.extend(["--features", "health_signal_normalized"])
-    else:
-        output = tmp_path / "plan.json"
-        plan.compile_plan(SPEC_PATH, PROJECT, ["health_signal_normalized"]).export_json(output)
-        capsys.readouterr()
+    project_root = _copy_pump_project(tmp_path)
+    project_module.build_project(project_root, features=["health_signal_normalized"])
 
-        # Loading a saved plan must neither compile nor require spec.
-        def fail_compile(*args: object, **kwargs: object) -> None:
-            pytest.fail("Saved-plan execution must not compile")
+    def fail_compile(*args: object, **kwargs: object) -> None:
+        pytest.fail("Engine execution must not compile")
 
-        monkeypatch.setattr(plan, "compile_plan", fail_compile)
-        arguments.extend(["--compile", "false", "--plan", str(output)])
-    invoke(monkeypatch, *arguments)
+    monkeypatch.setattr("uptimely.compiler.Compiler.compile", fail_compile)
+    invoke(monkeypatch, "engine", "run", "--project-root", str(project_root), "--verbose")
     text = capsys.readouterr().out
     assert "Engine completed the flow" in text
+    assert "Build scope: selected features: health_signal_normalized" in text
     assert "3 callables" in text
     assert "Calculated features: health_signal_normalized" in text
     assert "Execution stages" in text
@@ -78,9 +79,9 @@ def test_engine_run_compile_and_saved_plan(
         ["spec", "unknown"],
         ["plan", "unknown"],
         ["engine", "unknown"],
-        ["engine", "run", "--compile", "no"],
-        ["engine", "run", "--compile", "false", "--features", "health_signal_normalized"],
-        ["engine", "run", "--compile", "false", "--spec", "spec.json"],
+        ["engine", "run", "--compile", "false"],
+        ["engine", "run", "--features", "health_signal_normalized"],
+        ["engine", "run", "--spec", "spec.json"],
         ["engine", "run", "--plan", "plan.json"],
     ],
 )
@@ -100,11 +101,24 @@ def test_workflow_missing_inputs_are_reported(
     capsys: pytest.CaptureFixture[str],
     command: list[str],
 ) -> None:
+    if command == ["engine", "run"]:
+        monkeypatch.setattr(
+            "uptimely.compiler.Compiler.compile",
+            lambda *_args, **_kwargs: pytest.fail("Engine must not compile without a build"),
+        )
+        monkeypatch.setattr(
+            "uptimely.engine.Engine.execute",
+            lambda *_args, **_kwargs: pytest.fail(
+                "Engine must not execute workflows without a valid build"
+            ),
+        )
     with pytest.raises(SystemExit) as error:
         invoke(monkeypatch, *command, "--project-root", str(tmp_path))
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
+    if command == ["engine", "run"]:
+        assert "uptimely project build --project-root" in result.err
     assert not result.out
 
 
@@ -132,6 +146,7 @@ def test_engine_invalid_config_is_reported(
     capsys: pytest.CaptureFixture[str],
     content: str,
 ) -> None:
+    _write_empty_build(tmp_path)
     config = tmp_path / "engine.json"
     config.write_text(content, encoding="utf-8")
     with pytest.raises(SystemExit) as error:
@@ -139,8 +154,8 @@ def test_engine_invalid_config_is_reported(
             monkeypatch,
             "engine",
             "run",
-            "--spec",
-            str(SPEC_PATH),
+            "--project-root",
+            str(tmp_path),
             "--config",
             str(config),
         )
@@ -155,13 +170,15 @@ def test_engine_operation_failures_are_reported(
 ) -> None:
     config = tmp_path / "engine.json"
     config.write_text("{}", encoding="utf-8")
+    project_root = _copy_pump_project(tmp_path)
+    project_module.build_project(project_root, features=["health_signal_normalized"])
     with pytest.raises(SystemExit) as error:
         invoke(
             monkeypatch,
             "engine",
             "run",
-            "--spec",
-            str(SPEC_PATH),
+            "--project-root",
+            str(project_root),
             "--config",
             str(config),
         )
@@ -180,20 +197,57 @@ def test_engine_settings_load_backend_and_bindings() -> None:
     assert settings.bind == {"storage": {"source": {"path": "x"}}}
 
 
+def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
+    build_root = project_root / project_module.BUILD_OUTPUT_DIR
+    explorer_root = build_root / "explorer"
+    explorer_root.mkdir(parents=True)
+    (build_root / "spec.json").write_text("{}", encoding="utf-8")
+    (build_root / "execution_plan.json").write_text(
+        json.dumps(
+            {
+                "plan_version": "0.2.0",
+                "required_backend": "polars",
+                "resources": {},
+                "callables": [],
+                "stages": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (explorer_root / "index.html").write_text("<html></html>", encoding="utf-8")
+    manifest = project_module.BuildManifest(
+        schema_version=project_module.BUILD_SCHEMA_VERSION,
+        uptimely_version="0.2.0",
+        features=None,
+        artifacts=project_module.BuildArtifactPaths(
+            spec="spec.json",
+            execution_plan="execution_plan.json",
+            explorer="explorer",
+        ),
+        explorer_files=["index.html"],
+    )
+    (build_root / "build.json").write_text(json.dumps(manifest.model_dump()), encoding="utf-8")
+    return build_root
+
+
 @pytest.mark.parametrize("content", [None, "not JSON", '{"plan_version": "unsupported"}'])
-def test_engine_saved_plan_errors_are_reported(
+def test_engine_invalid_build_fails_before_execution(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     content: str | None,
 ) -> None:
-    config = tmp_path / "config" / "engine.json"
-    config.parent.mkdir()
-    config.write_text("{}", encoding="utf-8")
-    plan_path = tmp_path / "_generated/compile/execution_plan.json"
-    if content is not None:
-        plan_path.parent.mkdir(parents=True)
+    build_root = _write_empty_build(tmp_path)
+    plan_path = build_root / "execution_plan.json"
+    if content is None:
+        plan_path.unlink()
+    else:
         plan_path.write_text(content, encoding="utf-8")
+
+    def fail_execute(*args: object, **kwargs: object) -> None:
+        pytest.fail("An invalid build must fail before workflow execution")
+
+    monkeypatch.setattr("uptimely.engine.Engine.execute", fail_execute)
     with pytest.raises(SystemExit) as error:
         invoke(
             monkeypatch,
@@ -201,12 +255,11 @@ def test_engine_saved_plan_errors_are_reported(
             "run",
             "--project-root",
             str(tmp_path),
-            "--compile",
-            "false",
         )
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
+    assert "uptimely project build --project-root" in result.err
     assert not result.out
 
 
@@ -243,7 +296,9 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
     config.write_text(
         json.dumps({"bind": {"storage": {"source": {"path": str(data)}}}}), encoding="utf-8"
     )
-    (project / "_generated/spec/spec.json").write_text(
+    spec_path = project / "config" / "spec.json"
+    spec_path.parent.mkdir(parents=True, exist_ok=True)
+    spec_path.write_text(
         json.dumps(
             {
                 "version": "0.2.0",
@@ -279,29 +334,25 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
         ),
         encoding="utf-8",
     )
-    plan.compile_plan(project / "_generated/spec/spec.json", project).export_json(
-        project / "_generated/compile/execution_plan.json"
+    project_module.build_project(project, source=spec_path)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "uptimely.cli.cli",
+            "engine",
+            "run",
+            "--verbose",
+            "--project-root",
+            str(project),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
     )
-    for command in (
-        ["spec", "feature-graph", "--verbose"],
-        ["engine", "run", "--verbose"],
-        ["engine", "run", "--compile", "false", "--verbose"],
-    ):
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "uptimely.cli.cli",
-                *command,
-                "--project-root",
-                str(project),
-            ],
-            cwd=tmp_path,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-        assert result.returncode == 0, result.stderr
-        assert result.stdout
-    assert (project / "_generated/compile/execution_plan.json").is_file()
+    assert result.returncode == 0, result.stderr
+    assert "Build scope: all features" in result.stdout
+    assert "read_values(sample) -> value" in result.stdout
+    assert (project / "_generated/build/execution_plan.json").is_file()
