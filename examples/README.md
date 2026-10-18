@@ -6,11 +6,11 @@ analytics explorer.
 
 ## Explore the example project
 
-From the project root, export the analytics, then build and serve the pump
+From the repository root, build the project resources, then serve the pump
 analytics explorer with:
 
 ```sh
-uptimely analytics build --project-root examples/pump_analytics
+uptimely project build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
@@ -60,6 +60,7 @@ With Python 3.13 or newer, install the package, download the examples and explor
 ```sh
 pip install uptimely-core
 uptimely examples download
+uptimely project build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
@@ -81,6 +82,9 @@ branch), or `--output` to change the destination. The destination must not
 already exist.
 
 Generated artifacts are written beneath each example's `_generated/` directory.
+`project build` rebuilds analytics JSON and the execution plan without running
+analytics functions. Individual `analytics build` and `plan build` commands remain
+available. See the [project command reference](../docs/reference/cli/project.md).
 
 ## Export Python analytics
 

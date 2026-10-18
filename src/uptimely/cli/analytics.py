@@ -22,7 +22,19 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
             "or select an explicit source."
         ),
     )
-    source = build.add_mutually_exclusive_group()
+    configure_build_source_arguments(build)
+    build.add_argument(
+        "--output",
+        type=pathlib.Path,
+        help=f"JSON output (default: {project.ANALYTICS_JSON_FILE} under --project-root)",
+    )
+    graph = actions.add_parser("feature-graph", help="Inspect feature dependencies")
+    common.configure_project_arguments(graph)
+
+
+def configure_build_source_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add shared source selection and project-root options for build commands."""
+    source = parser.add_mutually_exclusive_group()
     source.add_argument(
         "--entrypoint",
         metavar="MODULE:ATTRIBUTE",
@@ -33,18 +45,11 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         type=pathlib.Path,
         help="Source analytics JSON path (overrides standard source discovery)",
     )
-    build.add_argument(
+    parser.add_argument(
         "--project-root",
         type=pathlib.Path,
         help="Root added to the import path and used to resolve the default output",
     )
-    build.add_argument(
-        "--output",
-        type=pathlib.Path,
-        help=f"JSON output (default: {project.ANALYTICS_JSON_FILE} under --project-root)",
-    )
-    graph = actions.add_parser("feature-graph", help="Inspect feature dependencies")
-    common.configure_project_arguments(graph)
 
 
 def build_analytics(

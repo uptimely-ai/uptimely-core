@@ -15,6 +15,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- `uptimely project build` builds analytics JSON and compiles a saved execution
+  plan in one command without executing the workflow. It supports standard
+  source discovery, explicit entrypoints, and JSON sources.
 - `uptimely analytics build` discovers standard Python or JSON sources under
   `config/analytics/`. Use `--entrypoint` or `--analytics` to select a source explicitly;
   ambiguous standard sources require an explicit selection.
