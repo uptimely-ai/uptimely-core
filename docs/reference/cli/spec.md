@@ -15,7 +15,11 @@ and selected subset as trees.
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `--spec PATH` | No | `_generated/spec/spec.json` under the project root or current working directory | Spec JSON input. |
+| `--spec PATH` | No | Spec in the validated active build | Inspect a separate Spec JSON file instead of the active build's saved spec. |
 | `--project-root PATH` | No | Current working directory | Root for resolving defaults and importing function entrypoints. |
 | `--features NAME ...` | No | All features | Select output features and their dependencies. |
 | `--verbose` | No | `false` | Print graph details when enabled. |
+
+Without `--spec`, the command reads the saved spec from the validated active
+build. If no valid build exists, it reports the recovery command; run
+`uptimely project build --project-root ...` to create or replace the build.

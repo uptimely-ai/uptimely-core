@@ -2,10 +2,11 @@ import json
 import pathlib
 
 import pytest
+from conftest import EXAMPLES_ROOT
 
 from uptimely import compiler, spec
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 def test_compiler_creates_callable_graph_subset_for_requested_features() -> None:

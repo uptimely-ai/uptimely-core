@@ -26,8 +26,8 @@ _generated/build/
 
 The spec export always contains the complete model. If `--features` is
 provided, the plan includes the selected outputs, their dependencies, and the
-compiler's associated dataset sinks; the Explorer renders that exact plan
-alongside the complete spec model. Omit `--features` to compile all features.
+associated dataset sinks; the Explorer renders that exact plan alongside the
+complete spec model. Omit `--features` to compile all features.
 Selections must be nonempty and valid. Duplicate names are normalized.
 
 | Option | Required | Default | Purpose |
@@ -49,7 +49,15 @@ uptimely project build --project-root examples/pump_analytics --features pump_he
 Building may import Python declarations and inspect function signatures, but it
 does not execute workflow functions or sinks. Python module-level code still
 runs when a declaration or function module is imported; build only trusted
-project sources.
+project sources. A successful full or scoped build replaces the previous
+active bundle. Source edits do not change an existing build; rebuild explicitly
+to publish updated artifacts. If building fails, the last successful bundle
+remains active.
+
+`uptimely engine run` executes the saved plan, including configured write
+sinks, which may have external side effects. It never compiles or regenerates
+artifacts. Missing or invalid builds fail with an actionable command to build
+the project.
 
 Artifacts are generated in a sibling staging directory, validated, then
 published in place of the previous bundle. A generation failure leaves the

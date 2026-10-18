@@ -16,12 +16,6 @@ FUNCTIONS_DIR: typing.Final = pathlib.Path("functions")
 
 GENERATED_DIR: typing.Final = pathlib.Path("_generated")
 
-SPEC_OUTPUT_DIR: typing.Final = GENERATED_DIR / "spec"
-SPEC_JSON_FILE: typing.Final = SPEC_OUTPUT_DIR / "spec.json"
-
-COMPILE_OUTPUT_DIR: typing.Final = GENERATED_DIR / "compile"
-EXECUTION_PLAN_FILE: typing.Final = COMPILE_OUTPUT_DIR / "execution_plan.json"
-
 EXPLORER_OUTPUT_DIR: typing.Final = GENERATED_DIR / "explorer"
 EXPLORER_INDEX_FILE: typing.Final = EXPLORER_OUTPUT_DIR / "index.html"
 

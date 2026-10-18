@@ -18,8 +18,11 @@ project/
 │   └── spec/
 │       └── spec.py
 └── _generated/
-    ├── spec/
-    └── compile/
+    └── build/
+        ├── build.json
+        ├── spec.json
+        ├── execution_plan.json
+        └── explorer/
 ```
 
 Keep functions in simple modules initially. Split them into packages when their
@@ -30,7 +33,7 @@ multiple projects depend on it.
 
 Keep multiple independent workflows in one or multiple repositories.
 
-Each workflow contains its independent spec definition and compiles its own plan.
+Each workflow contains its independent spec definition and active build bundle.
 
 Share reusable implementations through packages rather than mixing the workflows'
 generated output.

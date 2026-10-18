@@ -17,8 +17,9 @@ uptimely engine run \
 
 Build or rebuild the project with `uptimely project build` to change its
 execution plan or feature scope. Engine validates and executes the saved build
-without compiling or generating artifacts. Missing or invalid builds report a
-recovery command.
+without compiling or generating artifacts. This runs the plan's configured
+functions, including write sinks, and may have external side effects. Missing
+or invalid builds report a recovery command.
 
 The engine configuration has a `backend` object validated as `EngineConfig`
 and a `bind` object for runtime values:

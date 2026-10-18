@@ -7,6 +7,7 @@ import threading
 from urllib import request
 
 import pytest
+from conftest import EXAMPLES_ROOT
 
 from uptimely import compiler, project
 from uptimely.cli import cli, explorer
@@ -14,7 +15,7 @@ from uptimely.explorer import explorer as explorer_module
 from uptimely.project import build as project_build
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 @pytest.fixture

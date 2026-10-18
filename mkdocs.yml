@@ -65,7 +65,7 @@ nav:
       - Architecture: overview/architecture.md
       - Spec: overview/spec.md
   - Comparisons:
-      - Analytics platforms: comparisons/spec-platforms.md
+      - Analytics platforms: comparisons/analytics-platforms.md
       - Data science work: comparisons/data-science-work.md
   - Components:
       - About: components/index.md

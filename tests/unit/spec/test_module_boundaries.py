@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 import pytest
+from conftest import EXAMPLES_ROOT
 
 import uptimely
 from uptimely import entrypoint, spec
@@ -14,7 +15,7 @@ from uptimely.spec import model, resolved
 from uptimely.spec.json import codec
 from uptimely.spec.python import conversion, dataset, dimension, entity
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 @pytest.mark.parametrize(

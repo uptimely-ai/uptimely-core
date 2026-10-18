@@ -48,6 +48,8 @@ MCP never compiles or renders. Choose a full or scoped plan with
 `uptimely project build` before starting the server; `execute_build` has no
 feature-selection input and cannot change that saved scope. To pick up a newer
 successful build while the server is running, call `reload_build`.
+Execution runs the saved plan's functions, including configured write sinks,
+and can therefore cause external side effects.
 
 ## Installation
 

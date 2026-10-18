@@ -4,12 +4,12 @@ import pathlib
 import re
 from html import parser as html_parser
 
-from conftest import render_explorer
+from conftest import EXAMPLES_ROOT, render_explorer
 
 from uptimely import compiler, spec
 from uptimely.explorer import lineage
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 class LineageStructureCollector(html_parser.HTMLParser):

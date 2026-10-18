@@ -6,6 +6,7 @@ import shlex
 import sys
 
 import pytest
+from conftest import EXAMPLES_ROOT
 
 fastmcp = pytest.importorskip("fastmcp", reason="fastmcp extra is not installed")
 
@@ -15,10 +16,9 @@ from uptimely import compiler  # noqa: E402
 from uptimely.explorer import explorer as explorer_module  # noqa: E402
 from uptimely.mcp import server  # noqa: E402
 
-REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
-PROJECT_ROOT = REPOSITORY_ROOT / "examples" / "pump_analytics"
+PROJECT_ROOT = EXAMPLES_ROOT / "pump_analytics"
 BUILD_MANIFEST_PATH = PROJECT_ROOT / "_generated" / "build" / "build.json"
-CONFIG_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "config" / "engine.json"
+CONFIG_PATH = EXAMPLES_ROOT / "pump_analytics" / "config" / "engine.json"
 
 pytestmark = pytest.mark.skipif(
     not BUILD_MANIFEST_PATH.exists(), reason="example build is not generated"

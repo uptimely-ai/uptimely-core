@@ -13,9 +13,8 @@ Build the complete bundle:
 uptimely project build --project-root examples/pump_analytics
 ```
 
-The explicit `uptimely explorer build` command has been removed. At this
-stage, `explorer serve` validates the active build and serves its saved website.
-It does not load source, compile, render, or write artifacts:
+`explorer serve` validates the active build and serves its saved website. It
+does not load source, compile, render, or write artifacts:
 
 ```sh
 uptimely explorer serve --project-root examples/pump_analytics
@@ -46,8 +45,8 @@ graph** to bring the diagram into view and select a node to inspect it.
 
 The data-lineage walkthrough is an illustration of the declared plan, not a
 run of your functions. Its example table values and rows are placeholders; it
-does not show real data or calculated results. Building the Explorer does not
-execute the analytics workflow.
+does not show real data or calculated results. Building the project bundle does
+not execute the analytics workflow.
 
 ## Preview options
 
@@ -66,7 +65,8 @@ uptimely explorer serve \
 | `--port` | Port to serve on. Defaults to `8001`; use `0` to choose an available port. |
 
 The preview server serves the saved files without watching for changes. Rebuild
-the active project bundle, then rerun `serve` to preview updates.
+the active project bundle with `uptimely project build`, then rerun `serve` to
+preview source updates.
 
 ## Publish or share
 
