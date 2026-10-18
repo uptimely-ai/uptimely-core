@@ -52,6 +52,8 @@ def _render_graph_html(
     style: GraphStyle | None = None,
     *,
     index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    execution_scope: str = "all features",
+    is_scoped: bool = False,
 ) -> str:
     """Render one feature graph page with selectable 2D and 3D views.
 
@@ -60,6 +62,8 @@ def _render_graph_html(
         links: Directed connections between node identifiers.
         style: Optional graph appearance settings.
         index_filename: Filename of the website dashboard.
+        execution_scope: Feature coverage of the rendered build.
+        is_scoped: Whether the plan covers a selected feature subset.
 
     Returns:
         The complete HTML document.
@@ -80,6 +84,8 @@ def _render_graph_html(
         active_page="graph",
         index_filename=index_filename,
         root_path="../",
+        execution_scope=execution_scope,
+        is_scoped=is_scoped,
     )
 
 
@@ -116,6 +122,8 @@ def _create_website_pages(
     output_directory: pathlib.Path,
     *,
     index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    execution_scope: str = "all features",
+    is_scoped: bool = False,
 ) -> None:
     """Write the unified feature graph page within the documentation website.
 
@@ -123,9 +131,17 @@ def _create_website_pages(
         graph: The feature dependency graph to export.
         output_directory: Directory shared by all website pages.
         index_filename: Filename of the website dashboard.
+        execution_scope: Feature coverage of the rendered build.
+        is_scoped: Whether the plan covers a selected feature subset.
     """
     target = output_directory / render.WEBSITE_PAGES["graph"]["lineage"]
     target.parent.mkdir(parents=True, exist_ok=True)
     nodes, links = graph_payload_from_cytoscape(graph)
-    document = _render_graph_html(nodes, links, index_filename=index_filename)
+    document = _render_graph_html(
+        nodes,
+        links,
+        index_filename=index_filename,
+        execution_scope=execution_scope,
+        is_scoped=is_scoped,
+    )
     target.write_text(document, encoding="utf-8")

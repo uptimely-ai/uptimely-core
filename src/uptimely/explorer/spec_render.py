@@ -56,6 +56,8 @@ def _render_document(
     output_path: pathlib.Path,
     section: str,
     index_filename: str,
+    execution_scope: str,
+    is_scoped: bool,
 ) -> pathlib.Path:
     """Write one spec section within the explorer website."""
     environment = render.html_environment()
@@ -78,6 +80,8 @@ def _render_document(
         active_section=section,
         index_filename=index_filename,
         root_path="../",
+        execution_scope=execution_scope,
+        is_scoped=is_scoped,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(document, encoding="utf-8")
@@ -89,6 +93,8 @@ def _create_website_pages(
     output_directory: pathlib.Path,
     *,
     index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    execution_scope: str = "all features",
+    is_scoped: bool = False,
 ) -> None:
     """Export separate spec sections with shared website navigation.
 
@@ -96,10 +102,19 @@ def _create_website_pages(
         context: Reference data shared with the website dashboard.
         output_directory: Directory shared by all website pages.
         index_filename: Filename of the website dashboard.
+        execution_scope: Feature coverage of the rendered build.
+        is_scoped: Whether the plan covers a selected feature subset.
     """
     data = dataclasses.asdict(context)
     for section, filename in SPEC_PAGES.items():
-        _render_document(data, output_directory / filename, section, index_filename)
+        _render_document(
+            data,
+            output_directory / filename,
+            section,
+            index_filename,
+            execution_scope,
+            is_scoped,
+        )
 
 
 def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], list[dict], set[str]]:

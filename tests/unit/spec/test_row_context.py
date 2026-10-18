@@ -5,10 +5,10 @@ import pathlib
 import polars as pl
 import pydantic
 import pytest
+from conftest import render_explorer
 
 from uptimely import compiler, engine, row_context, spec
 from uptimely.compiler import plan as uptimely_plan
-from uptimely.explorer import explorer
 from uptimely.spec.python import bind, dataset, dimension, entity, feature, mapping, ref
 from uptimely.spec.python import row_context as authoring
 
@@ -272,7 +272,7 @@ def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Pat
     assert not result.failures
     frame = result.datasets["entity", "observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
-    explorer.Explorer(restored).create_html(tmp_path / "index.html")
+    render_explorer(restored, tmp_path / "index.html")
     assert "Row context:" not in (tmp_path / "spec/features.html").read_text()
     assert "Row context" in (tmp_path / "plan/stages.html").read_text()
 
@@ -345,7 +345,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
         datetime.datetime(2026, 1, 1),
     ]
 
-    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     features_html = (tmp_path / "spec/features.html").read_text(encoding="utf-8")
     assert "result" in features_html
     assert "Row context:" not in features_html

@@ -2,10 +2,10 @@ import pathlib
 import sys
 
 import pytest
+from conftest import render_explorer
 
 from uptimely import spec
 from uptimely.cli import cli
-from uptimely.explorer import explorer
 from uptimely.spec.feature_graph import models
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
@@ -141,7 +141,7 @@ def test_dependency_features_keep_their_producer_entity_without_becoming_source_
 
 def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     output = tmp_path / "spec/graph.html"
     html = output.read_text(encoding="utf-8")
 
@@ -172,7 +172,7 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
 
 def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     output = tmp_path / "spec/graph.html"
     html = output.read_text(encoding="utf-8")
 

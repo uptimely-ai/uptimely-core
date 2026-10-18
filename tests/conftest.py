@@ -6,13 +6,27 @@ import sys
 
 import pytest
 
-from uptimely import spec
+from uptimely import compiler, spec
+from uptimely.explorer import explorer
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
 EXAMPLE_SPEC_DIRS = [
     REPOSITORY_ROOT / "examples" / "pump_analytics" / "config" / "spec",
     REPOSITORY_ROOT / "examples" / "simple_analytics" / "config" / "spec",
 ]
+
+
+def render_explorer(
+    spec_definition: spec.Spec,
+    output_path: str | pathlib.Path | None = None,
+    include_generated_at: bool = False,
+) -> pathlib.Path:
+    """Render a test website with an explicitly compiled execution plan."""
+    plan = compiler.Compiler(spec_definition).compile()
+    return explorer.Explorer(spec_definition, plan=plan).create_html(
+        output_path, include_generated_at
+    )
+
 
 for path in [str(REPOSITORY_ROOT), *(str(directory) for directory in EXAMPLE_SPEC_DIRS)]:
     if path not in sys.path:

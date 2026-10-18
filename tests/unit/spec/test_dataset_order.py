@@ -6,11 +6,11 @@ import typing
 import polars as pl
 import pydantic
 import pytest
+from conftest import render_explorer
 from examples.simple_analytics.config.spec import spec as spec_module
 from examples.simple_analytics.functions import functions
 
 from uptimely import compiler, engine, spec
-from uptimely.explorer import explorer
 from uptimely.spec import python as python_spec
 from uptimely.spec import validation
 
@@ -195,7 +195,7 @@ def test_dataset_order_python_authoring_validates_references() -> None:
 
 def test_dataset_order_appears_in_html(tmp_path: pathlib.Path) -> None:
     spec_definition = _parse(tmp_path, ORDER)
-    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     html = (tmp_path / "spec/datasets.html").read_text(encoding="utf-8")
     assert "Logical order (not a physical row-order guarantee)" in html
     assert html.index("$dimensions.machine asc") < html.index("$dimensions.timestamp desc")

@@ -12,9 +12,9 @@ From the repository root, build the complete active bundle:
 uptimely project build --project-root examples/pump_analytics
 ```
 
-The explicit spec, plan, and Explorer build commands have been removed. The
-Explorer `serve` command still uses the legacy standalone artifacts until the
-Explorer consumer migration step:
+The explicit spec, plan, and Explorer build commands have been removed.
+`explorer serve` serves the website in the active build and does not regenerate
+it:
 
 ```sh
 uptimely explorer serve --project-root examples/pump_analytics

@@ -10,10 +10,11 @@ from urllib import parse as url_parse
 from urllib import request
 
 import pytest
+from conftest import render_explorer
 from examples.pump_analytics.functions import source
 
 from uptimely import compiler, spec
-from uptimely.explorer import explorer, graph_render, spec_render
+from uptimely.explorer import graph_render, spec_render
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 REPORTS = {
@@ -104,7 +105,7 @@ def heading_titles(document: str) -> list[str]:
 
 
 def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
-    explorer.create_html(spec.Spec(), tmp_path / "index.html")
+    render_explorer(spec.Spec(), tmp_path / "index.html")
     expected = {
         "index.html": ("home", "house", "Untitled analytics project"),
         "spec/overview.html": ("overview", "layout-dashboard", "Overview"),
@@ -160,7 +161,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
 
-    index = explorer.Explorer(spec_definition).create_html()
+    index = render_explorer(spec_definition)
 
     assert index == pathlib.Path("_generated/explorer/index.html")
     assert {path.name for path in index.parent.iterdir()} == {
@@ -303,7 +304,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         return original_compile(self)
 
     monkeypatch.setattr(compiler.Compiler, "compile", count_compile)
-    index = explorer.create_html(spec_definition, tmp_path / "index.html")
+    index = render_explorer(spec_definition, tmp_path / "index.html")
     document = index.read_text(encoding="utf-8")
 
     assert compile_calls == 1
@@ -344,7 +345,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
 def test_homepage_handles_unnamed_and_escaped_projects(
     tmp_path: pathlib.Path, name: str | None
 ) -> None:
-    index = explorer.create_html(spec.Spec(name=name), tmp_path / "index.html")
+    index = render_explorer(spec.Spec(name=name), tmp_path / "index.html")
     document = index.read_text(encoding="utf-8")
 
     assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 6
@@ -373,7 +374,7 @@ def test_spec_pages_render_only_their_section(
     tmp_path: pathlib.Path, filename: str, section_id: str, title: str
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     for candidate in ("overview", "entities", "datasets", "dimensions", "functions"):
@@ -391,7 +392,7 @@ def test_spec_pages_render_only_their_section(
 
 def test_spec_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "spec/overview.html").read_text(encoding="utf-8")
 
     assert "Pump analytics" in document
@@ -407,7 +408,7 @@ def test_spec_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
 def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    index = explorer.create_html(spec_definition, tmp_path / "nested" / "spec.htm")
+    index = render_explorer(spec_definition, tmp_path / "nested" / "spec.htm")
 
     assert index == tmp_path / "nested" / "spec.html"
     assert index.is_file()
@@ -429,7 +430,7 @@ def test_relocated_website_navigation_works_under_url_prefix(
     tmp_path: pathlib.Path, index_name: str
 ) -> None:
     original = tmp_path / "generated"
-    explorer.create_html(spec.Spec(), original / index_name)
+    render_explorer(spec.Spec(), original / index_name)
     host_root = tmp_path / "hosted"
     relocated = host_root / "projects" / "spec"
     relocated.parent.mkdir(parents=True)
@@ -473,7 +474,7 @@ def test_execution_plan_pages_render_only_their_section(
     tmp_path: pathlib.Path, filename: str, title: str
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert 'aria-label="Plan sections"' in document
@@ -562,7 +563,7 @@ def test_execution_plan_pages_render_only_their_section(
 def test_graph_pages_have_one_selector_and_shared_data(
     tmp_path: pathlib.Path, filename: str
 ) -> None:
-    explorer.create_html(spec.load_spec(SPEC_PATH), tmp_path / "index.html")
+    render_explorer(spec.load_spec(SPEC_PATH), tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert document.count('aria-label="Graph view"') == 1
@@ -595,7 +596,7 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
         (tmp_path / filename).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / filename).write_text("old", encoding="utf-8")
     (tmp_path / "graph/custom.html").write_text("custom graph", encoding="utf-8")
-    explorer.create_html(spec.Spec(), tmp_path / "index.html")
+    render_explorer(spec.Spec(), tmp_path / "index.html")
     assert all(not (tmp_path / filename).exists() for filename in obsolete)
     assert (tmp_path / "custom.html").read_text(encoding="utf-8") == "old"
     assert (tmp_path / "graph/custom.html").read_text(encoding="utf-8") == "custom graph"
@@ -604,8 +605,8 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
 
 def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    first = explorer.Explorer(spec_definition).create_html(tmp_path / "first" / "index.html")
-    second = explorer.Explorer(spec_definition).create_html(tmp_path / "second" / "index.html")
+    first = render_explorer(spec_definition, tmp_path / "first" / "index.html")
+    second = render_explorer(spec_definition, tmp_path / "second" / "index.html")
 
     for filename in ("index.html", *REPORTS):
         assert (first.parent / filename).read_bytes() == (second.parent / filename).read_bytes()
@@ -614,7 +615,7 @@ def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> N
 def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = compiler.Compiler(spec_definition).compile()
-    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
     cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
     assert cards == {
@@ -644,7 +645,7 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -
 
 
 def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> None:
-    explorer.Explorer(spec.Spec()).create_html(tmp_path / "index.html")
+    render_explorer(spec.Spec(), tmp_path / "index.html")
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
 
     assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 7
@@ -658,7 +659,7 @@ def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> Non
 def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filename: str) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    index = explorer.Explorer(spec_definition).create_html(tmp_path / filename)
+    index = render_explorer(spec_definition, tmp_path / filename)
     assert index.is_file()
     for report in REPORTS:
         page = tmp_path / report
@@ -693,7 +694,7 @@ def test_website_propagates_compilation_errors_without_writing_reports(
     ].entrypoint = "missing_functions:read_pump_telemetry"
 
     with pytest.raises((ImportError, ValueError), match="missing_functions"):
-        explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+        render_explorer(spec_definition, tmp_path / "index.html")
 
     assert not list(tmp_path.iterdir())
 
@@ -709,7 +710,7 @@ def test_website_graph_links_reference_exported_nodes(
     tmp_path: pathlib.Path, filename: str, variable: str
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
     match = re.search(rf"const {variable} = (.+);", document)
     assert match is not None
@@ -727,7 +728,7 @@ def test_website_graph_links_reference_exported_nodes(
 def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = compiler.Compiler(spec_definition).compile()
-    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "plan/graph.html").read_text(encoding="utf-8")
     match = re.search(r"const callableGraphData = (.+);", document)
     assert match is not None
@@ -749,15 +750,13 @@ def test_website_does_not_execute_spec(tmp_path: pathlib.Path, monkeypatch) -> N
     monkeypatch.setattr(source, "read_pump_telemetry", fail_if_executed)
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    assert explorer.Explorer(spec_definition).create_html(tmp_path / "index.html").is_file()
+    assert render_explorer(spec_definition, tmp_path / "index.html").is_file()
 
 
 def test_website_can_include_spec_timestamp(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    explorer.Explorer(spec_definition).create_html(
-        tmp_path / "index.html", include_generated_at=True
-    )
+    render_explorer(spec_definition, tmp_path / "index.html", include_generated_at=True)
 
     assert re.search(
         r"generated \d{4}-\d{2}-\d{2}T",
