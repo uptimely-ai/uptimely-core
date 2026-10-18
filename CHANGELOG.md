@@ -19,15 +19,8 @@ While the version is `0.x`, minor releases may include breaking changes.
   publishes a manifest, spec, plan, and Explorer website as one active bundle.
   It supports standard source discovery, explicit entrypoints, JSON sources,
   and scoped feature selection without executing workflow functions.
-- `uptimely spec build` discovers standard Python or JSON sources under
-  `config/spec/`. Use `--entrypoint` or `--spec` to select a source explicitly;
-  ambiguous standard sources require an explicit selection.
-- `uptimely spec build` exports a module's `PythonSpec` to JSON,
-  replacing the removed example export runners in documentation CI and MCP setup.
-- CLI commands for compiling execution plans (`uptimely plan build`), inspecting
-  feature dependencies (`uptimely spec feature-graph`), and running workflows
-  (`uptimely engine run`). Engine execution compiles by default; use
-  `--compile false` to run a saved plan.
+- CLI commands for inspecting feature dependencies (`uptimely spec feature-graph`)
+  and running the active saved execution plan (`uptimely engine run`).
 
 ### Changed
 
@@ -36,14 +29,13 @@ While the version is `0.x`, minor releases may include breaking changes.
   are removed; no compatibility aliases or legacy handling remain.
 - Explorer CLI commands now render a saved execution plan instead of recompiling
   spec. The plan defaults to `_generated/compile/execution_plan.json`; use
-  `--plan` to select another file. Until consumers migrate, standalone
-  `uptimely spec build` and `uptimely plan build` prepare their inputs.
-  The Python API accepts `plan=` and still compiles when it is omitted.
-- Spec build now uses `--entrypoint module:attribute` instead of `--module`.
-  The selected attribute must be a `PythonSpec` instance. Conventional
-  discovery still selects `python_spec` from the standard Python source.
-- Renamed `uptimely spec export` to `uptimely spec build`. The options
-  and JSON output are unchanged; the old command is no longer accepted.
+  `--plan` to select another file. The Python Explorer API accepts `plan=` and
+  compiles when it is omitted.
+- `uptimely engine run` now validates and executes the plan from
+  `_generated/build/`. It no longer compiles from source or accepts spec,
+  feature-selection, or arbitrary plan-path overrides.
+- CLI artifact generation is provided by `uptimely project build`; the
+  standalone spec and plan build commands have been removed.
 - Python API documentation now follows the source package layout, with separate
   package pages, module navigation, and visually separated class and function
   entries. Coverage includes entrypoint loading, storage, function contracts,

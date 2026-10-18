@@ -90,8 +90,8 @@ already exist.
 Generated artifacts are written beneath each example's `_generated/` directory.
 `project build` validates the complete source and publishes a manifest, spec,
 execution plan, and Explorer website under `_generated/build/` without running
-analytics functions. The Engine and Explorer commands will consume this bundle
-in later migration steps. See the
+analytics functions. Engine executes the saved plan from this bundle; it does
+not compile or regenerate artifacts. See the
 [project command reference](../docs/reference/cli/project.md).
 
 ## Building from Python declarations

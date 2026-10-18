@@ -158,6 +158,14 @@ def test_engine_validates_plan_backend() -> None:
         )
 
 
+def test_engine_rejects_spec_paths_instead_of_compiling() -> None:
+    with pytest.raises(ValueError, match="plan must be an ExecutionPlan"):
+        uptimely_engine.Engine("spec.json")
+
+    assert not hasattr(uptimely_engine.Engine, "from_spec")
+    assert not hasattr(uptimely_engine.Engine, "spec")
+
+
 def test_engine_rejects_execution_plan_as_resource_override() -> None:
     with pytest.raises(TypeError, match="resources must be a dictionary"):
         uptimely_engine.Engine(_plan(), _plan())

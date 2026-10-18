@@ -1,5 +1,6 @@
 import json
 import pathlib
+import shutil
 import sys
 
 import polars as pl
@@ -8,6 +9,8 @@ from examples.pump_analytics.functions import calculation
 
 from uptimely import compiler
 from uptimely import engine as uptimely_engine
+from uptimely import project as project_module
+from uptimely import spec as spec_module
 from uptimely.cli import cli
 from uptimely.engine import dataframe as dataframe_module
 from uptimely.engine import state as state_module
@@ -21,8 +24,23 @@ def _engine_bind() -> dict[str, object]:
     return engine_config["bind"]
 
 
+def _execution_plan() -> compiler.ExecutionPlan:
+    return compiler.Compiler(spec_module.load_spec(SPEC_PATH)).compile()
+
+
+def _copy_pump_project(tmp_path: pathlib.Path) -> pathlib.Path:
+    project_root = tmp_path / "examples" / "pump_analytics"
+    shutil.copytree(
+        pathlib.Path("examples/pump_analytics"),
+        project_root,
+        ignore=shutil.ignore_patterns("_generated"),
+    )
+    (project_root.parent / "__init__.py").write_text("", encoding="utf-8")
+    return project_root
+
+
 def test_engine_returns_calculated_features_without_writing_output() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH, bind=_engine_bind())
+    engine = uptimely_engine.Engine(_execution_plan(), bind=_engine_bind())
 
     result = engine.execute()
 
@@ -86,12 +104,14 @@ def test_engine_returns_calculated_features_without_writing_output() -> None:
 
 
 def test_engine_cli_reports_calculated_feature_ids(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    project_root = _copy_pump_project(tmp_path)
+    project_module.build_project(project_root)
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "engine", "run", "--project-root", "examples/pump_analytics"],
+        ["uptimely", "engine", "run", "--project-root", str(project_root)],
     )
     cli.main()
 
@@ -107,11 +127,31 @@ def test_engine_cli_reports_calculated_feature_ids(
         "recommended_flow_rate",
         "vibration_delta",
     ]
-    assert "Calculated features: " + ", ".join(expected_features) in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "Build scope: all features" in output
+    assert "Calculated features: " + ", ".join(expected_features) in output
+
+
+def test_engine_cli_reports_scoped_saved_build(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    project_root = _copy_pump_project(tmp_path)
+    project_module.build_project(project_root, features=["health_signal_normalized"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["uptimely", "engine", "run", "--project-root", str(project_root)],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+    assert "Build scope: selected features: health_signal_normalized" in output
+    assert "Calculated features: health_signal_normalized" in output
 
 
 def test_engine_rejects_unknown_runtime_namespace() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH, bind={})
+    engine = uptimely_engine.Engine(_execution_plan(), bind={})
 
     result = engine.execute()
 
@@ -121,7 +161,7 @@ def test_engine_rejects_unknown_runtime_namespace() -> None:
 
 
 def test_engine_rejects_unknown_runtime_object() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH, bind={"storage": {}})
+    engine = uptimely_engine.Engine(_execution_plan(), bind={"storage": {}})
 
     result = engine.execute()
 
@@ -132,7 +172,7 @@ def test_engine_rejects_unknown_runtime_object() -> None:
 
 
 def test_engine_rejects_unknown_runtime_attribute() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH, bind={"storage": {"telemetry_source": {}}})
+    engine = uptimely_engine.Engine(_execution_plan(), bind={"storage": {"telemetry_source": {}}})
 
     result = engine.execute()
 
@@ -143,7 +183,7 @@ def test_engine_rejects_unknown_runtime_attribute() -> None:
 
 
 def test_engine_merges_fragments_by_entity_dimensions() -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH)
+    engine = uptimely_engine.Engine(_execution_plan())
     dataframe = dataframe_module.DataFrameExecution(
         engine.backend, engine.resources, state_module.RuntimeState()
     )
@@ -196,7 +236,7 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
     ],
 )
 def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> None:
-    engine = uptimely_engine.Engine(SPEC_PATH)
+    engine = uptimely_engine.Engine(_execution_plan())
     dataframe = dataframe_module.DataFrameExecution(
         engine.backend, engine.resources, state_module.RuntimeState()
     )

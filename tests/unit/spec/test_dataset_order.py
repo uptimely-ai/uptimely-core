@@ -259,7 +259,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
         == compiler.Compiler(unordered).compile().callables
     )
 
-    result = engine.Engine(ordered).execute()
+    result = engine.Engine(compiler.Compiler(ordered).compile()).execute()
     assert result.failures == {}
     frame = result.datasets[("entity", declaration.id)]
     assert isinstance(frame, pl.DataFrame)

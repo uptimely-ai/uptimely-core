@@ -1,14 +1,11 @@
 """Execution engine for portable spec plans."""
 
 import logging
-import pathlib
 import time
 import typing
 
-from uptimely import compiler as compiler_module
-from uptimely import contracts, spec
+from uptimely import contracts
 from uptimely.compiler import plan as plan_module
-from uptimely.spec import model as spec_model
 
 from . import backend as backend_module
 from . import bindings as bindings_module
@@ -21,11 +18,11 @@ logger = logging.getLogger(__name__)
 
 
 class Engine:
-    """Execute a portable plan without recompiling its spec definition."""
+    """Execute an explicit portable plan."""
 
     def __init__(
         self,
-        plan: plan_module.ExecutionPlan | str | pathlib.Path | spec_model.Spec,
+        plan: plan_module.ExecutionPlan,
         resources: dict[str, typing.Any] | None = None,
         *,
         config: config_module.EngineConfig | None = None,
@@ -34,15 +31,10 @@ class Engine:
         callable_loader: backend_module.CallableLoader | None = None,
         bind: dict[str, dict[str, dict[str, typing.Any]]] | None = None,
     ) -> None:
-        """Prepare an engine from a plan, with spec convenience support."""
-        self._spec: spec_model.Spec | None = None
-        if isinstance(plan, plan_module.ExecutionPlan):
-            self.plan = plan
-        elif isinstance(plan, (str, pathlib.Path, spec_model.Spec)):
-            self._spec = spec.load_spec(plan) if isinstance(plan, (str, pathlib.Path)) else plan
-            self.plan = compiler_module.Compiler(self._spec).compile()
-        else:
-            raise ValueError("plan must be an ExecutionPlan, Spec, or spec path")
+        """Prepare an engine to execute a validated portable plan."""
+        if not isinstance(plan, plan_module.ExecutionPlan):
+            raise ValueError("plan must be an ExecutionPlan")
+        self.plan = plan
 
         self.resources = dict(self.plan.plan.resources)
         if resources is not None:
@@ -57,27 +49,6 @@ class Engine:
         self.callable_loader = callable_loader or backend_module.EntrypointLoader()
         self.bind = bind or {}
         self._verify_plan()
-
-    @classmethod
-    def from_spec(
-        cls,
-        spec_definition: str | pathlib.Path | spec_model.Spec,
-        features: list[str] | None = None,
-        *,
-        config: config_module.EngineConfig | None = None,
-    ) -> "Engine":
-        """Compile spec and return an engine for the resulting plan."""
-        return cls(
-            compiler_module.Compiler(spec_definition, features=features).compile(),
-            config=config,
-        )
-
-    @property
-    def spec(self) -> spec_model.Spec:
-        """Return the Spec instance when one was supplied."""
-        if self._spec is None:
-            raise AttributeError("Portable-plan engines do not retain a Spec instance")
-        return self._spec
 
     def _verify_plan(self) -> None:
         """Verify that this runtime supports the portable plan."""
