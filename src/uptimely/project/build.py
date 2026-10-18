@@ -565,9 +565,11 @@ def build_project(
 
                 spec.write_document(spec_definition, staging_root / "spec.json")
                 execution_plan.export_json(staging_root / "execution_plan.json")
-                explorer_module.Explorer(spec_definition, plan=execution_plan).create_html(
-                    explorer_root / "index.html"
-                )
+                explorer_module.Explorer(
+                    spec_definition,
+                    plan=execution_plan,
+                    features=selected_features,
+                ).create_html(explorer_root / "index.html")
             except (
                 OSError,
                 ValueError,

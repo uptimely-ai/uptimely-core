@@ -1,4 +1,4 @@
-"""Saved execution plans are rendered as supplied, without recompilation."""
+"""Explorer rendering requires and preserves the supplied execution plan."""
 
 import dataclasses
 import pathlib
@@ -13,9 +13,8 @@ SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 SAVED_PLAN_MARKER = "saved-plan-only-marker"
 
 
-@pytest.mark.parametrize("use_helper", [False, True])
 def test_render_saved_plan_without_compiling(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, use_helper: bool
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     definition = spec.load_spec(SPEC_PATH)
     compiled = compiler.Compiler(definition).compile()
@@ -36,10 +35,7 @@ def test_render_saved_plan_without_compiling(
 
     monkeypatch.setattr(compiler.Compiler, "compile", fail_compile)
     target = tmp_path / "website/index.html"
-    if use_helper:
-        index = explorer.create_html(definition, target, plan=supplied)
-    else:
-        index = explorer.Explorer(definition, plan=supplied).create_html(target)
+    index = explorer.Explorer(definition, plan=supplied).create_html(target)
 
     assert index.is_file()
     for page in ("plan/graph.html", "plan/stages.html"):
@@ -48,19 +44,28 @@ def test_render_saved_plan_without_compiling(
     assert supplied.plan.to_dict() == original
 
 
-def test_explorer_compiles_when_no_plan_is_supplied(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+def test_explorer_requires_existing_plan() -> None:
+    definition = spec.load_spec(SPEC_PATH)
+
+    with pytest.raises(TypeError, match="plan"):
+        explorer.Explorer(definition)  # type: ignore[call-arg]
+
+
+def test_explorer_distinguishes_full_model_from_scoped_plan(
+    tmp_path: pathlib.Path,
 ) -> None:
     definition = spec.load_spec(SPEC_PATH)
-    original_compile = compiler.Compiler.compile
-    calls: list[compiler.Compiler] = []
+    plan = compiler.Compiler(definition, features=["health_signal_normalized"]).compile()
+    index = explorer.Explorer(
+        definition,
+        plan=plan,
+        features=["health_signal_normalized"],
+    ).create_html(tmp_path / "index.html")
+    document = index.read_text(encoding="utf-8")
 
-    def record_compile(instance: compiler.Compiler) -> plan_module.ExecutionPlan:
-        calls.append(instance)
-        return original_compile(instance)
-
-    monkeypatch.setattr(compiler.Compiler, "compile", record_compile)
-
-    explorer.create_html(definition, tmp_path / "index.html")
-
-    assert len(calls) == 1
+    assert "Scoped build" in document
+    assert "Spec: complete model" in document
+    assert "Plan and execution: selected features: health_signal_normalized" in document
+    assert "Plan and execution: selected features: health_signal_normalized" in (
+        index.parent / "plan/overview.html"
+    ).read_text(encoding="utf-8")

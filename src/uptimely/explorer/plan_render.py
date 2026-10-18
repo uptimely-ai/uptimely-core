@@ -111,6 +111,8 @@ def _create_website_pages(
     output_directory: pathlib.Path,
     *,
     index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    execution_scope: str = "all features",
+    is_scoped: bool = False,
 ) -> None:
     """Write linked overview, callable graph, and stage pages for a plan.
 
@@ -118,6 +120,8 @@ def _create_website_pages(
         plan: The compiled execution plan to render.
         output_directory: Directory shared by all website pages.
         index_filename: Filename of the website dashboard.
+        execution_scope: Feature coverage of the rendered build.
+        is_scoped: Whether the plan covers a selected feature subset.
     """
     callables_by_stage = plan.execution_stages
     callables_in_order = [callable for stage in callables_by_stage for callable in stage]
@@ -217,6 +221,8 @@ def _create_website_pages(
         "active_page": "plan",
         "index_filename": index_filename,
         "root_path": "../",
+        "execution_scope": execution_scope,
+        "is_scoped": is_scoped,
     }
 
     output_directory.mkdir(parents=True, exist_ok=True)

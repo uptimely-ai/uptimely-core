@@ -2,10 +2,11 @@ import dataclasses
 import pathlib
 from html import parser as html_parser
 
+from conftest import render_explorer
 from examples.pump_analytics.config.spec import spec as pump_analytics_module
 
 from uptimely import spec
-from uptimely.explorer import explorer, spec_render
+from uptimely.explorer import spec_render
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
@@ -104,7 +105,7 @@ def test_html_explorer_overview_counts_match_spec(tmp_path: pathlib.Path) -> Non
     spec_definition.name = "Pump analytics"
     expected_counts = _explorer_counts(spec_definition)
 
-    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     output_path = tmp_path / "spec/overview.html"
     parser = TextCollector()
     parser.feed(output_path.read_text(encoding="utf-8"))

@@ -24,6 +24,10 @@
     .title-with-icon { display: flex; align-items: center; gap: 12px; }
     .title-icon { width: 28px; height: 28px; }
     .site-content { margin-left: var(--site-nav-width); min-width: 0; }
+    .build-scope-note { margin: 0 8px 12px; padding: 10px; border: 1px solid #334155;
+      border-radius: 8px; color: #cbd5e1; font-size: 11px; line-height: 1.5; }
+    .build-scope-note strong, .build-scope-note span { display: block; }
+    .build-scope-note strong { color: #67e8f9; margin-bottom: 4px; }
     .site-nav { position: fixed; inset: 0 auto 0 0; width: var(--site-nav-width); z-index: 50;
       box-sizing: border-box; display: flex; flex-direction: column; gap: 8px;
       padding: 24px 16px; overflow-y: auto;
@@ -50,6 +54,11 @@
   {% set rel_root = root_path or "" %}
   <nav class="site-nav" aria-label="Explorer pages">
     <a class="site-brand" href="{{ rel_root }}{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>{{ icon("home", "nav-icon") }}<span>openanalytics/explorer</span></a>
+    <aside class="build-scope-note" aria-label="Build coverage">
+      <strong>{{ "Scoped build" if is_scoped else "Full build" }}</strong>
+      <span>Spec: complete model</span>
+      <span>Plan and execution: {{ execution_scope }}</span>
+    </aside>
     {% for page, label, icon_key in [("spec", "Spec", "spec"), ("plan", "Plan", "execution"), ("execution", "Execution", "execution")] %}
     <a href="{{ rel_root }}{{ website_pages[page]['lineage' if page == 'execution' else 'overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
     {% if page == "spec" %}

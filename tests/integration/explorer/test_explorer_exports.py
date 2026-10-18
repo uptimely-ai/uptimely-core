@@ -6,9 +6,10 @@ import pathlib
 import re
 
 import pytest
+from conftest import render_explorer
 
 from uptimely import compiler, engine, spec
-from uptimely.explorer import explorer, spec_render
+from uptimely.explorer import spec_render
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 REFERENCE_PATH = pathlib.Path("docs/components/spec.md")
@@ -44,9 +45,7 @@ def test_reference_exports_to_default_directory(
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
-    explorer_instance = explorer.Explorer(spec_definition)
-
-    document_path = explorer_instance.create_html()
+    document_path = render_explorer(spec_definition)
     expected = pathlib.Path("_generated/explorer/index.html")
     assert document_path == expected
     assert document_path.is_file()
@@ -63,7 +62,7 @@ def test_html_export_preserves_spec_definition(
     spec.write_document(spec_definition, spec_path)
     original = spec_path.read_bytes()
 
-    output = explorer.Explorer(spec_definition).create_html()
+    output = render_explorer(spec_definition)
 
     assert output == pathlib.Path("_generated/explorer/index.html")
     assert spec_path.read_bytes() == original
@@ -106,7 +105,7 @@ def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
 
-    document_path = explorer.Explorer(spec_definition).create_html()
+    document_path = render_explorer(spec_definition)
     pages = {
         filename: (document_path.parent / filename).read_text(encoding="utf-8")
         for filename in (
@@ -169,12 +168,8 @@ def test_generate_html_explorer_from_in_memory_spec_is_deterministic(
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    first_path = explorer.Explorer(spec_definition).create_html(
-        output_path=tmp_path / "first" / "index.html",
-    )
-    second_path = explorer.Explorer(spec_definition).create_html(
-        output_path=tmp_path / "second" / "index.html",
-    )
+    first_path = render_explorer(spec_definition, output_path=tmp_path / "first" / "index.html")
+    second_path = render_explorer(spec_definition, output_path=tmp_path / "second" / "index.html")
 
     for first_page in first_path.parent.rglob("*.html"):
         relative_path = first_page.relative_to(first_path.parent)

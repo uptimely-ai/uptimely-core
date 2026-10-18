@@ -136,6 +136,8 @@ def _create_website_page(
     output_directory: pathlib.Path,
     *,
     index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    execution_scope: str = "all features",
+    is_scoped: bool = False,
 ) -> None:
     """Write the linked data-lineage page from the already compiled plan.
 
@@ -144,6 +146,8 @@ def _create_website_page(
         execution_plan: Compiled plan; no analytical functions are called.
         output_directory: Directory shared by the website pages.
         index_filename: Filename of the website dashboard.
+        execution_scope: Feature coverage of the rendered build.
+        is_scoped: Whether the plan covers a selected feature subset.
     """
     document = (
         render.html_environment()
@@ -155,6 +159,8 @@ def _create_website_page(
             active_section="lineage",
             root_path="../",
             index_filename=index_filename,
+            execution_scope=execution_scope,
+            is_scoped=is_scoped,
         )
     )
     target = output_directory / render.WEBSITE_PAGES["execution"]["lineage"]

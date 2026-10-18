@@ -4,8 +4,10 @@ import pathlib
 import re
 from html import parser as html_parser
 
+from conftest import render_explorer
+
 from uptimely import compiler, spec
-from uptimely.explorer import explorer, lineage
+from uptimely.explorer import lineage
 
 SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
@@ -44,7 +46,7 @@ class LineageStructureCollector(html_parser.HTMLParser):
 def test_lineage_layout_has_balanced_stage_and_card_containers(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = compiler.Compiler(spec_definition).compile()
-    explorer.create_html(spec_definition, tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     collector = LineageStructureCollector()
     collector.feed(document)
@@ -112,7 +114,7 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
 def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = compiler.Compiler(spec_definition).compile()
-    explorer.create_html(spec_definition, tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     tables = re.findall(
         r'<article class="lineage-step" id="step-(\d+)" data-callable-id="([^"]+)"'
@@ -139,7 +141,7 @@ def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> N
 
 
 def test_empty_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
-    explorer.create_html(spec.Spec(), tmp_path / "index.html")
+    render_explorer(spec.Spec(), tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert "No processing steps." in document
     assert '<table class="lineage-table"' not in document
@@ -147,7 +149,7 @@ def test_empty_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
 
 
 def test_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
-    explorer.create_html(spec.Spec(), tmp_path / "index.html")
+    render_explorer(spec.Spec(), tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert "lineage-legend" not in document
     assert "Data lineage color key" not in document
@@ -155,7 +157,7 @@ def test_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
 
 def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    explorer.create_html(spec_definition, tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert 'aria-label="Lineage playback" hidden' in document
     assert 'id="lineage-previous">Previous</button>' in document
@@ -231,7 +233,7 @@ def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -
     spec_definition = spec.load_spec(SPEC_PATH)
     execution_plan = compiler.Compiler(spec_definition).compile()
     stages = lineage._build_stages(spec_definition, execution_plan)
-    explorer.create_html(spec_definition, tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     collector = LineageStructureCollector()
     collector.feed(document)
@@ -246,7 +248,7 @@ def test_lineage_omits_declared_row_grain(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     dataset = next(iter(spec_definition.entities.values())).datasets[0]
     dataset.row_scope.grain = "<script>alert('grain')</script>"
-    explorer.create_html(spec_definition, tmp_path / "index.html")
+    render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert dataset.row_scope.grain not in document
     assert "&lt;script&gt;alert(&#39;grain&#39;)&lt;/script&gt;" not in document
