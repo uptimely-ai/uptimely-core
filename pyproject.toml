@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "uptimely-core"
-version = "0.2.0.dev1"
+version = "0.2.0"
 description = "Manage data-driven numerical analytics with complex dependencies at scale"
 authors = [{ name = "Mikael Ahonen", email = "mikael.ahonen@uptimely.ai" }]
 license = "MIT"

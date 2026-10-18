@@ -6,68 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 While the version is `0.x`, minor releases may include breaking changes.
 
-## [Unreleased]
-
-### Fixed
-
-- Devcontainers mount the checkout's parent directory at its host path so
-  sibling Git worktrees remain visible to Git and VS Code.
+## [0.2.0] - 2026-10-19
 
 ### Added
 
-- `uptimely project build` validates the complete spec, compiles one plan, and
-  publishes a manifest, spec, plan, and Explorer website as one active bundle.
-  It supports standard source discovery, explicit entrypoints, JSON sources,
-  and scoped feature selection without executing workflow functions.
-- CLI commands for inspecting feature dependencies (`uptimely spec feature-graph`)
-  and running the active saved execution plan (`uptimely engine run`).
+- `uptimely project build` publishes a validated active bundle containing the
+  spec, execution plan, and Explorer website. Python functions can be bound by
+  callable or `path:function` entrypoint.
 
 ### Changed
 
-- **Breaking:** `uptimely project build` is now the only CLI build workflow and
-  replaces the active bundle on success. Engine, Explorer, feature-graph CLI,
-  and MCP consume saved build artifacts only; none compile or regenerate
-  implicitly. Source changes require an explicit build, and there is no
-  compatibility path or deprecation period for standalone artifact layouts.
-- The optional MCP server now reads and executes the validated saved build. It
-  no longer exposes plan compilation or feature-specific recompilation; use
-  `uptimely project build` to select a plan scope and `reload_build` to refresh it.
-- Renamed the project domain, public APIs, CLI commands and options, project
-  paths, examples, and documentation to use `spec`. Previous names and inputs
-  are removed; no compatibility aliases or legacy handling remain.
-- `uptimely engine run` now validates and executes the plan from
-  `_generated/build/`. It no longer compiles from source or accepts spec,
-  feature-selection, or arbitrary plan-path overrides.
-- CLI artifact generation is provided by `uptimely project build`; the
-  standalone spec and plan build commands have been removed.
-- Python API documentation now follows the source package layout, with separate
-  package pages, module navigation, and visually separated class and function
-  entries. Coverage includes entrypoint loading, storage, function contracts,
-  validation, JSON helpers, and exported graph types.
-- Spec now separates document models, Python authoring, JSON I/O, and
-  prepared analysis. Removed the old JSON model/helper modules and
-  `SpecParser`/`SpecSerializer`; use `load_spec`, `from_python`,
-  `prepare_spec`, and `write_document` instead of model I/O methods.
-  Python declarations use `to_model()` and `to_dict()`, with one shared
-  JSON document format. Derived calls/functions are stored in `PreparedSpec`,
-  not `Spec`. Automatic function catalogs reject all conflicting metadata,
-  and entity declarations must be passed through `entities=`, not `datasets=`.
-- Feature graph HTML rendering and `GraphStyle` now belong to
-  `uptimely.explorer.graph_render`; imports from
-  `uptimely.spec.feature_graph.render`,
-  `uptimely.spec.feature_graph.GraphStyle`, and
-  `uptimely.spec.GraphStyle` have been removed.
-- Python spec declarations now use `mapping.Mapping` with operation metadata
-  on `ref.function`; operation-specific mapping classes have been removed.
-- Portable plans now declare `plan_version` (`0.2.0`) and omit
-  `spec_version`. The built-in loader rejects unsupported plan versions;
-  regenerate saved plans to use the current format.
-- Python function bindings now require `ref.function(callable_or_entrypoint)`,
-  accepting a Python callable or a `path:function` string. Local Python files,
-  HTTPS source URLs, and S3 source URIs support signature inspection and execution.
-- Renamed the spec documentation CLI command from `docs` to `explorer`.
-- Example project spec and engine settings now live under `config/`;
-  `uptimely engine run` defaults to `config/engine.json` beneath the project root.
+- **Breaking:** `uptimely project build` replaces the standalone generation
+  commands. Engine, Explorer, and MCP now consume the saved active build rather
+  than compiling or regenerating artifacts; source changes require a rebuild.
+- **Breaking:** Public APIs and CLI terminology are standardized on `spec` and
+  `explorer`, with old names and artifact layouts removed. Spec authoring,
+  parsing, and function-mapping interfaces have also changed.
+- Portable plans now declare `plan_version` (`0.2.0`); regenerate plans in the
+  previous format.
+- Generated graph pages combine 2D and 3D views with an in-place selector that
+  preserves the selected node.
+
+### Fixed
+
+- Missing generated inputs now produce actionable errors.
 
 ## [0.1.0] - 2026-10-14
 
@@ -87,7 +49,3 @@ While the version is `0.x`, minor releases may include breaking changes.
 ## [0.0.1] - 2026-08-16
 
 Placholder release to reserve the package name in PyPI.
-- Combined each generated graph section into one page with an in-place 2D/3D
-  selector, defaulting to 2D and preserving selected node details. Sidebar links
-  now use `graph/feature_graph.html` and `plan/graph.html`; rebuilds remove
-  obsolete dimension-specific graph pages.
