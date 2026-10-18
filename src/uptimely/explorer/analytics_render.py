@@ -14,11 +14,9 @@ from uptimely import analytics, contracts, project, render
 from uptimely import entrypoint as entrypoint_module
 from uptimely.analytics import model as analytics_model
 
-OUTPUT_DIR: pathlib.Path = project.ANALYTICS_OUTPUT_DIR
 ANALYTICS_PAGES = render.WEBSITE_PAGES["analytics"]
 __all__ = [
     "ANALYTICS_PAGES",
-    "OUTPUT_DIR",
     "ExplorerContext",
     "ExplorerSummary",
     "_build_context",
@@ -105,7 +103,7 @@ def _create_website_pages(
     context: ExplorerContext,
     output_directory: pathlib.Path,
     *,
-    index_filename: str = "index.html",
+    index_filename: str = project.EXPLORER_INDEX_FILE.name,
 ) -> None:
     """Export separate analytics sections with shared website navigation.
 
@@ -281,7 +279,7 @@ def create_json(
     Returns:
         The path to the written JSON document.
     """
-    target = pathlib.Path(output_path) if output_path is not None else OUTPUT_DIR / "docs.json"
+    target = pathlib.Path(output_path) if output_path is not None else project.ANALYTICS_DOCS_FILE
     context = _build_context(analytics_definition, include_generated_at)
     target = target.with_suffix(".json")
     _write_document_data(context, target)

@@ -3,7 +3,7 @@
 import argparse
 import pathlib
 
-from uptimely import compiler
+from uptimely import compiler, project
 from uptimely.cli import common
 from uptimely.compiler import plan as plan_module
 
@@ -41,16 +41,16 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     build.add_argument(
         "--output",
         type=pathlib.Path,
-        help="Plan JSON (default: _generated/compile/execution_plan.json under --project-root)",
+        help=f"Plan JSON (default: {project.EXECUTION_PLAN_FILE} under --project-root)",
     )
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Compile and export a plan using parsed command-line arguments."""
     analytics_definition = common.project_path(
-        args.analytics, args.project_root, common.GENERATED_ANALYTICS_PATH
+        args.analytics, args.project_root, project.ANALYTICS_JSON_FILE
     )
-    output = common.project_path(args.output, args.project_root, common.GENERATED_PLAN_PATH)
+    output = common.project_path(args.output, args.project_root, project.EXECUTION_PLAN_FILE)
     try:
         plan = compile_plan(
             analytics_definition, args.project_root or pathlib.Path.cwd(), args.features

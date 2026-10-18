@@ -6,6 +6,7 @@ import json
 import pathlib
 import typing
 
+from uptimely import project
 from uptimely import storage as storage_module
 
 if typing.TYPE_CHECKING:
@@ -15,7 +16,7 @@ if typing.TYPE_CHECKING:
 def load_document(path: str | pathlib.Path) -> dict[str, typing.Any]:
     """Read one JSON document, rejecting unsupported multi-file definitions."""
     if storage_module.Storage.is_dir(path):
-        path = storage_module.Storage.join(path, "analytics.json")
+        path = storage_module.Storage.join(path, project.ANALYTICS_JSON_ENTRY_FILE.name)
     analytics_definition = json.loads(storage_module.Storage.read(path))
     if analytics_definition.get("includes", []) or analytics_definition.get("external_specs", []):
         raise ValueError("Analytics must be defined in a single JSON file")

@@ -6,8 +6,6 @@
   cd -- "$repo_root"
 
   exec poetry run uptimely explorer serve \
-    --analytics examples/pump_analytics/_generated/analytics/analytics.json \
     --project-root examples/pump_analytics \
-    --directory examples/pump_analytics/_generated/explorer \
     "$@"
 )

@@ -7,8 +7,6 @@ from uptimely import render as uptimely_render
 
 from . import analytics_render, graph_render, lineage, plan_render
 
-EXPLORER_OUTPUT_DIR: pathlib.Path = project.EXPLORER_OUTPUT_DIR
-
 
 class Explorer:
     """Generate a linked analytics, plan, and data-lineage website."""
@@ -24,16 +22,14 @@ class Explorer:
         """Export analytics reference data as JSON.
 
         Args:
-            output_path: Output file; defaults to ``_generated/explorer/explorer.json``.
+            output_path: Output file; defaults to ``project.EXPLORER_JSON_FILE``.
             include_generated_at: Include a build timestamp.
 
         Returns:
             The path to the JSON document.
         """
         target = (
-            pathlib.Path(output_path)
-            if output_path is not None
-            else EXPLORER_OUTPUT_DIR / "explorer.json"
+            pathlib.Path(output_path) if output_path is not None else project.EXPLORER_JSON_FILE
         )
         return analytics_render.create_json(self.analytics, target, include_generated_at)
 
@@ -49,7 +45,7 @@ class Explorer:
         Individual HTML report and subset-graph exports are not supported.
 
         Args:
-            output_path: Index file; defaults to ``_generated/explorer/index.html``.
+            output_path: Index file; defaults to ``project.EXPLORER_INDEX_FILE``.
                 Section pages are written in analytics, plan, and execution subdirectories
                 beneath the index directory.
             include_generated_at: Include a timestamp on the analytics page.
@@ -58,9 +54,7 @@ class Explorer:
             The path to the website index.
         """
         target = (
-            pathlib.Path(output_path)
-            if output_path is not None
-            else EXPLORER_OUTPUT_DIR / "index.html"
+            pathlib.Path(output_path) if output_path is not None else project.EXPLORER_INDEX_FILE
         )
         target = target.with_suffix(".html")
         plan = compiler.Compiler(self.analytics).compile()
@@ -118,7 +112,7 @@ def create_html(
 
     Args:
         analytics_definition: The analytics document model.
-        output_path: Index file; defaults to ``_generated/explorer/index.html``.
+        output_path: Index file; defaults to ``project.EXPLORER_INDEX_FILE``.
         include_generated_at: Include a timestamp on analytics pages.
 
     Returns:

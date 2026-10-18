@@ -7,7 +7,7 @@ import typing
 
 from graphable import views
 
-from uptimely import render
+from uptimely import project, render
 
 if typing.TYPE_CHECKING:
     from uptimely.analytics.feature_graph.graph import GraphBase
@@ -51,7 +51,7 @@ def _render_graph_html(
     links: list[dict[str, str]],
     style: GraphStyle | None = None,
     *,
-    index_filename: str = "index.html",
+    index_filename: str = project.EXPLORER_INDEX_FILE.name,
 ) -> str:
     """Render one feature graph page with selectable 2D and 3D views.
 
@@ -115,7 +115,7 @@ def _create_website_pages(
     graph: "GraphBase",
     output_directory: pathlib.Path,
     *,
-    index_filename: str = "index.html",
+    index_filename: str = project.EXPLORER_INDEX_FILE.name,
 ) -> None:
     """Write the unified feature graph page within the documentation website.
 

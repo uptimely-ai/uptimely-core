@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import pathlib
 
-from uptimely import analytics, render
+from uptimely import analytics, project, render
 from uptimely.compiler import plan
 
 
@@ -135,7 +135,7 @@ def _create_website_page(
     execution_plan: plan.ExecutionPlan,
     output_directory: pathlib.Path,
     *,
-    index_filename: str = "index.html",
+    index_filename: str = project.EXPLORER_INDEX_FILE.name,
 ) -> None:
     """Write the linked data-lineage page from the already compiled plan.
 
