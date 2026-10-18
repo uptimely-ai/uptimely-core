@@ -1,4 +1,4 @@
-"""Standard paths and conventions for an Uptimely analytics project."""
+"""Active build bundle manifest and validation."""
 
 import dataclasses
 import json
@@ -10,34 +10,7 @@ import pydantic
 
 from uptimely.compiler.plan import models as plan_models
 
-CONFIG_DIR: typing.Final = pathlib.Path("config")
-SPEC_SOURCE_DIR: typing.Final = CONFIG_DIR / "spec"
-SPEC_PYTHON_ENTRY_FILE: typing.Final = SPEC_SOURCE_DIR / "spec.py"
-DEFAULT_SPEC_ATTRIBUTE: typing.Final = "python_spec"
-SPEC_JSON_ENTRY_FILE: typing.Final = SPEC_SOURCE_DIR / "spec.json"
-COMPILER_CONFIG_FILE: typing.Final = CONFIG_DIR / "compiler.json"
-ENGINE_CONFIG_FILE: typing.Final = CONFIG_DIR / "engine.json"
-
-DATA_DIR: typing.Final = pathlib.Path("data")
-FUNCTIONS_DIR: typing.Final = pathlib.Path("functions")
-
-GENERATED_DIR: typing.Final = pathlib.Path("_generated")
-
-SPEC_OUTPUT_DIR: typing.Final = GENERATED_DIR / "spec"
-SPEC_JSON_FILE: typing.Final = SPEC_OUTPUT_DIR / "spec.json"
-
-COMPILE_OUTPUT_DIR: typing.Final = GENERATED_DIR / "compile"
-EXECUTION_PLAN_FILE: typing.Final = COMPILE_OUTPUT_DIR / "execution_plan.json"
-
-EXPLORER_OUTPUT_DIR: typing.Final = GENERATED_DIR / "explorer"
-EXPLORER_INDEX_FILE: typing.Final = EXPLORER_OUTPUT_DIR / "index.html"
-
-BUILD_OUTPUT_DIR: typing.Final = GENERATED_DIR / "build"
-BUILD_MANIFEST_FILE: typing.Final = BUILD_OUTPUT_DIR / "build.json"
-BUILD_SPEC_FILE: typing.Final = BUILD_OUTPUT_DIR / "spec.json"
-BUILD_EXECUTION_PLAN_FILE: typing.Final = BUILD_OUTPUT_DIR / "execution_plan.json"
-BUILD_EXPLORER_DIR: typing.Final = BUILD_OUTPUT_DIR / "explorer"
-BUILD_SCHEMA_VERSION: typing.Final = 1
+from . import paths
 
 
 def _validate_relative_path(value: str) -> str:
@@ -74,16 +47,20 @@ class BuildArtifactPaths(pydantic.BaseModel):
     @pydantic.model_validator(mode="after")
     def validate_distinct_paths(self) -> typing.Self:
         """Prevent required artifacts from colliding or containing one another."""
-        paths = {
+        artifact_paths = {
             "spec": pathlib.PurePosixPath(self.spec),
             "execution_plan": pathlib.PurePosixPath(self.execution_plan),
             "explorer": pathlib.PurePosixPath(self.explorer),
         }
-        names = list(paths)
+        names = list(artifact_paths)
         for index, name in enumerate(names):
             for other_name in names[index + 1 :]:
-                path, other = paths[name], paths[other_name]
-                if path == other or path in other.parents or other in path.parents:
+                artifact_path, other_path = artifact_paths[name], artifact_paths[other_name]
+                if (
+                    artifact_path == other_path
+                    or artifact_path in other_path.parents
+                    or other_path in artifact_path.parents
+                ):
                     raise ValueError(f"Build artifact paths {name!r} and {other_name!r} overlap")
         return self
 
@@ -103,10 +80,10 @@ class BuildManifest(pydantic.BaseModel):
     @classmethod
     def validate_schema_version(cls, value: int) -> int:
         """Reject bundle schemas this runtime does not support."""
-        if value != BUILD_SCHEMA_VERSION:
+        if value != paths.BUILD_SCHEMA_VERSION:
             raise ValueError(
                 f"Unsupported build schema version: {value}. "
-                f"Supported version is {BUILD_SCHEMA_VERSION}."
+                f"Supported version is {paths.BUILD_SCHEMA_VERSION}."
             )
         return value
 
@@ -211,14 +188,14 @@ def load_build_bundle(project_root: str | pathlib.Path) -> BuildBundle:
         BuildError: If the bundle is missing, incomplete, or invalid.
     """
     project_root = pathlib.Path(project_root).resolve()
-    bundle_root = project_root / BUILD_OUTPUT_DIR
-    manifest_path = bundle_root / BUILD_MANIFEST_FILE.name
+    bundle_root = project_root / paths.BUILD_OUTPUT_DIR
+    manifest_path = bundle_root / paths.BUILD_MANIFEST_FILE.name
     if not bundle_root.exists():
         raise BuildError("missing", "", project_root)
     if not bundle_root.is_dir():
-        raise BuildError("invalid", f"{BUILD_OUTPUT_DIR} is not a directory", project_root)
+        raise BuildError("invalid", f"{paths.BUILD_OUTPUT_DIR} is not a directory", project_root)
     if not manifest_path.is_file():
-        raise BuildError("incomplete", f"missing {BUILD_MANIFEST_FILE.name}", project_root)
+        raise BuildError("incomplete", f"missing {paths.BUILD_MANIFEST_FILE.name}", project_root)
 
     try:
         manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
