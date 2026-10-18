@@ -1,26 +1,7 @@
 # Examples
 
-The examples demonstrate how Uptimely Core describes industrial analytics,
-resolves feature dependencies, and produces executable plans and an interactive
-analytics explorer.
-
-## Explore the example project
-
-From the repository root, build the complete active bundle:
-
-```sh
-uptimely project build --project-root examples/pump_analytics
-```
-
-The spec, plan, and Explorer artifacts are generated together by this one
-build command. `explorer serve` validates the active build and serves the saved
-website; it does not regenerate it:
-
-```sh
-uptimely explorer serve --project-root examples/pump_analytics
-```
-
-Open <http://localhost:8001/> to view it. Stop the server with **Ctrl+C**.
+These examples show how to define analytics projects and explore how their
+parts fit together.
 
 ## Examples
 
@@ -36,30 +17,33 @@ examples/
 ├── README.md
 ├── pump_analytics/
 │   ├── config/
-│   │   ├── engine.json       Engine settings and runtime bindings
-│   │   └── spec/             Python spec declarations
+│   │   ├── engine.json       Engine settings
+│   │   └── spec/             Analytics definitions
 │   │       ├── spec.py
 │   │       ├── dataset_pump.py
 │   │       ├── dataset_telemetry.py
 │   │       ├── entity.py
 │   │       ├── dimension.py
 │   │       └── functions.py
-│   ├── data/                 Input and calculated example datasets
-│   ├── functions/            Read, vectorize, and write function implementations
+│   ├── data/                 Example input and output data
+│   ├── functions/            Code that reads, calculates, and saves data
 │   └── _generated/
-│       └── build/            Active bundle: manifest, spec, plan, Explorer
+│       └── build/            Files created by the build
 └── simple_analytics/
     ├── config/
-    │   └── spec/             Python spec declarations
-    ├── data/                 Data used by the Python example
+    │   └── spec/             Analytics definitions
+    ├── data/                 Example data
     ├── functions/            Example function implementations
     └── _generated/
-        └── build/            Active bundle: manifest, spec, plan, Explorer
+        └── build/            Files created by the build
 ```
 
 ## Quick start
 
-With Python 3.13 or newer, install the package, download the examples and explore the analytics project:
+Python 3.13 or newer is required. Install the package, download the examples,
+build the project, and open the Explorer.
+
+With pip:
 
 ```sh
 pip install uptimely-core
@@ -68,54 +52,38 @@ uptimely project build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
-Additional commands to try:
+With Poetry, from your Poetry project:
 
 ```sh
-uptimely spec feature-graph --project-root examples/pump_analytics --verbose
-uptimely engine run --project-root examples/pump_analytics
-
+poetry add uptimely-core
+poetry run uptimely examples download
+poetry run uptimely project build --project-root examples/pump_analytics
+poetry run uptimely engine run --project-root examples/pump_analytics
+poetry run uptimely explorer serve --project-root examples/pump_analytics
 ```
 
-Run these commands from the parent of the downloaded `examples/` directory.
-By default, the download uses the release tag matching the installed package
-version (`v<version>`) and fails if that tag is unavailable. Use `--ref` to
-select another branch, tag, or commit (`HEAD` selects the repository's default
-branch), or `--output` to change the destination. The destination must not
-already exist.
+Open <http://127.0.0.1:8001/> to view the Explorer. Stop the server with
+**Ctrl+C**. Run these commands from the parent directory of `examples/`.
 
-Generated artifacts are written beneath each example's `_generated/build/`
-directory. A build validates the complete source and publishes a manifest,
-full spec, execution plan, and complete Explorer website. Use
-`--features <name> [<name> ...]` to select a scoped plan and its dependencies;
-omit the option to build all features. The spec stays complete in either case,
-while Explorer identifies the selected plan scope. Every successful build
-replaces the active bundle; a failed build leaves the last successful one
-available. Source edits do not regenerate artifacts, so run `project build`
-explicitly before asking Engine or Explorer to use updated declarations.
-
-Building does not execute workflow functions or sinks. Engine executes the
-saved plan, including configured write sinks, and may cause external side
-effects. Missing or invalid builds fail explicitly with a recovery command.
-See the
-[project command reference](../docs/reference/cli/project.md).
+The build creates files under `examples/pump_analytics/_generated/build/`.
+Rebuild after changing the example's source files. Building does not run the
+analytics; `engine run` does, and may write to configured destinations. See
+the [project command reference](../docs/reference/cli/project.md) for more
+options.
 
 ## Building from Python declarations
 
-The project builder discovers `config/spec/spec.py` or
-`config/spec/spec.json` under each project root. Build either or both examples
-from the repository root (or the parent of downloaded examples):
+Build either or both examples from the repository root (or the parent
+directory of downloaded examples):
 
 ```sh
 uptimely project build --project-root examples/pump_analytics
 uptimely project build --project-root examples/simple_analytics
 ```
 
-Prefix commands with `poetry run` in a Poetry environment.
-Each declaration module exposes a `python_spec` instance of
-`uptimely.spec.python.PythonSpec`. Python sources are loaded with their package
-context, preserving package-relative imports. Use `--entrypoint
-module:attribute` to select a different module or declaration attribute, or
-`--spec <path>` to select a JSON source. If both standard sources exist, one
-must be selected explicitly.
+In a Poetry environment, prefix each command with `poetry run`. Projects can
+define their analytics in Python or JSON. Use `--entrypoint module:attribute`
+to select a Python declaration, or `--spec <path>` to choose a JSON file. If a
+project has both, select one explicitly.
 
 See each example's README for details.
