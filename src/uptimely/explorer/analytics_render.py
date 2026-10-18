@@ -1,10 +1,9 @@
-"""Generate deterministic reference data and HTML from analytics documents."""
+"""Build analytics context and render explorer HTML pages."""
 
 from __future__ import annotations
 
 import dataclasses
 import datetime
-import json
 import pathlib
 import typing
 from importlib import util
@@ -23,8 +22,6 @@ __all__ = [
     "_create_website_pages",
     "_feature_data",
     "_render_document",
-    "_write_document_data",
-    "create_json",
 ]
 
 
@@ -52,18 +49,6 @@ class ExplorerContext:
     summary: ExplorerSummary
     feature_dependencies: list[dict[str, typing.Any]]
     generated_at: str | None = None
-
-
-def _write_document_data(
-    context: ExplorerContext, output_path: pathlib.Path
-) -> dict[str, typing.Any]:
-    data = dataclasses.asdict(context)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(data, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    return data
 
 
 def _render_document(
@@ -262,25 +247,3 @@ def _build_context(
         feature_dependencies=dependencies,
         generated_at=generated_at,
     )
-
-
-def create_json(
-    analytics_definition: analytics_model.Analytics,
-    output_path: str | pathlib.Path | None = None,
-    include_generated_at: bool = False,
-) -> pathlib.Path:
-    """Export analytics reference data as JSON.
-
-    Args:
-        analytics_definition: The analytics document model.
-        output_path: Destination for the reference data.
-        include_generated_at: Include a build timestamp.
-
-    Returns:
-        The path to the written JSON document.
-    """
-    target = pathlib.Path(output_path) if output_path is not None else project.ANALYTICS_DOCS_FILE
-    context = _build_context(analytics_definition, include_generated_at)
-    target = target.with_suffix(".json")
-    _write_document_data(context, target)
-    return target

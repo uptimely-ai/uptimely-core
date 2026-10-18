@@ -14,25 +14,6 @@ class Explorer:
     def __init__(self, analytics_definition: analytics.Analytics) -> None:
         self.analytics = analytics_definition
 
-    def create_json(
-        self,
-        output_path: str | pathlib.Path | None = None,
-        include_generated_at: bool = False,
-    ) -> pathlib.Path:
-        """Export analytics reference data as JSON.
-
-        Args:
-            output_path: Output file; defaults to ``project.EXPLORER_JSON_FILE``.
-            include_generated_at: Include a build timestamp.
-
-        Returns:
-            The path to the JSON document.
-        """
-        target = (
-            pathlib.Path(output_path) if output_path is not None else project.EXPLORER_JSON_FILE
-        )
-        return analytics_render.create_json(self.analytics, target, include_generated_at)
-
     def create_html(
         self,
         output_path: str | pathlib.Path | None = None,
@@ -92,15 +73,6 @@ class Explorer:
             if obsolete_page != target:
                 obsolete_page.unlink(missing_ok=True)
         return target
-
-
-def create_json(
-    analytics_definition: analytics.Analytics,
-    output_path: str | pathlib.Path | None = None,
-    include_generated_at: bool = False,
-) -> pathlib.Path:
-    """Export analytics reference data as JSON."""
-    return Explorer(analytics_definition).create_json(output_path, include_generated_at)
 
 
 def create_html(

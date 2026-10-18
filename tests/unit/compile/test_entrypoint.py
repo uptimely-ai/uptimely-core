@@ -1,5 +1,4 @@
 import io
-import json
 import math
 import pathlib
 import types
@@ -207,8 +206,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
         "dataset": "DataFrame",
         "output": "str",
     }
-    reference_data = analytics_render.create_json(analytics_definition, tmp_path / "docs.json")
-    configuration = json.loads(reference_data.read_text(encoding="utf-8"))["configuration"]
+    configuration = analytics_render._build_context(analytics_definition, False).configuration
     expected_file = path.as_uri() if scheme == "local" else location
     assert configuration["functions"]["calculate"]["entrypoint_file"] == expected_file
     assert downloads == expected_downloads

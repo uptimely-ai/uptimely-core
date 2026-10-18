@@ -1,11 +1,11 @@
-import json
+import dataclasses
 import pathlib
 from html import parser as html_parser
 
 from examples.pump_analytics.config.analytics import analytics as pump_analytics_module
 
 from uptimely import analytics
-from uptimely.explorer import explorer
+from uptimely.explorer import analytics_render, explorer
 
 ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 
@@ -52,11 +52,11 @@ def _explorer_counts(analytics_definition: analytics.Analytics) -> dict[str, int
     }
 
 
-def test_json_explorer_have_expected_keys(tmp_path: pathlib.Path) -> None:
+def test_explorer_context_has_expected_fields() -> None:
     analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
 
-    output_path = explorer.Explorer(analytics_definition).create_json(tmp_path / "explorer.json")
-    document = json.loads(output_path.read_text(encoding="utf-8"))
+    context = analytics_render._build_context(analytics_definition, False)
+    document = dataclasses.asdict(context)
 
     assert set(document) == {
         "configuration",
@@ -81,12 +81,12 @@ def test_json_explorer_have_expected_keys(tmp_path: pathlib.Path) -> None:
     }
 
 
-def test_json_explorer_counts_match_analytics(tmp_path: pathlib.Path) -> None:
+def test_explorer_context_counts_match_analytics() -> None:
     analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     expected_counts = _explorer_counts(analytics_definition)
 
-    output_path = explorer.Explorer(analytics_definition).create_json(tmp_path / "explorer.json")
-    document = json.loads(output_path.read_text(encoding="utf-8"))
+    context = analytics_render._build_context(analytics_definition, False)
+    document = dataclasses.asdict(context)
     configuration = document["configuration"]
 
     assert len(configuration["entities"]) == expected_counts["entity_count"]
