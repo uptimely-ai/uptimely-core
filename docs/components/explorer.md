@@ -27,6 +27,13 @@ the Explorer before starting the server, so it is the quickest way to preview
 your generated artifacts. The CLI loads the saved plan without recompiling it.
 Use matching analytics and plan files from the same project build.
 
+If `_generated` is empty or either input is missing, `build` and `serve` exit
+without starting a server or generating inputs. The error lists all missing
+input paths and the `uptimely project build --project-root ...` command to
+create the standard files. Run that command, then retry Explorer. For custom
+inputs, check `--analytics` and `--plan`; project build writes to the standard
+locations, not custom paths.
+
 ## What you’ll find
 
 Use the sidebar to explore:
