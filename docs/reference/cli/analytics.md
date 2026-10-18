@@ -1,24 +1,40 @@
 # `uptimely analytics`
 
-Build analytics JSON from a Python declaration, or inspect
+Build analytics JSON from Python declarations or JSON sources, or inspect
 feature dependencies in an analytics document.
 
 ## `analytics build`
 
 ```console
-uptimely analytics build --module functions.analytics [--project-root PATH] [--output PATH]
+uptimely analytics build [--module MODULE | --analytics PATH] [--project-root PATH] [--output PATH]
 ```
 
-The importable module must expose a `python_analytics` value of type
-`PythonAnalytics`.
+Without an explicit source, the command discovers
+`config/analytics/analytics.py` or `config/analytics/analytics.json` beneath the
+project root (the current directory by default). If both exist, select one
+explicitly with `--module` or `--analytics`; neither takes precedence.
+
+A Python module must expose a `python_analytics` value of type
+`PythonAnalytics`. Discovered Python sources are imported with their package
+context, preserving relative imports. Enclosing regular packages (directories
+with `__init__.py`) are included in the module name. JSON sources are loaded
+and validated before writing the generated document. Building does not execute
+the analytics workflow, but importing Python declarations executes module-level code.
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `--module` | Yes | None | Import path of the module exposing `python_analytics`. |
+| `--module` | No | Discover the standard source | Import path of the module exposing `python_analytics`. Mutually exclusive with `--analytics`. |
+| `--analytics PATH` | No | Discover the standard source | Source analytics JSON path. Mutually exclusive with `--module`. |
 | `--project-root PATH` | No | Current working directory | Add this directory to Python's import path and use it as the base for the default output path. |
 | `--output PATH` | No | `_generated/analytics/analytics.json` under `--project-root` or the current working directory | Destination JSON path. |
 
 Example:
+
+```console
+uptimely analytics build --project-root examples/pump_analytics
+```
+
+Explicit Python source and output:
 
 ```console
 uptimely analytics build \
@@ -26,6 +42,9 @@ uptimely analytics build \
   --project-root . \
   --output examples/pump_analytics/_generated/analytics/analytics.json
 ```
+
+Explicit `--analytics` and `--output` paths are relative to the current working
+directory, not `--project-root`. The command does not change working directories.
 
 ## `analytics feature-graph`
 

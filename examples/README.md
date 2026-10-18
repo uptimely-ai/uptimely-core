@@ -10,9 +10,7 @@ From the project root, export the analytics, then build and serve the pump
 analytics explorer with:
 
 ```sh
-uptimely analytics build \
-  --module examples.pump_analytics.config.analytics.analytics \
-  --output examples/pump_analytics/_generated/analytics/analytics.json
+uptimely analytics build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
@@ -68,7 +66,7 @@ uptimely explorer serve --project-root examples/pump_analytics
 Additional commands to try:
 
 ```sh
-uptimely analytics build --module examples.pump_analytics.config.analytics.analytics --output examples/pump_analytics/_generated/analytics/analytics.json
+uptimely analytics build --project-root examples/pump_analytics
 uptimely analytics feature-graph --project-root examples/pump_analytics --verbose
 uptimely plan build --project-root examples/pump_analytics
 uptimely engine run --project-root examples/pump_analytics
@@ -91,18 +89,16 @@ building plans or the explorer. Re-export after changing the declarations.
 From the repository root (or the parent of downloaded examples), run:
 
 ```sh
-uptimely analytics build \
-  --module examples.pump_analytics.config.analytics.analytics \
-  --output examples/pump_analytics/_generated/analytics/analytics.json
-uptimely analytics build \
-  --module examples.simple_analytics.config.analytics.analytics \
-  --output examples/simple_analytics/_generated/analytics/analytics.json
+uptimely analytics build --project-root examples/pump_analytics
+uptimely analytics build --project-root examples/simple_analytics
 ```
 
 Prefix commands with `poetry run` in a Poetry environment.
 Each declaration module exposes a `python_analytics` instance of
-`uptimely.analytics.python.PythonAnalytics`. The module is imported using
-the current working directory unless `--project-root` supplies an import root.
+`uptimely.analytics.python.PythonAnalytics`. By default, the command discovers
+`config/analytics/analytics.py` under the project root, preserving package-relative
+imports. You can also run `uptimely analytics build` from inside either example.
+Use `--module` to select a different importable declaration module.
 Without `--output`, JSON is written to `_generated/analytics/analytics.json` beneath
 that root. An explicit output path is relative to the current working directory.
 
