@@ -13,7 +13,7 @@ available in an installed version.
 
 | Command | Reference | Purpose |
 | --- | --- | --- |
-| `uptimely analytics` | [Analytics](cli/analytics.md) | Build analytics JSON from Python declarations or inspect feature dependencies. |
+| `uptimely analytics` | [Analytics](cli/analytics.md) | Build analytics JSON from Python or JSON sources, or inspect feature dependencies. |
 | `uptimely engine` | [Engine](cli/engine.md) | Run an analytics workflow. |
 | `uptimely examples` | [Examples](cli/examples.md) | Download runnable example projects. |
 | `uptimely explorer` | [Explorer](cli/explorer.md) | Build or serve the Analytics Explorer website. |
@@ -33,10 +33,7 @@ To run a project, first export its Python declaration if needed, then compile
 and execute:
 
 ```console
-uptimely analytics build \
-  --module examples.pump_analytics.config.analytics.analytics \
-  --project-root . \
-  --output examples/pump_analytics/_generated/analytics/analytics.json
+uptimely analytics build --project-root examples/pump_analytics
 uptimely plan build --project-root examples/pump_analytics
 uptimely engine run --project-root examples/pump_analytics
 ```

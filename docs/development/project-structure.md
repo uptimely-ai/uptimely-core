@@ -53,8 +53,11 @@ while preserving flexibility in the analytics implementation.
 
 The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/pump_analytics/README.md) uses CLI commands
 for analytics export, compilation, execution, documentation, and feature
-graphs. `uptimely analytics build --module <module>` imports a module exposing
-`python_analytics`, a `PythonAnalytics` instance, and writes JSON.
+graphs. `uptimely analytics build --project-root <project>` discovers
+`config/analytics/analytics.py` or `config/analytics/analytics.json` and writes
+validated JSON. Python sources expose `python_analytics`, a `PythonAnalytics`
+instance. Use `--module <module>` or `--analytics <path>` to select a source
+explicitly; this is required when both standard sources exist.
 `uptimely explorer build` writes a linked website to `_generated/explorer/`.
 All HTML pages are generated together by that command.
 Analytics and plan JSON exports live in `_generated/analytics/` and

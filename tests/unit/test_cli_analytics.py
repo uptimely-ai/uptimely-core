@@ -2,12 +2,14 @@
 
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 
 import pytest
 
 from uptimely import analytics
+from uptimely.cli import analytics as analytics_cli
 from uptimely.cli import cli
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
@@ -158,10 +160,183 @@ def test_build_write_errors_are_reported(
     assert not result.out
 
 
-def test_build_requires_module(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_reports_missing_sources(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(tmp_path)
     with pytest.raises(SystemExit) as error:
         invoke(monkeypatch)
+    assert error.value.code == 1
+    result = capsys.readouterr()
+    assert "No analytics source found" in result.err
+    assert "config/analytics/analytics.py" in result.err
+    assert "config/analytics/analytics.json" in result.err
+    assert not result.out
+    assert not (tmp_path / "_generated").exists()
+
+
+@pytest.mark.parametrize("example", ["pump_analytics", "simple_analytics"])
+@pytest.mark.parametrize("explicit_root", [False, True])
+def test_build_discovers_example_in_fresh_process(
+    tmp_path: pathlib.Path, example: str, explicit_root: bool
+) -> None:
+    examples = tmp_path / "examples"
+    examples.mkdir()
+    shutil.copyfile(REPOSITORY_ROOT / "examples/__init__.py", examples / "__init__.py")
+    project_root = examples / example
+    shutil.copytree(
+        REPOSITORY_ROOT / "examples" / example,
+        project_root,
+        ignore=shutil.ignore_patterns("_generated", "__pycache__"),
+    )
+    arguments = ["--project-root", str(project_root)] if explicit_root else []
+    cwd = tmp_path if explicit_root else project_root
+    result = subprocess.run(
+        [sys.executable, "-m", "uptimely.cli.cli", "analytics", "build", *arguments],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr
+    output = project_root / "_generated/analytics/analytics.json"
+    assert json.loads(output.read_text(encoding="utf-8"))["entities"]
+    assert not result.stderr
+    plan = subprocess.run(
+        [sys.executable, "-m", "uptimely.cli.cli", "plan", "build", *arguments],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert plan.returncode == 0, plan.stderr
+    assert (project_root / "_generated/compile/execution_plan.json").is_file()
+
+
+def test_build_discovers_unpackaged_project(tmp_path: pathlib.Path) -> None:
+    source = tmp_path / "config/analytics/analytics.py"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "from uptimely.analytics import python as api\n"
+        "from uptimely.analytics.python import entity\n"
+        "from . import metadata\n"
+        "python_analytics = api.PythonAnalytics("
+        "entities=[entity.Entity(id='example', name='Example', dimensions=[], datasets=[])], "
+        "name=metadata.NAME)\n",
+        encoding="utf-8",
+    )
+    (source.parent / "metadata.py").write_text("NAME = 'Local project'\n", encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, "-m", "uptimely.cli.cli", "analytics", "build"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
+    output = tmp_path / "_generated/analytics/analytics.json"
+    assert json.loads(output.read_text(encoding="utf-8"))["name"] == "Local project"
+
+
+@pytest.mark.parametrize("explicit_source", [False, True])
+def test_build_json_source(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, explicit_source: bool
+) -> None:
+    root = tmp_path / "project"
+    source = root / "config/analytics/analytics.json"
+    source.parent.mkdir(parents=True)
+    shutil.copyfile(
+        REPOSITORY_ROOT / "examples/pump_analytics/_generated/analytics/analytics.json",
+        source,
+    )
+    arguments = ["--project-root", str(root)]
+    if explicit_source:
+        (source.parent / "analytics.py").write_text(
+            "raise RuntimeError('Explicit JSON must bypass discovery')\n", encoding="utf-8"
+        )
+        monkeypatch.chdir(tmp_path)
+        arguments.extend(
+            ["--analytics", "project/config/analytics/analytics.json", "--output", "out.json"]
+        )
+    invoke(monkeypatch, *arguments)
+
+    output = (
+        tmp_path / "out.json" if explicit_source else root / "_generated/analytics/analytics.json"
+    )
+    assert analytics.load_analytics(output) == analytics.load_analytics(source)
+
+
+def test_build_rejects_ambiguous_sources(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    source = tmp_path / "config/analytics"
+    source.mkdir(parents=True)
+    (source / "analytics.py").write_text(
+        "raise RuntimeError('Must not import ambiguous source')\n", encoding="utf-8"
+    )
+    (source / "analytics.json").write_text("not JSON", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, "--project-root", str(tmp_path))
+
+    assert error.value.code == 1
+    assert "Ambiguous analytics sources" in capsys.readouterr().err
+    assert not (tmp_path / "_generated").exists()
+
+    invoke(monkeypatch, "--project-root", str(tmp_path), "--module", PUMP_MODULE)
+    assert (tmp_path / "_generated/analytics/analytics.json").is_file()
+
+
+@pytest.mark.parametrize("content", [None, "not JSON", '{"version": "unsupported"}'])
+def test_build_invalid_json_source(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    content: str | None,
+) -> None:
+    source = tmp_path / "analytics.json"
+    if content is not None:
+        source.write_text(content, encoding="utf-8")
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, "--project-root", str(tmp_path), "--analytics", str(source))
+    assert error.value.code == 1
+    assert "uptimely: error:" in capsys.readouterr().err
+    assert not (tmp_path / "_generated").exists()
+
+
+def test_build_rejects_multiple_explicit_sources(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, "--module", PUMP_MODULE, "--analytics", "analytics.json")
     assert error.value.code == 2
+
+
+def test_build_operation_rejects_multiple_sources(tmp_path: pathlib.Path) -> None:
+    with pytest.raises(ValueError, match="either a Python module or an analytics JSON"):
+        analytics_cli.build_analytics(
+            PUMP_MODULE,
+            tmp_path / "output.json",
+            tmp_path,
+            source=tmp_path / "input.json",
+        )
+    assert not (tmp_path / "output.json").exists()
+
+
+def test_build_reports_invalid_discovered_python(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = tmp_path / "invalid_python_project"
+    source = root / "config/analytics/analytics.py"
+    source.parent.mkdir(parents=True)
+    (root / "__init__.py").write_text("", encoding="utf-8")
+    source.write_text("def invalid(:\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, "--project-root", str(root))
+
+    assert error.value.code == 1
+    assert "uptimely: error: invalid syntax" in capsys.readouterr().err
+    assert not (root / "_generated").exists()
 
 
 def test_export_action_is_rejected(
