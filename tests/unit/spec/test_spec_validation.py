@@ -2,12 +2,13 @@ import json
 import pathlib
 
 import pytest
+from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import context
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 def test_validation_context_retains_duplicate_index_candidates() -> None:

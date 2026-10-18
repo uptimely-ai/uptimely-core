@@ -12,9 +12,9 @@ From the repository root, build the complete active bundle:
 uptimely project build --project-root examples/pump_analytics
 ```
 
-The explicit spec, plan, and Explorer build commands have been removed.
-`explorer serve` serves the website in the active build and does not regenerate
-it:
+The spec, plan, and Explorer artifacts are generated together by this one
+build command. `explorer serve` validates the active build and serves the saved
+website; it does not regenerate it:
 
 ```sh
 uptimely explorer serve --project-root examples/pump_analytics
@@ -37,7 +37,7 @@ examples/
 ├── pump_analytics/
 │   ├── config/
 │   │   ├── engine.json       Engine settings and runtime bindings
-│   │   └── spec/                  Flat Python spec declarations
+│   │   └── spec/             Python spec declarations
 │   │       ├── spec.py
 │   │       ├── dataset_pump.py
 │   │       ├── dataset_telemetry.py
@@ -47,18 +47,14 @@ examples/
 │   ├── data/                 Input and calculated example datasets
 │   ├── functions/            Read, vectorize, and write function implementations
 │   └── _generated/
-│       ├── build/            Active bundle: manifest, spec, plan, Explorer
-├── compile/          Compiled plans
-│       ├── explorer/         Generated analytics explorer
-│       └── spec/             Exported spec JSON
+│       └── build/            Active bundle: manifest, spec, plan, Explorer
 └── simple_analytics/
     ├── config/
-    │       └── spec/                  Python spec declarations
+    │   └── spec/             Python spec declarations
     ├── data/                 Data used by the Python example
     ├── functions/            Example function implementations
     └── _generated/
-        ├── build/            Active bundle: manifest, spec, plan, Explorer
-        └── spec/             Standalone exported spec JSON
+        └── build/            Active bundle: manifest, spec, plan, Explorer
 ```
 
 ## Quick start
@@ -87,11 +83,20 @@ select another branch, tag, or commit (`HEAD` selects the repository's default
 branch), or `--output` to change the destination. The destination must not
 already exist.
 
-Generated artifacts are written beneath each example's `_generated/` directory.
-`project build` validates the complete source and publishes a manifest, spec,
-execution plan, and Explorer website under `_generated/build/` without running
-analytics functions. Engine executes the saved plan from this bundle; it does
-not compile or regenerate artifacts. See the
+Generated artifacts are written beneath each example's `_generated/build/`
+directory. A build validates the complete source and publishes a manifest,
+full spec, execution plan, and complete Explorer website. Use
+`--features <name> [<name> ...]` to select a scoped plan and its dependencies;
+omit the option to build all features. The spec stays complete in either case,
+while Explorer identifies the selected plan scope. Every successful build
+replaces the active bundle; a failed build leaves the last successful one
+available. Source edits do not regenerate artifacts, so run `project build`
+explicitly before asking Engine or Explorer to use updated declarations.
+
+Building does not execute workflow functions or sinks. Engine executes the
+saved plan, including configured write sinks, and may cause external side
+effects. Missing or invalid builds fail explicitly with a recovery command.
+See the
 [project command reference](../docs/reference/cli/project.md).
 
 ## Building from Python declarations

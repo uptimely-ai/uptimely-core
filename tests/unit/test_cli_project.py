@@ -7,6 +7,7 @@ import subprocess
 import sys
 
 import pytest
+from conftest import EXAMPLES_ROOT
 
 from uptimely import project, spec
 from uptimely.cli import cli
@@ -15,7 +16,7 @@ from uptimely.explorer import explorer as explorer_module
 from uptimely.project import build as project_build
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-PUMP_SPEC_JSON = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
+PUMP_SPEC_JSON = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
@@ -85,8 +86,8 @@ def test_project_build_examples(
     }
     assert len(rebuilt_bundle.execution_plan.execution_stages) == len(old_plan.execution_stages)
     assert not (rebuilt_bundle.explorer_path / "stale.html").exists()
-    assert not (root / project.SPEC_JSON_FILE).exists()
-    assert not (root / project.EXECUTION_PLAN_FILE).exists()
+    assert not (root / "_generated/spec/spec.json").exists()
+    assert not (root / "_generated/compile/execution_plan.json").exists()
 
 
 @pytest.mark.parametrize("source_kind", ["entrypoint", "json"])
@@ -159,7 +160,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     assert spec.load_spec(bundle.spec_path).entities
     assert bundle.execution_plan.callables
     assert (bundle.explorer_path / "index.html").exists()
-    assert not (root / project.SPEC_OUTPUT_DIR).exists()
+    assert not (root / "_generated/spec").exists()
     assert not (root / project.EXPLORER_OUTPUT_DIR).exists()
 
 

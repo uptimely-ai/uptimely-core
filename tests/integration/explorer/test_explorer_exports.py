@@ -6,12 +6,12 @@ import pathlib
 import re
 
 import pytest
-from conftest import render_explorer
+from conftest import EXAMPLES_ROOT, render_explorer
 
 from uptimely import compiler, engine, spec
 from uptimely.explorer import spec_render
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 REFERENCE_PATH = pathlib.Path("docs/components/spec.md")
 OBSERVATION_TOTALS_PATH = pathlib.Path("tests/fixtures/spec/observation_totals.json")
 
@@ -58,7 +58,7 @@ def test_html_export_preserves_spec_definition(
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
-    spec_path = pathlib.Path("_generated/spec/spec.json")
+    spec_path = pathlib.Path("_generated/build/spec.json")
     spec.write_document(spec_definition, spec_path)
     original = spec_path.read_bytes()
 

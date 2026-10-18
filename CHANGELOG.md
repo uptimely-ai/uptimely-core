@@ -24,16 +24,17 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** `uptimely project build` is now the only CLI build workflow and
+  replaces the active bundle on success. Engine, Explorer, feature-graph CLI,
+  and MCP consume saved build artifacts only; none compile or regenerate
+  implicitly. Source changes require an explicit build, and there is no
+  compatibility path or deprecation period for standalone artifact layouts.
 - The optional MCP server now reads and executes the validated saved build. It
   no longer exposes plan compilation or feature-specific recompilation; use
   `uptimely project build` to select a plan scope and `reload_build` to refresh it.
 - Renamed the project domain, public APIs, CLI commands and options, project
   paths, examples, and documentation to use `spec`. Previous names and inputs
   are removed; no compatibility aliases or legacy handling remain.
-- Explorer CLI commands now render a saved execution plan instead of recompiling
-  spec. The plan defaults to `_generated/compile/execution_plan.json`; use
-  `--plan` to select another file. The Python Explorer API accepts `plan=` and
-  compiles when it is omitted.
 - `uptimely engine run` now validates and executes the plan from
   `_generated/build/`. It no longer compiles from source or accepts spec,
   feature-selection, or arbitrary plan-path overrides.
@@ -64,7 +65,6 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Python function bindings now require `ref.function(callable_or_entrypoint)`,
   accepting a Python callable or a `path:function` string. Local Python files,
   HTTPS source URLs, and S3 source URIs support signature inspection and execution.
-- `uptimely explorer serve` now builds the website from the project's Spec before serving it.
 - Renamed the spec documentation CLI command from `docs` to `explorer`.
 - Example project spec and engine settings now live under `config/`;
   `uptimely engine run` defaults to `config/engine.json` beneath the project root.

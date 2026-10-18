@@ -3,7 +3,7 @@
 import argparse
 import pathlib
 
-from uptimely import project, spec
+from uptimely import spec
 from uptimely.project.build import prepare_project_root
 
 
@@ -12,7 +12,7 @@ def configure_project_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--spec",
         type=pathlib.Path,
-        help=f"Spec JSON (default: {project.SPEC_JSON_FILE} under --project-root)",
+        help="Spec JSON to inspect (default: spec from the active project build)",
     )
     parser.add_argument(
         "--project-root",

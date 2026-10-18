@@ -2,13 +2,13 @@ import pathlib
 import sys
 
 import pytest
-from conftest import render_explorer
+from conftest import EXAMPLES_ROOT, render_explorer
 
 from uptimely import spec
 from uptimely.cli import cli
 from uptimely.spec.feature_graph import models
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 @pytest.mark.parametrize("verbose", [False, True])

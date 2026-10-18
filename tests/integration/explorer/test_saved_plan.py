@@ -4,12 +4,13 @@ import dataclasses
 import pathlib
 
 import pytest
+from conftest import EXAMPLES_ROOT
 
 from uptimely import compiler, spec
 from uptimely.compiler import plan as plan_module
 from uptimely.explorer import explorer
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 SAVED_PLAN_MARKER = "saved-plan-only-marker"
 
 

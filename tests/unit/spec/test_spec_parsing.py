@@ -3,12 +3,13 @@ import pathlib
 
 import pydantic
 import pytest
+from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import references, validation
 from uptimely.spec.feature_graph import models
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str) -> pathlib.Path:

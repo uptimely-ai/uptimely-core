@@ -7,12 +7,13 @@ import subprocess
 import sys
 
 import pytest
+from conftest import EXAMPLES_ROOT
 
 from uptimely import project as project_module
 from uptimely.cli import cli, engine
 
-PROJECT = pathlib.Path(__file__).parents[2] / "examples/pump_analytics"
-SPEC_PATH = PROJECT / "_generated/spec/spec.json"
+PROJECT = EXAMPLES_ROOT / "pump_analytics"
+SPEC_PATH = PROJECT / "_generated/build/spec.json"
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
@@ -30,6 +31,10 @@ def _copy_pump_project(tmp_path: pathlib.Path) -> pathlib.Path:
 def test_feature_graph_summary_subset_and_tree(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    monkeypatch.setattr(
+        "uptimely.compiler.Compiler.compile",
+        lambda *_args, **_kwargs: pytest.fail("Feature graph inspection must not compile"),
+    )
     invoke(
         monkeypatch,
         "spec",
@@ -117,8 +122,7 @@ def test_workflow_missing_inputs_are_reported(
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
-    if command == ["engine", "run"]:
-        assert "uptimely project build --project-root" in result.err
+    assert "uptimely project build --project-root" in result.err
     assert not result.out
 
 
@@ -282,7 +286,7 @@ def test_invalid_spec_is_reported(
 
 def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.Path) -> None:
     project = tmp_path / "project"
-    (project / "_generated/spec").mkdir(parents=True)
+    project.mkdir()
     (project / "cli_project_functions.py").write_text(
         "import polars\n"
         "def read_values(path: str) -> polars.DataFrame:\n"

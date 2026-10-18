@@ -1,6 +1,7 @@
 import json
 import pathlib
 
+from conftest import EXAMPLES_ROOT
 from examples.pump_analytics.config.spec import dimension as pump_dimensions
 from examples.pump_analytics.config.spec import entity as pump_entities
 from examples.pump_analytics.config.spec import spec as pump_telemetry_spec
@@ -12,7 +13,7 @@ from uptimely import spec
 from uptimely.spec import python as python_spec
 from uptimely.spec.python import bind
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 def test_pump_dimensions_are_collected_in_declaration_order() -> None:

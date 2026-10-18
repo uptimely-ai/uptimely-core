@@ -10,13 +10,13 @@ from urllib import parse as url_parse
 from urllib import request
 
 import pytest
-from conftest import render_explorer
+from conftest import EXAMPLES_ROOT, render_explorer
 from examples.pump_analytics.functions import source
 
 from uptimely import compiler, spec
 from uptimely.explorer import graph_render, spec_render
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 REPORTS = {
     "spec/overview.html": "spec",
     "spec/features.html": "features",

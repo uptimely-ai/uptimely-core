@@ -46,8 +46,11 @@ poetry run uptimely project build --project-root examples/pump_analytics
 ```
 
 `project build` creates the complete active bundle under
-`examples/pump_analytics/_generated/build/`. Engine executes the saved plan
-from this bundle. See [examples](examples/README.md) for the workflow.
+`examples/pump_analytics/_generated/build/` without executing workflow
+functions. Engine runs the saved plan, including configured sinks that may
+have external side effects. Source changes require an explicit rebuild; failed
+builds leave the last successful bundle active. See
+[examples](examples/README.md) for the workflow.
 
 ## Documentation
 

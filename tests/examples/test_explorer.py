@@ -2,13 +2,13 @@ import dataclasses
 import pathlib
 from html import parser as html_parser
 
-from conftest import render_explorer
+from conftest import EXAMPLES_ROOT, render_explorer
 from examples.pump_analytics.config.spec import spec as pump_analytics_module
 
 from uptimely import spec
 from uptimely.explorer import spec_render
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 def test_spec_exports_only_json(tmp_path: pathlib.Path) -> None:

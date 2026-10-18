@@ -5,6 +5,7 @@ import sys
 
 import polars as pl
 import pytest
+from conftest import EXAMPLES_ROOT
 from examples.pump_analytics.functions import calculation
 
 from uptimely import compiler
@@ -15,8 +16,8 @@ from uptimely.cli import cli
 from uptimely.engine import dataframe as dataframe_module
 from uptimely.engine import state as state_module
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
-ENGINE_CONFIG_PATH = pathlib.Path("examples/pump_analytics/config/engine.json")
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+ENGINE_CONFIG_PATH = EXAMPLES_ROOT / "pump_analytics/config/engine.json"
 
 
 def _engine_bind() -> dict[str, object]:
@@ -31,7 +32,7 @@ def _execution_plan() -> compiler.ExecutionPlan:
 def _copy_pump_project(tmp_path: pathlib.Path) -> pathlib.Path:
     project_root = tmp_path / "examples" / "pump_analytics"
     shutil.copytree(
-        pathlib.Path("examples/pump_analytics"),
+        EXAMPLES_ROOT / "pump_analytics",
         project_root,
         ignore=shutil.ignore_patterns("_generated"),
     )

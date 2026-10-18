@@ -1,19 +1,23 @@
-"""Shared test setup: make example modules importable from the repository root."""
+"""Isolate generated example builds and expose the example packages to tests."""
 
-import importlib
+import os
 import pathlib
+import shutil
 import sys
+import tempfile
 
 import pytest
 
 from uptimely import compiler, spec
+from uptimely import project as project_module
 from uptimely.explorer import explorer
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
-EXAMPLE_SPEC_DIRS = [
-    REPOSITORY_ROOT / "examples" / "pump_analytics" / "config" / "spec",
-    REPOSITORY_ROOT / "examples" / "simple_analytics" / "config" / "spec",
-]
+EXAMPLES_ROOT = pathlib.Path(
+    os.environ.get("UPTIMELY_TEST_EXAMPLES_ROOT", REPOSITORY_ROOT / "examples")
+)
+_ORIGINAL_EXAMPLES_ROOT = os.environ.get("UPTIMELY_TEST_EXAMPLES_ROOT")
+_TEST_ROOT: pathlib.Path | None = None
 
 
 def render_explorer(
@@ -28,37 +32,33 @@ def render_explorer(
     )
 
 
-for path in [str(REPOSITORY_ROOT), *(str(directory) for directory in EXAMPLE_SPEC_DIRS)]:
-    if path not in sys.path:
-        sys.path.insert(0, path)
-
-
 def pytest_configure(config: pytest.Config) -> None:
-    """Export the example spec required by the test suite."""
+    """Build example bundles required by tests that exercise saved artifacts."""
+    global EXAMPLES_ROOT, _TEST_ROOT
+
     if hasattr(config, "workerinput"):
+        sys.path.insert(0, str(EXAMPLES_ROOT.parent))
         return
 
-    pump_analytics_module = importlib.import_module("examples.pump_analytics.config.spec.spec")
-    simple_analytics_module = importlib.import_module("examples.simple_analytics.config.spec.spec")
-    spec_definitions = (
-        (
-            "pump_analytics",
-            spec.from_python(
-                entities=pump_analytics_module.entities,
-                dimensions=pump_analytics_module.dimensions,
-                name="Pump analytics",
-            ),
-        ),
-        (
-            "simple_analytics",
-            spec.from_python(
-                entities=simple_analytics_module.python_spec.entities,
-                dimensions=simple_analytics_module.python_spec.dimensions,
-                name=simple_analytics_module.python_spec.name,
-            ),
-        ),
+    _TEST_ROOT = pathlib.Path(tempfile.mkdtemp(prefix="uptimely-core-tests-"))
+    EXAMPLES_ROOT = _TEST_ROOT / "examples"
+    shutil.copytree(
+        REPOSITORY_ROOT / "examples",
+        EXAMPLES_ROOT,
+        ignore=shutil.ignore_patterns("_generated", "__pycache__"),
     )
-    for project, spec_definition in spec_definitions:
-        output_path = REPOSITORY_ROOT / "examples" / project / "_generated" / "spec" / "spec.json"
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        spec.write_document(spec_definition, output_path)
+    os.environ["UPTIMELY_TEST_EXAMPLES_ROOT"] = str(EXAMPLES_ROOT)
+    sys.path.insert(0, str(_TEST_ROOT))
+
+    for example in ("pump_analytics", "simple_analytics"):
+        project_module.build_project(EXAMPLES_ROOT / example)
+
+
+def pytest_unconfigure(config: pytest.Config) -> None:
+    """Remove the isolated example projects created for this test run."""
+    if not hasattr(config, "workerinput") and _TEST_ROOT is not None:
+        shutil.rmtree(_TEST_ROOT)
+        if _ORIGINAL_EXAMPLES_ROOT is None:
+            os.environ.pop("UPTIMELY_TEST_EXAMPLES_ROOT", None)
+        else:
+            os.environ["UPTIMELY_TEST_EXAMPLES_ROOT"] = _ORIGINAL_EXAMPLES_ROOT

@@ -5,14 +5,14 @@ import shutil
 import sys
 
 import pytest
-from conftest import render_explorer
+from conftest import EXAMPLES_ROOT, render_explorer
 
 from uptimely import compiler, project, spec
 from uptimely.cli import cli
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-EXAMPLE_ROOT = REPOSITORY_ROOT / "examples/pump_analytics"
-SPEC_PATH = EXAMPLE_ROOT / "_generated/spec/spec.json"
+EXAMPLE_ROOT = EXAMPLES_ROOT / "pump_analytics"
+SPEC_PATH = EXAMPLE_ROOT / "_generated/build/spec.json"
 
 
 def test_project_build_cli_exports_complete_bundle(
@@ -45,8 +45,8 @@ def test_project_build_cli_exports_complete_bundle(
     assert (bundle / "spec.json").is_file()
     assert (bundle / "execution_plan.json").is_file()
     assert (bundle / "explorer/index.html").is_file()
-    assert not (project_root / project.SPEC_JSON_FILE).exists()
-    assert not (project_root / project.EXECUTION_PLAN_FILE).exists()
+    assert not (project_root / "_generated/spec/spec.json").exists()
+    assert not (project_root / "_generated/compile/execution_plan.json").exists()
 
 
 def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) -> None:

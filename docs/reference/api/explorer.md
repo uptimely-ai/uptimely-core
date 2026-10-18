@@ -12,6 +12,10 @@ These outputs describe an analytics project, not this Python API reference.
 graph, and execution plan pages. Individual HTML report exports are not
 supported.
 
+This is a low-level renderer: it does not create or validate the managed
+`_generated/build/` bundle. Use `uptimely project build` for the project
+workflow consumed by the Engine, Explorer server, feature-graph CLI, and MCP.
+
 Pass an existing `ExecutionPlan` to `Explorer(spec_definition, plan=plan)` to
 render that plan without recompilation. The plan is required. Use the optional
 `features` argument to identify selected output features, or omit it for an
