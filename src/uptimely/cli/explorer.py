@@ -3,6 +3,7 @@
 import argparse
 import functools
 import pathlib
+import shlex
 from http import server as http_server
 
 import jinja2
@@ -32,11 +33,25 @@ def build_explorer(
 
     Returns:
         The path to the website index.
+
+    Raises:
+        FileNotFoundError: An input is missing; includes a project build command.
     """
+    plan_path = plan_path if plan_path is not None else project_root / project.EXECUTION_PLAN_FILE
+    inputs = (("Analytics JSON", analytics_definition), ("Execution plan JSON", plan_path))
+    missing = [f"  {label}: {path.resolve()}" for label, path in inputs if not path.exists()]
+    if missing:
+        command = shlex.join(
+            ["uptimely", "project", "build", "--project-root", str(project_root.resolve())]
+        )
+        raise FileNotFoundError(
+            "Missing Explorer input files:\n"
+            + "\n".join(missing)
+            + f"\nRun {command} to generate the standard analytics JSON and execution plan."
+            "\nIf using custom inputs, check the --analytics and --plan paths."
+        )
     analytics_definition = common.load_analytics(analytics_definition, project_root)
-    execution_plan = plan_module.ExecutionPlan.from_json(
-        plan_path if plan_path is not None else project_root / project.EXECUTION_PLAN_FILE
-    )
+    execution_plan = plan_module.ExecutionPlan.from_json(plan_path)
     return explorer_module.Explorer(analytics_definition, plan=execution_plan).create_html(
         output / project.EXPLORER_INDEX_FILE.name, include_generated_at=include_generated_at
     )

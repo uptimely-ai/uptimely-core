@@ -5,6 +5,13 @@ execution plan. Run `uptimely project build` first to create both artifacts.
 The CLI renders the selected plan without recompiling it. Use matching analytics
 and plan artifacts from the same build.
 
+When either input is missing, both commands exit with status `1`, list the
+missing file paths, and show a `uptimely project build --project-root ...`
+command for the selected project. No inputs are generated automatically and
+`serve` does not start the server. This also applies when `_generated` is empty
+or absent. Project build creates the standard files; for custom inputs, correct
+the `--analytics` and `--plan` paths instead.
+
 ## `explorer build`
 
 ```console
