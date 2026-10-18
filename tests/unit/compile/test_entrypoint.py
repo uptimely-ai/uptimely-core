@@ -5,20 +5,14 @@ import types
 from urllib import error, request
 
 import pytest
+from conftest import EXAMPLES_ROOT
 
 from uptimely import compiler, engine, spec, storage
 from uptimely import entrypoint as shared_entrypoint
 from uptimely.explorer import spec_render
 from uptimely.spec.python import bind, dataset, dimension, feature, mapping, ref
 
-SPEC_PATH = (
-    pathlib.Path(__file__).parents[3]
-    / "examples"
-    / "pump_analytics"
-    / "_generated"
-    / "spec"
-    / "spec.json"
-)
+SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 def test_compiler_rejects_string_feature_selection() -> None:
