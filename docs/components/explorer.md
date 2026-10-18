@@ -3,16 +3,14 @@
 The Explorer turns an analytics definition into a visual, browsable website.
 Use it to understand what an analytics project contains, how features relate,
 and how the compiled plan connects its functions. It is generated from your
-analytics JSON and is separate from running the analytics workflow.
+analytics JSON and saved execution plan, and is separate from running the analytics workflow.
 
 ## Build and preview
 
-First export your Python analytics definition to JSON, then build the Explorer:
+First build analytics JSON and the execution plan, then build the Explorer:
 
 ```sh
-uptimely analytics build \
-  --entrypoint examples.pump_analytics.config.analytics.analytics:python_analytics \
-  --output examples/pump_analytics/_generated/analytics/analytics.json
+uptimely project build --project-root examples/pump_analytics
 uptimely explorer build --project-root examples/pump_analytics
 ```
 
@@ -26,7 +24,8 @@ uptimely explorer serve --project-root examples/pump_analytics
 
 Open <http://127.0.0.1:8001/>. Stop the server with **Ctrl+C**. `serve` builds
 the Explorer before starting the server, so it is the quickest way to preview
-your latest export.
+your generated artifacts. The CLI loads the saved plan without recompiling it.
+Use matching analytics and plan files from the same project build.
 
 ## What you’ll find
 
@@ -54,17 +53,19 @@ execute the analytics workflow.
 ```sh
 uptimely explorer build \
   --analytics _generated/analytics/analytics.json \
+  --plan _generated/compile/execution_plan.json \
   --output _generated/explorer
 ```
 
 | Option | Purpose |
 | --- | --- |
 | `--analytics` | Analytics JSON to display. Required unless `--project-root` is supplied. |
+| `--plan` | Saved execution plan. Defaults to `_generated/compile/execution_plan.json` beneath the project root or current directory. |
 | `--output` | Website output directory. Defaults to `_generated/explorer`. |
 | `--project-root` | Project root for importing function entrypoints and resolving default paths. With this option, the default analytics file is `<project-root>/_generated/analytics/analytics.json`. |
 | `--include-generated-at` | Include a build timestamp on analytics pages. |
 
-`--analytics` and `--output` paths are relative to the current working
+`--analytics`, `--plan`, and `--output` paths are relative to the current working
 directory. `--project-root` makes the project's functions importable and
 provides default paths; it does not change the working directory.
 
@@ -81,13 +82,14 @@ uptimely explorer serve \
 | Option | Purpose |
 | --- | --- |
 | `--analytics` | Analytics JSON to display. Defaults to `_generated/analytics/analytics.json` under `--project-root`, or under the current directory when no project root is set. |
+| `--plan` | Saved execution plan. Defaults to `_generated/compile/execution_plan.json` beneath the project root or current directory. |
 | `--directory` | Website output directory. Defaults to `_generated/explorer` under `--project-root`, or under the current directory otherwise. |
 | `--project-root` | Project root for importing function entrypoints and resolving default paths. |
 | `--host` | Address to serve on. Defaults to `127.0.0.1` (this machine only). |
 | `--port` | Port to serve on. Defaults to `8001`; use `0` to choose an available port. |
 
 The preview server builds once when it starts; it does not watch for file
-changes. Export your analytics again and rerun `serve` to preview updates.
+changes. Run `project build` again and rerun `serve` to preview updates.
 Alternatively, run `build` whenever you need to refresh the website files.
 
 ## Publish or share

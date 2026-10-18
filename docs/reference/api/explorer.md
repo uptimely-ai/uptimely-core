@@ -12,6 +12,13 @@ These outputs describe an analytics project, not this Python API reference.
 complete static website with analytics, feature graph, and execution plan pages.
 Individual HTML report exports are not supported.
 
+Pass an existing `ExecutionPlan` to `Explorer(analytics_definition, plan=plan)`
+or `create_html(analytics_definition, output_path, plan=plan)` to render that plan
+without recompilation. If omitted, the Python API compiles analytics as before.
+Supply analytics and plan artifacts built from the same project revision; the
+Explorer does not verify their correspondence. Function metadata inspection
+may still import Python entrypoints, but analytics functions are not executed.
+
 Analytics-definition and portable-plan JSON exports remain available through
 their respective analytics and compiler APIs; the explorer writes HTML only.
 
