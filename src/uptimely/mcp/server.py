@@ -1,10 +1,9 @@
-"""Serve spec introspection and feature execution over MCP.
+"""Serve saved-build introspection and execution over MCP.
 
 The server exposes two layers of tools:
 
 * Introspection over the function catalog and calculated features.
-* Execution of a calculated feature and its explicit prerequisites through
-  dimension-keyed dataframe-producing mappings.
+* Execution of the saved plan and its dimension-keyed calculated outputs.
 """
 
 import argparse
@@ -19,8 +18,9 @@ import typing
 import fastmcp
 import polars as pl
 
-from uptimely import compiler, entrypoint, spec
 from uptimely import engine as uptimely_engine
+from uptimely import entrypoint, spec
+from uptimely.project import build as project_build
 from uptimely.spec import model as spec_model
 
 logger = logging.getLogger(__name__)
@@ -28,23 +28,50 @@ logger = logging.getLogger(__name__)
 FUNCTION_OPERATIONS = spec_model.FUNCTION_OPERATIONS
 
 
+@dataclasses.dataclass(frozen=True)
+class BuildSnapshot:
+    """A validated bundle and its parsed source model from the same read."""
+
+    bundle: project_build.BuildBundle
+    spec: spec_model.Spec
+
+
 @dataclasses.dataclass
 class ServerState:
-    """Engine configuration, runtime bindings, and cached spec."""
+    """Project root, runtime settings, and the currently loaded build snapshot."""
 
-    spec_path: pathlib.Path
     project_root: pathlib.Path
     engine_config: uptimely_engine.EngineConfig = dataclasses.field(
         default_factory=uptimely_engine.EngineConfig
     )
     bind: dict[str, dict[str, dict[str, typing.Any]]] = dataclasses.field(default_factory=dict)
-    spec: spec_model.Spec | None = dataclasses.field(default=None, repr=False)
+    snapshot: BuildSnapshot | None = dataclasses.field(default=None, repr=False)
 
-    def load_spec(self, *, reload: bool = False) -> spec_model.Spec:
-        """Return spec, parsing it on first use or when reloaded."""
-        if self.spec is None or reload:
-            self.spec = spec.load_spec(self.spec_path)
-        return self.spec
+    def load_snapshot(self, *, reload: bool = False) -> BuildSnapshot:
+        """Load one consistent validated bundle and parse its saved spec."""
+        if self.snapshot is not None and not reload:
+            return self.snapshot
+        if reload:
+            self.snapshot = None
+
+        with project_build.read_build_bundle(self.project_root) as bundle:
+            try:
+                spec_definition = spec.load_spec(bundle.spec_path)
+            except (
+                OSError,
+                UnicodeDecodeError,
+                json.JSONDecodeError,
+                TypeError,
+                ValueError,
+            ) as error:
+                raise project_build.BuildError(
+                    "invalid",
+                    f"cannot load saved spec: {error}",
+                    self.project_root.resolve(),
+                ) from error
+            snapshot = BuildSnapshot(bundle=bundle, spec=spec_definition)
+        self.snapshot = snapshot
+        return snapshot
 
 
 def _to_json(payload: object) -> str:
@@ -65,18 +92,26 @@ def _collect_frame(value: object) -> typing.Any:
     return value
 
 
+def _build_details(snapshot: BuildSnapshot) -> dict[str, typing.Any]:
+    """Describe the saved build scope without implying that it was recompiled."""
+    features = snapshot.bundle.manifest.features
+    return {
+        "uptimely_version": snapshot.bundle.manifest.uptimely_version,
+        "scope": "all features" if features is None else "selected features",
+        "features": features,
+    }
+
+
 def create_server(state: ServerState) -> fastmcp.FastMCP:
     """Create the MCP server with tools bound to the given server state."""
-    project_root = str(state.project_root.resolve())
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
+    project_build.prepare_project_root(state.project_root)
 
     mcp = fastmcp.FastMCP("uptimely")
 
     @mcp.tool()
     def list_functions() -> str:
         """List every function id and its operation."""
-        catalog = state.load_spec().functions
+        catalog = state.load_snapshot().spec.functions
         return _to_json(
             [
                 {"id": function_id, "operation": function.operation}
@@ -91,7 +126,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         Args:
             function_id: The function id from `list_functions`.
         """
-        catalog = state.load_spec().functions
+        catalog = state.load_snapshot().spec.functions
         template = catalog.get(function_id)
         if template is None:
             raise ValueError(f"Unknown function: {function_id}")
@@ -114,8 +149,11 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
 
     @mcp.tool()
     def list_calculated_features() -> str:
-        """List calculated feature ids; each can be run with execute_feature."""
-        spec_definition = state.load_spec()
+        """List calculated feature ids declared by the saved source model.
+
+        The saved execution scope is reported by ``describe_build``.
+        """
+        spec_definition = state.load_snapshot().spec
         payload = sorted(
             {
                 feature_id
@@ -144,7 +182,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             binding, and the full transitive closure of calculated and input
             features needed to compute it.
         """
-        spec_definition = state.load_spec()
+        spec_definition = state.load_snapshot().spec
         by_feature = {call.feature: call for call in spec.prepare_spec(spec_definition).calls}
         call = by_feature.get(feature_id)
         if call is None:
@@ -179,99 +217,94 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         )
 
     @mcp.tool()
-    def compile_plan(feature_ids: list[str] | None = None) -> str:
-        """Compile spec and report plan stages and operation counts.
-
-        Args:
-            feature_ids: Optional subset of calculated features to compile;
-                compiles the full spec document when omitted.
-        """
-        spec_definition = state.load_spec()
-        plan = compiler.Compiler(spec_definition, features=feature_ids).compile()
-        return _to_json(
-            {
-                "features": feature_ids,
-                "stages": [
-                    [
-                        {
-                            "id": callable.id,
-                            "operation": callable.operation,
-                            "function_id": callable.function_id,
-                        }
-                        for callable in stage
-                    ]
-                    for stage in plan.execution_stages
-                ],
-                "callable_count": sum(len(stage) for stage in plan.execution_stages),
-            }
-        )
+    def describe_build() -> str:
+        """Report the validated saved build's version and execution scope."""
+        return _to_json(_build_details(state.load_snapshot()))
 
     @mcp.tool()
-    def execute_feature(feature_id: str, max_rows: int = 50) -> str:
-        """Run one calculated feature and return dimension-keyed rows.
+    def execute_build(max_rows: int = 50) -> str:
+        """Execute the saved plan as-is and return dimension-keyed calculated rows.
 
         Args:
-            feature_id: A calculated feature id from `list_calculated_features`.
-            max_rows: Positive maximum number of rows included in the response.
+            max_rows: Positive maximum number of rows included per dataset.
 
         Returns:
-            The computed values as JSON rows, or the engine failures. The
-            dataset's configured sinks also run and may persist output.
+            Calculated dataset outputs as JSON rows, or engine failures. The
+            saved plan's configured sinks also run and may persist output.
         """
         if max_rows < 1:
             raise ValueError("max_rows must be a positive integer")
 
-        spec_definition = state.load_spec()
-        plan = compiler.Compiler(spec_definition, features=[feature_id]).compile()
+        snapshot = state.load_snapshot()
+        plan = snapshot.bundle.execution_plan
         engine = uptimely_engine.Engine(
             plan,
             config=state.engine_config,
             bind=state.bind,
         )
         result = engine.execute()
-        key = next((k for k in result.calculated_outputs if k[2] == feature_id), None)
-        if key is None:
-            return _to_json({"status": "failed", "failures": result.failures})
-        entity_id, dataset_id, _ = key
-        frame = _collect_frame(result.datasets.get((entity_id, dataset_id)))
-        if frame is None or not hasattr(frame, "to_dicts"):
-            return _to_json(
+
+        expected_outputs = {
+            (callable.entity_id, callable.dataset_id, feature)
+            for callable in plan.callables
+            if callable.operation == "vectorize"
+            for feature in callable.output_features
+        }
+        actual_outputs = set(result.calculated_outputs)
+        outputs_by_dataset: dict[tuple[str, str], list[str]] = {}
+        for entity_id, dataset_id, feature_id in sorted(actual_outputs):
+            outputs_by_dataset.setdefault((entity_id, dataset_id), []).append(feature_id)
+
+        datasets: list[dict[str, typing.Any]] = []
+        for (entity_id, dataset_id), features in sorted(outputs_by_dataset.items()):
+            frame = _collect_frame(result.datasets.get((entity_id, dataset_id)))
+            if frame is None or not hasattr(frame, "to_dicts"):
+                raise TypeError(
+                    f"Execution produced calculated outputs for {entity_id}.{dataset_id} "
+                    "without a serializable dataset"
+                )
+            entity = snapshot.spec.entities.get(entity_id)
+            columns = [
+                name
+                for name in [*(entity.dimension_ids if entity else []), *features]
+                if name in frame.columns
+            ]
+            view = frame.select(columns) if columns else frame
+            rows = view.head(max_rows).to_dicts()
+            datasets.append(
                 {
-                    "status": "ok",
-                    "feature": feature_id,
-                    "message": "Execution succeeded but produced no dataset for this feature.",
+                    "entity": entity_id,
+                    "dataset": dataset_id,
+                    "features": features,
+                    "columns": view.columns,
+                    "row_count": len(rows),
+                    "rows": rows,
                 }
             )
-        entity = spec_definition.entities.get(entity_id)
-        columns = [
-            name
-            for name in [*(entity.dimension_ids if entity else []), feature_id]
-            if name in frame.columns
-        ]
-        view = frame.select(columns) if columns else frame
-        rows = view.head(max_rows).to_dicts()
+
+        outputs_complete = expected_outputs <= actual_outputs
+        has_expected_outputs = bool(expected_outputs)
+        status = (
+            "ok" if outputs_complete and (has_expected_outputs or not result.failures) else "failed"
+        )
         payload: dict[str, typing.Any] = {
-            "status": "ok",
-            "feature": feature_id,
-            "entity": entity_id,
-            "dataset": dataset_id,
-            "columns": view.columns,
-            "row_count": len(rows),
-            "rows": rows,
+            "status": status,
+            **_build_details(snapshot),
+            "datasets": datasets,
         }
         if result.failures:
-            # Subset plans still run dataset sinks, which may need features
-            # outside the subset; the calculation itself has already succeeded.
-            payload["warnings"] = result.failures
+            payload["warnings" if status == "ok" else "failures"] = result.failures
         return _to_json(payload)
 
     @mcp.tool()
-    def reload_spec() -> str:
-        """Re-parse the spec file after editing it or its function entrypoints."""
-        spec_definition = state.load_spec(reload=True)
+    def reload_build() -> str:
+        """Refresh the validated saved bundle, spec, plan, and recorded scope."""
+        snapshot = state.load_snapshot(reload=True)
+        spec_definition = snapshot.spec
         return _to_json(
             {
-                "spec": str(state.spec_path),
+                **_build_details(snapshot),
+                "spec": str(snapshot.bundle.spec_path),
                 "entities": sorted(spec_definition.entities),
                 "functions": {
                     operation: sum(
@@ -310,12 +343,11 @@ def _load_engine_config(
 def main() -> None:
     """Launch the uptimely MCP server over stdio."""
     parser = argparse.ArgumentParser(description="Uptimely MCP server")
-    parser.add_argument("--spec", required=True, type=pathlib.Path, help="Path to spec JSON")
     parser.add_argument(
         "--project-root",
         type=pathlib.Path,
         default=pathlib.Path.cwd(),
-        help="Root added to sys.path so function entrypoints are importable",
+        help="Analytics project root containing the last successful build",
     )
     parser.add_argument(
         "--config",
@@ -327,11 +359,10 @@ def main() -> None:
 
     # Log to stderr only: stdout is the MCP protocol channel.
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
-    logger.info("Starting uptimely MCP server for spec %s", args.spec)
+    logger.info("Starting uptimely MCP server for project %s", args.project_root)
 
     engine_config, bind = _load_engine_config(args.config)
     state = ServerState(
-        spec_path=args.spec,
         project_root=args.project_root,
         engine_config=engine_config,
         bind=bind,

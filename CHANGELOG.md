@@ -24,6 +24,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- The optional MCP server now reads and executes the validated saved build. It
+  no longer exposes plan compilation or feature-specific recompilation; use
+  `uptimely project build` to select a plan scope and `reload_build` to refresh it.
 - Renamed the project domain, public APIs, CLI commands and options, project
   paths, examples, and documentation to use `spec`. Previous names and inputs
   are removed; no compatibility aliases or legacy handling remain.
