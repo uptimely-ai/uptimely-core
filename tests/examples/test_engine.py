@@ -151,6 +151,27 @@ def test_engine_cli_reports_scoped_saved_build(
     assert "Calculated features: health_signal_normalized" in output
 
 
+def test_simple_analytics_engine_cli_executes_saved_build(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    project_root = EXAMPLES_ROOT / "simple_analytics"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["uptimely", "engine", "run", "--project-root", str(project_root)],
+    )
+
+    cli.main()
+
+    output = capsys.readouterr().out
+    assert "Build scope: all features" in output
+    assert "Calculated features: column_3, column_4" in output
+    assert json.loads(output.splitlines()[0]) == [
+        {"column_3": 3, "column_4": True},
+        {"column_3": 7, "column_4": True},
+    ]
+
+
 def test_engine_rejects_unknown_runtime_namespace() -> None:
     engine = uptimely_engine.Engine(_execution_plan(), bind={})
 

@@ -36,6 +36,9 @@ def tag_first_item(id_column: str, output: str, dataset: pl.LazyFrame) -> pl.Laz
     return dataset.with_columns((pl.col(id_column).cum_count().over(id_column) == 1).alias(output))
 
 
-def write_data(df: pl.LazyFrame, cols: list[str]) -> None:
+def write_data(df: pl.DataFrame | pl.LazyFrame, cols: list[str]) -> None:
     """Print the selected feature columns as JSON."""
-    print(df.select(cols).collect().write_json())
+    selected = df.select(cols)
+    if isinstance(selected, pl.LazyFrame):
+        selected = selected.collect()
+    print(selected.write_json())
