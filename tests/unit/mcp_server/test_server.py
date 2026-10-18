@@ -2,6 +2,8 @@
 
 import json
 import pathlib
+import shlex
+import sys
 
 import pytest
 
@@ -9,22 +11,26 @@ fastmcp = pytest.importorskip("fastmcp", reason="fastmcp extra is not installed"
 
 import fastmcp as fastmcp_  # noqa: E402
 
+from uptimely import compiler  # noqa: E402
+from uptimely.explorer import explorer as explorer_module  # noqa: E402
 from uptimely.mcp import server  # noqa: E402
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
-SPEC_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "_generated" / "spec" / "spec.json"
+PROJECT_ROOT = REPOSITORY_ROOT / "examples" / "pump_analytics"
+BUILD_MANIFEST_PATH = PROJECT_ROOT / "_generated" / "build" / "build.json"
 CONFIG_PATH = REPOSITORY_ROOT / "examples" / "pump_analytics" / "config" / "engine.json"
 
-pytestmark = pytest.mark.skipif(not SPEC_PATH.exists(), reason="example spec is not generated")
+pytestmark = pytest.mark.skipif(
+    not BUILD_MANIFEST_PATH.exists(), reason="example build is not generated"
+)
 
 
 @pytest.fixture()
 def state() -> server.ServerState:
-    """Provide server state bound to the pump analytics specification."""
+    """Provide server state bound to the pump analytics build."""
     engine_config, bind = server._load_engine_config(CONFIG_PATH)
     return server.ServerState(
-        spec_path=SPEC_PATH,
-        project_root=REPOSITORY_ROOT,
+        project_root=PROJECT_ROOT,
         engine_config=engine_config,
         bind=bind,
     )
@@ -47,10 +53,11 @@ async def test_lists_all_tools(state: server.ServerState) -> None:
         "describe_function",
         "list_calculated_features",
         "describe_feature",
-        "compile_plan",
-        "execute_feature",
-        "reload_spec",
+        "describe_build",
+        "execute_build",
+        "reload_build",
     } <= tools
+    assert not {"compile_plan", "execute_feature", "reload_spec"} & tools
 
 
 @pytest.mark.anyio
@@ -127,57 +134,87 @@ async def test_describe_feature_rejects_unknown_feature(
 
 
 @pytest.mark.anyio
-async def test_compile_plan_subset(state: server.ServerState) -> None:
-    """compile_plan compiles a feature subset into staged callables."""
-    payload = await _call(state, "compile_plan", {"feature_ids": ["pump_health_score"]})
-    assert payload["callable_count"] > 0
-    operations = {callable["operation"] for stage in payload["stages"] for callable in stage}
-    assert "read" in operations
-    assert "vectorize" in operations
+async def test_describe_build_reports_saved_scope(state: server.ServerState) -> None:
+    """describe_build reports the scope declared by the validated bundle."""
+    payload = await _call(state, "describe_build")
+    assert payload["scope"] == "all features"
+    assert payload["features"] is None
+    assert payload["uptimely_version"]
 
 
 @pytest.mark.anyio
-async def test_compile_plan_empty_subset_is_empty(state: server.ServerState) -> None:
-    """An explicit empty feature subset does not compile the full spec document."""
-    payload = await _call(state, "compile_plan", {"feature_ids": []})
-    assert payload["features"] == []
-    assert payload["stages"] == []
-    assert payload["callable_count"] == 0
-
-
-@pytest.mark.anyio
-async def test_execute_feature_returns_rows(state: server.ServerState) -> None:
-    """execute_feature returns dimension-keyed rows for a calculated feature."""
-    payload = await _call(
-        state, "execute_feature", {"feature_id": "pump_health_score", "max_rows": 3}
+async def test_execute_build_runs_the_saved_plan_without_compile_or_render(
+    state: server.ServerState,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """execute_build runs saved outputs and does not compile or render a new build."""
+    monkeypatch.setattr(
+        compiler.Compiler,
+        "compile",
+        lambda *_args, **_kwargs: pytest.fail("MCP must not compile plans"),
     )
+    monkeypatch.setattr(
+        explorer_module.Explorer,
+        "create_html",
+        lambda *_args, **_kwargs: pytest.fail("MCP must not render Explorer"),
+    )
+
+    payload = await _call(state, "execute_build", {"max_rows": 3})
     assert payload["status"] == "ok"
-    assert payload["entity"] == "pump_telemetry"
-    assert payload["columns"] == [
+    assert payload["features"] is None
+    telemetry = next(
+        dataset for dataset in payload["datasets"] if "pump_health_score" in dataset["features"]
+    )
+    assert telemetry["entity"] == "pump_telemetry"
+    assert telemetry["row_count"] == 3
+    assert {
         "plant",
         "production_line",
         "pump",
         "timestamp",
         "pump_health_score",
-    ]
-    assert payload["row_count"] == 3
-    assert {"plant", "pump", "pump_health_score"} <= set(payload["rows"][0])
+    } <= set(telemetry["columns"])
+    assert {"plant", "pump", "pump_health_score"} <= set(telemetry["rows"][0])
+    assert (await _call(state, "reload_build"))["features"] is None
 
 
 @pytest.mark.anyio
-async def test_execute_feature_rejects_nonpositive_row_limit(
+async def test_execute_build_rejects_nonpositive_row_limit(
     state: server.ServerState,
 ) -> None:
-    """execute_feature rejects limits that cannot produce a useful row response."""
+    """execute_build rejects limits that cannot produce a useful row response."""
     async with fastmcp_.Client(server.create_server(state)) as client:
         with pytest.raises(Exception, match="max_rows must be a positive integer"):
-            await client.call_tool(
-                "execute_feature", {"feature_id": "pump_health_score", "max_rows": 0}
-            )
+            await client.call_tool("execute_build", {"max_rows": 0})
 
 
 @pytest.mark.anyio
-async def test_reload_spec(state: server.ServerState) -> None:
-    """reload_spec re-parses the spec file and reports its contents."""
-    payload = await _call(state, "reload_spec")
+async def test_reload_build(state: server.ServerState) -> None:
+    """reload_build refreshes the bundle, source model, and recorded scope."""
+    payload = await _call(state, "reload_build")
+    assert payload["scope"] == "all features"
+    assert payload["features"] is None
+    assert payload["spec"].endswith("_generated/build/spec.json")
     assert payload["entities"] == ["pump", "pump_telemetry"]
+
+
+@pytest.mark.anyio
+async def test_missing_build_fails_with_recovery_command(tmp_path: pathlib.Path) -> None:
+    """MCP reports missing saved builds explicitly instead of loading source files."""
+    project_root = tmp_path / "missing project"
+    state = server.ServerState(project_root=project_root)
+
+    with pytest.raises(Exception, match="uptimely project build") as error:
+        await _call(state, "list_functions")
+
+    assert shlex.quote(str(project_root.resolve())) in str(error.value)
+
+
+def test_mcp_cli_rejects_spec_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The MCP process accepts project builds, not standalone spec paths."""
+    monkeypatch.setattr(sys, "argv", ["uptimely-mcp", "--spec", "spec.json"])
+
+    with pytest.raises(SystemExit) as error:
+        server.main()
+
+    assert error.value.code == 2

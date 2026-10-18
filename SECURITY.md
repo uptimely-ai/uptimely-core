@@ -4,7 +4,7 @@
 
 Uptimely Core executes Python functions declared in specifications and plans
 (`module:function` entrypoints are imported and run by the engine and the MCP
-server's `execute_feature` tool). Only run specifications, plans, and function
+server's `execute_build` tool). Only run specifications, plans, and function
 entrypoints from sources you trust — a specification is code.
 
 ## Supported Versions

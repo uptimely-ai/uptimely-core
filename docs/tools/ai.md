@@ -12,8 +12,8 @@ artifacts an agent can read are the ones the compiler and engine consume.
 
 The package ships a basic [MCP](https://modelcontextprotocol.io) server that exposes
 these capabilities as agent tools. Once connected, assistants such as VS Code
-Copilot Chat can inspect spec, explain catalog functions, compile
-plans, and execute individual calculated features conversationally.
+Copilot Chat can inspect the saved spec and execution scope, explain catalog
+functions, and run the saved plan conversationally.
 
 ## Build your own MCP server
 
@@ -26,7 +26,7 @@ mappings declare required and produced features, so execution includes the
 prerequisites for a function **bound to features**, not just the raw function.
 The server therefore offers two layers:
 
-Introspection over spec:
+Introspection over the saved spec and build:
 
 - `list_functions` — every catalog function id grouped by category
 - `describe_function` — one function's entrypoint, declared arguments, and
@@ -35,14 +35,19 @@ Introspection over spec:
 - `describe_feature` — one calculated feature's producing function, direct
   dependencies, and full transitive closure split into input and calculated
   features
-- `reload_spec` — re-parse the spec document after editing it
+- `describe_build` — the Uptimely version and whether the saved plan covers all
+  features or a selected feature scope
+- `reload_build` — refresh the validated saved bundle, spec, plan, and scope
 
-Execution through the compiler and engine:
+Execution through the saved plan and engine:
 
-- `compile_plan` — compile spec or a feature subset and
-  report the staged operations
-- `execute_feature` — compile the minimal graph producing one calculated
-  feature, run it, and return dimension-keyed rows as JSON
+- `execute_build` — run the saved execution plan as-is and return calculated
+  dataset outputs as dimension-keyed JSON rows
+
+MCP never compiles or renders. Choose a full or scoped plan with
+`uptimely project build` before starting the server; `execute_build` has no
+feature-selection input and cannot change that saved scope. To pick up a newer
+successful build while the server is running, call `reload_build`.
 
 ## Installation
 
@@ -60,8 +65,7 @@ is plain JSON-RPC; the model lives in the client host.
 
 ```sh
 uptimely-mcp \
-  --spec examples/pump_analytics/_generated/build/spec.json \
-  --project-root . \
+  --project-root examples/pump_analytics \
   --config examples/pump_analytics/config/engine.json
 ```
 
@@ -69,9 +73,19 @@ The arguments:
 
 Argument | Purpose
 --- | ---
-`--spec` | Path to the spec JSON document. Required.
-`--project-root` | Directory added to `sys.path` so function entrypoints resolve. Defaults to the working directory.
+`--project-root` | Analytics project root containing the last successful `_generated/build/`. Defaults to the working directory.
 `--config` | JSON file with engine settings and `bind` values. The example binding supplies local paths for source datasets.
+
+Build the project first, for example:
+
+```sh
+uptimely project build --project-root examples/pump_analytics
+```
+
+The MCP server rejects missing, incomplete, or invalid builds with a recovery
+command. It does not fall back to source files or compile a replacement plan.
+Edits to the source spec do not change the saved MCP view until a successful
+project build is made and the server runs `reload_build`.
 
 For dev, test, or prod, pass the corresponding engine configuration file to
 `--config`. The CLI loads the `engine` object as `EngineConfig` and passes the
@@ -101,10 +115,8 @@ workspace and launches the server from its Poetry virtual environment.
       "command": "${workspaceFolder}/.venv/bin/uptimely-mcp",
       "cwd": "${workspaceFolder}",
       "args": [
-        "--spec",
-        "${workspaceFolder}/examples/pump_analytics/_generated/build/spec.json",
         "--project-root",
-        "${workspaceFolder}",
+        "${workspaceFolder}/examples/pump_analytics",
         "--config",
         "${workspaceFolder}/examples/pump_analytics/config/engine.json"
       ]
@@ -117,12 +129,12 @@ To use it:
 
 1. In the Dev Container, `post-create.sh` installs the MCP extra. Outside the
    Dev Container, run `./scripts/install-mcp.sh` from the repository root to
-   install MCP and export the example spec.
+   install MCP and build the example bundle.
 2. Reopen the folder in the Dev Container if needed, then open Copilot Chat in
    **Agent mode** — tools are not available in Ask mode.
 3. Check the tools icon to confirm the `uptimely` tools are listed, then ask
-   for example: *"describe the pump_health_score function"* or *"execute
-   pump_health_score and show three rows"*.
+   for example: *"describe the pump_health_score function"* or *"run the saved
+   build and show three rows per dataset"*.
 
 MCP sampling uses VS Code's default available models. The repository does not
 pin an `allowedModels` list because VS Code identifies a workspace MCP server
@@ -169,23 +181,21 @@ running the runners by hand:
   `list_functions`
 - *"What arguments does `normalize_health_signal` take?"* → `describe_function`
 - *"What does `pump_health_score` depend on?"* → `describe_feature`
-- *"Compile a plan for `pump_health_score` and list its stages"* →
-  `compile_plan`
-- *"Compute `pump_health_score` for five pumps"* → `execute_feature`
-- *"I edited the spec document; reload it"* → `reload_spec`
+- *"What feature scope does this build cover?"* → `describe_build`
+- *"Run the saved build and show up to five rows per dataset"* →
+  `execute_build`
+- *"I rebuilt the project; reload the active build"* → `reload_build`
 
-`execute_feature` returns entity dimension keys plus the computed feature, so
-results stay traceable to the owning entity rather than bare numbers. The
-example engine runner also returns the IDs of calculated features directly,
-without writing a calculated telemetry output file.
+`execute_build` returns entity dimension keys plus the calculated features for
+each dataset, so results stay traceable to their owning entity rather than bare
+numbers. It runs the plan's configured sinks, which may persist output.
 
 ## Limitations
 
 - The server wraps the built-in batch engine; streaming sources are not
   available.
-- Subset plans still execute the owning dataset's sinks. A sink that expects
-  features outside the subset fails after the calculation succeeds — the tool
-  reports such failures under `warnings` while still returning the computed
-  rows.
-- Frame payloads are capped by the `max_rows` argument of `execute_feature` to
-  keep responses within a size agents can handle.
+- Scoped plans still execute their configured sinks. A sink that expects
+  features outside the selected plan can fail; if all calculated outputs were
+  produced, the tool reports sink failures as warnings.
+- Each dataset payload is capped by the `max_rows` argument of `execute_build`
+  to keep responses within a size agents can handle.

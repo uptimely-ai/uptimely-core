@@ -5,10 +5,8 @@
       "command": "${workspaceFolder}/.venv/bin/uptimely-mcp",
       "cwd": "${workspaceFolder}",
       "args": [
-        "--spec",
-        "${workspaceFolder}/examples/pump_analytics/_generated/build/spec.json",
         "--project-root",
-        "${workspaceFolder}",
+        "${workspaceFolder}/examples/pump_analytics",
         "--config",
         "${workspaceFolder}/examples/pump_analytics/config/engine.json"
       ]
