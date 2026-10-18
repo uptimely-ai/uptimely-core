@@ -15,7 +15,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
-- `uptimely analytics export` exports a module's `PythonAnalytics` to JSON,
+- `uptimely analytics build` exports a module's `PythonAnalytics` to JSON,
   replacing the removed example export runners in documentation CI and MCP setup.
 - CLI commands for compiling execution plans (`uptimely plan build`), inspecting
   feature dependencies (`uptimely analytics feature-graph`), and running workflows
@@ -24,6 +24,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Renamed `uptimely analytics export` to `uptimely analytics build`. The options
+  and JSON output are unchanged; the old command is no longer accepted.
 - Python API documentation now follows the source package layout, with separate
   package pages, module navigation, and visually separated class and function
   entries. Coverage includes entrypoint loading, storage, function contracts,

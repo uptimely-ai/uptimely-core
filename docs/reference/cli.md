@@ -1,7 +1,7 @@
 # Command-line reference
 
 The `uptimely` command provides project utilities for downloading examples,
-exporting and inspecting analytics, compiling execution plans, running
+building and inspecting analytics, compiling execution plans, running
 workflows, and generating the Analytics Explorer.
 
 Run `uptimely --help` or `uptimely <command> --help` to see the options
@@ -13,7 +13,7 @@ available in an installed version.
 
 | Command | Reference | Purpose |
 | --- | --- | --- |
-| `uptimely analytics` | [Analytics](cli/analytics.md) | Export Python analytics to JSON or inspect feature dependencies. |
+| `uptimely analytics` | [Analytics](cli/analytics.md) | Build analytics JSON from Python declarations or inspect feature dependencies. |
 | `uptimely engine` | [Engine](cli/engine.md) | Run an analytics workflow. |
 | `uptimely examples` | [Examples](cli/examples.md) | Download runnable example projects. |
 | `uptimely explorer` | [Explorer](cli/explorer.md) | Build or serve the Analytics Explorer website. |
@@ -33,7 +33,7 @@ To run a project, first export its Python declaration if needed, then compile
 and execute:
 
 ```console
-uptimely analytics export \
+uptimely analytics build \
   --module examples.pump_analytics.config.analytics.analytics \
   --project-root . \
   --output examples/pump_analytics/_generated/analytics/analytics.json

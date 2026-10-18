@@ -10,7 +10,7 @@ From the project root, export the analytics, then build and serve the pump
 analytics explorer with:
 
 ```sh
-uptimely analytics export \
+uptimely analytics build \
   --module examples.pump_analytics.config.analytics.analytics \
   --output examples/pump_analytics/_generated/analytics/analytics.json
 uptimely explorer serve --project-root examples/pump_analytics
@@ -68,7 +68,7 @@ uptimely explorer serve --project-root examples/pump_analytics
 Additional commands to try:
 
 ```sh
-uptimely analytics export --module examples.pump_analytics.config.analytics.analytics --output examples/pump_analytics/_generated/analytics/analytics.json
+uptimely analytics build --module examples.pump_analytics.config.analytics.analytics --output examples/pump_analytics/_generated/analytics/analytics.json
 uptimely analytics feature-graph --project-root examples/pump_analytics --verbose
 uptimely plan build --project-root examples/pump_analytics
 uptimely engine run --project-root examples/pump_analytics
@@ -91,10 +91,10 @@ building plans or the explorer. Re-export after changing the declarations.
 From the repository root (or the parent of downloaded examples), run:
 
 ```sh
-uptimely analytics export \
+uptimely analytics build \
   --module examples.pump_analytics.config.analytics.analytics \
   --output examples/pump_analytics/_generated/analytics/analytics.json
-uptimely analytics export \
+uptimely analytics build \
   --module examples.simple_analytics.config.analytics.analytics \
   --output examples/simple_analytics/_generated/analytics/analytics.json
 ```
