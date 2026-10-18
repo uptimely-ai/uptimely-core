@@ -22,9 +22,9 @@ jobs:
           cache: poetry
           cache-dependency-path: poetry.lock
       - run: poetry install --without dev,test --with docs
-      - name: Export pump analytics
+      - name: Build pump analytics
         run: |
-          poetry run uptimely analytics export \
+          poetry run uptimely analytics build \
             --module examples.pump_analytics.config.analytics.analytics \
             --output examples/pump_analytics/_generated/analytics/analytics.json
       - name: Build pump analytics explorer

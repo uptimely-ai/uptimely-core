@@ -10,7 +10,7 @@ analytics JSON and is separate from running the analytics workflow.
 First export your Python analytics definition to JSON, then build the Explorer:
 
 ```sh
-uptimely analytics export \
+uptimely analytics build \
   --module examples.pump_analytics.config.analytics.analytics \
   --output examples/pump_analytics/_generated/analytics/analytics.json
 uptimely explorer build --project-root examples/pump_analytics

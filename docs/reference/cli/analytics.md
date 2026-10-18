@@ -1,12 +1,12 @@
 # `uptimely analytics`
 
-Export a Python analytics declaration to the JSON analytics format, or inspect
+Build analytics JSON from a Python declaration, or inspect
 feature dependencies in an analytics document.
 
-## `analytics export`
+## `analytics build`
 
 ```console
-uptimely analytics export --module functions.analytics [--project-root PATH] [--output PATH]
+uptimely analytics build --module functions.analytics [--project-root PATH] [--output PATH]
 ```
 
 The importable module must expose a `python_analytics` value of type
@@ -21,7 +21,7 @@ The importable module must expose a `python_analytics` value of type
 Example:
 
 ```console
-uptimely analytics export \
+uptimely analytics build \
   --module examples.pump_analytics.config.analytics.analytics \
   --project-root . \
   --output examples/pump_analytics/_generated/analytics/analytics.json

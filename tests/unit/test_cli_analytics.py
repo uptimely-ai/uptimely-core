@@ -15,7 +15,7 @@ PUMP_MODULE = "examples.pump_analytics.config.analytics.analytics"
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
-    monkeypatch.setattr(sys, "argv", ["uptimely", "analytics", "export", *arguments])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "analytics", "build", *arguments])
     cli.main()
 
 
@@ -30,7 +30,7 @@ def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
         ),
     ],
 )
-def test_export_example_in_fresh_process(
+def test_build_example_in_fresh_process(
     tmp_path: pathlib.Path, module: str, name: str, entities: set[str]
 ) -> None:
     output = tmp_path / "export/analytics.json"
@@ -40,7 +40,7 @@ def test_export_example_in_fresh_process(
             "-m",
             "uptimely.cli.cli",
             "analytics",
-            "export",
+            "build",
             "--module",
             module,
             "--project-root",
@@ -64,7 +64,7 @@ def test_export_example_in_fresh_process(
 
 
 @pytest.mark.parametrize("explicit_root", [False, True])
-def test_export_default_output_and_import_root(
+def test_build_default_output_and_import_root(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -86,7 +86,7 @@ def test_export_default_output_and_import_root(
     assert "Analytics written to" in capsys.readouterr().out
 
 
-def test_export_explicit_output_is_relative_to_working_directory(
+def test_build_explicit_output_is_relative_to_working_directory(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
@@ -125,7 +125,7 @@ def test_export_explicit_output_is_relative_to_working_directory(
         ),
     ],
 )
-def test_export_errors_are_reported(
+def test_build_errors_are_reported(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -145,7 +145,7 @@ def test_export_errors_are_reported(
     assert not (tmp_path / "_generated/analytics/analytics.json").exists()
 
 
-def test_export_write_errors_are_reported(
+def test_build_write_errors_are_reported(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     output = tmp_path / "blocked"
@@ -158,7 +158,34 @@ def test_export_write_errors_are_reported(
     assert not result.out
 
 
-def test_export_requires_module(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_requires_module(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(SystemExit) as error:
         invoke(monkeypatch)
     assert error.value.code == 2
+
+
+def test_export_action_is_rejected(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["uptimely", "analytics", "export", "--module", PUMP_MODULE])
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 2
+    assert "invalid choice: 'export'" in capsys.readouterr().err
+
+
+def test_analytics_help_lists_build(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["uptimely", "analytics", "--help"])
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 0
+    result = capsys.readouterr()
+    assert "{build,feature-graph}" in result.out
+    assert "export" not in result.out
+    assert not result.err

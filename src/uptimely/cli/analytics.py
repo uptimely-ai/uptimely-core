@@ -1,4 +1,4 @@
-"""Command-line tools for exporting and inspecting analytics."""
+"""Command-line tools for building and inspecting analytics."""
 
 import argparse
 import importlib
@@ -11,20 +11,20 @@ from uptimely.cli import common
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure analytics export and feature-graph actions."""
+    """Configure analytics build and feature-graph actions."""
     actions = parser.add_subparsers(dest="action", required=True)
-    export = actions.add_parser("export", help="Export Python analytics to JSON")
-    export.add_argument(
+    build = actions.add_parser("build", help="Build analytics JSON from Python declarations")
+    build.add_argument(
         "--module",
         required=True,
         help="Importable module exposing a PythonAnalytics named python_analytics",
     )
-    export.add_argument(
+    build.add_argument(
         "--project-root",
         type=pathlib.Path,
         help="Root added to the import path and used to resolve the default output",
     )
-    export.add_argument(
+    build.add_argument(
         "--output",
         type=pathlib.Path,
         help=f"JSON output (default: {project.ANALYTICS_JSON_FILE} under --project-root)",
@@ -33,8 +33,8 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     common.configure_project_arguments(graph)
 
 
-def export_analytics(module: str, output: pathlib.Path, project_root: pathlib.Path) -> str:
-    """Export a module's Python declaration in the analytics JSON format.
+def build_analytics(module: str, output: pathlib.Path, project_root: pathlib.Path) -> str:
+    """Build analytics JSON from a module's Python declaration.
 
     Args:
         module: Importable module exposing ``python_analytics``.
@@ -64,11 +64,11 @@ def export_analytics(module: str, output: pathlib.Path, project_root: pathlib.Pa
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    """Export analytics or print feature graph summaries and trees."""
-    if args.action == "export":
+    """Build analytics or print feature graph summaries and trees."""
+    if args.action == "build":
         output = common.project_path(args.output, args.project_root, project.ANALYTICS_JSON_FILE)
         try:
-            path = export_analytics(args.module, output, args.project_root or pathlib.Path.cwd())
+            path = build_analytics(args.module, output, args.project_root or pathlib.Path.cwd())
         except (OSError, ValueError, ImportError, AttributeError, TypeError) as error:
             parser.exit(1, f"uptimely: error: {error}\n")
         print(f"Analytics written to {path}")
