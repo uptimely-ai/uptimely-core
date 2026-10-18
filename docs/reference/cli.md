@@ -18,6 +18,7 @@ available in an installed version.
 | `uptimely examples` | [Examples](cli/examples.md) | Download runnable example projects. |
 | `uptimely explorer` | [Explorer](cli/explorer.md) | Build or serve the Analytics Explorer website. |
 | `uptimely plan` | [Plan](cli/plan.md) | Compile analytics into a portable execution plan. |
+| `uptimely project` | [Project](cli/project.md) | Build analytics and compile the saved execution plan together. |
 
 ## Typical workflow
 
@@ -26,11 +27,18 @@ Explorer:
 
 ```console
 uptimely examples download
+uptimely project build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
-To run a project, first export its Python declaration if needed, then compile
-and execute:
+Build prepares analytics and plan artifacts without executing the workflow.
+To execute the saved plan:
+
+```console
+uptimely engine run --project-root examples/pump_analytics --compile false
+```
+
+You can still build and execute using individual commands:
 
 ```console
 uptimely analytics build --project-root examples/pump_analytics

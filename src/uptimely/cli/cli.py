@@ -2,7 +2,7 @@
 
 import argparse
 
-from uptimely.cli import analytics, engine, examples, explorer, plan
+from uptimely.cli import analytics, engine, examples, explorer, plan, project
 
 download_examples = examples.download_examples
 build_explorer = explorer.build_explorer
@@ -21,6 +21,7 @@ def main() -> None:
         commands.add_parser("analytics", help="Export and inspect analytics")
     )
     plan.configure_parser(commands.add_parser("plan", help="Build execution plans"))
+    project.configure_parser(commands.add_parser("project", help="Build project resources"))
     engine.configure_parser(commands.add_parser("engine", help="Run analytics workflows"))
     args = parser.parse_args()
     if args.command == "examples":
@@ -31,6 +32,8 @@ def main() -> None:
         analytics.run(args, parser)
     elif args.command == "plan":
         plan.run(args, parser)
+    elif args.command == "project":
+        project.run(args, parser)
     else:
         engine.run(args, parser)
 
