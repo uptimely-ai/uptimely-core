@@ -1,4 +1,4 @@
-"""Runtime configuration for analytics plan execution."""
+"""Runtime configuration for spec plan execution."""
 
 import dataclasses
 

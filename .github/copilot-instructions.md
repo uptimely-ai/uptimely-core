@@ -2,9 +2,9 @@
 
 ## Project context
 
-Uptimely Core is a Python package for declarative data-drivennumerical analytics in
-industrial use cases. Specifications describe analytics workflows; the package
-compiles them into plans, graphs, documentation, and executable workflows.
+Uptimely Core is a Python package for declarative, data-driven numerical
+analytics in industrial use cases. Specifications describe analytics workflows;
+the package compiles them into plans, graphs, documentation, and executable workflows.
 
 Before making project-wide changes, consult the relevant guides:
 

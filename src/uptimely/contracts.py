@@ -1,4 +1,4 @@
-"""Shared contracts for analytics function operations."""
+"""Shared contracts for spec function operations."""
 
 import typing
 

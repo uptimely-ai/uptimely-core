@@ -1,6 +1,6 @@
 # Compiler and plans
 
-`uptimely.compiler` turns analytics into portable execution plans. Its `plan`
+`uptimely.compiler` turns spec into portable execution plans. Its `plan`
 subpackage owns the plan models and JSON serialization.
 
 <div class="api-reference" markdown="1">

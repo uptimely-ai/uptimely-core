@@ -9,20 +9,20 @@ import sys
 import jinja2
 import pytest
 
-from uptimely import analytics, compiler
+from uptimely import compiler, spec
 from uptimely.cli import cli, explorer
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-ANALYTICS_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/analytics/analytics.json"
+SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
 PAGES = {
     "index.html",
-    "analytics/overview.html",
-    "analytics/features.html",
-    "analytics/entities.html",
-    "analytics/datasets.html",
-    "analytics/dimensions.html",
-    "analytics/functions.html",
-    "analytics/graph.html",
+    "spec/overview.html",
+    "spec/features.html",
+    "spec/entities.html",
+    "spec/datasets.html",
+    "spec/dimensions.html",
+    "spec/functions.html",
+    "spec/graph.html",
     "plan/overview.html",
     "plan/graph.html",
     "plan/stages.html",
@@ -33,7 +33,7 @@ PAGES = {
 @pytest.fixture
 def saved_plan(tmp_path: pathlib.Path) -> pathlib.Path:
     target = tmp_path / "saved_plan.json"
-    compiled = compiler.Compiler(analytics.load_analytics(ANALYTICS_PATH)).compile()
+    compiled = compiler.Compiler(spec.load_spec(SPEC_PATH)).compile()
     compiled.callables[0].arguments["saved_plan_marker"] = "CLI-saved-plan-marker"
     compiled.export_json(target)
     return target
@@ -53,8 +53,8 @@ def test_explorer_build_defaults(
             "uptimely",
             "explorer",
             "build",
-            "--analytics",
-            str(ANALYTICS_PATH),
+            "--spec",
+            str(SPEC_PATH),
             "--plan",
             str(saved_plan),
         ],
@@ -65,14 +65,14 @@ def test_explorer_build_defaults(
     output = tmp_path / "_generated/explorer"
     assert {p.relative_to(output).as_posix() for p in output.rglob("*.html")} == PAGES
     result = capsys.readouterr()
-    assert "Analytics explorer built at _generated/explorer/index.html" in result.out
+    assert "Spec explorer built at _generated/explorer/index.html" in result.out
     assert not result.err
 
 
 def test_explorer_build_custom_output_and_timestamp(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, saved_plan: pathlib.Path
 ) -> None:
-    output = tmp_path / "public/analytics"
+    output = tmp_path / "public/spec"
     monkeypatch.setattr(
         sys,
         "argv",
@@ -80,8 +80,8 @@ def test_explorer_build_custom_output_and_timestamp(
             "uptimely",
             "explorer",
             "build",
-            "--analytics",
-            str(ANALYTICS_PATH),
+            "--spec",
+            str(SPEC_PATH),
             "--plan",
             str(saved_plan),
             "--output",
@@ -93,7 +93,7 @@ def test_explorer_build_custom_output_and_timestamp(
     cli.main()
 
     assert {p.relative_to(output).as_posix() for p in output.rglob("*.html")} == PAGES
-    assert "generated 20" in (output / "analytics/overview.html").read_text(encoding="utf-8")
+    assert "generated 20" in (output / "spec/overview.html").read_text(encoding="utf-8")
 
 
 def test_explorer_build_defaults_paths_from_project_root(
@@ -102,14 +102,14 @@ def test_explorer_build_defaults_paths_from_project_root(
     calls: list[tuple[pathlib.Path, pathlib.Path, pathlib.Path, pathlib.Path]] = []
 
     def record_build(
-        analytics_definition: pathlib.Path,
+        spec_definition: pathlib.Path,
         output: pathlib.Path,
         project_root: pathlib.Path,
         include_generated_at: bool = False,
         *,
         plan_path: pathlib.Path,
     ) -> pathlib.Path:
-        calls.append((analytics_definition, output, project_root, plan_path))
+        calls.append((spec_definition, output, project_root, plan_path))
         return output / "index.html"
 
     monkeypatch.setattr(explorer, "build_explorer", record_build)
@@ -123,7 +123,7 @@ def test_explorer_build_defaults_paths_from_project_root(
 
     assert calls == [
         (
-            tmp_path / "_generated/analytics/analytics.json",
+            tmp_path / "_generated/spec/spec.json",
             tmp_path / "_generated/explorer",
             tmp_path,
             tmp_path / "_generated/compile/execution_plan.json",
@@ -138,7 +138,7 @@ def test_explorer_build_defaults_paths_from_project_root(
         ["explorer", "unknown"],
         ["explorer", "build"],
         ["explorer", "build", "--unknown"],
-        ["explorer", "generate", "--analytics", str(ANALYTICS_PATH)],
+        ["explorer", "generate", "--spec", str(SPEC_PATH)],
         ["docs"],
     ],
 )
@@ -154,7 +154,7 @@ def test_explorer_requires_valid_arguments(
 
 
 @pytest.mark.parametrize("action", ["build", "serve"])
-@pytest.mark.parametrize("missing", ["analytics", "plan", "both"])
+@pytest.mark.parametrize("missing", ["spec", "plan", "both"])
 @pytest.mark.parametrize("custom_inputs", [False, True])
 @pytest.mark.parametrize("root_option", ["cwd", "relative", "absolute"])
 def test_explorer_reports_missing_inputs_before_loading(
@@ -174,25 +174,25 @@ def test_explorer_reports_missing_inputs_before_loading(
     if root_option != "cwd":
         root = project_root.name if root_option == "relative" else str(project_root)
         arguments.extend(["--project-root", root])
-    analytics_path = project_root / "_generated/analytics/analytics.json"
+    spec_path = project_root / "_generated/spec/spec.json"
     plan_path = project_root / "_generated/compile/execution_plan.json"
     if custom_inputs:
-        analytics_path = pathlib.Path("custom analytics.json")
+        spec_path = pathlib.Path("custom spec.json")
         plan_path = pathlib.Path("custom plan.json")
-        arguments.extend(["--analytics", str(analytics_path), "--plan", str(plan_path)])
+        arguments.extend(["--spec", str(spec_path), "--plan", str(plan_path)])
     elif action == "build" and root_option == "cwd":
-        arguments.extend(["--analytics", str(analytics_path)])
+        arguments.extend(["--spec", str(spec_path)])
     if missing == "plan":
-        analytics_path.parent.mkdir(parents=True, exist_ok=True)
-        analytics_path.write_text("must not be loaded", encoding="utf-8")
-    elif missing == "analytics":
+        spec_path.parent.mkdir(parents=True, exist_ok=True)
+        spec_path.write_text("must not be loaded", encoding="utf-8")
+    elif missing == "spec":
         plan_path.parent.mkdir(parents=True, exist_ok=True)
         plan_path.write_text("must not be loaded", encoding="utf-8")
 
     def unexpected_call(*args: object, **kwargs: object) -> None:
         pytest.fail("Missing inputs must be reported before loading or serving")
 
-    monkeypatch.setattr(explorer.common, "load_analytics", unexpected_call)
+    monkeypatch.setattr(explorer.common, "load_spec", unexpected_call)
     monkeypatch.setattr(explorer, "serve_explorer", unexpected_call)
     monkeypatch.setattr(sys, "argv", arguments)
 
@@ -203,17 +203,17 @@ def test_explorer_reports_missing_inputs_before_loading(
     result = capsys.readouterr()
     assert not result.out
     assert "uptimely: error: Missing Explorer input files:" in result.err
-    if missing in ("analytics", "both"):
-        assert f"Analytics JSON: {analytics_path.resolve()}" in result.err
+    if missing in ("spec", "both"):
+        assert f"Spec JSON: {spec_path.resolve()}" in result.err
     else:
-        assert "Analytics JSON:" not in result.err
+        assert "Spec JSON:" not in result.err
     if missing in ("plan", "both"):
         assert f"Execution plan JSON: {plan_path.resolve()}" in result.err
     else:
         assert "Execution plan JSON:" not in result.err
     command = shlex.join(["uptimely", "project", "build", "--project-root", str(project_root)])
     assert command in result.err
-    assert "--analytics" in result.err
+    assert "--spec" in result.err
     assert "--plan" in result.err
     assert "Traceback" not in result.err
     assert not (project_root / "_generated/explorer").exists()
@@ -224,7 +224,7 @@ def test_explorer_reports_missing_inputs_before_loading(
     "failure",
     [
         PermissionError("Cannot write website"),
-        ValueError("Invalid analytics"),
+        ValueError("Invalid spec"),
         ModuleNotFoundError("Missing function module"),
         AttributeError("Missing function"),
         TypeError("Invalid callable signature"),
@@ -238,9 +238,7 @@ def test_explorer_build_errors_are_reported(
         raise failure
 
     monkeypatch.setattr(explorer, "build_explorer", fail)
-    monkeypatch.setattr(
-        sys, "argv", ["uptimely", "explorer", "build", "--analytics", "analytics.json"]
-    )
+    monkeypatch.setattr(sys, "argv", ["uptimely", "explorer", "build", "--spec", "spec.json"])
 
     with pytest.raises(SystemExit) as error:
         cli.main()
@@ -252,15 +250,15 @@ def test_explorer_build_errors_are_reported(
 
 
 @pytest.mark.parametrize("content", [None, "not JSON", '{"version": "unsupported"}'])
-def test_explorer_rejects_missing_or_invalid_analytics(
+def test_explorer_rejects_missing_or_invalid_spec(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     content: str | None,
 ) -> None:
-    analytics_definition = tmp_path / "analytics.json"
+    spec_definition = tmp_path / "spec.json"
     if content is not None:
-        analytics_definition.write_text(content, encoding="utf-8")
+        spec_definition.write_text(content, encoding="utf-8")
     output = tmp_path / "site"
     monkeypatch.setattr(
         sys,
@@ -269,8 +267,8 @@ def test_explorer_rejects_missing_or_invalid_analytics(
             "uptimely",
             "explorer",
             "build",
-            "--analytics",
-            str(analytics_definition),
+            "--spec",
+            str(spec_definition),
             "--output",
             str(output),
         ],
@@ -291,20 +289,18 @@ def test_explorer_build_imports_project_functions_in_fresh_process(
     project = tmp_path / "project"
     project.mkdir()
     generated = project / "_generated"
-    (generated / "analytics").mkdir(parents=True)
-    (project / "analytics_functions.py").write_text(
+    (generated / "spec").mkdir(parents=True)
+    (project / "spec_functions.py").write_text(
         "from __future__ import annotations\n\n"
         "import polars\n\n"
         "def read_values() -> polars.DataFrame:\n"
-        "    raise RuntimeError('Must not execute analytics')\n",
+        "    raise RuntimeError('Must not execute spec')\n",
         encoding="utf-8",
     )
-    analytics_definition = (
-        generated / "analytics/analytics.json"
-        if explicit_project_root
-        else project / "analytics.json"
+    spec_definition = (
+        generated / "spec/spec.json" if explicit_project_root else project / "spec.json"
     )
-    analytics_definition.write_text(
+    spec_definition.write_text(
         json.dumps(
             {
                 "version": "0.2.0",
@@ -312,7 +308,7 @@ def test_explorer_build_imports_project_functions_in_fresh_process(
                     "read_values": {
                         "operation": "read",
                         "returns": "dataframe",
-                        "entrypoint": "analytics_functions:read_values",
+                        "entrypoint": "spec_functions:read_values",
                     }
                 },
                 "entities": {
@@ -344,8 +340,8 @@ def test_explorer_build_imports_project_functions_in_fresh_process(
             "uptimely.cli.cli",
             "plan",
             "build",
-            "--analytics",
-            str(analytics_definition),
+            "--spec",
+            str(spec_definition),
         ],
         cwd=project,
         capture_output=True,
@@ -363,7 +359,7 @@ def test_explorer_build_imports_project_functions_in_fresh_process(
     if explicit_project_root:
         arguments.extend(["--project-root", str(project)])
     else:
-        arguments.extend(["--analytics", str(analytics_definition), "--output", str(output)])
+        arguments.extend(["--spec", str(spec_definition), "--output", str(output)])
 
     result = subprocess.run(
         arguments,
@@ -376,7 +372,7 @@ def test_explorer_build_imports_project_functions_in_fresh_process(
 
     assert result.returncode == 0, result.stderr
     assert {path.relative_to(output).as_posix() for path in output.rglob("*.html")} == PAGES
-    assert "Analytics explorer built at" in result.stdout
+    assert "Spec explorer built at" in result.stdout
 
 
 @pytest.mark.parametrize("action", ["build", "serve"])
@@ -408,8 +404,8 @@ def test_explorer_uses_saved_plan_without_compiling(
             "uptimely",
             "explorer",
             action,
-            "--analytics",
-            str(ANALYTICS_PATH),
+            "--spec",
+            str(SPEC_PATH),
             *arguments,
         ],
     )
@@ -438,8 +434,8 @@ def test_explorer_rejects_missing_or_invalid_plan(
             "uptimely",
             "explorer",
             "build",
-            "--analytics",
-            str(ANALYTICS_PATH),
+            "--spec",
+            str(SPEC_PATH),
             "--plan",
             str(saved_plan),
             "--output",

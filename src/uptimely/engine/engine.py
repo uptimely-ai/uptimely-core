@@ -1,14 +1,14 @@
-"""Execution engine for portable analytics plans."""
+"""Execution engine for portable spec plans."""
 
 import logging
 import pathlib
 import time
 import typing
 
-from uptimely import analytics, contracts
 from uptimely import compiler as compiler_module
-from uptimely.analytics import model as analytics_model
+from uptimely import contracts, spec
 from uptimely.compiler import plan as plan_module
+from uptimely.spec import model as spec_model
 
 from . import backend as backend_module
 from . import bindings as bindings_module
@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 class Engine:
-    """Execute a portable plan without recompiling its analytics definition."""
+    """Execute a portable plan without recompiling its spec definition."""
 
     def __init__(
         self,
-        plan: plan_module.ExecutionPlan | str | pathlib.Path | analytics_model.Analytics,
+        plan: plan_module.ExecutionPlan | str | pathlib.Path | spec_model.Spec,
         resources: dict[str, typing.Any] | None = None,
         *,
         config: config_module.EngineConfig | None = None,
@@ -34,17 +34,15 @@ class Engine:
         callable_loader: backend_module.CallableLoader | None = None,
         bind: dict[str, dict[str, dict[str, typing.Any]]] | None = None,
     ) -> None:
-        """Prepare an engine from a plan, with analytics convenience support."""
-        self._analytics: analytics_model.Analytics | None = None
+        """Prepare an engine from a plan, with spec convenience support."""
+        self._spec: spec_model.Spec | None = None
         if isinstance(plan, plan_module.ExecutionPlan):
             self.plan = plan
-        elif isinstance(plan, (str, pathlib.Path, analytics_model.Analytics)):
-            self._analytics = (
-                analytics.load_analytics(plan) if isinstance(plan, (str, pathlib.Path)) else plan
-            )
-            self.plan = compiler_module.Compiler(self._analytics).compile()
+        elif isinstance(plan, (str, pathlib.Path, spec_model.Spec)):
+            self._spec = spec.load_spec(plan) if isinstance(plan, (str, pathlib.Path)) else plan
+            self.plan = compiler_module.Compiler(self._spec).compile()
         else:
-            raise ValueError("plan must be an ExecutionPlan, Analytics, or analytics path")
+            raise ValueError("plan must be an ExecutionPlan, Spec, or spec path")
 
         self.resources = dict(self.plan.plan.resources)
         if resources is not None:
@@ -61,25 +59,25 @@ class Engine:
         self._verify_plan()
 
     @classmethod
-    def from_analytics(
+    def from_spec(
         cls,
-        analytics_definition: str | pathlib.Path | analytics_model.Analytics,
+        spec_definition: str | pathlib.Path | spec_model.Spec,
         features: list[str] | None = None,
         *,
         config: config_module.EngineConfig | None = None,
     ) -> "Engine":
-        """Compile analytics and return an engine for the resulting plan."""
+        """Compile spec and return an engine for the resulting plan."""
         return cls(
-            compiler_module.Compiler(analytics_definition, features=features).compile(),
+            compiler_module.Compiler(spec_definition, features=features).compile(),
             config=config,
         )
 
     @property
-    def analytics(self) -> analytics_model.Analytics:
-        """Return the Analytics instance when one was supplied."""
-        if self._analytics is None:
-            raise AttributeError("Portable-plan engines do not retain an Analytics instance")
-        return self._analytics
+    def spec(self) -> spec_model.Spec:
+        """Return the Spec instance when one was supplied."""
+        if self._spec is None:
+            raise AttributeError("Portable-plan engines do not retain a Spec instance")
+        return self._spec
 
     def _verify_plan(self) -> None:
         """Verify that this runtime supports the portable plan."""

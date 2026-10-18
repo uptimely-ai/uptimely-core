@@ -99,7 +99,7 @@
   <h1 class="title-with-icon">{{ icon("lineage", "title-icon") }}<span>Data lineage</span></h1>
   <p>One callable at a time. Watch declared output columns and illustrative rows appear.</p>
   <p>Illustration only: keys, values, results, and row counts are placeholders, not calculated data.
-    No analytics are executed.</p>
+    No spec are executed.</p>
   {% if stages %}
   <div class="lineage-toolbar" id="lineage-toolbar" role="group" aria-label="Lineage playback" hidden>
     <button type="button" id="lineage-previous">Previous</button>
@@ -198,7 +198,7 @@
   <p>Playback follows dependency stages. Callables in the same stage are independent.</p>
   <noscript><p>Playback needs JavaScript. All callable tables and declared schemas remain available below their stage headings.</p></noscript>
   {% else %}
-  <p>No processing steps. Add function mappings to the analytics to display data lineage.</p>
+  <p>No processing steps. Add function mappings to the spec to display data lineage.</p>
   {% endif %}
 </main>
 {% endblock %}

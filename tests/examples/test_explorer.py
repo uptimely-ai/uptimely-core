@@ -2,24 +2,24 @@ import dataclasses
 import pathlib
 from html import parser as html_parser
 
-from examples.pump_analytics.config.analytics import analytics as pump_analytics_module
+from examples.pump_analytics.config.spec import spec as pump_analytics_module
 
-from uptimely import analytics
-from uptimely.explorer import analytics_render, explorer
+from uptimely import spec
+from uptimely.explorer import explorer, spec_render
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
-def test_analytics_exports_only_json(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.from_python(
+def test_spec_exports_only_json(tmp_path: pathlib.Path) -> None:
+    spec_definition = spec.from_python(
         entities=pump_analytics_module.entities,
         dimensions=pump_analytics_module.dimensions,
         name="Pump analytics",
     )
-    analytics.write_document(analytics_definition, tmp_path / "analytics.json")
+    spec.write_document(spec_definition, tmp_path / "spec.json")
 
-    assert {path.name for path in tmp_path.iterdir()} == {"analytics.json"}
-    assert analytics.load_analytics(tmp_path / "analytics.json").name == "Pump analytics"
+    assert {path.name for path in tmp_path.iterdir()} == {"spec.json"}
+    assert spec.load_spec(tmp_path / "spec.json").name == "Pump analytics"
 
 
 class TextCollector(html_parser.HTMLParser):
@@ -37,25 +37,25 @@ class TextCollector(html_parser.HTMLParser):
         return " ".join(self.parts)
 
 
-def _explorer_counts(analytics_definition: analytics.Analytics) -> dict[str, int]:
+def _explorer_counts(spec_definition: spec.Spec) -> dict[str, int]:
     datasets = [
-        dataset for entity in analytics_definition.entities.values() for dataset in entity.datasets
+        dataset for entity in spec_definition.entities.values() for dataset in entity.datasets
     ]
     feature_count = sum(len(dataset.features) for dataset in datasets)
-    function_count = len(analytics_definition.functions)
+    function_count = len(spec_definition.functions)
     return {
-        "entity_count": len(analytics_definition.entities),
+        "entity_count": len(spec_definition.entities),
         "dataset_count": len(datasets),
-        "dimension_count": len(analytics_definition.dimensions),
+        "dimension_count": len(spec_definition.dimensions),
         "feature_count": feature_count,
         "function_count": function_count,
     }
 
 
 def test_explorer_context_has_expected_fields() -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    spec_definition = spec.load_spec(SPEC_PATH)
 
-    context = analytics_render._build_context(analytics_definition, False)
+    context = spec_render._build_context(spec_definition, False)
     document = dataclasses.asdict(context)
 
     assert set(document) == {
@@ -65,7 +65,7 @@ def test_explorer_context_has_expected_fields() -> None:
         "generated_at",
     }
     assert set(document["configuration"]) == set(
-        analytics_definition.model_dump(mode="json", exclude_none=True)
+        spec_definition.model_dump(mode="json", exclude_none=True)
     )
     assert set(document["summary"]) == {
         "entity_count",
@@ -81,11 +81,11 @@ def test_explorer_context_has_expected_fields() -> None:
     }
 
 
-def test_explorer_context_counts_match_analytics() -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    expected_counts = _explorer_counts(analytics_definition)
+def test_explorer_context_counts_match_spec() -> None:
+    spec_definition = spec.load_spec(SPEC_PATH)
+    expected_counts = _explorer_counts(spec_definition)
 
-    context = analytics_render._build_context(analytics_definition, False)
+    context = spec_render._build_context(spec_definition, False)
     document = dataclasses.asdict(context)
     configuration = document["configuration"]
 
@@ -96,22 +96,20 @@ def test_explorer_context_counts_match_analytics() -> None:
         == expected_counts["dataset_count"]
     )
     assert document["summary"] | expected_counts == document["summary"]
-    assert len(document["feature_dependencies"]) == len(
-        analytics.prepare_analytics(analytics_definition).calls
-    )
+    assert len(document["feature_dependencies"]) == len(spec.prepare_spec(spec_definition).calls)
 
 
-def test_html_explorer_overview_counts_match_analytics(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    analytics_definition.name = "Pump analytics"
-    expected_counts = _explorer_counts(analytics_definition)
+def test_html_explorer_overview_counts_match_spec(tmp_path: pathlib.Path) -> None:
+    spec_definition = spec.load_spec(SPEC_PATH)
+    spec_definition.name = "Pump analytics"
+    expected_counts = _explorer_counts(spec_definition)
 
-    explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
-    output_path = tmp_path / "analytics/overview.html"
+    explorer.Explorer(spec_definition).create_html(tmp_path / "index.html")
+    output_path = tmp_path / "spec/overview.html"
     parser = TextCollector()
     parser.feed(output_path.read_text(encoding="utf-8"))
 
-    assert "Analytics profile Pump analytics" in parser.text
+    assert "Spec profile Pump analytics" in parser.text
     assert f"Entities {expected_counts['entity_count']}" in parser.text
     assert f"Dimensions {expected_counts['dimension_count']}" in parser.text
     assert f"Features total {expected_counts['feature_count']}" in parser.text

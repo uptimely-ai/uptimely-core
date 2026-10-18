@@ -125,11 +125,11 @@ def test_plan_rejects_missing_required_fields(missing_field: str) -> None:
         uptimely_plan.Plan.from_dict(payload)
 
 
-def test_plan_rejects_analytics_version_field() -> None:
+def test_plan_rejects_spec_version_field() -> None:
     payload = _sample_plan().to_dict()
-    payload["analytics_version"] = "0.2.0"
+    payload["spec_version"] = "0.2.0"
 
-    with pytest.raises(ValueError, match="Plan contains unknown fields: analytics_version"):
+    with pytest.raises(ValueError, match="Plan contains unknown fields: spec_version"):
         uptimely_plan.Plan.from_dict(payload)
 
 

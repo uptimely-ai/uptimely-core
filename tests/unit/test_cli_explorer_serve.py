@@ -9,11 +9,11 @@ from urllib import request
 
 import pytest
 
-from uptimely import analytics, compiler
+from uptimely import compiler, spec
 from uptimely.cli import cli, explorer
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-ANALYTICS_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/analytics/analytics.json"
+SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
 
 
 @pytest.mark.parametrize(
@@ -36,8 +36,8 @@ def test_serve_arguments(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda analytics_definition, directory, project_root, *, plan_path: (
-            calls.append(("build", analytics_definition, directory, project_root, plan_path))
+        lambda spec_definition, directory, project_root, *, plan_path: (
+            calls.append(("build", spec_definition, directory, project_root, plan_path))
             or directory / "index.html"
         ),
     )
@@ -54,7 +54,7 @@ def test_serve_arguments(
     assert calls == [
         (
             "build",
-            pathlib.Path("_generated/analytics/analytics.json"),
+            pathlib.Path("_generated/spec/spec.json"),
             directory,
             pathlib.Path.cwd(),
             pathlib.Path("_generated/compile/execution_plan.json"),
@@ -63,15 +63,15 @@ def test_serve_arguments(
     ]
 
 
-def test_serve_builds_custom_analytics_before_starting_server(
+def test_serve_builds_custom_spec_before_starting_server(
     monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
 ) -> None:
     calls: list[tuple[object, ...]] = []
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda analytics_definition, directory, project_root, *, plan_path: (
-            calls.append(("build", analytics_definition, directory, project_root, plan_path))
+        lambda spec_definition, directory, project_root, *, plan_path: (
+            calls.append(("build", spec_definition, directory, project_root, plan_path))
             or directory / "index.html"
         ),
     )
@@ -80,7 +80,7 @@ def test_serve_builds_custom_analytics_before_starting_server(
         "serve_explorer",
         lambda directory, host, port: calls.append(("serve", directory, host, port)),
     )
-    analytics_definition = tmp_path / "analytics.json"
+    spec_definition = tmp_path / "spec.json"
     output = tmp_path / "website"
     project_root = tmp_path / "project"
     saved_plan = tmp_path / "custom_plan.json"
@@ -91,8 +91,8 @@ def test_serve_builds_custom_analytics_before_starting_server(
             "uptimely",
             "explorer",
             "serve",
-            "--analytics",
-            str(analytics_definition),
+            "--spec",
+            str(spec_definition),
             "--directory",
             str(output),
             "--project-root",
@@ -105,7 +105,7 @@ def test_serve_builds_custom_analytics_before_starting_server(
     cli.main()
 
     assert calls == [
-        ("build", analytics_definition, output, project_root, saved_plan),
+        ("build", spec_definition, output, project_root, saved_plan),
         ("serve", output, "127.0.0.1", 8001),
     ]
 
@@ -117,8 +117,8 @@ def test_serve_defaults_paths_from_project_root(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda analytics_definition, directory, project_root, *, plan_path: (
-            calls.append(("build", analytics_definition, directory, project_root, plan_path))
+        lambda spec_definition, directory, project_root, *, plan_path: (
+            calls.append(("build", spec_definition, directory, project_root, plan_path))
             or directory / "index.html"
         ),
     )
@@ -139,7 +139,7 @@ def test_serve_defaults_paths_from_project_root(
     assert calls == [
         (
             "build",
-            tmp_path / "_generated/analytics/analytics.json",
+            tmp_path / "_generated/spec/spec.json",
             directory,
             tmp_path,
             tmp_path / "_generated/compile/execution_plan.json",
@@ -154,14 +154,14 @@ def test_serve_builds_html_before_starting_server(
     output = tmp_path / "website"
     project_root = REPOSITORY_ROOT / "examples/pump_analytics"
     saved_plan = tmp_path / "plan.json"
-    compiler.Compiler(analytics.load_analytics(ANALYTICS_PATH)).compile().export_json(saved_plan)
+    compiler.Compiler(spec.load_spec(SPEC_PATH)).compile().export_json(saved_plan)
 
     def check_website(directory: pathlib.Path, host: str, port: int) -> None:
         assert directory == output
         assert host == "127.0.0.1"
         assert port == 8001
         assert (output / "index.html").is_file()
-        assert (output / "analytics/overview.html").is_file()
+        assert (output / "spec/overview.html").is_file()
         assert (output / "plan/graph.html").is_file()
 
     monkeypatch.setattr(explorer, "serve_explorer", check_website)
@@ -172,8 +172,8 @@ def test_serve_builds_html_before_starting_server(
             "uptimely",
             "explorer",
             "serve",
-            "--analytics",
-            str(ANALYTICS_PATH),
+            "--spec",
+            str(SPEC_PATH),
             "--project-root",
             str(project_root),
             "--directory",
@@ -211,7 +211,7 @@ def test_serve_reports_missing_website(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda analytics_definition, output, project_root, *, plan_path: output / "index.html",
+        lambda spec_definition, output, project_root, *, plan_path: output / "index.html",
     )
     monkeypatch.setattr(
         sys,
@@ -233,7 +233,7 @@ def test_serve_serves_only_selected_directory_and_closes_on_interrupt(
 ) -> None:
     directory = tmp_path / "website"
     directory.mkdir()
-    (directory / "index.html").write_text("<h1>Analytics</h1>", encoding="utf-8")
+    (directory / "index.html").write_text("<h1>Spec</h1>", encoding="utf-8")
     (directory / "feature_graph.html").write_text("<h1>Graph</h1>", encoding="utf-8")
     (tmp_path / "private.txt").write_text("not public", encoding="utf-8")
     servers: list[http_server.ThreadingHTTPServer] = []
@@ -250,7 +250,7 @@ def test_serve_serves_only_selected_directory_and_closes_on_interrupt(
             base = f"http://127.0.0.1:{server.server_port}"
             with request.urlopen(f"{base}/", timeout=5) as response:
                 assert response.status == 200
-                assert response.read() == b"<h1>Analytics</h1>"
+                assert response.read() == b"<h1>Spec</h1>"
             with request.urlopen(f"{base}/feature_graph.html", timeout=5) as response:
                 assert response.read() == b"<h1>Graph</h1>"
             with pytest.raises(urllib_error.HTTPError) as error:
@@ -270,7 +270,7 @@ def test_serve_serves_only_selected_directory_and_closes_on_interrupt(
     assert servers[0].socket.fileno() == -1
     result = capsys.readouterr()
     assert f"http://127.0.0.1:{servers[0].server_port}/" in result.out
-    assert "Analytics explorer server stopped." in result.out
+    assert "Spec explorer server stopped." in result.out
 
 
 def test_serve_reports_occupied_port(
@@ -280,7 +280,7 @@ def test_serve_reports_occupied_port(
     monkeypatch.setattr(
         explorer,
         "build_explorer",
-        lambda analytics_definition, output, project_root, *, plan_path: output / "index.html",
+        lambda spec_definition, output, project_root, *, plan_path: output / "index.html",
     )
     with http_server.ThreadingHTTPServer(
         ("127.0.0.1", 0), http_server.SimpleHTTPRequestHandler

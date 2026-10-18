@@ -1,8 +1,8 @@
 # Command-line reference
 
 The `uptimely` command provides project utilities for downloading examples,
-building and inspecting analytics, compiling execution plans, running
-workflows, and generating the Analytics Explorer.
+building and inspecting specifications, compiling execution plans, running
+analytics workflows, and generating the Analytics Explorer.
 
 Run `uptimely --help` or `uptimely <command> --help` to see the options
 available in an installed version.
@@ -13,17 +13,17 @@ available in an installed version.
 
 | Command | Reference | Purpose |
 | --- | --- | --- |
-| `uptimely analytics` | [Analytics](cli/analytics.md) | Build analytics JSON from Python or JSON sources, or inspect feature dependencies. |
+| `uptimely spec` | [Spec](cli/spec.md) | Build spec JSON from Python or JSON sources, or inspect feature dependencies. |
 | `uptimely engine` | [Engine](cli/engine.md) | Run an analytics workflow. |
 | `uptimely examples` | [Examples](cli/examples.md) | Download runnable example projects. |
 | `uptimely explorer` | [Explorer](cli/explorer.md) | Build or serve the Analytics Explorer website. |
-| `uptimely plan` | [Plan](cli/plan.md) | Compile analytics into a portable execution plan. |
-| `uptimely project` | [Project](cli/project.md) | Build analytics and compile the saved execution plan together. |
+| `uptimely plan` | [Plan](cli/plan.md) | Compile spec into a portable execution plan. |
+| `uptimely project` | [Project](cli/project.md) | Build spec and compile the saved execution plan together. |
 
 ## Typical workflow
 
 From an installed package, download examples and serve the pump analytics
-Explorer:
+Analytics Explorer:
 
 ```console
 uptimely examples download
@@ -31,7 +31,7 @@ uptimely project build --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
-Build prepares analytics and plan artifacts without executing the workflow.
+Build prepares spec and plan artifacts without executing the workflow.
 To execute the saved plan:
 
 ```console
@@ -41,7 +41,7 @@ uptimely engine run --project-root examples/pump_analytics --compile false
 You can still build and execute using individual commands:
 
 ```console
-uptimely analytics build --project-root examples/pump_analytics
+uptimely spec build --project-root examples/pump_analytics
 uptimely plan build --project-root examples/pump_analytics
 uptimely engine run --project-root examples/pump_analytics
 ```

@@ -1,4 +1,4 @@
-"""Tests for building generated project resources without executing analytics."""
+"""Tests for building generated project resources without executing spec."""
 
 import json
 import pathlib
@@ -8,9 +8,9 @@ import sys
 
 import pytest
 
-from uptimely import analytics, project
-from uptimely.cli import analytics as analytics_cli
+from uptimely import project, spec
 from uptimely.cli import cli, plan
+from uptimely.cli import spec as spec_cli
 from uptimely.compiler import plan as plan_module
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
@@ -45,21 +45,21 @@ def test_project_build_examples(
 
     assert result.returncode == 0, result.stderr
     assert not result.stderr
-    assert "Analytics written to" in result.stdout
+    assert "Spec written to" in result.stdout
     assert "Execution plan:" in result.stdout
-    analytics_path = root / project.ANALYTICS_JSON_FILE
+    spec_path = root / project.SPEC_JSON_FILE
     plan_path = root / project.EXECUTION_PLAN_FILE
-    assert analytics.load_analytics(analytics_path).entities
+    assert spec.load_spec(spec_path).entities
     original_plan = plan_module.ExecutionPlan.from_json(plan_path)
     assert original_plan.callables
-    original_analytics = analytics_path.read_bytes()
-    analytics_path.write_text("outdated", encoding="utf-8")
+    original_spec = spec_path.read_bytes()
+    spec_path.write_text("outdated", encoding="utf-8")
     plan_path.write_text("outdated", encoding="utf-8")
 
     rebuilt = subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=60)
 
     assert rebuilt.returncode == 0, rebuilt.stderr
-    assert analytics_path.read_bytes() == original_analytics
+    assert spec_path.read_bytes() == original_spec
     rebuilt_plan = plan_module.ExecutionPlan.from_json(plan_path)
     assert {item.id: item for item in rebuilt_plan.callables} == {
         item.id: item for item in original_plan.callables
@@ -77,7 +77,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     (root / "build_functions.py").write_text(
         "import polars\n"
         "def read() -> polars.DataFrame:\n"
-        "    raise RuntimeError('Build must not execute analytics')\n",
+        "    raise RuntimeError('Build must not execute spec')\n",
         encoding="utf-8",
     )
     source = tmp_path / "source.json"
@@ -116,10 +116,10 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     )
     if source_kind == "entrypoint":
         (root / "declaration.py").write_text(
-            "from uptimely.analytics import python as api\n"
-            "from uptimely.analytics.python import bind, dataset, entity, feature, mapping, ref\n"
+            "from uptimely.spec import python as api\n"
+            "from uptimely.spec.python import bind, dataset, entity, feature, mapping, ref\n"
             "import build_functions\n"
-            "definition = api.PythonAnalytics(entities=[entity.Entity(\n"
+            "definition = api.PythonSpec(entities=[entity.Entity(\n"
             "    id='example', name='Example', dimensions=[], datasets=[dataset.Dataset(\n"
             "        id='values', features=[feature.Feature(id='value')], mappings=[\n"
             "            mapping.Mapping(id='read', bind=bind.bind(ref.function(\n"
@@ -129,16 +129,16 @@ def test_project_build_explicit_source_does_not_execute_workflow(
         )
         arguments = ["--entrypoint", "declaration:definition"]
     else:
-        arguments = ["--analytics", "source.json"]
+        arguments = ["--spec", "source.json"]
 
     invoke(monkeypatch, "--project-root", str(root), *arguments)
 
-    assert analytics.load_analytics(root / project.ANALYTICS_JSON_FILE).entities
+    assert spec.load_spec(root / project.SPEC_JSON_FILE).entities
     assert plan_module.ExecutionPlan.from_json(root / project.EXECUTION_PLAN_FILE).callables
     assert not (root / project.EXPLORER_OUTPUT_DIR).exists()
 
 
-@pytest.mark.parametrize("stage", ["analytics", "compile", "write"])
+@pytest.mark.parametrize("stage", ["spec", "compile", "write"])
 @pytest.mark.parametrize(
     "failure",
     [
@@ -163,15 +163,15 @@ def test_project_build_reports_stage_failures(
         calls.append(stage)
         raise failure
 
-    if stage == "analytics":
-        monkeypatch.setattr(analytics_cli, "build_analytics", fail)
+    if stage == "spec":
+        monkeypatch.setattr(spec_cli, "build_spec", fail)
         monkeypatch.setattr(
-            plan, "compile_plan", lambda *args: pytest.fail("Must stop after analytics failure")
+            plan, "compile_plan", lambda *args: pytest.fail("Must stop after spec failure")
         )
     else:
-        source = REPOSITORY_ROOT / "examples/pump_analytics/_generated/analytics/analytics.json"
-        (tmp_path / project.ANALYTICS_SOURCE_DIR).mkdir(parents=True)
-        shutil.copyfile(source, tmp_path / project.ANALYTICS_JSON_ENTRY_FILE)
+        source = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
+        (tmp_path / project.SPEC_SOURCE_DIR).mkdir(parents=True)
+        shutil.copyfile(source, tmp_path / project.SPEC_JSON_ENTRY_FILE)
         if stage == "compile":
             monkeypatch.setattr(plan, "compile_plan", fail)
         else:
@@ -183,7 +183,7 @@ def test_project_build_reports_stage_failures(
     assert error.value.code == 1
     assert calls == [stage]
     result = capsys.readouterr()
-    expected = "Analytics" if stage == "analytics" else "Execution plan"
+    expected = "Spec" if stage == "spec" else "Execution plan"
     assert f"uptimely: error: {expected} build failed: {failure}" in result.err
     assert "Execution plan:" not in result.out
     assert not (tmp_path / project.EXECUTION_PLAN_FILE).exists()
@@ -195,16 +195,16 @@ def test_project_build_missing_source(
     with pytest.raises(SystemExit) as error:
         invoke(monkeypatch, "--project-root", str(tmp_path))
     assert error.value.code == 1
-    assert "Analytics build failed: No analytics source found" in capsys.readouterr().err
+    assert "Spec build failed: No spec source found" in capsys.readouterr().err
     assert not (tmp_path / project.GENERATED_DIR).exists()
 
 
 def test_project_build_preserves_previous_plan_on_compile_failure(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    source = REPOSITORY_ROOT / "examples/pump_analytics/_generated/analytics/analytics.json"
-    (tmp_path / project.ANALYTICS_SOURCE_DIR).mkdir(parents=True)
-    shutil.copyfile(source, tmp_path / project.ANALYTICS_JSON_ENTRY_FILE)
+    source = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
+    (tmp_path / project.SPEC_SOURCE_DIR).mkdir(parents=True)
+    shutil.copyfile(source, tmp_path / project.SPEC_JSON_ENTRY_FILE)
     saved_plan = tmp_path / project.EXECUTION_PLAN_FILE
     saved_plan.parent.mkdir(parents=True)
     saved_plan.write_text("previous plan", encoding="utf-8")
@@ -219,7 +219,7 @@ def test_project_build_preserves_previous_plan_on_compile_failure(
 
     assert error.value.code == 1
     assert "Execution plan build failed" in capsys.readouterr().err
-    assert analytics.load_analytics(tmp_path / project.ANALYTICS_JSON_FILE).entities
+    assert spec.load_spec(tmp_path / project.SPEC_JSON_FILE).entities
     assert saved_plan.read_text(encoding="utf-8") == "previous plan"
 
 
@@ -232,7 +232,7 @@ def test_project_build_help(
     assert error.value.code == 0
     result = capsys.readouterr()
     assert "--entrypoint MODULE:ATTRIBUTE" in result.out
-    assert "--analytics" in result.out
+    assert "--spec" in result.out
     assert "--project-root" in result.out
     assert not result.err
 
@@ -242,7 +242,7 @@ def test_project_build_help(
     [
         ["project"],
         ["project", "unknown"],
-        ["project", "build", "--entrypoint", "module:attribute", "--analytics", "source.json"],
+        ["project", "build", "--entrypoint", "module:attribute", "--spec", "source.json"],
         ["project", "build", "--output", "custom"],
     ],
 )

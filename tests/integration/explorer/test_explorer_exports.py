@@ -7,19 +7,19 @@ import re
 
 import pytest
 
-from uptimely import analytics, compiler, engine
-from uptimely.explorer import analytics_render, explorer
+from uptimely import compiler, engine, spec
+from uptimely.explorer import explorer, spec_render
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
-REFERENCE_PATH = pathlib.Path("docs/components/analytics.md")
-OBSERVATION_TOTALS_PATH = pathlib.Path("tests/fixtures/analytics/observation_totals.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+REFERENCE_PATH = pathlib.Path("docs/components/spec.md")
+OBSERVATION_TOTALS_PATH = pathlib.Path("tests/fixtures/spec/observation_totals.json")
 
 
 @pytest.mark.parametrize(
     ("language", "snippet"),
     re.findall(r"```(json|python)\n(.*?)\n```", REFERENCE_PATH.read_text(), re.DOTALL),
 )
-def test_analytics_reference_snippet_syntax(language: str, snippet: str) -> None:
+def test_spec_reference_snippet_syntax(language: str, snippet: str) -> None:
     if language == "python":
         ast.parse(snippet)
     else:
@@ -27,9 +27,9 @@ def test_analytics_reference_snippet_syntax(language: str, snippet: str) -> None
         json.loads(document)
 
 
-def test_analytics_json_parses_compiles_and_executes() -> None:
-    analytics_definition = analytics.load_analytics(OBSERVATION_TOTALS_PATH)
-    compiled = compiler.Compiler(analytics_definition, features=["total"]).compile()
+def test_spec_json_parses_compiles_and_executes() -> None:
+    spec_definition = spec.load_spec(OBSERVATION_TOTALS_PATH)
+    compiled = compiler.Compiler(spec_definition, features=["total"]).compile()
     execution = engine.Engine(compiled).execute()
 
     assert len(compiled.callables) == 2
@@ -42,9 +42,9 @@ def test_analytics_json_parses_compiles_and_executes() -> None:
 def test_reference_exports_to_default_directory(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
-    explorer_instance = explorer.Explorer(analytics_definition)
+    explorer_instance = explorer.Explorer(spec_definition)
 
     document_path = explorer_instance.create_html()
     expected = pathlib.Path("_generated/explorer/index.html")
@@ -54,25 +54,25 @@ def test_reference_exports_to_default_directory(
     assert not list(tmp_path.rglob("*.json"))
 
 
-def test_html_export_preserves_analytics_definition(
+def test_html_export_preserves_spec_definition(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
-    analytics_path = pathlib.Path("_generated/analytics/analytics.json")
-    analytics.write_document(analytics_definition, analytics_path)
-    original = analytics_path.read_bytes()
+    spec_path = pathlib.Path("_generated/spec/spec.json")
+    spec.write_document(spec_definition, spec_path)
+    original = spec_path.read_bytes()
 
-    output = explorer.Explorer(analytics_definition).create_html()
+    output = explorer.Explorer(spec_definition).create_html()
 
     assert output == pathlib.Path("_generated/explorer/index.html")
-    assert analytics_path.read_bytes() == original
-    assert list(tmp_path.rglob("*.json")) == [tmp_path / analytics_path]
+    assert spec_path.read_bytes() == original
+    assert list(tmp_path.rglob("*.json")) == [tmp_path / spec_path]
 
 
-def test_build_analytics_context() -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    context = analytics_render._build_context(analytics_definition, False)
+def test_build_spec_context() -> None:
+    spec_definition = spec.load_spec(SPEC_PATH)
+    context = spec_render._build_context(spec_definition, False)
 
     assert (
         context.configuration["entities"]["pump_telemetry"]["datasets"][0]["id"]
@@ -94,8 +94,7 @@ def test_build_analytics_context() -> None:
     ]
     assert context.summary.function_buckets == {
         operation: sum(
-            function.operation == operation
-            for function in analytics_definition.functions.root.values()
+            function.operation == operation for function in spec_definition.functions.root.values()
         )
         for operation in ("read", "write", "vectorize", "collapse", "expand", "conform")
     }
@@ -104,18 +103,18 @@ def test_build_analytics_context() -> None:
 
 
 def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
 
-    document_path = explorer.Explorer(analytics_definition).create_html()
+    document_path = explorer.Explorer(spec_definition).create_html()
     pages = {
         filename: (document_path.parent / filename).read_text(encoding="utf-8")
         for filename in (
-            "analytics/overview.html",
-            "analytics/features.html",
-            "analytics/datasets.html",
-            "analytics/dimensions.html",
-            "analytics/functions.html",
+            "spec/overview.html",
+            "spec/features.html",
+            "spec/datasets.html",
+            "spec/dimensions.html",
+            "spec/functions.html",
         )
     }
     document = "\n".join(pages.values())
@@ -130,10 +129,10 @@ def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
     assert ">source<" in document
     assert "space-y-5" in document
     for filename, section in (
-        ("analytics/overview.html", "overview"),
-        ("analytics/features.html", "entities"),
-        ("analytics/dimensions.html", "dimensions"),
-        ("analytics/functions.html", "functions"),
+        ("spec/overview.html", "overview"),
+        ("spec/features.html", "entities"),
+        ("spec/dimensions.html", "dimensions"),
+        ("spec/functions.html", "functions"),
     ):
         assert f'id="{section}"' in pages[filename]
     assert "Pump telemetry" in document
@@ -165,15 +164,15 @@ def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
     assert "Collapse function" in document
 
 
-def test_generate_html_explorer_from_in_memory_analytics_is_deterministic(
+def test_generate_html_explorer_from_in_memory_spec_is_deterministic(
     tmp_path: pathlib.Path,
 ) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    spec_definition = spec.load_spec(SPEC_PATH)
 
-    first_path = explorer.Explorer(analytics_definition).create_html(
+    first_path = explorer.Explorer(spec_definition).create_html(
         output_path=tmp_path / "first" / "index.html",
     )
-    second_path = explorer.Explorer(analytics_definition).create_html(
+    second_path = explorer.Explorer(spec_definition).create_html(
         output_path=tmp_path / "second" / "index.html",
     )
 

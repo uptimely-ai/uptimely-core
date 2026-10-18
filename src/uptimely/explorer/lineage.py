@@ -1,11 +1,11 @@
-"""Render processing tables and their dependencies without executing analytics."""
+"""Render processing tables and their dependencies without executing spec."""
 
 from __future__ import annotations
 
 import dataclasses
 import pathlib
 
-from uptimely import analytics, project, render
+from uptimely import project, render, spec
 from uptimely.compiler import plan
 
 
@@ -37,12 +37,12 @@ class DataLineageStep:
 
 
 def _build_stages(
-    analytics_definition: analytics.Analytics, execution_plan: plan.ExecutionPlan
+    spec_definition: spec.Spec, execution_plan: plan.ExecutionPlan
 ) -> list[list[DataLineageStep]]:
     """Build typed table schemas with colors inherited from feature producers.
 
     Args:
-        analytics_definition: Declared dimensions, datasets, and column metadata.
+        spec_definition: Declared dimensions, datasets, and column metadata.
         execution_plan: Compiled callables and their dependencies.
 
     Returns:
@@ -61,30 +61,30 @@ def _build_stages(
         feature: callable
         for callable in callables
         for feature in callable.output_features
-        if feature not in analytics_definition.dimensions
+        if feature not in spec_definition.dimensions
     }
     datasets = {
         dataset.id: dataset
-        for entity in analytics_definition.entities.values()
+        for entity in spec_definition.entities.values()
         for dataset in entity.datasets
     }
     feature_types = {
         name: feature.type or "Unspecified"
         for dataset in datasets.values()
         for name, feature in dataset.features.items()
-        if name not in analytics_definition.dimensions
+        if name not in spec_definition.dimensions
     }
     feature_types.update(
-        {name: dimension.type for name, dimension in analytics_definition.dimensions.items()}
+        {name: dimension.type for name, dimension in spec_definition.dimensions.items()}
     )
     stages: list[list[DataLineageStep]] = []
     for stage in ordered_stages:
         steps: list[DataLineageStep] = []
         for callable in stage:
-            dimensions = analytics_definition.entities[callable.entity_id].dimension_ids
+            dimensions = spec_definition.entities[callable.entity_id].dimension_ids
             columns = [
                 DataLineageColumn(
-                    name, analytics_definition.dimensions[name].type, "Dimension", "#93c5fd", None
+                    name, spec_definition.dimensions[name].type, "Dimension", "#93c5fd", None
                 )
                 for name in dimensions
             ]
@@ -104,7 +104,7 @@ def _build_stages(
                             colors[producer.id]
                             if producer
                             else "#93c5fd"
-                            if feature in analytics_definition.dimensions
+                            if feature in spec_definition.dimensions
                             else "#cbd5e1",
                             numbers[producer.id] if producer else None,
                         )
@@ -131,7 +131,7 @@ def _build_stages(
 
 
 def _create_website_page(
-    analytics_definition: analytics.Analytics,
+    spec_definition: spec.Spec,
     execution_plan: plan.ExecutionPlan,
     output_directory: pathlib.Path,
     *,
@@ -140,7 +140,7 @@ def _create_website_page(
     """Write the linked data-lineage page from the already compiled plan.
 
     Args:
-        analytics_definition: Analytics document model.
+        spec_definition: Spec document model.
         execution_plan: Compiled plan; no analytical functions are called.
         output_directory: Directory shared by the website pages.
         index_filename: Filename of the website dashboard.
@@ -149,7 +149,7 @@ def _create_website_page(
         render.html_environment()
         .get_template("execution/data_lineage.html.j2")
         .render(
-            stages=_build_stages(analytics_definition, execution_plan),
+            stages=_build_stages(spec_definition, execution_plan),
             include_navigation=True,
             active_page="execution",
             active_section="lineage",

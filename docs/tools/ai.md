@@ -4,7 +4,7 @@ Uptimely Core is built from ground up to natively run and manage numerical calcu
 
 AI assistants can explore an analytics project without custom integration code.
 
-Analytics is declared in JSON, functions
+Spec is declared in JSON, functions
 are catalog entries with typed arguments, and plans are portable — the same
 artifacts an agent can read are the ones the compiler and engine consume.
 
@@ -12,7 +12,7 @@ artifacts an agent can read are the ones the compiler and engine consume.
 
 The package ships a basic [MCP](https://modelcontextprotocol.io) server that exposes
 these capabilities as agent tools. Once connected, assistants such as VS Code
-Copilot Chat can inspect analytics, explain catalog functions, compile
+Copilot Chat can inspect spec, explain catalog functions, compile
 plans, and execute individual calculated features conversationally.
 
 ## Build your own MCP server
@@ -26,7 +26,7 @@ mappings declare required and produced features, so execution includes the
 prerequisites for a function **bound to features**, not just the raw function.
 The server therefore offers two layers:
 
-Introspection over analytics:
+Introspection over spec:
 
 - `list_functions` — every catalog function id grouped by category
 - `describe_function` — one function's entrypoint, declared arguments, and
@@ -35,11 +35,11 @@ Introspection over analytics:
 - `describe_feature` — one calculated feature's producing function, direct
   dependencies, and full transitive closure split into input and calculated
   features
-- `reload_analytics` — re-parse the analytics document after editing it
+- `reload_spec` — re-parse the spec document after editing it
 
 Execution through the compiler and engine:
 
-- `compile_plan` — compile analytics or a feature subset and
+- `compile_plan` — compile spec or a feature subset and
   report the staged operations
 - `execute_feature` — compile the minimal graph producing one calculated
   feature, run it, and return dimension-keyed rows as JSON
@@ -60,7 +60,7 @@ is plain JSON-RPC; the model lives in the client host.
 
 ```sh
 uptimely-mcp \
-  --analytics examples/pump_analytics/_generated/analytics/analytics.json \
+  --spec examples/pump_analytics/_generated/spec/spec.json \
   --project-root . \
   --config examples/pump_analytics/config/engine.json
 ```
@@ -69,7 +69,7 @@ The arguments:
 
 Argument | Purpose
 --- | ---
-`--analytics` | Path to the analytics JSON document. Required.
+`--spec` | Path to the spec JSON document. Required.
 `--project-root` | Directory added to `sys.path` so function entrypoints resolve. Defaults to the working directory.
 `--config` | JSON file with engine settings and `bind` values. The example binding supplies local paths for source datasets.
 
@@ -77,7 +77,7 @@ For dev, test, or prod, pass the corresponding engine configuration file to
 `--config`. The CLI loads the `engine` object as `EngineConfig` and passes the
 `bind` object to the engine; it does not select an environment or merge files
 automatically. Only values referenced by runtime placeholders are substituted,
-not arbitrary analytics fields. See the
+not arbitrary spec fields. See the
 [runtime override guide](../components/engine.md#runtime-overrides) for the file
 structure and Python API usage.
 
@@ -101,8 +101,8 @@ workspace and launches the server from its Poetry virtual environment.
       "command": "${workspaceFolder}/.venv/bin/uptimely-mcp",
       "cwd": "${workspaceFolder}",
       "args": [
-        "--analytics",
-        "${workspaceFolder}/examples/pump_analytics/_generated/analytics/analytics.json",
+        "--spec",
+        "${workspaceFolder}/examples/pump_analytics/_generated/spec/spec.json",
         "--project-root",
         "${workspaceFolder}",
         "--config",
@@ -117,7 +117,7 @@ To use it:
 
 1. In the Dev Container, `post-create.sh` installs the MCP extra. Outside the
    Dev Container, run `./scripts/install-mcp.sh` from the repository root to
-   install MCP and export the example analytics.
+   install MCP and export the example spec.
 2. Reopen the folder in the Dev Container if needed, then open Copilot Chat in
    **Agent mode** — tools are not available in Ask mode.
 3. Check the tools icon to confirm the `uptimely` tools are listed, then ask
@@ -165,14 +165,14 @@ does not make a host-side client run inside the Dev Container.
 Once connected, an assistant can answer questions that would otherwise require
 running the runners by hand:
 
-- *"Which vectorize functions does this analytics document declare?"* →
+- *"Which vectorize functions does this spec document declare?"* →
   `list_functions`
 - *"What arguments does `normalize_health_signal` take?"* → `describe_function`
 - *"What does `pump_health_score` depend on?"* → `describe_feature`
 - *"Compile a plan for `pump_health_score` and list its stages"* →
   `compile_plan`
 - *"Compute `pump_health_score` for five pumps"* → `execute_feature`
-- *"I edited the analytics document; reload it"* → `reload_analytics`
+- *"I edited the spec document; reload it"* → `reload_spec`
 
 `execute_feature` returns entity dimension keys plus the computed feature, so
 results stay traceable to the owning entity rather than bare numbers. The

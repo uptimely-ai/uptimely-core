@@ -1,4 +1,4 @@
-"""Tests for analytics, plan, and engine command groups."""
+"""Tests for spec, plan, and engine command groups."""
 
 import json
 import pathlib
@@ -11,7 +11,7 @@ from uptimely.cli import cli, engine, plan
 from uptimely.compiler import plan as plan_module
 
 PROJECT = pathlib.Path(__file__).parents[2] / "examples/pump_analytics"
-ANALYTICS_PATH = PROJECT / "_generated/analytics/analytics.json"
+SPEC_PATH = PROJECT / "_generated/spec/spec.json"
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
@@ -22,8 +22,8 @@ def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
 def test_plan_build_defaults_and_verbose(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    (tmp_path / "_generated/analytics").mkdir(parents=True)
-    (tmp_path / "_generated/analytics/analytics.json").write_bytes(ANALYTICS_PATH.read_bytes())
+    (tmp_path / "_generated/spec").mkdir(parents=True)
+    (tmp_path / "_generated/spec/spec.json").write_bytes(SPEC_PATH.read_bytes())
     invoke(monkeypatch, "plan", "build", "--project-root", str(tmp_path), "--verbose")
 
     restored = plan_module.ExecutionPlan.from_json(
@@ -45,8 +45,8 @@ def test_plan_build_explicit_paths_and_subset(
         monkeypatch,
         "plan",
         "build",
-        "--analytics",
-        str(ANALYTICS_PATH),
+        "--spec",
+        str(SPEC_PATH),
         "--output",
         str(output),
         "--features",
@@ -65,7 +65,7 @@ def test_feature_graph_summary_subset_and_tree(
 ) -> None:
     invoke(
         monkeypatch,
-        "analytics",
+        "spec",
         "feature-graph",
         "--project-root",
         str(PROJECT),
@@ -105,7 +105,7 @@ def test_engine_run_compile_and_saved_plan(
         )
         capsys.readouterr()
 
-        # Loading a saved plan must neither compile nor require analytics.
+        # Loading a saved plan must neither compile nor require spec.
         def fail_compile(*args: object, **kwargs: object) -> None:
             pytest.fail("Saved-plan execution must not compile")
 
@@ -123,16 +123,16 @@ def test_engine_run_compile_and_saved_plan(
 @pytest.mark.parametrize(
     "arguments",
     [
-        ["analytics"],
+        ["spec"],
         ["spec"],
         ["plan"],
         ["engine"],
-        ["analytics", "unknown"],
+        ["spec", "unknown"],
         ["plan", "unknown"],
         ["engine", "unknown"],
         ["engine", "run", "--compile", "no"],
         ["engine", "run", "--compile", "false", "--features", "health_signal_normalized"],
-        ["engine", "run", "--compile", "false", "--analytics", "analytics.json"],
+        ["engine", "run", "--compile", "false", "--spec", "spec.json"],
         ["engine", "run", "--plan", "plan.json"],
     ],
 )
@@ -144,7 +144,7 @@ def test_workflow_argument_errors(monkeypatch: pytest.MonkeyPatch, arguments: li
 
 @pytest.mark.parametrize(
     "command",
-    [["plan", "build"], ["analytics", "feature-graph"], ["engine", "run"]],
+    [["plan", "build"], ["spec", "feature-graph"], ["engine", "run"]],
 )
 def test_workflow_missing_inputs_are_reported(
     tmp_path: pathlib.Path,
@@ -160,7 +160,7 @@ def test_workflow_missing_inputs_are_reported(
     assert not result.out
 
 
-@pytest.mark.parametrize("command", [["plan", "build"], ["analytics", "feature-graph"]])
+@pytest.mark.parametrize("command", [["plan", "build"], ["spec", "feature-graph"]])
 def test_unknown_feature_is_reported(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], command: list[str]
 ) -> None:
@@ -168,8 +168,8 @@ def test_unknown_feature_is_reported(
         invoke(
             monkeypatch,
             *command,
-            "--analytics",
-            str(ANALYTICS_PATH),
+            "--spec",
+            str(SPEC_PATH),
             "--features",
             "unknown_feature",
         )
@@ -191,8 +191,8 @@ def test_engine_invalid_config_is_reported(
             monkeypatch,
             "engine",
             "run",
-            "--analytics",
-            str(ANALYTICS_PATH),
+            "--spec",
+            str(SPEC_PATH),
             "--config",
             str(config),
         )
@@ -212,8 +212,8 @@ def test_engine_operation_failures_are_reported(
             monkeypatch,
             "engine",
             "run",
-            "--analytics",
-            str(ANALYTICS_PATH),
+            "--spec",
+            str(SPEC_PATH),
             "--config",
             str(config),
         )
@@ -262,17 +262,17 @@ def test_engine_saved_plan_errors_are_reported(
     assert not result.out
 
 
-@pytest.mark.parametrize("command", [["plan", "build"], ["analytics", "feature-graph"]])
-def test_invalid_analytics_is_reported(
+@pytest.mark.parametrize("command", [["plan", "build"], ["spec", "feature-graph"]])
+def test_invalid_spec_is_reported(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     command: list[str],
 ) -> None:
-    analytics_definition = tmp_path / "analytics.json"
-    analytics_definition.write_text("not JSON", encoding="utf-8")
+    spec_definition = tmp_path / "spec.json"
+    spec_definition.write_text("not JSON", encoding="utf-8")
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, *command, "--analytics", str(analytics_definition))
+        invoke(monkeypatch, *command, "--spec", str(spec_definition))
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
@@ -289,8 +289,8 @@ def test_plan_write_errors_are_reported(
             monkeypatch,
             "plan",
             "build",
-            "--analytics",
-            str(ANALYTICS_PATH),
+            "--spec",
+            str(SPEC_PATH),
             "--output",
             str(output),
         )
@@ -300,7 +300,7 @@ def test_plan_write_errors_are_reported(
 
 def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.Path) -> None:
     project = tmp_path / "project"
-    (project / "_generated/analytics").mkdir(parents=True)
+    (project / "_generated/spec").mkdir(parents=True)
     (project / "cli_project_functions.py").write_text(
         "import polars\n"
         "def read_values(path: str) -> polars.DataFrame:\n"
@@ -314,7 +314,7 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
     config.write_text(
         json.dumps({"bind": {"storage": {"source": {"path": str(data)}}}}), encoding="utf-8"
     )
-    (project / "_generated/analytics/analytics.json").write_text(
+    (project / "_generated/spec/spec.json").write_text(
         json.dumps(
             {
                 "version": "0.2.0",
@@ -352,7 +352,7 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
     )
     for command in (
         ["plan", "build"],
-        ["analytics", "feature-graph", "--verbose"],
+        ["spec", "feature-graph", "--verbose"],
         ["engine", "run", "--verbose"],
         ["engine", "run", "--compile", "false", "--verbose"],
     ):

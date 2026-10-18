@@ -1,4 +1,4 @@
-"""Serve analytics introspection and feature execution over MCP.
+"""Serve spec introspection and feature execution over MCP.
 
 The server exposes two layers of tools:
 
@@ -19,32 +19,32 @@ import typing
 import fastmcp
 import polars as pl
 
-from uptimely import analytics, compiler, entrypoint
+from uptimely import compiler, entrypoint, spec
 from uptimely import engine as uptimely_engine
-from uptimely.analytics import model as analytics_model
+from uptimely.spec import model as spec_model
 
 logger = logging.getLogger(__name__)
 
-FUNCTION_OPERATIONS = analytics_model.FUNCTION_OPERATIONS
+FUNCTION_OPERATIONS = spec_model.FUNCTION_OPERATIONS
 
 
 @dataclasses.dataclass
 class ServerState:
-    """Engine configuration, runtime bindings, and cached analytics."""
+    """Engine configuration, runtime bindings, and cached spec."""
 
-    analytics_path: pathlib.Path
+    spec_path: pathlib.Path
     project_root: pathlib.Path
     engine_config: uptimely_engine.EngineConfig = dataclasses.field(
         default_factory=uptimely_engine.EngineConfig
     )
     bind: dict[str, dict[str, dict[str, typing.Any]]] = dataclasses.field(default_factory=dict)
-    analytics: analytics_model.Analytics | None = dataclasses.field(default=None, repr=False)
+    spec: spec_model.Spec | None = dataclasses.field(default=None, repr=False)
 
-    def load_analytics(self, *, reload: bool = False) -> analytics_model.Analytics:
-        """Return analytics, parsing it on first use or when reloaded."""
-        if self.analytics is None or reload:
-            self.analytics = analytics.load_analytics(self.analytics_path)
-        return self.analytics
+    def load_spec(self, *, reload: bool = False) -> spec_model.Spec:
+        """Return spec, parsing it on first use or when reloaded."""
+        if self.spec is None or reload:
+            self.spec = spec.load_spec(self.spec_path)
+        return self.spec
 
 
 def _to_json(payload: object) -> str:
@@ -76,7 +76,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
     @mcp.tool()
     def list_functions() -> str:
         """List every function id and its operation."""
-        catalog = state.load_analytics().functions
+        catalog = state.load_spec().functions
         return _to_json(
             [
                 {"id": function_id, "operation": function.operation}
@@ -91,7 +91,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         Args:
             function_id: The function id from `list_functions`.
         """
-        catalog = state.load_analytics().functions
+        catalog = state.load_spec().functions
         template = catalog.get(function_id)
         if template is None:
             raise ValueError(f"Unknown function: {function_id}")
@@ -115,18 +115,17 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
     @mcp.tool()
     def list_calculated_features() -> str:
         """List calculated feature ids; each can be run with execute_feature."""
-        analytics_definition = state.load_analytics()
+        spec_definition = state.load_spec()
         payload = sorted(
             {
                 feature_id
-                for entity in analytics_definition.entities.values()
+                for entity in spec_definition.entities.values()
                 for dataset in entity.datasets
                 for mapping in dataset.mappings.values()
                 if hasattr(mapping, "binding")
                 if (
-                    mapping.binding.function in analytics_definition.functions
-                    and analytics_definition.functions[mapping.binding.function].operation
-                    == "vectorize"
+                    mapping.binding.function in spec_definition.functions
+                    and spec_definition.functions[mapping.binding.function].operation == "vectorize"
                 )
                 for feature_id in mapping.output_features
             }
@@ -145,10 +144,8 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             binding, and the full transitive closure of calculated and input
             features needed to compute it.
         """
-        analytics_definition = state.load_analytics()
-        by_feature = {
-            call.feature: call for call in analytics.prepare_analytics(analytics_definition).calls
-        }
+        spec_definition = state.load_spec()
+        by_feature = {call.feature: call for call in spec.prepare_spec(spec_definition).calls}
         call = by_feature.get(feature_id)
         if call is None:
             raise ValueError(
@@ -183,14 +180,14 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
 
     @mcp.tool()
     def compile_plan(feature_ids: list[str] | None = None) -> str:
-        """Compile analytics and report plan stages and operation counts.
+        """Compile spec and report plan stages and operation counts.
 
         Args:
             feature_ids: Optional subset of calculated features to compile;
-                compiles the full analytics document when omitted.
+                compiles the full spec document when omitted.
         """
-        analytics_definition = state.load_analytics()
-        plan = compiler.Compiler(analytics_definition, features=feature_ids).compile()
+        spec_definition = state.load_spec()
+        plan = compiler.Compiler(spec_definition, features=feature_ids).compile()
         return _to_json(
             {
                 "features": feature_ids,
@@ -224,8 +221,8 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         if max_rows < 1:
             raise ValueError("max_rows must be a positive integer")
 
-        analytics_definition = state.load_analytics()
-        plan = compiler.Compiler(analytics_definition, features=[feature_id]).compile()
+        spec_definition = state.load_spec()
+        plan = compiler.Compiler(spec_definition, features=[feature_id]).compile()
         engine = uptimely_engine.Engine(
             plan,
             config=state.engine_config,
@@ -245,7 +242,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                     "message": "Execution succeeded but produced no dataset for this feature.",
                 }
             )
-        entity = analytics_definition.entities.get(entity_id)
+        entity = spec_definition.entities.get(entity_id)
         columns = [
             name
             for name in [*(entity.dimension_ids if entity else []), feature_id]
@@ -269,17 +266,17 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         return _to_json(payload)
 
     @mcp.tool()
-    def reload_analytics() -> str:
-        """Re-parse the analytics file after editing it or its function entrypoints."""
-        analytics_definition = state.load_analytics(reload=True)
+    def reload_spec() -> str:
+        """Re-parse the spec file after editing it or its function entrypoints."""
+        spec_definition = state.load_spec(reload=True)
         return _to_json(
             {
-                "analytics": str(state.analytics_path),
-                "entities": sorted(analytics_definition.entities),
+                "spec": str(state.spec_path),
+                "entities": sorted(spec_definition.entities),
                 "functions": {
                     operation: sum(
                         function.operation == operation
-                        for function in analytics_definition.functions.root.values()
+                        for function in spec_definition.functions.root.values()
                     )
                     for operation in FUNCTION_OPERATIONS
                 },
@@ -313,9 +310,7 @@ def _load_engine_config(
 def main() -> None:
     """Launch the uptimely MCP server over stdio."""
     parser = argparse.ArgumentParser(description="Uptimely MCP server")
-    parser.add_argument(
-        "--analytics", required=True, type=pathlib.Path, help="Path to analytics JSON"
-    )
+    parser.add_argument("--spec", required=True, type=pathlib.Path, help="Path to spec JSON")
     parser.add_argument(
         "--project-root",
         type=pathlib.Path,
@@ -332,11 +327,11 @@ def main() -> None:
 
     # Log to stderr only: stdout is the MCP protocol channel.
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
-    logger.info("Starting uptimely MCP server for analytics %s", args.analytics)
+    logger.info("Starting uptimely MCP server for spec %s", args.spec)
 
     engine_config, bind = _load_engine_config(args.config)
     state = ServerState(
-        analytics_path=args.analytics,
+        spec_path=args.spec,
         project_root=args.project_root,
         engine_config=engine_config,
         bind=bind,

@@ -1,12 +1,12 @@
 # Compiler
 
-The compiler converts an Analytics specification into a portable execution
+The compiler converts a Spec document into a portable execution
 plan. The plan records the operations, their dependencies, and the runtime
 resources an engine needs. It does not contain the compiler's in-memory graph
 or execute analytical functions.
 
 This page describes the generated plan. Dataset, feature, function, and mapping
-semantics are defined by the Analytics specification.
+semantics are defined by the Spec document.
 
 ## Plan
 
@@ -25,8 +25,8 @@ are rejected.
 
 ## Resources
 
-Resources copy the parts of Analytics needed to interpret the plan. They allow
-an engine to load the plan without the original Analytics document.
+Resources copy the parts of Spec needed to interpret the plan. They allow
+an engine to load the plan without the original Spec document.
 
 | Resource | Contents |
 | --- | --- |
@@ -56,7 +56,7 @@ that must finish first.
 | `dependency_ids` | array of strings | Identifiers of callable prerequisites. |
 | `row_context` | object or null | Input row-context requirement, when declared. |
 
-Structural references in Analytics are resolved to plan identifiers. Runtime
+Structural references in Spec are resolved to plan identifiers. Runtime
 dataframe binding is deferred to the engine. The `@` dataset reference denotes
 the owning dataset for the operation's declared inputs, not a completed dataset
 state.
@@ -84,10 +84,10 @@ backend.
 
 ## Validation
 
-Compiler validation checks that an Analytics document can be compiled into a
+Compiler validation checks that a Spec document can be compiled into a
 valid, schedulable plan:
 
-- Analytics declarations are prepared and semantically validated.
+- Spec declarations are prepared and semantically validated.
 - Selected output features exist, and the dependency graph is acyclic.
 - Function entrypoints resolve and Python return annotations match the declared
   return contracts.

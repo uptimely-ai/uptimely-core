@@ -1,7 +1,7 @@
 # Function contracts
 
 `uptimely.contracts` defines the operation types, allowed return kinds, and
-reference syntax shared by analytics definitions and execution plans.
+reference syntax shared by spec definitions and execution plans.
 
 <div class="api-reference" markdown="1">
 

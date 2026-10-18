@@ -1,18 +1,18 @@
 # Project architecture
 
-Uptimely separates analytics definition, planning, and execution. The same
+Uptimely separates spec definition, planning, and execution. The same
 declarative definition can be compiled into a portable plan and run by an
 engine.
 
 ## From definition to results
 
-<p class="cv-function-subtitle">Define the analytics, prepare a plan, then execute it.</p>
+<p class="cv-function-subtitle">Define the spec, prepare a plan, then execute it.</p>
 
 <div class="concepts-visual architecture-visual">
   <div class="av-journey">
     <section class="av-phase" aria-labelledby="av-define">
       <span class="cv-tag">01 / DEFINE</span>
-      <h3 id="av-define">Describe the analytics</h3>
+      <h3 id="av-define">Describe the spec</h3>
       <div class="av-flow">
         <div class="av-node av-authoring">
           <span class="av-node-label">OPTIONAL</span>
@@ -22,7 +22,7 @@ engine.
         <div class="av-connector"><span>export</span><b aria-hidden="true">&#8595;</b></div>
         <div class="av-node av-definition">
           <span class="av-node-label">SOURCE OF TRUTH</span>
-          <strong>Analytics JSON</strong>
+          <strong>Spec JSON</strong>
           <span>Or write this document directly</span>
         </div>
       </div>
@@ -65,20 +65,20 @@ engine.
     </section>
   </div>
   <dl class="cv-legend av-legend" aria-label="Architecture diagram color key">
-    <div><dt><span class="cv-swatch av-swatch-authoring" aria-hidden="true"></span>Gray</dt><dd><strong>Optional authoring</strong><span>Python source for writing analytics definitions.</span></dd></div>
-    <div><dt><span class="cv-swatch cv-key" aria-hidden="true"></span>Blue</dt><dd><strong>Definitions</strong><span>Analytics JSON and the portable execution plan.</span></dd></div>
+    <div><dt><span class="cv-swatch av-swatch-authoring" aria-hidden="true"></span>Gray</dt><dd><strong>Optional authoring</strong><span>Python source for writing spec definitions.</span></dd></div>
+    <div><dt><span class="cv-swatch cv-key" aria-hidden="true"></span>Blue</dt><dd><strong>Definitions</strong><span>Spec JSON and the portable execution plan.</span></dd></div>
     <div><dt><span class="cv-swatch cv-teal" aria-hidden="true"></span>Teal</dt><dd><strong>Actions</strong><span>The compiler prepares the plan; the engine executes it.</span></dd></div>
     <div><dt><span class="cv-swatch cv-amber" aria-hidden="true"></span>Amber</dt><dd><strong>Results</strong><span>Calculated outputs and details from a run.</span></dd></div>
   </dl>
 </div>
 
 Python authoring is optional: it supports imports, helpers, reuse, and editor
-assistance, then exports to Analytics JSON. Analytics JSON can also be authored
+assistance, then exports to Spec JSON. Spec JSON can also be authored
 directly.
 
-## Analytics
+## Spec
 
-Analytics JSON is the portable, authoritative definition of the analytics. It
+Spec JSON is the portable, authoritative definition of the spec. It
 describes subjects, datasets, features, functions, and mappings without
 depending on a particular authoring language. The other tools consume this
 shared contract.
@@ -95,5 +95,5 @@ The engine executes the plan against runtime data and functions. It resolves
 runtime values for the current environment and returns execution state,
 including calculated outputs and operation results.
 
-Separating definition, planning, and execution keeps analytics portable while
+Separating definition, planning, and execution keeps spec portable while
 allowing plans to run in different environments.

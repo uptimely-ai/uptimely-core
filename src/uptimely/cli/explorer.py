@@ -15,7 +15,7 @@ from uptimely.explorer import explorer as explorer_module
 
 
 def build_explorer(
-    analytics_definition: pathlib.Path,
+    spec_definition: pathlib.Path,
     output: pathlib.Path,
     project_root: pathlib.Path,
     include_generated_at: bool = False,
@@ -25,10 +25,10 @@ def build_explorer(
     """Build the static analytics explorer website.
 
     Args:
-        analytics_definition: Path to the JSON analytics document.
+        spec_definition: Path to the JSON spec document.
         output: Directory for the website index and report pages.
         project_root: Directory added to the import path for function entrypoints.
-        include_generated_at: Include a timestamp on the analytics page.
+        include_generated_at: Include a timestamp on the spec page.
         plan_path: Saved plan JSON; defaults to the standard path under project_root.
 
     Returns:
@@ -38,7 +38,7 @@ def build_explorer(
         FileNotFoundError: An input is missing; includes a project build command.
     """
     plan_path = plan_path if plan_path is not None else project_root / project.EXECUTION_PLAN_FILE
-    inputs = (("Analytics JSON", analytics_definition), ("Execution plan JSON", plan_path))
+    inputs = (("Spec JSON", spec_definition), ("Execution plan JSON", plan_path))
     missing = [f"  {label}: {path.resolve()}" for label, path in inputs if not path.exists()]
     if missing:
         command = shlex.join(
@@ -47,12 +47,12 @@ def build_explorer(
         raise FileNotFoundError(
             "Missing Explorer input files:\n"
             + "\n".join(missing)
-            + f"\nRun {command} to generate the standard analytics JSON and execution plan."
-            "\nIf using custom inputs, check the --analytics and --plan paths."
+            + f"\nRun {command} to generate the standard spec JSON and execution plan."
+            "\nIf using custom inputs, check the --spec and --plan paths."
         )
-    analytics_definition = common.load_analytics(analytics_definition, project_root)
+    spec_definition = common.load_spec(spec_definition, project_root)
     execution_plan = plan_module.ExecutionPlan.from_json(plan_path)
-    return explorer_module.Explorer(analytics_definition, plan=execution_plan).create_html(
+    return explorer_module.Explorer(spec_definition, plan=execution_plan).create_html(
         output / project.EXPLORER_INDEX_FILE.name, include_generated_at=include_generated_at
     )
 
@@ -91,7 +91,7 @@ def serve_explorer(directory: pathlib.Path, host: str = "127.0.0.1", port: int =
         try:
             server.serve_forever()
         except KeyboardInterrupt:
-            print("\nAnalytics explorer server stopped.")
+            print("\nSpec explorer server stopped.")
 
 
 def _port(value: str) -> int:
@@ -109,14 +109,14 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the explorer command and its build and serve actions."""
     actions = parser.add_subparsers(dest="action", required=True)
     build = actions.add_parser(
-        "build", help="Build the analytics, feature graph, and execution plan website"
+        "build", help="Build the spec, feature graph, and execution plan website"
     )
     build.add_argument(
-        "--analytics",
+        "--spec",
         type=pathlib.Path,
         help=(
-            "Analytics JSON path (required unless --project-root is set; "
-            f"then defaults to {project.ANALYTICS_JSON_FILE} under that root)"
+            "Spec JSON path (required unless --project-root is set; "
+            f"then defaults to {project.SPEC_JSON_FILE} under that root)"
         ),
     )
     build.add_argument(
@@ -135,17 +135,17 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     build.add_argument(
         "--include-generated-at",
         action="store_true",
-        help="Include a build timestamp on the analytics page",
+        help="Include a build timestamp on the spec page",
     )
     serve = actions.add_parser(
         "serve", help="Build and serve the generated website for local preview"
     )
     serve.add_argument(
-        "--analytics",
+        "--spec",
         type=pathlib.Path,
         help=(
-            f"Analytics JSON path (defaults to {project.ANALYTICS_JSON_FILE} under "
-            f"--project-root, or {project.ANALYTICS_JSON_FILE} otherwise)"
+            f"Spec JSON path (defaults to {project.SPEC_JSON_FILE} under "
+            f"--project-root, or {project.SPEC_JSON_FILE} otherwise)"
         ),
     )
     serve.add_argument(
@@ -177,14 +177,14 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Build or serve the analytics explorer using parsed command-line arguments."""
     project_root = args.project_root or pathlib.Path.cwd()
     project_path = args.project_root or pathlib.Path()
-    default_analytics_path = project_path / project.ANALYTICS_JSON_FILE
+    default_spec_path = project_path / project.SPEC_JSON_FILE
     default_output = project_path / project.EXPLORER_OUTPUT_DIR
     plan_path = args.plan or project_path / project.EXECUTION_PLAN_FILE
     if args.action == "serve":
-        analytics_definition = args.analytics or default_analytics_path
+        spec_definition = args.spec or default_spec_path
         directory = args.directory or default_output
         try:
-            build_explorer(analytics_definition, directory, project_root, plan_path=plan_path)
+            build_explorer(spec_definition, directory, project_root, plan_path=plan_path)
         except (
             OSError,
             ValueError,
@@ -199,13 +199,13 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         except (OSError, ValueError) as error:
             parser.exit(1, f"uptimely: error: {error}\n")
         return
-    if args.analytics is None and args.project_root is None:
-        parser.error("explorer build requires --analytics unless --project-root is set")
-    analytics_definition = args.analytics or default_analytics_path
+    if args.spec is None and args.project_root is None:
+        parser.error("explorer build requires --spec unless --project-root is set")
+    spec_definition = args.spec or default_spec_path
     output = args.output or default_output
     try:
         index = build_explorer(
-            analytics_definition,
+            spec_definition,
             output,
             project_root,
             args.include_generated_at,
@@ -220,4 +220,4 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         jinja2.TemplateError,
     ) as error:
         parser.exit(1, f"uptimely: error: {error}\n")
-    print(f"Analytics explorer built at {index}")
+    print(f"Spec explorer built at {index}")
