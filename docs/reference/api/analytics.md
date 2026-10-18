@@ -4,7 +4,7 @@
 and serialization. `Analytics` contains document fields; derived functions and
 calls belong to `PreparedAnalytics`.
 
-The [analytics format reference](../../specification/analytics.md) describes the
+The [analytics format reference](../../components/analytics.md) describes the
 contract. See [Python authoring](python.md) for declarations that produce it, or
 [feature graphs](feature-graph.md) for dependency analysis.
 

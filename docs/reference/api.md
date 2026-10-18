@@ -25,7 +25,7 @@ and return values generated from the Python source.
 ## Finding the right interface
 
 - **Author an analytics definition:** start with [Python authoring](api/python.md)
-  or the [analytics format reference](../specification/analytics.md).
+  or the [analytics format reference](../components/analytics.md).
 - **Load or prepare a definition:** use the
   [analytics operations](api/analytics/api.md).
 - **Compile and run it:** use the [compiler](api/compiler.md), then the

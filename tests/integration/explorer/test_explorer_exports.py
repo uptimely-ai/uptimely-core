@@ -11,7 +11,7 @@ from uptimely import analytics, compiler, engine
 from uptimely.explorer import analytics_render, explorer
 
 ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
-REFERENCE_PATH = pathlib.Path("docs/specification/analytics.md")
+REFERENCE_PATH = pathlib.Path("docs/components/analytics.md")
 OBSERVATION_TOTALS_PATH = pathlib.Path("tests/fixtures/analytics/observation_totals.json")
 
 

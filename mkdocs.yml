@@ -67,15 +67,15 @@ nav:
   - Comparisons:
       - Analytics platforms: comparisons/analytics-platforms.md
       - Data science work: comparisons/data-science-work.md
-  - Specification:
-      - About: specification/index.md
-      - Analytics: specification/analytics.md
-      - Compiler: specification/compiler.md
-      - Engine: specification/engine.md
   - Components:
-      - Overview: components/index.md
-      - Explorer: components/explorer.md
-      - AI agents: components/ai.md
+      - About: components/index.md
+      - Analytics: components/analytics.md
+      - Compiler: components/compiler.md
+      - Engine: components/engine.md
+  - Tools:
+      - Overview: tools/index.md
+      - Explorer: tools/explorer.md
+      - AI agents: tools/ai.md
   - Analytics development:
       - Project structure: development/project-structure.md
       - Organizing analytics: development/organize.md
