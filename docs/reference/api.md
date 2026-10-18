@@ -16,7 +16,7 @@ and return values generated from the Python source.
 | `uptimely.analytics.validation` | [Analytics validation](api/analytics/validation.md) | Validate document relationships and handle structured errors. |
 | `uptimely.compiler` | <span id="compilation"></span><span id="portable-plans"></span>[Compiler and plans](api/compiler.md) | Compile analytics and read or write portable plans. |
 | `uptimely.engine` | <span id="execution"></span>[Execution engine](api/engine.md) | Execute plans with configurable runtime adapters. |
-| `uptimely.explorer` | <span id="analytics-explorer"></span>[Analytics Explorer](api/explorer.md) | Generate an analytics website and reference data. |
+| `uptimely.explorer` | <span id="analytics-explorer"></span>[Analytics Explorer](api/explorer.md) | Generate an analytics website. |
 | `uptimely.row_context` | [Row context](api/row-context.md) | Describe row windows passed to analytical functions. |
 | `uptimely.entrypoint` | [Python entrypoints](api/entrypoint.md) | Load Python callables and inspect their signatures. |
 | `uptimely.storage` | [Storage](api/storage.md) | Read local files and S3 objects through a shared interface. |

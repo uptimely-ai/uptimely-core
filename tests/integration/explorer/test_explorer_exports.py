@@ -8,7 +8,7 @@ import re
 import pytest
 
 from uptimely import analytics, compiler, engine
-from uptimely.explorer import explorer
+from uptimely.explorer import analytics_render, explorer
 
 ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
 REFERENCE_PATH = pathlib.Path("docs/specification/analytics.md")
@@ -39,49 +39,52 @@ def test_analytics_json_parses_compiles_and_executes() -> None:
     ).rows() == [(1, 3), (2, 7)]
 
 
-@pytest.mark.parametrize("output_format", ["json", "html"])
 def test_reference_exports_to_default_directory(
-    tmp_path: pathlib.Path, monkeypatch, output_format: str
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     monkeypatch.chdir(tmp_path)
     explorer_instance = explorer.Explorer(analytics_definition)
 
-    document_path = (
-        explorer_instance.create_json()
-        if output_format == "json"
-        else explorer_instance.create_html()
-    )
-
-    expected = (
-        pathlib.Path("_generated/explorer/explorer.json")
-        if output_format == "json"
-        else pathlib.Path("_generated/explorer/index.html")
-    )
+    document_path = explorer_instance.create_html()
+    expected = pathlib.Path("_generated/explorer/index.html")
     assert document_path == expected
     assert document_path.is_file()
     assert not pathlib.Path("generated").exists()
+    assert not list(tmp_path.rglob("*.json"))
 
 
-def test_generate_json_reference(tmp_path: pathlib.Path, monkeypatch) -> None:
+def test_html_export_preserves_analytics_definition(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
     monkeypatch.chdir(tmp_path)
+    analytics_path = pathlib.Path("_generated/analytics/analytics.json")
+    analytics.write_document(analytics_definition, analytics_path)
+    original = analytics_path.read_bytes()
 
-    data_path = explorer.Explorer(analytics_definition).create_json()
-    data = json.loads(data_path.read_text(encoding="utf-8"))
+    output = explorer.Explorer(analytics_definition).create_html()
 
-    assert data_path.name == "explorer.json"
+    assert output == pathlib.Path("_generated/explorer/index.html")
+    assert analytics_path.read_bytes() == original
+    assert list(tmp_path.rglob("*.json")) == [tmp_path / analytics_path]
+
+
+def test_build_analytics_context() -> None:
+    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    context = analytics_render._build_context(analytics_definition, False)
+
     assert (
-        data["configuration"]["entities"]["pump_telemetry"]["datasets"][0]["id"]
+        context.configuration["entities"]["pump_telemetry"]["datasets"][0]["id"]
         == "pump_telemetry_dataset"
     )
     assert (
-        data["configuration"]["dimensions"]["plant"]["description"]
+        context.configuration["dimensions"]["plant"]["description"]
         == "Manufacturing plant identifier"
     )
-    assert data["summary"]["entity_count"] == 2
-    assert data["summary"]["dataset_count"] == 2
-    assert list(data["summary"]["function_buckets"]) == [
+    assert context.summary.entity_count == 2
+    assert context.summary.dataset_count == 2
+    assert sorted(context.summary.function_buckets) == [
         "collapse",
         "conform",
         "expand",
@@ -89,16 +92,15 @@ def test_generate_json_reference(tmp_path: pathlib.Path, monkeypatch) -> None:
         "vectorize",
         "write",
     ]
-    assert data["summary"]["function_buckets"] == {
+    assert context.summary.function_buckets == {
         operation: sum(
             function.operation == operation
             for function in analytics_definition.functions.root.values()
         )
         for operation in ("read", "write", "vectorize", "collapse", "expand", "conform")
     }
-    assert data["feature_dependencies"]
-    assert data["generated_at"] is None
-    assert not data_path.with_suffix(".html").exists()
+    assert context.feature_dependencies
+    assert context.generated_at is None
 
 
 def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
@@ -161,21 +163,6 @@ def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
     assert 'data-function-group="collapse"' in document
     assert "Functions wrapped in grouping by the target entity dimensions" in document
     assert "Collapse function" in document
-
-
-def test_generate_json_reference_from_in_memory_analytics_is_deterministic(
-    tmp_path: pathlib.Path,
-) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-
-    first_path = explorer.Explorer(analytics_definition).create_json(
-        output_path=tmp_path / "first" / "explorer.json",
-    )
-    second_path = explorer.Explorer(analytics_definition).create_json(
-        output_path=tmp_path / "second" / "explorer.json",
-    )
-
-    assert first_path.read_bytes() == second_path.read_bytes()
 
 
 def test_generate_html_explorer_from_in_memory_analytics_is_deterministic(

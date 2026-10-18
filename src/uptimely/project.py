@@ -17,11 +17,9 @@ GENERATED_DIR: typing.Final = pathlib.Path("_generated")
 
 ANALYTICS_OUTPUT_DIR: typing.Final = GENERATED_DIR / "analytics"
 ANALYTICS_JSON_FILE: typing.Final = ANALYTICS_OUTPUT_DIR / "analytics.json"
-ANALYTICS_DOCS_FILE: typing.Final = ANALYTICS_OUTPUT_DIR / "docs.json"
 
 COMPILE_OUTPUT_DIR: typing.Final = GENERATED_DIR / "compile"
 EXECUTION_PLAN_FILE: typing.Final = COMPILE_OUTPUT_DIR / "execution_plan.json"
 
 EXPLORER_OUTPUT_DIR: typing.Final = GENERATED_DIR / "explorer"
 EXPLORER_INDEX_FILE: typing.Final = EXPLORER_OUTPUT_DIR / "index.html"
-EXPLORER_JSON_FILE: typing.Final = EXPLORER_OUTPUT_DIR / "explorer.json"

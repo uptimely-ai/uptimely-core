@@ -21,12 +21,10 @@ from uptimely import project
         (project.GENERATED_DIR, "_generated"),
         (project.ANALYTICS_OUTPUT_DIR, "_generated/analytics"),
         (project.ANALYTICS_JSON_FILE, "_generated/analytics/analytics.json"),
-        (project.ANALYTICS_DOCS_FILE, "_generated/analytics/docs.json"),
         (project.COMPILE_OUTPUT_DIR, "_generated/compile"),
         (project.EXECUTION_PLAN_FILE, "_generated/compile/execution_plan.json"),
         (project.EXPLORER_OUTPUT_DIR, "_generated/explorer"),
         (project.EXPLORER_INDEX_FILE, "_generated/explorer/index.html"),
-        (project.EXPLORER_JSON_FILE, "_generated/explorer/explorer.json"),
     ],
 )
 def test_standard_paths(path: pathlib.Path, expected: str) -> None:

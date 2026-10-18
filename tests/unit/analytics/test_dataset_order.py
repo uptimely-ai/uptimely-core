@@ -193,12 +193,8 @@ def test_dataset_order_python_authoring_validates_references() -> None:
         )
 
 
-def test_dataset_order_appears_in_reference_json_and_html(tmp_path: pathlib.Path) -> None:
+def test_dataset_order_appears_in_html(tmp_path: pathlib.Path) -> None:
     analytics_definition = _parse(tmp_path, ORDER)
-    path = explorer.Explorer(analytics_definition).create_json(tmp_path / "explorer.json")
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    assert payload["configuration"]["entities"]["telemetry"]["datasets"][0]["order"] == ORDER
-
     explorer.Explorer(analytics_definition).create_html(tmp_path / "index.html")
     html = (tmp_path / "analytics/datasets.html").read_text(encoding="utf-8")
     assert "Logical order (not a physical row-order guarantee)" in html

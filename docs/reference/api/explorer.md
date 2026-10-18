@@ -7,19 +7,19 @@ These outputs describe an analytics project, not this Python API reference.
 
 ## explorer
 
-`uptimely.explorer.explorer` provides the website and reference-data exports.
+`uptimely.explorer.explorer` provides the website export.
 `Explorer.create_html` and the module-level `create_html` helper generate the
 complete static website with analytics, feature graph, and execution plan pages.
 Individual HTML report exports are not supported.
 
-`Explorer.create_json` exports reference data; analytics and portable-plan JSON
-exports remain available.
+Analytics-definition and portable-plan JSON exports remain available through
+their respective analytics and compiler APIs; the explorer writes HTML only.
 
 ::: uptimely.explorer.explorer
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Explorer, create_html, create_json]
+      members: [Explorer, create_html]
 
 ## graph_render
 
