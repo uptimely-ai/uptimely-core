@@ -6,16 +6,19 @@ feature dependencies in an analytics document.
 ## `analytics build`
 
 ```console
-uptimely analytics build [--module MODULE | --analytics PATH] [--project-root PATH] [--output PATH]
+uptimely analytics build [--entrypoint MODULE:ATTRIBUTE | --analytics PATH] [--project-root PATH] [--output PATH]
 ```
 
 Without an explicit source, the command discovers
 `config/analytics/analytics.py` or `config/analytics/analytics.json` beneath the
 project root (the current directory by default). If both exist, select one
-explicitly with `--module` or `--analytics`; neither takes precedence.
+explicitly with `--entrypoint` or `--analytics`; neither takes precedence.
 
-A Python module must expose a `python_analytics` value of type
-`PythonAnalytics`. Discovered Python sources are imported with their package
+Discovered Python modules must expose a `python_analytics` value of type
+`PythonAnalytics`. Use `--entrypoint my_project.analytics:definition` to select a
+different module or attribute. The selected attribute must be a `PythonAnalytics`
+instance, not a factory function; it is not called.
+Discovered Python sources are imported with their package
 context, preserving relative imports. Enclosing regular packages (directories
 with `__init__.py`) are included in the module name. JSON sources are loaded
 and validated before writing the generated document. Building does not execute
@@ -23,8 +26,8 @@ the analytics workflow, but importing Python declarations executes module-level 
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `--module` | No | Discover the standard source | Import path of the module exposing `python_analytics`. Mutually exclusive with `--analytics`. |
-| `--analytics PATH` | No | Discover the standard source | Source analytics JSON path. Mutually exclusive with `--module`. |
+| `--entrypoint MODULE:ATTRIBUTE` | No | Discover the standard source | Import path and attribute containing a `PythonAnalytics` instance. Mutually exclusive with `--analytics`. |
+| `--analytics PATH` | No | Discover the standard source | Source analytics JSON path. Mutually exclusive with `--entrypoint`. |
 | `--project-root PATH` | No | Current working directory | Add this directory to Python's import path and use it as the base for the default output path. |
 | `--output PATH` | No | `_generated/analytics/analytics.json` under `--project-root` or the current working directory | Destination JSON path. |
 
@@ -38,7 +41,7 @@ Explicit Python source and output:
 
 ```console
 uptimely analytics build \
-  --module examples.pump_analytics.config.analytics.analytics \
+  --entrypoint examples.pump_analytics.config.analytics.analytics:python_analytics \
   --project-root . \
   --output examples/pump_analytics/_generated/analytics/analytics.json
 ```

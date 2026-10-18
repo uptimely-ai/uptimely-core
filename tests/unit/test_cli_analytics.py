@@ -14,6 +14,7 @@ from uptimely.cli import cli
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 PUMP_MODULE = "examples.pump_analytics.config.analytics.analytics"
+PUMP_ENTRYPOINT = f"{PUMP_MODULE}:python_analytics"
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
@@ -43,8 +44,8 @@ def test_build_example_in_fresh_process(
             "uptimely.cli.cli",
             "analytics",
             "build",
-            "--module",
-            module,
+            "--entrypoint",
+            f"{module}:python_analytics",
             "--project-root",
             str(REPOSITORY_ROOT),
             "--output",
@@ -77,7 +78,7 @@ def test_build_default_output_and_import_root(
         "from examples.simple_analytics.config.analytics.analytics import python_analytics\n",
         encoding="utf-8",
     )
-    arguments = ["--module", module]
+    arguments = ["--entrypoint", f"{module}:python_analytics"]
     if explicit_root:
         arguments.extend(["--project-root", str(tmp_path)])
     else:
@@ -94,8 +95,8 @@ def test_build_explicit_output_is_relative_to_working_directory(
     monkeypatch.chdir(tmp_path)
     invoke(
         monkeypatch,
-        "--module",
-        PUMP_MODULE,
+        "--entrypoint",
+        PUMP_ENTRYPOINT,
         "--project-root",
         str(REPOSITORY_ROOT),
         "--output",
@@ -138,7 +139,13 @@ def test_build_errors_are_reported(
     if content is not None:
         (tmp_path / f"{module}.py").write_text(content, encoding="utf-8")
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, "--module", module, "--project-root", str(tmp_path))
+        invoke(
+            monkeypatch,
+            "--entrypoint",
+            f"{module}:python_analytics",
+            "--project-root",
+            str(tmp_path),
+        )
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
@@ -153,7 +160,13 @@ def test_build_write_errors_are_reported(
     output = tmp_path / "blocked"
     output.write_text("not a directory", encoding="utf-8")
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, "--module", PUMP_MODULE, "--output", str(output / "analytics.json"))
+        invoke(
+            monkeypatch,
+            "--entrypoint",
+            PUMP_ENTRYPOINT,
+            "--output",
+            str(output / "analytics.json"),
+        )
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
@@ -284,7 +297,7 @@ def test_build_rejects_ambiguous_sources(
     assert "Ambiguous analytics sources" in capsys.readouterr().err
     assert not (tmp_path / "_generated").exists()
 
-    invoke(monkeypatch, "--project-root", str(tmp_path), "--module", PUMP_MODULE)
+    invoke(monkeypatch, "--project-root", str(tmp_path), "--entrypoint", PUMP_ENTRYPOINT)
     assert (tmp_path / "_generated/analytics/analytics.json").is_file()
 
 
@@ -307,19 +320,93 @@ def test_build_invalid_json_source(
 
 def test_build_rejects_multiple_explicit_sources(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, "--module", PUMP_MODULE, "--analytics", "analytics.json")
+        invoke(monkeypatch, "--entrypoint", PUMP_ENTRYPOINT, "--analytics", "analytics.json")
     assert error.value.code == 2
 
 
 def test_build_operation_rejects_multiple_sources(tmp_path: pathlib.Path) -> None:
-    with pytest.raises(ValueError, match="either a Python module or an analytics JSON"):
+    with pytest.raises(ValueError, match="either a Python entrypoint or an analytics JSON"):
         analytics_cli.build_analytics(
-            PUMP_MODULE,
+            PUMP_ENTRYPOINT,
             tmp_path / "output.json",
             tmp_path,
             source=tmp_path / "input.json",
         )
     assert not (tmp_path / "output.json").exists()
+
+
+def test_build_selects_named_attribute(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "custom_declaration.py").write_text(
+        "from examples.simple_analytics.config.analytics.analytics "
+        "import python_analytics as definition\n"
+        "python_analytics = None\n",
+        encoding="utf-8",
+    )
+    invoke(
+        monkeypatch,
+        "--entrypoint",
+        "custom_declaration:definition",
+        "--project-root",
+        str(tmp_path),
+    )
+    output = tmp_path / "_generated/analytics/analytics.json"
+    assert analytics.load_analytics(output).name == "Simple analytics"
+
+
+@pytest.mark.parametrize(
+    "entrypoint",
+    ["", "module", ":definition", "module:", "module:one:two", "bad/module:definition"],
+)
+def test_build_rejects_invalid_entrypoint(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    entrypoint: str,
+) -> None:
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, "--entrypoint", entrypoint, "--project-root", str(tmp_path))
+    assert error.value.code == 1
+    assert "Expected 'module:attribute'" in capsys.readouterr().err
+    assert not (tmp_path / "_generated").exists()
+
+
+@pytest.mark.parametrize(
+    ("attribute", "error_text"),
+    [("missing", "missing"), ("factory", "must be a PythonAnalytics")],
+)
+def test_build_reports_invalid_selected_attribute(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    attribute: str,
+    error_text: str,
+) -> None:
+    (tmp_path / "invalid_attributes.py").write_text(
+        "def factory():\n    raise RuntimeError('Factories must not be called')\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(SystemExit) as error:
+        invoke(
+            monkeypatch,
+            "--entrypoint",
+            f"invalid_attributes:{attribute}",
+            "--project-root",
+            str(tmp_path),
+        )
+    assert error.value.code == 1
+    assert error_text in capsys.readouterr().err
+    assert not (tmp_path / "_generated").exists()
+
+
+def test_build_rejects_old_module_option(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, "--module", PUMP_MODULE)
+    assert error.value.code == 2
+    assert "unrecognized arguments: --module" in capsys.readouterr().err
 
 
 def test_build_reports_invalid_discovered_python(
@@ -342,7 +429,9 @@ def test_build_reports_invalid_discovered_python(
 def test_export_action_is_rejected(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["uptimely", "analytics", "export", "--module", PUMP_MODULE])
+    monkeypatch.setattr(
+        sys, "argv", ["uptimely", "analytics", "export", "--entrypoint", PUMP_ENTRYPOINT]
+    )
 
     with pytest.raises(SystemExit) as error:
         cli.main()

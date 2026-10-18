@@ -56,7 +56,7 @@ for analytics export, compilation, execution, documentation, and feature
 graphs. `uptimely analytics build --project-root <project>` discovers
 `config/analytics/analytics.py` or `config/analytics/analytics.json` and writes
 validated JSON. Python sources expose `python_analytics`, a `PythonAnalytics`
-instance. Use `--module <module>` or `--analytics <path>` to select a source
+instance. Use `--entrypoint <module>:<attribute>` or `--analytics <path>` to select a source
 explicitly; this is required when both standard sources exist.
 `uptimely explorer build` writes a linked website to `_generated/explorer/`.
 All HTML pages are generated together by that command.
