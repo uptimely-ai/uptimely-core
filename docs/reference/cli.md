@@ -25,7 +25,7 @@ From an installed package, download examples and build the complete active
 bundle, including its spec, execution plan, and Explorer website:
 
 ```console
-uptimely examples download
+uptimely examples download --output examples
 uptimely project build --project-root examples/pump_analytics
 ```
 
