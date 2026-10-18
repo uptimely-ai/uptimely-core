@@ -48,6 +48,29 @@ This separation keeps the project easy to reason about: specification declaratio
 live in config, runtime logic lives in functions, and generated resources stay
 clearly separate from source inputs.
 
+## Active build bundle
+
+The active-build contract uses one bundle at `_generated/build/`:
+
+```text
+_generated/
+└── build/
+    ├── build.json
+    ├── spec.json
+    ├── execution_plan.json
+    └── explorer/
+        ├── index.html
+        └── ... website assets and pages
+```
+
+`build.json` records its schema version, the Uptimely version, the selected
+features (`null` means all features), relative artifact paths, and the complete
+Explorer file inventory. A scoped feature list is nonempty and normalized to
+unique, sorted names. The shared loader rejects missing or invalid artifacts
+and validates the saved execution plan. This contract is being introduced in
+stages: the current CLI build and consumer commands have not yet switched to
+this bundle layout.
+
 The fixed project structure enables automation of repetitive setup and tooling
 while preserving flexibility in the analytics implementation.
 
