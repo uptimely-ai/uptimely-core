@@ -15,9 +15,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
-- `uptimely project build` builds spec JSON and compiles a saved execution
-  plan in one command without executing the workflow. It supports standard
-  source discovery, explicit entrypoints, and JSON sources.
+- `uptimely project build` validates the complete spec, compiles one plan, and
+  publishes a manifest, spec, plan, and Explorer website as one active bundle.
+  It supports standard source discovery, explicit entrypoints, JSON sources,
+  and scoped feature selection without executing workflow functions.
 - `uptimely spec build` discovers standard Python or JSON sources under
   `config/spec/`. Use `--entrypoint` or `--spec` to select a source explicitly;
   ambiguous standard sources require an explicit selection.
@@ -35,7 +36,8 @@ While the version is `0.x`, minor releases may include breaking changes.
   are removed; no compatibility aliases or legacy handling remain.
 - Explorer CLI commands now render a saved execution plan instead of recompiling
   spec. The plan defaults to `_generated/compile/execution_plan.json`; use
-  `--plan` to select another file and `uptimely project build` to prepare inputs.
+  `--plan` to select another file. Until consumers migrate, standalone
+  `uptimely spec build` and `uptimely plan build` prepare their inputs.
   The Python API accepts `plan=` and still compiles when it is omitted.
 - Spec build now uses `--entrypoint module:attribute` instead of `--module`.
   The selected attribute must be a `PythonSpec` instance. Conventional

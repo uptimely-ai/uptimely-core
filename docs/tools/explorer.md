@@ -2,15 +2,19 @@
 
 The Explorer turns a spec definition into a visual, browsable website.
 Use it to understand what an analytics project contains, how features relate,
-and how the compiled plan connects its functions. It is generated from your
-spec JSON and saved execution plan, and is separate from running the analytics workflow.
+and how the compiled plan connects its functions. During the active-build
+migration, the Explorer CLI still consumes standalone spec and plan artifacts;
+`project build` creates the new complete bundle, which the consumers will adopt
+in a later step.
 
 ## Build and preview
 
-First build spec JSON and the execution plan, then build the Explorer:
+For the current standalone Explorer commands, export the spec and compile the
+plan before building or serving the website:
 
 ```sh
-uptimely project build --project-root examples/pump_analytics
+uptimely spec build --project-root examples/pump_analytics
+uptimely plan build --project-root examples/pump_analytics
 uptimely explorer build --project-root examples/pump_analytics
 ```
 
@@ -25,14 +29,14 @@ uptimely explorer serve --project-root examples/pump_analytics
 Open <http://127.0.0.1:8001/>. Stop the server with **Ctrl+C**. `serve` builds
 the Explorer before starting the server, so it is the quickest way to preview
 your generated artifacts. The CLI loads the saved plan without recompiling it.
-Use matching spec and plan files from the same project build.
+Use matching spec and plan files generated from the same source revision.
 
 If `_generated` is empty or either input is missing, `build` and `serve` exit
-without starting a server or generating inputs. The error lists all missing
-input paths and the `uptimely project build --project-root ...` command to
-create the standard files. Run that command, then retry Explorer. For custom
-inputs, check `--spec` and `--plan`; project build writes to the standard
-locations, not custom paths.
+without starting a server or generating inputs. Create the standalone inputs
+with `uptimely spec build --project-root ...` and
+`uptimely plan build --project-root ...`, then retry Explorer. For custom
+inputs, check `--spec` and `--plan`. The new `project build` bundle is not yet
+read by these consumer commands.
 
 ## What you’ll find
 
@@ -96,7 +100,7 @@ uptimely explorer serve \
 | `--port` | Port to serve on. Defaults to `8001`; use `0` to choose an available port. |
 
 The preview server builds once when it starts; it does not watch for file
-changes. Run `project build` again and rerun `serve` to preview updates.
+changes. Re-export the spec and plan, then rerun `serve` to preview updates.
 Alternatively, run `build` whenever you need to refresh the website files.
 
 ## Publish or share

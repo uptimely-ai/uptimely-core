@@ -35,7 +35,6 @@ With pip:
 pip install uptimely-core
 uptimely examples download
 uptimely project build --project-root examples/pump_analytics
-uptimely explorer serve --project-root examples/pump_analytics
 ```
 
 With Poetry, from your Poetry project:
@@ -44,10 +43,12 @@ With Poetry, from your Poetry project:
 poetry add uptimely-core
 poetry run uptimely examples download
 poetry run uptimely project build --project-root examples/pump_analytics
-poetry run uptimely explorer serve --project-root examples/pump_analytics
 ```
 
-More use cases in [examples](examples/README.md). Explore the examples files, generated resources and modify for the needs of your own project.
+`project build` creates the complete active bundle under
+`examples/pump_analytics/_generated/build/`. Engine and Explorer consumers
+will switch to this bundle in later migration steps. Meanwhile, see
+[examples](examples/README.md) for the existing standalone workflow.
 
 ## Documentation
 
