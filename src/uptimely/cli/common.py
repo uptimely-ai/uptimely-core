@@ -6,17 +6,13 @@ import sys
 
 from uptimely import analytics, project
 
-GENERATED_ANALYTICS_PATH: pathlib.Path = project.ANALYTICS_JSON_FILE
-GENERATED_PLAN_PATH: pathlib.Path = project.EXECUTION_PLAN_FILE
-ENGINE_CONFIG_PATH: pathlib.Path = project.ENGINE_CONFIG_FILE
-
 
 def configure_project_arguments(parser: argparse.ArgumentParser) -> None:
     """Add analytics, import-root, feature-selection, and diagnostic options."""
     parser.add_argument(
         "--analytics",
         type=pathlib.Path,
-        help="Analytics JSON (default: _generated/analytics/analytics.json under --project-root)",
+        help=f"Analytics JSON (default: {project.ANALYTICS_JSON_FILE} under --project-root)",
     )
     parser.add_argument(
         "--project-root",

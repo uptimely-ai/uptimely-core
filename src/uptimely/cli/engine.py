@@ -7,6 +7,7 @@ import typing
 import pydantic
 
 from uptimely import engine as engine_module
+from uptimely import project
 from uptimely.cli import common, plan
 from uptimely.compiler import plan as plan_module
 
@@ -34,16 +35,14 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     execute.add_argument(
         "--plan",
         type=pathlib.Path,
-        help=(
-            "Saved plan JSON (default: _generated/compile/execution_plan.json under --project-root)"
-        ),
+        help=(f"Saved plan JSON (default: {project.EXECUTION_PLAN_FILE} under --project-root)"),
     )
     execute.add_argument(
         "--config",
         type=pathlib.Path,
         help=(
             "Backend settings and runtime bindings "
-            "(default: config/engine.json under --project-root)"
+            f"(default: {project.ENGINE_CONFIG_FILE} under --project-root)"
         ),
     )
 
@@ -55,11 +54,11 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     if args.compile == "true" and args.plan is not None:
         parser.error("--plan requires --compile false")
     root = args.project_root or pathlib.Path.cwd()
-    config = common.project_path(args.config, args.project_root, common.ENGINE_CONFIG_PATH)
+    config = common.project_path(args.config, args.project_root, project.ENGINE_CONFIG_FILE)
     analytics_definition = common.project_path(
-        args.analytics, args.project_root, common.GENERATED_ANALYTICS_PATH
+        args.analytics, args.project_root, project.ANALYTICS_JSON_FILE
     )
-    plan_path = common.project_path(args.plan, args.project_root, common.GENERATED_PLAN_PATH)
+    plan_path = common.project_path(args.plan, args.project_root, project.EXECUTION_PLAN_FILE)
     try:
         common.prepare_project_root(root)
         settings = EngineSettings.model_validate_json(config.read_text(encoding="utf-8"))

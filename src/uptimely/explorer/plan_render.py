@@ -8,6 +8,7 @@ import os
 import pathlib
 import typing
 
+from uptimely import project
 from uptimely import render as uptimely_render
 from uptimely.compiler import plan as uptimely_plan
 
@@ -109,7 +110,7 @@ def _create_website_pages(
     plan: uptimely_plan.ExecutionPlan,
     output_directory: pathlib.Path,
     *,
-    index_filename: str = "index.html",
+    index_filename: str = project.EXPLORER_INDEX_FILE.name,
 ) -> None:
     """Write linked overview, callable graph, and stage pages for a plan.
 

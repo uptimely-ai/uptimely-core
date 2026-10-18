@@ -4,7 +4,7 @@ import argparse
 import importlib
 import pathlib
 
-from uptimely import analytics
+from uptimely import analytics, project
 from uptimely.analytics import feature_graph
 from uptimely.analytics import python as python_analytics
 from uptimely.cli import common
@@ -27,7 +27,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     export.add_argument(
         "--output",
         type=pathlib.Path,
-        help="JSON output (default: _generated/analytics/analytics.json under --project-root)",
+        help=f"JSON output (default: {project.ANALYTICS_JSON_FILE} under --project-root)",
     )
     graph = actions.add_parser("feature-graph", help="Inspect feature dependencies")
     common.configure_project_arguments(graph)
@@ -66,9 +66,7 @@ def export_analytics(module: str, output: pathlib.Path, project_root: pathlib.Pa
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Export analytics or print feature graph summaries and trees."""
     if args.action == "export":
-        output = common.project_path(
-            args.output, args.project_root, common.GENERATED_ANALYTICS_PATH
-        )
+        output = common.project_path(args.output, args.project_root, project.ANALYTICS_JSON_FILE)
         try:
             path = export_analytics(args.module, output, args.project_root or pathlib.Path.cwd())
         except (OSError, ValueError, ImportError, AttributeError, TypeError) as error:
@@ -76,7 +74,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         print(f"Analytics written to {path}")
         return
     analytics_definition = common.project_path(
-        args.analytics, args.project_root, common.GENERATED_ANALYTICS_PATH
+        args.analytics, args.project_root, project.ANALYTICS_JSON_FILE
     )
     try:
         analytics_definition = common.load_analytics(

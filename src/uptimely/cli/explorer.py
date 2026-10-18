@@ -11,9 +11,6 @@ from uptimely import project
 from uptimely.cli import common
 from uptimely.explorer import explorer as explorer_module
 
-GENERATED_ANALYTICS_PATH: pathlib.Path = common.GENERATED_ANALYTICS_PATH
-GENERATED_EXPLORER_PATH: pathlib.Path = project.EXPLORER_OUTPUT_DIR
-
 
 def build_explorer(
     analytics_definition: pathlib.Path,
@@ -34,7 +31,7 @@ def build_explorer(
     """
     analytics_definition = common.load_analytics(analytics_definition, project_root)
     return explorer_module.Explorer(analytics_definition).create_html(
-        output / "index.html", include_generated_at=include_generated_at
+        output / project.EXPLORER_INDEX_FILE.name, include_generated_at=include_generated_at
     )
 
 
@@ -55,10 +52,10 @@ def serve_explorer(directory: pathlib.Path, host: str = "127.0.0.1", port: int =
     directory = directory.resolve()
     if not directory.is_dir():
         raise NotADirectoryError(f"Website directory does not exist: {directory}")
-    if not (directory / "index.html").is_file():
+    index = directory / project.EXPLORER_INDEX_FILE.name
+    if not index.is_file():
         raise FileNotFoundError(
-            f"Website index not found: {directory / 'index.html'}. "
-            "Run 'uptimely explorer build' first."
+            f"Website index not found: {index}. Run 'uptimely explorer build' first."
         )
     if not 0 <= port <= 65535:
         raise ValueError("Port must be between 0 and 65535.")
@@ -97,15 +94,15 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         type=pathlib.Path,
         help=(
             "Analytics JSON path (required unless --project-root is set; "
-            "then defaults to _generated/analytics/analytics.json under that root)"
+            f"then defaults to {project.ANALYTICS_JSON_FILE} under that root)"
         ),
     )
     build.add_argument(
         "--output",
         type=pathlib.Path,
         help=(
-            "Website directory (defaults to _generated/explorer under --project-root, "
-            "or _generated/explorer otherwise)"
+            f"Website directory (defaults to {project.EXPLORER_OUTPUT_DIR} under --project-root, "
+            f"or {project.EXPLORER_OUTPUT_DIR} otherwise)"
         ),
     )
     build.add_argument(
@@ -125,16 +122,16 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         "--analytics",
         type=pathlib.Path,
         help=(
-            "Analytics JSON path (defaults to _generated/analytics/analytics.json under "
-            "--project-root, or _generated/analytics/analytics.json otherwise)"
+            f"Analytics JSON path (defaults to {project.ANALYTICS_JSON_FILE} under "
+            f"--project-root, or {project.ANALYTICS_JSON_FILE} otherwise)"
         ),
     )
     serve.add_argument(
         "--directory",
         type=pathlib.Path,
         help=(
-            "Website directory (defaults to _generated/explorer under --project-root, "
-            "or _generated/explorer otherwise)"
+            f"Website directory (defaults to {project.EXPLORER_OUTPUT_DIR} under --project-root, "
+            f"or {project.EXPLORER_OUTPUT_DIR} otherwise)"
         ),
     )
     serve.add_argument(
@@ -152,8 +149,8 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Build or serve the analytics explorer using parsed command-line arguments."""
     project_root = args.project_root or pathlib.Path.cwd()
     project_path = args.project_root or pathlib.Path()
-    default_analytics_path = project_path / GENERATED_ANALYTICS_PATH
-    default_output = project_path / GENERATED_EXPLORER_PATH
+    default_analytics_path = project_path / project.ANALYTICS_JSON_FILE
+    default_output = project_path / project.EXPLORER_OUTPUT_DIR
     if args.action == "serve":
         analytics_definition = args.analytics or default_analytics_path
         directory = args.directory or default_output

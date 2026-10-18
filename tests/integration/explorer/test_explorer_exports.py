@@ -65,7 +65,7 @@ def test_reference_exports_to_default_directory(
 
 def test_generate_json_reference(tmp_path: pathlib.Path, monkeypatch) -> None:
     analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    monkeypatch.setattr("uptimely.explorer.explorer.EXPLORER_OUTPUT_DIR", tmp_path / "_generated")
+    monkeypatch.chdir(tmp_path)
 
     data_path = explorer.Explorer(analytics_definition).create_json()
     data = json.loads(data_path.read_text(encoding="utf-8"))
@@ -103,9 +103,7 @@ def test_generate_json_reference(tmp_path: pathlib.Path, monkeypatch) -> None:
 
 def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
     analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    monkeypatch.setattr(
-        "uptimely.explorer.explorer.EXPLORER_OUTPUT_DIR", tmp_path / "_generated" / "explorer"
-    )
+    monkeypatch.chdir(tmp_path)
 
     document_path = explorer.Explorer(analytics_definition).create_html()
     pages = {
