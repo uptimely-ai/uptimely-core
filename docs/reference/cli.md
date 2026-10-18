@@ -1,8 +1,8 @@
 # Command-line reference
 
 The `uptimely` command provides project utilities for downloading examples,
-building and inspecting specifications, compiling execution plans, running
-analytics workflows, and generating the Analytics Explorer.
+building project bundles, inspecting feature dependencies, running analytics
+workflows, and previewing the Analytics Explorer.
 
 Run `uptimely --help` or `uptimely <command> --help` to see the options
 available in an installed version.
@@ -13,34 +13,24 @@ available in an installed version.
 
 | Command | Reference | Purpose |
 | --- | --- | --- |
-| `uptimely spec` | [Spec](cli/spec.md) | Build spec JSON from Python or JSON sources, or inspect feature dependencies. |
+| `uptimely spec` | [Spec](cli/spec.md) | Inspect feature dependencies. |
 | `uptimely engine` | [Engine](cli/engine.md) | Run an analytics workflow. |
 | `uptimely examples` | [Examples](cli/examples.md) | Download runnable example projects. |
-| `uptimely explorer` | [Explorer](cli/explorer.md) | Build or serve the Analytics Explorer website. |
-| `uptimely plan` | [Plan](cli/plan.md) | Compile spec into a portable execution plan. |
+| `uptimely explorer` | [Explorer](cli/explorer.md) | Preview the Analytics Explorer website. |
 | `uptimely project` | [Project](cli/project.md) | Build and publish a complete active bundle. |
 
 ## Typical workflow
 
 From an installed package, download examples and build the complete active
-bundle:
+bundle, including its spec, execution plan, and Explorer website:
 
 ```console
 uptimely examples download
 uptimely project build --project-root examples/pump_analytics
 ```
 
-The Engine and Explorer commands are migrating to consume this bundle in
-separate steps. Until then, their existing workflow still uses standalone
-specification and plan artifacts:
-
-```console
-uptimely spec build --project-root examples/pump_analytics
-uptimely plan build --project-root examples/pump_analytics
-uptimely explorer serve --project-root examples/pump_analytics
-```
-
-The Engine can still compile and execute from source:
+The Engine still compiles and executes from source until the next migration
+checkpoint:
 
 ```console
 uptimely engine run --project-root examples/pump_analytics

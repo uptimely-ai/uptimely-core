@@ -1,53 +1,7 @@
 # `uptimely spec`
 
-Build spec JSON from Python declarations or JSON sources, or inspect
-feature dependencies in a spec document.
-
-## `spec build`
-
-```console
-uptimely spec build [--entrypoint MODULE:ATTRIBUTE | --spec PATH] [--project-root PATH] [--output PATH]
-```
-
-Without an explicit source, the command discovers
-`config/spec/spec.py` or `config/spec/spec.json` beneath the
-project root (the current directory by default). If both exist, select one
-explicitly with `--entrypoint` or `--spec`; neither takes precedence.
-
-Discovered Python modules must expose a `python_spec` value of type
-`PythonSpec`. Use `--entrypoint my_project.spec:definition` to select a
-different module or attribute. The selected attribute must be a `PythonSpec`
-instance, not a factory function; it is not called.
-Discovered Python sources are imported with their package
-context, preserving relative imports. Enclosing regular packages (directories
-with `__init__.py`) are included in the module name. JSON sources are loaded
-and validated before writing the generated document. Building does not execute
-the analytics workflow, but importing Python declarations executes module-level code.
-
-| Option | Required | Default | Purpose |
-| --- | --- | --- | --- |
-| `--entrypoint MODULE:ATTRIBUTE` | No | Discover the standard source | Import path and attribute containing a `PythonSpec` instance. Mutually exclusive with `--spec`. |
-| `--spec PATH` | No | Discover the standard source | Source spec JSON path. Mutually exclusive with `--entrypoint`. |
-| `--project-root PATH` | No | Current working directory | Add this directory to Python's import path and use it as the base for the default output path. |
-| `--output PATH` | No | `_generated/spec/spec.json` under `--project-root` or the current working directory | Destination JSON path. |
-
-Example:
-
-```console
-uptimely spec build --project-root examples/pump_analytics
-```
-
-Explicit Python source and output:
-
-```console
-uptimely spec build \
-  --entrypoint examples.pump_analytics.config.spec.spec:python_spec \
-  --project-root . \
-  --output examples/pump_analytics/_generated/spec/spec.json
-```
-
-Explicit `--spec` and `--output` paths are relative to the current working
-directory, not `--project-root`. The command does not change working directories.
+The spec CLI provides read-only feature dependency inspection. Spec JSON is
+generated as part of the complete bundle by [`uptimely project build`](project.md).
 
 ## `spec feature-graph`
 

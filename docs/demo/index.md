@@ -6,7 +6,6 @@ Such website is called "Explorer" and it can be created by:
 
 ```console
 $ uptimely examples download
-$ uptimely spec build --project-root examples/pump_analytics
-$ uptimely plan build --project-root examples/pump_analytics
+$ uptimely project build --project-root examples/pump_analytics
 $ uptimely explorer serve --project-root examples/pump_analytics
 ```

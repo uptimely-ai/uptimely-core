@@ -89,7 +89,6 @@ nav:
       - engine: reference/cli/engine.md
       - examples: reference/cli/examples.md
       - explorer: reference/cli/explorer.md
-      - plan: reference/cli/plan.md
       - project: reference/cli/project.md
   - Python API:
       - Overview: reference/api.md

@@ -16,6 +16,17 @@ REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json"
 
 
+@pytest.fixture
+def generated_inputs(tmp_path: pathlib.Path) -> pathlib.Path:
+    spec_path = tmp_path / "_generated/spec/spec.json"
+    spec_path.parent.mkdir(parents=True)
+    spec_path.write_bytes(SPEC_PATH.read_bytes())
+    plan_path = tmp_path / "_generated/compile/execution_plan.json"
+    plan_path.parent.mkdir(parents=True)
+    compiler.Compiler(spec.load_spec(SPEC_PATH)).compile().export_json(plan_path)
+    return plan_path
+
+
 @pytest.mark.parametrize(
     ("arguments", "expected"),
     [
@@ -29,17 +40,17 @@ SPEC_PATH = REPOSITORY_ROOT / "examples/pump_analytics/_generated/spec/spec.json
 )
 def test_serve_arguments(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    generated_inputs: pathlib.Path,
     arguments: list[str],
     expected: tuple[pathlib.Path, str, int],
 ) -> None:
     calls: list[tuple[object, ...]] = []
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
-        explorer,
-        "build_explorer",
-        lambda spec_definition, directory, project_root, *, plan_path: (
-            calls.append(("build", spec_definition, directory, project_root, plan_path))
-            or directory / "index.html"
-        ),
+        explorer.explorer_module.Explorer,
+        "create_html",
+        lambda self, path: calls.append(("render", path)) or path,
     )
     monkeypatch.setattr(
         explorer,
@@ -52,38 +63,31 @@ def test_serve_arguments(
 
     directory, host, port = expected
     assert calls == [
-        (
-            "build",
-            pathlib.Path("_generated/spec/spec.json"),
-            directory,
-            pathlib.Path.cwd(),
-            pathlib.Path("_generated/compile/execution_plan.json"),
-        ),
+        ("render", directory / "index.html"),
         ("serve", directory, host, port),
     ]
 
 
 def test_serve_builds_custom_spec_before_starting_server(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    generated_inputs: pathlib.Path,
 ) -> None:
     calls: list[tuple[object, ...]] = []
     monkeypatch.setattr(
-        explorer,
-        "build_explorer",
-        lambda spec_definition, directory, project_root, *, plan_path: (
-            calls.append(("build", spec_definition, directory, project_root, plan_path))
-            or directory / "index.html"
-        ),
+        explorer.explorer_module.Explorer,
+        "create_html",
+        lambda self, path: calls.append(("render", path)) or path,
     )
     monkeypatch.setattr(
         explorer,
         "serve_explorer",
         lambda directory, host, port: calls.append(("serve", directory, host, port)),
     )
-    spec_definition = tmp_path / "spec.json"
+    spec_definition = SPEC_PATH
     output = tmp_path / "website"
     project_root = tmp_path / "project"
-    saved_plan = tmp_path / "custom_plan.json"
+    saved_plan = generated_inputs
     monkeypatch.setattr(
         sys,
         "argv",
@@ -105,22 +109,21 @@ def test_serve_builds_custom_spec_before_starting_server(
     cli.main()
 
     assert calls == [
-        ("build", spec_definition, output, project_root, saved_plan),
+        ("render", output / "index.html"),
         ("serve", output, "127.0.0.1", 8001),
     ]
 
 
 def test_serve_defaults_paths_from_project_root(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    generated_inputs: pathlib.Path,
 ) -> None:
     calls: list[tuple[object, ...]] = []
     monkeypatch.setattr(
-        explorer,
-        "build_explorer",
-        lambda spec_definition, directory, project_root, *, plan_path: (
-            calls.append(("build", spec_definition, directory, project_root, plan_path))
-            or directory / "index.html"
-        ),
+        explorer.explorer_module.Explorer,
+        "create_html",
+        lambda self, path: calls.append(("render", path)) or path,
     )
     monkeypatch.setattr(
         explorer,
@@ -137,13 +140,7 @@ def test_serve_defaults_paths_from_project_root(
 
     directory = tmp_path / "_generated/explorer"
     assert calls == [
-        (
-            "build",
-            tmp_path / "_generated/spec/spec.json",
-            directory,
-            tmp_path,
-            tmp_path / "_generated/compile/execution_plan.json",
-        ),
+        ("render", directory / "index.html"),
         ("serve", directory, "127.0.0.1", 8001),
     ]
 
@@ -202,17 +199,15 @@ def test_serve_reports_missing_website(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     kind: str,
+    generated_inputs: pathlib.Path,
 ) -> None:
     directory = tmp_path / "website"
     if kind == "file":
         directory.write_text("not a directory", encoding="utf-8")
     elif kind == "empty":
         directory.mkdir()
-    monkeypatch.setattr(
-        explorer,
-        "build_explorer",
-        lambda spec_definition, output, project_root, *, plan_path: output / "index.html",
-    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(explorer.explorer_module.Explorer, "create_html", lambda self, path: path)
     monkeypatch.setattr(
         sys,
         "argv",
@@ -274,14 +269,13 @@ def test_serve_serves_only_selected_directory_and_closes_on_interrupt(
 
 
 def test_serve_reports_occupied_port(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    generated_inputs: pathlib.Path,
 ) -> None:
     (tmp_path / "index.html").write_text("index", encoding="utf-8")
-    monkeypatch.setattr(
-        explorer,
-        "build_explorer",
-        lambda spec_definition, output, project_root, *, plan_path: output / "index.html",
-    )
+    monkeypatch.setattr(explorer.explorer_module.Explorer, "create_html", lambda self, path: path)
     with http_server.ThreadingHTTPServer(
         ("127.0.0.1", 0), http_server.SimpleHTTPRequestHandler
     ) as occupied:
@@ -292,6 +286,10 @@ def test_serve_reports_occupied_port(
                 "uptimely",
                 "explorer",
                 "serve",
+                "--spec",
+                str(SPEC_PATH),
+                "--plan",
+                str(generated_inputs),
                 "--directory",
                 str(tmp_path),
                 "--port",

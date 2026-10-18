@@ -1,36 +1,52 @@
 import json
 import pathlib
 import re
+import shutil
 import sys
 
 import pytest
 
-from uptimely import compiler, spec
+from uptimely import compiler, project, spec
 from uptimely.cli import cli
 from uptimely.explorer import explorer
 
-SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
+REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
+EXAMPLE_ROOT = REPOSITORY_ROOT / "examples/pump_analytics"
+SPEC_PATH = EXAMPLE_ROOT / "_generated/spec/spec.json"
 
 
-def test_execution_plan_cli_exports_only_json(
+def test_project_build_cli_exports_complete_bundle(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    examples = tmp_path / "examples"
+    examples.mkdir()
+    shutil.copyfile(REPOSITORY_ROOT / "examples/__init__.py", examples / "__init__.py")
+    project_root = examples / "pump_analytics"
+    shutil.copytree(
+        EXAMPLE_ROOT,
+        project_root,
+        ignore=shutil.ignore_patterns("_generated", "__pycache__"),
+    )
     monkeypatch.setattr(
         sys,
         "argv",
         [
             "uptimely",
-            "plan",
+            "project",
             "build",
-            "--spec",
-            str(SPEC_PATH),
-            "--output",
-            str(tmp_path / "compile" / "execution_plan.json"),
+            "--project-root",
+            str(project_root),
         ],
     )
     cli.main()
 
-    assert {path.name for path in (tmp_path / "compile").iterdir()} == {"execution_plan.json"}
+    bundle = project_root / project.BUILD_OUTPUT_DIR
+    assert (bundle / "build.json").is_file()
+    assert (bundle / "spec.json").is_file()
+    assert (bundle / "execution_plan.json").is_file()
+    assert (bundle / "explorer/index.html").is_file()
+    assert not (project_root / project.SPEC_JSON_FILE).exists()
+    assert not (project_root / project.EXECUTION_PLAN_FILE).exists()
 
 
 def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) -> None:

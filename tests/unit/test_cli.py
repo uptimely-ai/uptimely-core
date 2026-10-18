@@ -401,5 +401,28 @@ def test_console_script_registration() -> None:
 
 def test_cli_preserves_helper_imports() -> None:
     assert cli.download_examples is examples.download_examples
-    assert cli.build_explorer is explorer.build_explorer
     assert cli.serve_explorer is explorer.serve_explorer
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["spec", "build"],
+        ["plan", "build"],
+        ["explorer", "build"],
+    ],
+)
+def test_standalone_build_commands_are_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    arguments: list[str],
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["uptimely", *arguments])
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 2
+    error_text = capsys.readouterr().err
+    assert "invalid choice" in error_text
+    assert "project build" not in error_text

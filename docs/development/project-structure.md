@@ -76,16 +76,14 @@ The fixed project structure enables automation of repetitive setup and tooling
 while preserving flexibility in the analytics implementation.
 
 The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/pump_analytics/README.md) uses CLI commands
-for spec export, compilation, execution, documentation, and feature
-graphs. `uptimely spec build --project-root <project>` discovers
-`config/spec/spec.py` or `config/spec/spec.json` and writes
-validated JSON. Python sources expose `python_spec`, a `PythonSpec`
-instance. Use `--entrypoint <module>:<attribute>` or `--spec <path>` to select a source
-explicitly; this is required when both standard sources exist.
-`uptimely explorer build` writes a linked website to `_generated/explorer/`.
-All HTML pages are generated together by that command.
-Spec and plan JSON exports live in `_generated/spec/` and
-`_generated/compile/`; `uptimely spec feature-graph` prints graph summaries and,
-with `--verbose`, dependency trees without writing HTML.
+for project builds, execution, documentation, and feature graphs.
+`uptimely project build --project-root <project>` discovers
+`config/spec/spec.py` or `config/spec/spec.json`, validates the source, and
+generates the complete active bundle under `_generated/build/`. Python sources
+expose `python_spec`, a `PythonSpec` instance. Use `--entrypoint
+<module>:<attribute>` or `--spec <path>` to select a source explicitly; this
+is required when both standard sources exist. The generated website and plan
+are included in that bundle. `uptimely spec feature-graph` prints graph
+summaries and, with `--verbose`, dependency trees without writing files.
 The [smaller Python example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/simple_analytics/README.md) demonstrates
-spec export without the full compilation and execution workflow.
+spec declarations independently of the full compilation and execution workflow.
