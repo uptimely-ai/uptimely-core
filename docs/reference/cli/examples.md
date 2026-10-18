@@ -10,7 +10,7 @@ uptimely examples download [--output PATH] [--ref REVISION]
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `--output PATH` | No | `examples` | Destination directory. The destination must not already exist. |
+| `--output PATH` | No | `examples` | Destination directory. The destination must not already exist. Missing parent directories and the destination directory are created. |
 | `--ref REVISION` | No | Release tag matching the installed package version | Git branch, tag, or commit to download. Use `HEAD` to select the repository's default branch. |
 
 Example:
