@@ -11,16 +11,6 @@ Keep examples user-focused. Test-only scenarios and invalid inputs belong in fix
 
 ## Running tests
 
-Run `poetry run pytest` to export the example spec required by the
-tests directly from their Python declarations using the Spec API, then
-use four parallel worker processes by default. The shared setup writes exports
-before workers start; it does not depend on example runner scripts.
-Change the worker count with `-n`:
-
-```sh
-poetry run pytest -n 2     # Use two workers.
-poetry run pytest -n auto  # Choose workers based on CPU cores.
-poetry run pytest -n 0     # Run serially.
-```
+Run `poetry run pytest` to build the example bundles required by the tests.
 
 The pre-commit pytest hook runs at the pre-push stage with four workers.
