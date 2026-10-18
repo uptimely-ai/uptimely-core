@@ -47,8 +47,9 @@ With pip:
 
 ```sh
 pip install uptimely-core
-uptimely examples download
+uptimely examples download --output examples
 uptimely project build --project-root examples/pump_analytics
+uptimely engine run --project-root examples/pump_analytics
 uptimely explorer serve --project-root examples/pump_analytics
 ```
 
@@ -56,7 +57,7 @@ With Poetry, from your Poetry project:
 
 ```sh
 poetry add uptimely-core
-poetry run uptimely examples download
+poetry run uptimely examples download --output examples
 poetry run uptimely project build --project-root examples/pump_analytics
 poetry run uptimely engine run --project-root examples/pump_analytics
 poetry run uptimely explorer serve --project-root examples/pump_analytics
