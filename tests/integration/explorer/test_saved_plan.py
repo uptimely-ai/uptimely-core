@@ -5,11 +5,11 @@ import pathlib
 
 import pytest
 
-from uptimely import analytics, compiler
+from uptimely import compiler, spec
 from uptimely.compiler import plan as plan_module
 from uptimely.explorer import explorer
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 SAVED_PLAN_MARKER = "saved-plan-only-marker"
 
 
@@ -17,7 +17,7 @@ SAVED_PLAN_MARKER = "saved-plan-only-marker"
 def test_render_saved_plan_without_compiling(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, use_helper: bool
 ) -> None:
-    definition = analytics.load_analytics(ANALYTICS_PATH)
+    definition = spec.load_spec(SPEC_PATH)
     compiled = compiler.Compiler(definition).compile()
     first, *remaining = compiled.callables
     custom = dataclasses.replace(
@@ -51,7 +51,7 @@ def test_render_saved_plan_without_compiling(
 def test_explorer_compiles_when_no_plan_is_supplied(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    definition = analytics.load_analytics(ANALYTICS_PATH)
+    definition = spec.load_spec(SPEC_PATH)
     original_compile = compiler.Compiler.compile
     calls: list[compiler.Compiler] = []
 

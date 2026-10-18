@@ -1,0 +1,80 @@
+{% from "spec/section_header.html.j2" import section_header with context %}
+{% macro mapping_operation(mapping, functions) -%}
+  {{- functions.get(mapping.binding.function, {}).get("operation", "") -}}
+{%- endmacro %}
+{% set total = namespace(feature_count=0) %}
+{% for entity in configuration.entities.values() %}
+  {% for dataset in entity.datasets %}
+    {% for mapping in dataset.mappings.values() %}
+      {% for reference in mapping.features.outputs %}
+        {% set feature_id = reference.removeprefix("$features.") %}
+        {% if feature_id not in entity.dimensions %}{% set total.feature_count = total.feature_count + 1 %}{% endif %}
+      {% endfor %}
+    {% endfor %}
+  {% endfor %}
+{% endfor %}
+<section id="entities" class="mb-16">
+  {{ section_header("Features", "Browse features by dataset and see which mapping provides each one.", count=total.feature_count, count_label="features") }}
+  <div class="space-y-5">
+    {% for entity_id, entity in configuration.entities.items() %}
+      {% for dataset in entity.datasets %}
+      <section>
+        <header class="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="font-mono text-xs text-slate-400"><span class="uppercase tracking-wider text-slate-500">Entity:</span> {{ entity.name or entity_id }}</p>
+            {% set dataset_heading = "h2" %}
+            <{{ dataset_heading }} class="mt-2 font-display text-xl font-semibold tracking-tight text-cyan-100">
+              <span class="mr-2 font-mono text-[10px] font-medium uppercase tracking-wider text-cyan-400">Dataset name:</span>{{ dataset.id }}
+            </{{ dataset_heading }}>
+          </div>
+          {% set ns = namespace(feature_count=0) %}
+          {% for mapping in dataset.mappings.values() %}
+            {% for reference in mapping.features.outputs %}
+              {% set feature_id = reference.removeprefix("$features.") %}
+              {% if feature_id not in entity.dimensions %}{% set ns.feature_count = ns.feature_count + 1 %}{% endif %}
+            {% endfor %}
+          {% endfor %}
+        </header>
+        <article class="rounded-xl border border-slate-800 border-l-4 border-l-cyan-500 bg-slate-900/70 px-5">
+          <p class="border-b border-slate-800 py-3 font-mono text-xs text-slate-400">{{ ns.feature_count }} features</p>
+          <div class="divide-y divide-slate-800">
+          {% for mapping_id, mapping in dataset.mappings.items() %}
+            {% set operation_type = mapping_operation(mapping, configuration.functions) %}
+            {% for reference in mapping.features.outputs if operation_type != "vectorize" %}
+              {% set feature_id = reference.removeprefix("$features.") %}
+              {% set feature = dataset.features[feature_id] %}
+              <div class="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,1fr)] sm:gap-4">
+                <div>
+                  <span class="font-mono text-sm text-cyan-200">{{ feature_id }}</span>
+                  {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+                  <span class="font-mono text-xs text-slate-400">{{ operation_type }} · {{ mapping_id }}</span>
+                  <span class="text-xs text-slate-500">{{ feature.type or "unspecified" }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>
+                </div>
+              </div>
+            {% endfor %}
+          {% endfor %}
+          {% for mapping_id, mapping in dataset.mappings.items() if mapping_operation(mapping, configuration.functions) == "vectorize" %}
+          {% for reference in mapping.features.outputs %}
+          {% set feature_id = reference.removeprefix("$features.") %}
+          {% set feature = dataset.features[feature_id] %}
+          <div class="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,1fr)] sm:gap-4">
+            <div>
+              <span class="font-mono text-sm text-amber-200">{{ feature_id }}</span>
+              {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+              <span class="font-mono text-xs text-slate-400">vectorize · {{ mapping_id }}</span>
+              <span class="text-xs text-slate-500">{{ feature.type or "calculated" }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>
+            </div>
+          </div>
+          {% endfor %}
+          {% endfor %}
+          </div>
+        </article>
+      </section>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</section>

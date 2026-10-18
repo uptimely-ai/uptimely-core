@@ -8,7 +8,7 @@ backend.
 
 ## Engine settings
 
-Engine settings are supplied to `Engine`, not stored in the Analytics
+Engine settings are supplied to `Engine`, not stored in the Spec
 document. The engine implementation decides which configuration values
 to use.
 
@@ -33,7 +33,7 @@ JSON key | Type | Purpose
 A compiled plan records its backend
 claim as `required_backend`; the built-in engine rejects values other than
 `polars`. Orchestration is a deployment concern and is not represented in the
-Analytics document.
+Spec document.
 
 ## Executing a compiled plan
 
@@ -53,7 +53,7 @@ arguments. The batch engine does not pass this metadata to functions or use it
 to sort, retain rows, or delay output. Future stateful implementations can inspect
 the declarations, but must distinguish unknown context from explicit zero
 context and account for grouping performed by functions and dependency chains.
-See the [row context contract](analytics.md#row-context).
+See the [row context contract](spec.md#row-context).
 
 ## Runtime placeholders
 
@@ -81,7 +81,7 @@ Runtime configuration substitution is already supported. Supply a different
 `bind` mapping when constructing the engine to run the same
 compiled plan against dev, test, or prod resources without recompilation.
 The plan must already contain placeholders for the values you want to vary.
-This does not modify Analytics or replace literal arguments, functions,
+This does not modify Spec or replace literal arguments, functions,
 features, or dependencies.
 
 An environment-specific engine JSON file groups backend settings and runtime

@@ -13,7 +13,7 @@ except ModuleNotFoundError as error:
 
 
 class Storage:
-    """Read analytics files from local disk or S3 depending on the path scheme."""
+    """Read spec files from local disk or S3 depending on the path scheme."""
 
     S3_PREFIX = "s3://"
 

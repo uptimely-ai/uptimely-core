@@ -1,4 +1,4 @@
-"""Compile analytics into portable execution plans."""
+"""Compile spec into portable execution plans."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ import pathlib
 import typing
 from collections import abc
 
-from uptimely import analytics, entrypoint
-from uptimely.analytics import model as analytics_model
-from uptimely.analytics import references as bindings
+from uptimely import entrypoint, spec
+from uptimely.spec import model as spec_model
+from uptimely.spec import references as bindings
 
 from . import callable_node as callable_node_module
 from . import execution_graph, plan
@@ -20,10 +20,10 @@ ExecutionPlan = plan.ExecutionPlan
 
 
 def _resolve_function(
-    analytics_definition: analytics.Analytics, node: callable_node_module.CallableNode
-) -> analytics_model.FunctionTemplate | None:
+    spec_definition: spec.Spec, node: callable_node_module.CallableNode
+) -> spec_model.FunctionTemplate | None:
     """Return the function definition for an operation node."""
-    return analytics_definition.functions.get(node.function_id)
+    return spec_definition.functions.get(node.function_id)
 
 
 def _portable_value(value: object) -> object:
@@ -37,18 +37,18 @@ def _portable_value(value: object) -> object:
     return value
 
 
-def _resource_models(analytics_definition: analytics.Analytics) -> dict[str, typing.Any]:
-    """Export analytics data required by the engine at runtime."""
+def _resource_models(spec_definition: spec.Spec) -> dict[str, typing.Any]:
+    """Export spec data required by the engine at runtime."""
     return {
         "dimensions": {
             identifier: dimension.model_dump(exclude_none=False)
-            for identifier, dimension in analytics_definition.dimensions.items()
+            for identifier, dimension in spec_definition.dimensions.items()
         },
         "entities": {
             identifier: {"id": entity.id, "dimensions": entity.dimension_ids}
-            for identifier, entity in analytics_definition.entities.items()
+            for identifier, entity in spec_definition.entities.items()
         },
-        "functions": analytics_definition.functions.model_dump(exclude_none=False),
+        "functions": spec_definition.functions.model_dump(exclude_none=False),
         "datasets": {
             dataset.id: {
                 "features": {
@@ -58,37 +58,37 @@ def _resource_models(analytics_definition: analytics.Analytics) -> dict[str, typ
                 "order": [key.model_dump() for key in dataset.order],
                 "row_scope": dataset.row_scope.model_dump(),
             }
-            for entity in analytics_definition.entities.values()
+            for entity in spec_definition.entities.values()
             for dataset in entity.datasets
         },
     }
 
 
 class Compiler:
-    """Turn an Analytics instance or JSON path into a portable execution plan."""
+    """Turn a Spec instance or JSON path into a portable execution plan."""
 
     def __init__(
         self,
-        analytics_definition: str | pathlib.Path | analytics.Analytics,
+        spec_definition: str | pathlib.Path | spec.Spec,
         features: abc.Collection[str] | None = None,
     ) -> None:
-        """Initialize the compiler with analytics or a JSON path."""
-        self.analytics_path: pathlib.Path | None = None
-        self.analytics: analytics.Analytics | None = None
+        """Initialize the compiler with spec or a JSON path."""
+        self.spec_path: pathlib.Path | None = None
+        self.spec: spec.Spec | None = None
         self.features = self._validate_features(features)
-        if isinstance(analytics_definition, analytics.Analytics):
-            self.analytics = analytics_definition
+        if isinstance(spec_definition, spec.Spec):
+            self.spec = spec_definition
         else:
-            self.analytics_path = pathlib.Path(analytics_definition)
+            self.spec_path = pathlib.Path(spec_definition)
 
     def compile(self) -> plan.ExecutionPlan:
         """Build and serialize the dependency graph into a portable plan."""
-        if self.analytics is None:
-            if self.analytics_path is None:
-                raise ValueError("No analytics or analytics path provided.")
-            self.analytics = analytics.load_analytics(self.analytics_path)
+        if self.spec is None:
+            if self.spec_path is None:
+                raise ValueError("No spec or spec path provided.")
+            self.spec = spec.load_spec(self.spec_path)
 
-        callable_graph = execution_graph.CallableGraph(self.analytics)
+        callable_graph = execution_graph.CallableGraph(self.spec)
         if self.features is not None:
             logger.debug("Compiling feature subset: %s", sorted(self.features))
             callable_graph = callable_graph.subset(self.features)
@@ -100,7 +100,7 @@ class Compiler:
             [node.node_id for node in stage if node.node_id in callable_ids]
             for stage in execution_stages
         ]
-        resources = _resource_models(self.analytics)
+        resources = _resource_models(self.spec)
         resources["signatures"] = {
             node_id: signature.returns for node_id, signature in signatures.items()
         }
@@ -118,7 +118,7 @@ class Compiler:
         self, graph: execution_graph.CallableGraph, node: callable_node_module.CallableNode
     ) -> plan.Callable:
         """Convert one live graph node into a portable callable DTO."""
-        function = _resolve_function(self.analytics, node)
+        function = _resolve_function(self.spec, node)
         if function is None or not function.entrypoint:
             raise ValueError(f"Missing entrypoint for function: {node.function_id}")
         arguments = bindings.resolve_binding_args(
@@ -128,7 +128,7 @@ class Compiler:
                 next(
                     feature
                     for feature in node.output_features
-                    if feature not in self.analytics.entities[node.entity].dimension_ids
+                    if feature not in self.spec.entities[node.entity].dimension_ids
                 )
                 if node.operation == "collapse"
                 else node.feature
@@ -163,7 +163,7 @@ class Compiler:
         """Read callable signatures for compiler diagnostics."""
         signatures: dict[str, object] = {}
         for node in callable_graph.callables:
-            function = _resolve_function(self.analytics, node)
+            function = _resolve_function(self.spec, node)
             if function is None or not function.entrypoint:
                 continue
             try:
@@ -179,7 +179,7 @@ class Compiler:
 
     @staticmethod
     def _validate_return_annotation(
-        function: analytics_model.FunctionTemplate, annotation: str | None
+        function: spec_model.FunctionTemplate, annotation: str | None
     ) -> None:
         """Require the Python return annotation to satisfy the function contract."""
         returns = function.returns

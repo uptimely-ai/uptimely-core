@@ -9,13 +9,13 @@ from uptimely.compiler import plan as plan_module
 
 
 def compile_plan(
-    analytics_definition: pathlib.Path,
+    spec_definition: pathlib.Path,
     project_root: pathlib.Path,
     features: list[str] | None = None,
 ) -> plan_module.ExecutionPlan:
-    """Compile analytics, optionally selecting features and their dependencies."""
-    analytics_definition = common.load_analytics(analytics_definition, project_root)
-    return compiler.Compiler(analytics_definition, features=features).compile()
+    """Compile spec, optionally selecting features and their dependencies."""
+    spec_definition = common.load_spec(spec_definition, project_root)
+    return compiler.Compiler(spec_definition, features=features).compile()
 
 
 def print_stages(plan: plan_module.ExecutionPlan) -> None:
@@ -36,7 +36,7 @@ def print_stages(plan: plan_module.ExecutionPlan) -> None:
 def configure_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the plan build action."""
     actions = parser.add_subparsers(dest="action", required=True)
-    build = actions.add_parser("build", help="Compile analytics into an execution-plan JSON")
+    build = actions.add_parser("build", help="Compile spec into an execution-plan JSON")
     common.configure_project_arguments(build)
     build.add_argument(
         "--output",
@@ -47,18 +47,14 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Compile and export a plan using parsed command-line arguments."""
-    analytics_definition = common.project_path(
-        args.analytics, args.project_root, project.ANALYTICS_JSON_FILE
-    )
+    spec_definition = common.project_path(args.spec, args.project_root, project.SPEC_JSON_FILE)
     output = common.project_path(args.output, args.project_root, project.EXECUTION_PLAN_FILE)
     try:
-        plan = compile_plan(
-            analytics_definition, args.project_root or pathlib.Path.cwd(), args.features
-        )
+        plan = compile_plan(spec_definition, args.project_root or pathlib.Path.cwd(), args.features)
         json_path = plan.export_json(output)
     except (OSError, ValueError, ImportError, AttributeError, TypeError) as error:
         parser.exit(1, f"uptimely: error: {error}\n")
-    print(f"Compiled {len(plan.callables)} callables from {analytics_definition}")
+    print(f"Compiled {len(plan.callables)} callables from {spec_definition}")
     print(f"Execution plan: {json_path}")
     if args.verbose:
         print_stages(plan)

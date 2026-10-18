@@ -90,7 +90,7 @@ How do you scale to city level from this starting point?
 
 ## Missing governance layer for analytics
 
-Modern data platforms such as Snowflake, Databricks and BigQuery allow data analytics in any scale and complexity.
+Modern data platforms such as Snowflake, Databricks and BigQuery allow data analytics at any scale and complexity.
 
 While it is amazing techical achievement, it also leads to a governance chaos. The intention of those platforms is mainly to provide technical execution power and engineering tools.
 

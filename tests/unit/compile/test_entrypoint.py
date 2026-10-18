@@ -6,24 +6,24 @@ from urllib import error, request
 
 import pytest
 
-from uptimely import analytics, compiler, engine, storage
+from uptimely import compiler, engine, spec, storage
 from uptimely import entrypoint as shared_entrypoint
-from uptimely.analytics.python import bind, dataset, dimension, feature, mapping, ref
-from uptimely.explorer import analytics_render
+from uptimely.explorer import spec_render
+from uptimely.spec.python import bind, dataset, dimension, feature, mapping, ref
 
-ANALYTICS_PATH = (
+SPEC_PATH = (
     pathlib.Path(__file__).parents[3]
     / "examples"
     / "pump_analytics"
     / "_generated"
-    / "analytics"
-    / "analytics.json"
+    / "spec"
+    / "spec.json"
 )
 
 
 def test_compiler_rejects_string_feature_selection() -> None:
     with pytest.raises(ValueError, match="features must be a collection"):
-        compiler.Compiler(ANALYTICS_PATH, features="health_signal_normalized")
+        compiler.Compiler(SPEC_PATH, features="health_signal_normalized")
 
 
 @pytest.mark.parametrize(
@@ -31,19 +31,19 @@ def test_compiler_rejects_string_feature_selection() -> None:
     [("vectorize", "pressure_flow_efficiency"), ("collapse", "maximum")],
 )
 def test_compiler_rejects_missing_function_entrypoints(category: str, function_id: str) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    analytics_definition.functions[function_id].entrypoint = ""
+    spec_definition = spec.load_spec(SPEC_PATH)
+    spec_definition.functions[function_id].entrypoint = ""
 
     with pytest.raises(ValueError, match=f"Missing entrypoint for function: {function_id}"):
-        compiler.Compiler(analytics_definition).compile()
+        compiler.Compiler(spec_definition).compile()
 
 
 def test_compiler_reports_unreadable_function_signatures() -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    analytics_definition.functions["pressure_flow_efficiency"].entrypoint = "invalid-entrypoint"
+    spec_definition = spec.load_spec(SPEC_PATH)
+    spec_definition.functions["pressure_flow_efficiency"].entrypoint = "invalid-entrypoint"
 
     with pytest.raises(ValueError, match="Could not read signature.*Invalid entrypoint"):
-        compiler.Compiler(analytics_definition).compile()
+        compiler.Compiler(spec_definition).compile()
 
 
 @pytest.mark.parametrize(
@@ -166,7 +166,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
 
     monkeypatch.setattr(request, "urlopen", urlopen)
     monkeypatch.setattr(storage, "boto3", types.SimpleNamespace(client=client))
-    analytics_definition = analytics.from_python(
+    spec_definition = spec.from_python(
         dimensions=[dimension.Dimension(id="id", type="integer")],
         datasets=[
             dataset.Dataset(
@@ -193,7 +193,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
         ],
     )
 
-    compiled = compiler.Compiler(analytics_definition).compile()
+    compiled = compiler.Compiler(spec_definition).compile()
     result = engine.Engine(compiled).execute()
 
     assert not result.failures
@@ -206,7 +206,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
         "dataset": "DataFrame",
         "output": "str",
     }
-    configuration = analytics_render._build_context(analytics_definition, False).configuration
+    configuration = spec_render._build_context(spec_definition, False).configuration
     expected_file = path.as_uri() if scheme == "local" else location
     assert configuration["functions"]["calculate"]["entrypoint_file"] == expected_file
     assert downloads == expected_downloads

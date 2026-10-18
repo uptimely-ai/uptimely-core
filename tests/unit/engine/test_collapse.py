@@ -4,10 +4,10 @@ import pathlib
 import polars as pl
 import pytest
 
-from uptimely import analytics, compiler, engine
-from uptimely.analytics import model as analytics_model
-from uptimely.analytics.python import bind, dataset, dimension, entity, feature, mapping, ref
+from uptimely import compiler, engine, spec
 from uptimely.compiler import plan as plan_module
+from uptimely.spec import model as spec_model
+from uptimely.spec.python import bind, dataset, dimension, entity, feature, mapping, ref
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -70,7 +70,7 @@ def nested_maximum(
     return dataset.group_by("group").agg(pl.sum_horizontal(columns).max().alias("combined_maximum"))
 
 
-def _analytics(*, lazy=False, empty=False):
+def _spec(*, lazy=False, empty=False):
     source = dataset.Dataset(
         id="observations",
         mappings=[
@@ -142,7 +142,7 @@ def _analytics(*, lazy=False, empty=False):
     )
     group = dimension.Dimension(id="group", type="string")
     identifier = dimension.Dimension(id="id", type="integer")
-    return analytics.from_python(
+    return spec.from_python(
         entities=[
             entity.Entity(
                 id="observation",
@@ -159,8 +159,8 @@ def _analytics(*, lazy=False, empty=False):
 
 @pytest.mark.parametrize("lazy", [False, True])
 def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
-    analytics_definition = _analytics(lazy=lazy)
-    plan = compiler.Compiler(analytics_definition, features=["average"]).compile()
+    spec_definition = _spec(lazy=lazy)
+    plan = compiler.Compiler(spec_definition, features=["average"]).compile()
     assert not any("unneeded" in item.output_features for item in plan.callables)
     collapse = next(item for item in plan.callables if item.operation == "collapse")
     assert collapse.input_features == ["value", "doubled"]
@@ -179,10 +179,10 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("empty", [False, True])
 def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path):
-    analytics_definition = _analytics(lazy=lazy, empty=empty)
-    path = tmp_path / "analytics.json"
-    analytics.write_document(analytics_definition, path)
-    restored = analytics.load_analytics(path)
+    spec_definition = _spec(lazy=lazy, empty=empty)
+    path = tmp_path / "spec.json"
+    spec.write_document(spec_definition, path)
+    restored = spec.load_spec(path)
     plan = compiler.Compiler(restored).compile()
     portable = plan_module.ExecutionPlan(
         plan_module.Plan.from_dict(json.loads(json.dumps(plan.to_dict())))
@@ -193,44 +193,42 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
     if isinstance(frame, pl.LazyFrame):
         frame = frame.collect()
     assert frame.to_dicts() == [{"total": 0 if empty else 10, "global_max": None if empty else 6}]
-    assert "total" in analytics.FeatureGraph(restored).feature_names
+    assert "total" in spec.FeatureGraph(restored).feature_names
 
 
 @pytest.mark.parametrize("lazy", [False, True])
 def test_collapse_consumes_expanded_features(lazy):
-    analytics_definition = _analytics(lazy=lazy)
-    analytics_definition.entities.pop("global")
-    source = analytics_definition.entities["observation"].datasets[0]
-    source.features["expanded"] = analytics.Feature(id="expanded")
-    auxiliary = analytics_model.Dataset(
+    spec_definition = _spec(lazy=lazy)
+    spec_definition.entities.pop("global")
+    source = spec_definition.entities["observation"].datasets[0]
+    source.features["expanded"] = spec.Feature(id="expanded")
+    auxiliary = spec_model.Dataset(
         id="expansion_input",
-        features={"expansion_value": analytics_model.Feature(id="expansion_value")},
+        features={"expansion_value": spec_model.Feature(id="expansion_value")},
         mappings={
-            "read_expansion": analytics_model.Mapping(
+            "read_expansion": spec_model.Mapping(
                 id="read_expansion",
-                binding=analytics_model.Binding(
-                    function="read_expansion_input", args={"lazy": lazy}
-                ),
+                binding=spec_model.Binding(function="read_expansion_input", args={"lazy": lazy}),
                 features={"outputs": ["$features.expansion_value"]},
             )
         },
     )
-    analytics_definition.entities["expansion"] = analytics_model.Entity(
+    spec_definition.entities["expansion"] = spec_model.Entity(
         id="expansion",
         name="Expansion",
-        dimensions=[analytics_definition.dimensions["group"]],
+        dimensions=[spec_definition.dimensions["group"]],
         datasets=[auxiliary],
     )
-    analytics_definition.functions.root["read_expansion_input"] = analytics_model.FunctionTemplate(
+    spec_definition.functions.root["read_expansion_input"] = spec_model.FunctionTemplate(
         id="read_expansion_input",
         operation="read",
         returns="dataframe",
         entrypoint=f"{__name__}:read_expansion_input",
-        args={"lazy": analytics_model.Argument(id="lazy", type="boolean")},
+        args={"lazy": spec_model.Argument(id="lazy", type="boolean")},
     )
-    source.mappings["expanded"] = analytics_model.Mapping(
+    source.mappings["expanded"] = spec_model.Mapping(
         id="expanded",
-        binding=analytics_model.Binding(
+        binding=spec_model.Binding(
             function="expanded_values",
             args={
                 "dataset": "$datasets.observations.dataframe",
@@ -242,22 +240,22 @@ def test_collapse_consumes_expanded_features(lazy):
             "outputs": ["$features.expanded"],
         },
     )
-    analytics_definition.functions.root["expanded_values"] = analytics_model.FunctionTemplate(
+    spec_definition.functions.root["expanded_values"] = spec_model.FunctionTemplate(
         id="expanded_values",
         operation="expand",
         returns="dataframe",
         entrypoint=f"{__name__}:expanded_values",
         args={
-            "dataset": analytics_model.Argument(id="dataset", type="dataframe"),
-            "other_dataset": analytics_model.Argument(id="other_dataset", type="dataframe"),
+            "dataset": spec_model.Argument(id="dataset", type="dataframe"),
+            "other_dataset": spec_model.Argument(id="other_dataset", type="dataframe"),
         },
     )
-    summary = analytics_definition.entities["group"].datasets[0]
-    summary.features = {"combined_maximum": analytics.Feature(id="combined_maximum")}
+    summary = spec_definition.entities["group"].datasets[0]
+    summary.features = {"combined_maximum": spec.Feature(id="combined_maximum")}
     summary.mappings = {
-        "nested": analytics_model.Mapping(
+        "nested": spec_model.Mapping(
             id="nested",
-            binding=analytics_model.Binding(
+            binding=spec_model.Binding(
                 function="nested_maximum",
                 args={
                     "dataset": "$datasets.observations.dataframe",
@@ -270,18 +268,18 @@ def test_collapse_consumes_expanded_features(lazy):
             },
         )
     }
-    analytics_definition.functions.root["nested_maximum"] = analytics_model.FunctionTemplate(
+    spec_definition.functions.root["nested_maximum"] = spec_model.FunctionTemplate(
         id="nested_maximum",
         operation="collapse",
         returns="dataframe",
         entrypoint=f"{__name__}:nested_maximum",
         args={
-            "dataset": analytics_model.Argument(id="dataset", type="dataframe"),
-            "columns": analytics_model.Argument(id="columns", type="array[string]"),
+            "dataset": spec_model.Argument(id="dataset", type="dataframe"),
+            "columns": spec_model.Argument(id="columns", type="array[string]"),
         },
     )
     result = engine.Engine(
-        compiler.Compiler(analytics_definition, features=["combined_maximum"]).compile()
+        compiler.Compiler(spec_definition, features=["combined_maximum"]).compile()
     ).execute()
     assert not result.failures
     frame = result.datasets["group", "summary"]
@@ -304,7 +302,7 @@ def test_collapse_consumes_expanded_features(lazy):
     ],
 )
 def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
-    plan = compiler.Compiler(_analytics(), features=["average"]).compile()
+    plan = compiler.Compiler(_spec(), features=["average"]).compile()
     original = summarize
 
     def invalid(dataset, column, calculated):
@@ -325,10 +323,10 @@ def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
 
 @pytest.mark.parametrize("lazy", [False, True])
 def test_collapse_preserves_null_group_keys(lazy):
-    analytics_definition = _analytics(lazy=lazy)
-    analytics_definition.functions["read_values"].entrypoint = f"{__name__}:read_null_groups"
+    spec_definition = _spec(lazy=lazy)
+    spec_definition.functions["read_values"].entrypoint = f"{__name__}:read_null_groups"
     result = engine.Engine(
-        compiler.Compiler(analytics_definition, features=["maximum"]).compile()
+        compiler.Compiler(spec_definition, features=["maximum"]).compile()
     ).execute()
     assert not result.failures
     frame = result.datasets["group", "summary"]

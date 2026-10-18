@@ -182,6 +182,6 @@ class ExecutionPlan:
 
     @classmethod
     def from_json(cls, path: str | pathlib.Path) -> ExecutionPlan:
-        """Load a portable plan without loading or recompiling Analytics."""
+        """Load a portable plan without loading or recompiling Spec."""
         payload = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
         return cls(Plan.from_dict(payload))

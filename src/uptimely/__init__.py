@@ -1,25 +1,25 @@
 """Public package namespace for uptimely."""
 
-from .analytics import (
-    Analytics,
+from .compiler import CallableGraph, CallableNode, Compiler, ExecutionPlan
+from .engine import Engine
+from .spec import (
     Call,
     Dimension,
     Entity,
     FeatureGraph,
     Function,
-    PreparedAnalytics,
-    PythonAnalytics,
+    PreparedSpec,
+    PythonSpec,
+    Spec,
     SubGraph,
     from_python,
-    load_analytics,
-    prepare_analytics,
+    load_spec,
+    prepare_spec,
     write_document,
 )
-from .compiler import CallableGraph, CallableNode, Compiler, ExecutionPlan
-from .engine import Engine
 
 __all__ = [
-    "Analytics",
+    "Spec",
     "Call",
     "CallableGraph",
     "CallableNode",
@@ -28,11 +28,11 @@ __all__ = [
     "Entity",
     "ExecutionPlan",
     "Function",
-    "PythonAnalytics",
-    "PreparedAnalytics",
+    "PythonSpec",
+    "PreparedSpec",
     "from_python",
-    "load_analytics",
-    "prepare_analytics",
+    "load_spec",
+    "prepare_spec",
     "write_document",
     "SubGraph",
     "FeatureGraph",

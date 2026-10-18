@@ -4,10 +4,10 @@ import pathlib
 import re
 from html import parser as html_parser
 
-from uptimely import analytics, compiler
+from uptimely import compiler, spec
 from uptimely.explorer import explorer, lineage
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 class LineageStructureCollector(html_parser.HTMLParser):
@@ -42,9 +42,9 @@ class LineageStructureCollector(html_parser.HTMLParser):
 
 
 def test_lineage_layout_has_balanced_stage_and_card_containers(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    plan = compiler.Compiler(analytics_definition).compile()
-    explorer.create_html(analytics_definition, tmp_path / "index.html")
+    spec_definition = spec.load_spec(SPEC_PATH)
+    plan = compiler.Compiler(spec_definition).compile()
+    explorer.create_html(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     collector = LineageStructureCollector()
     collector.feed(document)
@@ -61,10 +61,10 @@ def test_lineage_layout_has_balanced_stage_and_card_containers(tmp_path: pathlib
 
 
 def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    plan = compiler.Compiler(analytics_definition).compile()
+    spec_definition = spec.load_spec(SPEC_PATH)
+    plan = compiler.Compiler(spec_definition).compile()
 
-    stages = lineage._build_stages(analytics_definition, plan)
+    stages = lineage._build_stages(spec_definition, plan)
 
     assert [len(stage) for stage in stages] == [len(stage) for stage in plan.execution_stages]
     steps = {step.callable_id: step for stage in stages for step in stage}
@@ -73,12 +73,12 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
         feature: steps[callable.id]
         for callable in plan.callables
         for feature in callable.output_features
-        if feature not in analytics_definition.dimensions
+        if feature not in spec_definition.dimensions
     }
     assert len({step.color for step in steps.values()}) == len(steps)
     for callable in plan.callables:
         step = steps[callable.id]
-        dimensions = analytics_definition.entities[callable.entity_id].dimension_ids
+        dimensions = spec_definition.entities[callable.entity_id].dimension_ids
         assert step.dataset == callable.dataset_id
         assert step.operation == callable.operation
         assert step.dependencies == sorted(
@@ -96,7 +96,7 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
             if column.role == "Dimension":
                 assert column.color == "#93c5fd"
                 assert column.producer is None
-                assert column.type == analytics_definition.dimensions[column.name].type
+                assert column.type == spec_definition.dimensions[column.name].type
             else:
                 producer = producers[column.name]
                 assert column.color == producer.color
@@ -110,9 +110,9 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
 
 
 def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    plan = compiler.Compiler(analytics_definition).compile()
-    explorer.create_html(analytics_definition, tmp_path / "index.html")
+    spec_definition = spec.load_spec(SPEC_PATH)
+    plan = compiler.Compiler(spec_definition).compile()
+    explorer.create_html(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     tables = re.findall(
         r'<article class="lineage-step" id="step-(\d+)" data-callable-id="([^"]+)"'
@@ -133,13 +133,13 @@ def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> N
     assert 'id="lineage-edges"' not in document
     assert "Illustration only:" in document
     assert "not calculated data" in document
-    assert "No analytics are executed" in document
+    assert "No spec are executed" in document
     assert "Write boundary:" in document
     assert "No declared producer" not in document
 
 
 def test_empty_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
-    explorer.create_html(analytics.Analytics(), tmp_path / "index.html")
+    explorer.create_html(spec.Spec(), tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert "No processing steps." in document
     assert '<table class="lineage-table"' not in document
@@ -147,15 +147,15 @@ def test_empty_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
 
 
 def test_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
-    explorer.create_html(analytics.Analytics(), tmp_path / "index.html")
+    explorer.create_html(spec.Spec(), tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert "lineage-legend" not in document
     assert "Data lineage color key" not in document
 
 
 def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    explorer.create_html(analytics_definition, tmp_path / "index.html")
+    spec_definition = spec.load_spec(SPEC_PATH)
+    explorer.create_html(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert 'aria-label="Lineage playback" hidden' in document
     assert 'id="lineage-previous">Previous</button>' in document
@@ -166,7 +166,7 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     assert document.index('id="lineage-step-track"') < document.index('id="lineage-position"')
     assert 'class="lineage-stage-position" id="lineage-stage-position"' in document
     assert 'id="lineage-stage-track" role="list" aria-label="Execution stages"' in document
-    execution_stages = compiler.Compiler(analytics_definition).compile().execution_stages
+    execution_stages = compiler.Compiler(spec_definition).compile().execution_stages
     assert document.count('data-stage-marker="') == len(execution_stages)
     assert document.count('data-step-marker="') == sum(map(len, execution_stages))
     assert document.index('id="lineage-stage-track"') < document.index(
@@ -199,7 +199,7 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     assert 'class="lineage-dataset"' not in document
     assert "transform: rotate(90deg)" not in document
     assert document.count("<summary>Declared schema and dependencies</summary>") == len(
-        compiler.Compiler(analytics_definition).compile().callables
+        compiler.Compiler(spec_definition).compile().callables
     )
     assert "<details open" not in document
     assert "lineage-inspector" not in document
@@ -228,10 +228,10 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
 
 
 def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    execution_plan = compiler.Compiler(analytics_definition).compile()
-    stages = lineage._build_stages(analytics_definition, execution_plan)
-    explorer.create_html(analytics_definition, tmp_path / "index.html")
+    spec_definition = spec.load_spec(SPEC_PATH)
+    execution_plan = compiler.Compiler(spec_definition).compile()
+    stages = lineage._build_stages(spec_definition, execution_plan)
+    explorer.create_html(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     collector = LineageStructureCollector()
     collector.feed(document)
@@ -243,10 +243,10 @@ def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -
 
 
 def test_lineage_omits_declared_row_grain(tmp_path: pathlib.Path) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
-    dataset = next(iter(analytics_definition.entities.values())).datasets[0]
+    spec_definition = spec.load_spec(SPEC_PATH)
+    dataset = next(iter(spec_definition.entities.values())).datasets[0]
     dataset.row_scope.grain = "<script>alert('grain')</script>"
-    explorer.create_html(analytics_definition, tmp_path / "index.html")
+    explorer.create_html(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert dataset.row_scope.grain not in document
     assert "&lt;script&gt;alert(&#39;grain&#39;)&lt;/script&gt;" not in document

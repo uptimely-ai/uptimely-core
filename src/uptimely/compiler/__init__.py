@@ -1,4 +1,4 @@
-"""Compile analytics into portable execution plans."""
+"""Compile spec into portable execution plans."""
 
 from .callable_node import CallableNode
 from .compiler import Compiler, ExecutionPlan

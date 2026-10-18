@@ -1,0 +1,42 @@
+{% from "spec/section_header.html.j2" import section_header with context %}
+<section id="overview" class="mb-16">
+  {{ section_header("Overview", "A summary of the entities, datasets, features, and functions declared in this spec.") }}
+  {% set source = configuration.get("source", {}) %}
+  {% set source_name = source.get("name", "manual") %}
+  {% set source_generated = source.get("generated", false) %}
+  <div class="relative mb-8 overflow-hidden rounded-3xl border border-cyan-900/60 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/50 p-6 shadow-xl shadow-cyan-950/10 sm:p-8"
+       data-source-name="{{ source_name }}" data-generated="{{ 'true' if source_generated else 'false' }}">
+    <div class="pointer-events-none absolute -right-12 -top-20 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" aria-hidden="true"></div>
+    <div class="relative">
+      <p class="font-mono text-[10px] uppercase tracking-[.2em] text-cyan-300/70">Spec profile</p>
+      <h2 class="mt-3 break-words font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">{{ configuration.name or "Untitled spec" }}</h2>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <div class="min-w-40 rounded-xl border border-slate-700/80 bg-slate-950/40 px-4 py-3">
+          <p class="font-mono text-[10px] uppercase tracking-[.16em] text-slate-500">Source</p>
+          <p class="mt-1.5 break-all font-mono text-sm font-medium text-cyan-200">{{ source_name }}</p>
+        </div>
+        <div class="min-w-40 rounded-xl border border-slate-700/80 bg-slate-950/40 px-4 py-3">
+          <p class="font-mono text-[10px] uppercase tracking-[.16em] text-slate-500">Generated</p>
+          <div class="mt-1.5 flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full {{ 'bg-emerald-400' if source_generated else 'bg-amber-300' }}" aria-hidden="true"></span>
+            <span class="font-mono text-sm font-medium {{ 'text-emerald-200' if source_generated else 'text-amber-200' }}">{{ 'true' if source_generated else 'false' }}</span>
+            <span class="text-xs text-slate-400">{{ 'Framework-generated' if source_generated else 'Hand-written' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    {% for label, value in [("Entities", summary.entity_count), ("Datasets", summary.dataset_count), ("Mappings", summary.mapping_count), ("Dimensions", summary.dimension_count)] %}
+    <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5"><span class="font-mono text-[10px] uppercase tracking-[.15em] text-slate-500">{{ label }}</span><p class="mt-4 font-display text-3xl font-semibold text-white">{{ value }}</p></div>
+    {% endfor %}
+  </div>
+  {% set feature_chart = [("input", summary.feature_buckets.input, "bg-cyan-400"), ("intermediate", summary.feature_buckets.intermediate, "bg-cyan-400"), ("output", summary.feature_buckets.output, "bg-cyan-400")] %}
+  {% set function_chart = [("read", summary.function_buckets.read, "bg-cyan-400"), ("write", summary.function_buckets.write, "bg-cyan-400"), ("vectorize", summary.function_buckets.vectorize, "bg-cyan-400"), ("collapse", summary.function_buckets.collapse, "bg-cyan-400"), ("expand", summary.function_buckets.expand, "bg-cyan-400"), ("conform", summary.function_buckets.conform, "bg-cyan-400")] %}
+  <div class="mt-5 grid gap-5 lg:grid-cols-2">
+    {% for chart_title, chart in [("Features", feature_chart), ("Functions", function_chart)] %}
+    {% set chart_max = chart|map(attribute=1)|max %}
+    <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5"><div class="mb-5 flex items-baseline justify-between gap-4"><h2 class="font-display text-lg font-semibold text-white">{{ chart_title }}</h2>{% if chart_title == "Features" %}<div class="flex gap-3 font-mono text-[10px] uppercase tracking-wider text-slate-500"><span>total {{ summary.feature_count }}</span><span>vectorized {{ summary.vectorized_feature_count }}</span></div>{% else %}<span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">total {{ summary.function_count }}</span>{% endif %}</div><div class="space-y-4">{% for label, value, color in chart %}<div class="grid grid-cols-[5.5rem_minmax(0,1fr)_2rem] items-center gap-3"><span class="font-mono text-xs text-slate-400">{{ label }}</span><div class="h-2 overflow-hidden rounded-full bg-slate-800"><div class="h-full rounded-full {{ color }}" style="width: {{ (value / chart_max * 100) if chart_max else 0 }}%"></div></div><span class="text-right font-mono text-xs text-white">{{ value }}</span></div>{% endfor %}</div></div>
+    {% endfor %}
+  </div>
+</section>

@@ -1,0 +1,124 @@
+{% from "spec/section_header.html.j2" import section_header with context %}
+{% macro mapping_operation(mapping, functions) -%}
+  {{- functions.get(mapping.binding.function, {}).get("operation", "") -}}
+{%- endmacro %}
+{% set column_colors = {
+  "dimension": "bg-[#172b46] text-[#b5d4f8]",
+  "teal": "bg-[#15352e] text-[#a5dfca]",
+  "amber": "bg-[#392e19] text-[#efcf89]",
+  "neutral": "bg-slate-800 text-slate-300"
+} %}
+<section id="datasets" class="mb-16">
+  {{ section_header("Datasets", "Dataset schemas at a glance.", count=summary.dataset_count, count_label="datasets") }}
+  <div class="space-y-8">
+    {% for entity_id, entity in configuration.entities.items() %}
+      {% for dataset in entity.datasets %}
+      {% set schema = namespace(columns=[], producers={}) %}
+      {% for mapping in dataset.mappings.values() %}
+        {% set operation = mapping_operation(mapping, configuration.functions) %}
+        {% if operation in ["vectorize", "collapse"] %}
+          {% set color = "amber" %}
+        {% else %}
+          {% set color = "teal" %}
+        {% endif %}
+        {% for feature_ref in mapping.features.outputs %}
+          {% set feature_id = feature_ref.removeprefix("$features.") %}
+          {% if feature_id not in schema.producers %}
+            {% set _ = schema.producers.update({feature_id: color}) %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      {% for dimension_id in entity.dimensions %}
+        {% set dimension = configuration.dimensions[dimension_id] %}
+        {% set _ = schema.columns.append({"name": dimension_id, "type": dimension.type, "role": "Dimension", "color": "dimension"}) %}
+      {% endfor %}
+      {% for feature_id, feature in dataset.features.items() if feature_id not in entity.dimensions %}
+        {% set color = schema.producers.get(feature_id, "neutral") %}
+        {% set _ = schema.columns.append({"name": feature_id, "type": feature.type or "unspecified", "unit": feature.unit, "role": "Raw" if color == "teal" else "Feature", "color": color}) %}
+      {% endfor %}
+      {% set columns = schema.columns %}
+      <article class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 sm:p-8">
+        <header class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ entity.name or entity_id }}</p>
+            {% set dataset_heading = "h2" %}
+            <{{ dataset_heading }} class="mt-2 break-words font-display text-xl font-semibold text-white">{{ dataset.id }}</{{ dataset_heading }}>
+          </div>
+          <span class="rounded-full bg-slate-800/70 px-3 py-1 font-mono text-[10px] text-slate-400">{{ columns|length }} columns</span>
+        </header>
+        {% if dataset.row_scope and dataset.row_scope.get("grain") %}<p class="mt-3 max-w-3xl text-sm leading-6 text-slate-400">{{ dataset.row_scope.grain }}</p>{% endif %}
+        {% if columns %}
+        <div class="mt-6">
+          <div class="dataset-table-scroll overflow-x-auto rounded-xl border border-slate-700/60">
+            <table data-dataset-schema="{{ dataset.id }}" class="w-full min-w-max border-collapse text-left font-mono text-xs">
+              <caption class="sr-only">Declared column types and units for {{ dataset.id }}; schema only, no sample records.</caption>
+              <thead>
+                <tr>
+                  {% for column in columns %}
+                  <th scope="col" class="border-b border-slate-700/50 px-4 py-4 {{ column_colors[column.color] }}">{{ column.name }}<span class="mt-2 block text-[10px] font-normal">{{ column.role }}</span></th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  {% for column in columns %}
+                  <td class="px-4 py-3 {{ column_colors[column.color] }}">{{ column.type }}{% if column.unit %} · {{ column.unit }}{% endif %}</td>
+                  {% endfor %}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+        {% set ns = namespace(mapping_count=0) %}
+        {% for mapping in dataset.mappings.values() %}
+          {% if mapping_operation(mapping, configuration.functions) != "vectorize" %}
+            {% set ns.mapping_count = ns.mapping_count + 1 %}
+          {% endif %}
+        {% endfor %}
+        {% if dataset.description or dataset.row_scope.get("filtering") or dataset.row_scope.get("coverage") or dataset.order or ns.mapping_count %}
+        <details class="mt-6 border-t border-slate-800 pt-4">
+          <summary class="w-fit cursor-pointer text-xs text-slate-400 hover:text-slate-200">Dataset details</summary>
+          <div class="mt-5 space-y-5">
+            {% if dataset.description %}<p class="max-w-3xl text-sm leading-6 text-slate-400">{{ dataset.description }}</p>{% endif %}
+            <dl class="grid gap-5 sm:grid-cols-2">
+              {% for label, key in [("Filtering", "filtering"), ("Coverage", "coverage")] %}
+              {% if dataset.row_scope.get(key) %}
+              <div><dt class="text-xs text-slate-500">{{ label }}</dt><dd class="mt-2 text-sm leading-6 text-slate-300">{{ dataset.row_scope[key] }}</dd></div>
+              {% endif %}
+              {% endfor %}
+            </dl>
+            {% if dataset.order %}
+            <div>
+              <p class="text-xs text-slate-500">Logical order (not a physical row-order guarantee)</p>
+              <ul class="mt-2 flex flex-wrap gap-2">
+                {% for key in dataset.order %}
+                <li class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ key.dimension }} {{ key.direction }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% if ns.mapping_count %}
+            <div>
+              <p class="mb-3 text-xs text-slate-500">Dataframe mappings</p>
+              <div class="flex flex-wrap gap-3">
+            {% for mapping_id, mapping in dataset.mappings.items() if mapping_operation(mapping, configuration.functions) != "vectorize" %}
+              <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ mapping_operation(mapping, configuration.functions) }} · {{ mapping_id }}</span>
+              {% if mapping_operation(mapping, configuration.functions) == "collapse" %}
+              <div class="w-full font-mono text-xs text-slate-400">
+                Input dataset inferred from bound features · Group by entity dimensions: {{ entity.dimensions | tojson }}
+                <p>{{ mapping.binding.function }}({{ mapping.binding.args | tojson }})</p>
+              </div>
+              {% endif %}
+            {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </details>
+        {% endif %}
+      </article>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</section>

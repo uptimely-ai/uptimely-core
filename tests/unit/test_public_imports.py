@@ -2,14 +2,9 @@ import subprocess
 import sys
 
 import uptimely
-import uptimely.analytics as analytics
 import uptimely.compiler as compiler
 import uptimely.engine as engine
-from uptimely.analytics import feature_graph
-from uptimely.analytics.feature_graph import FeatureGraph, SubGraph
-from uptimely.analytics.feature_graph import models as feature_graph_models
-from uptimely.analytics.feature_graph.models import FeatureNode, FunctionNode
-from uptimely.analytics.model import Analytics as AnalyticsModel
+import uptimely.spec as spec
 from uptimely.compiler import plan
 from uptimely.compiler.callable_node import CallableNode as CallableNodeImplementation
 from uptimely.compiler.compiler import Compiler as CompilerImplementation
@@ -18,6 +13,11 @@ from uptimely.compiler.plan.models import ExecutionPlan, Plan
 from uptimely.engine.config import EngineConfig
 from uptimely.engine.engine import Engine as EngineImplementation
 from uptimely.explorer import graph_render
+from uptimely.spec import feature_graph
+from uptimely.spec.feature_graph import FeatureGraph, SubGraph
+from uptimely.spec.feature_graph import models as feature_graph_models
+from uptimely.spec.feature_graph.models import FeatureNode, FunctionNode
+from uptimely.spec.model import Spec as SpecModel
 
 
 def test_removed_compatibility_paths_are_unavailable_in_fresh_process() -> None:
@@ -29,11 +29,11 @@ def test_removed_compatibility_paths_are_unavailable_in_fresh_process() -> None:
         "uptimely.compile.node",
         "uptimely.compile.render",
         "uptimely.compiler.entrypoint",
-        "uptimely.analytics.explorer_render",
-        "uptimely.analytics.graph_render",
-        "uptimely.analytics.feature_graph.render",
-        "uptimely.analytics.models",
-        "uptimely.analytics.storage",
+        "uptimely.spec.explorer_render",
+        "uptimely.spec.graph_render",
+        "uptimely.spec.feature_graph.render",
+        "uptimely.spec.models",
+        "uptimely.spec.storage",
         "uptimely.plan",
         "uptimely.plan.models",
         "uptimely.plan.serialization",
@@ -58,26 +58,26 @@ for name in {removed_paths!r}:
 
 
 def test_canonical_package_exports_preserve_object_identity() -> None:
-    assert uptimely.Analytics is analytics.Analytics is AnalyticsModel
-    assert uptimely.load_analytics is analytics.load_analytics
-    assert uptimely.from_python is analytics.from_python
-    assert uptimely.prepare_analytics is analytics.prepare_analytics
-    assert uptimely.write_document is analytics.write_document
-    assert uptimely.PreparedAnalytics is analytics.PreparedAnalytics
-    assert not hasattr(analytics, "AnalyticsParser")
-    assert not hasattr(analytics, "AnalyticsSerializer")
-    assert uptimely.Call is analytics.Call
-    assert uptimely.Dimension is analytics.Dimension
-    assert uptimely.Entity is analytics.Entity
-    assert uptimely.FeatureGraph is analytics.FeatureGraph is FeatureGraph
+    assert uptimely.Spec is spec.Spec is SpecModel
+    assert uptimely.load_spec is spec.load_spec
+    assert uptimely.from_python is spec.from_python
+    assert uptimely.prepare_spec is spec.prepare_spec
+    assert uptimely.write_document is spec.write_document
+    assert uptimely.PreparedSpec is spec.PreparedSpec
+    assert not hasattr(spec, "SpecParser")
+    assert not hasattr(spec, "SpecSerializer")
+    assert uptimely.Call is spec.Call
+    assert uptimely.Dimension is spec.Dimension
+    assert uptimely.Entity is spec.Entity
+    assert uptimely.FeatureGraph is spec.FeatureGraph is FeatureGraph
     assert graph_render.GraphStyle.__module__ == "uptimely.explorer.graph_render"
-    assert not hasattr(analytics, "GraphStyle")
+    assert not hasattr(spec, "GraphStyle")
     assert not hasattr(feature_graph, "GraphStyle")
     assert feature_graph_models.FeatureNode is FeatureNode
     assert feature_graph_models.FunctionNode is FunctionNode
-    assert uptimely.Function is analytics.Function
-    assert uptimely.PythonAnalytics is analytics.PythonAnalytics
-    assert uptimely.SubGraph is analytics.SubGraph is SubGraph
+    assert uptimely.Function is spec.Function
+    assert uptimely.PythonSpec is spec.PythonSpec
+    assert uptimely.SubGraph is spec.SubGraph is SubGraph
 
     assert uptimely.CallableGraph is compiler.CallableGraph is CallableGraphImplementation
     assert uptimely.CallableNode is compiler.CallableNode is CallableNodeImplementation

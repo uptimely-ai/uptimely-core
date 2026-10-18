@@ -1,0 +1,39 @@
+{% from "spec/section_header.html.j2" import section_header with context %}
+<section id="entities" class="mb-16">
+  {{ section_header("Entities", "Explore analytical subjects, their dimensions, and the datasets that describe them.", count=summary.entity_count, count_label="entities") }}
+  <div class="grid gap-4">
+    {% for entity_id, entity in configuration.entities.items() %}
+    <article class="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+      <div class="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ entity_id }}</p>
+          {% set entity_heading = "h2" %}
+          <{{ entity_heading }} class="mt-1 font-display text-xl font-semibold text-white">{{ entity.name or entity_id }}</{{ entity_heading }}>
+        </div>
+        <span class="font-mono text-xs text-slate-400">{{ entity.datasets|length }} datasets</span>
+      </div>
+      {% if entity.description %}<p class="mt-3 max-w-3xl text-sm leading-6 text-slate-400">{{ entity.description }}</p>{% endif %}
+      {% if entity.dimensions %}
+      <div class="mt-4">
+        <p class="mb-2 font-mono text-[10px] uppercase tracking-wider text-slate-500">Dimensions</p>
+        <div class="flex flex-wrap gap-2">
+          {% for dimension in entity.dimensions %}
+          <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ dimension }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% if entity.datasets %}
+      <div class="mt-4 border-t border-slate-800 pt-3">
+        <p class="mb-2 font-mono text-[10px] uppercase tracking-wider text-slate-500">Datasets</p>
+        <ul class="space-y-1">
+          {% for dataset in entity.datasets %}
+          <li class="font-mono text-sm text-cyan-200">{{ dataset.id }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>

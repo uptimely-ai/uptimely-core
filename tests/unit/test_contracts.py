@@ -3,10 +3,10 @@ import types
 import pytest
 
 from uptimely import contracts
-from uptimely.analytics import model as analytics_model
-from uptimely.analytics import resolved
-from uptimely.analytics.validation import functions as validation_functions
-from uptimely.analytics.validation import prepared
+from uptimely.spec import model as spec_model
+from uptimely.spec import resolved
+from uptimely.spec.validation import functions as validation_functions
+from uptimely.spec.validation import prepared
 
 
 @pytest.mark.parametrize(
@@ -28,13 +28,13 @@ def test_operation_contracts_validate_every_function_operation(
     assert contracts.DATAFRAME_INPUT_COUNTS[operation] == dataframe_input_count
     assert contracts.OPERATION_RETURN_KINDS[operation] == return_kind
 
-    function = analytics_model.FunctionTemplate(
+    function = spec_model.FunctionTemplate(
         id=operation,
         operation=operation,
         returns=return_kind,
         entrypoint="module:function",
         args={
-            f"frame_{index}": analytics_model.Argument(id=f"frame_{index}", type="dataframe")
+            f"frame_{index}": spec_model.Argument(id=f"frame_{index}", type="dataframe")
             for index in range(dataframe_input_count)
         },
     )
@@ -45,7 +45,7 @@ def test_operation_contracts_validate_every_function_operation(
 
 
 def test_function_model_reexports_the_shared_operation_contract() -> None:
-    assert analytics_model.FUNCTION_OPERATIONS is contracts.FUNCTION_OPERATIONS
+    assert spec_model.FUNCTION_OPERATIONS is contracts.FUNCTION_OPERATIONS
 
 
 def test_fragment_operations_exclude_calculations_and_sinks() -> None:

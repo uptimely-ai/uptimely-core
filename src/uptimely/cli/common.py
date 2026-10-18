@@ -1,18 +1,18 @@
-"""Shared project paths and analytics loading for CLI commands."""
+"""Shared project paths and spec loading for CLI commands."""
 
 import argparse
 import pathlib
 import sys
 
-from uptimely import analytics, project
+from uptimely import project, spec
 
 
 def configure_project_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add analytics, import-root, feature-selection, and diagnostic options."""
+    """Add spec, import-root, feature-selection, and diagnostic options."""
     parser.add_argument(
-        "--analytics",
+        "--spec",
         type=pathlib.Path,
-        help=f"Analytics JSON (default: {project.ANALYTICS_JSON_FILE} under --project-root)",
+        help=f"Spec JSON (default: {project.SPEC_JSON_FILE} under --project-root)",
     )
     parser.add_argument(
         "--project-root",
@@ -48,7 +48,7 @@ def project_import_root(project_root: pathlib.Path) -> pathlib.Path:
     return root
 
 
-def load_analytics(path: pathlib.Path, project_root: pathlib.Path) -> analytics.Analytics:
-    """Load an analytics document with project functions on the import path."""
+def load_spec(path: pathlib.Path, project_root: pathlib.Path) -> spec.Spec:
+    """Load a spec document with project functions on the import path."""
     prepare_project_root(project_root)
-    return analytics.load_analytics(path)
+    return spec.load_spec(path)

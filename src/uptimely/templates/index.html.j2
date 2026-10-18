@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% block title %}{{ analytics_definition.name or "Untitled analytics project" }} | OpenAnalytics{% endblock %}
+{% block title %}{{ spec_definition.name or "Untitled analytics project" }} | OpenAnalytics{% endblock %}
 {% block style %}
   .dashboard { max-width: 1280px; margin: auto; padding: 48px 40px 64px; }
   .dashboard .eyebrow { margin: 0; font: 11px "JetBrains Mono", monospace;
@@ -28,7 +28,7 @@
   .dashboard-section-title { margin: 12px 0 8px;
     font: 600 26px "Space Grotesk", sans-serif; letter-spacing: -.02em; color: #f8fafc; }
   .dashboard-section-intro { margin: 0 0 28px; color: #94a3b8; line-height: 1.7; }
-  .analytics-journey { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  .spec-journey { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
     margin: 0; padding: 0; list-style: none; border: 1px solid #334155;
     border-radius: 20px; background: #0f172a; }
   .journey-step { position: relative; min-width: 0; padding: 28px; }
@@ -57,7 +57,7 @@
     .dashboard { padding: 32px 24px; }
     .dashboard-hero { padding: 28px; }
     .dashboard-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .analytics-journey { grid-template-columns: 1fr; }
+    .spec-journey { grid-template-columns: 1fr; }
     .journey-step + .journey-step { border-left: 0; border-top: 1px solid #334155; }
     .journey-step + .journey-step::before { top: -5px; left: 48px; transform: rotate(135deg); }
   }
@@ -82,11 +82,11 @@
   <header class="dashboard-hero">
     <div>
       <p class="eyebrow">OpenAnalytics / Project explorer</p>
-      <h1 class="title-with-icon">{{ icon("home", "title-icon") }}<span>{{ analytics_definition.name or "Untitled analytics project" }}</span></h1>
+      <h1 class="title-with-icon">{{ icon("home", "title-icon") }}<span>{{ spec_definition.name or "Untitled analytics project" }}</span></h1>
       <p class="dashboard-intro">From declared data to a dependency-aware plan.
         Explore what this analytics project defines, how its plan is compiled,
         and how its data flows through execution.</p>
-      <span class="dashboard-version">Analytics {{ analytics_definition.version }}</span>
+      <span class="dashboard-version">Spec {{ spec_definition.version }}</span>
     </div>
     <svg class="dashboard-art" viewBox="0 0 420 280" fill="none" aria-hidden="true" focusable="false">
       <defs>
@@ -127,11 +127,11 @@
 
   <section aria-labelledby="journey-heading">
     <p class="eyebrow">Three perspectives. One project.</p>
-    <h2 class="dashboard-section-title" id="journey-heading">Follow the analytics journey</h2>
+    <h2 class="dashboard-section-title" id="journey-heading">Follow the spec journey</h2>
     <p class="dashboard-section-intro">Start with the declarations, inspect the compiled plan, then explore execution.</p>
-    <ol class="analytics-journey" aria-label="Analytics journey">
+    <ol class="spec-journey" aria-label="Spec journey">
       {% for accent, number, title, description, href, action in [
-        ("analytics", "01", "Analytics", "The source of truth. Browse entities, datasets, features, dimensions, and the functions bound to them.", website_pages["analytics"]["overview"], "Explore analytics"),
+        ("spec", "01", "Spec", "The source of truth. Browse entities, datasets, features, dimensions, and the functions bound to them.", website_pages["spec"]["overview"], "Explore spec"),
         ("execution", "02", "Plan", "The path to execution. Inspect compiled operations, argument bindings, and dependency-ordered stages with potential parallelism.", website_pages["plan"]["overview"], "Inspect the plan"),
         ("lineage", "03", "Execution", "Follow color-coded processing tables and the dependencies connecting them.", website_pages["execution"]["lineage"], "Explore execution")
       ] %}
@@ -147,7 +147,7 @@
       {% endfor %}
     </ol>
   </section>
-  <p class="dashboard-note">A view of your declared analytics, not a live execution monitor.
-    Counts describe the analytics and its compiled plan; building this website does not run analytical operations.</p>
+  <p class="dashboard-note">A view of your declared spec, not a live execution monitor.
+    Counts describe the spec and its compiled plan; building this website does not run analytical operations.</p>
 </main>
 {% endblock %}

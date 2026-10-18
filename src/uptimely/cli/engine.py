@@ -30,7 +30,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         "--compile",
         choices=["true", "false"],
         default="true",
-        help="Compile analytics first (default: true); false loads --plan",
+        help="Compile spec first (default: true); false loads --plan",
     )
     execute.add_argument(
         "--plan",
@@ -49,21 +49,19 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Execute a compiled or saved plan and report failures explicitly."""
-    if args.compile == "false" and (args.analytics is not None or args.features is not None):
-        parser.error("--analytics and --features require --compile true")
+    if args.compile == "false" and (args.spec is not None or args.features is not None):
+        parser.error("--spec and --features require --compile true")
     if args.compile == "true" and args.plan is not None:
         parser.error("--plan requires --compile false")
     root = args.project_root or pathlib.Path.cwd()
     config = common.project_path(args.config, args.project_root, project.ENGINE_CONFIG_FILE)
-    analytics_definition = common.project_path(
-        args.analytics, args.project_root, project.ANALYTICS_JSON_FILE
-    )
+    spec_definition = common.project_path(args.spec, args.project_root, project.SPEC_JSON_FILE)
     plan_path = common.project_path(args.plan, args.project_root, project.EXECUTION_PLAN_FILE)
     try:
         common.prepare_project_root(root)
         settings = EngineSettings.model_validate_json(config.read_text(encoding="utf-8"))
         execution_plan = (
-            plan.compile_plan(analytics_definition, root, args.features)
+            plan.compile_plan(spec_definition, root, args.features)
             if args.compile == "true"
             else plan_module.ExecutionPlan.from_json(plan_path)
         )
@@ -79,11 +77,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     print("Engine completed the flow")
     print(f"{len(execution_plan.callables)} callables")
     print("Calculated features: " + ", ".join(calculated_features))
-    print(
-        f"Analytics: {analytics_definition}"
-        if args.compile == "true"
-        else f"Execution plan: {plan_path}"
-    )
+    print(f"Spec: {spec_definition}" if args.compile == "true" else f"Execution plan: {plan_path}")
     if args.verbose:
         plan.print_stages(execution_plan)
         print("\nDataset registry")

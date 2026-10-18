@@ -5,10 +5,10 @@ from __future__ import annotations
 import graphable as graphable_
 from graphable.views import texttree
 
-from uptimely import analytics, contracts
-from uptimely.analytics import api as analytics_api
+from uptimely import contracts, spec
+from uptimely.spec import api as spec_api
 
-from ..analytics import references as bindings
+from ..spec import references as bindings
 from . import callable_node as callable_node_module
 
 Node = graphable_.graphable.Graphable
@@ -18,23 +18,21 @@ NodeMeta = callable_node_module.CallableNode
 class CallableGraph:
     """Dependency graph built from callable invocations and their feature dependencies."""
 
-    def __init__(self, analytics: analytics.Analytics) -> None:
-        """Load analytics functions and build the callable dependency graph.
+    def __init__(self, spec: spec.Spec) -> None:
+        """Load spec functions and build the callable dependency graph.
 
         Args:
-            analytics: The analytics document containing function declarations and invocations.
+            spec: The spec document containing function declarations and invocations.
         """
-        self.analytics = analytics
-        prepared = analytics_api.prepare_analytics(analytics)
+        self.spec = spec
+        prepared = spec_api.prepare_spec(spec)
         self._datasets = {
             (entity_id, dataset.id): dataset
-            for entity_id, entity in analytics.entities.items()
+            for entity_id, entity in spec.entities.items()
             for dataset in entity.datasets
         }
         self.calls = prepared.calls
-        self.functions = [
-            function for function in prepared.functions if function.role == "analytics"
-        ]
+        self.functions = [function for function in prepared.functions if function.role == "spec"]
         # Index all callables by (function_id, entity, feature) to resolve dependencies
         self._callable_index: dict[tuple[str, str, str], callable_node_module.CallableNode] = {}
         # Map feature names to the callables that produce them
@@ -47,11 +45,11 @@ class CallableGraph:
         """Build a graph where nodes are callables and edges represent feature dependencies."""
         nodes: dict[str, Node] = {}
 
-        for entity_id, entity in self.analytics.entities.items():
+        for entity_id, entity in self.spec.entities.items():
             for dataset in entity.datasets:
                 dataset_key = (entity_id, dataset.id)
                 for mapping in dataset.mappings.values():
-                    operation = bindings.mapping_operation(mapping, self.analytics.functions)
+                    operation = bindings.mapping_operation(mapping, self.spec.functions)
                     primary_feature = (
                         mapping.output_features[0] if mapping.output_features else None
                     )
@@ -81,7 +79,7 @@ class CallableGraph:
                     elif operation != "vectorize":
                         self._dataset_sources.setdefault(dataset_key, []).append(node)
                     for feature in mapping.output_features:
-                        if feature in self.analytics.dimensions:
+                        if feature in self.spec.dimensions:
                             continue
                         self._feature_producers[feature] = node
                         if operation == "vectorize":
@@ -162,19 +160,19 @@ class CallableGraph:
         return graph
 
     def collapse_input_dataset_id(self, node: callable_node_module.CallableNode) -> str:
-        """Infer the input dataset from a collapse node's analytics binding."""
+        """Infer the input dataset from a collapse node's spec binding."""
         if node.operation != "collapse" or node.mapping_id is None:
             raise ValueError(f"Expected a collapse mapping node: {node.node_id}")
         mapping = self.mapping_for(node)
-        return bindings.collapse_input_dataset(self.analytics, mapping)[1].id
+        return bindings.collapse_input_dataset(self.spec, mapping)[1].id
 
-    def dataset_for(self, node: callable_node_module.CallableNode) -> analytics.Dataset:
+    def dataset_for(self, node: callable_node_module.CallableNode) -> spec.Dataset:
         """Return a node's dataset from the validated entity-scoped index."""
         if node.dataset_id is None:
             raise ValueError(f"Callable node has no dataset: {node.node_id}")
         return self._datasets[node.entity, node.dataset_id]
 
-    def mapping_for(self, node: callable_node_module.CallableNode) -> analytics.Mapping:
+    def mapping_for(self, node: callable_node_module.CallableNode) -> spec.Mapping:
         """Return the declaration that produced a callable node."""
         if node.mapping_id is None:
             raise ValueError(f"Callable node has no mapping: {node.node_id}")
@@ -220,7 +218,7 @@ class CallableGraph:
             nodes.update(self.graph.ancestors(node))
 
         subset = self.__class__.__new__(self.__class__)
-        subset.analytics = self.analytics
+        subset.spec = self.spec
         subset._datasets = self._datasets
         subset.functions = self.functions
         subset._callable_index = self._callable_index

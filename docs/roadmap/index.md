@@ -34,24 +34,24 @@ See [runtime overrides](../components/engine.md#runtime-overrides) for usage.
 
 Future work includes automatic environment selection, layered configuration
 merging, and a mechanism for calculation constants. Runtime configuration
-substitution does not currently override arbitrary analytics fields or
+substitution does not currently override arbitrary spec fields or
 literal arguments.
 
 ## Extend the MCP support
 
 Add MCP support for each atomic analytical functions.
 
-## Add parameters to analytics
+## Add parameters to spec
 
 Parameter would be another column type aside of dimensions and features.
 
-It could be described as a control variable for analytics: It is participating to calculation and enables configuration per dimension, but is not intended to be modified in the process.
+It could be described as a control variable for spec: It is participating to calculation and enables configuration per dimension, but is not intended to be modified in the process.
 
 A constant could be used as a parameter.
 
-## Add constants to Analytics
+## Add constants to Spec
 
-Add a section to Analytics to define something like this:
+Add a section to Spec to define something like this:
 
 ```json
 {
@@ -77,4 +77,4 @@ Add a section to Analytics to define something like this:
 
 Before implementation, evaluate if this is just a special case for parameters.
 
-And whether constants and parameters should be stored among other data, not in the Analytics document.
+And whether constants and parameters should be stored among other data, not in the Spec document.

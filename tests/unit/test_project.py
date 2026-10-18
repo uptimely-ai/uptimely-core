@@ -7,24 +7,24 @@ import pytest
 from uptimely import project
 
 
-def test_default_analytics_attribute() -> None:
-    assert project.DEFAULT_ANALYTICS_ATTRIBUTE == "python_analytics"
+def test_default_spec_attribute() -> None:
+    assert project.DEFAULT_SPEC_ATTRIBUTE == "python_spec"
 
 
 @pytest.mark.parametrize(
     ("path", "expected"),
     [
         (project.CONFIG_DIR, "config"),
-        (project.ANALYTICS_SOURCE_DIR, "config/analytics"),
-        (project.ANALYTICS_PYTHON_ENTRY_FILE, "config/analytics/analytics.py"),
-        (project.ANALYTICS_JSON_ENTRY_FILE, "config/analytics/analytics.json"),
+        (project.SPEC_SOURCE_DIR, "config/spec"),
+        (project.SPEC_PYTHON_ENTRY_FILE, "config/spec/spec.py"),
+        (project.SPEC_JSON_ENTRY_FILE, "config/spec/spec.json"),
         (project.COMPILER_CONFIG_FILE, "config/compiler.json"),
         (project.ENGINE_CONFIG_FILE, "config/engine.json"),
         (project.DATA_DIR, "data"),
         (project.FUNCTIONS_DIR, "functions"),
         (project.GENERATED_DIR, "_generated"),
-        (project.ANALYTICS_OUTPUT_DIR, "_generated/analytics"),
-        (project.ANALYTICS_JSON_FILE, "_generated/analytics/analytics.json"),
+        (project.SPEC_OUTPUT_DIR, "_generated/spec"),
+        (project.SPEC_JSON_FILE, "_generated/spec/spec.json"),
         (project.COMPILE_OUTPUT_DIR, "_generated/compile"),
         (project.EXECUTION_PLAN_FILE, "_generated/compile/execution_plan.json"),
         (project.EXPLORER_OUTPUT_DIR, "_generated/explorer"),

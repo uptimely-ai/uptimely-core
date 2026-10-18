@@ -2,7 +2,7 @@
 
 The framework creates many safeguards what can go into the analytical functions, and what comes out. For example dataset, feature and dimension data types, structural validation, operation types etc.
 
-However, what happens inside the analytical functions written by user is developer's responsibility. It is possible to even produce structurally correct results with methods that are against the analytics definition.
+However, what happens inside the analytical functions written by user is developer's responsibility. It is possible to even produce structurally correct results with methods that are against the spec definition.
 
 Here are the best practices for writing the analytical function.
 
@@ -26,13 +26,13 @@ for t in timesteps:
     ...
 ```
 
-For tabular data, prefer vectorized functions and SQL window capabilities where they fit the problem. In Analytics, this feature category is named `vectorize`; each vectorize function should transform its declared feature inputs into one output feature without performing I/O.
+For tabular data, prefer vectorized functions and SQL window capabilities where they fit the problem. In Spec, this feature category is named `vectorize`; each vectorize function should transform its declared feature inputs into one output feature without performing I/O.
 
 ## i/o only in read and write functions
 
 For analytical functions, data should be passed only as input argument and the processed data should come through Python return. This gurantees function purity, takes benefit of automatic validation and makes code structure understandable for others.
 
-Make clear separation between functions that perform analytics and those that communicate with data sources.
+Make clear separation between functions that perform spec and those that communicate with data sources.
 
 ## Do the heavy lifting in the source
 
@@ -44,7 +44,7 @@ Push these operations into the source query of a read function:
 * **Column selection**, so only the required features are transferred
 * **Joins** between large tables
 * **Deduplication** and cleansing of raw data
-* **Pre-aggregation** when the analytics only needs coarser data, such as hourly instead of per-second values
+* **Pre-aggregation** when the spec only needs coarser data, such as hourly instead of per-second values
 
 Loading a full table and filtering it afterwards in Python wastes network bandwidth, memory, and time. It also prevents the source from using its own optimizations.
 

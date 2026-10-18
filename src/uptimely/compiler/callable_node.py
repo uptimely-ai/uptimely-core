@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from uptimely import analytics, render, row_context
+from uptimely import render, row_context, spec
 
 
 @dataclasses.dataclass(frozen=True)
@@ -17,7 +17,7 @@ class CallableNode:
     mapping_id: str | None = None
     output_features: tuple[str, ...] = ()
     args: dict[str, object] = dataclasses.field(default_factory=dict, compare=False, hash=False)
-    callable: analytics.Call | None = dataclasses.field(default=None, compare=False, hash=False)
+    callable: spec.Call | None = dataclasses.field(default=None, compare=False, hash=False)
     row_context: row_context.RowContext | None = dataclasses.field(
         default=None, compare=False, hash=False
     )

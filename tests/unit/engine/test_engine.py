@@ -67,7 +67,7 @@ def test_saved_plan_executes_without_compiler(
         assert features == ["doubled"]
 
     def fail_compile(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError("Saved-plan execution must not compile analytics")
+        raise AssertionError("Saved-plan execution must not compile spec")
 
     monkeypatch.setattr(uptimely_compiler.Compiler, "compile", fail_compile)
     engine = uptimely_engine.Engine(

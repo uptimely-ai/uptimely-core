@@ -1,5 +1,5 @@
-from uptimely import analytics, compiler, render
-from uptimely.analytics.feature_graph import models
+from uptimely import compiler, render, spec
+from uptimely.spec.feature_graph import models
 
 
 def test_render_field_filter_preserves_falsy_values() -> None:
@@ -34,10 +34,10 @@ def test_feature_render_data_preserves_empty_strings() -> None:
 
 
 def test_function_render_data_includes_declared_metadata() -> None:
-    function = analytics.Function(
+    function = spec.Function(
         id="double",
         type="python_function",
-        role="analytics",
+        role="spec",
         info={"description": "Double a reading"},
         entrypoint="example:double",
     )

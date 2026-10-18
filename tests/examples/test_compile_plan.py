@@ -5,11 +5,11 @@ import sys
 
 import pytest
 
-from uptimely import analytics, compiler
+from uptimely import compiler, spec
 from uptimely.cli import cli
 from uptimely.explorer import explorer
 
-ANALYTICS_PATH = pathlib.Path("examples/pump_analytics/_generated/analytics/analytics.json")
+SPEC_PATH = pathlib.Path("examples/pump_analytics/_generated/spec/spec.json")
 
 
 def test_execution_plan_cli_exports_only_json(
@@ -22,8 +22,8 @@ def test_execution_plan_cli_exports_only_json(
             "uptimely",
             "plan",
             "build",
-            "--analytics",
-            str(ANALYTICS_PATH),
+            "--spec",
+            str(SPEC_PATH),
             "--output",
             str(tmp_path / "compile" / "execution_plan.json"),
         ],
@@ -34,15 +34,15 @@ def test_execution_plan_cli_exports_only_json(
 
 
 def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) -> None:
-    plan = compiler.Compiler(ANALYTICS_PATH).compile()
+    plan = compiler.Compiler(SPEC_PATH).compile()
 
     output_path = plan.export_json(tmp_path / "execution_plan.json")
     metadata = json.loads(output_path.read_text(encoding="utf-8"))
 
     assert metadata == plan.plan.to_dict()
     assert "specification_version" not in metadata["resources"]
-    assert "analytics_version" not in metadata
-    assert "analytics_version" not in metadata["resources"]
+    assert "spec_version" not in metadata
+    assert "spec_version" not in metadata["resources"]
     assert set(metadata) == {
         "plan_version",
         "required_backend",
@@ -77,7 +77,7 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
 
 
 def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> None:
-    explorer.Explorer(analytics.load_analytics(ANALYTICS_PATH)).create_html(tmp_path / "index.html")
+    explorer.Explorer(spec.load_spec(SPEC_PATH)).create_html(tmp_path / "index.html")
     report_path = tmp_path / "plan/stages.html"
     report = report_path.read_text(encoding="utf-8")
 
@@ -125,10 +125,10 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
 
 
 def test_website_exports_plan_pages_to_default_path(tmp_path: pathlib.Path, monkeypatch) -> None:
-    analytics_definition = analytics.load_analytics(ANALYTICS_PATH)
+    spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
 
-    index = explorer.Explorer(analytics_definition).create_html()
+    index = explorer.Explorer(spec_definition).create_html()
 
     assert index == pathlib.Path("_generated/explorer/index.html")
     for filename in (

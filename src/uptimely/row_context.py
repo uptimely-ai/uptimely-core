@@ -1,4 +1,4 @@
-"""Portable observation-context requirements shared by analytics and plans."""
+"""Portable observation-context requirements shared by spec and plans."""
 
 from __future__ import annotations
 

@@ -31,8 +31,8 @@ examples/
 ├── pump_analytics/
 │   ├── config/
 │   │   ├── engine.json       Engine settings and runtime bindings
-│   │   └── analytics/       Flat Python analytics declarations
-│   │       ├── analytics.py
+│   │   └── spec/                  Flat Python spec declarations
+│   │       ├── spec.py
 │   │       ├── dataset_pump.py
 │   │       ├── dataset_telemetry.py
 │   │       ├── entity.py
@@ -43,14 +43,14 @@ examples/
 │   └── _generated/
 │       ├── compile/          Compiled plans
 │       ├── explorer/         Generated analytics explorer
-│       └── analytics/             Exported analytics JSON
+│       └── spec/             Exported spec JSON
 └── simple_analytics/
     ├── config/
-    │       └── analytics/       Python analytics declarations
+    │       └── spec/                  Python spec declarations
     ├── data/                 Data used by the Python example
     ├── functions/            Example function implementations
     └── _generated/
-        └── analytics/             Exported analytics JSON
+        └── spec/             Exported spec JSON
 ```
 
 ## Quick start
@@ -67,8 +67,8 @@ uptimely explorer serve --project-root examples/pump_analytics
 Additional commands to try:
 
 ```sh
-uptimely analytics build --project-root examples/pump_analytics
-uptimely analytics feature-graph --project-root examples/pump_analytics --verbose
+uptimely spec build --project-root examples/pump_analytics
+uptimely spec feature-graph --project-root examples/pump_analytics --verbose
 uptimely plan build --project-root examples/pump_analytics
 uptimely engine run --project-root examples/pump_analytics
 
@@ -82,28 +82,28 @@ branch), or `--output` to change the destination. The destination must not
 already exist.
 
 Generated artifacts are written beneath each example's `_generated/` directory.
-`project build` rebuilds analytics JSON and the execution plan without running
-analytics functions. Individual `analytics build` and `plan build` commands remain
+`project build` rebuilds spec JSON and the execution plan without running
+analytics functions. Individual `spec build` and `plan build` commands remain
 available. See the [project command reference](../docs/reference/cli/project.md).
 
-## Export Python analytics
+## Export specification documents from Python
 
 The workflow commands consume JSON, so export the Python declarations before
 building plans or the explorer. Re-export after changing the declarations.
 From the repository root (or the parent of downloaded examples), run:
 
 ```sh
-uptimely analytics build --project-root examples/pump_analytics
-uptimely analytics build --project-root examples/simple_analytics
+uptimely spec build --project-root examples/pump_analytics
+uptimely spec build --project-root examples/simple_analytics
 ```
 
 Prefix commands with `poetry run` in a Poetry environment.
-Each declaration module exposes a `python_analytics` instance of
-`uptimely.analytics.python.PythonAnalytics`. By default, the command discovers
-`config/analytics/analytics.py` under the project root, preserving package-relative
-imports. You can also run `uptimely analytics build` from inside either example.
+Each declaration module exposes a `python_spec` instance of
+`uptimely.spec.python.PythonSpec`. By default, the command discovers
+`config/spec/spec.py` under the project root, preserving package-relative
+imports. You can also run `uptimely spec build` from inside either example.
 Use `--entrypoint module:attribute` to select a different module or declaration attribute.
-Without `--output`, JSON is written to `_generated/analytics/analytics.json` beneath
+Without `--output`, JSON is written to `_generated/spec/spec.json` beneath
 that root. An explicit output path is relative to the current working directory.
 
 See each example's README for details.

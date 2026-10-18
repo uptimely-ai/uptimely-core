@@ -15,58 +15,61 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
-- `uptimely project build` builds analytics JSON and compiles a saved execution
+- `uptimely project build` builds spec JSON and compiles a saved execution
   plan in one command without executing the workflow. It supports standard
   source discovery, explicit entrypoints, and JSON sources.
-- `uptimely analytics build` discovers standard Python or JSON sources under
-  `config/analytics/`. Use `--entrypoint` or `--analytics` to select a source explicitly;
+- `uptimely spec build` discovers standard Python or JSON sources under
+  `config/spec/`. Use `--entrypoint` or `--spec` to select a source explicitly;
   ambiguous standard sources require an explicit selection.
-- `uptimely analytics build` exports a module's `PythonAnalytics` to JSON,
+- `uptimely spec build` exports a module's `PythonSpec` to JSON,
   replacing the removed example export runners in documentation CI and MCP setup.
 - CLI commands for compiling execution plans (`uptimely plan build`), inspecting
-  feature dependencies (`uptimely analytics feature-graph`), and running workflows
+  feature dependencies (`uptimely spec feature-graph`), and running workflows
   (`uptimely engine run`). Engine execution compiles by default; use
   `--compile false` to run a saved plan.
 
 ### Changed
 
+- Renamed the project domain, public APIs, CLI commands and options, project
+  paths, examples, and documentation to use `spec`. Previous names and inputs
+  are removed; no compatibility aliases or legacy handling remain.
 - Explorer CLI commands now render a saved execution plan instead of recompiling
-  analytics. The plan defaults to `_generated/compile/execution_plan.json`; use
+  spec. The plan defaults to `_generated/compile/execution_plan.json`; use
   `--plan` to select another file and `uptimely project build` to prepare inputs.
   The Python API accepts `plan=` and still compiles when it is omitted.
-- Analytics build now uses `--entrypoint module:attribute` instead of `--module`.
-  The selected attribute must be a `PythonAnalytics` instance. Conventional
-  discovery still selects `python_analytics` from the standard Python source.
-- Renamed `uptimely analytics export` to `uptimely analytics build`. The options
+- Spec build now uses `--entrypoint module:attribute` instead of `--module`.
+  The selected attribute must be a `PythonSpec` instance. Conventional
+  discovery still selects `python_spec` from the standard Python source.
+- Renamed `uptimely spec export` to `uptimely spec build`. The options
   and JSON output are unchanged; the old command is no longer accepted.
 - Python API documentation now follows the source package layout, with separate
   package pages, module navigation, and visually separated class and function
   entries. Coverage includes entrypoint loading, storage, function contracts,
   validation, JSON helpers, and exported graph types.
-- Analytics now separates document models, Python authoring, JSON I/O, and
+- Spec now separates document models, Python authoring, JSON I/O, and
   prepared analysis. Removed the old JSON model/helper modules and
-  `AnalyticsParser`/`AnalyticsSerializer`; use `load_analytics`, `from_python`,
-  `prepare_analytics`, and `write_document` instead of model I/O methods.
+  `SpecParser`/`SpecSerializer`; use `load_spec`, `from_python`,
+  `prepare_spec`, and `write_document` instead of model I/O methods.
   Python declarations use `to_model()` and `to_dict()`, with one shared
-  JSON document format. Derived calls/functions are stored in `PreparedAnalytics`,
-  not `Analytics`. Automatic function catalogs reject all conflicting metadata,
+  JSON document format. Derived calls/functions are stored in `PreparedSpec`,
+  not `Spec`. Automatic function catalogs reject all conflicting metadata,
   and entity declarations must be passed through `entities=`, not `datasets=`.
 - Feature graph HTML rendering and `GraphStyle` now belong to
   `uptimely.explorer.graph_render`; imports from
-  `uptimely.analytics.feature_graph.render`,
-  `uptimely.analytics.feature_graph.GraphStyle`, and
-  `uptimely.analytics.GraphStyle` have been removed.
-- Python analytics declarations now use `mapping.Mapping` with operation metadata
+  `uptimely.spec.feature_graph.render`,
+  `uptimely.spec.feature_graph.GraphStyle`, and
+  `uptimely.spec.GraphStyle` have been removed.
+- Python spec declarations now use `mapping.Mapping` with operation metadata
   on `ref.function`; operation-specific mapping classes have been removed.
 - Portable plans now declare `plan_version` (`0.2.0`) and omit
-  `analytics_version`. The built-in loader rejects unsupported plan versions;
+  `spec_version`. The built-in loader rejects unsupported plan versions;
   regenerate saved plans to use the current format.
 - Python function bindings now require `ref.function(callable_or_entrypoint)`,
   accepting a Python callable or a `path:function` string. Local Python files,
   HTTPS source URLs, and S3 source URIs support signature inspection and execution.
-- `uptimely explorer serve` now builds the website from the project's Analytics before serving it.
-- Renamed the analytics documentation CLI command from `docs` to `explorer`.
-- Example project analytics and engine settings now live under `config/`;
+- `uptimely explorer serve` now builds the website from the project's Spec before serving it.
+- Renamed the spec documentation CLI command from `docs` to `explorer`.
+- Example project spec and engine settings now live under `config/`;
   `uptimely engine run` defaults to `config/engine.json` beneath the project root.
 
 ## [0.1.0] - 2026-10-14

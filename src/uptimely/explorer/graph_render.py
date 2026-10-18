@@ -10,7 +10,7 @@ from graphable import views
 from uptimely import project, render
 
 if typing.TYPE_CHECKING:
-    from uptimely.analytics.feature_graph.graph import GraphBase
+    from uptimely.spec.feature_graph.graph import GraphBase
 
 
 @dataclasses.dataclass

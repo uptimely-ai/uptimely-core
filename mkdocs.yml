@@ -63,13 +63,13 @@ nav:
   - Overview:
       - The problem: overview/problem.md
       - Architecture: overview/architecture.md
-      - Analytics: overview/analytics.md
+      - Spec: overview/spec.md
   - Comparisons:
-      - Analytics platforms: comparisons/analytics-platforms.md
+      - Analytics platforms: comparisons/spec-platforms.md
       - Data science work: comparisons/data-science-work.md
   - Components:
       - About: components/index.md
-      - Analytics: components/analytics.md
+      - Spec: components/spec.md
       - Compiler: components/compiler.md
       - Engine: components/engine.md
   - Tools:
@@ -85,7 +85,7 @@ nav:
       - Backlog: roadmap/backlog.md
   - CLI:
       - Overview: reference/cli.md
-      - analytics: reference/cli/analytics.md
+      - spec: reference/cli/spec.md
       - engine: reference/cli/engine.md
       - examples: reference/cli/examples.md
       - explorer: reference/cli/explorer.md
@@ -93,13 +93,13 @@ nav:
       - project: reference/cli/project.md
   - Python API:
       - Overview: reference/api.md
-      - analytics:
-          - Overview: reference/api/analytics.md
-          - api: reference/api/analytics/api.md
-          - model: reference/api/analytics/model.md
-          - resolved: reference/api/analytics/resolved.md
-          - json: reference/api/analytics/json.md
-          - validation: reference/api/analytics/validation.md
+      - spec:
+          - Overview: reference/api/spec.md
+          - api: reference/api/spec/api.md
+          - model: reference/api/spec/model.md
+          - resolved: reference/api/spec/resolved.md
+          - json: reference/api/spec/json.md
+          - validation: reference/api/spec/validation.md
           - python: reference/api/python.md
           - feature_graph: reference/api/feature-graph.md
       - compiler: reference/api/compiler.md
