@@ -98,7 +98,7 @@ Each declaration module exposes a `python_analytics` instance of
 `uptimely.analytics.python.PythonAnalytics`. By default, the command discovers
 `config/analytics/analytics.py` under the project root, preserving package-relative
 imports. You can also run `uptimely analytics build` from inside either example.
-Use `--module` to select a different importable declaration module.
+Use `--entrypoint module:attribute` to select a different module or declaration attribute.
 Without `--output`, JSON is written to `_generated/analytics/analytics.json` beneath
 that root. An explicit output path is relative to the current working directory.
 

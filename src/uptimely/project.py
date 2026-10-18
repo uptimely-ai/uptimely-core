@@ -1,4 +1,4 @@
-"""Standard paths relative to an Uptimely analytics project root."""
+"""Standard paths and conventions for an Uptimely analytics project."""
 
 import pathlib
 import typing
@@ -6,6 +6,7 @@ import typing
 CONFIG_DIR: typing.Final = pathlib.Path("config")
 ANALYTICS_SOURCE_DIR: typing.Final = CONFIG_DIR / "analytics"
 ANALYTICS_PYTHON_ENTRY_FILE: typing.Final = ANALYTICS_SOURCE_DIR / "analytics.py"
+DEFAULT_ANALYTICS_ATTRIBUTE: typing.Final = "python_analytics"
 ANALYTICS_JSON_ENTRY_FILE: typing.Final = ANALYTICS_SOURCE_DIR / "analytics.json"
 COMPILER_CONFIG_FILE: typing.Final = CONFIG_DIR / "compiler.json"
 ENGINE_CONFIG_FILE: typing.Final = CONFIG_DIR / "engine.json"

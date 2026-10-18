@@ -6,5 +6,5 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 poetry config virtualenvs.in-project true --local
 poetry install --extras "mcp"
 poetry run uptimely analytics build \
-  --module examples.pump_analytics.config.analytics.analytics \
+  --entrypoint examples.pump_analytics.config.analytics.analytics:python_analytics \
   --project-root examples/pump_analytics

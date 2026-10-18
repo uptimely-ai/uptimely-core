@@ -25,7 +25,7 @@ jobs:
       - name: Build pump analytics
         run: |
           poetry run uptimely analytics build \
-            --module examples.pump_analytics.config.analytics.analytics \
+            --entrypoint examples.pump_analytics.config.analytics.analytics:python_analytics \
             --output examples/pump_analytics/_generated/analytics/analytics.json
       - name: Build pump analytics explorer
         run: |

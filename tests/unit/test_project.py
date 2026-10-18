@@ -7,6 +7,10 @@ import pytest
 from uptimely import project
 
 
+def test_default_analytics_attribute() -> None:
+    assert project.DEFAULT_ANALYTICS_ATTRIBUTE == "python_analytics"
+
+
 @pytest.mark.parametrize(
     ("path", "expected"),
     [

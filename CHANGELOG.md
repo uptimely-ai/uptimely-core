@@ -16,7 +16,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 ### Added
 
 - `uptimely analytics build` discovers standard Python or JSON sources under
-  `config/analytics/`. Use `--module` or `--analytics` to select a source explicitly;
+  `config/analytics/`. Use `--entrypoint` or `--analytics` to select a source explicitly;
   ambiguous standard sources require an explicit selection.
 - `uptimely analytics build` exports a module's `PythonAnalytics` to JSON,
   replacing the removed example export runners in documentation CI and MCP setup.
@@ -27,6 +27,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Analytics build now uses `--entrypoint module:attribute` instead of `--module`.
+  The selected attribute must be a `PythonAnalytics` instance. Conventional
+  discovery still selects `python_analytics` from the standard Python source.
 - Renamed `uptimely analytics export` to `uptimely analytics build`. The options
   and JSON output are unchanged; the old command is no longer accepted.
 - Python API documentation now follows the source package layout, with separate
