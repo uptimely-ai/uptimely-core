@@ -21,7 +21,8 @@ the repository after the container is created.
 Scripts under [`scripts/`](scripts/) are repository convenience actions to run
 in an existing development environment. For example,
 [`install-mcp.sh`](scripts/install-mcp.sh) installs the optional MCP extra and
-prepares the example specification.
+prepares the example specification, and [`serve-docs.sh`](scripts/serve-docs.sh)
+starts the MkDocs development server.
 
 ## Development process
 
