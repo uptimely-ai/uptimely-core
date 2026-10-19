@@ -64,7 +64,7 @@ class CallableGraph:
                     nodes[node.node_id] = graphable_.graphable.Graphable(node)
                     if operation == "write":
                         self._dataset_sinks.setdefault(dataset_key, []).append(node)
-                    elif operation != "vectorize":
+                    elif operation in contracts.FRAGMENT_OPERATIONS:
                         self._dataset_sources.setdefault(dataset_key, []).append(node)
                     for feature in mapping.output_features:
                         if feature in self.spec.dimensions:
