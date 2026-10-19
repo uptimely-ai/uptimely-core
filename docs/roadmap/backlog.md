@@ -1,15 +1,6 @@
 # Backlog
 
-Planned backend work by release version.
-
-## Version 0.3.0
-
-Required to create spec for legacy code.
-
-### Add blackbox operation
-
-A function that does not follow any contract of existing calculation operations.
-
+Initially planned backend work by release version.
 
 ## Version 0.4.0
 
@@ -91,7 +82,46 @@ If developer maintains spec.json instead spec.py by hand, copy the file to _gene
 * Analytical functions
 * CLI commands
 
-## Undefined release
+## Version 0.5.0
+
+### Add data quality validations
+
+Now functions are expected to be in folder with name `functions`. Make default folder structure:
+
+```sh
+src
+  /calculations
+  /validations
+```
+
+The spec json will have top-level validations key and the current functions will be renamed to calculations.
+
+Create similar argument binding for validations than calculations. Validations are expected to be on dataset level.
+
+## Version 0.6.0
+
+Engine refactoring and arrow support.
+
+### Add Arrow support
+
+Add support for Arrow in-memory format for tabular data.
+
+Then supported formats would be Arrow and Polars (the backend engine).
+
+## Version 0.7
+
+### Add environment-aware builds and configuration overrides
+
+Support explicit environment selection, such as dev and prod, with a shared base
+configuration and environment-specific overrides. Define deterministic merge
+rules and fail clearly when required configuration is missing.
+
+Record the selected environment and non-sensitive configuration provenance in the
+build manifest. Keep secrets out of generated plans and websites. Reuse the
+compiled plan when only runtime bindings differ; runtime binding substitution
+already exists.
+
+## Undefined features
 
 ### Add preflight validation
 
@@ -106,17 +136,6 @@ Export a JSON run report with an execution ID, build and plan references,
 per-callable statuses and durations, and failure details. Reuse the engine's
 existing execution results and define a stable report format for CI, monitoring,
 and later Explorer integration. Exclude credentials and dataset values by default.
-
-### Add environment-aware builds and configuration overrides
-
-Support explicit environment selection, such as dev and prod, with a shared base
-configuration and environment-specific overrides. Define deterministic merge
-rules and fail clearly when required configuration is missing.
-
-Record the selected environment and non-sensitive configuration provenance in the
-build manifest. Keep secrets out of generated plans and websites. Reuse the
-compiled plan when only runtime bindings differ; runtime binding substitution
-already exists.
 
 ### Add secret-aware runtime bindings
 
@@ -149,24 +168,13 @@ Defines how often each mapping or feature is needed.
 
 Compiler can use this information to define scheduling eg by interval multiples.
 
-### Add data quality validations
-
-Now functions are expected to be in folder with name `functions`. Make default folder structure:
-
-```sh
-src
-  /calculations
-  /validations
-```
-
-Create similar argument binding for validations than calculations. Validations are expected to be on dataset level.
-
-### Add Arrow support
-
-Add support for Arrow in-memory format for tabular data.
-
-Then supported formats would be Arrow and Polars (the backend engine).
-
 ### Higlight feature graph for selected feature
 
 Highlight the features that the clickd feature depends on in explorer feature graph.
+
+
+## Undefined refactoring
+
+### Reuse spec validation functions
+
+Use spec validations directly in unit tests instead of basically rewriting the same logic in unit tests.

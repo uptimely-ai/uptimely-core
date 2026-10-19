@@ -6,13 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 While the version is `0.x`, minor releases may include breaking changes.
 
-## [Unreleased]
+## [0.3.0] - 2026-10-19
 
 ### Added
 
-- Added the uncontrolled `escape` operation for explicit external workflows.
-  Escape mappings declare feature dependencies, but their arbitrary Python
-  returns are ignored and outputs are not materialized as dataframe columns.
+- The `escape` operation supports explicit external workflows. Escape mappings
+  declare feature dependencies but bypass dataframe contracts; their arbitrary
+  Python return values are not materialized as dataframe columns.
+- Added `scripts/serve-docs.sh` to serve the project documentation.
 
 ### Changed
 
