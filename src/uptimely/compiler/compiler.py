@@ -183,6 +183,8 @@ class Compiler:
     ) -> None:
         """Require the Python return annotation to satisfy the function contract."""
         returns = function.returns
+        if returns == "any":
+            return
         if annotation is None:
             raise ValueError(
                 f"Function {function.id} must annotate its return as "
