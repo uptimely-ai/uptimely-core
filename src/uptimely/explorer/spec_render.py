@@ -9,9 +9,10 @@ import typing
 from importlib import util
 from urllib import parse
 
-from uptimely import contracts, project, render, spec
+from uptimely import contracts, project, render
 from uptimely import entrypoint as entrypoint_module
 from uptimely.spec import model as spec_model
+from uptimely.spec import references
 
 SPEC_PAGES = render.WEBSITE_PAGES["spec"]
 __all__ = [
@@ -243,11 +244,13 @@ def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool)
     )
     dependencies = [
         {
-            "function": call.function,
-            "feature": call.feature,
-            "dependencies": call.depends_on_features,
+            "function": mapping.binding.function,
+            "feature": feature,
+            "dependencies": mapping.input_features,
         }
-        for call in spec.prepare_spec(spec_definition).calls
+        for _entity_id, _dataset, mapping in references.iter_mappings(spec_definition)
+        if spec_definition.functions[mapping.binding.function].operation == "vectorize"
+        for feature in mapping.output_features
     ]
     generated_at = (
         datetime.datetime.now().astimezone().isoformat(timespec="seconds")

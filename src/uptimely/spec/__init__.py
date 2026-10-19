@@ -2,7 +2,7 @@
 
 from uptimely.row_context import RowContext
 
-from .api import from_python, load_spec, prepare_spec
+from .api import from_python, load_spec
 from .feature_graph import FeatureGraph, SubGraph
 from .json.codec import write_document
 from .model import (
@@ -29,18 +29,15 @@ from .python import (
     ref,
     row_context,
 )
-from .resolved import Call, Function, PreparedSpec
 
 __all__ = [
     "Argument",
     "Binding",
-    "Call",
     "Dataset",
     "Dimension",
     "Entity",
     "Feature",
     "FeatureGraph",
-    "Function",
     "FunctionCatalog",
     "Mapping",
     "Order",
@@ -48,10 +45,8 @@ __all__ = [
     "RowContext",
     "RowScope",
     "Spec",
-    "PreparedSpec",
     "from_python",
     "load_spec",
-    "prepare_spec",
     "write_document",
     "SubGraph",
     "bind",

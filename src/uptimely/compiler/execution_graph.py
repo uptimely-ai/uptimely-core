@@ -6,7 +6,7 @@ import graphable as graphable_
 from graphable.views import texttree
 
 from uptimely import contracts, spec
-from uptimely.spec import api as spec_api
+from uptimely.spec import validation
 
 from ..spec import references as bindings
 from . import callable_node as callable_node_module
@@ -25,16 +25,12 @@ class CallableGraph:
             spec: The spec document containing function declarations and invocations.
         """
         self.spec = spec
-        prepared = spec_api.prepare_spec(spec)
+        validation.validate_spec(spec)
         self._datasets = {
             (entity_id, dataset.id): dataset
             for entity_id, entity in spec.entities.items()
             for dataset in entity.datasets
         }
-        self.calls = prepared.calls
-        self.functions = [function for function in prepared.functions if function.role == "spec"]
-        # Index all callables by (function_id, entity, feature) to resolve dependencies
-        self._callable_index: dict[tuple[str, str, str], callable_node_module.CallableNode] = {}
         # Map feature names to the callables that produce them
         self._feature_producers: dict[str, callable_node_module.CallableNode] = {}
         self._dataset_sources: dict[tuple[str, str], list[callable_node_module.CallableNode]] = {}
@@ -53,14 +49,6 @@ class CallableGraph:
                     primary_feature = (
                         mapping.output_features[0] if mapping.output_features else None
                     )
-                    call = next(
-                        (
-                            call
-                            for call in self.calls
-                            if call.entity == entity_id and call.feature in mapping.output_features
-                        ),
-                        None,
-                    )
                     node = callable_node_module.CallableNode(
                         function_id=mapping.binding.function,
                         entity=entity_id,
@@ -70,7 +58,7 @@ class CallableGraph:
                         mapping_id=mapping.id,
                         output_features=tuple(mapping.output_features),
                         args=mapping.binding.args,
-                        callable=call,
+                        input_features=tuple(mapping.input_features),
                         row_context=mapping.row_context,
                     )
                     nodes[node.node_id] = graphable_.graphable.Graphable(node)
@@ -82,8 +70,6 @@ class CallableGraph:
                         if feature in self.spec.dimensions:
                             continue
                         self._feature_producers[feature] = node
-                        if operation == "vectorize":
-                            self._callable_index[(node.function_id, entity_id, feature)] = node
         graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
         # Source transforms follow reads in their dataset.
         for fragments in self._dataset_sources.values():
@@ -129,7 +115,10 @@ class CallableGraph:
                     graph.add_edge(nodes[producer.node_id], graph_node)
 
         # Vectorize mappings consume the assembled dataset frame.
-        for callable_node in set(self._callable_index.values()):
+        calculation_nodes = [
+            node.reference for node in nodes.values() if node.reference.operation == "vectorize"
+        ]
+        for callable_node in calculation_nodes:
             consumer_node = nodes[callable_node.node_id]
             dataset_key = (callable_node.entity, callable_node.dataset_id)
             for source in self._dataset_sources.get(dataset_key, []):
@@ -137,13 +126,9 @@ class CallableGraph:
 
         for dataset_key, sinks in self._dataset_sinks.items():
             sources = self._dataset_sources.get(dataset_key, [])
-            calculations = list(
-                dict.fromkeys(
-                    node
-                    for node in self._callable_index.values()
-                    if (node.entity, node.dataset_id) == dataset_key
-                )
-            )
+            calculations = [
+                node for node in calculation_nodes if (node.entity, node.dataset_id) == dataset_key
+            ]
             for sink in sinks:
                 sink_node = nodes[sink.node_id]
                 for source in sources:
@@ -220,8 +205,6 @@ class CallableGraph:
         subset = self.__class__.__new__(self.__class__)
         subset.spec = self.spec
         subset._datasets = self._datasets
-        subset.functions = self.functions
-        subset._callable_index = self._callable_index
         subset._feature_producers = self._feature_producers
         subset._dataset_sources = self._dataset_sources
         subset._dataset_sinks = self._dataset_sinks

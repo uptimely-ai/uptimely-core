@@ -97,7 +97,18 @@ def test_explorer_context_counts_match_spec() -> None:
         == expected_counts["dataset_count"]
     )
     assert document["summary"] | expected_counts == document["summary"]
-    assert len(document["feature_dependencies"]) == len(spec.prepare_spec(spec_definition).calls)
+    assert document["feature_dependencies"] == [
+        {
+            "function": mapping.binding.function,
+            "feature": feature,
+            "dependencies": mapping.input_features,
+        }
+        for entity in spec_definition.entities.values()
+        for dataset in entity.datasets
+        for mapping in dataset.mappings.values()
+        if spec_definition.functions[mapping.binding.function].operation == "vectorize"
+        for feature in mapping.output_features
+    ]
 
 
 def test_html_explorer_overview_counts_match_spec(tmp_path: pathlib.Path) -> None:

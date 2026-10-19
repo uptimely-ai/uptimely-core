@@ -1,12 +1,9 @@
-import types
-
+import pydantic
 import pytest
 
 from uptimely import contracts
 from uptimely.spec import model as spec_model
-from uptimely.spec import resolved
 from uptimely.spec.validation import functions as validation_functions
-from uptimely.spec.validation import prepared
 
 
 @pytest.mark.parametrize(
@@ -28,20 +25,18 @@ def test_operation_contracts_validate_every_function_operation(
     assert contracts.DATAFRAME_INPUT_COUNTS[operation] == dataframe_input_count
     assert contracts.OPERATION_RETURN_KINDS[operation] == return_kind
 
-    function = spec_model.FunctionTemplate(
-        id=operation,
-        operation=operation,
-        returns=return_kind,
-        entrypoint="module:function",
-        args={
-            f"frame_{index}": spec_model.Argument(id=f"frame_{index}", type="dataframe")
-            for index in range(dataframe_input_count)
-        },
+    validation_functions._validate_return_kind(
+        operation,
+        return_kind,
+        contracts.OPERATION_RETURN_KINDS[operation],
+        path=("functions", operation, "returns"),
     )
-    model = types.SimpleNamespace(functions=types.SimpleNamespace(root={operation: function}))
-    validation_context = types.SimpleNamespace(model=model)
-
-    validation_functions._validate_function_contracts(validation_context)
+    validation_functions._validate_dataframe_argument_count(
+        operation,
+        contracts.DATAFRAME_INPUT_COUNTS[operation],
+        dataframe_input_count,
+        path=("functions", operation, "args"),
+    )
 
 
 def test_function_model_reexports_the_shared_operation_contract() -> None:
@@ -53,11 +48,14 @@ def test_fragment_operations_exclude_calculations_and_sinks() -> None:
     assert set(contracts.FRAGMENT_OPERATIONS) < set(contracts.FUNCTION_OPERATIONS)
 
 
-@pytest.mark.parametrize("function_type", ["python_one_liner", "sql_select", "unknown"])
-def test_resolved_functions_reject_unsupported_types(function_type: str) -> None:
-    function = resolved.Function(
-        id="calculate", type=function_type, info={}, entrypoint="pl.col('reading')"
-    )
-
-    with pytest.raises(ValueError, match=f"unsupported operation type: {function_type}"):
-        prepared._validate_function_definitions([function])
+@pytest.mark.parametrize("operation", ["python_one_liner", "sql_select", "unknown", ""])
+def test_function_templates_reject_unsupported_operations(operation: str) -> None:
+    with pytest.raises(pydantic.ValidationError, match="operation"):
+        spec_model.FunctionTemplate.model_validate(
+            {
+                "id": "calculate",
+                "operation": operation,
+                "returns": "dataframe",
+                "entrypoint": "example:calculate",
+            }
+        )

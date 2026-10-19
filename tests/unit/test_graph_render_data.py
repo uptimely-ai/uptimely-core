@@ -1,4 +1,5 @@
-from uptimely import compiler, render, spec
+from uptimely import compiler, render
+from uptimely.spec import model
 from uptimely.spec.feature_graph import models
 
 
@@ -34,11 +35,11 @@ def test_feature_render_data_preserves_empty_strings() -> None:
 
 
 def test_function_render_data_includes_declared_metadata() -> None:
-    function = spec.Function(
+    function = model.FunctionTemplate(
         id="double",
-        type="python_function",
-        role="spec",
-        info={"description": "Double a reading"},
+        operation="vectorize",
+        returns="dataframe",
+        description="Double a reading",
         entrypoint="example:double",
     )
     node = models.FunctionNode(

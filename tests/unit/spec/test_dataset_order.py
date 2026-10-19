@@ -128,6 +128,20 @@ def test_dataset_order_rejects_repeated_dimensions(tmp_path: pathlib.Path, direc
     assert error.value.path[-3:] == ("order", 1, "dimension")
 
 
+def test_dataset_order_reports_first_invalid_key_in_sequence(tmp_path: pathlib.Path) -> None:
+    order = [
+        ORDER[0],
+        {"dimension": "$dimensions.machine", "direction": "desc"},
+        {"dimension": "$dimensions.external", "direction": "asc"},
+    ]
+
+    with pytest.raises(validation.SpecError) as error:
+        _parse(tmp_path, order)
+
+    assert error.value.code == "duplicate_order_dimension"
+    assert error.value.path[-3:] == ("order", 1, "dimension")
+
+
 @pytest.mark.parametrize("use_entities", [True, False])
 def test_dataset_order_python_authoring_matches_json(
     tmp_path: pathlib.Path, use_entities: bool

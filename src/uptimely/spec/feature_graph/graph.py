@@ -1,13 +1,12 @@
 """Describe the feature dependency graph and resolve dependencies for requested outputs."""
 
-import re
-
 import graphable as graphable_
 from graphable import views
 
-from .. import api, resolved
-from .. import model as spec_model
-from .. import references as bindings
+from uptimely.spec import model as spec_model
+from uptimely.spec import references as bindings
+from uptimely.spec import validation
+
 from . import models
 
 Node = graphable_.graphable.Graphable
@@ -19,7 +18,6 @@ class GraphBase:
 
     graph: graphable_.graph.Graph
     _node_index: dict[str, Node]
-    _function_catalog: dict[str, resolved.Function]
     _explicit_output_names: list[str] | None
 
     @staticmethod
@@ -143,34 +141,17 @@ class FeatureGraph(GraphBase):
     """Global dependency graph built from all feature mappings."""
 
     def __init__(self, spec: spec_model.Spec) -> None:
-        """Load spec function calls and build the complete dependency graph."""
-        prepared = api.prepare_spec(spec)
-        self.functions = [function for function in prepared.functions if function.role == "spec"]
-        self._graph_operations: list[tuple[resolved.Function, str, str, list[str], list[str]]] = []
-        vectorize_functions = {function.id: function for function in self.functions}
+        """Build the complete dependency graph from spec declarations."""
+        validation.validate_spec(spec)
+        self.functions: list[spec_model.FunctionTemplate] = []
+        self._graph_operations: list[
+            tuple[spec_model.FunctionTemplate, str, str, list[str], list[str]]
+        ] = []
 
         for entity_id, entity in spec.entities.items():
             for dataset in entity.datasets:
                 for operation_id, mapping in dataset.mappings.items():
-                    operation = bindings.mapping_operation(mapping, spec.functions)
-                    template = spec.functions[mapping.binding.function]
-                    function = (
-                        vectorize_functions.get(mapping.binding.function)
-                        if operation == "vectorize"
-                        else resolved.Function(
-                            id=mapping.binding.function,
-                            type="python_function",
-                            return_type="dataframe",
-                            info={"description": getattr(template, "description", None)},
-                            entrypoint=template.entrypoint,
-                            role=operation,
-                        )
-                    )
-                    if function is None:
-                        raise ValueError(
-                            f"Mapping '{operation_id}' references vectorize function "
-                            f"'{mapping.binding.function}' without a resolved function"
-                        )
+                    function = spec.functions[mapping.binding.function]
                     dependencies = mapping.input_features
                     if all(existing.id != function.id for existing in self.functions):
                         self.functions.append(function)
@@ -189,35 +170,9 @@ class FeatureGraph(GraphBase):
                     )
 
         self.spec = spec
-        self._function_catalog = {function.id: function for function in self.functions}
         self._node_index: dict[str, Node] = {}
         self._explicit_output_names = None
         self.graph = self._create_graph()
-
-    def _feature_parents(
-        self,
-        function_name: str,
-        dependencies: list[str],
-        function: resolved.Function | None = None,
-    ) -> set[str]:
-        """Return direct parent feature names for a bound feature."""
-        function = function or self._function_catalog.get(function_name)
-        function_type = function.type if function else "python_function"
-        entrypoint = (function.entrypoint if function else None) or ""
-        parents = set(dependencies)
-
-        if function_type == "sql_query":
-            return parents | FeatureGraph._expression_names(entrypoint)
-
-        if function_type == "python_function":
-            return parents
-
-        raise ValueError(f"Unsupported function type: {function_type}")
-
-    @staticmethod
-    def _expression_names(expression: str) -> set[str]:
-        """Extract identifier-like names from an expression string."""
-        return set(re.findall(r"\b[A-Za-z_]\w*\b", expression))
 
     def _create_graph(self) -> graphable_.graph.Graph:
         """Build a graph from the loaded function call dependencies."""
@@ -226,7 +181,7 @@ class FeatureGraph(GraphBase):
         function_entities: dict[tuple[str, str], set[str]] = {}
         function_outputs: dict[tuple[str, str], set[str]] = {}
         for function, entity, _operation_id, outputs, _dependencies in self._graph_operations:
-            function_key = (function.role, function.id)
+            function_key = (function.operation, function.id)
             function_entities.setdefault(function_key, set()).add(entity)
             function_outputs.setdefault(function_key, set()).update(outputs)
 
@@ -239,7 +194,7 @@ class FeatureGraph(GraphBase):
         dependency_names = {
             parent
             for function, _entity, _operation_id, _outputs, dependencies in self._graph_operations
-            for parent in self._feature_parents(function.id, dependencies, function)
+            for parent in dependencies
         }
         feature_metadata: dict[str, models.FeatureNode] = {}
 
@@ -278,7 +233,7 @@ class FeatureGraph(GraphBase):
             for output in outputs:
                 register_feature_metadata(
                     output,
-                    function.return_type,
+                    None if function.operation == "vectorize" else "dataframe",
                     entity,
                 )
 
@@ -289,7 +244,7 @@ class FeatureGraph(GraphBase):
 
         def feature_meta(
             name: str,
-            function: resolved.Function | None = None,
+            function: spec_model.FunctionTemplate | None = None,
             entity: str | None = None,
             data_type: str | None = None,
         ) -> models.FeatureNode:
@@ -297,8 +252,8 @@ class FeatureGraph(GraphBase):
             return models.FeatureNode(
                 name=name,
                 data_type=(
-                    function.return_type
-                    if function is not None and function.role == "spec"
+                    None
+                    if function is not None and function.operation == "vectorize"
                     else data_type or (metadata.data_type if metadata else None)
                 ),
                 entity=entity or (metadata.entity if metadata else None),
@@ -308,7 +263,7 @@ class FeatureGraph(GraphBase):
             )
 
         for function, entity, _operation_id, outputs, dependencies in self._graph_operations:
-            function_key = (function.role, function.id)
+            function_key = (function.operation, function.id)
             entities = function_entities[function_key]
             function_node = node(
                 models.FunctionNode(
@@ -323,7 +278,7 @@ class FeatureGraph(GraphBase):
                 output_node = node(feature_meta(output, function, entity))
                 graph.add_edge(function_node, output_node)
 
-            for parent in self._feature_parents(function.id, dependencies, function):
+            for parent in set(dependencies):
                 parent_node = node(feature_meta(parent))
                 graph.add_edge(parent_node, function_node)
 

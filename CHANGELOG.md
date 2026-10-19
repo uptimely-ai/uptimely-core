@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 While the version is `0.x`, minor releases may include breaking changes.
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** Removed `prepare_spec`, `PreparedSpec`, `Function`, and `Call`
+  from the spec and top-level APIs, and removed `uptimely.spec.resolved`,
+  `uptimely.spec.resolution`, and `validation.validate_prepared`. Use
+  `validation.validate_spec(document)` for semantic validation and the compiler
+  for executable invocations. Loading and Python conversion still validate
+  automatically. Direct validation now follows loading's error precedence;
+  duplicate calculated outputs are reported as conflicting mapping producers.
+- Feature graphs expose declared function templates instead of resolved
+  function objects. The spec document and portable plan formats are unchanged.
+
 ## [0.2.0] - 2026-10-19
 
 ### Added

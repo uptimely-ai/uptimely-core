@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from uptimely import render, row_context, spec
+from uptimely import render, row_context
 
 
 @dataclasses.dataclass(frozen=True)
@@ -17,7 +17,7 @@ class CallableNode:
     mapping_id: str | None = None
     output_features: tuple[str, ...] = ()
     args: dict[str, object] = dataclasses.field(default_factory=dict, compare=False, hash=False)
-    callable: spec.Call | None = dataclasses.field(default=None, compare=False, hash=False)
+    input_features: tuple[str, ...] = ()
     row_context: row_context.RowContext | None = dataclasses.field(
         default=None, compare=False, hash=False
     )
@@ -49,6 +49,6 @@ class CallableNode:
             feature=self.feature,
             output_features=list(self.output_features),
             depends_on_features=(
-                self.callable.depends_on_features if self.callable is not None else None
+                list(self.input_features) if self.operation == "vectorize" else None
             ),
         )

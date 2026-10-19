@@ -96,7 +96,6 @@ nav:
           - Overview: reference/api/spec.md
           - api: reference/api/spec/api.md
           - model: reference/api/spec/model.md
-          - resolved: reference/api/spec/resolved.md
           - json: reference/api/spec/json.md
           - validation: reference/api/spec/validation.md
           - python: reference/api/python.md

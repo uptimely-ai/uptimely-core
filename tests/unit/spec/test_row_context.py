@@ -307,7 +307,6 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
         .mappings["result"]
         .binding.model_dump()
     )
-    assert "row_context" not in spec.prepare_spec(spec_definition).calls[0].model_dump()
     exported = json.loads(spec_path.read_text())
     exported_dataset = exported["entities"]["entity"]["datasets"][0]
     exported_feature = exported_dataset["features"]["result"]

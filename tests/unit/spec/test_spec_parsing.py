@@ -35,13 +35,10 @@ def test_spec_accepts_top_level_name(tmp_path: pathlib.Path) -> None:
     assert spec_definition.name == "Pump analytics"
 
 
-def test_preparation_keeps_resolved_data_separate_from_the_document() -> None:
+def test_loading_keeps_only_declarations_on_the_document() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    prepared = spec.prepare_spec(spec_definition)
-    assert prepared.document is spec_definition
-    assert prepared.functions
-    assert prepared.calls
+    validation.validate_spec(spec_definition)
     assert not hasattr(spec_definition, "calls")
     assert not hasattr(spec_definition, "path")
 
@@ -63,8 +60,14 @@ def test_spec_rejects_dimension_parent_cycles(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["dimensions"]["plant"]["parent"] = "pump"
 
-    with pytest.raises(ValueError, match="Dimension parent cycle.*plant"):
+    with pytest.raises(validation.SpecError) as error:
         spec.load_spec(_write_configuration(tmp_path, configuration, "cycle.json"))
+
+    assert str(error.value) == (
+        "dimensions.plant.parent: Dimension parent cycle: plant -> pump -> production_line -> plant"
+    )
+    assert error.value.code == "dimension_parent_cycle"
+    assert error.value.path == ("dimensions", "plant", "parent")
 
 
 def test_spec_rejects_duplicate_dataset_ids(tmp_path: pathlib.Path) -> None:
@@ -86,6 +89,10 @@ def test_spec_errors_expose_stable_code_and_path(tmp_path: pathlib.Path) -> None
 
     assert error.value.code == "duplicate_dataset_id"
     assert error.value.path == ("entities", "pump", "datasets", "pump_dataset")
+    assert str(error.value) == (
+        "entities.pump.datasets.pump_dataset: Duplicate dataset id pump_dataset; "
+        "already declared by entity pump_telemetry"
+    )
 
 
 def test_validation_reports_duplicate_dataset_before_invalid_dimension_parent(
@@ -101,6 +108,10 @@ def test_validation_reports_duplicate_dataset_before_invalid_dimension_parent(
 
     assert error.value.code == "duplicate_dataset_id"
     assert error.value.path == ("entities", "pump", "datasets", "pump_dataset")
+    assert str(error.value) == (
+        "entities.pump.datasets.pump_dataset: Duplicate dataset id pump_dataset; "
+        "already declared by entity pump_telemetry"
+    )
 
 
 def test_spec_rejects_unknown_write_function(tmp_path: pathlib.Path) -> None:
@@ -192,7 +203,7 @@ def test_nested_selectors_resolve_without_changing_literal_values() -> None:
 
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    assert len(spec.prepare_spec(spec_definition).functions) == 7
+    assert len(spec_definition.functions.by_operation("vectorize")) == 7
     collapse = spec_definition.entities["pump"].datasets[0].mappings["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.binding.function == "maximum"
@@ -230,25 +241,17 @@ def test_system_and_subset_support_multiple_variables() -> None:
 
 
 def test_spec_validation_rejects_missing_output_variables() -> None:
-    spec_definition = spec.Spec()
-    functions = [
-        spec.Function(
-            id="broken.function",
-            type="python_function",
-            return_type="num",
-            info={},
-        )
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    mapping = configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"][
+        "pressure_flow_efficiency"
     ]
-    calls = [
-        spec.Call(
-            function="broken.function",
-            entity="temperature",
-            feature="",
-        )
-    ]
+    mapping["features"]["outputs"] = []
+    document = spec.Spec.model_validate(configuration)
 
-    with pytest.raises(ValueError, match="Every call must define a non-empty output feature name"):
-        validation.validate_prepared(spec_definition, functions, calls)
+    with pytest.raises(
+        ValueError, match="Mapping pressure_flow_efficiency must declare one or more features"
+    ):
+        validation.validate_spec(document)
 
 
 def test_spec_validation_rejects_duplicate_feature_names(tmp_path: pathlib.Path) -> None:

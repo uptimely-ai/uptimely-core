@@ -9,6 +9,26 @@ from uptimely import compiler, spec
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
+def test_compilation_preserves_the_saved_plan() -> None:
+    expected = json.loads(SPEC_PATH.with_name("execution_plan.json").read_text(encoding="utf-8"))
+    actual = compiler.Compiler(SPEC_PATH).compile().plan.to_dict()
+
+    assert actual.keys() == expected.keys()
+    assert actual["plan_version"] == expected["plan_version"]
+    assert actual["required_backend"] == expected["required_backend"]
+    assert actual["resources"] == expected["resources"]
+    assert {
+        item["id"]: item | {"dependency_ids": sorted(item["dependency_ids"])}
+        for item in actual["callables"]
+    } == {
+        item["id"]: item | {"dependency_ids": sorted(item["dependency_ids"])}
+        for item in expected["callables"]
+    }
+    assert [set(stage) for stage in actual["stages"]] == [
+        set(stage) for stage in expected["stages"]
+    ]
+
+
 def test_compiler_creates_callable_graph_subset_for_requested_features() -> None:
     plan = compiler.Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
 
