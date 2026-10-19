@@ -78,13 +78,18 @@ class Engine:
                 started = time.perf_counter()
                 logger.debug("Running %s callable %s", callable.operation, callable.id)
                 try:
-                    dataframe.validate_inputs(callable)
-                    if contracts.OPERATION_RETURN_KINDS.get(callable.operation) == "dataframe":
-                        self._execute_dataframe_mapping(callable, state, bindings, dataframe)
-                    elif contracts.OPERATION_RETURN_KINDS.get(callable.operation) == "none":
-                        self._execute_sink(callable, state, bindings)
+                    if callable.operation == "escape":
+                        self._execute_escape(callable, bindings)
                     else:
-                        raise ValueError(f"Unsupported callable operation: {callable.operation}")
+                        dataframe.validate_inputs(callable)
+                        if contracts.OPERATION_RETURN_KINDS.get(callable.operation) == "dataframe":
+                            self._execute_dataframe_mapping(callable, state, bindings, dataframe)
+                        elif contracts.OPERATION_RETURN_KINDS.get(callable.operation) == "none":
+                            self._execute_sink(callable, state, bindings)
+                        else:
+                            raise ValueError(
+                                f"Unsupported callable operation: {callable.operation}"
+                            )
                 except Exception as error:
                     statuses[callable.id] = "failed"
                     failures[callable.id] = str(error)
@@ -132,6 +137,15 @@ class Engine:
                 state.calculated_outputs[(*dataset_key, output)] = self.backend.select(
                     fragment, [*dimensions, output]
                 )
+
+    def _execute_escape(
+        self,
+        callable: plan_module.Callable,
+        bindings: bindings_module.RuntimeBindings,
+    ) -> None:
+        """Invoke an uncontrolled mapping and discard its return value."""
+        kwargs = bindings.resolve_args(callable)
+        self.callable_loader.load(callable.entrypoint)(**kwargs)
 
     def _execute_sink(
         self,

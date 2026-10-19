@@ -6,9 +6,11 @@ import pytest
 
 from uptimely import compiler as uptimely_compiler
 from uptimely import engine as uptimely_engine
+from uptimely import spec
 from uptimely.compiler import plan as uptimely_plan
 from uptimely.engine import bindings as bindings_module
 from uptimely.engine import state as state_module
+from uptimely.spec.python import bind, dataset, dimension, feature, mapping, ref
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
 
@@ -145,6 +147,381 @@ def test_execute_stops_after_a_failed_operation() -> None:
     }
     assert set(result.durations) == {read_id}
     assert called is False
+
+
+@pytest.mark.parametrize(
+    "return_value",
+    [
+        None,
+        42,
+        object(),
+        {"non_serializable": object()},
+        pl.DataFrame({"unrelated": [1]}),
+    ],
+)
+def test_escape_ignores_any_return_without_materializing_features(return_value: object) -> None:
+    callable_id = "callable:escape:external_action:asset:external:action"
+    escape = uptimely_plan.Callable(
+        id=callable_id,
+        operation="escape",
+        entrypoint="test:escape",
+        entity_id="asset",
+        dataset_id="external",
+        output="external_result",
+        output_features=["external_result"],
+        input_features=["external_input"],
+    )
+    plan = uptimely_plan.ExecutionPlan(
+        uptimely_plan.Plan(
+            plan_version="0.2.0",
+            required_backend="polars",
+            resources={
+                "entities": {"asset": {"dimensions": []}},
+                "functions": {
+                    "external_action": {
+                        "operation": "escape",
+                        "returns": "any",
+                        "args": {},
+                    }
+                },
+            },
+            callables=[escape],
+            stages=[[callable_id]],
+        )
+    )
+    engine = uptimely_engine.Engine(
+        plan, callable_loader=_Loader({"test:escape": lambda: return_value})
+    )
+
+    result = engine.execute()
+
+    assert result.callable_statuses == {callable_id: "succeeded"}
+    assert result.failures == {}
+    assert result.datasets == {}
+    assert result.calculated_outputs == {}
+
+
+def test_escape_chain_runs_without_materializing_declared_feature_inputs() -> None:
+    first_id = "callable:escape:first:asset:external:first"
+    second_id = "callable:escape:second:asset:external:second"
+    calls: list[str] = []
+
+    def first() -> int:
+        calls.append("first")
+        return 17
+
+    def second() -> object:
+        calls.append("second")
+        return object()
+
+    first_callable = uptimely_plan.Callable(
+        id=first_id,
+        operation="escape",
+        entrypoint="test:first",
+        entity_id="asset",
+        dataset_id="external",
+        output="first_output",
+        output_features=["first_output"],
+        input_features=["external_input"],
+    )
+    second_callable = uptimely_plan.Callable(
+        id=second_id,
+        operation="escape",
+        entrypoint="test:second",
+        entity_id="asset",
+        dataset_id="external",
+        output="second_output",
+        output_features=["second_output"],
+        input_features=["first_output"],
+        dependency_ids=[first_id],
+    )
+    plan = uptimely_plan.ExecutionPlan(
+        uptimely_plan.Plan(
+            plan_version="0.2.0",
+            required_backend="polars",
+            resources={
+                "entities": {"asset": {"dimensions": []}},
+                "functions": {
+                    function_id: {"operation": "escape", "returns": "any", "args": {}}
+                    for function_id in ("first", "second")
+                },
+            },
+            callables=[first_callable, second_callable],
+            stages=[[first_id], [second_id]],
+        )
+    )
+
+    result = uptimely_engine.Engine(
+        plan,
+        callable_loader=_Loader({"test:first": first, "test:second": second}),
+    ).execute()
+
+    assert calls == ["first", "second"]
+    assert result.callable_statuses == {first_id: "succeeded", second_id: "succeeded"}
+    assert result.failures == {}
+    assert result.datasets == {}
+    assert result.calculated_outputs == {}
+
+
+def test_escape_resolves_literal_and_runtime_arguments() -> None:
+    callable_id = "callable:escape:external_action:asset:external:action"
+    escape = uptimely_plan.Callable(
+        id=callable_id,
+        operation="escape",
+        entrypoint="test:escape",
+        entity_id="asset",
+        dataset_id="external",
+        output="external_result",
+        output_features=["external_result"],
+        input_features=["external_input"],
+        arguments={"path": "?storage.output.path", "mode": "replace"},
+    )
+    plan = uptimely_plan.ExecutionPlan(
+        uptimely_plan.Plan(
+            plan_version="0.2.0",
+            required_backend="polars",
+            resources={
+                "entities": {"asset": {"dimensions": []}},
+                "functions": {
+                    "external_action": {
+                        "operation": "escape",
+                        "returns": "any",
+                        "args": {
+                            "path": {"type": "string"},
+                            "mode": {"type": "string"},
+                        },
+                    }
+                },
+            },
+            callables=[escape],
+            stages=[[callable_id]],
+        )
+    )
+    received: list[tuple[str, str]] = []
+
+    def external_action(path: str, mode: str) -> None:
+        received.append((path, mode))
+
+    result = uptimely_engine.Engine(
+        plan,
+        bind={"storage": {"output": {"path": "/tmp/external-output.csv"}}},
+        callable_loader=_Loader({"test:escape": external_action}),
+    ).execute()
+
+    assert received == [("/tmp/external-output.csv", "replace")]
+    assert result.callable_statuses == {callable_id: "succeeded"}
+    assert result.failures == {}
+
+
+def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream() -> None:
+    first_id = "callable:escape:first:asset:external:first"
+    second_id = "callable:escape:second:asset:external:second"
+    first_callable = uptimely_plan.Callable(
+        id=first_id,
+        operation="escape",
+        entrypoint="test:first",
+        entity_id="asset",
+        dataset_id="external",
+        output="external_result",
+        output_features=["external_result"],
+        input_features=["external_input"],
+        arguments={"frame": "missing"},
+    )
+    second_callable = dataclasses.replace(
+        first_callable,
+        id=second_id,
+        entrypoint="test:second",
+        output="downstream_result",
+        output_features=["downstream_result"],
+        dependency_ids=[first_id],
+    )
+    plan = uptimely_plan.ExecutionPlan(
+        uptimely_plan.Plan(
+            plan_version="0.2.0",
+            required_backend="polars",
+            resources={
+                "entities": {"asset": {"dimensions": []}},
+                "functions": {
+                    function_id: {
+                        "operation": "escape",
+                        "returns": "any",
+                        "args": {"frame": {"type": "dataframe"}},
+                    }
+                    for function_id in ("first", "second")
+                },
+            },
+            callables=[first_callable, second_callable],
+            stages=[[first_id], [second_id]],
+        )
+    )
+
+    result = uptimely_engine.Engine(
+        plan,
+        callable_loader=_Loader({"test:first": lambda **_: None, "test:second": lambda **_: None}),
+    ).execute()
+
+    assert result.callable_statuses == {first_id: "failed", second_id: "skipped"}
+    assert "Dataset dataframe is unavailable: missing" in result.failures[first_id]
+
+
+def test_escape_resolves_dataframe_arguments_from_preceding_read() -> None:
+    read_id = "callable:read:load:asset:telemetry:load"
+    escape_id = "callable:escape:external_action:asset:telemetry:action"
+    observed: list[pl.DataFrame] = []
+
+    def read() -> pl.DataFrame:
+        return pl.DataFrame({"asset_id": ["A"], "reading": [3]})
+
+    def external_action(dataset: pl.DataFrame) -> object:
+        observed.append(dataset)
+        return object()
+
+    read_callable = uptimely_plan.Callable(
+        id=read_id,
+        operation="read",
+        entrypoint="test:read",
+        entity_id="asset",
+        dataset_id="telemetry",
+        output="load",
+        output_features=["asset_id", "reading"],
+    )
+    escape_callable = uptimely_plan.Callable(
+        id=escape_id,
+        operation="escape",
+        entrypoint="test:escape",
+        entity_id="asset",
+        dataset_id="telemetry",
+        output="external_result",
+        output_features=["external_result"],
+        input_features=["reading"],
+        arguments={"dataset": "telemetry"},
+        dependency_ids=[read_id],
+    )
+    plan = uptimely_plan.ExecutionPlan(
+        uptimely_plan.Plan(
+            plan_version="0.2.0",
+            required_backend="polars",
+            resources={
+                "entities": {"asset": {"dimensions": ["asset_id"]}},
+                "functions": {
+                    "load": {"operation": "read", "returns": "dataframe", "args": {}},
+                    "external_action": {
+                        "operation": "escape",
+                        "returns": "any",
+                        "args": {"dataset": {"type": "dataframe"}},
+                    },
+                },
+            },
+            callables=[read_callable, escape_callable],
+            stages=[[read_id], [escape_id]],
+        )
+    )
+
+    result = uptimely_engine.Engine(
+        plan,
+        callable_loader=_Loader({"test:read": read, "test:escape": external_action}),
+    ).execute()
+
+    assert result.failures == {}
+    assert result.callable_statuses == {read_id: "succeeded", escape_id: "succeeded"}
+    assert observed == [result.datasets["asset", "telemetry"]]
+    assert "external_result" not in result.datasets["asset", "telemetry"].columns
+    assert result.calculated_outputs == {}
+
+
+def test_escape_exception_fails_and_skips_downstream() -> None:
+    first_id = "callable:escape:first:asset:external:first"
+    second_id = "callable:escape:second:asset:external:second"
+    first_callable = uptimely_plan.Callable(
+        id=first_id,
+        operation="escape",
+        entrypoint="test:first",
+        entity_id="asset",
+        dataset_id="external",
+        output="external_result",
+        output_features=["external_result"],
+        input_features=["external_input"],
+    )
+    second_callable = dataclasses.replace(
+        first_callable,
+        id=second_id,
+        entrypoint="test:second",
+        output="downstream_result",
+        output_features=["downstream_result"],
+        dependency_ids=[first_id],
+    )
+    plan = uptimely_plan.ExecutionPlan(
+        uptimely_plan.Plan(
+            plan_version="0.2.0",
+            required_backend="polars",
+            resources={
+                "entities": {"asset": {"dimensions": []}},
+                "functions": {
+                    function_id: {"operation": "escape", "returns": "any", "args": {}}
+                    for function_id in ("first", "second")
+                },
+            },
+            callables=[first_callable, second_callable],
+            stages=[[first_id], [second_id]],
+        )
+    )
+
+    def fail() -> None:
+        raise RuntimeError("external action failed")
+
+    result = uptimely_engine.Engine(
+        plan,
+        callable_loader=_Loader({"test:first": fail, "test:second": lambda: None}),
+    ).execute()
+
+    assert result.callable_statuses == {first_id: "failed", second_id: "skipped"}
+    assert result.failures == {first_id: "external action failed"}
+
+
+def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
+    tmp_path: pathlib.Path,
+) -> None:
+    source_path = tmp_path / "input.csv"
+    output_path = tmp_path / "output.csv"
+    plan_path = tmp_path / "execution_plan.json"
+    source_path.write_text("asset_id,value\nA,2\nB,3\n", encoding="utf-8")
+    module_path = tmp_path / "external_action.py"
+    module_path.write_text(
+        "import polars as pl\n"
+        f"SOURCE = {str(source_path)!r}\n"
+        f"OUTPUT = {str(output_path)!r}\n"
+        "def process() -> None:\n"
+        "    frame = pl.read_csv(SOURCE)\n"
+        "    result = frame.with_columns((pl.col('value') * 2).alias('external_result'))\n"
+        "    result.write_csv(OUTPUT)\n",
+        encoding="utf-8",
+    )
+    declaration = dataset.Dataset(
+        id="external",
+        mappings=[
+            mapping.Mapping(
+                id="external_action",
+                bind=bind.bind(ref.function(f"{module_path}:process", operation="escape")),
+                inputs=[ref.feature("asset_id")],
+                outputs=[feature.Feature(id="external_result")],
+            )
+        ],
+    )
+    spec_definition = spec.from_python(
+        datasets=[declaration],
+        dimensions=[dimension.Dimension(id="asset_id", type="string")],
+    )
+
+    compiled = uptimely_compiler.Compiler(spec_definition, features=["external_result"]).compile()
+    compiled.export_json(plan_path)
+    restored = uptimely_plan.ExecutionPlan.from_json(plan_path)
+    result = uptimely_engine.Engine(restored).execute()
+
+    assert result.failures == {}
+    assert result.callable_statuses == {compiled.callables[0].id: "succeeded"}
+    assert result.datasets == {}
+    assert result.calculated_outputs == {}
+    assert pl.read_csv(output_path).rows() == [("A", 2, 4), ("B", 3, 6)]
 
 
 def test_engine_validates_plan_backend() -> None:
