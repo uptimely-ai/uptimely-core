@@ -7,6 +7,7 @@ from uptimely.spec import model as spec_model
 from uptimely.spec import references as bindings
 
 from . import context as context_module
+from . import errors
 
 
 def validate_collapse(
@@ -144,6 +145,12 @@ def validate_inputs(
     for location in validation_context.iter_mappings():
         mapping = location.mapping
         operation = bindings.mapping_operation(mapping, model.functions)
+        if operation == "escape" and not mapping.input_features:
+            raise errors.SpecError(
+                "Escape mappings must declare one or more input features",
+                code="invalid_mapping_feature_inputs",
+                path=(*location.path, "features", "inputs"),
+            )
         mapping_key = (location.dataset.id, mapping.id)
         dependencies_by_mapping[mapping_key] = _validate_input_references(
             location,
