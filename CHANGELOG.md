@@ -8,6 +8,12 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- Added the uncontrolled `escape` operation for explicit external workflows.
+  Escape mappings declare feature dependencies, but their arbitrary Python
+  returns are ignored and outputs are not materialized as dataframe columns.
+
 ### Changed
 
 - **Breaking:** Removed `prepare_spec`, `PreparedSpec`, `Function`, and `Call`

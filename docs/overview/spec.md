@@ -184,6 +184,26 @@ analytical functions calculate output features within each group.
   </div>
 </div>
 
+### Escape
+
+<p class="cv-function-subtitle">Run one opaque external workflow</p>
+
+Use `escape` only when an external operation does not fit the standard
+operations. Prefer `read`, `vectorize`, `collapse`, and `write` when their
+explicit dataflow and runtime checks fit the work.
+
+<div class="concepts-visual">
+  <div class="cv-operation">
+    <div class="cv-endpoint">
+      <span class="cv-tag">ESCAPE / ONE FUNCTION</span>
+      <strong>External workflow</strong>
+      <span>Read source <span aria-hidden="true">&rarr;</span> calculate <span aria-hidden="true">&rarr;</span> write result</span>
+    </div>
+    <p class="cv-takeaway">Declared features track dependencies; outputs are not dataframe columns.</p>
+  </div>
+</div>
+
+
 ## Mapping
 
 <p class="cv-function-subtitle">Connect feature dependencies and outputs to a function binding</p>
