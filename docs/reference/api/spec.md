@@ -1,8 +1,8 @@
 # Spec
 
-`uptimely.spec` separates the spec document from loading, preparation,
-and serialization. `Spec` contains document fields; derived functions and
-calls belong to `PreparedSpec`.
+`uptimely.spec` owns declarative documents, loading, conversion, semantic
+validation, serialization, and feature dependency inspection. Executable
+invocations and execution plans belong to the compiler.
 
 The [spec format reference](../../components/spec.md) describes the
 contract. See [Python authoring](python.md) for declarations that produce it, or
@@ -14,9 +14,8 @@ contract. See [Python authoring](python.md) for declarations that produce it, or
 
 | Module or subpackage | Purpose |
 | --- | --- |
-| [api](spec/api.md) | Load, convert, and prepare spec with semantic validation. |
+| [api](spec/api.md) | Load and convert spec with semantic validation. |
 | [model](spec/model.md) | Define the spec document, datasets, bindings, and function metadata. |
-| [resolved](spec/resolved.md) | Inspect prepared spec, resolved functions, and calls. |
 | [json](spec/json.md) | Write spec documents as JSON. |
 | [validation](spec/validation.md) | Check document relationships and inspect structured validation errors. |
 | [python](python.md) | Author spec using Python declarations. |
@@ -27,9 +26,10 @@ contract. See [Python authoring](python.md) for declarations that produce it, or
 1. Load a JSON document or convert Python declarations using
    [api](spec/api.md).
 2. Work with the document types defined in [model](spec/model.md).
-3. Prepare the document to obtain [resolved](spec/resolved.md) functions
-   and calls for compilation or inspection.
-4. Write the spec document using [json](spec/json.md).
+3. Inspect dependencies using [feature graphs](feature-graph.md), or pass the
+   document to the [compiler](compiler.md) to create executable invocations.
+4. Write the spec document using [json](spec/json.md). After editing a document
+   directly, call [validate_spec](spec/validation.md) to check its semantics again.
 
 Public convenience imports such as `uptimely.spec.Spec` and
 `uptimely.spec.load_spec` remain available. The reference pages

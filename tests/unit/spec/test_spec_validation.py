@@ -6,9 +6,35 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import model as spec_model
+from uptimely.spec import references
 from uptimely.spec.validation import context
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+
+
+def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -> None:
+    model = spec_model.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
+    entity_id = next(iter(model.entities))
+    entity = model.entities[entity_id]
+    dataset = entity.datasets[0]
+    mapping = next(iter(dataset.mappings.values()))
+    dataset.mappings["alias"] = mapping
+    mapping.binding.function = "missing"
+    entity.datasets.append(dataset.model_copy(deep=True))
+
+    locations = list(context.SpecValidationContext.build(model).iter_mappings())
+    declarations = list(references.iter_mapping_items(model))
+    actual = [(item.entity_id, item.dataset, item.mapping_id, item.mapping) for item in locations]
+    assert actual == declarations
+    aliases = [item for item in locations if item.mapping_id == "alias"]
+    assert len(aliases) == 2
+    assert aliases[0].mapping is mapping
+    assert aliases[0].key == (entity_id, dataset.id, "alias")
+    assert aliases[0].path[-1] == mapping.id
+    assert aliases[0].mapping_id != mapping.id
+    assert list(references.iter_mappings(model)) == [
+        (item.entity_id, item.dataset, item.mapping) for item in locations
+    ]
 
 
 def test_validation_context_retains_duplicate_index_candidates() -> None:

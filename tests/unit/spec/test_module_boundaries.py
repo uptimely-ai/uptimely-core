@@ -11,7 +11,7 @@ from conftest import EXAMPLES_ROOT
 import uptimely
 from uptimely import entrypoint, spec
 from uptimely.compiler import compiler
-from uptimely.spec import model, resolved
+from uptimely.spec import model, validation
 from uptimely.spec.json import codec
 from uptimely.spec.python import conversion, dataset, dimension, entity
 
@@ -41,9 +41,18 @@ def test_removed_json_module_paths_are_unavailable(module: str) -> None:
 
 def test_public_models_are_canonical_objects() -> None:
     assert uptimely.Spec is spec.Spec is model.Spec
-    assert uptimely.Function is spec.Function is resolved.Function
-    assert uptimely.Call is spec.Call is resolved.Call
-    assert uptimely.PreparedSpec is spec.PreparedSpec is resolved.PreparedSpec
+
+
+@pytest.mark.parametrize("name", ["Function", "Call", "PreparedSpec", "prepare_spec"])
+def test_removed_prepared_spec_exports_are_unavailable(name: str) -> None:
+    assert not hasattr(uptimely, name)
+    assert not hasattr(spec, name)
+
+
+@pytest.mark.parametrize("module", ["resolved", "resolution"])
+def test_removed_prepared_spec_modules_are_unavailable(module: str) -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(f"uptimely.spec.{module}")
 
 
 def test_canonical_models_do_not_import_outer_layers() -> None:
@@ -65,7 +74,11 @@ def test_canonical_models_do_not_import_outer_layers() -> None:
     "module",
     [
         "uptimely.spec.model.spec",
-        "uptimely.spec.resolved",
+        "uptimely.spec.validation",
+        "uptimely.spec.validation.mapping_outputs",
+        "uptimely.spec.validation.mapping_inputs",
+        "uptimely.spec.validation.mapping_contracts",
+        "uptimely.spec.validation.dependencies",
         "uptimely.spec.python.conversion",
         "uptimely.spec.json.codec",
         "uptimely.spec.api",
@@ -82,23 +95,21 @@ def test_modules_import_in_a_fresh_process(module: str) -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_json_round_trip_preserves_the_document_and_prepared_analysis(
+def test_json_round_trip_preserves_the_document_and_compiled_plan(
     tmp_path: pathlib.Path,
 ) -> None:
     original_document = codec.load_document(SPEC_PATH)
     document = spec.load_spec(SPEC_PATH)
-    prepared = spec.prepare_spec(document)
     expected = codec.to_document(document)
     path = tmp_path / "nested" / "spec.json"
 
     assert codec.write_document(document, path) == str(path)
     assert codec.load_document(path) == expected == original_document
-    assert prepared.document is document
     assert not {"path", "calls", "resolved_functions"} & model.Spec.model_fields.keys()
     assert not {"path", "calls", "resolved_functions"} & expected.keys()
 
     reloaded = spec.load_spec(path)
-    assert spec.prepare_spec(reloaded) == prepared
+    assert reloaded == document
     first = compiler.Compiler(document).compile()
     second = compiler.Compiler(reloaded).compile()
     assert first.plan.resources == second.plan.resources
@@ -161,24 +172,20 @@ def test_structural_operations_do_not_inspect_python_entrypoints(
         entities=[entity.Entity(id="assets", name="Assets", dimensions=[], datasets=[])]
     )
     assert converted.entities["assets"].name == "Assets"
-    assert spec.prepare_spec(document).calls
+    validation.validate_spec(document)
+    graph = spec.FeatureGraph(document)
+    assert graph.feature_names
+    assert all(function is document.functions[function.id] for function in graph.functions)
     assert spec.load_spec(SPEC_PATH) == document
 
 
-def test_preparation_does_not_mutate_the_document() -> None:
+def test_validation_does_not_mutate_the_document() -> None:
     document = model.Spec.model_validate(codec.load_document(SPEC_PATH))
     before = codec.to_document(document)
 
-    prepared = spec.prepare_spec(document)
+    validation.validate_spec(document)
 
-    assert prepared.functions
-    assert prepared.calls
     assert codec.to_document(document) == before
-    assert all(
-        call is next(item for item in prepared.calls if item.feature == call.feature)
-        for function in prepared.functions
-        for call in function.callables
-    )
 
 
 def test_python_dictionary_and_json_export_share_the_same_encoding(

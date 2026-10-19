@@ -1,11 +1,11 @@
 # Spec operations
 
 `uptimely.spec.api` provides the application-level operations for loading,
-converting, and preparing spec.
+and converting spec.
 
-Loading and Python conversion perform semantic validation. Preparation resolves
-functions and calls without adding derived state to the
-[spec document](model.md).
+Loading and Python conversion perform semantic validation directly on the
+[spec document](model.md). They do not create executable invocations or attach
+derived state. Compile the document when an execution plan is needed.
 
 <div class="api-reference" markdown="1">
 
@@ -18,6 +18,5 @@ functions and calls without adding derived state to the
       members:
         - load_spec
         - from_python
-        - prepare_spec
 
 </div>

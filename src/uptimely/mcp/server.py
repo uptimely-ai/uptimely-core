@@ -22,6 +22,7 @@ from uptimely import engine as uptimely_engine
 from uptimely import entrypoint, spec
 from uptimely.project import build as project_build
 from uptimely.spec import model as spec_model
+from uptimely.spec import references
 
 logger = logging.getLogger(__name__)
 
@@ -183,23 +184,29 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             features needed to compute it.
         """
         spec_definition = state.load_snapshot().spec
-        by_feature = {call.feature: call for call in spec.prepare_spec(spec_definition).calls}
-        call = by_feature.get(feature_id)
-        if call is None:
+        by_feature = {
+            feature: (entity_id, mapping)
+            for entity_id, _dataset, mapping in references.iter_mappings(spec_definition)
+            if spec_definition.functions[mapping.binding.function].operation == "vectorize"
+            for feature in mapping.output_features
+        }
+        producer = by_feature.get(feature_id)
+        if producer is None:
             raise ValueError(
                 f"Unknown calculated feature: {feature_id}. "
                 "Use list_calculated_features to see available features."
             )
 
+        entity_id, mapping = producer
         transitive: list[str] = []
-        queue = list(call.depends_on_features)
+        queue = list(mapping.input_features)
         seen = set(queue)
         while queue:
             current = queue.pop(0)
             transitive.append(current)
-            parent_call = by_feature.get(current)
-            if parent_call is not None:
-                for parent in parent_call.depends_on_features:
+            parent_producer = by_feature.get(current)
+            if parent_producer is not None:
+                for parent in parent_producer[1].input_features:
                     if parent not in seen:
                         seen.add(parent)
                         queue.append(parent)
@@ -207,9 +214,9 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         return _to_json(
             {
                 "feature": feature_id,
-                "entity": call.entity,
-                "function": call.function,
-                "direct_dependencies": call.depends_on_features,
+                "entity": entity_id,
+                "function": mapping.binding.function,
+                "direct_dependencies": mapping.input_features,
                 "transitive_dependencies": transitive,
                 "input_features": [name for name in transitive if name not in by_feature],
                 "calculated_dependencies": [name for name in transitive if name in by_feature],

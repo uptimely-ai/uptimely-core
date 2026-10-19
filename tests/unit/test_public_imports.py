@@ -61,12 +61,9 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert uptimely.Spec is spec.Spec is SpecModel
     assert uptimely.load_spec is spec.load_spec
     assert uptimely.from_python is spec.from_python
-    assert uptimely.prepare_spec is spec.prepare_spec
     assert uptimely.write_document is spec.write_document
-    assert uptimely.PreparedSpec is spec.PreparedSpec
     assert not hasattr(spec, "SpecParser")
     assert not hasattr(spec, "SpecSerializer")
-    assert uptimely.Call is spec.Call
     assert uptimely.Dimension is spec.Dimension
     assert uptimely.Entity is spec.Entity
     assert uptimely.FeatureGraph is spec.FeatureGraph is FeatureGraph
@@ -75,7 +72,6 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert not hasattr(feature_graph, "GraphStyle")
     assert feature_graph_models.FeatureNode is FeatureNode
     assert feature_graph_models.FunctionNode is FunctionNode
-    assert uptimely.Function is spec.Function
     assert uptimely.PythonSpec is spec.PythonSpec
     assert uptimely.SubGraph is spec.SubGraph is SubGraph
 

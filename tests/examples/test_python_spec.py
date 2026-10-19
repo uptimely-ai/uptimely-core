@@ -93,10 +93,8 @@ def test_example_manifest_parses_complete_spec() -> None:
         "vectorize",
         "collapse",
     }
-    assert set(spec_definition.functions.by_operation("vectorize")) - {"maximum"} == {
-        function.id for function in spec.prepare_spec(spec_definition).functions
-    }
-    assert len(spec.prepare_spec(spec_definition).functions) == 7
+    assert "maximum" not in spec_definition.functions.by_operation("vectorize")
+    assert len(spec_definition.functions.by_operation("vectorize")) == 7
 
     pump_dataset = spec_definition.entities["pump"].datasets[0]
     collapse = pump_dataset.mappings["bearing_temperature_by_pump"]

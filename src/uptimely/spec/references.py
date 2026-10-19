@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import collections.abc
 import typing
 
 import pydantic
@@ -10,6 +11,24 @@ from uptimely import contracts
 
 if typing.TYPE_CHECKING:
     from . import model as spec_model
+
+
+def iter_mappings(
+    document: spec_model.Spec,
+) -> typing.Iterator[tuple[str, spec_model.Dataset, spec_model.Mapping]]:
+    """Yield entity identifiers, datasets, and mappings in declaration order."""
+    for entity_id, dataset, _mapping_id, mapping in iter_mapping_items(document):
+        yield entity_id, dataset, mapping
+
+
+def iter_mapping_items(
+    document: spec_model.Spec,
+) -> typing.Iterator[tuple[str, spec_model.Dataset, str, spec_model.Mapping]]:
+    """Yield mapping declarations with their dictionary keys in declaration order."""
+    for entity_id, entity in document.entities.items():
+        for dataset in entity.datasets:
+            for mapping_id, mapping in dataset.mappings.items():
+                yield entity_id, dataset, mapping_id, mapping
 
 
 def mapping_operation(mapping: spec_model.Mapping, catalog: spec_model.FunctionCatalog) -> str:
@@ -23,14 +42,47 @@ def mapping_operation(mapping: spec_model.Mapping, catalog: spec_model.FunctionC
     return function.operation
 
 
+def structural_references(value: typing.Any, prefix: str) -> list[str]:
+    """Collect reference identifiers from nested bindings, retaining their order."""
+    if hasattr(value, "model_dump"):
+        value = value.model_dump()
+    if isinstance(value, str):
+        if value.startswith(prefix):
+            return [
+                value.removeprefix(prefix)
+                .removesuffix(contracts.ID_SELECTOR)
+                .removesuffix(contracts.DATAFRAME_SELECTOR)
+            ]
+        return []
+    if isinstance(value, dict):
+        return [
+            identifier
+            for nested in value.values()
+            for identifier in structural_references(nested, prefix)
+        ]
+    if isinstance(value, list):
+        return [
+            identifier for nested in value for identifier in structural_references(nested, prefix)
+        ]
+    return []
+
+
 def collapse_input_dataset(
-    spec_definition: spec_model.Spec, mapping: spec_model.Mapping
+    spec_definition: spec_model.Spec,
+    mapping: spec_model.Mapping,
+    *,
+    feature_owners: collections.abc.Mapping[
+        str, collections.abc.Sequence[tuple[spec_model.Entity, spec_model.Dataset]]
+    ]
+    | None = None,
 ) -> tuple[spec_model.Entity, spec_model.Dataset]:
     """Infer one input dataset from a collapse's bound non-dimension features.
 
     Args:
         spec_definition: Spec model containing feature ownership.
         mapping: Collapse binding whose inputs determine the dataset.
+        feature_owners: Optional declaration index retaining all candidate owners.
+            When omitted, discover owners from the document.
 
     Returns:
         The owning entity and the single inferred input dataset.
@@ -47,12 +99,16 @@ def collapse_input_dataset(
         raise ValueError(f"Collapse {mapping.id} must reference a source feature")
     owners: dict[str, tuple[spec_model.Entity, spec_model.Dataset]] = {}
     for feature in inputs:
-        matches = [
-            (entity, dataset)
-            for entity in spec_definition.entities.values()
-            for dataset in entity.datasets
-            if feature in dataset.features
-        ]
+        matches = (
+            feature_owners.get(feature, ())
+            if feature_owners is not None
+            else [
+                (entity, dataset)
+                for entity in spec_definition.entities.values()
+                for dataset in entity.datasets
+                if feature in dataset.features
+            ]
+        )
         if not matches:
             raise ValueError(f"Collapse {mapping.id} references unknown input feature: {feature}")
         if len(matches) != 1:

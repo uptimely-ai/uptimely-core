@@ -87,7 +87,9 @@ backend.
 Compiler validation checks that a Spec document can be compiled into a
 valid, schedulable plan:
 
-- Spec declarations are prepared and semantically validated.
+- Spec declarations are semantically validated directly, without creating a
+  separate resolved spec. The compiler builds one invocation node per mapping
+  and resolves structural arguments when producing plan callables.
 - Selected output features exist, and the dependency graph is acyclic.
 - Function entrypoints resolve and Python return annotations match the declared
   return contracts.

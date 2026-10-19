@@ -4,29 +4,9 @@ from __future__ import annotations
 
 import pathlib
 
-from . import model, resolution, resolved, validation
+from . import model, validation
 from .json import codec
 from .python import conversion
-
-
-def prepare_spec(document: model.Spec) -> resolved.PreparedSpec:
-    """Resolve and validate a document without adding derived state to it.
-
-    Preparation uses declarative metadata, not executable Python signatures.
-    Rebuild the result after changing the document; it is not an automatic cache.
-
-    Args:
-        document: A spec document that conforms to the document model.
-
-    Returns:
-        The document paired with its resolved functions and calls.
-
-    Raises:
-        ValueError: Spec references, mappings, or dependencies are invalid.
-    """
-    functions, calls = resolution.resolve_functions(document)
-    validation.validate_prepared(document, functions, calls)
-    return resolved.PreparedSpec(document=document, functions=functions, calls=calls)
 
 
 def load_spec(path: str | pathlib.Path) -> model.Spec:
@@ -43,7 +23,7 @@ def load_spec(path: str | pathlib.Path) -> model.Spec:
         ValueError: The document or its spec declarations are invalid.
     """
     document = model.Spec.model_validate(codec.load_document(path))
-    prepare_spec(document)
+    validation.validate_spec(document)
     return document
 
 
@@ -78,5 +58,5 @@ def from_python(
         dimensions=dimensions,
         entities=entities,
     )
-    prepare_spec(document)
+    validation.validate_spec(document)
     return document

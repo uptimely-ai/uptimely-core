@@ -4,8 +4,7 @@
 of its authoring format. The [spec format reference](../../../components/spec.md)
 describes the document structure.
 
-Derived functions and calls belong to [resolved](resolved.md), not these
-document models.
+The compiler constructs executable invocations from these declarations.
 
 <div class="api-reference" markdown="1">
 

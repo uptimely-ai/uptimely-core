@@ -1,23 +1,30 @@
 import dataclasses
 
 from uptimely import render
-
-from .. import resolved
+from uptimely.spec import model
 
 
 @dataclasses.dataclass(frozen=True)
 class FunctionNode:
-    """Display metadata for one function definition and its resolved template."""
+    """Display metadata for one declared function template."""
 
     name: str
     features: tuple[str, ...]
     entity: str | None
-    function: resolved.Function | None = dataclasses.field(default=None, compare=False, hash=False)
+    function: model.FunctionTemplate | None = dataclasses.field(
+        default=None, compare=False, hash=False
+    )
 
     @property
     def node_id(self) -> str:
         """Stable graph identifier for this function definition."""
-        function_type = self.function.role if self.function is not None else "unknown"
+        function_type = (
+            "spec"
+            if self.function is not None and self.function.operation == "vectorize"
+            else self.function.operation
+            if self.function is not None
+            else "unknown"
+        )
         return f"function:{function_type}:{self.name}"
 
     def __str__(self) -> str:
@@ -34,16 +41,10 @@ class FunctionNode:
             label=self.name,
             features=list(self.features),
             entity=self.entity,
-            function_type=(
-                "vectorize"
-                if self.function is not None and self.function.role == "spec"
-                else self.function.role
-                if self.function is not None
-                else None
-            ),
-            type=self.function.type if self.function is not None else None,
+            function_type=(self.function.operation if self.function is not None else None),
+            type="python_function" if self.function is not None else None,
             entrypoint=self.function.entrypoint if self.function is not None else None,
-            info=self.function.info if self.function is not None and self.function.info else None,
+            info={"description": self.function.description} if self.function is not None else None,
         )
 
 

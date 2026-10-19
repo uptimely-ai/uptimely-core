@@ -1,21 +1,24 @@
-"""Shared spec validation traversal helpers."""
+"""Per-invocation indexes and resource locations for ordered spec validation.
+
+Construction retains duplicate candidates without validating them. Domain
+modules apply checks; :mod:`uptimely.spec.validation.spec` coordinates phases
+and passes successfully resolved collapse sources between them.
+"""
 
 from __future__ import annotations
 
 import dataclasses
 import typing
 
-from uptimely import contracts
-
-from .. import model as spec_model
-from ..model import functions as functions_module
+from uptimely.spec import model as spec_model
+from uptimely.spec import references
 
 __all__ = [
     "SpecValidationContext",
     "DatasetLocation",
     "FeatureOwner",
-    "MappingProducer",
-    "_structural_references",
+    "MappingLocation",
+    "CollapseSource",
 ]
 
 
@@ -40,11 +43,47 @@ class FeatureOwner:
 
 
 @dataclasses.dataclass(frozen=True)
-class MappingProducer:
-    """A mapping that declares an output feature."""
+class MappingLocation:
+    """A mapping declaration and the entity and dataset containing it."""
 
-    dataset_id: str
+    entity_id: str
+    entity: spec_model.Entity
+    dataset: spec_model.Dataset
     mapping_id: str
+    mapping: spec_model.Mapping
+
+    @property
+    def key(self) -> tuple[str, str, str]:
+        """Return the declaration identity after dataset IDs have been validated."""
+        return self.entity_id, self.dataset.id, self.mapping_id
+
+    @property
+    def path(self) -> tuple[str | int, ...]:
+        """Return the model-ID path used by mapping contract validation."""
+        return (
+            "entities",
+            self.entity_id,
+            "datasets",
+            self.dataset.id,
+            "mappings",
+            self.mapping.id,
+        )
+
+    @property
+    def declaration_path(self) -> tuple[str | int, ...]:
+        """Return the dictionary-key path used by binding validation."""
+        return (*self.path[:-1], self.mapping_id)
+
+
+@dataclasses.dataclass(frozen=True)
+class CollapseSource:
+    """The entity and dataset successfully inferred for a collapse mapping."""
+
+    entity: spec_model.Entity
+    dataset: spec_model.Dataset
+
+
+type CollapseSources = dict[tuple[str, str, str], CollapseSource]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -61,8 +100,13 @@ class SpecValidationContext:
     datasets_by_id: dict[str, tuple[DatasetLocation, ...]]
     feature_names: frozenset[str]
     feature_owners: dict[str, tuple[FeatureOwner, ...]]
-    feature_producers: dict[str, tuple[MappingProducer, ...]]
-    function_categories: dict[str, dict[str, spec_model.FunctionTemplate]]
+
+    def iter_mappings(self) -> typing.Iterator[MappingLocation]:
+        """Yield locations without resolving functions or rejecting declarations."""
+        for entity_id, dataset, mapping_id, mapping in references.iter_mapping_items(self.model):
+            yield MappingLocation(
+                entity_id, self.model.entities[entity_id], dataset, mapping_id, mapping
+            )
 
     @classmethod
     def build(cls, model: spec_model.Spec) -> SpecValidationContext:
@@ -71,7 +115,6 @@ class SpecValidationContext:
         datasets: dict[str, list[DatasetLocation]] = {}
         feature_names: set[str] = set()
         feature_owners: dict[str, list[FeatureOwner]] = {}
-        feature_producers: dict[str, list[MappingProducer]] = {}
         dataset_order = 0
         feature_order = 0
 
@@ -87,25 +130,13 @@ class SpecValidationContext:
                             FeatureOwner(entity_id, entity, dataset, feature_order)
                         )
                     feature_order += 1
-                for mapping in dataset.mappings.values():
-                    for feature_id in mapping.output_features:
-                        if feature_id not in dimension_ids:
-                            feature_producers.setdefault(feature_id, []).append(
-                                MappingProducer(dataset.id, mapping.id)
-                            )
 
-        categories = {
-            operation: model.functions.by_operation(operation)
-            for operation in functions_module.FUNCTION_OPERATIONS
-        }
         return cls(
             model=model,
             dimension_ids=dimension_ids,
             datasets_by_id={key: tuple(value) for key, value in datasets.items()},
             feature_names=frozenset(feature_names),
             feature_owners={key: tuple(value) for key, value in feature_owners.items()},
-            feature_producers={key: tuple(value) for key, value in feature_producers.items()},
-            function_categories=categories,
         )
 
     def dataset(self, dataset_id: str) -> DatasetLocation | None:
@@ -122,53 +153,3 @@ class SpecValidationContext:
         """Return the last feature owner, matching previous catalog indexing."""
         candidates = self.feature_owners.get(feature_id, ())
         return candidates[-1] if candidates else None
-
-    def last_feature_producer(self, feature_id: str) -> MappingProducer | None:
-        """Return the last mapping producer, matching previous index construction."""
-        candidates = self.feature_producers.get(feature_id, ())
-        return candidates[-1] if candidates else None
-
-    def first_duplicate_dataset(self) -> tuple[DatasetLocation, DatasetLocation] | None:
-        """Return the duplicate dataset occurrence encountered first in model order."""
-        duplicates = (
-            (candidates[0], candidates[1])
-            for candidates in self.datasets_by_id.values()
-            if len(candidates) > 1
-        )
-        return min(duplicates, key=lambda pair: pair[1].order, default=None)
-
-    def first_duplicate_feature(self) -> str | None:
-        """Return the first duplicated feature encountered in model order."""
-        duplicates = (
-            (candidates[1].order, feature_id)
-            for feature_id, candidates in self.feature_owners.items()
-            if len(candidates) > 1
-        )
-        return min(duplicates, default=(0, None))[1]
-
-
-def _structural_references(value: typing.Any, prefix: str) -> list[str]:
-    """Return identifiers from nested structural reference strings."""
-    if hasattr(value, "model_dump"):
-        value = value.model_dump()
-    if isinstance(value, str):
-        return (
-            [
-                value.removeprefix(prefix)
-                .removesuffix(contracts.ID_SELECTOR)
-                .removesuffix(contracts.DATAFRAME_SELECTOR)
-            ]
-            if value.startswith(prefix)
-            else []
-        )
-    if isinstance(value, dict):
-        return [
-            identifier
-            for nested in value.values()
-            for identifier in _structural_references(nested, prefix)
-        ]
-    if isinstance(value, list):
-        return [
-            identifier for nested in value for identifier in _structural_references(nested, prefix)
-        ]
-    return []
