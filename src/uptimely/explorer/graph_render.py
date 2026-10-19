@@ -23,6 +23,7 @@ class GraphStyle:
     function_colors: dict[str, str] = dataclasses.field(
         default_factory=lambda: {
             "read": "#4c78a8",
+            "escape": "#a78bfa",
             "vectorize": "#f58518",
             "collapse": "#e45756",
             "conform": "#72b7b2",

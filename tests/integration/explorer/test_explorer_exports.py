@@ -9,7 +9,7 @@ import pytest
 from conftest import EXAMPLES_ROOT, render_explorer
 
 from uptimely import compiler, contracts, engine, spec
-from uptimely.explorer import spec_render
+from uptimely.explorer import graph_render, spec_render
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 REFERENCE_PATH = pathlib.Path("docs/components/spec.md")
@@ -93,6 +93,152 @@ def test_build_spec_context() -> None:
     assert context.summary.function_buckets["escape"] == 0
     assert context.feature_dependencies
     assert context.generated_at is None
+
+
+def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Path) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration["functions"]["external_audit"] = {
+        "operation": "escape",
+        "returns": "any",
+        "entrypoint": "examples.pump_analytics.functions.calculation:maximum",
+        "args": {},
+        "description": "Send an audit record to an external service.",
+    }
+    dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]
+    dataset["features"]["audit_reference"] = {"type": "string"}
+    dataset["features"]["audit_status"] = {"type": "string"}
+    dataset["features"]["audit_followup"] = {"type": "string"}
+    dataset["mappings"]["external_audit"] = {
+        "binding": {"function": "external_audit", "args": {}},
+        "features": {
+            "inputs": ["$features.bearing_temperature", "$features.vibration_rms"],
+            "outputs": ["$features.audit_reference", "$features.audit_status"],
+        },
+    }
+    dataset["mappings"]["external_audit_followup"] = {
+        "binding": {"function": "external_audit", "args": {}},
+        "features": {
+            "inputs": ["$features.audit_reference"],
+            "outputs": ["$features.audit_followup"],
+        },
+    }
+    spec_path = tmp_path / "escape-spec.json"
+    spec_path.write_text(json.dumps(configuration), encoding="utf-8")
+    definition = spec.load_spec(spec_path)
+    plan = compiler.Compiler(definition).compile()
+
+    context = spec_render._build_context(definition, False)
+    assert context.summary.function_buckets["escape"] == 1
+    assert context.summary.feature_buckets["external"] == 3
+    assert all(
+        {
+            "function": "external_audit",
+            "operation": "escape",
+            "feature": output,
+            "dependencies": ["bearing_temperature", "vibration_rms"],
+        }
+        in context.feature_dependencies
+        for output in ("audit_reference", "audit_status")
+    )
+    assert {
+        "function": "external_audit",
+        "operation": "escape",
+        "feature": "audit_followup",
+        "dependencies": ["audit_reference"],
+    } in context.feature_dependencies
+    function = context.configuration["functions"]["external_audit"]
+    assert function["declared_returns"] == "any"
+    assert function["escape_mappings"] == [
+        {
+            "entity": "pump_telemetry",
+            "dataset": dataset.get("id", "pump_telemetry_dataset"),
+            "mapping": "external_audit",
+            "inputs": ["bearing_temperature", "vibration_rms"],
+            "outputs": ["audit_reference", "audit_status"],
+        },
+        {
+            "entity": "pump_telemetry",
+            "dataset": dataset.get("id", "pump_telemetry_dataset"),
+            "mapping": "external_audit_followup",
+            "inputs": ["audit_reference"],
+            "outputs": ["audit_followup"],
+        },
+    ]
+    escape_callables = [callable for callable in plan.callables if callable.operation == "escape"]
+    assert len(escape_callables) == 2
+    first_escape = next(
+        callable for callable in escape_callables if callable.id.endswith(":external_audit")
+    )
+    followup_escape = next(
+        callable
+        for callable in escape_callables
+        if callable.id.endswith(":external_audit_followup")
+    )
+    assert first_escape.id in followup_escape.dependency_ids
+
+    index = render_explorer(definition, tmp_path / "site/index.html")
+    feature_page = (index.parent / "spec/features.html").read_text(encoding="utf-8")
+    datasets_page = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
+    functions_page = (index.parent / "spec/functions.html").read_text(encoding="utf-8")
+    graph_page = (index.parent / "spec/graph.html").read_text(encoding="utf-8")
+    plan_page = (index.parent / "plan/graph.html").read_text(encoding="utf-8")
+    stages_page = (index.parent / "plan/stages.html").read_text(encoding="utf-8")
+    lineage_page = (index.parent / "execution/data_lineage.html").read_text(encoding="utf-8")
+
+    assert "Declared external output; not a verified dataframe column." in feature_page
+    assert "Declared inputs: $features.bearing_temperature, $features.vibration_rms" in feature_page
+    assert (
+        "Escape outputs are declared external features, not verified or materialized "
+        "dataset columns." in datasets_page
+    )
+    assert "Uncontrolled external operation" in functions_page
+    assert "Python return value is ignored" in functions_page
+    assert "External outputs: audit_reference, audit_status" in functions_page
+    assert "Declares external outputs:" in graph_page
+    assert '"function_type": "escape"' in graph_page
+    assert '"features": ["audit_reference", "audit_status"]' in graph_page
+    assert '"features": ["audit_followup"]' in graph_page
+    assert "Declares external outputs" in plan_page
+    assert "audit_reference, audit_status" in plan_page
+    assert '"input_features": ["bearing_temperature", "vibration_rms"]' in plan_page
+    assert "Declares external outputs" in stages_page
+    assert "not verified or materialized as dataframe columns" in stages_page
+    escape_steps = re.findall(
+        r'<article class="lineage-step"[^>]*data-operation="escape".*?</article>',
+        lineage_page,
+        re.DOTALL,
+    )
+    assert len(escape_steps) == 2
+    escape_step = escape_steps[0]
+    assert "Declared feature inputs" in escape_step
+    assert "Declared external outputs" in escape_step
+    assert "audit_reference, audit_status" in escape_step
+    assert "not materialized as dataframe columns" in escape_step
+    assert "External declaration; no materialized result" in escape_step
+    assert 'data-side="output"' not in escape_step
+    assert "Declared feature inputs</strong>audit_reference" in escape_steps[1]
+    assert re.search(r'data-dependencies="[^"]+"', escape_steps[1])
+
+    graph_nodes, graph_links = graph_render.graph_payload_from_cytoscape(
+        spec.FeatureGraph(definition)
+    )
+    audit_feature_nodes = {
+        node["label"]: node
+        for node in graph_nodes
+        if node.get("label") in {"audit_reference", "audit_status", "audit_followup"}
+    }
+    assert set(audit_feature_nodes) == {"audit_reference", "audit_status", "audit_followup"}
+    assert all(node.get("data_type") == "string" for node in audit_feature_nodes.values())
+    assert all(node.get("is_source_input") is not True for node in audit_feature_nodes.values())
+    assert {(link["source"], link["target"]) for link in graph_links} >= {
+        ("function:escape:external_audit:external_audit", "audit_reference"),
+        ("function:escape:external_audit:external_audit", "audit_status"),
+        ("audit_reference", "function:escape:external_audit:external_audit_followup"),
+        (
+            "function:escape:external_audit:external_audit_followup",
+            "audit_followup",
+        ),
+    }
 
 
 def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:

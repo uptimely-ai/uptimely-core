@@ -23,11 +23,14 @@
 			if (isFunction) {
 				const entrypoint = node.entrypoint || null;
 				const features = Array.isArray(node.features) ? node.features : [];
+				const outputLabel = node.function_type === 'escape'
+					? 'Declares external outputs:'
+					: 'Produces:';
 				const detailParts = [
 					`<div class="meta"><strong>Node type:</strong> Function</div>`,
 					`<div class="meta"><strong>Function:</strong> ${label}</div>`,
 					`<div class="meta"><strong>Function type:</strong> ${node.function_type || 'n/a'}</div>`,
-					features.length ? `<div class="meta"><strong>Produces:</strong> ${formatDetailValue(features.join(', '))}</div>` : '',
+					features.length ? `<div class="meta"><strong>${outputLabel}</strong> ${formatDetailValue(features.join(', '))}</div>` : '',
 					entrypoint ? `<div class="meta"><strong>Entrypoint:</strong> ${formatDetailValue(entrypoint)}</div>` : '',
 				].filter(Boolean).join('');
 				nodeDetails.innerHTML = `

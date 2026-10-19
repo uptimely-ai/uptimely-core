@@ -75,11 +75,14 @@ def _render_step(
         "dataset": callable.dataset_id,
         "feature": (
             ", ".join(callable.output_features)
-            if callable.operation == "collapse"
+            if callable.operation in {"collapse", "escape"}
             else callable.output
             if callable.operation == "vectorize"
             else None
         ),
+        "input_features": callable.input_features,
+        "output_features": callable.output_features,
+        "uncontrolled": callable.operation == "escape",
         "row_context": callable.row_context.to_dict() if callable.row_context else None,
         "depends_on_callables": [
             {
@@ -155,7 +158,15 @@ def _create_website_pages(
             "function_id": callable.function_id,
             "entity": callable.entity_id,
             "dataset_id": callable.dataset_id,
-            "feature": callable.output if callable.operation == "vectorize" else None,
+            "feature": (
+                ", ".join(callable.output_features)
+                if callable.operation == "escape"
+                else callable.output
+                if callable.operation == "vectorize"
+                else None
+            ),
+            "input_features": callable.input_features,
+            "output_features": callable.output_features,
             "dependency_ids": sorted(callable.dependency_ids),
         }
         for callable in sorted(plan.callables, key=lambda callable: callable.id)

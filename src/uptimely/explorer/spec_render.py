@@ -118,12 +118,15 @@ def _create_website_pages(
         )
 
 
-def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], list[dict], set[str]]:
+def _feature_data(
+    configuration: dict[str, typing.Any],
+) -> tuple[list[dict], list[dict], set[str], list[dict]]:
     """Collect mapped feature metadata and calculated feature references."""
     entities = configuration.get("entities", {})
     functions = configuration.get("functions", {})
     fragment_features: list[dict] = []
     calculated_features: list[dict] = []
+    escape_features: list[dict] = []
     seen_inputs: set[tuple[str, str]] = set()
     for entity in entities.values():
         for dataset in entity.get("datasets", []):
@@ -143,6 +146,10 @@ def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], lis
                                 "inputs": mapping.get("features", {}).get("inputs", []),
                             }
                         )
+                    elif operation == "escape":
+                        if (dataset.get("id", ""), feature_id) not in seen_inputs:
+                            escape_features.append(feature)
+                            seen_inputs.add((dataset.get("id", ""), feature_id))
                     elif (dataset.get("id", ""), feature_id) not in seen_inputs:
                         fragment_features.append(feature)
                         seen_inputs.add((dataset.get("id", ""), feature_id))
@@ -154,7 +161,7 @@ def _feature_data(configuration: dict[str, typing.Any]) -> tuple[list[dict], lis
             for reference in calculation.get("inputs", [])
         )
     }
-    return fragment_features, calculated_features, referenced_features
+    return fragment_features, calculated_features, referenced_features, escape_features
 
 
 def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool) -> ExplorerContext:
@@ -178,6 +185,23 @@ def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool)
         operation = function.get("operation")
         if isinstance(operation, str):
             function_groups.setdefault(operation, {})[function_id] = function
+            function["declared_returns"] = contracts.OPERATION_RETURN_KINDS[operation]
+            function["escape_mappings"] = []
+    for entity_id, dataset, mapping in references.iter_mappings(spec_definition):
+        function = function_definitions[mapping.binding.function]
+        if function.get("operation") == "escape":
+            function["escape_mappings"].append(
+                {
+                    "entity": entity_id,
+                    "dataset": dataset.id,
+                    "mapping": mapping.id,
+                    "inputs": mapping.input_features,
+                    "outputs": mapping.output_features,
+                }
+            )
+    for function in function_definitions.values():
+        if not isinstance(function, dict):
+            continue
         entrypoint = function.get("entrypoint")
         if not isinstance(entrypoint, str) or ":" not in entrypoint:
             continue
@@ -203,7 +227,12 @@ def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool)
             return_type = None
         if return_type:
             function["return_type"] = return_type
-    fragment_features, calculated_features, referenced_features = _feature_data(configuration)
+    (
+        fragment_features,
+        calculated_features,
+        referenced_features,
+        escape_features,
+    ) = _feature_data(configuration)
     feature_buckets = {
         "input": len(fragment_features),
         "intermediate": sum(
@@ -212,6 +241,7 @@ def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool)
         "output": sum(
             calculation["id"] not in referenced_features for calculation in calculated_features
         ),
+        "external": len(escape_features),
     }
     function_buckets = {
         operation: len(function_groups.get(operation, {}))
@@ -233,7 +263,7 @@ def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool)
         dataset_count=dataset_count,
         mapping_count=mapping_count,
         dimension_count=len(dimensions),
-        feature_count=len([*fragment_features, *calculated_features]),
+        feature_count=len([*fragment_features, *calculated_features, *escape_features]),
         bound_feature_count=len(calculated_features),
         function_count=sum(
             len(group) for group in function_groups.values() if isinstance(group, dict)
@@ -245,11 +275,12 @@ def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool)
     dependencies = [
         {
             "function": mapping.binding.function,
+            "operation": spec_definition.functions[mapping.binding.function].operation,
             "feature": feature,
             "dependencies": mapping.input_features,
         }
         for _entity_id, _dataset, mapping in references.iter_mappings(spec_definition)
-        if spec_definition.functions[mapping.binding.function].operation == "vectorize"
+        if spec_definition.functions[mapping.binding.function].operation in {"escape", "vectorize"}
         for feature in mapping.output_features
     ]
     generated_at = (

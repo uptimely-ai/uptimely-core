@@ -18,8 +18,8 @@ import typing
 import fastmcp
 import polars as pl
 
+from uptimely import contracts, entrypoint, spec
 from uptimely import engine as uptimely_engine
-from uptimely import entrypoint, spec
 from uptimely.project import build as project_build
 from uptimely.spec import model as spec_model
 from uptimely.spec import references
@@ -111,24 +111,31 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
 
     @mcp.tool()
     def list_functions() -> str:
-        """List every function id and its operation."""
+        """List every function id, operation, and declared return contract."""
         catalog = state.load_snapshot().spec.functions
         return _to_json(
             [
-                {"id": function_id, "operation": function.operation}
+                {
+                    "id": function_id,
+                    "operation": function.operation,
+                    "returns": contracts.OPERATION_RETURN_KINDS[function.operation],
+                }
                 for function_id, function in sorted(catalog.root.items())
             ]
         )
 
     @mcp.tool()
     def describe_function(function_id: str) -> str:
-        """Describe one catalog function: entrypoint, declared args, Python signature.
+        """Describe a function's return contract, bindings, args, and Python signature.
+
+        Escape functions include declared feature boundaries and their uncontrolled
+        execution semantics.
 
         Args:
             function_id: The function id from `list_functions`.
         """
-        catalog = state.load_snapshot().spec.functions
-        template = catalog.get(function_id)
+        snapshot = state.load_snapshot()
+        template = snapshot.spec.functions.get(function_id)
         if template is None:
             raise ValueError(f"Unknown function: {function_id}")
         signature = entrypoint.read_signature(template.entrypoint, root=state.project_root)
@@ -136,6 +143,26 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             {
                 "id": function_id,
                 "operation": template.operation,
+                "declared_returns": contracts.OPERATION_RETURN_KINDS[template.operation],
+                "escape_mappings": [
+                    {
+                        "entity": entity_id,
+                        "dataset": dataset.id,
+                        "mapping": mapping_id,
+                        "inputs": mapping.input_features,
+                        "outputs": mapping.output_features,
+                    }
+                    for entity_id, dataset, mapping_id, mapping in references.iter_mapping_items(
+                        snapshot.spec
+                    )
+                    if mapping.binding.function == function_id and template.operation == "escape"
+                ],
+                "execution_semantics": (
+                    "Uncontrolled external operation; its return value is ignored, and declared "
+                    "outputs are not verified or materialized as dataframe columns."
+                    if template.operation == "escape"
+                    else None
+                ),
                 "entrypoint": template.entrypoint,
                 "declared_args": {
                     name: {"type": argument.type, "comment": argument.comment}

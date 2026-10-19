@@ -97,7 +97,7 @@
 <main class="lineage-page">
   <p>Execution</p>
   <h1 class="title-with-icon">{{ icon("lineage", "title-icon") }}<span>Data lineage</span></h1>
-  <p>One callable at a time. Watch declared output columns and illustrative rows appear.</p>
+  <p>Follow each callable's declared inputs and outputs. Escape outputs are external declarations, not dataframe columns.</p>
   <p>Illustration only: keys, values, results, and row counts are placeholders, not calculated data.
     No spec are executed.</p>
   {% if stages %}
@@ -135,7 +135,9 @@
       <h2 id="stage-{{ stage_number }}">Stage {{ stage_number }} / {{ stage|length }} independent step{% if stage|length != 1 %}s{% endif %}</h2>
       {% for step in stage %}
       {% set inputs = step.columns|selectattr("role", "equalto", "Input")|list %}
+      {% set declared_inputs = step.columns|selectattr("role", "equalto", "Declared input")|list %}
       {% set outputs = step.columns|selectattr("role", "equalto", "Output")|list %}
+      {% set external_outputs = step.columns|selectattr("role", "equalto", "Declared external output")|list %}
       {% set keys = step.columns|selectattr("role", "equalto", "Dimension")|list %}
       <article class="lineage-step" id="step-{{ step.number }}" data-callable-id="{{ step.callable_id }}"
         data-dependencies="{{ step.dependencies|join(',') }}" data-operation="{{ step.operation }}" data-stage="{{ stage_number }}">
@@ -145,6 +147,8 @@
           <div class="lineage-panel">
             {% if step.operation == "read" %}
             <div class="lineage-boundary"><strong>Source</strong>{{ step.dataset or step.entity }}<p>The read callable supplies the declared columns.</p></div>
+            {% elif step.operation == "escape" %}
+            <div class="lineage-boundary"><strong>Declared feature inputs</strong>{{ (declared_inputs|map(attribute="name")|list)|join(", ") or "None" }}<p>These declarations do not establish that dataframe columns are available to the callable.</p></div>
             {% elif inputs or keys %}
             {{ sample_table(inputs, keys, "Input", "input", 3, step.operation == "collapse", step.dataset or step.entity) }}
             {% else %}
@@ -153,12 +157,14 @@
           </div>
           <div class="lineage-arrow">
             <span class="lineage-arrow-icon" aria-hidden="true">&darr;</span>
-            <small class="lineage-callable-type">{{ {"collapse": "Aggregate"}.get(step.operation, step.operation|title) }}</small>
+            <small class="lineage-callable-type">{{ {"collapse": "Aggregate", "escape": "Uncontrolled external operation"}.get(step.operation, step.operation|title) }}</small>
           </div>
           <div class="lineage-panel lineage-panel-output">
             <p class="lineage-waiting" hidden>Output will form here as the callable is illustrated.</p>
             {% if step.operation == "write" %}
             <div class="lineage-boundary" data-write-boundary><strong>Write destination</strong>{{ step.dataset or step.entity }}<p>Consumes the input columns; produces no analytical features.</p></div>
+            {% elif step.operation == "escape" %}
+            <div class="lineage-boundary"><strong>Declared external outputs</strong>{{ (external_outputs|map(attribute="name")|list)|join(", ") or "None" }}<p>These declarations are not verified results and are not materialized as dataframe columns.</p></div>
             {% elif outputs or keys %}
             {{ sample_table(outputs, keys, "Output", "output", 1 if step.operation == "collapse" else 3, step.operation == "collapse", step.dataset or step.entity) }}
             {% else %}
@@ -166,7 +172,7 @@
             {% endif %}
           </div>
         </div>
-        <p class="lineage-status" aria-live="polite">{% if step.operation == "collapse" %}Illustrative grouping: three placeholder rows become one group. Actual grouping and row counts are not known.{% elif step.operation == "write" %}Write boundary: no new analytical columns.{% else %}Declared columns shown with three placeholder rows. Actual row counts are not known.{% endif %}</p>
+        <p class="lineage-status" aria-live="polite">{% if step.operation == "collapse" %}Illustrative grouping: three placeholder rows become one group. Actual grouping and row counts are not known.{% elif step.operation == "write" %}Write boundary: no new analytical columns.{% elif step.operation == "escape" %}External operation is uncontrolled and not executed. Declared outputs are not verified or materialized.{% else %}Declared columns shown with three placeholder rows. Actual row counts are not known.{% endif %}</p>
         <details class="lineage-details">
           <summary>Declared schema and dependencies</summary>
           <p>Entity: {{ step.entity }} &middot; Dataset: {{ step.dataset or "None" }}</p>
@@ -182,7 +188,7 @@
                 {% for column in step.columns %}
                 <tr data-column="{{ column.name }}" data-role="{{ column.role }}">
                   <td>{{ column.role }}</td><th scope="row">{{ column.name }}</th><td>{{ column.type }}</td>
-                  <td>{% if column.producer == step.number %}This step{% elif column.producer %}<a href="#step-{{ column.producer }}">Step {{ column.producer }}</a>{% elif column.role == "Dimension" %}Observation key{% else %}No declared producer{% endif %}</td>
+                  <td>{% if column.role == "Declared external output" %}External declaration; no materialized result{% elif column.producer and column.external %}<a href="#step-{{ column.producer }}">Step {{ column.producer }} external declaration</a>{% elif column.producer == step.number %}This step{% elif column.producer %}<a href="#step-{{ column.producer }}">Step {{ column.producer }}</a>{% elif column.role == "Dimension" %}Observation key{% else %}No declared producer{% endif %}</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -296,7 +302,9 @@
       status.textContent = descriptions[index];
     } else {
       if (frame.type === "inputs") {
-        status.textContent = step.dataset.operation === "read"
+        status.textContent = step.dataset.operation === "escape"
+          ? "Showing declared feature references; dataframe column availability is not verified."
+          : step.dataset.operation === "read"
           ? "Reading from the declared source (illustration only)."
           : "Highlighting all declared input columns. Exact input-to-output mappings are not inferred.";
       } else if (frame.type === "group") {
