@@ -162,7 +162,7 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert '"is_function": false' in html
     assert "<strong>Node type:</strong> Function" in html
     assert "<strong>Function:</strong> ${label}" in html
-    assert "<strong>Produces:</strong> ${formatDetailValue(features.join(', '))}" in html
+    assert "${outputLabel}</strong> ${formatDetailValue(features.join(', '))}" in html
     assert "Function</span>" in html
     for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
         assert f"{category} function</span>" not in html

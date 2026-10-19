@@ -14,7 +14,7 @@
   {% endfor %}
 {% endfor %}
 <section id="entities" class="mb-16">
-  {{ section_header("Features", "Browse features by dataset and see which mapping provides each one.", count=total.feature_count, count_label="features") }}
+  {{ section_header("Features", "Browse feature declarations by dataset; escape outputs are shown as external boundaries.", count=total.feature_count, count_label="features") }}
   <div class="space-y-5">
     {% for entity_id, entity in configuration.entities.items() %}
       {% for dataset in entity.datasets %}
@@ -47,9 +47,13 @@
                 <div>
                   <span class="font-mono text-sm text-cyan-200">{{ feature_id }}</span>
                   {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
+                  {% if operation_type == "escape" %}
+                  <p class="mt-1 text-xs text-violet-300">Declared external output; not a verified dataframe column.</p>
+                  <p class="mt-1 font-mono text-[10px] text-slate-500">Declared inputs: {{ mapping.features.inputs|join(", ") }}</p>
+                  {% endif %}
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-                  <span class="font-mono text-xs text-slate-400">{{ operation_type }} · {{ mapping_id }}</span>
+                  <span class="font-mono text-xs {{ 'text-violet-300' if operation_type == 'escape' else 'text-slate-400' }}">{{ operation_type }} · {{ mapping_id }}</span>
                   <span class="text-xs text-slate-500">{{ feature.type or "unspecified" }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>
                 </div>
               </div>

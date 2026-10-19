@@ -1,5 +1,6 @@
 """In-memory client tests for the uptimely MCP server."""
 
+import dataclasses
 import json
 import pathlib
 import shlex
@@ -15,6 +16,7 @@ import fastmcp as fastmcp_  # noqa: E402
 from uptimely import compiler  # noqa: E402
 from uptimely.explorer import explorer as explorer_module  # noqa: E402
 from uptimely.mcp import server  # noqa: E402
+from uptimely.spec import model as spec_model  # noqa: E402
 
 PROJECT_ROOT = EXAMPLES_ROOT / "pump_analytics"
 BUILD_MANIFEST_PATH = PROJECT_ROOT / "_generated" / "build" / "build.json"
@@ -64,7 +66,11 @@ async def test_lists_all_tools(state: server.ServerState) -> None:
 async def test_list_functions_returns_function_operations(state: server.ServerState) -> None:
     """list_functions returns each function id and declared operation."""
     payload = await _call(state, "list_functions")
-    assert {"id": "pump_health_score", "operation": "vectorize"} in payload
+    assert {
+        "id": "pump_health_score",
+        "operation": "vectorize",
+        "returns": "dataframe",
+    } in payload
 
 
 @pytest.mark.anyio
@@ -75,6 +81,53 @@ async def test_describe_function_resolves_signature(state: server.ServerState) -
     assert payload["entrypoint"].endswith(":pump_health_score")
     assert payload["declared_args"]["health_features"]["type"] == "array[string]"
     assert payload["python_signature"]["returns"] == "LazyFrame"
+    assert payload["declared_returns"] == "dataframe"
+
+
+@pytest.mark.anyio
+async def test_escape_function_description_reports_external_feature_boundary(
+    state: server.ServerState,
+) -> None:
+    snapshot = state.load_snapshot()
+    definition = snapshot.spec.model_copy(deep=True)
+    definition.functions.root["external_audit"] = spec_model.FunctionTemplate(
+        id="external_audit",
+        operation="escape",
+        returns="any",
+        entrypoint="examples.pump_analytics.functions.calculation:maximum",
+    )
+    dataset = definition.entities["pump_telemetry"].datasets[0]
+    dataset.features["audit_reference"] = spec_model.Feature(id="audit_reference", type="string")
+    dataset.features["audit_status"] = spec_model.Feature(id="audit_status", type="string")
+    dataset.mappings["external_audit"] = spec_model.Mapping(
+        id="external_audit",
+        binding=spec_model.Binding(function="external_audit"),
+        features=spec_model.MappingFeatures(
+            inputs=["$features.bearing_temperature", "$features.vibration_rms"],
+            outputs=["$features.audit_reference", "$features.audit_status"],
+        ),
+    )
+    state.snapshot = dataclasses.replace(snapshot, spec=definition)
+
+    listing = await _call(state, "list_functions")
+    described = await _call(state, "describe_function", {"function_id": "external_audit"})
+
+    assert {
+        "id": "external_audit",
+        "operation": "escape",
+        "returns": "any",
+    } in listing
+    assert described["declared_returns"] == "any"
+    assert described["escape_mappings"] == [
+        {
+            "entity": "pump_telemetry",
+            "dataset": dataset.id,
+            "mapping": "external_audit",
+            "inputs": ["bearing_temperature", "vibration_rms"],
+            "outputs": ["audit_reference", "audit_status"],
+        }
+    ]
+    assert "return value is ignored" in described["execution_semantics"]
 
 
 @pytest.mark.anyio

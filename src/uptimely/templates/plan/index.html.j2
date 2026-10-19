@@ -89,11 +89,11 @@
                 </dd>
               </div>
               <div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
-                <dt class="mb-1 uppercase tracking-wider text-slate-500">Produces</dt>
+              <dt class="mb-1 uppercase tracking-wider text-slate-500">{{ "Declares external outputs" if step.uncontrolled else "Produces" }}</dt>
                 <dd class="break-all text-cyan-200">{{ step.feature }}</dd>
               </div>
               <div class="min-w-0 border-b border-slate-800 p-3">
-                <dt class="mb-1 uppercase tracking-wider text-slate-500">Returns</dt>
+              <dt class="mb-1 uppercase tracking-wider text-slate-500">{{ "Python return (ignored)" if step.uncontrolled else "Returns" }}</dt>
                 <dd class="break-all text-lime-300">{{ step.returns.type.engine or "—" }}</dd>
               </div>
               <div class="min-w-0 p-3 md:col-span-4">
@@ -107,6 +107,9 @@
                 </dd>
               </div>
             </dl>
+            {% if step.uncontrolled %}
+            <p class="mt-3 rounded-lg border border-violet-900/60 bg-violet-950/30 p-3 text-xs leading-5 text-violet-200">Uncontrolled external operation. Declared inputs: {{ step.input_features|join(", ") or "none" }}. Declared outputs are not verified or materialized as dataframe columns.</p>
+            {% endif %}
             {% if step.row_context is not none %}
             <div class="mt-3 font-mono text-xs text-slate-400">Row context: {{ step.row_context | tojson }}</div>
             {% endif %}

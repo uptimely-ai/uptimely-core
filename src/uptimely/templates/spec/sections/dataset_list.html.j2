@@ -5,6 +5,7 @@
 {% set column_colors = {
   "dimension": "bg-[#172b46] text-[#b5d4f8]",
   "teal": "bg-[#15352e] text-[#a5dfca]",
+  "escape": "bg-[#30234a] text-[#d8b4fe]",
   "amber": "bg-[#392e19] text-[#efcf89]",
   "neutral": "bg-slate-800 text-slate-300"
 } %}
@@ -16,7 +17,9 @@
       {% set schema = namespace(columns=[], producers={}) %}
       {% for mapping in dataset.mappings.values() %}
         {% set operation = mapping_operation(mapping, configuration.functions) %}
-        {% if operation in ["vectorize", "collapse"] %}
+        {% if operation == "escape" %}
+          {% set color = "escape" %}
+        {% elif operation in ["vectorize", "collapse"] %}
           {% set color = "amber" %}
         {% else %}
           {% set color = "teal" %}
@@ -34,7 +37,7 @@
       {% endfor %}
       {% for feature_id, feature in dataset.features.items() if feature_id not in entity.dimensions %}
         {% set color = schema.producers.get(feature_id, "neutral") %}
-        {% set _ = schema.columns.append({"name": feature_id, "type": feature.type or "unspecified", "unit": feature.unit, "role": "Raw" if color == "teal" else "Feature", "color": color}) %}
+        {% set _ = schema.columns.append({"name": feature_id, "type": feature.type or "unspecified", "unit": feature.unit, "role": "Raw" if color == "teal" else "External" if color == "escape" else "Feature", "color": color}) %}
       {% endfor %}
       {% set columns = schema.columns %}
       <article class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 sm:p-8">
@@ -47,6 +50,9 @@
           <span class="rounded-full bg-slate-800/70 px-3 py-1 font-mono text-[10px] text-slate-400">{{ columns|length }} columns</span>
         </header>
         {% if dataset.row_scope and dataset.row_scope.get("grain") %}<p class="mt-3 max-w-3xl text-sm leading-6 text-slate-400">{{ dataset.row_scope.grain }}</p>{% endif %}
+        {% if "escape" in schema.producers.values() %}
+        <p class="mt-3 max-w-3xl text-xs leading-5 text-violet-300">Escape outputs are declared external features, not verified or materialized dataset columns.</p>
+        {% endif %}
         {% if columns %}
         <div class="mt-6">
           <div class="dataset-table-scroll overflow-x-auto rounded-xl border border-slate-700/60">
@@ -100,7 +106,7 @@
             {% endif %}
             {% if ns.mapping_count %}
             <div>
-              <p class="mb-3 text-xs text-slate-500">Dataframe mappings</p>
+              <p class="mb-3 text-xs text-slate-500">Mappings</p>
               <div class="flex flex-wrap gap-3">
             {% for mapping_id, mapping in dataset.mappings.items() if mapping_operation(mapping, configuration.functions) != "vectorize" %}
               <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ mapping_operation(mapping, configuration.functions) }} · {{ mapping_id }}</span>
@@ -109,6 +115,9 @@
                 Input dataset inferred from bound features · Group by entity dimensions: {{ entity.dimensions | tojson }}
                 <p>{{ mapping.binding.function }}({{ mapping.binding.args | tojson }})</p>
               </div>
+              {% endif %}
+              {% if mapping_operation(mapping, configuration.functions) == "escape" %}
+              <p class="w-full text-xs leading-5 text-violet-300">External effects are uncontrolled. Declared outputs do not indicate dataframe columns or materialized results.</p>
               {% endif %}
             {% endfor %}
               </div>

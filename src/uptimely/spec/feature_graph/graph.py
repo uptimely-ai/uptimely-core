@@ -178,10 +178,14 @@ class FeatureGraph(GraphBase):
         """Build a graph from the loaded function call dependencies."""
         graph = graphable_.graph.Graph()
         nodes: dict[str, Node] = {}
-        function_entities: dict[tuple[str, str], set[str]] = {}
-        function_outputs: dict[tuple[str, str], set[str]] = {}
-        for function, entity, _operation_id, outputs, _dependencies in self._graph_operations:
-            function_key = (function.operation, function.id)
+        function_entities: dict[tuple[str, str, str | None], set[str]] = {}
+        function_outputs: dict[tuple[str, str, str | None], set[str]] = {}
+        for function, entity, operation_id, outputs, _dependencies in self._graph_operations:
+            function_key = (
+                function.operation,
+                function.id,
+                operation_id if function.operation == "escape" else None,
+            )
             function_entities.setdefault(function_key, set()).add(entity)
             function_outputs.setdefault(function_key, set()).update(outputs)
 
@@ -227,13 +231,13 @@ class FeatureGraph(GraphBase):
                             name,
                             feature.type,
                             entity_id,
-                            is_source_input=operation != "collapse" and operation != "vectorize",
+                            is_source_input=operation not in {"collapse", "escape", "vectorize"},
                         )
         for function, entity, _operation_id, outputs, _dependencies in self._graph_operations:
             for output in outputs:
                 register_feature_metadata(
                     output,
-                    None if function.operation == "vectorize" else "dataframe",
+                    None if function.operation in {"escape", "vectorize"} else "dataframe",
                     entity,
                 )
 
@@ -262,14 +266,19 @@ class FeatureGraph(GraphBase):
                 is_source_input=metadata.is_source_input if metadata else False,
             )
 
-        for function, entity, _operation_id, outputs, dependencies in self._graph_operations:
-            function_key = (function.operation, function.id)
+        for function, entity, operation_id, outputs, dependencies in self._graph_operations:
+            function_key = (
+                function.operation,
+                function.id,
+                operation_id if function.operation == "escape" else None,
+            )
             entities = function_entities[function_key]
             function_node = node(
                 models.FunctionNode(
                     name=function.id,
                     features=tuple(sorted(function_outputs[function_key])),
                     entity=next(iter(entities)) if len(entities) == 1 else None,
+                    mapping_id=operation_id if function.operation == "escape" else None,
                     function=function,
                 )
             )

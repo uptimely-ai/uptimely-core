@@ -100,13 +100,14 @@ def test_explorer_context_counts_match_spec() -> None:
     assert document["feature_dependencies"] == [
         {
             "function": mapping.binding.function,
+            "operation": spec_definition.functions[mapping.binding.function].operation,
             "feature": feature,
             "dependencies": mapping.input_features,
         }
         for entity in spec_definition.entities.values()
         for dataset in entity.datasets
         for mapping in dataset.mappings.values()
-        if spec_definition.functions[mapping.binding.function].operation == "vectorize"
+        if spec_definition.functions[mapping.binding.function].operation in {"escape", "vectorize"}
         for feature in mapping.output_features
     ]
 

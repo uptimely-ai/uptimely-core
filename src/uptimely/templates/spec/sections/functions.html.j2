@@ -6,10 +6,25 @@
     <div>
       {% set function_heading = "h3" %}
       <{{ function_heading }} class="break-words font-display text-lg font-semibold text-white">{{ function_id }}</{{ function_heading }}>
-      {% if function.return_type %}<p class="mt-2 text-xs text-lime-300">returns {{ function.return_type }}</p>{% endif %}
+      <p class="mt-2 text-xs text-lime-300">declared returns {{ function.declared_returns }}{% if function.return_type %} · Python signature returns {{ function.return_type }}{% endif %}</p>
     </div>
   </div>
   <p class="mt-4 text-sm leading-6 text-slate-400">{{ function.description or "No description provided." }}</p>
+  {% if function.operation == "escape" %}
+  <p class="mt-3 rounded-lg border border-violet-900/60 bg-violet-950/30 p-3 text-xs leading-5 text-violet-200">Uncontrolled external operation. Its Python return value is ignored; declared outputs are not verified or materialized as dataframe columns.</p>
+  {% if function.escape_mappings %}
+  <div class="mt-4 space-y-3">
+    <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Declared feature boundaries</p>
+    {% for mapping in function.escape_mappings %}
+    <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3 font-mono text-xs text-slate-300">
+      <p>{{ mapping.entity }} / {{ mapping.dataset }} · {{ mapping.mapping }}</p>
+      <p class="mt-1">Inputs: {{ mapping.inputs|join(", ") or "none" }}</p>
+      <p>External outputs: {{ mapping.outputs|join(", ") or "none" }}</p>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endif %}
   <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/80 p-3 font-mono text-xs text-slate-200">
     <div class="text-slate-500">def <span class="text-white">{{ function_id }}</span>(</div>
     {% if function.args %}
@@ -39,7 +54,7 @@
     {% set ordered_functions = group.items() | list %}
     {% if ordered_functions %}
       <div class="mb-8">
-        {% set group_icons = {"read": "database", "write": "send", "vectorize": "wand-sparkles", "collapse": "combine", "expand": "expand", "conform": "shuffle"} %}
+        {% set group_icons = {"read": "database", "write": "send", "escape": "arrow-up-right", "vectorize": "wand-sparkles", "collapse": "combine", "expand": "expand", "conform": "shuffle"} %}
         <div data-function-group="{{ group_name }}" class="mb-4 flex items-center justify-between gap-4 rounded-2xl border border-cyan-900/60 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/50 px-4 py-3 shadow-lg shadow-cyan-950/10">
           <div class="flex items-center gap-3">
             <span class="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-800/70 bg-cyan-950/60 text-cyan-300">
@@ -48,7 +63,7 @@
             <div>
               {% set group_heading = "h2" %}
               <{{ group_heading }} class="font-display text-xl font-semibold tracking-tight text-white">{{ group_name|title }}</{{ group_heading }}>
-              <p class="mt-0.5 text-xs text-slate-400">{{ "Functions wrapped in grouping by the target entity dimensions" if group_name == "collapse" else "Function group" }}</p>
+              <p class="mt-0.5 text-xs text-slate-400">{{ "Functions wrapped in grouping by the target entity dimensions" if group_name == "collapse" else "Uncontrolled operations with external effects" if group_name == "escape" else "Function group" }}</p>
             </div>
           </div>
           <span class="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-cyan-200">{{ ordered_functions|length }} functions</span>
