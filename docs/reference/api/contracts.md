@@ -8,8 +8,13 @@ reference syntax shared by spec definitions and execution plans.
 ## Operation types and rules
 
 `FunctionOperation` describes the supported operations. `FunctionReturns`
-distinguishes dataframe-producing functions from functions that return no data.
-The lookup tables describe input counts and return kinds for each operation.
+distinguishes dataframe-producing functions, functions that return no data,
+and `any` for the uncontrolled `escape` operation. Escape declarations may
+have any number of dataframe arguments, and their `any` return kind does not
+describe a dataframe result. The lookup tables describe input counts and
+return kinds for each operation; `None` in `DATAFRAME_INPUT_COUNTS` means the
+operation has no fixed dataframe argument count. Escape is not a fragment
+operation and is not yet supported for execution.
 
 ::: uptimely.contracts
     options:

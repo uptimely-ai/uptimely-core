@@ -59,9 +59,10 @@ def validate_contracts(validation_context: context_module.SpecValidationContext)
         )
         actual_inputs = sum(argument.type == "dataframe" for argument in function.args.values())
         expected_inputs = contracts.DATAFRAME_INPUT_COUNTS[function.operation]
-        _validate_dataframe_argument_count(
-            function.operation, expected_inputs, actual_inputs, path=(*path, "args")
-        )
+        if expected_inputs is not None:
+            _validate_dataframe_argument_count(
+                function.operation, expected_inputs, actual_inputs, path=(*path, "args")
+            )
 
 
 def _validate_return_kind(
