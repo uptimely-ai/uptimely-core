@@ -1,0 +1,92 @@
+{
+  "name": "Escape operation example",
+  "version": "0.2.0",
+  "source": {
+    "name": "json",
+    "generated": false
+  },
+  "dimensions": {
+    "asset_id": {
+      "type": "string",
+      "description": "Asset identifier"
+    }
+  },
+  "functions": {
+    "read_declared_inputs": {
+      "operation": "read",
+      "returns": "dataframe",
+      "entrypoint": "examples.escape_operation.functions.workflow:read_declared_inputs",
+      "args": {},
+      "description": "Load the declared input features."
+    },
+    "process_external_data": {
+      "operation": "escape",
+      "returns": "any",
+      "entrypoint": "examples.escape_operation.functions.workflow:run",
+      "args": {},
+      "description": "Read, calculate, and write a local workflow internally."
+    }
+  },
+  "entities": {
+    "asset": {
+      "name": "Asset",
+      "dimensions": ["asset_id"],
+      "datasets": [
+        {
+          "id": "external_workflow",
+          "description": "Feature declarations for the external workflow.",
+          "row_scope": {
+            "grain": "One row per asset"
+          },
+          "features": {
+            "asset_id": {
+              "type": "string",
+              "description": "Asset identifier."
+            },
+            "measurement": {
+              "type": "float",
+              "description": "Input measurement read internally by the workflow."
+            },
+            "reference_value": {
+              "type": "float",
+              "description": "Reference value read internally by the workflow."
+            },
+            "ratio": {
+              "type": "float",
+              "description": "Ratio written internally by the workflow."
+            }
+          },
+          "mappings": {
+            "read_declared_inputs": {
+              "binding": {
+                "function": "read_declared_inputs",
+                "args": {}
+              },
+              "features": {
+                "inputs": [],
+                "outputs": [
+                  "$features.asset_id",
+                  "$features.measurement",
+                  "$features.reference_value"
+                ]
+              }
+            },
+            "process_external_data": {
+              "binding": {
+                "function": "process_external_data",
+                "args": {}
+              },
+              "features": {
+                "inputs": [
+                  "$features.measurement",
+                  "$features.reference_value"
+                ],
+                "outputs": ["$features.ratio"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

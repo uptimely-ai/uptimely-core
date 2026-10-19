@@ -9,6 +9,7 @@ parts fit together.
 | --- | --- |
 | [`pump_analytics/`](pump_analytics/) | An end-to-end pump analytics project authored in Python and exported to JSON. |
 | [`simple_analytics/`](simple_analytics/) | A small analytics definition assembled in Python and exported to JSON. |
+| [`escape_operation/`](escape_operation/) | An uncontrolled workflow that reads, calculates, and writes internally. |
 
 ## Folder structure
 
@@ -29,13 +30,19 @@ examples/
 │   ├── functions/            Code that reads, calculates, and saves data
 │   └── _generated/
 │       └── build/            Files created by the build
-└── simple_analytics/
+├── simple_analytics/
+│   ├── config/
+│   │   └── spec/             Analytics definitions
+│   ├── data/                 Example data
+│   ├── functions/            Example function implementations
+│   └── _generated/
+│       └── build/            Files created by the build
+└── escape_operation/
     ├── config/
-    │   └── spec/             Analytics definitions
-    ├── data/                 Example data
-    ├── functions/            Example function implementations
-    └── _generated/
-        └── build/            Files created by the build
+    │   ├── engine.json
+    │   └── spec/spec.json
+    ├── data/                 Input data for the external workflow
+    └── functions/            Uncontrolled workflow implementation
 ```
 
 ## Quick start

@@ -14,7 +14,9 @@ have any number of dataframe arguments, and their `any` return kind does not
 describe a dataframe result. The lookup tables describe input counts and
 return kinds for each operation; `None` in `DATAFRAME_INPUT_COUNTS` means the
 operation has no fixed dataframe argument count. Escape is not a fragment
-operation and is not yet supported for execution.
+operation. At execution, its callable is invoked independently of dataframe
+state, its return value is ignored, and it does not produce a dataframe
+fragment or materialize declared output features.
 
 ::: uptimely.contracts
     options:
