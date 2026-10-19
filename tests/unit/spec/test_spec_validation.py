@@ -7,9 +7,54 @@ from conftest import EXAMPLES_ROOT
 from uptimely import spec
 from uptimely.spec import model as spec_model
 from uptimely.spec import references
+from uptimely.spec.python import bind, conversion, dataset, feature, mapping, ref
 from uptimely.spec.validation import context
+from uptimely.spec.validation import errors as validation_errors
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+
+
+def _escape_configuration() -> dict:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration["functions"]["external_action"] = {
+        "operation": "escape",
+        "returns": "any",
+        "entrypoint": "examples.pump_analytics.functions.calculation:maximum",
+        "args": {"source": {"type": "dataframe"}},
+    }
+    target = configuration["entities"]["pump_telemetry"]["datasets"][0]
+    target["features"].update(
+        {
+            "external_first": {"type": "float"},
+            "external_second": {"type": "float"},
+            "external_third": {"type": "float"},
+        }
+    )
+    target["mappings"]["escape_first"] = {
+        "binding": {
+            "function": "external_action",
+            "args": {"source": "$datasets.pump_dataset.dataframe"},
+        },
+        "features": {
+            "inputs": [
+                "$features.bearing_temperature",
+                "$features.health_signal_normalized",
+                "$features.pump",
+            ],
+            "outputs": ["$features.external_first", "$features.external_second"],
+        },
+    }
+    target["mappings"]["escape_second"] = {
+        "binding": {
+            "function": "external_action",
+            "args": {"source": "$datasets.pump_dataset.dataframe"},
+        },
+        "features": {
+            "inputs": ["$features.external_first"],
+            "outputs": ["$features.external_third"],
+        },
+    }
+    return configuration
 
 
 def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -> None:
@@ -138,6 +183,135 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     bad_transform_path.write_text(json.dumps(bad_transform_config), encoding="utf-8")
     with pytest.raises(ValueError, match="mappings reference unknown functions"):
         spec.load_spec(bad_transform_path)
+
+
+def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_chains(
+    tmp_path: pathlib.Path,
+) -> None:
+    path = tmp_path / "escape.json"
+    path.write_text(json.dumps(_escape_configuration()), encoding="utf-8")
+
+    parsed_spec = spec.load_spec(path)
+    mappings = parsed_spec.entities["pump_telemetry"].datasets[0].mappings
+
+    assert mappings["escape_first"].input_features == [
+        "bearing_temperature",
+        "health_signal_normalized",
+        "pump",
+    ]
+    assert mappings["escape_first"].output_features == ["external_first", "external_second"]
+    assert mappings["escape_second"].input_features == ["external_first"]
+    assert mappings["escape_second"].output_features == ["external_third"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message", "error_code", "path_suffix"),
+    [
+        (
+            "inputs",
+            [],
+            "Escape mappings must declare one or more input features",
+            "invalid_mapping_feature_inputs",
+            ("features", "inputs"),
+        ),
+        (
+            "outputs",
+            [],
+            "Mapping escape_first must declare one or more features",
+            None,
+            None,
+        ),
+        (
+            "inputs",
+            ["$features.unknown_feature"],
+            "Mapping escape_first references unknown input feature: unknown_feature",
+            None,
+            None,
+        ),
+    ],
+)
+def test_escape_mappings_require_declared_inputs_and_outputs(
+    tmp_path: pathlib.Path,
+    field: str,
+    value: list[str],
+    message: str,
+    error_code: str | None,
+    path_suffix: tuple[str, ...] | None,
+) -> None:
+    configuration = _escape_configuration()
+    mapping_definition = configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"][
+        "escape_first"
+    ]
+    mapping_definition["features"][field] = value
+    path = tmp_path / "invalid_escape.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=message) as error:
+        spec.load_spec(path)
+
+    if error_code is not None:
+        assert isinstance(error.value, validation_errors.SpecError)
+        assert error.value.code == error_code
+        assert error.value.path[-2:] == path_suffix
+
+
+def test_escape_mappings_reject_duplicate_feature_producers(tmp_path: pathlib.Path) -> None:
+    configuration = _escape_configuration()
+    mappings = configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"]
+    duplicate = json.loads(json.dumps(mappings["escape_first"]))
+    duplicate["features"]["outputs"] = ["$features.external_first"]
+    mappings["escape_duplicate"] = duplicate
+    path = tmp_path / "duplicate_escape.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Feature external_first is produced by multiple mappings"):
+        spec.load_spec(path)
+
+
+def test_escape_dependencies_reject_cycles(tmp_path: pathlib.Path) -> None:
+    configuration = _escape_configuration()
+    first = configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"]["escape_first"]
+    first["features"]["inputs"] = ["$features.external_third"]
+    path = tmp_path / "escape_cycle.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Mapping feature dependency cycle"):
+        spec.load_spec(path)
+
+
+def test_python_conversion_and_json_loading_share_escape_input_validation(
+    tmp_path: pathlib.Path,
+) -> None:
+    declaration = dataset.Dataset(
+        id="observations",
+        mappings=[
+            mapping.Mapping(
+                id="escape",
+                bind=bind.bind(ref.function("example:escape", operation="escape")),
+                outputs=[feature.Feature(id="external_result")],
+            )
+        ],
+    )
+    expected_message = (
+        "entities.entity.datasets.observations.mappings.escape.features.inputs: "
+        "Escape mappings must declare one or more input features"
+    )
+
+    with pytest.raises(
+        validation_errors.SpecError, match="Escape mappings must declare"
+    ) as python_error:
+        spec.from_python(datasets=[declaration])
+
+    path = tmp_path / "python_escape.json"
+    path.write_text(json.dumps(conversion.to_dict(datasets=[declaration])), encoding="utf-8")
+    with pytest.raises(
+        validation_errors.SpecError, match="Escape mappings must declare"
+    ) as json_error:
+        spec.load_spec(path)
+
+    assert str(python_error.value) == expected_message
+    assert str(json_error.value) == expected_message
+    assert python_error.value.code == json_error.value.code == "invalid_mapping_feature_inputs"
 
 
 def test_expand_mapping_requires_lower_dimensional_feature_input(tmp_path: pathlib.Path) -> None:

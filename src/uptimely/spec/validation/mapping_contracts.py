@@ -30,6 +30,8 @@ def validate_contracts(
             _validate_join_inputs(context, location, inputs, operation)
 
         match operation:
+            case "escape":
+                continue
             case "read":
                 _validate_read_contract(location)
             case "vectorize" | "write":
