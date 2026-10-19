@@ -8,7 +8,7 @@ import re
 import pytest
 from conftest import EXAMPLES_ROOT, render_explorer
 
-from uptimely import compiler, engine, spec
+from uptimely import compiler, contracts, engine, spec
 from uptimely.explorer import spec_render
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -83,20 +83,14 @@ def test_build_spec_context() -> None:
     )
     assert context.summary.entity_count == 2
     assert context.summary.dataset_count == 2
-    assert sorted(context.summary.function_buckets) == [
-        "collapse",
-        "conform",
-        "expand",
-        "read",
-        "vectorize",
-        "write",
-    ]
+    assert sorted(context.summary.function_buckets) == sorted(contracts.FUNCTION_OPERATIONS)
     assert context.summary.function_buckets == {
         operation: sum(
             function.operation == operation for function in spec_definition.functions.root.values()
         )
-        for operation in ("read", "write", "vectorize", "collapse", "expand", "conform")
+        for operation in contracts.FUNCTION_OPERATIONS
     }
+    assert context.summary.function_buckets["escape"] == 0
     assert context.feature_dependencies
     assert context.generated_at is None
 

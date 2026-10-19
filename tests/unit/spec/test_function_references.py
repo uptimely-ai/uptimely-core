@@ -1,5 +1,6 @@
 import dataclasses
 import importlib
+import json
 import math
 import typing
 from collections import abc
@@ -7,6 +8,7 @@ from collections import abc
 import pytest
 
 from uptimely import contracts
+from uptimely.spec import model as spec_model
 from uptimely.spec.python import bind, conversion, dataset, mapping, ref
 
 MODULE_LOCATIONS = [
@@ -21,6 +23,7 @@ MODULE_LOCATIONS = [
 MAPPING_OPERATIONS: tuple[contracts.FunctionOperation, ...] = (
     "read",
     "write",
+    "escape",
     "vectorize",
     "collapse",
     "expand",
@@ -93,13 +96,37 @@ def test_generic_mapping_exports_function_operation_without_importing(
     catalog = declaration.function_catalog()
 
     assert catalog["calculate"].operation == operation
-    assert catalog["calculate"].returns == ("none" if operation == "write" else "dataframe")
+    expected_returns = {
+        "write": "none",
+        "escape": "any",
+    }.get(operation, "dataframe")
+    assert catalog["calculate"].returns == expected_returns
     assert catalog["calculate"].entrypoint == "https://example.org/functions.py:calculate"
 
 
 def test_generic_mapping_requires_operation_metadata() -> None:
     with pytest.raises(ValueError, match="requires operation metadata"):
         mapping.Mapping(bind=bind.bind(ref.function("math:ceil"), x=1.2))
+
+
+def test_escape_catalog_metadata_survives_json_round_trip() -> None:
+    declaration = dataset.Dataset(
+        id="observations",
+        mappings=[
+            mapping.Mapping(
+                id="external_update",
+                bind=bind.bind(ref.function("math:ceil", operation="escape")),
+            )
+        ],
+    )
+
+    payload = conversion.to_dict(datasets=[declaration])
+    reloaded = spec_model.Spec.model_validate(json.loads(json.dumps(payload)))
+
+    assert payload["functions"]["ceil"]["operation"] == "escape"
+    assert payload["functions"]["ceil"]["returns"] == "any"
+    assert reloaded.functions["ceil"].operation == "escape"
+    assert reloaded.functions["ceil"].returns == "any"
 
 
 @pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
