@@ -39,7 +39,11 @@ def load_spec_source(
     if entrypoint is not None and source is not None:
         raise ValueError("Specify either a Python entrypoint or a spec JSON source, not both")
     prepare_project_root(project_root)
-    if entrypoint is None and source is None:
+
+    if source is not None:
+        return spec.load_spec(source)
+
+    if entrypoint is None:
         python_source = project_root / paths.SPEC_PYTHON_ENTRY_FILE
         json_source = project_root / paths.SPEC_JSON_ENTRY_FILE
         if python_source.is_file() and json_source.is_file():
@@ -56,14 +60,13 @@ def load_spec_source(
             )
             entrypoint = f"{module}:{paths.DEFAULT_SPEC_ATTRIBUTE}"
         elif json_source.is_file():
-            source = json_source
+            return spec.load_spec(json_source)
         else:
             raise FileNotFoundError(
                 f"No spec source found. Expected {python_source} or {json_source}. "
                 "Alternatively, specify --entrypoint or --spec."
             )
-    if source is not None:
-        return spec.load_spec(source)
+
     if entrypoint is None:
         raise ValueError("A spec Python entrypoint or JSON source is required")
     module, separator, attribute = entrypoint.partition(":")
