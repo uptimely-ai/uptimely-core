@@ -8,14 +8,25 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+
+## [0.4.0] - 2026-10-20
+
 ### Added
 
-- Function definitions and Python references accept and serialize
-  `validate_signature`, defaulting to `true`. Setting it to `false` skips Python
-  signature inspection during compilation and documentation, including return
-  annotation checks, without removing the function or its dependencies from the
-  plan. Spec-level contract validation and runtime execution requirements are
-  unchanged.
+- Per-function `validate_signature` option (default `true`) in JSON specs and
+  Python references. Set it to `false` to skip implementation imports and
+  signature checks during compilation and Explorer generation; spec contracts
+  and runtime execution requirements remain unchanged.
+
+### Changed
+
+- **Breaking:** Project build CLI options `--entrypoint` and `--spec` are now
+  `--python-spec` and `--json-spec`. The corresponding Python arguments to
+  `build_project` and `load_spec_source` are now `python_spec` and `json_spec`.
+- **Breaking:** Entrypoint helpers `load_callable`, `read_signature`,
+  `FunctionSignature`, and `type_name` are replaced by the object-based
+  `Entrypoint`, `Function`, `Signature`, and `TypeAnnotation` API. Use
+  `Entrypoint(value).function.load()` or `.function.signature`.
 
 ## [0.3.0] - 2026-10-19
 
