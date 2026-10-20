@@ -32,13 +32,29 @@ def prepare_project_root(project_root: pathlib.Path) -> None:
 class PythonSource:
     """Resolve and load a Python spec declaration for a project."""
 
-    def __init__(self, spec_source: SpecSource) -> None:
-        self._spec_source = spec_source
+    def __init__(self, project_root: pathlib.Path, python_spec: str | None = None) -> None:
+        self._project_root = project_root
+        self._python_spec = self._default_entrypoint() if python_spec is None else python_spec
+        self.module_name, self.separator, self.attribute = self.parse_entrypoint(self._python_spec)
+
+    @staticmethod
+    def parse_entrypoint(python_spec: str) -> tuple[str, str, str]:
+        """Parse and validate a ``module:attribute`` Python spec entrypoint."""
+        module_name, separator, attribute = python_spec.partition(":")
+        if (
+            not separator
+            or not all(part.isidentifier() for part in module_name.split("."))
+            or not attribute.isidentifier()
+        ):
+            raise ValueError(
+                f"Invalid spec entrypoint: {python_spec!r}. Expected 'module:attribute'."
+            )
+        return module_name, separator, attribute
 
     @property
     def path(self) -> pathlib.Path:
         """Return the conventional Python spec entrypoint path."""
-        return self._spec_source.project_root / paths.SPEC_PYTHON_ENTRY_FILE
+        return self._project_root / paths.SPEC_PYTHON_ENTRY_FILE
 
     def is_available(self) -> bool:
         """Return whether the conventional Python spec entrypoint exists."""
@@ -47,7 +63,7 @@ class PythonSource:
     def _default_entrypoint(self) -> str:
         module = ".".join(
             self.path.resolve()
-            .relative_to(project_import_root(self._spec_source.project_root))
+            .relative_to(project_import_root(self._project_root))
             .with_suffix("")
             .parts
         )
@@ -55,21 +71,12 @@ class PythonSource:
 
     def load(self, python_spec: str | None = None) -> spec.Spec:
         """Validate and load a Python spec declaration."""
-        if python_spec is None:
-            python_spec = self._default_entrypoint()
-        module, separator, attribute = python_spec.partition(":")
-        if (
-            not separator
-            or not all(part.isidentifier() for part in module.split("."))
-            or not attribute.isidentifier()
-        ):
-            raise ValueError(
-                f"Invalid spec entrypoint: {python_spec!r}. Expected 'module:attribute'."
-            )
-
-        declaration = getattr(importlib.import_module(module), attribute)
+        if python_spec is not None and python_spec != self._python_spec:
+            return PythonSource(self._project_root, python_spec).load()
+        module = importlib.import_module(self.module_name)
+        declaration = getattr(module, self.attribute)
         if not isinstance(declaration, python_spec_api.PythonSpec):
-            raise TypeError(f"{python_spec} must be a PythonSpec")
+            raise TypeError(f"{self._python_spec} must be a PythonSpec")
         return spec.from_python(
             entities=declaration.entities,
             dimensions=declaration.dimensions,
@@ -102,8 +109,15 @@ class SpecSource:
 
     def __init__(self, project_root: pathlib.Path) -> None:
         self.project_root = project_root
-        self.python = PythonSource(self)
+        self._python: PythonSource | None = None
         self.json = JsonSource(self)
+
+    @property
+    def python(self) -> PythonSource:
+        """Return the conventional Python source."""
+        if self._python is None:
+            self._python = PythonSource(self.project_root)
+        return self._python
 
     def load(
         self,
@@ -118,7 +132,7 @@ class SpecSource:
         if json_spec is not None:
             return self.json.load(json_spec)
         if python_spec is not None:
-            return self.python.load(python_spec)
+            return PythonSource(self.project_root, python_spec).load()
 
         python_available = self.python.is_available()
         json_available = self.json.is_available()
