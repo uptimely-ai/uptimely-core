@@ -127,7 +127,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
 
     @mcp.tool()
     def describe_function(function_id: str) -> str:
-        """Describe a function's return contract, bindings, args, and Python signature.
+        """Describe a function's return contract, bindings, args, and signature status.
 
         Escape functions include declared feature boundaries and their uncontrolled
         execution semantics.
@@ -139,9 +139,11 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         template = snapshot.spec.functions.get(function_id)
         if template is None:
             raise ValueError(f"Unknown function: {function_id}")
-        signature = entrypoint.Entrypoint(
-            template.entrypoint, root=state.project_root
-        ).function.signature
+        signature = (
+            entrypoint.Entrypoint(template.entrypoint, root=state.project_root).function.signature
+            if template.validate_signature
+            else None
+        )
         return _to_json(
             {
                 "id": function_id,
@@ -167,14 +169,18 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                     else None
                 ),
                 "entrypoint": template.entrypoint,
+                "python_signature_validation": (
+                    "enabled" if template.validate_signature else "disabled"
+                ),
                 "declared_args": {
                     name: {"type": argument.type, "comment": argument.comment}
                     for name, argument in template.args.items()
                 },
-                "python_signature": {
-                    "args": signature.args,
-                    "returns": signature.returns,
-                },
+                "python_signature": (
+                    {"args": signature.args, "returns": signature.returns}
+                    if signature is not None
+                    else None
+                ),
             }
         )
 

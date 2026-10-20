@@ -202,6 +202,8 @@ def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool)
     for function in function_definitions.values():
         if not isinstance(function, dict):
             continue
+        validate_signature = function.get("validate_signature", True)
+        function["signature_validation_disabled"] = not validate_signature
         entrypoint = function.get("entrypoint")
         if not isinstance(entrypoint, str) or ":" not in entrypoint:
             continue
@@ -210,7 +212,7 @@ def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool)
             function["entrypoint_file"] = module_name
         elif pathlib.Path(module_name).is_file():
             function["entrypoint_file"] = pathlib.Path(module_name).resolve().as_uri()
-        else:
+        elif validate_signature:
             try:
                 module_spec = util.find_spec(module_name.removesuffix(".py").replace("/", "."))
             except (ModuleNotFoundError, ValueError):
@@ -221,14 +223,15 @@ def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool)
                 "frozen",
             ):
                 function["entrypoint_file"] = pathlib.Path(module_spec.origin).resolve().as_uri()
-        try:
-            return_type = entrypoint_module.Entrypoint(
-                entrypoint, pathlib.Path.cwd()
-            ).function.signature.returns
-        except (AttributeError, ImportError, ModuleNotFoundError, TypeError, ValueError):
-            return_type = None
-        if return_type:
-            function["return_type"] = return_type
+        if validate_signature:
+            try:
+                return_type = entrypoint_module.Entrypoint(
+                    entrypoint, pathlib.Path.cwd()
+                ).function.signature.returns
+            except (AttributeError, ImportError, ModuleNotFoundError, TypeError, ValueError):
+                return_type = None
+            if return_type:
+                function["return_type"] = return_type
     (
         fragment_features,
         calculated_features,
