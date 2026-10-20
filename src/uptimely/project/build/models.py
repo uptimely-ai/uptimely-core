@@ -10,6 +10,7 @@ import pydantic
 
 from uptimely.compiler.plan import models as plan_models
 from uptimely.project import paths
+from uptimely.project.build import features
 
 
 def validate_relative_path(value: str) -> str:
@@ -98,13 +99,9 @@ class BuildManifest(pydantic.BaseModel):
     @classmethod
     def normalize_features(cls, value: object) -> object:
         """Represent all features as null and normalize explicit selections."""
-        if value is None:
-            return None
-        if not isinstance(value, list) or not value:
+        if value is not None and not isinstance(value, list):
             raise ValueError("features must be null or a nonempty list of feature names")
-        if any(not isinstance(feature, str) or not feature.strip() for feature in value):
-            raise ValueError("features must contain only nonempty feature names")
-        return sorted(set(value))
+        return features.normalize_features(value)
 
     @pydantic.field_validator("explorer_files")
     @classmethod

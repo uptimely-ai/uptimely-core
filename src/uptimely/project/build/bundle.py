@@ -25,16 +25,8 @@ def _resolve_bundle_path(
     return path
 
 
-def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> models.BuildBundle:
-    """Load and validate a bundle directory while its project lock is held."""
-    bundle_root = pathlib.Path(bundle_root)
+def _load_manifest(bundle_root: pathlib.Path, project_root: pathlib.Path) -> models.BuildManifest:
     manifest_path = bundle_root / paths.BUILD_MANIFEST_FILE.name
-    if not bundle_root.exists():
-        raise errors.BuildError("missing", "", project_root)
-    if not bundle_root.is_dir():
-        raise errors.BuildError(
-            "invalid", f"{paths.BUILD_OUTPUT_DIR} is not a directory", project_root
-        )
     if not manifest_path.is_file():
         raise errors.BuildError(
             "incomplete", f"missing {paths.BUILD_MANIFEST_FILE.name}", project_root
@@ -47,25 +39,46 @@ def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> mod
         raise errors.BuildError(
             "invalid", f"cannot read build manifest: {error}", project_root
         ) from error
+    return manifest
 
+
+def _resolve_artifacts(
+    bundle_root: pathlib.Path,
+    manifest: models.BuildManifest,
+    project_root: pathlib.Path,
+) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
     try:
         spec_path = _resolve_bundle_path(bundle_root, manifest.artifacts.spec)
         execution_plan_path = _resolve_bundle_path(bundle_root, manifest.artifacts.execution_plan)
         explorer_path = _resolve_bundle_path(bundle_root, manifest.artifacts.explorer)
     except ValueError as error:
         raise errors.BuildError("invalid", str(error), project_root) from error
+    return spec_path, execution_plan_path, explorer_path
 
+
+def _validate_required_artifacts(
+    bundle_root: pathlib.Path,
+    spec_path: pathlib.Path,
+    execution_plan_path: pathlib.Path,
+    project_root: pathlib.Path,
+) -> None:
     for artifact_path in (spec_path, execution_plan_path):
         if not artifact_path.is_file():
             relative_path = artifact_path.relative_to(bundle_root.resolve())
             raise errors.BuildError("incomplete", f"missing artifact {relative_path}", project_root)
+
+
+def _validate_explorer_inventory(
+    explorer_path: pathlib.Path,
+    manifest: models.BuildManifest,
+    project_root: pathlib.Path,
+) -> None:
     if not explorer_path.is_dir():
         raise errors.BuildError(
             "incomplete",
             f"missing website directory {manifest.artifacts.explorer}",
             project_root,
         )
-
     try:
         website_files: set[str] = set()
         for path in explorer_path.rglob("*"):
@@ -91,8 +104,12 @@ def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> mod
     except (OSError, ValueError) as error:
         raise errors.BuildError("incomplete", str(error), project_root) from error
 
+
+def _load_execution_plan(
+    execution_plan_path: pathlib.Path, project_root: pathlib.Path
+) -> plan_models.ExecutionPlan:
     try:
-        execution_plan = plan_models.ExecutionPlan.from_json(execution_plan_path)
+        return plan_models.ExecutionPlan.from_json(execution_plan_path)
     except (
         OSError,
         UnicodeDecodeError,
@@ -105,6 +122,25 @@ def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> mod
         raise errors.BuildError(
             "invalid", f"cannot load execution plan: {error}", project_root
         ) from error
+
+
+def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> models.BuildBundle:
+    """Load and validate a bundle directory while its project lock is held."""
+    bundle_root = pathlib.Path(bundle_root)
+    if not bundle_root.exists():
+        raise errors.BuildError("missing", "", project_root)
+    if not bundle_root.is_dir():
+        raise errors.BuildError(
+            "invalid", f"{paths.BUILD_OUTPUT_DIR} is not a directory", project_root
+        )
+
+    manifest = _load_manifest(bundle_root, project_root)
+    spec_path, execution_plan_path, explorer_path = _resolve_artifacts(
+        bundle_root, manifest, project_root
+    )
+    _validate_required_artifacts(bundle_root, spec_path, execution_plan_path, project_root)
+    _validate_explorer_inventory(explorer_path, manifest, project_root)
+    execution_plan = _load_execution_plan(execution_plan_path, project_root)
 
     return models.BuildBundle(
         root=bundle_root,

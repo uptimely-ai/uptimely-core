@@ -13,7 +13,7 @@ from uptimely import project, spec
 from uptimely.cli import cli
 from uptimely.compiler import plan as plan_module
 from uptimely.explorer import explorer as explorer_module
-from uptimely.project import build as project_build
+from uptimely.project.build import builder as project_build
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 PUMP_SPEC_JSON = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
