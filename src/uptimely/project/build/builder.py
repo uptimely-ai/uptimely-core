@@ -8,7 +8,6 @@ import os
 import pathlib
 import shutil
 import tempfile
-import typing
 import uuid
 
 import jinja2
@@ -17,10 +16,11 @@ import pydantic
 from uptimely import compiler, spec
 from uptimely.project import paths
 from uptimely.project.build import bundle, errors, locking, models
+from uptimely.project.build import features as feature_selection
 from uptimely.project.build import source as build_source
 
 BuildBundle = models.BuildBundle
-FeatureSelection = typing.Collection[str] | None
+FeatureSelection = feature_selection.FeatureSelection
 
 _SPEC_PROCESSING_ERRORS = (
     OSError,
@@ -30,20 +30,6 @@ _SPEC_PROCESSING_ERRORS = (
     TypeError,
     SyntaxError,
 )
-
-
-def _normalize_features(features: FeatureSelection) -> list[str] | None:
-    """Validate and normalize an optional nonempty output-feature selection."""
-    if features is None:
-        return None
-    if isinstance(features, str):
-        raise ValueError("features must be a collection of feature identifiers")
-    normalized = list(features)
-    if not normalized:
-        raise ValueError("features must select at least one output feature")
-    if any(not isinstance(feature, str) or not feature.strip() for feature in normalized):
-        raise ValueError("feature identifiers must be nonempty strings")
-    return sorted(set(normalized))
 
 
 def _remove_path(path: pathlib.Path) -> None:
@@ -222,7 +208,7 @@ def build_project(
     """
     root = pathlib.Path(project_root).resolve()
     try:
-        selected_features = _normalize_features(features)
+        selected_features = feature_selection.normalize_features(features)
     except (ValueError, TypeError) as error:
         raise errors.ProjectBuildError("feature selection", str(error)) from error
     spec_definition = _load_spec_definition(root, python_spec, json_spec)

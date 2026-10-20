@@ -68,10 +68,9 @@ class JsonSource:
         """Return whether the configured JSON spec source exists."""
         return self.path.is_file()
 
-    def load(self, json_spec: JsonSourceInput = None) -> spec.Spec:
-        """Load an explicit, configured, or conventional JSON spec source."""
-        source = self.path if json_spec is None else json_spec
-        return spec.load_spec(source)
+    def load(self) -> spec.Spec:
+        """Load the configured or conventional JSON spec source."""
+        return spec.load_spec(self.path)
 
 
 class SpecSource:
