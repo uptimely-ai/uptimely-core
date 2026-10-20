@@ -82,7 +82,6 @@ def _publish_bundle(staging_root: pathlib.Path, target_root: pathlib.Path) -> No
 
 def build_project(
     project_root: str | pathlib.Path,
-    *,
     entrypoint: str | None = None,
     source: build_source.JsonSourceInput = None,
     features: FeatureSelection = None,
