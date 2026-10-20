@@ -90,8 +90,8 @@ uptimely project build --project-root examples/simple_analytics
 ```
 
 In a Poetry environment, prefix each command with `poetry run`. Projects can
-define their analytics in Python or JSON. Use `--entrypoint module:attribute`
-to select a Python declaration, or `--spec <path>` to choose a JSON file. If a
-project has both, select one explicitly.
+define their analytics in Python or JSON. Use `--python-spec module.sub_module:attribute`
+to select a Python declaration, or `--json-spec <path>` to choose a JSON file.
+If a project has both, select one explicitly.
 
 See each example's README for details.

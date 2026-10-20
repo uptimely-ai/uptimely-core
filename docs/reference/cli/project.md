@@ -6,7 +6,7 @@ Build the generated resources for an analytics project.
 
 ```console
 uptimely project build \
-  [--project-root PATH] [--entrypoint MODULE:ATTRIBUTE | --spec PATH] \
+  [--project-root PATH] [--python-spec MODULE:ATTRIBUTE | --json-spec PATH] \
   [--features FEATURE [FEATURE ...]]
 ```
 
@@ -33,13 +33,13 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `--project-root PATH` | No | Current working directory | Root for source discovery, importing project functions, and generated output paths. |
-| `--entrypoint MODULE:ATTRIBUTE` | No | Discover standard sources | Select a Python attribute containing a `PythonSpec` instance. Mutually exclusive with `--spec`. |
-| `--spec PATH` | No | Discover standard sources | Select source spec JSON. Mutually exclusive with `--entrypoint`. Relative to the current working directory. |
+| `--python-spec MODULE:ATTRIBUTE` | No | Discover standard sources | Select a Python attribute containing a `PythonSpec` instance. Mutually exclusive with `--json-spec`. |
+| `--json-spec PATH` | No | Discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Relative to the current working directory. |
 | `--features FEATURE ...` | No | All features | Select one or more output features and their required dependencies. |
 
 Source discovery checks `config/spec/spec.py` and
 `config/spec/spec.json` beneath the project root. If both exist, select one
-explicitly with `--entrypoint` or `--spec`.
+explicitly with `--python-spec` or `--json-spec`.
 
 ```console
 uptimely project build --project-root examples/pump_analytics

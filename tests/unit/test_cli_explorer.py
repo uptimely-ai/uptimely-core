@@ -24,7 +24,7 @@ def built_project(tmp_path: pathlib.Path) -> pathlib.Path:
     source = root / project.SPEC_JSON_ENTRY_FILE
     source.parent.mkdir(parents=True)
     shutil.copyfile(SPEC_PATH, source)
-    project_build.build_project(root, source=source)
+    project_build.build_project(root, json_spec=source)
     return root
 
 
