@@ -6,6 +6,8 @@ from uptimely.project.build.errors import BuildError, BuildLockError, ProjectBui
 from uptimely.project.build.locking import build_lock
 from uptimely.project.build.models import BuildArtifactPaths, BuildBundle, BuildManifest
 from uptimely.project.build.source import (
+    JsonSource,
+    PythonSource,
     SpecSource,
     load_spec_source,
     prepare_project_root,
@@ -19,7 +21,9 @@ __all__ = [
     "BuildLockError",
     "BuildManifest",
     "FeatureSelection",
+    "JsonSource",
     "ProjectBuildError",
+    "PythonSource",
     "SpecSource",
     "build_lock",
     "build_project",
