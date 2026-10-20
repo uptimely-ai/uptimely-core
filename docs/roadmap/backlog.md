@@ -2,179 +2,62 @@
 
 Initially planned backend work by release version.
 
-## Version 0.4.0
+## Version 0.5.0 - Spec improvements
+
+Spec lookup improvements.
+
+* **Move spec folder to top level.** Now it is in config folder.
+- **Move hand-maintained `spec.json` into the build.** Copy it to `_generated` to keep generated files consistently located.
+- **Search spec automatically from project.** Search from the pre-defined spec folder.
+- **Remove plan and spec versions.** Use the build version for all generated documents.
+
+
+## Version 0.6.0 - Improve outputs
+
+- **Improve engine run output.** Add options to list selected datasets and preview rows; make output easier to read than the current mixed JSON.
+- **Improve build output.** Report build duration, files, specification counts, optimization strategy, stages, and callables instead of only the callable count.
+
+## Version 0.7.0 - Backend refactoring
 
 Mostly refactoring.
 
-### Add id for datasets
+- **Add dataset IDs.** Give datasets explicit IDs in the specification.
+- **Simplify compiled plans.** Keep execution details in the plan and store the full specification separately.
+- **Add `config/compiler.json`.** Configure compiler behavior, initially supporting only `strategy="naive"`.
+- Review engine code
+- Move spec types to module constants from hard coded values
 
-Add explicit ID for datasets in Spec json document.
+## Version 0.8.0 - Explorer tuning
 
-### Simplify compiled plan structure
+- **Review Explorer navigation icon colors.**
+- **Review the Explorer “Full build” panel.**
+- **Rename “data lineage” to “data animation” in Explorer.**
 
-Now contains the full spec definition. Consider having only stages, callables, execution groups, schedules etc execution related information while keeping spec.json separate.
+## Version 0.9.0 - Data quality validations
 
-### Rename mappings to calculations
+- **Rename mappings to calculations.** Use a clearer name and align terminology with planned validations.
+- **Add data quality validations.** Add dataset-level validations to the specification, give them calculation-style argument binding, and organize code under `calculations/` and `validations/`.
 
-This is more descriptive name than generic "mappings".
+## Version 0.10.0 - Environment overrides
 
-Also prepares naming conventions for upcoming validations.
+- **Add environment-aware builds and configuration overrides.** Support named environments, deterministic layered configuration, and clear errors for missing values. Record the environment and non-sensitive provenance in the build manifest, exclude secrets from generated artifacts, and reuse plans when only runtime bindings change.
 
-### Improve engine run prints
+## Version 0.11.0 - Arrow support
 
-Print selected datasets by `--print-datasets dataset_1 dataset_2`
-
-Consider printing the datasets first rows eg by  `--print-rows 10`.
-
-Now print is json chunk among other random details.
-
-### Add config/compiler.json
-
-Only allow `strategy="naive"` to create unoptimized plan.
-
-### Improve project build prints
-
-Now it says `Compiled 13 callables` which is uninformative.
-
-Add something like:
-
-```terminal
-### BUILD ###
-
-Completed in x.x seconds
-Features: All
-Build files: x/x/_generated/build
-
-
-### SPECIFICATION ###
-
-x Functions
-x Entities
-x Dimensions
-x Datasets
-x Features
-
-
-### PLAN ###
-
-Optimization strategy: Naive
-x Stages
-x Callables
-```
-
-### Improve explorer layout
-
-* Review nav icon colors for plan and execution
-* Rename data lineage to data animation
-* Review the "Full build" box in top left nav panel
-
-### Remove plan and spec version
-
-Instead, just use build version for every generated document.
-
-### Move manually maintained spec.json to build
-
-If developer maintains spec.json instead spec.py by hand, copy the file to _generated folder as such, to keep strict convention.
-
-### Consider adding Python decorators
-
-* For spec and compiler validations
-* Analytical functions
-* CLI commands
-
-## Version 0.5.0
-
-### Add data quality validations
-
-Now functions are expected to be in folder with name `functions`. Make default folder structure:
-
-```sh
-src
-  /calculations
-  /validations
-```
-
-The spec json will have top-level validations key and the current functions will be renamed to calculations.
-
-Create similar argument binding for validations than calculations. Validations are expected to be on dataset level.
-
-## Version 0.6.0
-
-Engine refactoring and arrow support.
-
-### Add Arrow support
-
-Add support for Arrow in-memory format for tabular data.
-
-Then supported formats would be Arrow and Polars (the backend engine).
-
-## Version 0.7
-
-### Add environment-aware builds and configuration overrides
-
-Support explicit environment selection, such as dev and prod, with a shared base
-configuration and environment-specific overrides. Define deterministic merge
-rules and fail clearly when required configuration is missing.
-
-Record the selected environment and non-sensitive configuration provenance in the
-build manifest. Keep secrets out of generated plans and websites. Reuse the
-compiled plan when only runtime bindings differ; runtime binding substitution
-already exists.
+- **Add Arrow support.** Support Arrow as an in-memory tabular format alongside Polars.
 
 ## Undefined features
 
-### Add preflight validation
-
-Validate a saved plan, selected output scope, required runtime bindings, function
-entrypoints, and backend compatibility without invoking analytical functions or
-performing data reads or writes. Report actionable errors before execution.
-Preflight does not guarantee source availability or validate actual input data.
-
-### Add structured execution reports
-
-Export a JSON run report with an execution ID, build and plan references,
-per-callable statuses and durations, and failure details. Reuse the engine's
-existing execution results and define a stable report format for CI, monitoring,
-and later Explorer integration. Exclude credentials and dataset values by default.
-
-### Add secret-aware runtime bindings
-
-After environment-aware configuration overrides, support resolving sensitive
-bindings from environment variables or a secret provider at runtime. Report
-missing secrets explicitly and redact sensitive values from logs, errors, and
-execution reports. Do not embed resolved secrets in build artifacts.
-
-### Explore execution reports in Explorer
-
-Investigate post-run inspection using structured execution reports, without
-changing the static website architecture. A first version could load a report
-through a local file picker and show callable statuses, timings, and failures
-alongside the plan graph.
-
-Verify that the report belongs to the displayed build and plan. Clearly
-distinguish real execution results from the existing illustrative data animation.
-Dataset schemas and row counts could be optional report metadata; actual values
-and intermediate snapshots would require explicit opt-in capture, sampling
-limits, and redaction. Live monitoring and shared run history are outside the
-initial scope.
-
-### Add optimization to compiler
-
-Add optimization method to compiler configuration.
-
-### Add freshness to spec
-
-Defines how often each mapping or feature is needed.
-
-Compiler can use this information to define scheduling eg by interval multiples.
-
-### Higlight feature graph for selected feature
-
-Highlight the features that the clickd feature depends on in explorer feature graph.
+- **Add preflight validation.** Check saved plans, output scope, runtime bindings, function entrypoints, and backend compatibility before execution—without running analytical functions or reading/writing data. This does not verify source availability or input data.
+- **Add structured execution reports.** Export stable JSON reports with execution IDs, build/plan references, per-callable status and duration, and failure details; exclude credentials and dataset values by default.
+- **Add secret-aware runtime bindings.** Resolve secrets from environment variables or a provider at runtime, report missing values, redact secrets, and keep them out of build artifacts.
+- **Explore execution reports in Explorer.** Load a report locally to show callable statuses, timings, and failures beside the plan graph. Verify build/plan identity and distinguish actual results from illustrative animation. Defer live monitoring and shared history; require explicit safeguards for capturing data values or snapshots.
+- **Add compiler optimization.** Configure the compiler's optimization method.
+- **Add freshness to the specification.** Define how often mappings or features are needed so the compiler can derive schedules.
+- **Highlight feature dependencies.** Show the selected feature's dependencies in Explorer's feature graph.
+- **Only warning when unused features declared.** Now the stop the build in spec validation.
 
 
 ## Undefined refactoring
 
-### Reuse spec validation functions
-
-Use spec validations directly in unit tests instead of basically rewriting the same logic in unit tests.
+- **Reuse specification validation functions.** Call the specification validators in unit tests instead of duplicating their logic.

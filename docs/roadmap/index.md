@@ -1,5 +1,7 @@
 # Development roadmap
 
+Long term plans.
+
 ## Data validation
 
 Run data schema validation between functions.
@@ -19,23 +21,6 @@ Currently the package supports only the built-in basic engine in a single proces
 
 Add support for common orchestrator patterns. Most likely requires Python decorator support for compiled functions and defining containers or vectorize environments (eg venv).
 
-
-
-## Runtime configuration enhancements
-
-Environment-specific runtime configuration substitution is already implemented.
-The engine resolves `?<namespace>.<object>.<attribute>` placeholders against
-`bind`, allowing the same compiled plan to run in dev, test, and
-prod without changing its bindings or recompiling.
-
-The Python API accepts a mapping; application code can load that mapping from
-JSON. The MCP CLI already accepts a JSON file through `--config`.
-See [runtime overrides](../components/engine.md#runtime-overrides) for usage.
-
-Future work includes automatic environment selection, layered configuration
-merging, and a mechanism for calculation constants. Runtime configuration
-substitution does not currently override arbitrary spec fields or
-literal arguments.
 
 ## Extend the MCP support
 
