@@ -53,10 +53,21 @@ jobs:
         run: |
           args=()
           if [[ "$GITHUB_REF_NAME" == *".dev"* ]]; then
-            args+=(--prerelease)
+            args+=(--prerelease --generate-notes)
+          else
+            version="${GITHUB_REF_NAME#v}"
+            awk -v version="$version" '
+              $1 == "##" && $2 == "[" version "]" { in_section=1; next }
+              in_section && /^## / { exit }
+              in_section
+            ' CHANGELOG.md > release-notes.md
+            if [[ ! -s release-notes.md ]]; then
+              echo "No changelog section found for $version" >&2
+              exit 1
+            fi
+            args+=(--notes-file release-notes.md)
           fi
           gh release create "$GITHUB_REF_NAME" dist/* \
             --verify-tag \
             --title "$GITHUB_REF_NAME" \
-            --generate-notes \
             "${args[@]}"
