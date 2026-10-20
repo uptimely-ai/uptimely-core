@@ -103,7 +103,7 @@ class SpecSource:
         if python_available and json_available:
             raise ValueError(
                 f"Ambiguous spec sources: {python_source.path} and {json_source.path}. "
-                "Select one with --python-spec or --json-spec."
+                "Specify one source explicitly."
             )
         if python_available:
             return python_source.load()
@@ -111,7 +111,7 @@ class SpecSource:
             return json_source.load()
         raise FileNotFoundError(
             f"No spec source found. Expected {python_source.path} or {json_source.path}. "
-            "Alternatively, specify --python-spec or --json-spec."
+            "Specify a Python entrypoint or JSON spec source explicitly."
         )
 
 

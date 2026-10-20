@@ -44,8 +44,18 @@ def test_spec_source_rejects_ambiguous_discovered_sources(tmp_path: pathlib.Path
     json_path = tmp_path / project.SPEC_JSON_ENTRY_FILE
     json_path.write_bytes(FIXTURE_SPEC.read_bytes())
 
-    with pytest.raises(ValueError, match="Ambiguous spec sources"):
+    with pytest.raises(ValueError, match="Ambiguous spec sources") as error:
         build_source.SpecSource(tmp_path).load()
+    assert "--python-spec" not in str(error.value)
+    assert "--json-spec" not in str(error.value)
+
+
+def test_spec_source_missing_source_error_is_not_cli_specific(tmp_path: pathlib.Path) -> None:
+    with pytest.raises(FileNotFoundError, match="No spec source found") as error:
+        build_source.SpecSource(tmp_path).load()
+
+    assert "--python-spec" not in str(error.value)
+    assert "--json-spec" not in str(error.value)
 
 
 def test_python_source_loads_explicit_entrypoint_with_module_api(tmp_path: pathlib.Path) -> None:
