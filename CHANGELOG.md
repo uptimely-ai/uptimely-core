@@ -11,9 +11,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 ### Added
 
 - Function definitions and Python references accept and serialize
-  `validate_signature`, defaulting to `true`. Setting it to `false` skips compiler
-  signature inspection and Python return-annotation checks without removing the
-  function from the plan. Documentation support will follow separately.
+  `validate_signature`, defaulting to `true`. Setting it to `false` skips Python
+  signature inspection during compilation and documentation, including return
+  annotation checks, without removing the function or its dependencies from the
+  plan. Spec-level contract validation and runtime execution requirements are
+  unchanged.
 
 ## [0.3.0] - 2026-10-19
 

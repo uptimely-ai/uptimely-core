@@ -34,7 +34,7 @@ an engine to load the plan without the original Spec document.
 | `entities` | Entity identifiers and their dimension identifiers. |
 | `functions` | Function templates used by the callables. |
 | `datasets` | Dataset features, logical order, and row scope, keyed by dataset identifier. |
-| `signatures` | Return annotations keyed by callable identifier. |
+| `signatures` | Inspected return annotations keyed by callable identifier. Functions with signature validation disabled have no entry here. |
 
 ## Callables
 
@@ -91,7 +91,11 @@ valid, schedulable plan:
   separate resolved spec. The compiler builds one invocation node per mapping
   and resolves structural arguments when producing plan callables.
 - Selected output features exist, and the dependency graph is acyclic.
-- Function entrypoints resolve and Python return annotations match the declared
-  return contracts.
+- Function entrypoint syntax is checked. Unless a function sets
+  `validate_signature` to `false`, its implementation is loaded, its Python
+  signature is inspected, and its return annotation is checked against the
+  declared return contract. Disabling signature validation does not disable
+  spec-level contract or dependency validation, and the implementation must
+  still be loadable at execution time.
 - Loaded plans use a supported version and valid root fields, callable IDs,
   dependency references, and stage ordering.

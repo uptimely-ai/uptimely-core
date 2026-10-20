@@ -224,11 +224,17 @@ identifiers.
 | `operation` | string | Yes | N/A | Analytical operation performed by the function. |
 | `returns` | string | Yes | N/A | Return contract: `dataframe` for data-producing operations or `none` for `write`. |
 | `entrypoint` | string | Yes | N/A | Implementation reference resolved by the execution environment. |
+| `validate_signature` | boolean | No | `true` | Whether compilation and documentation inspect the Python signature and check implementation return annotations. |
 | `args` | object | No | `{}` | Argument definitions keyed by argument name. |
 | `description` | string or null | No | `null` | Explanation of the function. |
 
-The Python entrypoint must declare a return annotation compatible with
-`returns`. An unannotated return is invalid.
+When `validate_signature` is `true`, the Python entrypoint must declare a
+return annotation compatible with `returns`; an unannotated return is invalid.
+When it is `false`, compilation and documentation do not load the implementation
+or inspect its signature. This disables only implementation signature and
+return-annotation checks: declared contracts, binding arguments, feature
+dependencies, and entrypoint syntax are still validated. Execution still
+requires a loadable implementation.
 
 An entrypoint identifies the implementation associated with a function. Its
 resolution is determined by the execution environment. The value below is
@@ -239,6 +245,7 @@ symbolic; a concrete runtime defines its accepted entrypoint syntax.
   "operation": "vectorize",
   "returns": "dataframe",
   "entrypoint": "spec.sum_features",
+  "validate_signature": false,
   "args": {
     "dataset": {"type": "dataframe"},
     "left_feature": {"type": "string"},
@@ -247,6 +254,10 @@ symbolic; a concrete runtime defines its accepted entrypoint syntax.
   }
 }
 ```
+
+Python spec declarations execute during source loading. If an analytical
+implementation is unavailable in that environment, declare its entrypoint as a
+string and do not import the implementation from the spec declaration itself.
 
 Use operation-oriented function names. Mapping identifiers and feature names
 can differ from the function identifier. Each mapping binds one function, whose
