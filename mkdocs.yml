@@ -92,6 +92,7 @@ nav:
       - project: reference/cli/project.md
   - Python API:
       - Overview: reference/api.md
+      - project: reference/api/project.md
       - spec:
           - Overview: reference/api/spec.md
           - api: reference/api/spec/api.md
