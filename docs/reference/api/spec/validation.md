@@ -28,8 +28,11 @@ Direct validation now uses the same sequence as loading and Python conversion.
 Duplicate vectorize outputs are reported by mapping producer validation rather
 than by validating a second collection of generated calls.
 
-The coordinator in `validation.spec` passes per-invocation indexes to domain
-validators. Add declaration rules to the appropriate domain phase, keeping
+The coordinator in `validation.spec` delegates to five named phase generators,
+making the validation sequence visible at the top level while retaining lazy
+first-error behavior. Each phase passes the same fresh `SpecValidationContext`
+facts to the explicit domain rules. Add
+declaration rules to the appropriate domain phase, keeping
 declaration order and testing the first error when faults overlap. The compiler
 separately checks executable signatures, invocation dependencies, and plan
 schedulability.
@@ -41,34 +44,49 @@ modules separate orchestration from domain checks:
 
 | Module in `uptimely.spec.validation` | Responsibility |
 | --- | --- |
-| `spec` | Explicit phase order and intermediate artifacts |
-| `context` | Non-validating indexes, mapping locations, and resolved-source data |
+| `spec` | Named lazy generators for the ordered validation phases |
+| `context` | All traversal, indexing, reference extraction, and prepared declaration facts |
 | `dataset` | Dataset IDs and ordering dimensions |
 | `dimensions` | Dimension declarations and parent relationships |
 | `functions` | Binding arguments, nested selector types, and function contracts |
-| `mapping_outputs` | Early calculation outputs, ownership, and producer accounting |
+| `mapping_outputs` | Early calculation outputs, ownership, and producer invariants |
 | `mapping_inputs` | Input references, collapse source scope, and row context |
-| `mapping_contracts` | Dataframe input resolution and operation-specific contracts |
+| `mapping_contracts` | Dataframe reference validity and operation-specific contracts |
 | `dependencies` | Local calculation/write scope and mapping-cycle checks |
 | `errors` | Structured validation errors |
 
-Indexes retain all duplicate candidates until the responsible phase rejects
-them. `MappingLocation` carries the declaring entity, dataset, and mapping key
-alongside the mapping model. Shared traversal in `uptimely.spec.references`
-preserves declaration order without resolving functions or sources. Binding
-errors retain dictionary-key paths; contract errors retain model-ID paths.
+The context retains duplicate candidates, missing references, and ancestry
+cycles as facts rather than raising semantic errors during preparation.
+Domain validators decide whether those facts are acceptable. Indexes and graph
+traversal results are prepared lazily where appropriate and cached only on the
+current context. Revalidating an edited document builds a new context.
 
-Output validation produces the feature-to-producer index. Collapse validation
-uses indexed feature owners to infer each source, validates that mapping before
-advancing to the next one, and returns its successful source resolution.
-Input and contract phases reuse those sources instead of inferring them again.
-Input validation returns the mapping dependency graph, which the coordinator
-passes to cycle validation. These artifacts are explicit local values, not
-global caches or additional fields attached to the document.
+`DatasetLocation` represents dataset declarations, feature owners, and inferred
+collapse sources; separate `FeatureOwner` and `CollapseSource` wrappers are not
+needed. Feature occurrence order is retained independently of dataset order.
+`MappingLocation` composes a `DatasetLocation`, retaining both dictionary-key
+binding paths and model-ID contract paths without copying its entity and dataset.
+`MappingFacts` derives entity dimensions and local features from that shared
+location instead of storing repeated copies for every mapping. Other frozen
+dataclasses are retained for facts shared by multiple atomic checks, such as
+collapse-source and dataframe relationships. Binding names, selector types, and
+function contracts are read from their declarations as the coordinator reaches
+those phases, rather than being copied into one-use wrapper records. Use
+dataclasses for shared internal records, not a separate class for every
+invariant. Specification models remain Pydantic models.
 
-Operation contracts resolve common dataframe arguments before selecting a
-handler. Vectorize and write share a local-dataset contract; conform and expand
-share join-input checks before their distinct dimensionality rules.
+The context prepares producer occurrences and coverage, collapse source
+candidates, row-context requirements, flattened binding selectors, dataframe
+inputs, and the mapping dependency graph. Source inference is shared by the
+collapse, row-context, and mapping-contract phases. No validator constructs
+indexes or returns intermediate artifacts to the coordinator. One-pass phases
+consume dependency and row-context facts through iterators instead of building
+temporary tuples that validation would immediately traverse once.
+
+Each phase checks one declaration's invariants before advancing to the next.
+Output coverage follows all mappings in its dataset; dataframe arguments
+precede operation-specific relationships. Vectorize and write share local
+dataset checks; conform and expand share join-input checks.
 
 Escape mappings require explicit, nonempty feature input and output lists.
 Their references participate in normal ownership, producer, unknown-reference,
@@ -83,15 +101,20 @@ and ignores its return value without materializing declared outputs.
 
 1. Choose the domain module and existing phase that owns the invariant. A new
    class or phase is not needed for every rule.
-2. Use `validate_<subject>` for collection phases and `_validate_<subject>` for
-   private cohesive checks. Validation raises on invalid input; it may return
-   an explicitly documented artifact, but not a success boolean.
-3. Use `iter_<subjects>` for traversal and `resolve_<subject>` for fallible
-   resolution. Keep index construction non-validating so an eager lookup cannot
-   change the first reported error.
-4. Keep a condition and its error close together. Loops and comprehensions are
-   allowed in validation functions; avoid one-line wrappers that accept a
-   precomputed boolean merely to raise an exception.
+2. Define entry points as `_validate_<subject>(context: SpecValidationContext)
+   -> None` and mark them with `@context_module.spec_validation`. The identity
+   decorator statically checks the callable interface without wrapping it,
+   injecting context, or registering rules globally. Add entry points explicitly
+   to the typed list in `validate_spec`.
+3. Put traversal, normalization, index construction, source candidate discovery,
+   and graph walks on `SpecValidationContext`. Preparation must retain invalid
+   declarations without raising validation errors or hiding duplicate candidates.
+4. Keep conditions and their errors together in domain modules. Comprehensions,
+   `next()`, `all()`, and `any()` may inspect prepared facts; explicit `for` and
+   `while` loops belong to the context, except for the coordinator's rule loop.
+   Cohesive `_..._error` helpers may describe the first violation as an exception
+   or `None`; the entry point raises the first described error immediately.
+   They do not cache exceptions, return success booleans, or change exceptions.
 5. Preserve mapping-first order within a phase. Checking one rule across all
    mappings before applying the next rule changes which error is reported.
 6. Add focused tests for valid inputs and overlapping faults. Preserve exception

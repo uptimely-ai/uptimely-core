@@ -3,6 +3,7 @@ import pytest
 
 from uptimely import contracts
 from uptimely.spec import model as spec_model
+from uptimely.spec.validation import bindings
 from uptimely.spec.validation import context as context_module
 from uptimely.spec.validation import functions as validation_functions
 
@@ -27,19 +28,29 @@ def test_operation_contracts_validate_every_function_operation(
     assert contracts.DATAFRAME_INPUT_COUNTS[operation] == dataframe_input_count
     assert contracts.OPERATION_RETURN_KINDS[operation] == return_kind
 
-    validation_functions._validate_return_kind(
-        operation,
-        return_kind,
-        contracts.OPERATION_RETURN_KINDS[operation],
-        path=("functions", operation, "returns"),
+    model = spec_model.Spec.model_validate(
+        {
+            "functions": {
+                operation: {
+                    "operation": operation,
+                    "returns": return_kind,
+                    "entrypoint": f"example:{operation}",
+                    "args": {
+                        f"dataframe_{index}": {"type": "dataframe"}
+                        for index in range(dataframe_input_count or 0)
+                    },
+                }
+            }
+        }
     )
-    if dataframe_input_count is not None:
-        validation_functions._validate_dataframe_argument_count(
-            operation,
-            dataframe_input_count,
-            dataframe_input_count,
-            path=("functions", operation, "args"),
-        )
+    function_id, function, dataframe_inputs = next(
+        context_module.SpecValidationContext.build(model).iter_functions()
+    )
+    assert validation_functions.validate_return_kind(function_id, function) is None
+    assert (
+        validation_functions.validate_dataframe_count(function_id, function, dataframe_inputs)
+        is None
+    )
 
 
 @pytest.mark.parametrize("dataframe_input_count", [0, 1, 3])
@@ -62,7 +73,14 @@ def test_escape_contract_accepts_any_number_of_dataframe_arguments(
         }
     )
 
-    validation_functions.validate_contracts(context_module.SpecValidationContext.build(model))
+    function_id, function, dataframe_inputs = next(
+        context_module.SpecValidationContext.build(model).iter_functions()
+    )
+    assert validation_functions.validate_return_kind(function_id, function) is None
+    assert (
+        validation_functions.validate_dataframe_count(function_id, function, dataframe_inputs)
+        is None
+    )
 
 
 def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
@@ -106,8 +124,23 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
     )
 
     validation_context = context_module.SpecValidationContext.build(model)
-    validation_functions.validate_bindings(validation_context)
-    validation_functions.validate_contracts(validation_context)
+    for item in validation_context.iter_bound_mappings():
+        assert bindings.validate_arguments(item) is None
+        for value, argument_type in validation_context.iter_binding_selectors(item):
+            assert (
+                bindings.validate_selector_type(
+                    value,
+                    argument_type,
+                    (*item.location.declaration_path, "binding", "args"),
+                )
+                is None
+            )
+    for function_id, function, dataframe_inputs in validation_context.iter_functions():
+        assert validation_functions.validate_return_kind(function_id, function) is None
+        assert (
+            validation_functions.validate_dataframe_count(function_id, function, dataframe_inputs)
+            is None
+        )
 
 
 @pytest.mark.parametrize(
@@ -138,8 +171,14 @@ def test_fixed_operation_contracts_remain_enforced(
 ) -> None:
     model = spec_model.Spec.model_validate({"functions": {"function": function}})
 
-    with pytest.raises(ValueError, match=expected_error):
-        validation_functions.validate_contracts(context_module.SpecValidationContext.build(model))
+    function_id, item, dataframe_inputs = next(
+        context_module.SpecValidationContext.build(model).iter_functions()
+    )
+    error = validation_functions.validate_return_kind(
+        function_id, item
+    ) or validation_functions.validate_dataframe_count(function_id, item, dataframe_inputs)
+    assert isinstance(error, ValueError)
+    assert expected_error in str(error)
 
 
 def test_function_model_reexports_the_shared_operation_contract() -> None:
