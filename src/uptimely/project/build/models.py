@@ -1,0 +1,133 @@
+"""Data models describing a complete active build bundle."""
+
+from __future__ import annotations
+
+import dataclasses
+import pathlib
+import typing
+
+import pydantic
+
+from uptimely.compiler.plan import models as plan_models
+from uptimely.project import paths
+
+
+def validate_relative_path(value: str) -> str:
+    """Require a canonical POSIX path that cannot escape the build directory."""
+    if not value or "\\" in value:
+        raise ValueError("Build artifact paths must be nonempty relative POSIX paths")
+    path = pathlib.PurePosixPath(value)
+    if (
+        path.is_absolute()
+        or pathlib.PureWindowsPath(value).drive
+        or not path.parts
+        or any(part in {".", ".."} for part in path.parts)
+        or path.as_posix() != value
+    ):
+        raise ValueError(f"Build artifact path must stay within the build directory: {value!r}")
+    return value
+
+
+class BuildArtifactPaths(pydantic.BaseModel):
+    """Relative locations of the required artifacts in an active build."""
+
+    model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    spec: str
+    execution_plan: str
+    explorer: str
+
+    @pydantic.field_validator("spec", "execution_plan", "explorer")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        """Reject paths that are not safe to resolve under the bundle root."""
+        return validate_relative_path(value)
+
+    @pydantic.model_validator(mode="after")
+    def validate_distinct_paths(self) -> typing.Self:
+        """Prevent required artifacts from colliding or containing one another."""
+        artifact_paths = {
+            "spec": pathlib.PurePosixPath(self.spec),
+            "execution_plan": pathlib.PurePosixPath(self.execution_plan),
+            "explorer": pathlib.PurePosixPath(self.explorer),
+        }
+        names = list(artifact_paths)
+        for index, name in enumerate(names):
+            for other_name in names[index + 1 :]:
+                artifact_path, other_path = artifact_paths[name], artifact_paths[other_name]
+                if (
+                    artifact_path == other_path
+                    or artifact_path in other_path.parents
+                    or other_path in artifact_path.parents
+                ):
+                    raise ValueError(f"Build artifact paths {name!r} and {other_name!r} overlap")
+        return self
+
+
+class BuildManifest(pydantic.BaseModel):
+    """Versioned manifest describing one complete active build bundle."""
+
+    model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: int
+    uptimely_version: str
+    features: list[str] | None
+    artifacts: BuildArtifactPaths
+    explorer_files: list[str]
+
+    @pydantic.field_validator("schema_version")
+    @classmethod
+    def validate_schema_version(cls, value: int) -> int:
+        """Reject bundle schemas this runtime does not support."""
+        if value != paths.BUILD_SCHEMA_VERSION:
+            raise ValueError(
+                f"Unsupported build schema version: {value}. "
+                f"Supported version is {paths.BUILD_SCHEMA_VERSION}."
+            )
+        return value
+
+    @pydantic.field_validator("uptimely_version")
+    @classmethod
+    def validate_uptimely_version(cls, value: str) -> str:
+        """Require the producer's Uptimely version."""
+        if not value.strip():
+            raise ValueError("uptimely_version must be nonempty")
+        return value
+
+    @pydantic.field_validator("features", mode="before")
+    @classmethod
+    def normalize_features(cls, value: object) -> object:
+        """Represent all features as null and normalize explicit selections."""
+        if value is None:
+            return None
+        if not isinstance(value, list) or not value:
+            raise ValueError("features must be null or a nonempty list of feature names")
+        if any(not isinstance(feature, str) or not feature.strip() for feature in value):
+            raise ValueError("features must contain only nonempty feature names")
+        return sorted(set(value))
+
+    @pydantic.field_validator("explorer_files")
+    @classmethod
+    def validate_explorer_files(cls, values: list[str]) -> list[str]:
+        """Require a unique inventory of safe paths that includes the entry page."""
+        if not values:
+            raise ValueError("explorer_files must contain the complete website file inventory")
+        for value in values:
+            validate_relative_path(value)
+        if len(set(values)) != len(values):
+            raise ValueError("explorer_files must not contain duplicate paths")
+        if "index.html" not in values:
+            raise ValueError("explorer_files must include index.html")
+        return values
+
+
+@dataclasses.dataclass(frozen=True)
+class BuildBundle:
+    """Validated locations and execution plan for one active build."""
+
+    root: pathlib.Path
+    manifest: BuildManifest
+    spec_path: pathlib.Path
+    execution_plan_path: pathlib.Path
+    explorer_path: pathlib.Path
+    execution_plan: plan_models.ExecutionPlan
