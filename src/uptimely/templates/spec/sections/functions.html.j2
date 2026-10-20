@@ -6,7 +6,7 @@
     <div>
       {% set function_heading = "h3" %}
       <{{ function_heading }} class="break-words font-display text-lg font-semibold text-white">{{ function_id }}</{{ function_heading }}>
-      <p class="mt-2 text-xs text-lime-300">declared returns {{ function.declared_returns }}{% if function.return_type %} · Python signature returns {{ function.return_type }}{% endif %}</p>
+      <p class="mt-2 text-xs text-lime-300">declared returns {{ function.declared_returns }}{% if function.signature_validation_disabled %} · Python signature validation disabled{% elif function.return_type %} · Python signature returns {{ function.return_type }}{% endif %}</p>
     </div>
   </div>
   <p class="mt-4 text-sm leading-6 text-slate-400">{{ function.description or "No description provided." }}</p>
@@ -25,6 +25,18 @@
   </div>
   {% endif %}
   {% endif %}
+  {% if function.signature_validation_disabled %}
+  <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/80 p-3 font-mono text-xs text-slate-200">
+    <div class="mb-2 text-slate-500">Declared arguments</div>
+    {% if function.args %}
+      {% for argument_id, argument in function.args.items() %}
+        <div><span class="text-cyan-200">{{ argument_id }}</span><span class="text-slate-500">: </span><span class="text-lime-300">{{ argument.type or "unspecified" }}</span></div>
+      {% endfor %}
+    {% else %}
+      <div class="text-slate-400">None</div>
+    {% endif %}
+  </div>
+  {% else %}
   <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/80 p-3 font-mono text-xs text-slate-200">
     <div class="text-slate-500">def <span class="text-white">{{ function_id }}</span>(</div>
     {% if function.args %}
@@ -37,6 +49,7 @@
     <div class="text-slate-500">)</div>
     {% if function.return_type %}<div class="mt-1 text-lime-300">-&gt; {{ function.return_type }}</div>{% endif %}
   </div>
+  {% endif %}
   {% if function.entrypoint %}
     <div class="mt-5 border-t border-slate-800 pt-4">
       <p class="font-mono text-[10px] uppercase tracking-[.16em] text-slate-500">source</p>
