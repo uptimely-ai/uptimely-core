@@ -108,7 +108,6 @@ class SpecSource:
     def load(
         self,
         entrypoint: str | None = None,
-        *,
         source: JsonSourceInput = None,
     ) -> spec.Spec:
         """Resolve and load an explicit or discovered Python or JSON spec source."""
@@ -141,7 +140,6 @@ class SpecSource:
 def load_spec_source(
     entrypoint: str | None,
     project_root: pathlib.Path,
-    *,
     source: JsonSourceInput = None,
 ) -> spec.Spec:
     """Load an explicit or discovered Python or JSON spec source."""
