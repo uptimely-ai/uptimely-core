@@ -77,9 +77,25 @@ def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -
     assert aliases[0].key == (entity_id, dataset.id, "alias")
     assert aliases[0].path[-1] == mapping.id
     assert aliases[0].mapping_id != mapping.id
+    same_dataset_locations = [item for item in locations if item.dataset is dataset]
+    assert len(same_dataset_locations) > 1
+    assert all(
+        item.dataset_location is same_dataset_locations[0].dataset_location
+        for item in same_dataset_locations
+    )
     assert list(references.iter_mappings(model)) == [
         (item.entity_id, item.dataset, item.mapping) for item in locations
     ]
+
+    facts = [
+        item
+        for item in context.SpecValidationContext.build(model).mappings
+        if item.location.dataset is dataset
+    ]
+    dimensions = frozenset(entity.dimension_ids)
+    assert facts
+    assert all(item.dimensions == dimensions for item in facts)
+    assert all(item.local_features == frozenset(dataset.features) | dimensions for item in facts)
 
 
 def test_validation_context_retains_duplicate_index_candidates() -> None:

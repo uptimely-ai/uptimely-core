@@ -1,7 +1,6 @@
 """Public semantic-validation entry points.
 
-The spec coordinator orders domain phases and their intermediate artifacts.
-Resource traversal, resolution, and invariant checks remain in domain modules.
+The spec coordinator orders read-only domain checks over context-prepared facts.
 """
 
 from __future__ import annotations

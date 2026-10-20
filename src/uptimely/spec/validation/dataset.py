@@ -1,89 +1,58 @@
-"""Dataset identity and ordering validation.
-
-The semantic phase order is coordinated by :mod:`uptimely.spec.validation.spec`.
-"""
+"""Atomic dataset identity and order checks over prepared facts."""
 
 from __future__ import annotations
 
-from uptimely import contracts
+from uptimely.spec import model as spec_model
 
-from .. import model as spec_model
 from . import context as context_module
 from . import errors
 
 
 def validate_dataset_ids(model: spec_model.Spec) -> None:
-    """Require dataset identifiers to be globally unambiguous."""
-    owners: dict[str, str] = {}
-    for entity_id, entity in model.entities.items():
-        for dataset_model in entity.datasets:
-            _validate_dataset_id(dataset_model.id, entity_id, owners)
-            owners[dataset_model.id] = entity_id
+    """Require globally unique dataset IDs through the standalone public API."""
+    context = context_module.SpecValidationContext.build(model)
+    error = validate_unique_id(context.duplicate_dataset)
+    if error is not None:
+        raise error
 
 
-def validate_order(validation_context: context_module.SpecValidationContext) -> None:
-    """Require each dataset order to use distinct dimensions declared by its entity."""
-    for entity_id, entity in validation_context.model.entities.items():
-        entity_dimensions = set(entity.dimension_ids)
-        for dataset_model in entity.datasets:
-            seen_dimensions: set[str] = set()
-            for index, key in enumerate(dataset_model.order):
-                path = (
-                    "entities",
-                    entity_id,
-                    "datasets",
-                    dataset_model.id,
-                    "order",
-                    index,
-                    "dimension",
-                )
-                dimension_id = key.dimension.removeprefix(contracts.DIMENSION_PREFIX)
-                _validate_order_dimension_membership(
-                    dataset_model.id, entity_id, dimension_id, entity_dimensions, path
-                )
-                _validate_unique_order_dimension(
-                    dataset_model.id, dimension_id, seen_dimensions, path
-                )
-                seen_dimensions.add(dimension_id)
-
-
-def _validate_dataset_id(dataset_id: str, entity_id: str, owners: dict[str, str]) -> None:
-    """Require a dataset identifier to be globally unambiguous."""
-    if dataset_id in owners:
-        raise errors.SpecError(
-            f"Duplicate dataset id {dataset_id}; already declared by entity {owners[dataset_id]}",
+def validate_unique_id(
+    duplicate: tuple[context_module.DatasetLocation, context_module.DatasetLocation] | None,
+) -> context_module.ValidationResult:
+    """Reject a repeated dataset declaration."""
+    if duplicate is not None:
+        location, previous = duplicate
+        return errors.SpecError(
+            f"Duplicate dataset id {location.dataset.id}; already declared by entity "
+            f"{previous.entity_id}",
             code="duplicate_dataset_id",
-            path=("entities", entity_id, "datasets", dataset_id),
+            path=location.path,
         )
+    return None
 
 
-def _validate_order_dimension_membership(
-    dataset_id: str,
-    entity_id: str,
-    dimension_id: str,
-    entity_dimensions: set[str],
-    path: tuple[str | int, ...],
-) -> None:
-    """Require an ordering dimension to be declared by its entity."""
-    if dimension_id not in entity_dimensions:
-        raise errors.SpecError(
-            f"Dataset {dataset_id} order references a dimension not declared "
-            f"by entity {entity_id}: {dimension_id}",
+def validate_order_dimension(
+    item: context_module.OrderDimension,
+) -> context_module.ValidationResult:
+    """Require an order dimension to be declared by its entity."""
+    if item.dimension_id not in item.entity_dimensions:
+        return errors.SpecError(
+            f"Dataset {item.location.dataset.id} order references a dimension not declared "
+            f"by entity {item.location.entity_id}: {item.dimension_id}",
             code="invalid_order_dimension",
-            path=path,
+            path=item.path,
         )
+    return None
 
 
-def _validate_unique_order_dimension(
-    dataset_id: str,
-    dimension_id: str,
-    seen_dimensions: set[str],
-    path: tuple[str | int, ...],
-) -> None:
-    """Require each ordering dimension to appear only once."""
-    if dimension_id in seen_dimensions:
-        raise errors.SpecError(
-            f"Dataset {dataset_id} order repeats dimension: {dimension_id}",
+def validate_unique_order_dimension(
+    item: context_module.OrderDimension,
+) -> context_module.ValidationResult:
+    """Reject a repeated order dimension."""
+    if item.dimension_id in item.preceding:
+        return errors.SpecError(
+            f"Dataset {item.location.dataset.id} order repeats dimension: {item.dimension_id}",
             code="duplicate_order_dimension",
-            path=path,
+            path=item.path,
         )
+    return None

@@ -7,10 +7,9 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import validation
+from uptimely.spec.validation import bindings
 from uptimely.spec.validation import context as context_module
-from uptimely.spec.validation import functions as function_validation
 from uptimely.spec.validation import mapping_contracts as contracts_validation
-from uptimely.spec.validation import mapping_inputs as inputs_validation
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
@@ -105,16 +104,21 @@ def test_binding_and_contract_paths_keep_their_existing_mapping_identifiers(
         expected_id = mapping.id
         expected_code = "invalid_mapping_dataset_input"
 
-    with pytest.raises(validation.SpecError) as error:
-        context = context_module.SpecValidationContext.build(document)
-        if invalid_binding:
-            function_validation.validate_bindings(context)
-        else:
-            sources = inputs_validation.validate_collapse(context)
-            contracts_validation.validate_contracts(context, sources)
+    context = context_module.SpecValidationContext.build(document)
+    if invalid_binding:
+        binding = next(
+            item for item in context.iter_bound_mappings() if item.location.mapping is mapping
+        )
+        error = bindings.validate_arguments(binding)
+    else:
+        contract = next(
+            item for item in context.mapping_contracts if item.mapping.location.mapping is mapping
+        )
+        error = contracts_validation.validate_target_input(contract)
 
-    assert error.value.code == expected_code
-    assert error.value.path == (
+    assert isinstance(error, validation.SpecError)
+    assert error.code == expected_code
+    assert error.path == (
         "entities",
         "pump_telemetry",
         "datasets",
@@ -314,3 +318,53 @@ def test_document_validation_rejects_blank_calculated_output() -> None:
 
     with pytest.raises(ValueError, match="Every calculation must define a non-empty output"):
         validation.validate_spec(document)
+
+
+def test_context_prepares_invalid_declarations_without_raising_or_mutating() -> None:
+    document = spec.Spec.model_validate(_configuration())
+    document.dimensions["plant"].parent = "plant"
+    dataset = document.entities["pump"].datasets[0]
+    dataset.mappings["bearing_temperature_by_pump"].features.inputs = ["$features.missing"]
+    other = document.entities["pump_telemetry"].datasets[0]
+    other.mappings["pressure_flow_efficiency"].binding.function = "missing"
+    other.mappings["recommended_flow_rate"].binding.args = {"unexpected": None}
+    document.entities["pump"].datasets.append(dataset.model_copy(deep=True))
+    original = document.model_copy(deep=True)
+
+    context = context_module.SpecValidationContext.build(document)
+
+    assert context.duplicate_dataset is not None
+    assert context.duplicate_feature is not None
+    assert any(item.cycle for item in context.dimension_parents)
+    assert context.order_dimensions
+    assert next(context.iter_calculation_dependencies(), None) is not None
+    assert next(context.iter_write_dependencies(), None) is not None
+    assert next(context.iter_output_datasets(), None) is not None
+    assert context.feature_producers
+    assert any(item.source is None for item in context.collapse_inputs)
+    assert next(context.iter_input_contexts(), None) is not None
+    assert context.mapping_dependencies
+    assert next(context.iter_bound_mappings(), None) is not None
+    assert next(context.iter_functions(), None) is not None
+    assert context.mapping_contracts
+    assert document == original
+
+
+def test_duplicate_feature_error_uses_first_repeated_occurrence() -> None:
+    document = spec.Spec.model_validate(_configuration())
+    dataset = document.entities["pump"].datasets[0]
+    features = list(dataset.features)
+    first, second = [feature for feature in features if feature not in document.dimensions][:2]
+    duplicate = dataset.model_copy(deep=True)
+    duplicate.id = "another_dataset"
+    duplicate.features = {
+        second: dataset.features[second].model_copy(deep=True),
+        first: dataset.features[first].model_copy(deep=True),
+    }
+    document.entities["pump"].datasets.append(duplicate)
+    context = context_module.SpecValidationContext.build(document)
+
+    assert context.duplicate_feature == second
+    owners = context.feature_owners[first]
+    assert owners[0] is next(item for item in context.datasets if item.dataset is dataset)
+    assert owners[1] is next(item for item in context.datasets if item.dataset is duplicate)

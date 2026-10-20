@@ -1,9 +1,8 @@
-"""Dataframe arguments and operation-specific mapping contracts."""
+"""Atomic dataframe and operation-specific mapping contract checks."""
 
 from __future__ import annotations
 
 from uptimely import contracts
-from uptimely.spec import model as spec_model
 
 from . import context as context_module
 from . import errors
@@ -17,205 +16,182 @@ EXPAND_INPUT_ERROR = (
 )
 
 
-def validate_contracts(
-    context: context_module.SpecValidationContext,
-    collapse_sources: context_module.CollapseSources,
-) -> None:
-    """Validate common dataframe inputs before each operation's contract."""
-    for location in context.iter_mappings():
-        function = context.model.functions[location.mapping.binding.function]
-        inputs = _resolve_dataframe_inputs(context, location, function)
-        operation = function.operation
-        if operation in {"conform", "expand"}:
-            _validate_join_inputs(context, location, inputs, operation)
-
-        match operation:
-            case "escape":
-                continue
-            case "read":
-                _validate_read_contract(location)
-            case "vectorize" | "write":
-                _validate_local_contract(location, inputs, operation)
-            case "collapse":
-                _validate_collapse_contract(location, inputs, collapse_sources[location.key])
-            case "conform":
-                _validate_conform_contract(location, inputs)
-            case "expand":
-                _validate_expand_contract(context, location, inputs)
-
-
-def _resolve_dataframe_inputs(
-    context: context_module.SpecValidationContext,
-    location: context_module.MappingLocation,
-    function: spec_model.FunctionTemplate,
-) -> list[context_module.DatasetLocation]:
-    """Resolve declared dataframe arguments, rejecting invalid selectors and datasets."""
-    inputs: list[context_module.DatasetLocation] = []
-    for argument_id, argument in function.args.items():
-        if argument.type != "dataframe":
-            continue
-        value = location.mapping.binding.args[argument_id]
-        path = (*location.path, "binding", "args", argument_id)
-        if not isinstance(value, str) or not value.startswith(contracts.DATASET_PREFIX):
-            raise errors.SpecError(
-                f"Dataframe argument {argument_id} must reference a dataset",
-                code="invalid_mapping_dataset_input",
-                path=path,
-            )
-        if value.endswith(contracts.ID_SELECTOR):
-            raise errors.SpecError(
-                f"Dataframe argument {argument_id} must reference a dataframe",
-                code="invalid_mapping_dataset_input",
-                path=path,
-            )
-        reference = value.removeprefix(contracts.DATASET_PREFIX).removesuffix(
-            contracts.DATAFRAME_SELECTOR
-        )
-        source_id = location.dataset.id if reference == contracts.CURRENT_ID else reference
-        source = context.dataset(source_id)
-        if source is None:
-            raise errors.SpecError(
-                f"Dataframe argument {argument_id} references unknown dataset {source_id}",
-                code="invalid_mapping_dataset_input",
-                path=path,
-            )
-        inputs.append(source)
-    return inputs
-
-
-def _validate_read_contract(location: context_module.MappingLocation) -> None:
-    """Forbid explicit feature inputs on read mappings."""
-    if location.mapping.input_features:
-        raise errors.SpecError(
-            "Read mappings cannot declare feature inputs",
-            code="invalid_mapping_feature_inputs",
-            path=(*location.path, "features", "inputs"),
-        )
-
-
-def _validate_local_contract(
-    location: context_module.MappingLocation,
-    inputs: list[context_module.DatasetLocation],
-    operation: contracts.FunctionOperation,
-) -> None:
-    """Require vectorize and write mappings to consume their own dataset and features."""
-    if not any(source.dataset.id == location.dataset.id for source in inputs):
-        raise errors.SpecError(
-            f"{operation.capitalize()} mapping must consume its target dataset",
+def validate_dataframe_reference(
+    item: context_module.DataframeInput,
+) -> context_module.ValidationResult:
+    """Require a dataframe argument to reference a dataset."""
+    if not isinstance(item.value, str) or not item.value.startswith(contracts.DATASET_PREFIX):
+        return errors.SpecError(
+            f"Dataframe argument {item.argument_id} must reference a dataset",
             code="invalid_mapping_dataset_input",
-            path=(*location.path, "binding", "args"),
+            path=item.path,
         )
-    local_features = set(location.dataset.features) | set(location.entity.dimension_ids)
-    invalid_inputs = sorted(
-        feature for feature in location.mapping.input_features if feature not in local_features
-    )
-    if invalid_inputs:
-        raise errors.SpecError(
-            f"{operation.capitalize()} mapping inputs must belong to its target dataset: "
-            + ", ".join(invalid_inputs),
-            code="invalid_mapping_feature_inputs",
-            path=(*location.path, "features", "inputs"),
-        )
+    return None
 
 
-def _validate_collapse_contract(
-    location: context_module.MappingLocation,
-    inputs: list[context_module.DatasetLocation],
-    source: context_module.CollapseSource,
-) -> None:
-    """Require the inferred source dataframe and a reduction in dimensionality."""
-    if not any(item.dataset.id == source.dataset.id for item in inputs):
-        raise errors.SpecError(
-            f"Collapse mapping must consume its source dataset {source.dataset.id}",
+def validate_dataframe_selector(
+    item: context_module.DataframeInput,
+) -> context_module.ValidationResult:
+    """Reject a dataset ID selector where a dataframe is required."""
+    if isinstance(item.value, str) and item.value.endswith(contracts.ID_SELECTOR):
+        return errors.SpecError(
+            f"Dataframe argument {item.argument_id} must reference a dataframe",
             code="invalid_mapping_dataset_input",
-            path=(*location.path, "binding", "args"),
+            path=item.path,
         )
-    if set(source.entity.dimension_ids) == set(location.entity.dimension_ids):
-        raise errors.SpecError(
-            "Collapse mapping must reduce dataset dimensionality",
-            code="invalid_mapping_dimensions",
-            path=(*location.path, "features", "inputs"),
-        )
+    return None
 
 
-def _validate_join_inputs(
-    context: context_module.SpecValidationContext,
-    location: context_module.MappingLocation,
-    inputs: list[context_module.DatasetLocation],
-    operation: contracts.FunctionOperation,
-) -> None:
-    """Require two distinct dataframes and features available from those inputs."""
-    dataset_ids = {source.dataset.id for source in inputs}
-    if len(dataset_ids) != 2:
-        raise errors.SpecError(
+def validate_dataframe_source(
+    item: context_module.DataframeInput,
+) -> context_module.ValidationResult:
+    """Require a dataframe reference to resolve to a dataset."""
+    if item.source is None:
+        return errors.SpecError(
+            f"Dataframe argument {item.argument_id} references unknown dataset {item.source_id}",
+            code="invalid_mapping_dataset_input",
+            path=item.path,
+        )
+    return None
+
+
+def validate_dataset_count(item: context_module.MappingContract) -> context_module.ValidationResult:
+    """Require conform and expand to consume two distinct datasets."""
+    operation = item.mapping.operation
+    if operation in {"conform", "expand"} and len(item.dataset_ids) != 2:
+        return errors.SpecError(
             f"{operation.capitalize()} mapping must consume two distinct datasets",
             code="invalid_mapping_dataset_input",
-            path=(*location.path, "binding", "args"),
+            path=(*item.mapping.location.path, "binding", "args"),
         )
-    input_dimensions = {dimension for source in inputs for dimension in source.entity.dimension_ids}
-    unavailable_features = sorted(
-        feature_id
-        for feature_id in location.mapping.input_features
-        if (feature_id in context.dimension_ids and feature_id not in input_dimensions)
-        or (
-            feature_id not in context.dimension_ids
-            and (
-                (owner := context.last_feature_owner(feature_id)) is None
-                or owner.dataset.id not in dataset_ids
-            )
-        )
-    )
-    if unavailable_features:
-        raise errors.SpecError(
+    return None
+
+
+def validate_dataframe_features(
+    item: context_module.MappingContract,
+) -> context_module.ValidationResult:
+    """Require conform and expand feature inputs to belong to dataframe inputs."""
+    operation = item.mapping.operation
+    if operation in {"conform", "expand"} and item.unavailable_features:
+        return errors.SpecError(
             f"{operation.capitalize()} mapping inputs must belong to its dataframe inputs: "
-            + ", ".join(unavailable_features),
+            + ", ".join(item.unavailable_features),
             code="invalid_mapping_feature_inputs",
-            path=(*location.path, "features", "inputs"),
+            path=(*item.mapping.location.path, "features", "inputs"),
         )
+    return None
 
 
-def _validate_conform_contract(
-    location: context_module.MappingLocation,
-    inputs: list[context_module.DatasetLocation],
-) -> None:
-    """Require matching dimensions and the target combined within its entity."""
-    target_dimensions = set(location.entity.dimension_ids)
-    if any(set(source.entity.dimension_ids) != target_dimensions for source in inputs):
-        raise errors.SpecError(
+def validate_read_inputs(item: context_module.MappingFacts) -> context_module.ValidationResult:
+    """Reject feature inputs on read mappings."""
+    if item.operation == "read" and item.inputs:
+        return errors.SpecError(
+            "Read mappings cannot declare feature inputs",
+            code="invalid_mapping_feature_inputs",
+            path=(*item.location.path, "features", "inputs"),
+        )
+    return None
+
+
+def validate_target_input(item: context_module.MappingContract) -> context_module.ValidationResult:
+    """Require vectorize and write to consume their target dataset."""
+    operation = item.mapping.operation
+    if operation in {"vectorize", "write"} and not item.target_is_input:
+        return errors.SpecError(
+            f"{operation.capitalize()} mapping must consume its target dataset",
+            code="invalid_mapping_dataset_input",
+            path=(*item.mapping.location.path, "binding", "args"),
+        )
+    return None
+
+
+def validate_local_features(
+    item: context_module.MappingContract,
+) -> context_module.ValidationResult:
+    """Require vectorize and write feature inputs to belong to their target."""
+    operation = item.mapping.operation
+    if operation in {"vectorize", "write"} and item.local_foreign_features:
+        return errors.SpecError(
+            f"{operation.capitalize()} mapping inputs must belong to its target dataset: "
+            + ", ".join(item.local_foreign_features),
+            code="invalid_mapping_feature_inputs",
+            path=(*item.mapping.location.path, "features", "inputs"),
+        )
+    return None
+
+
+def validate_collapse_source(
+    item: context_module.MappingContract,
+) -> context_module.ValidationResult:
+    """Require collapse to consume its inferred source dataset."""
+    if (
+        item.mapping.operation == "collapse"
+        and item.source is not None
+        and item.source.dataset.id not in item.dataset_ids
+    ):
+        return errors.SpecError(
+            f"Collapse mapping must consume its source dataset {item.source.dataset.id}",
+            code="invalid_mapping_dataset_input",
+            path=(*item.mapping.location.path, "binding", "args"),
+        )
+    return None
+
+
+def validate_collapse_dimensions(
+    item: context_module.MappingContract,
+) -> context_module.ValidationResult:
+    """Require collapse to reduce source dimensionality."""
+    if (
+        item.mapping.operation == "collapse"
+        and item.source is not None
+        and item.source_dimensions == item.mapping.dimensions
+    ):
+        return errors.SpecError(
+            "Collapse mapping must reduce dataset dimensionality",
+            code="invalid_mapping_dimensions",
+            path=(*item.mapping.location.path, "features", "inputs"),
+        )
+    return None
+
+
+def validate_conform_dimensions(
+    item: context_module.MappingContract,
+) -> context_module.ValidationResult:
+    """Require conform inputs to preserve target dimensionality."""
+    if item.mapping.operation == "conform" and any(
+        dimensions != item.mapping.dimensions for dimensions in item.input_dimensions
+    ):
+        return errors.SpecError(
             "Conform mapping inputs must preserve target dimensionality",
             code="invalid_mapping_dimensions",
-            path=(*location.path, "binding", "args"),
+            path=(*item.mapping.location.path, "binding", "args"),
         )
-    target_is_input = any(source.dataset.id == location.dataset.id for source in inputs)
-    if not target_is_input or any(source.entity_id != location.entity_id for source in inputs):
-        raise errors.SpecError(
+    return None
+
+
+def validate_conform_entity(
+    item: context_module.MappingContract,
+) -> context_module.ValidationResult:
+    """Require conform to combine its target with an input from the same entity."""
+    if item.mapping.operation == "conform" and (not item.target_is_input or not item.same_entity):
+        return errors.SpecError(
             CONFORM_INPUT_ERROR,
             code="invalid_mapping_entity",
-            path=(*location.path, "binding", "args"),
+            path=(*item.mapping.location.path, "binding", "args"),
         )
+    return None
 
 
-def _validate_expand_contract(
-    context: context_module.SpecValidationContext,
-    location: context_module.MappingLocation,
-    inputs: list[context_module.DatasetLocation],
-) -> None:
-    """Require the target and a feature from a lower-dimensional input."""
-    target_dimensions = set(location.entity.dimension_ids)
-    lower_dataset_ids = {
-        source.dataset.id
-        for source in inputs
-        if set(source.entity.dimension_ids) < target_dimensions
-    }
-    target_is_input = any(source.dataset.id == location.dataset.id for source in inputs)
-    has_lower_feature = any(
-        (owner := context.last_feature_owner(feature_id)) is not None
-        and owner.dataset.id in lower_dataset_ids
-        for feature_id in location.mapping.input_features
-    )
-    if not target_is_input or not lower_dataset_ids or not has_lower_feature:
-        raise errors.SpecError(
+def validate_expand_dimensions(
+    item: context_module.MappingContract,
+) -> context_module.ValidationResult:
+    """Require expand to combine its target with a lower-dimensional feature."""
+    if item.mapping.operation == "expand" and (
+        not item.target_is_input or not item.lower_dataset_ids or not item.has_lower_feature
+    ):
+        return errors.SpecError(
             EXPAND_INPUT_ERROR,
             code="invalid_mapping_dimensions",
-            path=(*location.path, "binding", "args"),
+            path=(*item.mapping.location.path, "binding", "args"),
         )
+    return None
