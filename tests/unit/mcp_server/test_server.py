@@ -80,8 +80,47 @@ async def test_describe_function_resolves_signature(state: server.ServerState) -
     assert payload["operation"] == "vectorize"
     assert payload["entrypoint"].endswith(":pump_health_score")
     assert payload["declared_args"]["health_features"]["type"] == "array[string]"
+    assert payload["python_signature_validation"] == "enabled"
     assert payload["python_signature"]["returns"] == "LazyFrame"
     assert payload["declared_returns"] == "dataframe"
+
+
+@pytest.mark.anyio
+async def test_describe_function_skips_disabled_signature_without_importing_parent(
+    state: server.ServerState,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = tmp_path / "mcp_signature_validation_fixture"
+    package.mkdir()
+    marker = tmp_path / "parent_imported"
+    (package / "__init__.py").write_text(
+        f"from pathlib import Path\nPath({str(marker)!r}).touch()\n",
+        encoding="utf-8",
+    )
+    (package / "calculation.py").write_text(
+        "import uptimely_test_missing_dependency\n"
+        "def calculate(dataset, output):\n"
+        "    return dataset\n",
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    snapshot = state.load_snapshot()
+    definition = snapshot.spec.model_copy(deep=True)
+    function = definition.functions["pump_health_score"]
+    function.entrypoint = "mcp_signature_validation_fixture.calculation:calculate"
+    function.validate_signature = False
+    state.snapshot = dataclasses.replace(snapshot, spec=definition)
+
+    described = await _call(state, "describe_function", {"function_id": function.id})
+
+    assert not marker.exists()
+    assert described["python_signature_validation"] == "disabled"
+    assert described["python_signature"] is None
+    assert described["entrypoint"] == function.entrypoint
+    assert described["declared_returns"] == "dataframe"
+    assert described["declared_args"]["health_features"]["type"] == "array[string]"
 
 
 @pytest.mark.anyio
