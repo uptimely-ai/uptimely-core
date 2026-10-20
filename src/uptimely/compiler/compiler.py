@@ -167,7 +167,9 @@ class Compiler:
             if function is None or not function.entrypoint:
                 continue
             try:
-                signature = entrypoint.read_signature(function.entrypoint, pathlib.Path.cwd())
+                signature = entrypoint.Entrypoint(
+                    function.entrypoint, pathlib.Path.cwd()
+                ).function.signature
             except (ImportError, AttributeError, ValueError, TypeError) as error:
                 raise ValueError(
                     f"Could not read signature of function {function.id} "

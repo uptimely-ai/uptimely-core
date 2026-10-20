@@ -10,8 +10,6 @@ from uptimely.project.build.source import (
     PythonSource,
     SpecSource,
     load_spec_source,
-    prepare_project_root,
-    project_import_root,
 )
 
 __all__ = [
@@ -31,7 +29,5 @@ __all__ = [
     "load_build_bundle",
     "load_spec_source",
     "os",
-    "prepare_project_root",
-    "project_import_root",
     "read_build_bundle",
 ]

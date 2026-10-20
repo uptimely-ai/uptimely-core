@@ -4,7 +4,7 @@ import argparse
 import pathlib
 
 from uptimely import spec
-from uptimely.project.build import prepare_project_root
+from uptimely.project import imports
 
 
 def configure_project_arguments(parser: argparse.ArgumentParser) -> None:
@@ -34,5 +34,5 @@ def project_path(
 
 def load_spec(path: pathlib.Path, project_root: pathlib.Path) -> spec.Spec:
     """Load a spec document with project functions on the import path."""
-    prepare_project_root(project_root)
+    imports.prepare_project_root(project_root)
     return spec.load_spec(path)

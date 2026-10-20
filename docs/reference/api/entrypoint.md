@@ -4,6 +4,10 @@
 signatures. Entry points use `module:function` syntax and can refer to an
 importable module, a local Python file, an HTTPS URL, or an S3 URI.
 
+Use `Entrypoint` to access the function and module. Load the callable with
+`entrypoint.function.load()` and inspect its annotations with
+`entrypoint.function.signature`.
+
 !!! warning "Only load trusted code"
 
     Both loading a callable and reading its signature import and execute the
@@ -18,10 +22,11 @@ importable module, a local Python file, an HTTPS URL, or an S3 URI.
       heading_level: 3
       show_root_heading: false
       members:
-        - FunctionSignature
-        - load_callable
-        - read_signature
-        - type_name
+        - Entrypoint
+        - Module
+        - Function
+        - Signature
+        - TypeAnnotation
         - REMOTE_SCHEMES
         - REMOTE_READ_TIMEOUT
 

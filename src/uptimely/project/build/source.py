@@ -2,59 +2,26 @@
 
 from __future__ import annotations
 
-import importlib
 import pathlib
-import sys
 
+from uptimely import entrypoint as entrypoint_module
 from uptimely import spec
-from uptimely.project import paths
+from uptimely.project import imports, paths
 from uptimely.spec import python as python_spec_api
 
 JsonSourceInput = str | pathlib.Path | None
-
-
-def project_import_root(project_root: pathlib.Path) -> pathlib.Path:
-    """Find the import root above a project's enclosing regular packages."""
-    root = project_root.resolve()
-    while (root / "__init__.py").is_file():
-        root = root.parent
-    return root
-
-
-def prepare_project_root(project_root: pathlib.Path) -> None:
-    """Make project function entrypoints importable without changing directories."""
-    for path in (project_import_root(project_root), project_root.resolve()):
-        root = str(path)
-        if root not in sys.path:
-            sys.path.insert(0, root)
 
 
 class PythonSource:
     """Resolve and load a Python spec declaration for a project."""
 
     def __init__(self, project_root: pathlib.Path, python_spec: str | None = None) -> None:
-        self._project_root = project_root
-        self._python_spec = self._default_entrypoint() if python_spec is None else python_spec
-        self.module_name, self.separator, self.attribute = self.parse_entrypoint(self._python_spec)
-
-    @staticmethod
-    def parse_entrypoint(python_spec: str) -> tuple[str, str, str]:
-        """Parse and validate a ``module:attribute`` Python spec entrypoint."""
-        module_name, separator, attribute = python_spec.partition(":")
-        if (
-            not separator
-            or not all(part.isidentifier() for part in module_name.split("."))
-            or not attribute.isidentifier()
-        ):
-            raise ValueError(
-                f"Invalid spec entrypoint: {python_spec!r}. Expected 'module:attribute'."
-            )
-        return module_name, separator, attribute
-
-    @property
-    def path(self) -> pathlib.Path:
-        """Return the conventional Python spec entrypoint path."""
-        return self._project_root / paths.SPEC_PYTHON_ENTRY_FILE
+        self.project_root = project_root
+        self.path = project_root / paths.SPEC_PYTHON_ENTRY_FILE
+        self.entrypoint = entrypoint_module.Entrypoint(
+            self._default_entrypoint() if python_spec is None else python_spec,
+            root=imports.project_import_root(project_root),
+        )
 
     def is_available(self) -> bool:
         """Return whether the conventional Python spec entrypoint exists."""
@@ -63,20 +30,19 @@ class PythonSource:
     def _default_entrypoint(self) -> str:
         module = ".".join(
             self.path.resolve()
-            .relative_to(project_import_root(self._project_root))
+            .relative_to(imports.project_import_root(self.project_root))
             .with_suffix("")
             .parts
         )
         return f"{module}:{paths.DEFAULT_SPEC_ATTRIBUTE}"
 
-    def load(self, python_spec: str | None = None) -> spec.Spec:
+    def load(self) -> spec.Spec:
         """Validate and load a Python spec declaration."""
-        if python_spec is not None and python_spec != self._python_spec:
-            return PythonSource(self._project_root, python_spec).load()
-        module = importlib.import_module(self.module_name)
-        declaration = getattr(module, self.attribute)
+        module = self.entrypoint.module.load()
+        name = self.entrypoint.function.name
+        declaration = getattr(module, name)
         if not isinstance(declaration, python_spec_api.PythonSpec):
-            raise TypeError(f"{self._python_spec} must be a PythonSpec")
+            raise TypeError(f"{self.entrypoint.module.location}:{name} must be a PythonSpec")
         return spec.from_python(
             entities=declaration.entities,
             dimensions=declaration.dimensions,
@@ -87,21 +53,25 @@ class PythonSource:
 class JsonSource:
     """Resolve and load a JSON spec source for a project."""
 
-    def __init__(self, spec_source: SpecSource) -> None:
-        self._spec_source = spec_source
+    def __init__(self, project_root: pathlib.Path, json_spec: JsonSourceInput = None) -> None:
+        self.project_root = project_root
+        self.json_spec = json_spec
 
     @property
     def path(self) -> pathlib.Path:
-        """Return the conventional JSON spec entrypoint path."""
-        return self._spec_source.project_root / paths.SPEC_JSON_ENTRY_FILE
+        """Return the configured or conventional JSON spec path."""
+        if self.json_spec is not None:
+            return pathlib.Path(self.json_spec)
+        return self.project_root / paths.SPEC_JSON_ENTRY_FILE
 
     def is_available(self) -> bool:
-        """Return whether the conventional JSON spec entrypoint exists."""
+        """Return whether the configured JSON spec source exists."""
         return self.path.is_file()
 
     def load(self, json_spec: JsonSourceInput = None) -> spec.Spec:
-        """Load an explicit or conventional JSON spec source."""
-        return spec.load_spec(self.path if json_spec is None else json_spec)
+        """Load an explicit, configured, or conventional JSON spec source."""
+        source = self.path if json_spec is None else json_spec
+        return spec.load_spec(source)
 
 
 class SpecSource:
@@ -109,15 +79,6 @@ class SpecSource:
 
     def __init__(self, project_root: pathlib.Path) -> None:
         self.project_root = project_root
-        self._python: PythonSource | None = None
-        self.json = JsonSource(self)
-
-    @property
-    def python(self) -> PythonSource:
-        """Return the conventional Python source."""
-        if self._python is None:
-            self._python = PythonSource(self.project_root)
-        return self._python
 
     def load(
         self,
@@ -127,26 +88,29 @@ class SpecSource:
         """Resolve and load an explicit or discovered Python or JSON spec source."""
         if python_spec is not None and json_spec is not None:
             raise ValueError("Specify either a Python entrypoint or a spec JSON source, not both")
-        prepare_project_root(self.project_root)
 
+        imports.prepare_project_root(self.project_root)
         if json_spec is not None:
-            return self.json.load(json_spec)
+            return JsonSource(self.project_root, json_spec).load()
         if python_spec is not None:
             return PythonSource(self.project_root, python_spec).load()
 
-        python_available = self.python.is_available()
-        json_available = self.json.is_available()
+        python_source = PythonSource(self.project_root)
+        json_source = JsonSource(self.project_root)
+        python_available = python_source.is_available()
+        json_available = json_source.is_available()
+
         if python_available and json_available:
             raise ValueError(
-                f"Ambiguous spec sources: {self.python.path} and {self.json.path}. "
+                f"Ambiguous spec sources: {python_source.path} and {json_source.path}. "
                 "Select one with --python-spec or --json-spec."
             )
         if python_available:
-            return self.python.load()
+            return python_source.load()
         if json_available:
-            return self.json.load()
+            return json_source.load()
         raise FileNotFoundError(
-            f"No spec source found. Expected {self.python.path} or {self.json.path}. "
+            f"No spec source found. Expected {python_source.path} or {json_source.path}. "
             "Alternatively, specify --python-spec or --json-spec."
         )
 
