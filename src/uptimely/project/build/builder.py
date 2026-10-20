@@ -22,6 +22,15 @@ from uptimely.project.build import source as build_source
 BuildBundle = models.BuildBundle
 FeatureSelection = typing.Collection[str] | None
 
+_SPEC_PROCESSING_ERRORS = (
+    OSError,
+    ValueError,
+    ImportError,
+    AttributeError,
+    TypeError,
+    SyntaxError,
+)
+
 
 def _normalize_features(features: FeatureSelection) -> list[str] | None:
     """Validate and normalize an optional nonempty output-feature selection."""
@@ -80,6 +89,116 @@ def _publish_bundle(staging_root: pathlib.Path, target_root: pathlib.Path) -> No
             ) from error
 
 
+def _load_spec_definition(
+    root: pathlib.Path,
+    python_spec: str | None,
+    json_spec: build_source.JsonSourceInput,
+) -> spec.Spec:
+    """Load the project specification and report source errors by build stage."""
+    try:
+        return build_source.SpecSource(root).load(python_spec, json_spec)
+    except _SPEC_PROCESSING_ERRORS as error:
+        raise errors.ProjectBuildError("source loading", str(error)) from error
+
+
+def _compile_plan(
+    spec_definition: spec.Spec,
+    selected_features: list[str] | None,
+) -> compiler.ExecutionPlan:
+    """Compile a specification into its execution plan."""
+    try:
+        return compiler.Compiler(spec_definition, features=selected_features).compile()
+    except _SPEC_PROCESSING_ERRORS as error:
+        raise errors.ProjectBuildError("compilation", str(error)) from error
+
+
+def _generate_artifacts(
+    spec_definition: spec.Spec,
+    execution_plan: compiler.ExecutionPlan,
+    selected_features: list[str] | None,
+    staging_root: pathlib.Path,
+) -> None:
+    """Write the specification, execution plan, and Explorer site."""
+    try:
+        # Explorer imports project path constants; defer it until package initialization.
+        from uptimely.explorer import explorer as explorer_module
+
+        spec.write_document(spec_definition, staging_root / "spec.json")
+        execution_plan.export_json(staging_root / "execution_plan.json")
+        explorer_module.Explorer(
+            spec_definition,
+            plan=execution_plan,
+            features=selected_features,
+        ).create_html(staging_root / "explorer" / "index.html")
+    except (
+        OSError,
+        ValueError,
+        ImportError,
+        AttributeError,
+        TypeError,
+        SyntaxError,
+        jinja2.TemplateError,
+    ) as error:
+        raise errors.ProjectBuildError("artifact generation", str(error)) from error
+
+
+def _validate_staged_bundle(
+    root: pathlib.Path,
+    staging_root: pathlib.Path,
+    selected_features: list[str] | None,
+) -> None:
+    """Write the bundle manifest and validate all staged artifacts."""
+    explorer_root = staging_root / "explorer"
+    explorer_files = sorted(
+        path.relative_to(explorer_root).as_posix()
+        for path in explorer_root.rglob("*")
+        if path.is_file()
+    )
+    try:
+        manifest = models.BuildManifest(
+            schema_version=paths.BUILD_SCHEMA_VERSION,
+            uptimely_version=importlib.metadata.version("uptimely-core"),
+            features=selected_features,
+            artifacts=models.BuildArtifactPaths(
+                spec="spec.json",
+                execution_plan="execution_plan.json",
+                explorer="explorer",
+            ),
+            explorer_files=explorer_files,
+        )
+        (staging_root / paths.BUILD_MANIFEST_FILE.name).write_text(
+            json.dumps(manifest.model_dump(), indent=2),
+            encoding="utf-8",
+        )
+        bundle.load_bundle_at(root, staging_root)
+    except (
+        OSError,
+        ValueError,
+        pydantic.ValidationError,
+        importlib.metadata.PackageNotFoundError,
+        errors.BuildError,
+    ) as error:
+        raise errors.ProjectBuildError("bundle validation", str(error)) from error
+
+
+def _create_staging_root(generated_root: pathlib.Path) -> pathlib.Path:
+    """Create a temporary directory for the next active bundle."""
+    try:
+        return pathlib.Path(tempfile.mkdtemp(prefix=".build-staging-", dir=generated_root))
+    except OSError as error:
+        raise errors.ProjectBuildError("staging setup", str(error)) from error
+
+
+def _cleanup_staging_root(staging_root: pathlib.Path) -> None:
+    """Remove temporary build output after success or failure."""
+    if not staging_root.exists():
+        return
+    try:
+        shutil.rmtree(staging_root)
+    except OSError as error:
+        raise errors.ProjectBuildError("staging cleanup", str(error)) from error
+
+
 def build_project(
     project_root: str | pathlib.Path,
     python_spec: str | None = None,
@@ -106,101 +225,17 @@ def build_project(
         selected_features = _normalize_features(features)
     except (ValueError, TypeError) as error:
         raise errors.ProjectBuildError("feature selection", str(error)) from error
-    try:
-        spec_definition = build_source.SpecSource(root).load(python_spec, json_spec)
-    except (
-        OSError,
-        ValueError,
-        ImportError,
-        AttributeError,
-        TypeError,
-        SyntaxError,
-    ) as error:
-        raise errors.ProjectBuildError("source loading", str(error)) from error
+    spec_definition = _load_spec_definition(root, python_spec, json_spec)
 
     with locking.build_lock(root, exclusive=True, wait=False):
         generated_root = root / paths.GENERATED_DIR
+        staging_root = _create_staging_root(generated_root)
         try:
-            staging_root = pathlib.Path(
-                tempfile.mkdtemp(prefix=".build-staging-", dir=generated_root)
-            )
-        except OSError as error:
-            raise errors.ProjectBuildError("staging setup", str(error)) from error
-        try:
-            try:
-                execution_plan = compiler.Compiler(
-                    spec_definition, features=selected_features
-                ).compile()
-            except (
-                OSError,
-                ValueError,
-                ImportError,
-                AttributeError,
-                TypeError,
-                SyntaxError,
-            ) as error:
-                raise errors.ProjectBuildError("compilation", str(error)) from error
-
-            explorer_root = staging_root / "explorer"
-            try:
-                # Explorer imports project path constants; defer it until package initialization.
-                from uptimely.explorer import explorer as explorer_module
-
-                spec.write_document(spec_definition, staging_root / "spec.json")
-                execution_plan.export_json(staging_root / "execution_plan.json")
-                explorer_module.Explorer(
-                    spec_definition,
-                    plan=execution_plan,
-                    features=selected_features,
-                ).create_html(explorer_root / "index.html")
-            except (
-                OSError,
-                ValueError,
-                ImportError,
-                AttributeError,
-                TypeError,
-                SyntaxError,
-                jinja2.TemplateError,
-            ) as error:
-                raise errors.ProjectBuildError("artifact generation", str(error)) from error
-
-            explorer_files = sorted(
-                path.relative_to(explorer_root).as_posix()
-                for path in explorer_root.rglob("*")
-                if path.is_file()
-            )
-            try:
-                manifest = models.BuildManifest(
-                    schema_version=paths.BUILD_SCHEMA_VERSION,
-                    uptimely_version=importlib.metadata.version("uptimely-core"),
-                    features=selected_features,
-                    artifacts=models.BuildArtifactPaths(
-                        spec="spec.json",
-                        execution_plan="execution_plan.json",
-                        explorer="explorer",
-                    ),
-                    explorer_files=explorer_files,
-                )
-                (staging_root / paths.BUILD_MANIFEST_FILE.name).write_text(
-                    json.dumps(manifest.model_dump(), indent=2),
-                    encoding="utf-8",
-                )
-                bundle.load_bundle_at(root, staging_root)
-            except (
-                OSError,
-                ValueError,
-                pydantic.ValidationError,
-                importlib.metadata.PackageNotFoundError,
-                errors.BuildError,
-            ) as error:
-                raise errors.ProjectBuildError("bundle validation", str(error)) from error
-
+            execution_plan = _compile_plan(spec_definition, selected_features)
+            _generate_artifacts(spec_definition, execution_plan, selected_features, staging_root)
+            _validate_staged_bundle(root, staging_root, selected_features)
             _publish_bundle(staging_root, root / paths.BUILD_OUTPUT_DIR)
         finally:
-            if staging_root.exists():
-                try:
-                    shutil.rmtree(staging_root)
-                except OSError as error:
-                    raise errors.ProjectBuildError("staging cleanup", str(error)) from error
+            _cleanup_staging_root(staging_root)
 
         return bundle.load_bundle_at(root, root / paths.BUILD_OUTPUT_DIR)
