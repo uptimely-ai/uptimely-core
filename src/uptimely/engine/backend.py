@@ -155,4 +155,4 @@ class EntrypointLoader:
     """Default callable loader using the package entrypoint implementation."""
 
     def load(self, entrypoint: str) -> abc.Callable[..., typing.Any]:
-        return entrypoint_module.load_callable(entrypoint, pathlib.Path.cwd())
+        return entrypoint_module.Entrypoint(entrypoint, pathlib.Path.cwd()).function.load()

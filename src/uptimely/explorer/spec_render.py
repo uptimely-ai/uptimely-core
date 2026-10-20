@@ -222,7 +222,9 @@ def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool)
             ):
                 function["entrypoint_file"] = pathlib.Path(module_spec.origin).resolve().as_uri()
         try:
-            return_type = entrypoint_module.read_signature(entrypoint, pathlib.Path.cwd()).returns
+            return_type = entrypoint_module.Entrypoint(
+                entrypoint, pathlib.Path.cwd()
+            ).function.signature.returns
         except (AttributeError, ImportError, ModuleNotFoundError, TypeError, ValueError):
             return_type = None
         if return_type:

@@ -9,6 +9,7 @@ import pydantic
 from uptimely import engine as engine_module
 from uptimely import project
 from uptimely.cli import common, plan
+from uptimely.project import imports
 
 
 class EngineSettings(pydantic.BaseModel):
@@ -47,7 +48,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     root = args.project_root or pathlib.Path.cwd()
     config = common.project_path(args.config, args.project_root, project.ENGINE_CONFIG_FILE)
     try:
-        common.prepare_project_root(root)
+        imports.prepare_project_root(root)
         with project.read_build_bundle(root) as bundle:
             settings = EngineSettings.model_validate_json(config.read_text(encoding="utf-8"))
             execution_plan = bundle.execution_plan

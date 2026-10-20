@@ -47,22 +47,22 @@ def test_compiler_reports_unreadable_function_signatures() -> None:
         ("uptimely.compiler.plan.models:not_a_function", AttributeError),
     ],
 )
-def test_load_callable_rejects_invalid_entrypoints(
+def test_function_load_rejects_invalid_entrypoints(
     entrypoint: str,
     error: type[Exception],
 ) -> None:
     with pytest.raises(error):
-        shared_entrypoint.load_callable(entrypoint)
+        shared_entrypoint.Entrypoint(entrypoint).function.load()
 
 
-def test_load_callable_accepts_a_function_reference_entrypoint() -> None:
+def test_function_load_accepts_a_function_reference_entrypoint() -> None:
     reference = ref.function(math.ceil)
 
-    assert shared_entrypoint.load_callable(reference.entrypoint)(1.2) == 2
+    assert shared_entrypoint.Entrypoint(reference.entrypoint).function.load()(1.2) == 2
 
 
 @pytest.mark.parametrize("relative", [False, True, "plain"])
-def test_load_callable_accepts_local_file_references(
+def test_function_load_accepts_local_file_references(
     tmp_path: pathlib.Path, relative: bool | str
 ) -> None:
     path = tmp_path / "calculation.py"
@@ -72,11 +72,15 @@ def test_load_callable_accepts_local_file_references(
     )
     reference = ref.function(f"{location}:increment")
 
-    function = shared_entrypoint.load_callable(reference.entrypoint, root=tmp_path)
+    entrypoint = shared_entrypoint.Entrypoint(reference.entrypoint, root=tmp_path)
+    function = entrypoint.function.load()
 
     assert function(2) == 3
-    assert shared_entrypoint.load_callable(reference.entrypoint, root=tmp_path) is function
-    assert shared_entrypoint.read_signature(reference.entrypoint, root=tmp_path).returns == "int"
+    assert entrypoint.function.load() is function
+    assert entrypoint.function.signature.returns == "int"
+    assert shared_entrypoint.Signature.read(entrypoint.function).returns == "int"
+    assert shared_entrypoint.TypeAnnotation.name(int | None) == "int | None"
+    assert entrypoint.module.load() is entrypoint.function.module.load()
 
 
 @pytest.mark.parametrize(
@@ -92,7 +96,7 @@ def test_unsupported_remote_schemes_are_not_loaded(location: str) -> None:
     reference = ref.function(f"{location}:calculate")
 
     with pytest.raises(ValueError, match="Unsupported function reference scheme"):
-        shared_entrypoint.load_callable(reference.entrypoint)
+        shared_entrypoint.Entrypoint(reference.entrypoint).function.load()
 
 
 def test_local_file_import_failures_are_not_cached(tmp_path: pathlib.Path) -> None:
@@ -102,12 +106,12 @@ def test_local_file_import_failures_are_not_cached(tmp_path: pathlib.Path) -> No
 
     for _ in range(2):
         with pytest.raises(RuntimeError, match="module failed"):
-            shared_entrypoint.load_callable(reference.entrypoint)
+            shared_entrypoint.Entrypoint(reference.entrypoint).function.load()
 
 
-def test_load_callable_rejects_noncallable_attributes() -> None:
+def test_function_load_rejects_noncallable_attributes() -> None:
     with pytest.raises(TypeError, match="is not callable"):
-        shared_entrypoint.load_callable("math:pi")
+        shared_entrypoint.Entrypoint("math:pi").function.load()
 
 
 class _Response(io.BytesIO):
@@ -196,10 +200,13 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
     assert downloads == expected_downloads
     if scheme == "https":
         assert all(response.closed for response in responses)
-    assert shared_entrypoint.read_signature(f"{location}:calculate").args == {
+    entrypoint = shared_entrypoint.Entrypoint(f"{location}:calculate")
+    assert entrypoint.function.signature.args == {
         "dataset": "DataFrame",
         "output": "str",
     }
+    if scheme != "local":
+        assert entrypoint.module.load_external() is entrypoint.module.load()
     configuration = spec_render._build_context(spec_definition, False).configuration
     expected_file = path.as_uri() if scheme == "local" else location
     assert configuration["functions"]["calculate"]["entrypoint_file"] == expected_file
@@ -217,13 +224,13 @@ def test_https_loading_propagates_download_errors_and_can_retry(
     monkeypatch.setattr(request, "urlopen", failure)
     for _ in range(2):
         with pytest.raises(error.HTTPError, match="403"):
-            shared_entrypoint.load_callable(f"{location}:calculate")
+            shared_entrypoint.Entrypoint(f"{location}:calculate").function.load()
 
     def success(url: str, *, timeout: int) -> _Response:
         return _Response(b"def calculate():\n    return 42\n", url)
 
     monkeypatch.setattr(request, "urlopen", success)
-    assert shared_entrypoint.load_callable(f"{location}:calculate")() == 42
+    assert shared_entrypoint.Entrypoint(f"{location}:calculate").function.load()() == 42
 
 
 def test_s3_loading_reports_missing_optional_dependencies(
@@ -231,7 +238,9 @@ def test_s3_loading_reports_missing_optional_dependencies(
 ) -> None:
     monkeypatch.setattr(storage, "boto3", None)
     with pytest.raises(ModuleNotFoundError, match=r"uptimely-core\[s3\]"):
-        shared_entrypoint.load_callable(f"s3://bucket/{tmp_path.name}/module.py:calculate")
+        shared_entrypoint.Entrypoint(
+            f"s3://bucket/{tmp_path.name}/module.py:calculate"
+        ).function.load()
 
 
 def test_remote_source_execution_failures_are_not_cached(
@@ -243,15 +252,15 @@ def test_remote_source_execution_failures_are_not_cached(
     monkeypatch.setattr(request, "urlopen", failure)
     for _ in range(2):
         with pytest.raises(RuntimeError, match="module failed"):
-            shared_entrypoint.load_callable(
+            shared_entrypoint.Entrypoint(
                 f"https://example.org/{tmp_path.name}/module.py:calculate"
-            )
+            ).function.load()
 
 
 @pytest.mark.parametrize("location", ["https://example.org", "s3://bucket/"])
 def test_remote_locations_must_identify_source_files(location: str) -> None:
     with pytest.raises(ValueError, match="must point to a source file"):
-        shared_entrypoint.load_callable(f"{location}:calculate")
+        shared_entrypoint.Entrypoint(f"{location}:calculate").function.load()
 
 
 def test_https_loading_rejects_redirects_to_other_schemes(
@@ -262,4 +271,6 @@ def test_https_loading_rejects_redirects_to_other_schemes(
 
     monkeypatch.setattr(request, "urlopen", redirect)
     with pytest.raises(ValueError, match="must not redirect"):
-        shared_entrypoint.load_callable(f"https://example.org/{tmp_path.name}/module.py:calculate")
+        shared_entrypoint.Entrypoint(
+            f"https://example.org/{tmp_path.name}/module.py:calculate"
+        ).function.load()

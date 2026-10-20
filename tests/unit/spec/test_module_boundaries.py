@@ -163,7 +163,7 @@ def test_structural_operations_do_not_inspect_python_entrypoints(
     def unexpected_inspection(*args: object, **kwargs: object) -> None:
         pytest.fail("Structural operations must not inspect Python entrypoints")
 
-    monkeypatch.setattr(entrypoint, "read_signature", unexpected_inspection)
+    monkeypatch.setattr(entrypoint, "Entrypoint", unexpected_inspection)
     payload = codec.load_document(SPEC_PATH)
     document = model.Spec.model_validate(payload)
 

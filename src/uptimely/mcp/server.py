@@ -21,6 +21,7 @@ import polars as pl
 from uptimely import contracts, entrypoint, spec
 from uptimely import engine as uptimely_engine
 from uptimely.project import build as project_build
+from uptimely.project import imports
 from uptimely.spec import model as spec_model
 from uptimely.spec import references
 
@@ -105,7 +106,7 @@ def _build_details(snapshot: BuildSnapshot) -> dict[str, typing.Any]:
 
 def create_server(state: ServerState) -> fastmcp.FastMCP:
     """Create the MCP server with tools bound to the given server state."""
-    project_build.prepare_project_root(state.project_root)
+    imports.prepare_project_root(state.project_root)
 
     mcp = fastmcp.FastMCP("uptimely")
 
@@ -138,7 +139,9 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         template = snapshot.spec.functions.get(function_id)
         if template is None:
             raise ValueError(f"Unknown function: {function_id}")
-        signature = entrypoint.read_signature(template.entrypoint, root=state.project_root)
+        signature = entrypoint.Entrypoint(
+            template.entrypoint, root=state.project_root
+        ).function.signature
         return _to_json(
             {
                 "id": function_id,
