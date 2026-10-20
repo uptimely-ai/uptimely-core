@@ -80,8 +80,10 @@ It is also exposed as `uptimely.spec.mapping`.
 objects.
 
 Function references accept `validate_signature`, defaulting to `True`. Conversion
-preserves it in the function catalog and exported JSON. This metadata alone does
-not yet disable compiler or Explorer signature inspection.
+preserves it in the function catalog and exported JSON. When `False`, compilation
+does not import the implementation or check its Python return annotation.
+Declared dependencies and spec contracts are unchanged. Explorer support for
+skipping signature inspection will follow separately.
 
 ::: uptimely.spec.python.ref
     options:

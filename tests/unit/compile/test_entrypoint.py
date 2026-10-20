@@ -40,6 +40,85 @@ def test_compiler_reports_unreadable_function_signatures() -> None:
         compiler.Compiler(spec_definition).compile()
 
 
+def test_compiler_skips_disabled_signatures_without_changing_dependencies(
+    tmp_path: pathlib.Path,
+) -> None:
+    spec_definition = spec.load_spec(SPEC_PATH)
+    baseline = compiler.Compiler(spec_definition).compile()
+    module_path = tmp_path / "unavailable.py"
+    marker = tmp_path / "imported"
+    module_path.write_text(
+        f"from pathlib import Path\nPath({str(marker)!r}).touch()\n"
+        "import uptimely_test_missing_dependency\n"
+    )
+    function = spec_definition.functions["pressure_flow_efficiency"]
+    function.entrypoint = f"{module_path}:calculate"
+    function.validate_signature = False
+
+    compiled = compiler.Compiler(spec_definition).compile()
+
+    assert not marker.exists()
+    assert [set(stage) for stage in compiled.plan.stages] == [
+        set(stage) for stage in baseline.plan.stages
+    ]
+    assert len(compiled.callables) == len(baseline.callables)
+    baseline_callables = {node.id: node for node in baseline.callables}
+    assert {node.id for node in compiled.callables} == set(baseline_callables)
+    for actual in compiled.callables:
+        expected = baseline_callables[actual.id]
+        assert set(actual.dependency_ids) == set(expected.dependency_ids)
+        assert actual.input_features == expected.input_features
+        assert actual.output_features == expected.output_features
+        if actual.function_id == function.id:
+            assert actual.entrypoint == function.entrypoint
+            assert actual.id not in compiled.plan.resources["signatures"]
+        else:
+            assert actual.id in compiled.plan.resources["signatures"]
+
+    function.validate_signature = True
+    with pytest.raises(
+        ValueError, match="Could not read signature.*uptimely_test_missing_dependency"
+    ):
+        compiler.Compiler(spec_definition).compile()
+
+
+def test_compiler_still_checks_other_functions_when_a_signature_is_disabled() -> None:
+    spec_definition = spec.load_spec(SPEC_PATH)
+    spec_definition.functions["pressure_flow_efficiency"].validate_signature = False
+    spec_definition.functions["maximum"].entrypoint = "uptimely_test_missing_dependency:calculate"
+
+    with pytest.raises(ValueError, match="Could not read signature.*maximum"):
+        compiler.Compiler(spec_definition).compile()
+
+
+def test_compiler_skips_disabled_return_annotation_validation(tmp_path: pathlib.Path) -> None:
+    module_path = tmp_path / "incompatible.py"
+    module_path.write_text("def calculate() -> int:\n    return 1\n")
+    spec_definition = spec.load_spec(SPEC_PATH)
+    function = spec_definition.functions["pressure_flow_efficiency"]
+    function.entrypoint = f"{module_path}:calculate"
+    function.validate_signature = False
+
+    compiler.Compiler(spec_definition).compile()
+
+    function.validate_signature = True
+    with pytest.raises(ValueError, match="Python return annotation is int"):
+        compiler.Compiler(spec_definition).compile()
+
+
+@pytest.mark.parametrize("validate_signature", [False, True])
+def test_compiler_checks_entrypoint_syntax_when_signature_validation_is_disabled(
+    validate_signature: bool,
+) -> None:
+    spec_definition = spec.load_spec(SPEC_PATH)
+    function = spec_definition.functions["pressure_flow_efficiency"]
+    function.entrypoint = "invalid-entrypoint"
+    function.validate_signature = validate_signature
+
+    with pytest.raises(ValueError, match="Could not read signature.*Invalid entrypoint"):
+        compiler.Compiler(spec_definition).compile()
+
+
 @pytest.mark.parametrize(
     ("entrypoint", "error"),
     [
