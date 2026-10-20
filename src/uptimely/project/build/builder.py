@@ -19,7 +19,6 @@ from uptimely.project import paths
 from uptimely.project.build import bundle, errors, locking, models
 from uptimely.project.build import source as build_source
 
-SpecSource = build_source.SpecSource
 BuildBundle = models.BuildBundle
 FeatureSelection = typing.Collection[str] | None
 
@@ -85,7 +84,7 @@ def build_project(
     project_root: str | pathlib.Path,
     *,
     entrypoint: str | None = None,
-    source: SpecSource = None,
+    source: build_source.JsonSourceInput = None,
     features: FeatureSelection = None,
 ) -> BuildBundle:
     """Build and publish a complete spec, execution plan, and Explorer bundle.
@@ -109,7 +108,7 @@ def build_project(
     except (ValueError, TypeError) as error:
         raise errors.ProjectBuildError("feature selection", str(error)) from error
     try:
-        spec_definition = build_source.load_spec_source(entrypoint, root, source=source)
+        spec_definition = build_source.SpecSource(root).load(entrypoint, source=source)
     except (
         OSError,
         ValueError,
