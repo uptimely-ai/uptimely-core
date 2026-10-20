@@ -79,11 +79,26 @@ It is also exposed as `uptimely.spec.mapping`.
 `uptimely.spec.python.ref` builds references to functions and spec
 objects.
 
-Function references accept `validate_signature`, defaulting to `True`. Conversion
-preserves it in the function catalog and exported JSON. When `False`, compilation
-does not import the implementation or check its Python return annotation.
-Declared dependencies and spec contracts are unchanged. Explorer support for
-skipping signature inspection will follow separately.
+Function references accept `validate_signature`, defaulting to `True`.
+Conversion preserves it in the function catalog and exported JSON. When
+`False`, compilation and documentation do not import the implementation or
+inspect its signature. Spec-level contracts and declared feature dependencies
+are still validated, and execution still requires a loadable implementation.
+
+Use an entrypoint string when the implementation must not be imported while
+loading the Python spec:
+
+```python
+ref.function(
+    "other_project.functions:calculate",
+    operation="vectorize",
+    validate_signature=False,
+)
+```
+
+Python spec declarations execute during source loading. Do not import an
+unavailable analytical implementation from the declaration module itself;
+pass its entrypoint as a string instead.
 
 ::: uptimely.spec.python.ref
     options:
