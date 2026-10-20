@@ -23,6 +23,10 @@ class FunctionTemplate(common.StrictModel):
     operation: FunctionOperation
     returns: FunctionReturns
     entrypoint: str
+    validate_signature: bool = pydantic.Field(
+        default=True,
+        description="Whether to inspect the Python signature and check implementation contracts.",
+    )
     args: dict[str, common.Argument] = pydantic.Field(default_factory=dict)
     description: str | None = None
 

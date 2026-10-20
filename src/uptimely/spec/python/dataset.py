@@ -129,6 +129,7 @@ class Dataset:
                             operation=operation,
                             entrypoint=bind._entrypoint(declaration.bind.function),
                             args=arguments,
+                            validate_signature=declaration.bind.function.validate_signature,
                         )
                     }
                 )

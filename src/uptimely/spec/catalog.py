@@ -14,6 +14,8 @@ def function_template(
     operation: contracts.FunctionOperation,
     entrypoint: str,
     args: dict[str, spec_model.Argument],
+    *,
+    validate_signature: bool = True,
 ) -> spec_model.FunctionTemplate:
     """Create a function template for the spec document from its declarations."""
     return spec_model.FunctionTemplate(
@@ -21,6 +23,7 @@ def function_template(
         operation=operation,
         returns=contracts.OPERATION_RETURN_KINDS[operation],
         entrypoint=entrypoint,
+        validate_signature=validate_signature,
         args=args,
     )
 
