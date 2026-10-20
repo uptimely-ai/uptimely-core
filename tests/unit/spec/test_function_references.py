@@ -40,6 +40,7 @@ def test_callable_and_string_forms_have_identical_entrypoints(
     assert reference.module == "math"
     assert reference.name == "ceil"
     assert reference.entrypoint == "math:ceil"
+    assert reference.validate_signature is True
     with pytest.raises(dataclasses.FrozenInstanceError):
         reference.name = "floor"
 
@@ -47,6 +48,81 @@ def test_callable_and_string_forms_have_identical_entrypoints(
 def test_function_reference_rejects_unsupported_operation() -> None:
     with pytest.raises(ValueError, match="Unsupported function operation"):
         ref.function("math:ceil", operation=typing.cast(contracts.FunctionOperation, "unknown"))
+
+
+@pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
+@pytest.mark.parametrize("validate_signature", [False, True])
+def test_signature_validation_setting_survives_conversion_without_importing(
+    operation: contracts.FunctionOperation,
+    validate_signature: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unexpected_import(*_args: object, **_kwargs: object) -> typing.NoReturn:
+        pytest.fail("Converting a function reference must not import its module")
+
+    monkeypatch.setattr(importlib, "import_module", unexpected_import)
+    reference = ref.function(
+        "unavailable_package.functions:calculate",
+        operation=operation,
+        validate_signature=validate_signature,
+    )
+    declaration = dataset.Dataset(
+        id="observations",
+        mappings=[mapping.Mapping(bind=bind.bind(reference))],
+    )
+
+    payload = conversion.to_dict(datasets=[declaration])
+    reloaded = spec_model.Spec.model_validate(json.loads(json.dumps(payload)))
+
+    assert reference.validate_signature is validate_signature
+    assert payload["functions"]["calculate"]["validate_signature"] is validate_signature
+    assert reloaded.functions["calculate"].validate_signature is validate_signature
+
+
+@pytest.mark.parametrize("validate_signature", [None, "false", 0, 1])
+def test_function_reference_rejects_non_boolean_signature_validation(
+    validate_signature: typing.Any,
+) -> None:
+    with pytest.raises(TypeError, match="validate_signature must be a boolean"):
+        ref.function("math:ceil", validate_signature=validate_signature)
+
+
+def test_function_model_defaults_signature_validation_and_exposes_schema() -> None:
+    function = spec_model.FunctionTemplate(
+        id="calculate",
+        operation="vectorize",
+        returns="dataframe",
+        entrypoint="unavailable_package:calculate",
+    )
+
+    assert function.validate_signature is True
+    assert function.model_dump()["validate_signature"] is True
+    schema = spec_model.FunctionTemplate.model_json_schema()
+    assert schema["properties"]["validate_signature"]["type"] == "boolean"
+    assert schema["properties"]["validate_signature"]["default"] is True
+
+
+def test_conflicting_signature_validation_settings_are_rejected() -> None:
+    declarations = [
+        dataset.Dataset(
+            id=identifier,
+            mappings=[
+                mapping.Mapping(
+                    bind=bind.bind(
+                        ref.function(
+                            "math:ceil",
+                            operation="vectorize",
+                            validate_signature=validate_signature,
+                        )
+                    )
+                )
+            ],
+        )
+        for identifier, validate_signature in [("first", True), ("second", False)]
+    ]
+
+    with pytest.raises(ValueError, match="Conflicting function definition for 'ceil'"):
+        conversion.to_dict(datasets=declarations)
 
 
 @pytest.mark.parametrize("location", MODULE_LOCATIONS)

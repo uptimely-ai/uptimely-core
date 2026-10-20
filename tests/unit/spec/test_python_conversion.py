@@ -59,6 +59,7 @@ def test_auto_catalog_converts_declaration_lists_and_dicts(keyed: bool, as_entit
             "operation": "read",
             "returns": "dataframe",
             "entrypoint": f"{__name__}:_source",
+            "validate_signature": True,
             "args": {
                 "path": {"type": "string", "comment": None},
                 "columns": {"type": "array[string]", "comment": None},
@@ -102,6 +103,7 @@ def test_explicit_catalog_preserves_argument_metadata(
                 operation="read",
                 returns="dataframe",
                 entrypoint="custom.reader:load",
+                validate_signature=False,
                 args={
                     "path": spec_model.Argument(id="path", type="string", comment="Input path"),
                     "columns": spec_model.Argument(id="columns", type="array[string]"),
@@ -128,6 +130,7 @@ def test_explicit_catalog_preserves_argument_metadata(
         "operation": "read",
         "returns": "dataframe",
         "entrypoint": "custom.reader:load",
+        "validate_signature": False,
         "args": {
             "path": {"type": "string", "comment": "Input path"},
             "columns": {"type": "array[string]", "comment": None},
@@ -156,6 +159,7 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
         "operation": "read",
         "returns": "dataframe",
         "entrypoint": "reader:load",
+        "validate_signature": True,
         "args": {"value": {"type": "object", "comment": None}},
     }
     assert payload["dimensions"] == {}

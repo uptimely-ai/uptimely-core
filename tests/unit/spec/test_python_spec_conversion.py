@@ -182,6 +182,7 @@ def test_function_catalog_merges_and_deduplicates_each_operation(category: str) 
         "operation": category,
         "returns": "none" if category == "write" else "dataframe",
         "entrypoint": f"{__name__}:_source",
+        "validate_signature": True,
         "args": {
             "columns": {"type": "array[string]", "comment": None},
             **(

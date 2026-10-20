@@ -27,6 +27,7 @@ class FunctionReference:
     module: str
     name: str
     operation: contracts.FunctionOperation | None = None
+    validate_signature: bool = True
 
     def __post_init__(self) -> None:
         if not isinstance(self.module, str):
@@ -39,6 +40,8 @@ class FunctionReference:
             raise ValueError("Function reference name must be a Python identifier")
         if self.operation is not None and self.operation not in contracts.FUNCTION_OPERATIONS:
             raise ValueError(f"Unsupported function operation: {self.operation}")
+        if not isinstance(self.validate_signature, bool):
+            raise TypeError("validate_signature must be a boolean")
 
     @property
     def entrypoint(self) -> str:
@@ -50,6 +53,7 @@ def function(
     function: abc.Callable[..., object] | str,
     *,
     operation: contracts.FunctionOperation | None = None,
+    validate_signature: bool = True,
 ) -> FunctionReference:
     """Reference a callable or a ``module:function`` entrypoint string.
 
@@ -60,12 +64,15 @@ def function(
             ``s3://bucket/module.py:calculate``. Creating a reference does not
             load code; compilation and execution do.
         operation: Optional operation metadata for generic mapping declarations.
+        validate_signature: Whether compilation and documentation should inspect
+            the Python signature and validate implementation contracts.
 
     Returns:
         A reference containing the module location and function name.
 
     Raises:
-        TypeError: If the argument is neither callable nor a string.
+        TypeError: If the argument is neither callable nor a string, or
+            validate_signature is not a boolean.
         ValueError: If the entrypoint is invalid or the callable has no valid
             module and function name, or if operation is unsupported.
     """
@@ -82,7 +89,12 @@ def function(
             raise ValueError(
                 "Callable must have a module and function name; pass an entrypoint string instead"
             )
-    return FunctionReference(module=module, name=name, operation=operation)
+    return FunctionReference(
+        module=module,
+        name=name,
+        operation=operation,
+        validate_signature=validate_signature,
+    )
 
 
 @dataclasses.dataclass(frozen=True)
