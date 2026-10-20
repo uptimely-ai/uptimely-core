@@ -10,6 +10,7 @@ and return values generated from the Python source.
 
 | Package or module | Reference | Purpose |
 | --- | --- | --- |
+| `uptimely.project` | [Projects](api/project.md) | Load project specs and build or read active build bundles. |
 | `uptimely.spec` | <span id="spec-models-and-operations"></span>[Spec](api/spec.md) | Load, validate, prepare, and serialize spec definitions. |
 | `uptimely.spec.python` | <span id="python-authoring"></span>[Python authoring](api/python.md) | Declare spec using Python classes and helpers. |
 | `uptimely.spec.feature_graph` | <span id="dependency-graphs"></span>[Feature graphs](api/feature-graph.md) | Inspect dependencies and select feature subgraphs. |
