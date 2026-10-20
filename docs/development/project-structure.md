@@ -86,8 +86,8 @@ for project builds, execution, Explorer, and feature graphs.
 generates a complete active bundle under `_generated/build/`. Use
 `--features <name> [<name> ...]` to publish a scoped plan; omit it to include
 all features. Python sources expose `python_spec`, a `PythonSpec` instance. Use
-`--entrypoint
-<module>:<attribute>` or `--spec <path>` to select a source explicitly; this
+`--python-spec <module>.<sub_module>:<attribute>` or `--json-spec <path>` to select a source
+explicitly; this
 is required when both standard sources exist. The generated website and plan
 are included in that bundle. `uptimely spec feature-graph` prints graph
 summaries and, with `--verbose`, dependency trees from the saved spec without

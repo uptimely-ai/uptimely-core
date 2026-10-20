@@ -338,7 +338,7 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
         ),
         encoding="utf-8",
     )
-    project_module.build_project(project, source=spec_path)
+    project_module.build_project(project, json_spec=spec_path)
     result = subprocess.run(
         [
             sys.executable,

@@ -15,12 +15,12 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     )
     source = build.add_mutually_exclusive_group()
     source.add_argument(
-        "--entrypoint",
+        "--python-spec",
         metavar="MODULE:ATTRIBUTE",
         help="Importable module and attribute containing a PythonSpec instance",
     )
     source.add_argument(
-        "--spec",
+        "--json-spec",
         type=pathlib.Path,
         help="Source spec JSON path (overrides standard source discovery)",
     )
@@ -43,8 +43,8 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     try:
         bundle = project_build.build_project(
             root,
-            entrypoint=args.entrypoint,
-            source=args.spec,
+            python_spec=args.python_spec,
+            json_spec=args.json_spec,
             features=args.features,
         )
     except (

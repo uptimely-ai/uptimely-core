@@ -150,9 +150,9 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             "outputs=[ref.feature('value')])])])])\n",
             encoding="utf-8",
         )
-        arguments = ["--entrypoint", "declaration:definition"]
+        arguments = ["--python-spec", "declaration:definition"]
     else:
-        arguments = ["--spec", "source.json"]
+        arguments = ["--json-spec", "source.json"]
 
     invoke(monkeypatch, "--project-root", str(root), *arguments)
 
@@ -350,8 +350,8 @@ def test_project_build_help(
         cli.main()
     assert error.value.code == 0
     result = capsys.readouterr()
-    assert "--entrypoint MODULE:ATTRIBUTE" in result.out
-    assert "--spec" in result.out
+    assert "--python-spec MODULE:ATTRIBUTE" in result.out
+    assert "--json-spec" in result.out
     assert "--project-root" in result.out
     assert "--features FEATURE" in result.out
     assert not result.err
@@ -362,7 +362,14 @@ def test_project_build_help(
     [
         ["project"],
         ["project", "unknown"],
-        ["project", "build", "--entrypoint", "module:attribute", "--spec", "source.json"],
+        [
+            "project",
+            "build",
+            "--python-spec",
+            "module:attribute",
+            "--json-spec",
+            "source.json",
+        ],
         ["project", "build", "--output", "custom"],
         ["project", "build", "--features"],
     ],

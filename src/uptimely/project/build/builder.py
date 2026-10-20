@@ -82,16 +82,16 @@ def _publish_bundle(staging_root: pathlib.Path, target_root: pathlib.Path) -> No
 
 def build_project(
     project_root: str | pathlib.Path,
-    entrypoint: str | None = None,
-    source: build_source.JsonSourceInput = None,
+    python_spec: str | None = None,
+    json_spec: build_source.JsonSourceInput = None,
     features: FeatureSelection = None,
 ) -> BuildBundle:
     """Build and publish a complete spec, execution plan, and Explorer bundle.
 
     Args:
         project_root: Root directory of the analytics project.
-        entrypoint: Optional ``module:attribute`` containing a ``PythonSpec``.
-        source: Optional explicit spec JSON path.
+        python_spec: Optional ``module:attribute`` containing a ``PythonSpec``.
+        json_spec: Optional explicit spec JSON path.
         features: Optional output features to compile with their dependencies.
 
     Returns:
@@ -107,7 +107,7 @@ def build_project(
     except (ValueError, TypeError) as error:
         raise errors.ProjectBuildError("feature selection", str(error)) from error
     try:
-        spec_definition = build_source.SpecSource(root).load(entrypoint, source=source)
+        spec_definition = build_source.SpecSource(root).load(python_spec, json_spec)
     except (
         OSError,
         ValueError,
