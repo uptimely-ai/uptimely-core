@@ -6,24 +6,7 @@ This page introduces three ways to organize analytical projects.
 
 Keep the spec declarations and analytical functions in a monorepo layout. This is the simplest starting point and matches the runnable examples.
 
-The end-to-end example uses this layout (supporting files are omitted):
-
-```text
-project/
-├── functions/
-│   ├── source.py
-│   └── calculation.py
-├── config/
-│   ├── engine.json
-│   └── spec/
-│       └── spec.py
-└── _generated/
-    └── build/
-        ├── build.json
-        ├── spec.json
-        ├── execution_plan.json
-        └── explorer/
-```
+The end-to-end example uses the reference [project structure](project-structure.md).
 
 Keep functions in simple modules initially. Split them into packages when their
 size or reuse warrants it, and distribute shared code as a versioned package when

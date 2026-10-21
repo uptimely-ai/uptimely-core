@@ -5,8 +5,8 @@ This page shows a recommended project layout for a single analytics project buil
 ## Suggested structure
 
 A practical setup keeps source data, Python declarations, and generated artifacts
-separate. This minimal layout follows the end-to-end example; supporting modules
-are omitted:
+separate. This minimal layout keeps specifications at the project root and
+omits supporting modules:
 
 ```text
 project/
@@ -15,13 +15,13 @@ project/
 │   ├── source.py
 │   └── calculation.py
 ├── config/
-│   ├── engine.json
-│   └── spec/
-│       ├── spec.py
-│       ├── dataset_<name>.py
-│       ├── entity.py
-│       ├── dimension.py
-│       └── functions.py
+│   └── engine.json
+├── spec/
+│   ├── spec.py <-- default spec entrypoint
+│   ├── dataset_<name>.py
+│   ├── entity.py
+│   ├── dimension.py
+│   └── functions.py
 └── _generated/
     └── build/
         ├── build.json
@@ -36,12 +36,12 @@ project/
 | --- | --- |
 | `data/` | Raw or reference datasets used by the analytics workflow. |
 | `functions/` | Reusable source, calculation, and write functions. |
-| `config/spec/` | Python declarations that define entities, datasets, and relationships. |
+| `spec/` | Python declarations that define entities, datasets, and relationships. |
 | `_generated/` | Generated project artifacts. The active build is stored in `_generated/build/`. |
 | `config/engine.json` | Engine settings and bind values used to resolve runtime placeholders. |
 
 This separation keeps the project easy to reason about: specification declarations
-live in config, runtime logic lives in functions, and generated resources stay
+live in `spec/`, runtime logic lives in functions, and generated resources stay
 clearly separate from source inputs.
 
 ## Active build bundle
@@ -82,7 +82,7 @@ while preserving flexibility in the analytics implementation.
 The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/pump_analytics/README.md) uses CLI commands
 for project builds, execution, Explorer, and feature graphs.
 `uptimely project build --project-root <project>` discovers
-`config/spec/spec.py` or `config/spec/spec.json`, validates the source, and
+`spec/spec.py` or `spec/spec.json`, validates the source, and
 generates a complete active bundle under `_generated/build/`. Use
 `--features <name> [<name> ...]` to publish a scoped plan; omit it to include
 all features. Python sources expose `python_spec`, a `PythonSpec` instance. Use

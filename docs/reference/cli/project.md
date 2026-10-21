@@ -37,8 +37,8 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 | `--json-spec PATH` | No | Discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Relative to the current working directory. |
 | `--features FEATURE ...` | No | All features | Select one or more output features and their required dependencies. |
 
-Source discovery checks `config/spec/spec.py` and
-`config/spec/spec.json` beneath the project root. If both exist, select one
+Source discovery checks `spec/spec.py` and `spec/spec.json` beneath the
+project root. If both exist, select one
 explicitly with `--python-spec` or `--json-spec`.
 
 ```console

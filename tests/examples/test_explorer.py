@@ -3,7 +3,7 @@ import pathlib
 from html import parser as html_parser
 
 from conftest import EXAMPLES_ROOT, render_explorer
-from examples.pump_analytics.config.spec import spec as pump_analytics_module
+from examples.pump_analytics.spec import spec as pump_analytics_module
 
 from uptimely import spec
 from uptimely.explorer import spec_render

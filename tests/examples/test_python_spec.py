@@ -2,12 +2,12 @@ import json
 import pathlib
 
 from conftest import EXAMPLES_ROOT
-from examples.pump_analytics.config.spec import dimension as pump_dimensions
-from examples.pump_analytics.config.spec import entity as pump_entities
-from examples.pump_analytics.config.spec import spec as pump_telemetry_spec
 from examples.pump_analytics.functions import calculation
-from examples.simple_analytics.config.spec import spec as simple_analytics_module
+from examples.pump_analytics.spec import dimension as pump_dimensions
+from examples.pump_analytics.spec import entity as pump_entities
+from examples.pump_analytics.spec import spec as pump_telemetry_spec
 from examples.simple_analytics.functions import functions
+from examples.simple_analytics.spec import spec as simple_analytics_module
 
 from uptimely import spec
 from uptimely.spec import python as python_spec
