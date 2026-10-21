@@ -1,9 +1,12 @@
 """Command-line orchestration for building generated project resources."""
 
 import argparse
+import logging
 import pathlib
 
 from uptimely.project import build as project_build
+
+logger = logging.getLogger(__name__)
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
@@ -57,6 +60,6 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     scope = (
         "all features" if bundle.manifest.features is None else ", ".join(bundle.manifest.features)
     )
-    print(f"Build scope: {scope}")
-    print(f"Build bundle: {bundle.root}")
-    print(f"Compiled {len(bundle.execution_plan.callables)} callables")
+    logger.info("Build scope: %s", scope)
+    logger.info("Build bundle: %s", bundle.root)
+    logger.info("Compiled %d callables", len(bundle.execution_plan.callables))

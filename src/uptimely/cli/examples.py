@@ -1,6 +1,7 @@
 """Command-line tools for downloading example projects."""
 
 import argparse
+import logging
 import pathlib
 import re
 import shutil
@@ -11,6 +12,8 @@ from http import client
 from importlib import metadata
 from urllib import error as urllib_error
 from urllib import parse, request
+
+logger = logging.getLogger(__name__)
 
 EXAMPLES_FOLDER: str = "examples"
 DISTRIBUTION_NAME: str = "uptimely-core"
@@ -157,4 +160,4 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         metadata.PackageNotFoundError,
     ) as error:
         parser.exit(1, f"uptimely: error: {error}\n")
-    print(f"Downloaded examples to {destination}")
+    logger.info("Downloaded examples to %s", destination)

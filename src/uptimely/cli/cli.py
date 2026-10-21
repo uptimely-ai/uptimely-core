@@ -1,6 +1,8 @@
 """Entry point for the Uptimely command-line interface."""
 
 import argparse
+import logging
+import sys
 
 from uptimely.cli import engine, examples, explorer, project, spec
 
@@ -10,6 +12,7 @@ serve_explorer = explorer.serve_explorer
 
 def main() -> None:
     """Run the Uptimely command-line interface."""
+    logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout, force=True)
     parser = argparse.ArgumentParser(prog="uptimely")
     commands = parser.add_subparsers(dest="command", required=True)
     examples.configure_parser(commands.add_parser("examples", help="Manage example projects"))
