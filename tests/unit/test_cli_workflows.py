@@ -220,7 +220,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
     )
     (explorer_root / "index.html").write_text("<html></html>", encoding="utf-8")
     manifest = project_module.BuildManifest(
-        schema_version=project_module.BUILD_SCHEMA_VERSION,
+        build_version=project_module.BUILD_VERSION,
         uptimely_version="0.2.0",
         features=None,
         artifacts=project_module.BuildArtifactPaths(
@@ -305,7 +305,7 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
     spec_path.write_text(
         json.dumps(
             {
-                "version": "0.2.0",
+                "spec_version": "0.2.0",
                 "functions": {
                     "read_values": {
                         "operation": "read",

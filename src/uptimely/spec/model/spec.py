@@ -39,7 +39,7 @@ class Spec(common.StrictModel):
     """The complete JSON spec document."""
 
     name: str | None = None
-    version: typing.Literal["0.2.0"] = SUPPORTED_SPEC_VERSION
+    spec_version: typing.Literal["0.2.0"] = SUPPORTED_SPEC_VERSION
     source: common.SpecSource = pydantic.Field(
         default_factory=lambda: common.SpecSource(name="manual", generated=False)
     )

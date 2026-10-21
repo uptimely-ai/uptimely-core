@@ -26,6 +26,14 @@ def test_spec_rejects_unknown_fields(tmp_path: pathlib.Path) -> None:
         spec.load_spec(_write_configuration(tmp_path, configuration, "unknown.json"))
 
 
+def test_spec_rejects_legacy_version_field(tmp_path: pathlib.Path) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration["version"] = configuration.pop("spec_version")
+
+    with pytest.raises(pydantic.ValidationError, match="version"):
+        spec.load_spec(_write_configuration(tmp_path, configuration, "legacy-version.json"))
+
+
 def test_spec_accepts_top_level_name(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["name"] = "Pump analytics"
@@ -50,9 +58,9 @@ def test_canonical_model_rejects_file_loading_arguments() -> None:
 
 def test_spec_rejects_unsupported_version(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["version"] = "9.9.9"
+    configuration["spec_version"] = "9.9.9"
 
-    with pytest.raises(pydantic.ValidationError, match="version"):
+    with pytest.raises(pydantic.ValidationError, match="spec_version"):
         spec.load_spec(_write_configuration(tmp_path, configuration, "version.json"))
 
 

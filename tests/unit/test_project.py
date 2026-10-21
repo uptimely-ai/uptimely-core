@@ -43,7 +43,7 @@ def test_standard_paths(path: pathlib.Path, expected: str) -> None:
 
 def _manifest_data() -> dict[str, object]:
     return {
-        "schema_version": project.BUILD_SCHEMA_VERSION,
+        "build_version": project.BUILD_VERSION,
         "uptimely_version": "0.2.0.dev0",
         "features": None,
         "artifacts": {
@@ -87,6 +87,14 @@ def test_build_manifest_normalizes_feature_selection() -> None:
     assert manifest.features == ["pressure", "temperature"]
 
 
+def test_build_manifest_rejects_legacy_schema_version_field() -> None:
+    data = _manifest_data()
+    data["schema_version"] = data.pop("build_version")
+
+    with pytest.raises(pydantic.ValidationError, match="schema_version"):
+        project.BuildManifest.model_validate(data)
+
+
 def test_build_manifest_requires_nonempty_explicit_feature_selection() -> None:
     data = _manifest_data()
     data["features"] = []
@@ -124,7 +132,7 @@ def test_load_build_bundle_reports_missing_build_with_quoted_recovery_command(
 
 def test_load_build_bundle_rejects_malformed_manifest(tmp_path: pathlib.Path) -> None:
     build_root = _write_bundle(tmp_path)
-    (build_root / "build.json").write_text('{"schema_version":', encoding="utf-8")
+    (build_root / "build.json").write_text('{"build_version":', encoding="utf-8")
 
     with pytest.raises(project.BuildError, match="invalid.*manifest"):
         project.load_build_bundle(tmp_path)
@@ -133,10 +141,10 @@ def test_load_build_bundle_rejects_malformed_manifest(tmp_path: pathlib.Path) ->
 def test_load_build_bundle_rejects_unsupported_schema(tmp_path: pathlib.Path) -> None:
     build_root = _write_bundle(tmp_path)
     manifest = _manifest_data()
-    manifest["schema_version"] = project.BUILD_SCHEMA_VERSION + 1
+    manifest["build_version"] = project.BUILD_VERSION + 1
     (build_root / "build.json").write_text(json.dumps(manifest), encoding="utf-8")
 
-    with pytest.raises(project.BuildError, match="Unsupported build schema version"):
+    with pytest.raises(project.BuildError, match="Unsupported build version"):
         project.load_build_bundle(tmp_path)
 
 

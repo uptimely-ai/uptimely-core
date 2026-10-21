@@ -59,11 +59,15 @@ _generated/
         └── ... website assets and pages
 ```
 
-`build.json` records its schema version, the Uptimely version, the selected
+`build.json` records its `build_version`, the Uptimely version, the selected
 features (`null` means all features), relative artifact paths, and the complete
 Explorer file inventory. A scoped feature list is nonempty and normalized to
 unique, sorted names. The spec artifact always contains the complete model;
 the execution plan may be scoped to selected outputs and their dependencies.
+`build_version` identifies the manifest and bundle format. It is currently `1`;
+increment it when that format changes incompatibly. It is independent of the
+spec's `spec_version`, the plan's `plan_version`, and the Uptimely package
+version recorded as `uptimely_version`.
 The shared loader rejects missing or invalid artifacts and validates the saved
 execution plan. A successful build replaces the prior active bundle, while a
 failed build leaves that bundle intact. Source edits do not trigger a rebuild:
