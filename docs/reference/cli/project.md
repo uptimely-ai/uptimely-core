@@ -7,7 +7,7 @@ Build the generated resources for an analytics project.
 ```console
 uptimely project build \
   [--project-root PATH] [--python-spec MODULE:ATTRIBUTE | --json-spec PATH] \
-  [--features FEATURE [FEATURE ...]]
+  [--features FEATURE [FEATURE ...]] [--verbose]
 ```
 
 The command validates the complete source specification, compiles one execution
@@ -42,6 +42,22 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 | `--python-spec MODULE:ATTRIBUTE` | No | Discover standard sources | Select a Python attribute containing a `PythonSpec` instance. Mutually exclusive with `--json-spec`. |
 | `--json-spec PATH` | No | Discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Relative to the current working directory. |
 | `--features FEATURE ...` | No | All features | Select one or more output features and their required dependencies. |
+| `--verbose` | No | Disabled | Log build duration, output folder, source file, resource counts, and plan size. |
+
+### Build logging
+
+By default, a successful build logs only `Build files created to {path}`.
+Warnings and errors remain visible. Add `--verbose` for a summary grouped into:
+
+- **Build:** duration in seconds, output folder, and feature scope.
+- **Spec:** source file and numbers of functions, datasets, and features.
+- **Plan:** numbers of execution stages and callables.
+
+Duration covers building, validating, and publishing the bundle, not workflow
+execution. Spec counts cover the complete specification, including for scoped
+builds; features are counted per dataset, excluding dimensions. Plan counts
+describe the compiled feature scope. The source file is the original JSON or
+Python declaration, not the generated spec export.
 
 ### Specification source discovery
 
@@ -61,6 +77,7 @@ one outside the standard paths.
 
 ```console
 uptimely project build --project-root examples/pump_analytics
+uptimely project build --project-root examples/pump_analytics --verbose
 uptimely project build --project-root examples/pump_analytics --features pump_health_score
 ```
 

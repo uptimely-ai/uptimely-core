@@ -85,14 +85,22 @@ class SpecSource:
         json_spec: JsonSourceInput = None,
     ) -> spec.Spec:
         """Resolve and load an explicit or discovered Python or JSON spec source."""
+        return self.resolve(python_spec, json_spec).load()
+
+    def resolve(
+        self,
+        python_spec: str | None = None,
+        json_spec: JsonSourceInput = None,
+    ) -> PythonSource | JsonSource:
+        """Select an explicit or discovered source without loading its declaration."""
         if python_spec is not None and json_spec is not None:
             raise ValueError("Specify either a Python entrypoint or a spec JSON source, not both")
 
         imports.prepare_project_root(self.project_root)
         if json_spec is not None:
-            return JsonSource(self.project_root, json_spec).load()
+            return JsonSource(self.project_root, json_spec)
         if python_spec is not None:
-            return PythonSource(self.project_root, python_spec).load()
+            return PythonSource(self.project_root, python_spec)
 
         python_source = PythonSource(self.project_root)
         json_source = JsonSource(self.project_root)
@@ -105,9 +113,9 @@ class SpecSource:
                 "Specify one source explicitly."
             )
         if python_available:
-            return python_source.load()
+            return python_source
         if json_available:
-            return json_source.load()
+            return json_source
         raise FileNotFoundError(
             f"No spec source found. Expected {python_source.path} or {json_source.path}. "
             "Specify a Python entrypoint or JSON spec source explicitly."

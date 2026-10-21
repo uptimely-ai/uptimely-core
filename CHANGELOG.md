@@ -8,8 +8,15 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- Python entrypoint modules expose `source_file` for their loaded file path or
+  remote source URI.
+
 ### Changed
 
+- Project builds now log one success line by default; add `--verbose` for grouped
+  build timing, source and resource counts, and plan details.
 - CLI status and verbose output now use INFO-level Python logging.
 - **Breaking:** Removed the redundant `print()` method from feature graphs.
   Use `print_graph()` for terminal output or `render_graph()` to return text.

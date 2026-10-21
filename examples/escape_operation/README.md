@@ -11,7 +11,7 @@ column.
 From the repository root, build and run the project:
 
 ```sh
-poetry run uptimely project build --project-root examples/escape_operation
+poetry run uptimely project build --project-root examples/escape_operation --verbose
 poetry run uptimely engine run --project-root examples/escape_operation
 ```
 

@@ -111,7 +111,7 @@ class Compiler:
             callables=callables,
             stages=stages,
         )
-        logger.info("Compiled plan: %d callables in %d stages", len(callables), len(stages))
+        logger.debug("Compiled plan: %d callables in %d stages", len(callables), len(stages))
         return plan.ExecutionPlan(execution_plan)
 
     def _callable(

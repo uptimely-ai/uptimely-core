@@ -37,6 +37,19 @@ def test_spec_source_discovers_conventional_json_source(tmp_path: pathlib.Path) 
     assert loaded == spec.load_spec(FIXTURE_SPEC)
 
 
+@pytest.mark.parametrize("explicit", [False, True])
+def test_spec_source_resolves_without_loading(tmp_path: pathlib.Path, explicit: bool) -> None:
+    python_path = tmp_path / project.SPEC_PYTHON_ENTRY_FILE
+    python_path.parent.mkdir(parents=True)
+    python_path.write_text("raise RuntimeError('Source must not be loaded')\n", encoding="utf-8")
+    source = build_source.SpecSource(tmp_path).resolve(
+        python_spec=f"{python_path}:python_spec" if explicit else None
+    )
+
+    assert isinstance(source, build_source.PythonSource)
+    assert source.path == python_path
+
+
 def test_spec_source_rejects_ambiguous_discovered_sources(tmp_path: pathlib.Path) -> None:
     python_path = tmp_path / project.SPEC_PYTHON_ENTRY_FILE
     python_path.parent.mkdir(parents=True)
