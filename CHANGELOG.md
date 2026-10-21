@@ -6,7 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 While the version is `0.x`, minor releases may include breaking changes.
 
-## [Unreleased]
+## [0.5.0] - 2026-10-21
+
+### Changed
+
+- **Breaking:** Spec documents now use integer `spec_version: 1` instead of
+  `version: "0.2.0"`, and portable plans use integer `plan_version: 1` instead
+  of `"0.2.0"`. Build manifests rename `schema_version` to `build_version`.
+  Update existing specs and regenerate plans and build bundles.
+- **Breaking:** Default spec discovery now checks `spec/spec.py` and
+  `spec/spec.json` instead of `config/spec/spec.py` and
+  `config/spec/spec.json`. Move specs to the new directory or select a source
+  explicitly with `--python-spec` or `--json-spec`.
 
 
 ## [0.4.0] - 2026-10-20
