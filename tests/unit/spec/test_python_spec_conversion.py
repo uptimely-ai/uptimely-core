@@ -295,7 +295,7 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata(
     payload = spec_definition.to_dict()
 
     assert payload["name"] == "Pump analytics"
-    assert payload["spec_version"] == "0.2.0"
+    assert payload["spec_version"] == 1
     assert payload["source"] == {"name": "python_api", "generated": True}
     assert payload["dimensions"] == {
         "pump": {"type": "string", "description": "Asset ID", "parent": None}

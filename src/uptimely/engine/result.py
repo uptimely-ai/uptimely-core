@@ -17,4 +17,4 @@ class ExecutionResult:
     callable_statuses: dict[str, CallableStatus]
     durations: dict[str, float]
     failures: dict[str, str]
-    plan_version: str
+    plan_version: int

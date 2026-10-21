@@ -16,7 +16,7 @@ The compiler constructs executable invocations from these declarations.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Spec, SUPPORTED_SPEC_VERSION]
+      members: [Spec, SPEC_VERSION]
 
 ## common
 

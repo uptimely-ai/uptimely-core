@@ -9,8 +9,9 @@ import typing
 import pydantic
 
 from uptimely.compiler.plan import models as plan_models
-from uptimely.project import paths
 from uptimely.project.build import features
+
+BUILD_VERSION = 1
 
 
 def validate_relative_path(value: str) -> str:
@@ -80,9 +81,9 @@ class BuildManifest(pydantic.BaseModel):
     @classmethod
     def validate_build_version(cls, value: int) -> int:
         """Reject build formats this runtime does not support."""
-        if value != paths.BUILD_VERSION:
+        if value != BUILD_VERSION:
             raise ValueError(
-                f"Unsupported build version: {value}. Supported version is {paths.BUILD_VERSION}."
+                f"Unsupported build version: {value}. Supported version is {BUILD_VERSION}."
             )
         return value
 

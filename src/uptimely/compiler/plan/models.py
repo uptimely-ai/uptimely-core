@@ -9,7 +9,7 @@ import typing
 
 from uptimely import row_context as uptimely_row_context
 
-PLAN_VERSION = "0.2.0"
+PLAN_VERSION = 1
 
 
 @dataclasses.dataclass(frozen=True)
@@ -54,7 +54,7 @@ class Callable:
 class Plan:
     """Portable, JSON-serializable execution plan."""
 
-    plan_version: str
+    plan_version: int
     required_backend: str
     resources: dict[str, typing.Any]
     callables: list[Callable]
@@ -146,7 +146,7 @@ class Plan:
 
 def _validate_plan_version(version: object) -> None:
     """Reject plan versions this runtime cannot load."""
-    if version != PLAN_VERSION:
+    if type(version) is not int or version != PLAN_VERSION:
         raise ValueError(
             f"Unsupported plan version: {version!r}. Supported version is {PLAN_VERSION}."
         )

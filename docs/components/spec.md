@@ -1,6 +1,6 @@
 # Spec
 
-**Current spec version: 0.2.0**
+**Current spec version: 1**
 
 The spec definition is a single JSON document describing datasets, feature
 dependencies, and function bindings. JSON is the shared format used by
@@ -36,7 +36,7 @@ For example, dimensions and entities use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `spec_version` | string | No | `"0.2.0"` | Spec format version; only `0.2.0` is supported. |
+| `spec_version` | integer | No | `1` | Spec format version; only `1` is supported. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |

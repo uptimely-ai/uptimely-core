@@ -24,4 +24,3 @@ BUILD_MANIFEST_FILE: typing.Final = BUILD_OUTPUT_DIR / "build.json"
 BUILD_SPEC_FILE: typing.Final = BUILD_OUTPUT_DIR / "spec.json"
 BUILD_EXECUTION_PLAN_FILE: typing.Final = BUILD_OUTPUT_DIR / "execution_plan.json"
 BUILD_EXPLORER_DIR: typing.Final = BUILD_OUTPUT_DIR / "explorer"
-BUILD_VERSION: typing.Final = 1

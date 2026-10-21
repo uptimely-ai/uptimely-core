@@ -209,7 +209,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
     (build_root / "execution_plan.json").write_text(
         json.dumps(
             {
-                "plan_version": "0.2.0",
+                "plan_version": 1,
                 "required_backend": "polars",
                 "resources": {},
                 "callables": [],
@@ -234,7 +234,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
     return build_root
 
 
-@pytest.mark.parametrize("content", [None, "not JSON", '{"plan_version": "unsupported"}'])
+@pytest.mark.parametrize("content", [None, "not JSON", '{"plan_version": "1"}'])
 def test_engine_invalid_build_fails_before_execution(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -305,7 +305,7 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
     spec_path.write_text(
         json.dumps(
             {
-                "spec_version": "0.2.0",
+                "spec_version": 1,
                 "functions": {
                     "read_values": {
                         "operation": "read",
