@@ -1,6 +1,7 @@
 """Command-line tools for executing analytics workflows."""
 
 import argparse
+import logging
 import pathlib
 import typing
 
@@ -10,6 +11,8 @@ from uptimely import engine as engine_module
 from uptimely import project
 from uptimely.cli import common, plan
 from uptimely.project import imports
+
+logger = logging.getLogger(__name__)
 
 
 class EngineSettings(pydantic.BaseModel):
@@ -31,7 +34,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         help="Project root containing the active build and function entrypoints",
     )
     execute.add_argument(
-        "--verbose", action="store_true", help="Print execution stages and dataset details"
+        "--verbose", action="store_true", help="Log execution stages and dataset details"
     )
     execute.add_argument(
         "--config",
@@ -66,19 +69,21 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         if bundle.manifest.features is None
         else f"selected features: {', '.join(bundle.manifest.features)}"
     )
-    print("Engine completed the flow")
-    print(f"Build scope: {scope}")
-    print(f"{len(execution_plan.callables)} callables")
-    print("Calculated features: " + ", ".join(calculated_features))
+    logger.info("Engine completed the flow")
+    logger.info("Build scope: %s", scope)
+    logger.info("%d callables", len(execution_plan.callables))
+    logger.info("Calculated features: %s", ", ".join(calculated_features))
     if args.verbose:
-        plan.print_stages(execution_plan)
-        print("\nDataset registry")
+        plan.log_stages(execution_plan)
+        logger.info("\nDataset registry")
         datasets = execution_plan.plan.resources.get("datasets", {})
         for entity_id, dataset_id in dict.fromkeys(
             (callable.entity_id, callable.dataset_id) for callable in execution_plan.callables
         ):
             dataset = datasets.get(dataset_id)
             if dataset is None:
-                print(f"Dataset({entity_id}, {dataset_id}): feature metadata unavailable")
+                logger.info("Dataset(%s, %s): feature metadata unavailable", entity_id, dataset_id)
                 continue
-            print(f"Dataset({entity_id}, {dataset_id}): {len(dataset['features'])} features")
+            logger.info(
+                "Dataset(%s, %s): %d features", entity_id, dataset_id, len(dataset["features"])
+            )

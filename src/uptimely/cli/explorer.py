@@ -2,10 +2,13 @@
 
 import argparse
 import functools
+import logging
 import pathlib
 from http import server as http_server
 
 from uptimely import project
+
+logger = logging.getLogger(__name__)
 
 
 def serve_explorer(
@@ -40,15 +43,17 @@ def serve_explorer(
         raise ValueError("Port must be between 0 and 65535.")
     handler = functools.partial(http_server.SimpleHTTPRequestHandler, directory=str(directory))
     with http_server.ThreadingHTTPServer((host, port), handler) as server:
-        print(
-            f"Serving analytics explorer from {directory} at "
-            f"http://{host}:{server.server_port}/ (build scope: {scope}; Ctrl+C to stop)",
-            flush=True,
+        logger.info(
+            "Serving analytics explorer from %s at http://%s:%d/ (build scope: %s; Ctrl+C to stop)",
+            directory,
+            host,
+            server.server_port,
+            scope,
         )
         try:
             server.serve_forever()
         except KeyboardInterrupt:
-            print("\nSpec explorer server stopped.")
+            logger.info("Spec explorer server stopped.")
 
 
 def _port(value: str) -> int:

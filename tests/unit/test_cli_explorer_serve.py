@@ -1,5 +1,6 @@
 """Tests for the local analytics explorer static-file server."""
 
+import logging
 import pathlib
 import threading
 from http import server as http_server
@@ -12,7 +13,9 @@ from uptimely.cli import explorer
 
 
 def test_serve_explorer_serves_only_the_saved_website_and_closes_on_interrupt(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     directory = tmp_path / "website"
     directory.mkdir()
@@ -47,14 +50,14 @@ def test_serve_explorer_serves_only_the_saved_website_and_closes_on_interrupt(
 
     monkeypatch.setattr(http_server.ThreadingHTTPServer, "serve_forever", check_server)
 
+    caplog.set_level(logging.INFO, logger="uptimely.cli.explorer")
     explorer.serve_explorer(directory, port=0, scope="selected features: pressure")
 
     assert pathlib.Path.cwd() == cwd
     assert servers[0].socket.fileno() == -1
-    result = capsys.readouterr()
-    assert f"http://127.0.0.1:{servers[0].server_port}/" in result.out
-    assert "build scope: selected features: pressure" in result.out
-    assert "Spec explorer server stopped." in result.out
+    assert f"http://127.0.0.1:{servers[0].server_port}/" in caplog.text
+    assert "build scope: selected features: pressure" in caplog.text
+    assert "Spec explorer server stopped." in caplog.text
 
 
 @pytest.mark.parametrize("kind", ["missing", "file", "empty"])

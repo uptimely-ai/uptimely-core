@@ -166,7 +166,9 @@ def test_simple_analytics_engine_cli_executes_saved_build(
     output = capsys.readouterr().out
     assert "Build scope: all features" in output
     assert "Calculated features: column_3, column_4" in output
-    assert json.loads(output.splitlines()[0]) == [
+    result_lines = [line for line in output.splitlines() if line.startswith("[")]
+    assert len(result_lines) == 1
+    assert json.loads(result_lines[0]) == [
         {"column_3": 3, "column_4": True},
         {"column_3": 7, "column_4": True},
     ]

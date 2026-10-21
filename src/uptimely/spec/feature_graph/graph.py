@@ -72,9 +72,13 @@ class GraphBase:
 
     def print_graph(self) -> str:
         """Visualize the feature dependency graph."""
-        graph_text = views.texttree.create_topology_tree_txt(self.graph)
+        graph_text = self.render_graph()
         print(graph_text)
         return graph_text
+
+    def render_graph(self) -> str:
+        """Return a text representation of the feature dependency graph."""
+        return views.texttree.create_topology_tree_txt(self.graph)
 
     def print(self) -> None:
         self.print_graph()
