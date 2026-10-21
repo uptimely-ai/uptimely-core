@@ -49,7 +49,7 @@ The build creates files under `examples/pump_analytics/_generated/build/`.
 Rebuild after changing the example's source files.
 
 ```sh
-uptimely project build --project-root examples/pump_analytics
+uptimely project build --project-root examples/pump_analytics --verbose
 ```
 
 ### Run the calculations

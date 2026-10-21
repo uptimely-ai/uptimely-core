@@ -11,6 +11,7 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import project, spec
 from uptimely.cli import cli
+from uptimely.compiler import compiler as compiler_module
 from uptimely.compiler import plan as plan_module
 from uptimely.explorer import explorer as explorer_module
 from uptimely.project.build import builder as project_build
@@ -40,11 +41,18 @@ def bundle_files(root: pathlib.Path) -> dict[str, bytes]:
     }
 
 
-@pytest.mark.parametrize("example", ["pump_analytics", "simple_analytics"])
+@pytest.mark.parametrize(
+    ("example", "verbose"),
+    [("pump_analytics", False), ("simple_analytics", False), ("pump_analytics", True)],
+)
 @pytest.mark.parametrize("explicit_root", [False, True])
 @pytest.mark.parametrize("empty_generated", [False, True])
 def test_project_build_examples(
-    tmp_path: pathlib.Path, example: str, explicit_root: bool, empty_generated: bool
+    tmp_path: pathlib.Path,
+    example: str,
+    verbose: bool,
+    explicit_root: bool,
+    empty_generated: bool,
 ) -> None:
     examples = tmp_path / "examples"
     examples.mkdir()
@@ -58,14 +66,21 @@ def test_project_build_examples(
     if empty_generated:
         (root / project.GENERATED_DIR).mkdir()
     arguments = ["--project-root", str(root)] if explicit_root else []
+    if verbose:
+        arguments.append("--verbose")
     command = [sys.executable, "-m", "uptimely.cli.cli", "project", "build", *arguments]
     cwd = tmp_path if explicit_root else root
     result = subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=90)
 
     assert result.returncode == 0, result.stderr
     assert not result.stderr
-    assert "Build scope: all features" in result.stdout
-    assert f"Build bundle: {root / project.BUILD_OUTPUT_DIR}" in result.stdout
+    if verbose:
+        assert result.stdout.startswith("\n\nBuild\n")
+        assert "  Build scope: all features\n" in result.stdout
+        assert f"  Spec source file: {root / project.SPEC_PYTHON_ENTRY_FILE}\n" in result.stdout
+        assert "Build files created to" not in result.stdout
+    else:
+        assert result.stdout == f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
     bundle = project.load_build_bundle(root)
     assert bundle.manifest.features is None
     assert spec.load_spec(bundle.spec_path).entities
@@ -90,11 +105,18 @@ def test_project_build_examples(
     assert not (root / "_generated/compile/execution_plan.json").exists()
 
 
-@pytest.mark.parametrize("source_kind", ["entrypoint", "json"])
+@pytest.mark.parametrize("source_kind", ["entrypoint", "python_file", "json"])
+@pytest.mark.parametrize("verbose", [False, True])
 def test_project_build_explicit_source_does_not_execute_workflow(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, source_kind: str
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    source_kind: str,
+    verbose: bool,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.delitem(sys.modules, "declaration", raising=False)
+    monkeypatch.delitem(sys.modules, "build_functions", raising=False)
     root = tmp_path / "project"
     root.mkdir()
     (root / "build_functions.py").write_text(
@@ -137,7 +159,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
         ),
         encoding="utf-8",
     )
-    if source_kind == "entrypoint":
+    if source_kind != "json":
         (root / "declaration.py").write_text(
             "from uptimely.spec import python as api\n"
             "from uptimely.spec.python import bind, dataset, entity, feature, mapping, ref\n"
@@ -150,18 +172,96 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             "outputs=[ref.feature('value')])])])])\n",
             encoding="utf-8",
         )
-        arguments = ["--python-spec", "declaration:definition"]
+        entrypoint = (
+            "declaration:definition"
+            if source_kind == "entrypoint"
+            else f"{root / 'declaration.py'}:definition"
+        )
+        arguments = ["--python-spec", entrypoint]
     else:
         arguments = ["--json-spec", "source.json"]
 
+    if verbose:
+        arguments.append("--verbose")
     invoke(monkeypatch, "--project-root", str(root), *arguments)
 
     bundle = project.load_build_bundle(root)
+    result = capsys.readouterr()
+    assert not result.err
+    if verbose:
+        source_file = root / "declaration.py" if source_kind != "json" else source
+        assert f"  Spec source file: {source_file}\n" in result.out
+        assert "  Number of functions: 1\n" in result.out
+        assert "  Number of datasets: 1\n" in result.out
+        assert "  Number of features: 1\n" in result.out
+    else:
+        assert result.out == f"Build files created to {bundle.root}\n"
     assert spec.load_spec(bundle.spec_path).entities
     assert bundle.execution_plan.callables
     assert (bundle.explorer_path / "index.html").exists()
     assert not (root / "_generated/spec").exists()
     assert not (root / project.EXPLORER_OUTPUT_DIR).exists()
+
+
+@pytest.mark.parametrize("scoped", [False, True])
+def test_project_build_verbose_summary(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    scoped: bool,
+) -> None:
+    root = tmp_path / "project"
+    source = copy_project_spec(root)
+    definition = spec.load_spec(source)
+    datasets = [dataset for entity in definition.entities.values() for dataset in entity.datasets]
+    times = iter([10.0, 11.234])
+    monkeypatch.setattr(cli.project.time, "perf_counter", lambda: next(times))
+    arguments = ["--features", "pump_health_score"] if scoped else []
+
+    invoke(monkeypatch, "--project-root", str(root), "--verbose", *arguments)
+
+    bundle = project.load_build_bundle(root)
+    result = capsys.readouterr()
+    scope = "pump_health_score" if scoped else "all features"
+    assert not result.err
+    assert result.out == (
+        "\n\nBuild\n"
+        "  Duration: 1.234 s\n"
+        f"  Output folder: {bundle.root}\n"
+        f"  Build scope: {scope}\n"
+        "\nSpec\n"
+        f"  Spec source file: {source}\n"
+        f"  Number of functions: {len(definition.functions)}\n"
+        f"  Number of datasets: {len(datasets)}\n"
+        f"  Number of features: {sum(len(dataset.features) for dataset in datasets)}\n"
+        "\nPlan\n"
+        f"  Number of stages: {len(bundle.execution_plan.plan.stages)}\n"
+        f"  Number of callables: {len(bundle.execution_plan.callables)}\n"
+    )
+
+
+def test_project_build_keeps_warnings_visible(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    root = tmp_path / "project"
+    copy_project_spec(root)
+    original_compile = project_build.compiler.Compiler.compile
+
+    def compile_with_warning(self: project_build.compiler.Compiler) -> plan_module.ExecutionPlan:
+        compiler_module.logger.warning("Build warning")
+        return original_compile(self)
+
+    monkeypatch.setattr(project_build.compiler.Compiler, "compile", compile_with_warning)
+
+    invoke(monkeypatch, "--project-root", str(root))
+
+    result = capsys.readouterr()
+    assert not result.err
+    assert result.out == (
+        f"Build warning\nBuild files created to {root / project.BUILD_OUTPUT_DIR}\n"
+    )
 
 
 def test_scoped_build_normalizes_features_and_includes_dataset_sink(
@@ -241,12 +341,14 @@ def test_project_build_compiles_once_and_renders_the_compiled_plan(
         ("publish", "Project build publication failed"),
     ],
 )
+@pytest.mark.parametrize("verbose", [False, True])
 def test_project_build_failures_preserve_previous_bundle(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     stage: str,
     expected: str,
+    verbose: bool,
 ) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
@@ -279,10 +381,13 @@ def test_project_build_failures_preserve_previous_bundle(
         monkeypatch.setattr(project_build.os, "replace", fail_install)
 
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, "--project-root", str(root))
+        arguments = ["--verbose"] if verbose else []
+        invoke(monkeypatch, "--project-root", str(root), *arguments)
 
     assert error.value.code == 1
-    assert expected in capsys.readouterr().err
+    result = capsys.readouterr()
+    assert expected in result.err
+    assert not result.out
     assert bundle_files(root) == old_bundle
     assert not list((root / project.GENERATED_DIR).glob(".build-staging-*"))
     assert not list((root / project.GENERATED_DIR).glob(".build-backup-*"))
@@ -354,6 +459,7 @@ def test_project_build_help(
     assert "--json-spec" in result.out
     assert "--project-root" in result.out
     assert "--features FEATURE" in result.out
+    assert "--verbose" in result.out
     assert not result.err
 
 

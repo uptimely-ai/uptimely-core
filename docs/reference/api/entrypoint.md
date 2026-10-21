@@ -8,10 +8,15 @@ Use `Entrypoint` to access the function and module. Load the callable with
 `entrypoint.function.load()` and inspect its annotations with
 `entrypoint.function.signature`.
 
+Read `entrypoint.module.source_file` to get the loaded module's file path, or
+its source URI for HTTPS and S3 entrypoints. Modules without a file raise
+`ValueError`.
+
 !!! warning "Only load trusted code"
 
-    Both loading a callable and reading its signature import and execute the
-    referenced Python module. S3 access requires the `uptimely-core[s3]` extra.
+    Loading a callable, reading its signature, and accessing `module.source_file`
+    import and execute the referenced Python module if it is not already loaded.
+    S3 access requires the `uptimely-core[s3]` extra.
 
 <div class="api-reference" markdown="1">
 
