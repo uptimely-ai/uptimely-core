@@ -160,6 +160,26 @@ def test_function_load_accepts_local_file_references(
     assert shared_entrypoint.Signature.read(entrypoint.function).returns == "int"
     assert shared_entrypoint.TypeAnnotation.name(int | None) == "int | None"
     assert entrypoint.module.load() is entrypoint.function.module.load()
+    assert entrypoint.module.source_file == str(path)
+
+
+def test_module_source_file_for_importable_module() -> None:
+    module = shared_entrypoint.Entrypoint("uptimely.entrypoint:Entrypoint").module
+
+    assert module.source_file == shared_entrypoint.__file__
+
+
+@pytest.mark.parametrize("has_file_attribute", [False, True])
+def test_module_source_file_rejects_modules_without_files(
+    monkeypatch: pytest.MonkeyPatch, has_file_attribute: bool
+) -> None:
+    module = types.ModuleType("without_source")
+    if has_file_attribute:
+        module.__file__ = None
+    monkeypatch.setattr(shared_entrypoint.Module, "load", lambda self: module)
+
+    with pytest.raises(ValueError, match="does not identify its source file"):
+        _ = shared_entrypoint.Module("without_source").source_file
 
 
 @pytest.mark.parametrize(
@@ -280,6 +300,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
     if scheme == "https":
         assert all(response.closed for response in responses)
     entrypoint = shared_entrypoint.Entrypoint(f"{location}:calculate")
+    assert entrypoint.module.source_file == (str(path) if scheme == "local" else location)
     assert entrypoint.function.signature.args == {
         "dataset": "DataFrame",
         "output": "str",
