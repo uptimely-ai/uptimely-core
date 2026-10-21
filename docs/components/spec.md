@@ -1,6 +1,6 @@
 # Spec
 
-**Current version: 0.2.0**
+**Current spec version: 0.2.0**
 
 The spec definition is a single JSON document describing datasets, feature
 dependencies, and function bindings. JSON is the shared format used by
@@ -36,11 +36,15 @@ For example, dimensions and entities use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `version` | string | No | `"0.2.0"` | Format version; only `0.2.0` is supported. |
+| `spec_version` | string | No | `"0.2.0"` | Spec format version; only `0.2.0` is supported. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
 | `entities` | object | No | `{}` | Entity definitions keyed by identifier. |
+
+`spec_version` versions the Spec JSON format, not a particular analytics
+project. Increment it when the format changes incompatibly; readers reject
+unsupported values.
 
 When supplied, `source` requires `name` (string) and `generated` (boolean).
 The default is `{"name": "manual", "generated": false}`. Generated documents

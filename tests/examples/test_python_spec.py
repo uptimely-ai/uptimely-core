@@ -142,9 +142,9 @@ def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None
 
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     dataset_payload = payload["entities"]["simple_analytics"]["datasets"][0]
-    assert {key: payload[key] for key in ("name", "version", "source")} == {
+    assert {key: payload[key] for key in ("name", "spec_version", "source")} == {
         "name": "simple_analytics",
-        "version": "0.2.0",
+        "spec_version": "0.2.0",
         "source": {"name": "python_api", "generated": True},
     }
     assert set(payload["functions"]) == {"read", "write", "sum_features", "column_4"}

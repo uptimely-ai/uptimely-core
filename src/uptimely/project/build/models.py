@@ -70,20 +70,19 @@ class BuildManifest(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    schema_version: int
+    build_version: int
     uptimely_version: str
     features: list[str] | None
     artifacts: BuildArtifactPaths
     explorer_files: list[str]
 
-    @pydantic.field_validator("schema_version")
+    @pydantic.field_validator("build_version")
     @classmethod
-    def validate_schema_version(cls, value: int) -> int:
-        """Reject bundle schemas this runtime does not support."""
-        if value != paths.BUILD_SCHEMA_VERSION:
+    def validate_build_version(cls, value: int) -> int:
+        """Reject build formats this runtime does not support."""
+        if value != paths.BUILD_VERSION:
             raise ValueError(
-                f"Unsupported build schema version: {value}. "
-                f"Supported version is {paths.BUILD_SCHEMA_VERSION}."
+                f"Unsupported build version: {value}. Supported version is {paths.BUILD_VERSION}."
             )
         return value
 

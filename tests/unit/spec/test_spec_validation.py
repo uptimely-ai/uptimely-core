@@ -117,9 +117,9 @@ def test_validation_context_retains_duplicate_index_candidates() -> None:
 @pytest.mark.parametrize(
     "document",
     [
-        {"version": "0.1.0"},
+        {"spec_version": "0.1.0"},
         {
-            "version": "0.2.0",
+            "spec_version": "0.2.0",
             "functions": {"read": {"legacy_reader": {"entrypoint": "reader:load"}}},
         },
     ],
