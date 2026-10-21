@@ -44,6 +44,20 @@ class Module:
         self.location = location
         self.root = root
 
+    @property
+    def source_file(self) -> str:
+        """Return the loaded module's file path or remote source URI.
+
+        Accessing this property imports and executes the module if needed.
+
+        Raises:
+            ValueError: The module does not identify a source file.
+        """
+        source_file = getattr(self.load(), "__file__", None)
+        if source_file is None:
+            raise ValueError(f"Python module {self.location!r} does not identify its source file")
+        return source_file
+
     def load(self) -> types.ModuleType:
         """Import the represented Python module."""
         if self.root is not None and str(self.root) not in sys.path:
