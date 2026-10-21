@@ -182,6 +182,16 @@ class Entrypoint:
     """Parse and expose the module and function addressed by an entrypoint."""
 
     def __init__(self, entrypoint: str, root: pathlib.Path | None = None) -> None:
+        module_path, function_name = self._split_entrypoint(entrypoint)
+        self._validate_function_entrypoint(entrypoint, module_path, function_name)
+        self._validate_module_path(module_path)
+
+        self.root = root
+        self._module_path = module_path
+        self._function_name = function_name
+
+    @staticmethod
+    def _split_entrypoint(entrypoint: str) -> tuple[str, str]:
         if ":" not in entrypoint:
             raise ValueError(
                 f"Invalid entrypoint: {entrypoint}. "
@@ -189,18 +199,23 @@ class Entrypoint:
             )
 
         module_path, function_name = entrypoint.rsplit(":", 1)
-        scheme = parse.urlsplit(module_path).scheme
+        return module_path, function_name
+
+    @staticmethod
+    def _validate_function_entrypoint(
+        entrypoint: str, module_path: str, function_name: str
+    ) -> None:
         if not module_path.strip() or not function_name.isidentifier():
             raise ValueError(f"Invalid function entrypoint: {entrypoint}")
+
+    @staticmethod
+    def _validate_module_path(module_path: str) -> None:
+        scheme = parse.urlsplit(module_path).scheme
         if (scheme and scheme not in REMOTE_SCHEMES) or module_path.startswith("git@"):
             raise ValueError(
                 f"Unsupported function reference scheme: {module_path}. "
                 "Use a Python module, local file, https:// URL, or s3:// URI."
             )
-
-        self.root = root
-        self._module_path = module_path
-        self._function_name = function_name
 
     @property
     def module(self) -> Module:
