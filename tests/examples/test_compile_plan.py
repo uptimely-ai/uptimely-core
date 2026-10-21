@@ -66,7 +66,7 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
         "callables",
         "stages",
     }
-    assert metadata["plan_version"] == "0.2.0"
+    assert metadata["plan_version"] == 1
     assert {callable["operation"] for callable in metadata["callables"]} == {
         "read",
         "collapse",

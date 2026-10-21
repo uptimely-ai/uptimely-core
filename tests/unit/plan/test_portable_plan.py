@@ -7,7 +7,7 @@ from uptimely.compiler import plan as uptimely_plan
 
 def _sample_plan() -> uptimely_plan.Plan:
     return uptimely_plan.Plan(
-        plan_version="0.2.0",
+        plan_version=1,
         required_backend="polars",
         resources={
             "signatures": {
@@ -127,13 +127,13 @@ def test_plan_rejects_missing_required_fields(missing_field: str) -> None:
 
 def test_plan_rejects_spec_version_field() -> None:
     payload = _sample_plan().to_dict()
-    payload["spec_version"] = "0.2.0"
+    payload["spec_version"] = 1
 
     with pytest.raises(ValueError, match="Plan contains unknown fields: spec_version"):
         uptimely_plan.Plan.from_dict(payload)
 
 
-@pytest.mark.parametrize("version", ["0.1.0", "1.0.0", "2.0.0", "unsupported", None])
+@pytest.mark.parametrize("version", [0, 2, "1", "unsupported", None, True])
 def test_plan_rejects_unsupported_versions(version: object) -> None:
     payload = _sample_plan().to_dict()
     payload["plan_version"] = version

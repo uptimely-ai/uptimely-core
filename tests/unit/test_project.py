@@ -63,7 +63,7 @@ def _write_bundle(project_root: pathlib.Path) -> pathlib.Path:
     (build_root / "execution_plan.json").write_text(
         json.dumps(
             {
-                "plan_version": "0.2.0",
+                "plan_version": 1,
                 "required_backend": "polars",
                 "resources": {},
                 "callables": [],
@@ -92,6 +92,15 @@ def test_build_manifest_rejects_legacy_schema_version_field() -> None:
     data["schema_version"] = data.pop("build_version")
 
     with pytest.raises(pydantic.ValidationError, match="schema_version"):
+        project.BuildManifest.model_validate(data)
+
+
+@pytest.mark.parametrize("version", [0, 2, "1", True])
+def test_build_manifest_rejects_unsupported_or_noninteger_version(version: object) -> None:
+    data = _manifest_data()
+    data["build_version"] = version
+
+    with pytest.raises(pydantic.ValidationError, match="build_version"):
         project.BuildManifest.model_validate(data)
 
 

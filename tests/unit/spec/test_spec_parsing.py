@@ -56,9 +56,10 @@ def test_canonical_model_rejects_file_loading_arguments() -> None:
         spec.Spec.model_validate({"json": str(SPEC_PATH)})
 
 
-def test_spec_rejects_unsupported_version(tmp_path: pathlib.Path) -> None:
+@pytest.mark.parametrize("version", [0, 2, "1", True])
+def test_spec_rejects_unsupported_version(tmp_path: pathlib.Path, version: object) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["spec_version"] = "9.9.9"
+    configuration["spec_version"] = version
 
     with pytest.raises(pydantic.ValidationError, match="spec_version"):
         spec.load_spec(_write_configuration(tmp_path, configuration, "version.json"))

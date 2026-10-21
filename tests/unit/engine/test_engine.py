@@ -43,7 +43,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
 
     assert set(result.callable_statuses.values()) == {"succeeded"}
     assert result.failures == {}
-    assert result.plan_version == "0.2.0"
+    assert result.plan_version == 1
     assert isinstance(result.calculated_outputs["asset", "telemetry", "doubled"], pl.DataFrame)
     assert result.datasets["asset", "telemetry"].select("doubled").to_series().to_list() == [
         4,
@@ -173,7 +173,7 @@ def test_escape_ignores_any_return_without_materializing_features(return_value: 
     )
     plan = uptimely_plan.ExecutionPlan(
         uptimely_plan.Plan(
-            plan_version="0.2.0",
+            plan_version=1,
             required_backend="polars",
             resources={
                 "entities": {"asset": {"dimensions": []}},
@@ -237,7 +237,7 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs() -> No
     )
     plan = uptimely_plan.ExecutionPlan(
         uptimely_plan.Plan(
-            plan_version="0.2.0",
+            plan_version=1,
             required_backend="polars",
             resources={
                 "entities": {"asset": {"dimensions": []}},
@@ -278,7 +278,7 @@ def test_escape_resolves_literal_and_runtime_arguments() -> None:
     )
     plan = uptimely_plan.ExecutionPlan(
         uptimely_plan.Plan(
-            plan_version="0.2.0",
+            plan_version=1,
             required_backend="polars",
             resources={
                 "entities": {"asset": {"dimensions": []}},
@@ -337,7 +337,7 @@ def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream() -> No
     )
     plan = uptimely_plan.ExecutionPlan(
         uptimely_plan.Plan(
-            plan_version="0.2.0",
+            plan_version=1,
             required_backend="polars",
             resources={
                 "entities": {"asset": {"dimensions": []}},
@@ -399,7 +399,7 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read() -> None:
     )
     plan = uptimely_plan.ExecutionPlan(
         uptimely_plan.Plan(
-            plan_version="0.2.0",
+            plan_version=1,
             required_backend="polars",
             resources={
                 "entities": {"asset": {"dimensions": ["asset_id"]}},
@@ -452,7 +452,7 @@ def test_escape_exception_fails_and_skips_downstream() -> None:
     )
     plan = uptimely_plan.ExecutionPlan(
         uptimely_plan.Plan(
-            plan_version="0.2.0",
+            plan_version=1,
             required_backend="polars",
             resources={
                 "entities": {"asset": {"dimensions": []}},
@@ -665,7 +665,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
     )
     plan = uptimely_plan.ExecutionPlan(
         uptimely_plan.Plan(
-            plan_version="0.2.0",
+            plan_version=1,
             required_backend="polars",
             resources={
                 "entities": {"asset": {"dimensions": ["asset_id"]}},

@@ -321,7 +321,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         "Callables": str(len(expected_plan.callables)),
         "Stages": str(len(expected_plan.execution_stages)),
     }
-    assert "Spec 0.2.0" in document
+    assert "Spec 1" in document
     assert 'aria-label="Project counts"' in document
     assert 'aria-label="Spec journey"' in document
     assert re.findall(r'<li class="journey-step (\S+) icon--\1">', document) == [

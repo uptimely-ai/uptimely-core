@@ -142,7 +142,7 @@ def _validate_staged_bundle(
     )
     try:
         manifest = models.BuildManifest(
-            build_version=paths.BUILD_VERSION,
+            build_version=models.BUILD_VERSION,
             uptimely_version=importlib.metadata.version("uptimely-core"),
             features=selected_features,
             artifacts=models.BuildArtifactPaths(

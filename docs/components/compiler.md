@@ -14,15 +14,15 @@ A plan is one JSON object. Its root fields are:
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
-| `plan_version` | string | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `0.2.0`. |
+| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `1`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
 | `resources` | object | Runtime metadata needed by the engine. |
 | `callables` | array of objects | Operations to execute and their declared inputs and dependencies. |
 | `stages` | array of arrays of strings | Callable identifiers grouped by dependency order. |
 
 All root fields are required. Unknown root fields and unsupported plan versions
-are rejected.
-Increment `plan_version` when the portable plan format changes incompatibly.
+are rejected. Increment `plan_version` when the portable plan format changes
+incompatibly.
 
 ## Resources
 

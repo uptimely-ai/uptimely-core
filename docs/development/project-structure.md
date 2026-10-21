@@ -64,7 +64,8 @@ features (`null` means all features), relative artifact paths, and the complete
 Explorer file inventory. A scoped feature list is nonempty and normalized to
 unique, sorted names. The spec artifact always contains the complete model;
 the execution plan may be scoped to selected outputs and their dependencies.
-`build_version` identifies the manifest and bundle format. It is currently `1`;
+`build_version` is an integer that identifies the manifest and bundle format.
+It is currently `1`;
 increment it when that format changes incompatibly. It is independent of the
 spec's `spec_version`, the plan's `plan_version`, and the Uptimely package
 version recorded as `uptimely_version`.

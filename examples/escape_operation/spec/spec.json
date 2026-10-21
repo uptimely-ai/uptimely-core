@@ -1,6 +1,6 @@
 {
   "name": "Escape operation example",
-  "spec_version": "0.2.0",
+  "spec_version": 1,
   "source": {
     "name": "json",
     "generated": false

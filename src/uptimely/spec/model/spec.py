@@ -10,7 +10,7 @@ from . import common
 from . import dataset as dataset_module
 from . import functions as functions_module
 
-SUPPORTED_SPEC_VERSION = "0.2.0"
+SPEC_VERSION = 1
 
 
 def _with_mapping_ids(value: typing.Any) -> typing.Any:
@@ -39,7 +39,7 @@ class Spec(common.StrictModel):
     """The complete JSON spec document."""
 
     name: str | None = None
-    spec_version: typing.Literal["0.2.0"] = SUPPORTED_SPEC_VERSION
+    spec_version: typing.Literal[1] = SPEC_VERSION
     source: common.SpecSource = pydantic.Field(
         default_factory=lambda: common.SpecSource(name="manual", generated=False)
     )
@@ -48,6 +48,14 @@ class Spec(common.StrictModel):
         default_factory=functions_module.FunctionCatalog
     )
     entities: dict[str, dataset_module.Entity] = pydantic.Field(default_factory=dict)
+
+    @pydantic.field_validator("spec_version", mode="before")
+    @classmethod
+    def validate_spec_version_type(cls, value: object) -> object:
+        """Reject booleans, which Python otherwise treats as integer literals."""
+        if type(value) is not int:
+            raise ValueError("spec_version must be an integer")
+        return value
 
     @pydantic.model_validator(mode="before")
     @classmethod

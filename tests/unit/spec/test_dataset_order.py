@@ -22,7 +22,7 @@ ORDER = [
 
 def _configuration() -> dict[str, typing.Any]:
     return {
-        "spec_version": "0.2.0",
+        "spec_version": 1,
         "dimensions": {
             "machine": {"type": "string"},
             "timestamp": {"type": "datetime"},

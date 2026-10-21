@@ -1,6 +1,7 @@
 """Standard project paths and active build bundle validation."""
 
 from .build import (
+    BUILD_VERSION,
     BuildArtifactPaths,
     BuildBundle,
     BuildError,
@@ -19,7 +20,6 @@ from .paths import (
     BUILD_MANIFEST_FILE,
     BUILD_OUTPUT_DIR,
     BUILD_SPEC_FILE,
-    BUILD_VERSION,
     COMPILER_CONFIG_FILE,
     CONFIG_DIR,
     DATA_DIR,

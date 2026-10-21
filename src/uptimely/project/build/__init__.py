@@ -5,7 +5,12 @@ from uptimely.project.build.bundle import load_build_bundle, read_build_bundle
 from uptimely.project.build.errors import BuildError, BuildLockError, ProjectBuildError
 from uptimely.project.build.features import FeatureSelection
 from uptimely.project.build.locking import build_lock
-from uptimely.project.build.models import BuildArtifactPaths, BuildBundle, BuildManifest
+from uptimely.project.build.models import (
+    BUILD_VERSION,
+    BuildArtifactPaths,
+    BuildBundle,
+    BuildManifest,
+)
 from uptimely.project.build.source import (
     JsonSource,
     PythonSource,
@@ -19,6 +24,7 @@ __all__ = [
     "BuildError",
     "BuildLockError",
     "BuildManifest",
+    "BUILD_VERSION",
     "FeatureSelection",
     "JsonSource",
     "ProjectBuildError",

@@ -1,6 +1,6 @@
 {
   "name": "Observation totals",
-  "spec_version": "0.2.0",
+  "spec_version": 1,
   "dimensions": {
     "id": {
       "type": "integer"

@@ -23,12 +23,12 @@ from .functions import (
     FunctionCatalog,
     FunctionTemplate,
 )
-from .spec import SUPPORTED_SPEC_VERSION, Spec
+from .spec import SPEC_VERSION, Spec
 
 __all__ = [
     "FUNCTION_OPERATIONS",
     "FUNCTION_TYPES",
-    "SUPPORTED_SPEC_VERSION",
+    "SPEC_VERSION",
     "Spec",
     "SpecSource",
     "Argument",
