@@ -10,7 +10,7 @@ from uptimely import compiler, engine, spec
 from uptimely.compiler import plan as plan_module
 
 EXAMPLE_ROOT = pathlib.Path(__file__).parents[2] / "examples" / "escape_operation"
-SPEC_PATH = EXAMPLE_ROOT / "config" / "spec" / "spec.json"
+SPEC_PATH = EXAMPLE_ROOT / "spec" / "spec.json"
 
 
 def test_escape_example_reads_calculates_and_writes_without_materializing_outputs(

@@ -7,8 +7,8 @@ import polars as pl
 import pydantic
 import pytest
 from conftest import render_explorer
-from examples.simple_analytics.config.spec import spec as spec_module
 from examples.simple_analytics.functions import functions
+from examples.simple_analytics.spec import spec as spec_module
 
 from uptimely import compiler, engine, spec
 from uptimely.spec import python as python_spec

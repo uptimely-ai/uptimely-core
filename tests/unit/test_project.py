@@ -18,9 +18,9 @@ def test_default_spec_attribute() -> None:
     ("path", "expected"),
     [
         (project.CONFIG_DIR, "config"),
-        (project.SPEC_SOURCE_DIR, "config/spec"),
-        (project.SPEC_PYTHON_ENTRY_FILE, "config/spec/spec.py"),
-        (project.SPEC_JSON_ENTRY_FILE, "config/spec/spec.json"),
+        (project.SPEC_SOURCE_DIR, "spec"),
+        (project.SPEC_PYTHON_ENTRY_FILE, "spec/spec.py"),
+        (project.SPEC_JSON_ENTRY_FILE, "spec/spec.json"),
         (project.COMPILER_CONFIG_FILE, "config/compiler.json"),
         (project.ENGINE_CONFIG_FILE, "config/engine.json"),
         (project.DATA_DIR, "data"),

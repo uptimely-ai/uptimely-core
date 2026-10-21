@@ -26,28 +26,58 @@ Read more at [uptimely.ai website](https://uptimely.ai).
 
 ## Quick start
 
-Python 3.13 or newer is required. Install the package, download the examples
-and run.
+Python 3.13 or newer is required.
+
+### Install
 
 With pip:
 
 ```sh
 pip install uptimely-core
-uptimely examples download --output examples
-uptimely project build --project-root examples/pump_analytics
-uptimely engine run --project-root examples/pump_analytics
-uptimely explorer serve --project-root examples/pump_analytics
 ```
 
-With Poetry, from your Poetry project:
+With poetry:
 
 ```sh
 poetry add uptimely-core
-poetry run uptimely examples download --output examples
-poetry run uptimely project build --project-root examples/pump_analytics
-poetry run uptimely engine run --project-root examples/pump_analytics
-poetry run uptimely explorer serve --project-root examples/pump_analytics
 ```
+
+With poetry, add `poetry run` before the following commands.
+
+### Download examples
+
+Download example files `examples` directory:
+
+```sh
+uptimely examples download --output examples
+```
+
+### Build the spec
+
+The build creates files under `examples/pump_analytics/_generated/build/`.
+Rebuild after changing the example's source files.
+
+```sh
+uptimely project build --project-root examples/pump_analytics
+```
+
+### Run the calculations
+
+Engine reads the build and executes the calculation by the compiled plan.
+
+```sh
+uptimely engine run --project-root examples/pump_analytics
+```
+
+### Open the project explorer
+
+Visually explore the project resources.
+
+```sh
+uptimely explorer serve --project-root examples/pump_analytics
+```
+
+Open <http://127.0.0.1:8001/> to view the Explorer.
 
 
 ## Documentation
