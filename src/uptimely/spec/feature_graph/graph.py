@@ -71,7 +71,7 @@ class GraphBase:
         return [self._topology_items_for_level(level, item_type) for level in levels]
 
     def print_graph(self) -> str:
-        """Visualize the feature dependency graph."""
+        """Print the feature dependency graph and return its text representation."""
         graph_text = self.render_graph()
         print(graph_text)
         return graph_text
@@ -79,9 +79,6 @@ class GraphBase:
     def render_graph(self) -> str:
         """Return a text representation of the feature dependency graph."""
         return views.texttree.create_topology_tree_txt(self.graph)
-
-    def print(self) -> None:
-        self.print_graph()
 
     def _node_type(self, reference: NodeMeta) -> str:
         """Return the single presentation type used by the feature graph."""

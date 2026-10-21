@@ -11,6 +11,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 ### Changed
 
 - CLI status and verbose output now use INFO-level Python logging.
+- **Breaking:** Removed the redundant `print()` method from feature graphs.
+  Use `print_graph()` for terminal output or `render_graph()` to return text.
 
 ## [0.5.0] - 2026-10-21
 

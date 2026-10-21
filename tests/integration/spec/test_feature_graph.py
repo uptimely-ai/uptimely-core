@@ -117,6 +117,22 @@ def test_subset_raises_helpful_error_for_missing_output() -> None:
         system.subset(["temperature_3"])
 
 
+@pytest.mark.parametrize("subset", [False, True])
+def test_graph_rendering_and_explicit_printing(
+    capsys: pytest.CaptureFixture[str], subset: bool
+) -> None:
+    system = spec.FeatureGraph(spec.load_spec(SPEC_PATH))
+    graph = system.subset(["health_signal_normalized"]) if subset else system
+
+    graph_text = graph.render_graph()
+    assert "health_signal_normalized" in graph_text
+    assert capsys.readouterr().out == ""
+
+    assert graph.print_graph() == graph_text
+    assert capsys.readouterr().out == graph_text + "\n"
+    assert not hasattr(graph, "print")
+
+
 def test_system_graph_builds_from_entity_feature_bindings() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     system = spec.FeatureGraph(spec_definition)
