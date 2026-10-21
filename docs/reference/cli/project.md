@@ -14,6 +14,8 @@ The command validates the complete source specification, compiles one execution
 plan, and builds a complete Explorer website. It publishes all four artifacts
 as one active bundle:
 
+### Build output
+
 ```text
 _generated/build/
 ├── build.json
@@ -24,11 +26,15 @@ _generated/build/
     └── ... website assets and pages
 ```
 
+### Feature selection
+
 The spec export always contains the complete model. If `--features` is
 provided, the plan includes the selected outputs, their dependencies, and the
 associated dataset sinks; the Explorer renders that exact plan alongside the
 complete spec model. Omit `--features` to compile all features.
 Selections must be nonempty and valid. Duplicate names are normalized.
+
+### Options
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
@@ -37,14 +43,28 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 | `--json-spec PATH` | No | Discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Relative to the current working directory. |
 | `--features FEATURE ...` | No | All features | Select one or more output features and their required dependencies. |
 
-Source discovery checks `spec/spec.py` and `spec/spec.json` beneath the
-project root. If both exist, select one
-explicitly with `--python-spec` or `--json-spec`.
+### Specification source discovery
+
+Without `--python-spec` or `--json-spec`, source discovery checks
+`spec/spec.py` and `spec/spec.json` beneath the project root:
+
+- If only `spec/spec.py` exists, it is selected automatically.
+- If only `spec/spec.json` exists, it is selected automatically.
+- If both exist, the build fails as ambiguous. Select one with
+  `--python-spec` or `--json-spec`.
+- If neither exists, the build fails and reports the expected paths.
+
+Use `--python-spec` or `--json-spec` to select a source explicitly, including
+one outside the standard paths.
+
+### Examples
 
 ```console
 uptimely project build --project-root examples/pump_analytics
 uptimely project build --project-root examples/pump_analytics --features pump_health_score
 ```
+
+### Build behavior
 
 Building may import Python declarations and inspect function signatures, but it
 does not execute workflow functions or sinks. Python module-level code still
@@ -54,10 +74,8 @@ active bundle. Source edits do not change an existing build; rebuild explicitly
 to publish updated artifacts. If building fails, the last successful bundle
 remains active.
 
-`uptimely engine run` executes the saved plan, including configured write
-sinks, which may have external side effects. It never compiles or regenerates
-artifacts. Missing or invalid builds fail with an actionable command to build
-the project.
+
+### Publication and locking
 
 Artifacts are generated in a sibling staging directory, validated, then
 published in place of the previous bundle. A generation failure leaves the

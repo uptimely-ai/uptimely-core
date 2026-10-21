@@ -36,7 +36,7 @@ project/
 | --- | --- |
 | `data/` | Raw or reference datasets used by the analytics workflow. |
 | `functions/` | Reusable source, calculation, and write functions. |
-| `spec/` | Python declarations that define entities, datasets, and relationships. |
+| `spec/` | The project specification: either Python declarations or a JSON document. |
 | `_generated/` | Generated project artifacts. The active build is stored in `_generated/build/`. |
 | `config/engine.json` | Engine settings and bind values used to resolve runtime placeholders. |
 
@@ -83,12 +83,15 @@ The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/
 for project builds, execution, Explorer, and feature graphs.
 `uptimely project build --project-root <project>` discovers
 `spec/spec.py` or `spec/spec.json`, validates the source, and
-generates a complete active bundle under `_generated/build/`. Use
+generates a complete active bundle under `_generated/build/`. If exactly one
+standard source exists, it is selected automatically. If both exist, the build
+fails as ambiguous; select one explicitly with `--python-spec` or
+`--json-spec`. If neither exists, the build fails and reports the expected
+paths. Use
 `--features <name> [<name> ...]` to publish a scoped plan; omit it to include
 all features. Python sources expose `python_spec`, a `PythonSpec` instance. Use
 `--python-spec <module>.<sub_module>:<attribute>` or `--json-spec <path>` to select a source
-explicitly; this
-is required when both standard sources exist. The generated website and plan
+explicitly. The generated website and plan
 are included in that bundle. `uptimely spec feature-graph` prints graph
 summaries and, with `--verbose`, dependency trees from the saved spec without
 writing files. Engine and Explorer do not regenerate from source; edits require
