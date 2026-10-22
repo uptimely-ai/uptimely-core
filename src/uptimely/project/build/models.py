@@ -120,8 +120,9 @@ class BuildManifest(pydantic.BaseModel):
 
 @dataclasses.dataclass(frozen=True)
 class BuildBundle:
-    """Validated locations and execution plan for one active build."""
+    """Validated artifacts, execution plan, and project context for one active build."""
 
+    project_root: pathlib.Path
     root: pathlib.Path
     manifest: BuildManifest
     spec_path: pathlib.Path

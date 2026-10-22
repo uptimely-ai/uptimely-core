@@ -1,10 +1,9 @@
 # Execution engine
 
 This page describes the built-in Uptimely Core runtime and its execution
-contract. It consumes a compiled plan, resolves runtime resources, invokes
-functions, and accumulates their tabular results. Other engines can use the same
-portable plan format if they implement callable execution and the required
-backend.
+contract. It consumes a validated build bundle, invokes the plan's callable
+entrypoints, and accumulates tabular results. Runtime configuration and
+environment-specific bindings are supplied separately.
 
 ## Engine settings
 
@@ -12,8 +11,13 @@ Engine settings are supplied to `Engine`, not stored in the Spec
 document. The engine implementation decides which configuration values
 to use.
 
-The built-in Python engine only uses `dataframe` to validate backend
-compatibility. `evaluation` and `batch_size` are reserved settings: they are
+Construct an engine with the validated build bundle and required runtime
+configuration. The configuration includes backend options and environment-
+specific placeholder values under `bind`.
+
+The engine uses the configured `dataframe` string to select a dataframe
+backend. The built-in Python engine currently supports `polars`.
+`evaluation` and `batch_size` are reserved settings: they are
 accepted and stored, but do not change evaluation strategy, data access, or
 persistence. Do not rely on them to enable lazy execution, batching, or
 persistence.
@@ -22,7 +26,7 @@ The `engine.json` file has `backend` and `bind` top-level keys:
 
 JSON key | Type | Purpose
 --- | --- | ---
-`backend` | object | Engine settings passed to `EngineConfig`.
+`backend` | object | Backend options validated by `EngineBackendConfig`.
 `backend.type` | string | Engine type, such as `docker` or `python_venv`.
 `backend.definition` | string or `null` | Folder containing configuration files for the engine.
 `backend.dataframe` | string | Dataframe backend. The built-in engine currently supports `polars`.
@@ -35,9 +39,11 @@ claim as `required_backend`; the built-in engine rejects values other than
 `polars`. Orchestration is a deployment concern and is not represented in the
 Spec document.
 
-## Executing a compiled plan
+## Executing a build bundle
 
-The engine executes a compiled portable plan. A plan can be compiled for
+The engine accepts a validated build bundle and executes its compiled portable
+plan. The bundle provides the plan resources and project root used to resolve
+callable entrypoints. A plan can be compiled for
 selected output features; the compiler includes their prerequisite calculations
 and dependencies, so the engine needs no special subset logic. An exported plan
 can also be executed without recompilation.
@@ -84,8 +90,8 @@ The plan must already contain placeholders for the values you want to vary.
 This does not modify Spec or replace literal arguments, functions,
 features, or dependencies.
 
-An environment-specific engine JSON file groups backend settings and runtime
-bindings under `backend` and `bind`:
+`EngineConfig` validates the complete engine JSON, including backend settings
+and runtime bindings:
 
 ```json
 {
@@ -102,10 +108,9 @@ bindings under `backend` and `bind`:
 }
 ```
 
-The engine accepts decoded configuration values rather than a file path. The
-[MCP CLI](../tools/ai.md#running-the-server) can load this JSON file through
-`--config`, reading backend settings from `backend` and runtime values from
-`bind`. Neither interface automatically selects an
+The engine accepts an `EngineConfig` rather than a file path. The CLI and
+[MCP server](../tools/ai.md#running-the-server) load this JSON through
+`EngineConfig`. Neither interface automatically selects an
 environment or merges multiple configuration files. Each supplied mapping must
 provide all values required by the callables being executed; missing values
 are errors, not fallbacks to another environment.

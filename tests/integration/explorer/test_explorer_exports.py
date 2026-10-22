@@ -6,9 +6,9 @@ import pathlib
 import re
 
 import pytest
-from conftest import EXAMPLES_ROOT, render_explorer
+from conftest import EXAMPLES_ROOT, engine_for_plan, render_explorer
 
-from uptimely import compiler, contracts, engine, spec
+from uptimely import compiler, contracts, spec
 from uptimely.explorer import graph_render, spec_render
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -31,7 +31,7 @@ def test_spec_reference_snippet_syntax(language: str, snippet: str) -> None:
 def test_spec_json_parses_compiles_and_executes() -> None:
     spec_definition = spec.load_spec(OBSERVATION_TOTALS_PATH)
     compiled = compiler.Compiler(spec_definition, features=["total"]).compile()
-    execution = engine.Engine(compiled).execute()
+    execution = engine_for_plan(compiled).execute()
 
     assert len(compiled.callables) == 2
     assert not execution.failures

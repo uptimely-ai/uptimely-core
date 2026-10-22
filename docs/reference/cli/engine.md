@@ -21,8 +21,8 @@ without compiling or generating artifacts. This runs the plan's configured
 functions, including write sinks, and may have external side effects. Missing
 or invalid builds report a recovery command.
 
-The engine configuration has a `backend` object validated as `EngineConfig`
-and a `bind` object for runtime values:
+The engine configuration is validated as `EngineConfig`. It contains a
+`backend` object for backend settings and a `bind` object for runtime values:
 
 ```json
 {

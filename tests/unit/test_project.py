@@ -138,6 +138,7 @@ def test_load_build_bundle_validates_and_loads_all_declared_artifacts(
 
     bundle = project.load_build_bundle(tmp_path)
 
+    assert bundle.project_root == tmp_path.resolve()
     assert bundle.root == tmp_path.resolve() / project.BUILD_OUTPUT_DIR
     assert bundle.manifest.features is None
     assert bundle.spec_path == bundle.root / "spec.json"

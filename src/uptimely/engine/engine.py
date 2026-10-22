@@ -1,13 +1,14 @@
-"""Execution engine for portable spec plans."""
+"""Execution engine for plans in validated project build bundles."""
 
 import logging
-import pathlib
 import time
 import typing
 
 from uptimely import contracts
 from uptimely import entrypoint as entrypoint_module
 from uptimely.compiler import plan as plan_module
+from uptimely.project import imports as project_imports
+from uptimely.project.build import models as build_models
 
 from . import backend as backend_module
 from . import bindings as bindings_module
@@ -20,43 +21,28 @@ logger = logging.getLogger(__name__)
 
 
 class Engine:
-    """Execute an explicit portable plan."""
+    """Execute the plan in a validated project build bundle."""
 
     def __init__(
         self,
-        plan: plan_module.ExecutionPlan,
-        resources: dict[str, typing.Any] | None = None,
-        *,
-        config: config_module.EngineConfig | None = None,
-        backend: backend_module.DataFrameBackend | None = None,
-        resource_resolver: backend_module.ResourceResolver | None = None,
-        callable_loader: backend_module.CallableLoader | None = None,
-        bind: dict[str, dict[str, dict[str, typing.Any]]] | None = None,
+        bundle: build_models.BuildBundle,
+        config: config_module.EngineConfig,
     ) -> None:
-        """Prepare an engine to execute a validated portable plan."""
-        if not isinstance(plan, plan_module.ExecutionPlan):
-            raise ValueError("plan must be an ExecutionPlan")
-        self.plan = plan
-
-        self.resources = dict(self.plan.plan.resources)
-        if resources is not None:
-            if not isinstance(resources, dict):
-                raise TypeError("resources must be a dictionary of plan resource overrides")
-            self.resources.update(resources)
-        self.config = config or config_module.EngineConfig()
-        self.backend = backend or backend_module.PolarsBackend()
-        self.resource_resolver = resource_resolver or backend_module.PlanResourceResolver(
-            self.resources
-        )
-        self.callable_loader = callable_loader
-        self.bind = bind or {}
+        """Prepare an engine using bundle resources and runtime configuration."""
+        if not isinstance(bundle, build_models.BuildBundle):
+            raise ValueError("bundle must be a BuildBundle")
+        self.bundle = bundle
+        project_imports.prepare_imports(bundle.project_root)
+        self.plan = bundle.execution_plan
+        self.resources = self.plan.plan.resources
+        self.config = config
+        self.backend = backend_module.create_backend(config.backend.dataframe)
+        self.bind = config.bind
         self._verify_plan()
 
     def _load_callable(self, location: str) -> typing.Callable[..., typing.Any]:
-        """Load a plan callable through an override or its declared entrypoint."""
-        if self.callable_loader is not None:
-            return self.callable_loader.load(location)
-        return entrypoint_module.Entrypoint(location, pathlib.Path.cwd()).function.load()
+        """Load a callable from its plan entrypoint in the bundle's project."""
+        return entrypoint_module.Entrypoint(location, self.bundle.project_root).function.load()
 
     def _verify_plan(self) -> None:
         """Verify that this runtime supports the portable plan."""
@@ -132,7 +118,10 @@ class Engine:
         frame = state.datasets.get(dataset_key)
         kwargs = bindings.resolve_args(callable)
         result = self._load_callable(callable.entrypoint)(**kwargs)
-        dimensions = self.resource_resolver.entity_dimensions(callable.entity_id)
+        entity = self.resources.get("entities", {}).get(callable.entity_id)
+        if entity is None:
+            raise ValueError(f"Unknown entity: {callable.entity_id}")
+        dimensions = list(entity.get("dimensions", []))
         dataframe.validate_result(callable, result, frame, dimensions)
         columns = list(dict.fromkeys([*dimensions, *callable.output_features]))
         fragment = self.backend.select(result, columns)

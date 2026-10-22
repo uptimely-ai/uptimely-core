@@ -3,9 +3,6 @@
 import argparse
 import logging
 import pathlib
-import typing
-
-import pydantic
 
 from uptimely import engine as engine_module
 from uptimely import project
@@ -13,15 +10,6 @@ from uptimely.cli import plan
 from uptimely.project import imports
 
 logger = logging.getLogger(__name__)
-
-
-class EngineSettings(pydantic.BaseModel):
-    """Validated engine.json backend configuration and runtime bindings."""
-
-    model_config = pydantic.ConfigDict(extra="forbid")
-
-    backend: engine_module.EngineConfig = pydantic.Field(default_factory=engine_module.EngineConfig)
-    bind: dict[str, dict[str, dict[str, typing.Any]]] = pydantic.Field(default_factory=dict)
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
@@ -53,13 +41,11 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     try:
         imports.prepare_imports(root)
         with project.read_build_bundle(root) as bundle:
-            settings = EngineSettings.model_validate_json(config.read_text(encoding="utf-8"))
+            settings = engine_module.EngineConfig.model_validate_json(
+                config.read_text(encoding="utf-8")
+            )
             execution_plan = bundle.execution_plan
-            result = engine_module.Engine(
-                execution_plan,
-                config=settings.backend,
-                bind=settings.bind,
-            ).execute()
+            result = engine_module.Engine(bundle, settings).execute()
             if result.failures:
                 failures = "; ".join(result.failures.values())
                 raise RuntimeError(f"Engine flow failed: {failures}")

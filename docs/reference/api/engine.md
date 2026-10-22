@@ -1,8 +1,9 @@
 # Execution engine
 
-`uptimely.engine` executes [compiled plans](compiler.md). Configuration and
-results are separate from the adapters used to access data, resources, and
-Python callables.
+`uptimely.engine` executes the saved plan in a validated project build bundle.
+The bundle supplies plan resources and project context for resolving callable
+entrypoints. Runtime configuration and environment-specific bindings are
+supplied separately.
 
 <div class="api-reference" markdown="1">
 
@@ -24,7 +25,7 @@ Python callables.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [EngineConfig]
+      members: [EngineConfig, EngineBackendConfig]
 
 ## result
 
@@ -43,23 +44,24 @@ implementations.
 
 ### Adapter protocols
 
-Implement these interfaces to customize dataframe operations, resource
-resolution, or callable loading.
+Implement this interface to customize dataframe operations.
 
 ::: uptimely.engine.backend
     options:
       heading_level: 4
       show_root_heading: false
-      members: [DataFrameBackend, ResourceResolver, CallableLoader]
+      members: [DataFrameBackend]
 
 ### Built-in adapters
 
-The default implementations use Polars, plan resources, and Python entry points.
+The engine selects the dataframe backend using the configured `dataframe`
+string. The built-in backend is Polars; resources and callable entrypoints come
+from the build bundle.
 
 ::: uptimely.engine.backend
     options:
       heading_level: 4
       show_root_heading: false
-      members: [PolarsBackend, PlanResourceResolver, EntrypointLoader]
+      members: [PolarsBackend]
 
 </div>

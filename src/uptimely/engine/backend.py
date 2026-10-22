@@ -34,18 +34,6 @@ class DataFrameBackend(typing.Protocol):
     def validate_types(self, frame: object, types: abc.Mapping[str, str]) -> None: ...
 
 
-class ResourceResolver(typing.Protocol):
-    """Resolve plan resources needed during execution."""
-
-    def entity_dimensions(self, entity_id: str) -> list[str]: ...
-
-
-class CallableLoader(typing.Protocol):
-    """Load an executable callable from a plan entrypoint."""
-
-    def load(self, entrypoint: str) -> abc.Callable[..., typing.Any]: ...
-
-
 class PolarsBackend:
     """Polars implementation of the engine dataframe contract."""
 
@@ -135,14 +123,13 @@ class PolarsBackend:
                 raise ValueError(f"Output column {name} has type {actual}; expected {expected}")
 
 
-class PlanResourceResolver:
-    """Resolve resources from the portable plan resource mapping."""
+DATAFRAME_BACKENDS: dict[str, type[DataFrameBackend]] = {"polars": PolarsBackend}
 
-    def __init__(self, resources: abc.Mapping[str, typing.Any]) -> None:
-        self.resources = resources
 
-    def entity_dimensions(self, entity_id: str) -> list[str]:
-        entity = self.resources.get("entities", {}).get(entity_id)
-        if entity is None:
-            raise ValueError(f"Unknown entity: {entity_id}")
-        return list(entity.get("dimensions", []))
+def create_backend(name: str) -> DataFrameBackend:
+    """Create the configured dataframe backend."""
+    try:
+        backend_class = DATAFRAME_BACKENDS[name.lower()]
+    except KeyError as error:
+        raise ValueError(f"Unsupported dataframe backend: {name}") from error
+    return backend_class()

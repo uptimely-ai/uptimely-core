@@ -9,7 +9,9 @@ import tempfile
 import pytest
 
 from uptimely import compiler, spec
+from uptimely import engine as engine_module
 from uptimely import project as project_module
+from uptimely.compiler import plan as plan_module
 from uptimely.explorer import explorer
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
@@ -18,6 +20,46 @@ EXAMPLES_ROOT = pathlib.Path(
 )
 _ORIGINAL_EXAMPLES_ROOT = os.environ.get("UPTIMELY_TEST_EXAMPLES_ROOT")
 _TEST_ROOT: pathlib.Path | None = None
+
+
+def bundle_for_plan(
+    execution_plan: plan_module.ExecutionPlan,
+    project_root: pathlib.Path | None = None,
+) -> project_module.BuildBundle:
+    """Wrap a plan in a test bundle for engine execution."""
+    root = (project_root or REPOSITORY_ROOT).resolve()
+    build_root = root / "_generated" / "build"
+    return project_module.BuildBundle(
+        project_root=root,
+        root=build_root,
+        manifest=project_module.BuildManifest(
+            build_version=project_module.BUILD_VERSION,
+            uptimely_version="test",
+            features=None,
+            artifacts=project_module.BuildArtifactPaths(
+                spec="spec.json",
+                execution_plan="execution_plan.json",
+                explorer="explorer",
+            ),
+            explorer_files=["index.html"],
+        ),
+        spec_path=build_root / "spec.json",
+        execution_plan_path=build_root / "execution_plan.json",
+        explorer_path=build_root / "explorer",
+        execution_plan=execution_plan,
+    )
+
+
+def engine_for_plan(
+    execution_plan: plan_module.ExecutionPlan,
+    bind: dict[str, dict[str, dict[str, object]]] | None = None,
+    project_root: pathlib.Path | None = None,
+) -> engine_module.Engine:
+    """Create an engine for a plan using test runtime defaults."""
+    return engine_module.Engine(
+        bundle_for_plan(execution_plan, project_root),
+        engine_module.EngineConfig(bind=bind or {}),
+    )
 
 
 def render_explorer(

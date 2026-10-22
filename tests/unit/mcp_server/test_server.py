@@ -30,11 +30,10 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture()
 def state() -> server.ServerState:
     """Provide server state bound to the pump analytics build."""
-    engine_config, bind = server._load_engine_config(CONFIG_PATH)
+    engine_config = server._load_engine_config(CONFIG_PATH)
     return server.ServerState(
         project_root=PROJECT_ROOT,
         engine_config=engine_config,
-        bind=bind,
     )
 
 
