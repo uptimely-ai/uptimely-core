@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import pathlib
 import typing
 from collections import abc
 
 import polars as pl
-
-from uptimely import entrypoint as entrypoint_module
 
 
 class DataFrameBackend(typing.Protocol):
@@ -149,10 +146,3 @@ class PlanResourceResolver:
         if entity is None:
             raise ValueError(f"Unknown entity: {entity_id}")
         return list(entity.get("dimensions", []))
-
-
-class EntrypointLoader:
-    """Default callable loader using the package entrypoint implementation."""
-
-    def load(self, entrypoint: str) -> abc.Callable[..., typing.Any]:
-        return entrypoint_module.Entrypoint(entrypoint, pathlib.Path.cwd()).function.load()

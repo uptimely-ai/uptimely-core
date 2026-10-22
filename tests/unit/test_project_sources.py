@@ -72,11 +72,17 @@ def test_spec_source_missing_source_error_is_not_cli_specific(tmp_path: pathlib.
 
 
 def test_python_source_loads_explicit_entrypoint_with_module_api(tmp_path: pathlib.Path) -> None:
-    module_name = "custom_project_spec"
+    module_name = f"custom_project_spec_{tmp_path.name.replace('-', '_')}"
+    dependency_name = f"custom_project_dependency_{tmp_path.name.replace('-', '_')}"
+    (tmp_path / f"{dependency_name}.py").write_text(
+        "VALUE = 'Custom project spec'\n", encoding="utf-8"
+    )
     (tmp_path / f"{module_name}.py").write_text(
+        f"import {dependency_name}\n"
         "from uptimely.spec.python.entity import Entity\n"
         "from uptimely.spec.python.spec import PythonSpec\n"
-        "python_spec = PythonSpec(entities=[Entity(id='assets', name='Assets', "
+        f"python_spec = PythonSpec(name={dependency_name}.VALUE, entities=["
+        "Entity(id='assets', name='Assets', "
         "dimensions=[], datasets=[])])\n",
         encoding="utf-8",
     )
@@ -85,3 +91,4 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(tmp_path: pathl
 
     assert isinstance(loaded, spec.Spec)
     assert loaded.entities["assets"].name == "Assets"
+    assert loaded.name == "Custom project spec"

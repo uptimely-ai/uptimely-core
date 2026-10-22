@@ -106,8 +106,7 @@ def _build_details(snapshot: BuildSnapshot) -> dict[str, typing.Any]:
 
 def create_server(state: ServerState) -> fastmcp.FastMCP:
     """Create the MCP server with tools bound to the given server state."""
-    imports.prepare_project_root(state.project_root)
-
+    imports.prepare_imports(state.project_root)
     mcp = fastmcp.FastMCP("uptimely")
 
     @mcp.tool()
@@ -140,7 +139,10 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         if template is None:
             raise ValueError(f"Unknown function: {function_id}")
         signature = (
-            entrypoint.Entrypoint(template.entrypoint, root=state.project_root).function.signature
+            entrypoint.Entrypoint(
+                template.entrypoint,
+                root=state.project_root,
+            ).function.signature
             if template.validate_signature
             else None
         )

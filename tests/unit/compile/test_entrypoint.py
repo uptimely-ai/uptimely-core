@@ -1,6 +1,7 @@
 import io
 import math
 import pathlib
+import sys
 import types
 from urllib import error, request
 
@@ -38,6 +39,16 @@ def test_compiler_reports_unreadable_function_signatures() -> None:
 
     with pytest.raises(ValueError, match="Could not read signature.*Invalid entrypoint"):
         compiler.Compiler(spec_definition).compile()
+
+
+def test_explorer_context_reports_unloadable_function_modules() -> None:
+    spec_definition = spec.load_spec(SPEC_PATH)
+    spec_definition.functions[
+        "pressure_flow_efficiency"
+    ].entrypoint = "uptimely_test_missing_dependency:calculate"
+
+    with pytest.raises(ModuleNotFoundError, match="uptimely_test_missing_dependency"):
+        spec_render._build_context(spec_definition, False)
 
 
 def test_compiler_skips_disabled_signatures_without_changing_dependencies(
@@ -161,6 +172,23 @@ def test_function_load_accepts_local_file_references(
     assert shared_entrypoint.TypeAnnotation.name(int | None) == "int | None"
     assert entrypoint.module.load() is entrypoint.function.module.load()
     assert entrypoint.module.source_file == str(path)
+
+
+def test_module_load_does_not_prepare_project_imports(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sys, "path", sys.path.copy())
+    helper_name = f"entrypoint_helper_{tmp_path.name.replace('-', '_')}"
+    module_name = f"entrypoint_module_{tmp_path.name.replace('-', '_')}"
+    (tmp_path / f"{helper_name}.py").write_text("VALUE = 42\n", encoding="utf-8")
+    (tmp_path / f"{module_name}.py").write_text(
+        f"import {helper_name}\ndef calculate() -> int:\n    return {helper_name}.VALUE\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ModuleNotFoundError, match=helper_name):
+        shared_entrypoint.Entrypoint(f"{tmp_path / module_name}.py:calculate").function.load()
+    assert str(tmp_path) not in sys.path
 
 
 def test_module_source_file_for_importable_module() -> None:

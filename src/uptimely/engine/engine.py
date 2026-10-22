@@ -1,10 +1,12 @@
 """Execution engine for portable spec plans."""
 
 import logging
+import pathlib
 import time
 import typing
 
 from uptimely import contracts
+from uptimely import entrypoint as entrypoint_module
 from uptimely.compiler import plan as plan_module
 
 from . import backend as backend_module
@@ -46,9 +48,15 @@ class Engine:
         self.resource_resolver = resource_resolver or backend_module.PlanResourceResolver(
             self.resources
         )
-        self.callable_loader = callable_loader or backend_module.EntrypointLoader()
+        self.callable_loader = callable_loader
         self.bind = bind or {}
         self._verify_plan()
+
+    def _load_callable(self, location: str) -> typing.Callable[..., typing.Any]:
+        """Load a plan callable through an override or its declared entrypoint."""
+        if self.callable_loader is not None:
+            return self.callable_loader.load(location)
+        return entrypoint_module.Entrypoint(location, pathlib.Path.cwd()).function.load()
 
     def _verify_plan(self) -> None:
         """Verify that this runtime supports the portable plan."""
@@ -123,7 +131,7 @@ class Engine:
         dataset_key = (callable.entity_id, callable.dataset_id)
         frame = state.datasets.get(dataset_key)
         kwargs = bindings.resolve_args(callable)
-        result = self.callable_loader.load(callable.entrypoint)(**kwargs)
+        result = self._load_callable(callable.entrypoint)(**kwargs)
         dimensions = self.resource_resolver.entity_dimensions(callable.entity_id)
         dataframe.validate_result(callable, result, frame, dimensions)
         columns = list(dict.fromkeys([*dimensions, *callable.output_features]))
@@ -145,7 +153,7 @@ class Engine:
     ) -> None:
         """Invoke an uncontrolled mapping and discard its return value."""
         kwargs = bindings.resolve_args(callable)
-        self.callable_loader.load(callable.entrypoint)(**kwargs)
+        self._load_callable(callable.entrypoint)(**kwargs)
 
     def _execute_sink(
         self,
@@ -158,4 +166,4 @@ class Engine:
         if dataset_key not in state.datasets:
             raise KeyError(dataset_key)
         kwargs = bindings.resolve_args(callable)
-        self.callable_loader.load(callable.entrypoint)(**kwargs)
+        self._load_callable(callable.entrypoint)(**kwargs)
