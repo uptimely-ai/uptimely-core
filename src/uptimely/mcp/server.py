@@ -46,7 +46,6 @@ class ServerState:
     engine_config: uptimely_engine.EngineConfig = dataclasses.field(
         default_factory=uptimely_engine.EngineConfig
     )
-    bind: dict[str, dict[str, dict[str, typing.Any]]] = dataclasses.field(default_factory=dict)
     snapshot: BuildSnapshot | None = dataclasses.field(default=None, repr=False)
 
     def load_snapshot(self, *, reload: bool = False) -> BuildSnapshot:
@@ -282,11 +281,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
 
         snapshot = state.load_snapshot()
         plan = snapshot.bundle.execution_plan
-        engine = uptimely_engine.Engine(
-            plan,
-            config=state.engine_config,
-            bind=state.bind,
-        )
+        engine = uptimely_engine.Engine(snapshot.bundle, state.engine_config)
         result = engine.execute()
 
         expected_outputs = {
@@ -366,23 +361,11 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
 
 def _load_engine_config(
     config_path: pathlib.Path | None,
-) -> tuple[
-    uptimely_engine.EngineConfig,
-    dict[str, dict[str, dict[str, typing.Any]]],
-]:
+) -> uptimely_engine.EngineConfig:
     """Load engine settings and runtime bindings from a JSON file."""
     if config_path is None:
-        return uptimely_engine.EngineConfig(), {}
-    payload = json.loads(config_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise ValueError("Engine configuration JSON must contain an object")
-    backend_values = payload.get("backend", {})
-    bind = payload.get("bind", {})
-    if not isinstance(backend_values, dict):
-        raise ValueError("The 'backend' value must be an object")
-    if not isinstance(bind, dict):
-        raise ValueError("The 'bind' value must be an object")
-    return uptimely_engine.EngineConfig(**backend_values), bind
+        return uptimely_engine.EngineConfig()
+    return uptimely_engine.EngineConfig.model_validate_json(config_path.read_text(encoding="utf-8"))
 
 
 def main() -> None:
@@ -406,11 +389,10 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
     logger.info("Starting uptimely MCP server for project %s", args.project_root)
 
-    engine_config, bind = _load_engine_config(args.config)
+    engine_config = _load_engine_config(args.config)
     state = ServerState(
         project_root=args.project_root,
         engine_config=engine_config,
-        bind=bind,
     )
     create_server(state).run()
 

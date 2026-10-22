@@ -9,8 +9,9 @@ import sys
 import pytest
 from conftest import EXAMPLES_ROOT
 
+from uptimely import engine as engine_module
 from uptimely import project as project_module
-from uptimely.cli import cli, engine
+from uptimely.cli import cli
 
 PROJECT = EXAMPLES_ROOT / "pump_analytics"
 SPEC_PATH = PROJECT / "_generated/build/spec.json"
@@ -193,8 +194,8 @@ def test_engine_operation_failures_are_reported(
     assert "Engine completed" not in result.out
 
 
-def test_engine_settings_load_backend_and_bindings() -> None:
-    settings = engine.EngineSettings.model_validate_json(
+def test_engine_config_loads_backend_and_bindings() -> None:
+    settings = engine_module.EngineConfig.model_validate_json(
         '{"backend": {"dataframe": "polars"}, "bind": {"storage": {"source": {"path": "x"}}}}'
     )
     assert settings.backend.dataframe == "polars"

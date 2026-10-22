@@ -143,6 +143,7 @@ def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> mod
     execution_plan = _load_execution_plan(execution_plan_path, project_root)
 
     return models.BuildBundle(
+        project_root=project_root.resolve(),
         root=bundle_root,
         manifest=manifest,
         spec_path=spec_path,

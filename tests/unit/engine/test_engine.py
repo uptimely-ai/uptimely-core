@@ -3,9 +3,11 @@ import pathlib
 
 import polars as pl
 import pytest
+from conftest import bundle_for_plan
 
 from uptimely import compiler as uptimely_compiler
 from uptimely import engine as uptimely_engine
+from uptimely import entrypoint as entrypoint_module
 from uptimely import spec
 from uptimely.compiler import plan as uptimely_plan
 from uptimely.engine import bindings as bindings_module
@@ -19,7 +21,34 @@ def _plan() -> uptimely_plan.ExecutionPlan:
     return uptimely_plan.ExecutionPlan.from_json(PLAN_PATH)
 
 
-def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
+def _engine(
+    plan: uptimely_plan.ExecutionPlan,
+    bind_values: dict[str, dict[str, dict[str, object]]] | None = None,
+    project_root: pathlib.Path | None = None,
+) -> uptimely_engine.Engine:
+    return uptimely_engine.Engine(
+        bundle_for_plan(plan, project_root), uptimely_engine.EngineConfig(bind=bind_values or {})
+    )
+
+
+def _patch_callables(monkeypatch: pytest.MonkeyPatch, callables: dict[str, object]) -> None:
+    class _TestEntrypoint:
+        def __init__(self, location: str, _root: pathlib.Path) -> None:
+            self.location = location
+
+        @property
+        def function(self) -> object:
+            return self
+
+        def load(self) -> object:
+            return callables[self.location]
+
+    monkeypatch.setattr(entrypoint_module, "Entrypoint", _TestEntrypoint)
+
+
+def test_execute_runs_stages_and_returns_runtime_outputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     written: dict[str, object] = {}
 
     def read(source: str) -> pl.DataFrame:
@@ -33,11 +62,8 @@ def test_execute_runs_stages_and_returns_runtime_outputs() -> None:
         written["dataset"] = dataset
         written["features"] = features
 
-    engine = uptimely_engine.Engine(
-        _plan(),
-        bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
-        callable_loader=_Loader({"test:read": read, "test:double": double, "test:write": write}),
-    )
+    _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
+    engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
 
     result = engine.execute()
 
@@ -72,11 +98,8 @@ def test_saved_plan_executes_without_compiler(
         raise AssertionError("Saved-plan execution must not compile spec")
 
     monkeypatch.setattr(uptimely_compiler.Compiler, "compile", fail_compile)
-    engine = uptimely_engine.Engine(
-        saved_plan,
-        bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
-        callable_loader=_Loader({"test:read": read, "test:double": double, "test:write": write}),
-    )
+    _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
+    engine = _engine(saved_plan, {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
 
     result = engine.execute()
 
@@ -84,7 +107,9 @@ def test_saved_plan_executes_without_compiler(
     assert result.datasets["asset", "telemetry"]["doubled"].to_list() == [4, 6]
 
 
-def test_repeated_execution_does_not_leak_runtime_state() -> None:
+def test_repeated_execution_does_not_leak_runtime_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     read_count = 0
 
     def read(source: str) -> pl.DataFrame:
@@ -100,11 +125,8 @@ def test_repeated_execution_does_not_leak_runtime_state() -> None:
         assert features == ["doubled"]
         assert dataset["doubled"].to_list() in ([2, 4], [4, 6])
 
-    engine = uptimely_engine.Engine(
-        _plan(),
-        bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
-        callable_loader=_Loader({"test:read": read, "test:double": double, "test:write": write}),
-    )
+    _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
+    engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
 
     first_result = engine.execute()
     second_result = engine.execute()
@@ -118,7 +140,7 @@ def test_repeated_execution_does_not_leak_runtime_state() -> None:
     assert first_output["doubled"].to_list() == [2, 4]
 
 
-def test_execute_stops_after_a_failed_operation() -> None:
+def test_execute_stops_after_a_failed_operation(monkeypatch: pytest.MonkeyPatch) -> None:
     called = False
 
     def read(source: str) -> pl.DataFrame:
@@ -128,11 +150,8 @@ def test_execute_stops_after_a_failed_operation() -> None:
         nonlocal called
         called = True
 
-    engine = uptimely_engine.Engine(
-        _plan(),
-        bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
-        callable_loader=_Loader({"test:read": read, "test:write": write}),
-    )
+    _patch_callables(monkeypatch, {"test:read": read, "test:write": write})
+    engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
 
     result = engine.execute()
 
@@ -159,7 +178,9 @@ def test_execute_stops_after_a_failed_operation() -> None:
         pl.DataFrame({"unrelated": [1]}),
     ],
 )
-def test_escape_ignores_any_return_without_materializing_features(return_value: object) -> None:
+def test_escape_ignores_any_return_without_materializing_features(
+    return_value: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
     callable_id = "callable:escape:external_action:asset:external:action"
     escape = uptimely_plan.Callable(
         id=callable_id,
@@ -189,9 +210,8 @@ def test_escape_ignores_any_return_without_materializing_features(return_value: 
             stages=[[callable_id]],
         )
     )
-    engine = uptimely_engine.Engine(
-        plan, callable_loader=_Loader({"test:escape": lambda: return_value})
-    )
+    _patch_callables(monkeypatch, {"test:escape": lambda: return_value})
+    engine = _engine(plan)
 
     result = engine.execute()
 
@@ -201,7 +221,9 @@ def test_escape_ignores_any_return_without_materializing_features(return_value: 
     assert result.calculated_outputs == {}
 
 
-def test_escape_chain_runs_without_materializing_declared_feature_inputs() -> None:
+def test_escape_chain_runs_without_materializing_declared_feature_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     first_id = "callable:escape:first:asset:external:first"
     second_id = "callable:escape:second:asset:external:second"
     calls: list[str] = []
@@ -251,10 +273,8 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs() -> No
         )
     )
 
-    result = uptimely_engine.Engine(
-        plan,
-        callable_loader=_Loader({"test:first": first, "test:second": second}),
-    ).execute()
+    _patch_callables(monkeypatch, {"test:first": first, "test:second": second})
+    result = _engine(plan).execute()
 
     assert calls == ["first", "second"]
     assert result.callable_statuses == {first_id: "succeeded", second_id: "succeeded"}
@@ -263,7 +283,7 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs() -> No
     assert result.calculated_outputs == {}
 
 
-def test_escape_resolves_literal_and_runtime_arguments() -> None:
+def test_escape_resolves_literal_and_runtime_arguments(monkeypatch: pytest.MonkeyPatch) -> None:
     callable_id = "callable:escape:external_action:asset:external:action"
     escape = uptimely_plan.Callable(
         id=callable_id,
@@ -302,18 +322,17 @@ def test_escape_resolves_literal_and_runtime_arguments() -> None:
     def external_action(path: str, mode: str) -> None:
         received.append((path, mode))
 
-    result = uptimely_engine.Engine(
-        plan,
-        bind={"storage": {"output": {"path": "/tmp/external-output.csv"}}},
-        callable_loader=_Loader({"test:escape": external_action}),
-    ).execute()
+    _patch_callables(monkeypatch, {"test:escape": external_action})
+    result = _engine(plan, {"storage": {"output": {"path": "/tmp/external-output.csv"}}}).execute()
 
     assert received == [("/tmp/external-output.csv", "replace")]
     assert result.callable_statuses == {callable_id: "succeeded"}
     assert result.failures == {}
 
 
-def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream() -> None:
+def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     first_id = "callable:escape:first:asset:external:first"
     second_id = "callable:escape:second:asset:external:second"
     first_callable = uptimely_plan.Callable(
@@ -355,16 +374,16 @@ def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream() -> No
         )
     )
 
-    result = uptimely_engine.Engine(
-        plan,
-        callable_loader=_Loader({"test:first": lambda **_: None, "test:second": lambda **_: None}),
-    ).execute()
+    _patch_callables(monkeypatch, {"test:first": lambda **_: None, "test:second": lambda **_: None})
+    result = _engine(plan).execute()
 
     assert result.callable_statuses == {first_id: "failed", second_id: "skipped"}
     assert "Dataset dataframe is unavailable: missing" in result.failures[first_id]
 
 
-def test_escape_resolves_dataframe_arguments_from_preceding_read() -> None:
+def test_escape_resolves_dataframe_arguments_from_preceding_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     read_id = "callable:read:load:asset:telemetry:load"
     escape_id = "callable:escape:external_action:asset:telemetry:action"
     observed: list[pl.DataFrame] = []
@@ -417,10 +436,8 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read() -> None:
         )
     )
 
-    result = uptimely_engine.Engine(
-        plan,
-        callable_loader=_Loader({"test:read": read, "test:escape": external_action}),
-    ).execute()
+    _patch_callables(monkeypatch, {"test:read": read, "test:escape": external_action})
+    result = _engine(plan).execute()
 
     assert result.failures == {}
     assert result.callable_statuses == {read_id: "succeeded", escape_id: "succeeded"}
@@ -429,7 +446,7 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read() -> None:
     assert result.calculated_outputs == {}
 
 
-def test_escape_exception_fails_and_skips_downstream() -> None:
+def test_escape_exception_fails_and_skips_downstream(monkeypatch: pytest.MonkeyPatch) -> None:
     first_id = "callable:escape:first:asset:external:first"
     second_id = "callable:escape:second:asset:external:second"
     first_callable = uptimely_plan.Callable(
@@ -469,10 +486,8 @@ def test_escape_exception_fails_and_skips_downstream() -> None:
     def fail() -> None:
         raise RuntimeError("external action failed")
 
-    result = uptimely_engine.Engine(
-        plan,
-        callable_loader=_Loader({"test:first": fail, "test:second": lambda: None}),
-    ).execute()
+    _patch_callables(monkeypatch, {"test:first": fail, "test:second": lambda: None})
+    result = _engine(plan).execute()
 
     assert result.callable_statuses == {first_id: "failed", second_id: "skipped"}
     assert result.failures == {first_id: "external action failed"}
@@ -515,7 +530,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
     compiled = uptimely_compiler.Compiler(spec_definition, features=["external_result"]).compile()
     compiled.export_json(plan_path)
     restored = uptimely_plan.ExecutionPlan.from_json(plan_path)
-    result = uptimely_engine.Engine(restored).execute()
+    result = _engine(restored, project_root=tmp_path).execute()
 
     assert result.failures == {}
     assert result.callable_statuses == {compiled.callables[0].id: "succeeded"}
@@ -528,29 +543,41 @@ def test_engine_validates_plan_backend() -> None:
     plan = _plan().plan
 
     with pytest.raises(ValueError, match="Unsupported plan backend"):
-        uptimely_engine.Engine(
+        _engine(
             uptimely_plan.ExecutionPlan(
                 uptimely_plan.Plan(**{**plan.__dict__, "required_backend": "pandas"})
             )
         )
 
 
+def test_engine_selects_dataframe_backend_from_config() -> None:
+    engine = uptimely_engine.Engine(
+        bundle_for_plan(_plan()),
+        uptimely_engine.EngineConfig(backend={"dataframe": "POLARS"}),
+    )
+
+    assert isinstance(engine.backend, uptimely_engine.PolarsBackend)
+
+
 def test_engine_rejects_spec_paths_instead_of_compiling() -> None:
-    with pytest.raises(ValueError, match="plan must be an ExecutionPlan"):
-        uptimely_engine.Engine("spec.json")
+    with pytest.raises(ValueError, match="bundle must be a BuildBundle"):
+        uptimely_engine.Engine("spec.json", uptimely_engine.EngineConfig())  # type: ignore[arg-type]
 
     assert not hasattr(uptimely_engine.Engine, "from_spec")
     assert not hasattr(uptimely_engine.Engine, "spec")
 
 
-def test_engine_rejects_execution_plan_as_resource_override() -> None:
-    with pytest.raises(TypeError, match="resources must be a dictionary"):
-        uptimely_engine.Engine(_plan(), _plan())
+def test_engine_rejects_execution_plan_instead_of_bundle() -> None:
+    with pytest.raises(ValueError, match="bundle must be a BuildBundle"):
+        uptimely_engine.Engine(
+            _plan(),
+            uptimely_engine.EngineConfig(),  # type: ignore[arg-type]
+        )
 
 
 @pytest.mark.parametrize("reference", ["?", "?storage.source", "?storage.source.path.extra"])
 def test_engine_rejects_malformed_runtime_references(reference: str) -> None:
-    engine = uptimely_engine.Engine(_plan())
+    engine = _engine(_plan())
     bindings = bindings_module.RuntimeBindings(
         engine.resources, state_module.RuntimeState(), engine.bind
     )
@@ -593,7 +620,7 @@ def test_runtime_state_is_not_shared_between_instances() -> None:
 def test_execute_reports_unsupported_operation_types() -> None:
     plan = _plan().plan
     invalid_callable = dataclasses.replace(plan.callables[0], operation="unsupported")
-    engine = uptimely_engine.Engine(
+    engine = _engine(
         uptimely_plan.ExecutionPlan(
             uptimely_plan.Plan(
                 **{**plan.__dict__, "callables": [invalid_callable, *plan.callables[1:]]}
@@ -607,27 +634,27 @@ def test_execute_reports_unsupported_operation_types() -> None:
     assert result.failures[invalid_callable.id] == "Unsupported callable operation: unsupported"
 
 
-def test_execute_rejects_scalar_calculations() -> None:
+def test_execute_rejects_scalar_calculations(monkeypatch: pytest.MonkeyPatch) -> None:
     def read(source: str) -> pl.DataFrame:
         return pl.DataFrame({"asset_id": ["A"], "reading": [2]})
 
     def constant(column: str, dataset: pl.DataFrame) -> int:
         return 10
 
-    engine = uptimely_engine.Engine(
-        _plan(),
-        bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
-        callable_loader=_Loader(
-            {"test:read": read, "test:double": constant, "test:write": lambda **_: None}
-        ),
+    _patch_callables(
+        monkeypatch,
+        {"test:read": read, "test:double": constant, "test:write": lambda **_: None},
     )
+    engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
 
     result = engine.execute()
 
     assert "must return a Polars DataFrame or LazyFrame" in next(iter(result.failures.values()))
 
 
-def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
+def test_vectorize_mapping_emits_multiple_features_with_one_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     calls = 0
 
     def read() -> pl.DataFrame:
@@ -678,10 +705,8 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
             stages=[[read_callable.id], [vectorize_callable.id]],
         )
     )
-    engine = uptimely_engine.Engine(
-        plan,
-        callable_loader=_Loader({"test:read": read, "test:calculate": calculate}),
-    )
+    _patch_callables(monkeypatch, {"test:read": read, "test:calculate": calculate})
+    engine = _engine(plan)
 
     result = engine.execute()
 
@@ -699,18 +724,16 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call() -> None:
 @pytest.mark.parametrize("batch_size", [0, -1, True, "100"])
 def test_engine_config_rejects_invalid_batch_size(batch_size: object) -> None:
     with pytest.raises(ValueError, match="batch_size"):
-        uptimely_engine.EngineConfig(batch_size=batch_size)
+        uptimely_engine.EngineBackendConfig(batch_size=batch_size)
 
 
-@pytest.mark.parametrize("dataframe", ["pandas", "", None])
+@pytest.mark.parametrize("dataframe", ["pandas", ""])
 def test_engine_config_rejects_unsupported_dataframe_backend(dataframe: object) -> None:
+    configuration = uptimely_engine.EngineConfig(backend={"dataframe": dataframe})
     with pytest.raises(ValueError, match="Unsupported dataframe backend"):
-        uptimely_engine.EngineConfig(dataframe=dataframe)  # type: ignore[arg-type]
+        uptimely_engine.Engine(bundle_for_plan(_plan()), configuration)
 
 
-class _Loader:
-    def __init__(self, callables: dict[str, object]) -> None:
-        self.callables = callables
-
-    def load(self, entrypoint: str):
-        return self.callables[entrypoint]
+def test_engine_config_rejects_non_string_dataframe_backend() -> None:
+    with pytest.raises(ValueError, match="dataframe"):
+        uptimely_engine.EngineConfig(backend={"dataframe": None})

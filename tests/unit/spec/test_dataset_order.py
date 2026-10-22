@@ -6,11 +6,11 @@ import typing
 import polars as pl
 import pydantic
 import pytest
-from conftest import render_explorer
+from conftest import engine_for_plan, render_explorer
 from examples.simple_analytics.functions import functions
 from examples.simple_analytics.spec import spec as spec_module
 
-from uptimely import compiler, engine, spec
+from uptimely import compiler, spec
 from uptimely.spec import python as python_spec
 from uptimely.spec import validation
 
@@ -273,7 +273,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
         == compiler.Compiler(unordered).compile().callables
     )
 
-    result = engine.Engine(compiler.Compiler(ordered).compile()).execute()
+    result = engine_for_plan(compiler.Compiler(ordered).compile()).execute()
     assert result.failures == {}
     frame = result.datasets[("entity", declaration.id)]
     assert isinstance(frame, pl.DataFrame)

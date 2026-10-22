@@ -4,9 +4,10 @@ import pathlib
 
 import polars as pl
 import pytest
+from conftest import engine_for_plan
 from examples.escape_operation.functions import workflow
 
-from uptimely import compiler, engine, spec
+from uptimely import compiler, spec
 from uptimely.compiler import plan as plan_module
 
 EXAMPLE_ROOT = pathlib.Path(__file__).parents[2] / "examples" / "escape_operation"
@@ -25,7 +26,7 @@ def test_escape_example_reads_calculates_and_writes_without_materializing_output
     output_path = tmp_path / "workflow_results.csv"
     monkeypatch.setattr(workflow, "OUTPUT_PATH", output_path)
 
-    result = engine.Engine(saved_plan).execute()
+    result = engine_for_plan(saved_plan, project_root=EXAMPLE_ROOT).execute()
 
     escape = next(callable for callable in saved_plan.callables if callable.operation == "escape")
     assert escape.operation == "escape"

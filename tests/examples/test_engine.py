@@ -5,11 +5,10 @@ import sys
 
 import polars as pl
 import pytest
-from conftest import EXAMPLES_ROOT
+from conftest import EXAMPLES_ROOT, engine_for_plan
 from examples.pump_analytics.functions import calculation
 
 from uptimely import compiler
-from uptimely import engine as uptimely_engine
 from uptimely import project as project_module
 from uptimely import spec as spec_module
 from uptimely.cli import cli
@@ -41,7 +40,7 @@ def _copy_pump_project(tmp_path: pathlib.Path) -> pathlib.Path:
 
 
 def test_engine_returns_calculated_features_without_writing_output() -> None:
-    engine = uptimely_engine.Engine(_execution_plan(), bind=_engine_bind())
+    engine = engine_for_plan(_execution_plan(), _engine_bind())
 
     result = engine.execute()
 
@@ -175,7 +174,7 @@ def test_simple_analytics_engine_cli_executes_saved_build(
 
 
 def test_engine_rejects_unknown_runtime_namespace() -> None:
-    engine = uptimely_engine.Engine(_execution_plan(), bind={})
+    engine = engine_for_plan(_execution_plan(), {})
 
     result = engine.execute()
 
@@ -185,7 +184,7 @@ def test_engine_rejects_unknown_runtime_namespace() -> None:
 
 
 def test_engine_rejects_unknown_runtime_object() -> None:
-    engine = uptimely_engine.Engine(_execution_plan(), bind={"storage": {}})
+    engine = engine_for_plan(_execution_plan(), {"storage": {}})
 
     result = engine.execute()
 
@@ -196,7 +195,7 @@ def test_engine_rejects_unknown_runtime_object() -> None:
 
 
 def test_engine_rejects_unknown_runtime_attribute() -> None:
-    engine = uptimely_engine.Engine(_execution_plan(), bind={"storage": {"telemetry_source": {}}})
+    engine = engine_for_plan(_execution_plan(), {"storage": {"telemetry_source": {}}})
 
     result = engine.execute()
 
@@ -207,7 +206,7 @@ def test_engine_rejects_unknown_runtime_attribute() -> None:
 
 
 def test_engine_merges_fragments_by_entity_dimensions() -> None:
-    engine = uptimely_engine.Engine(_execution_plan())
+    engine = engine_for_plan(_execution_plan())
     dataframe = dataframe_module.DataFrameExecution(
         engine.backend, engine.resources, state_module.RuntimeState()
     )
@@ -233,7 +232,7 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
         for operation in engine.plan.callables
         if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
     )
-    dimensions = engine.resource_resolver.entity_dimensions(operation.entity_id)
+    dimensions = engine.resources["entities"][operation.entity_id]["dimensions"]
     merged = dataframe.merge_fragment(existing, fragment, dimensions).collect()
 
     assert merged.select("pump", "existing", "new").sort("pump").rows() == [
@@ -260,7 +259,7 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
     ],
 )
 def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> None:
-    engine = uptimely_engine.Engine(_execution_plan())
+    engine = engine_for_plan(_execution_plan())
     dataframe = dataframe_module.DataFrameExecution(
         engine.backend, engine.resources, state_module.RuntimeState()
     )
@@ -275,7 +274,7 @@ def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> Non
             operation,
             fragment,
             None,
-            engine.resource_resolver.entity_dimensions(operation.entity_id),
+            engine.resources["entities"][operation.entity_id]["dimensions"],
         )
 
 
@@ -334,7 +333,7 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
 
 def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathlib.Path) -> None:
     plan = compiler.Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
-    engine = uptimely_engine.Engine(plan, bind=_engine_bind())
+    engine = engine_for_plan(plan, _engine_bind())
     assert [
         operation.output
         for stage in engine.plan.execution_stages

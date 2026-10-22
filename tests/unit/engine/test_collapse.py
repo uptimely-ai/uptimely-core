@@ -3,6 +3,7 @@ import pathlib
 
 import polars as pl
 import pytest
+from conftest import engine_for_plan
 
 from uptimely import compiler, engine, spec
 from uptimely.compiler import plan as plan_module
@@ -165,7 +166,7 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
     collapse = next(item for item in plan.callables if item.operation == "collapse")
     assert collapse.input_features == ["value", "doubled"]
     assert len(collapse.dependency_ids) == 2
-    result = engine.Engine(plan).execute()
+    result = engine_for_plan(plan).execute()
     assert not result.failures
     frame = result.datasets["group", "summary"]
     if isinstance(frame, pl.LazyFrame):
@@ -187,7 +188,7 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
     portable = plan_module.ExecutionPlan(
         plan_module.Plan.from_dict(json.loads(json.dumps(plan.to_dict())))
     )
-    result = engine.Engine(portable).execute()
+    result = engine_for_plan(portable).execute()
     assert not result.failures
     frame = result.datasets["global", "global"]
     if isinstance(frame, pl.LazyFrame):
@@ -278,7 +279,7 @@ def test_collapse_consumes_expanded_features(lazy):
             "columns": spec_model.Argument(id="columns", type="array[string]"),
         },
     )
-    result = engine.Engine(
+    result = engine_for_plan(
         compiler.Compiler(spec_definition, features=["combined_maximum"]).compile()
     ).execute()
     assert not result.failures
@@ -316,7 +317,7 @@ def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
         return frame.drop("average") if shape == "missing" else pl.concat([frame, frame])
 
     monkeypatch.setattr(f"{__name__}.summarize", invalid)
-    result = engine.Engine(plan).execute()
+    result = engine_for_plan(plan).execute()
     assert message in next(iter(result.failures.values()))
     assert ("group", "summary") not in result.datasets
 
@@ -325,7 +326,7 @@ def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
 def test_collapse_preserves_null_group_keys(lazy):
     spec_definition = _spec(lazy=lazy)
     spec_definition.functions["read_values"].entrypoint = f"{__name__}:read_null_groups"
-    result = engine.Engine(
+    result = engine_for_plan(
         compiler.Compiler(spec_definition, features=["maximum"]).compile()
     ).execute()
     assert not result.failures
