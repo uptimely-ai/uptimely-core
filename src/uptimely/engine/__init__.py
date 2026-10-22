@@ -3,7 +3,6 @@
 from .backend import (
     CallableLoader,
     DataFrameBackend,
-    EntrypointLoader,
     PlanResourceResolver,
     PolarsBackend,
     ResourceResolver,
@@ -21,5 +20,4 @@ __all__ = [
     "CallableLoader",
     "PolarsBackend",
     "PlanResourceResolver",
-    "EntrypointLoader",
 ]

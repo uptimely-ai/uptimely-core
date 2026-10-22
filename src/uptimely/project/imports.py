@@ -1,4 +1,4 @@
-"""Configure Python import paths for an analytics project."""
+"""Prepare Python imports for an analytics project."""
 
 import pathlib
 import sys
@@ -12,9 +12,10 @@ def project_import_root(project_root: pathlib.Path) -> pathlib.Path:
     return root
 
 
-def prepare_project_root(project_root: pathlib.Path) -> None:
-    """Make project modules importable without changing the working directory."""
-    for path in (project_import_root(project_root), project_root.resolve()):
+def prepare_imports(project_root: pathlib.Path) -> None:
+    """Add project modules to Python's import path without changing the working directory."""
+    roots = dict.fromkeys((project_root.resolve(), project_import_root(project_root)))
+    for path in reversed(tuple(roots)):
         root = str(path)
         if root not in sys.path:
             sys.path.insert(0, root)

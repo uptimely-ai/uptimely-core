@@ -164,7 +164,10 @@ def _feature_data(
     return fragment_features, calculated_features, referenced_features, escape_features
 
 
-def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool) -> ExplorerContext:
+def _build_context(
+    spec_definition: spec_model.Spec,
+    include_generated_at: bool,
+) -> ExplorerContext:
     """Build the typed template context from a spec document model."""
     configuration = spec_definition.model_dump(mode="json", exclude_none=True)
     for entity_id, entity in spec_definition.entities.items():
@@ -224,12 +227,9 @@ def _build_context(spec_definition: spec_model.Spec, include_generated_at: bool)
             ):
                 function["entrypoint_file"] = pathlib.Path(module_spec.origin).resolve().as_uri()
         if validate_signature:
-            try:
-                return_type = entrypoint_module.Entrypoint(
-                    entrypoint, pathlib.Path.cwd()
-                ).function.signature.returns
-            except (AttributeError, ImportError, ModuleNotFoundError, TypeError, ValueError):
-                return_type = None
+            return_type = entrypoint_module.Entrypoint(
+                entrypoint, pathlib.Path.cwd()
+            ).function.signature.returns
             if return_type:
                 function["return_type"] = return_type
     (

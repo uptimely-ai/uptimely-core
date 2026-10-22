@@ -51,12 +51,14 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     root = args.project_root or pathlib.Path.cwd()
     config = project.resolve_path(args.config, args.project_root, project.ENGINE_CONFIG_FILE)
     try:
-        imports.prepare_project_root(root)
+        imports.prepare_imports(root)
         with project.read_build_bundle(root) as bundle:
             settings = EngineSettings.model_validate_json(config.read_text(encoding="utf-8"))
             execution_plan = bundle.execution_plan
             result = engine_module.Engine(
-                execution_plan, config=settings.backend, bind=settings.bind
+                execution_plan,
+                config=settings.backend,
+                bind=settings.bind,
             ).execute()
             if result.failures:
                 failures = "; ".join(result.failures.values())

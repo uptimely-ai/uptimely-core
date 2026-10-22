@@ -38,6 +38,7 @@ class PythonSource:
 
     def load(self) -> spec.Spec:
         """Validate and load a Python spec declaration."""
+        imports.prepare_imports(self.project_root)
         module = self.entrypoint.module.load()
         name = self.entrypoint.function.name
         declaration = getattr(module, name)
@@ -95,7 +96,6 @@ class SpecSource:
         if python_spec is not None and json_spec is not None:
             raise ValueError("Specify either a Python entrypoint or a spec JSON source, not both")
 
-        imports.prepare_project_root(self.project_root)
         if json_spec is not None:
             return JsonSource(self.project_root, json_spec)
         if python_spec is not None:
