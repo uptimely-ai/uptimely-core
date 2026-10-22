@@ -282,7 +282,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         snapshot = state.load_snapshot()
         plan = snapshot.bundle.execution_plan
         engine = uptimely_engine.Engine(snapshot.bundle, state.engine_config)
-        result = engine.execute()
+        result = engine.run()
 
         expected_outputs = {
             (callable.entity_id, callable.dataset_id, feature)

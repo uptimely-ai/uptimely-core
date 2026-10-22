@@ -42,7 +42,7 @@ def _copy_pump_project(tmp_path: pathlib.Path) -> pathlib.Path:
 def test_engine_returns_calculated_features_without_writing_output() -> None:
     engine = engine_for_plan(_execution_plan(), _engine_bind())
 
-    result = engine.execute()
+    result = engine.run()
 
     assert not result.failures
     assert sorted({feature for _, _, feature in result.calculated_outputs}) == [
@@ -179,7 +179,7 @@ def test_simple_analytics_engine_cli_executes_saved_build(
 def test_engine_rejects_unknown_runtime_namespace() -> None:
     engine = engine_for_plan(_execution_plan(), {})
 
-    result = engine.execute()
+    result = engine.run()
 
     assert any(
         "Unknown runtime namespace: storage" in message for message in result.failures.values()
@@ -189,7 +189,7 @@ def test_engine_rejects_unknown_runtime_namespace() -> None:
 def test_engine_rejects_unknown_runtime_object() -> None:
     engine = engine_for_plan(_execution_plan(), {"storage": {}})
 
-    result = engine.execute()
+    result = engine.run()
 
     assert any(
         "Unknown storage object: telemetry_source" in message
@@ -200,7 +200,7 @@ def test_engine_rejects_unknown_runtime_object() -> None:
 def test_engine_rejects_unknown_runtime_attribute() -> None:
     engine = engine_for_plan(_execution_plan(), {"storage": {"telemetry_source": {}}})
 
-    result = engine.execute()
+    result = engine.run()
 
     assert any(
         "storage object telemetry_source has no attribute: path" in message
@@ -353,6 +353,6 @@ def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathli
         "vectorize",
     }
 
-    result = engine.execute()
+    result = engine.run()
 
     assert result.datasets[("pump", "pump_dataset")].collect().height == 2

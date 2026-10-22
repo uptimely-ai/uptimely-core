@@ -166,7 +166,7 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
     collapse = next(item for item in plan.callables if item.operation == "collapse")
     assert collapse.input_features == ["value", "doubled"]
     assert len(collapse.dependency_ids) == 2
-    result = engine_for_plan(plan).execute()
+    result = engine_for_plan(plan).run()
     assert not result.failures
     frame = result.datasets["group", "summary"]
     if isinstance(frame, pl.LazyFrame):
@@ -188,7 +188,7 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
     portable = plan_module.ExecutionPlan(
         plan_module.Plan.from_dict(json.loads(json.dumps(plan.to_dict())))
     )
-    result = engine_for_plan(portable).execute()
+    result = engine_for_plan(portable).run()
     assert not result.failures
     frame = result.datasets["global", "global"]
     if isinstance(frame, pl.LazyFrame):
@@ -281,7 +281,7 @@ def test_collapse_consumes_expanded_features(lazy):
     )
     result = engine_for_plan(
         compiler.Compiler(spec_definition, features=["combined_maximum"]).compile()
-    ).execute()
+    ).run()
     assert not result.failures
     frame = result.datasets["group", "summary"]
     if isinstance(frame, pl.LazyFrame):
@@ -317,7 +317,7 @@ def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
         return frame.drop("average") if shape == "missing" else pl.concat([frame, frame])
 
     monkeypatch.setattr(f"{__name__}.summarize", invalid)
-    result = engine_for_plan(plan).execute()
+    result = engine_for_plan(plan).run()
     assert message in next(iter(result.failures.values()))
     assert ("group", "summary") not in result.datasets
 
@@ -328,7 +328,7 @@ def test_collapse_preserves_null_group_keys(lazy):
     spec_definition.functions["read_values"].entrypoint = f"{__name__}:read_null_groups"
     result = engine_for_plan(
         compiler.Compiler(spec_definition, features=["maximum"]).compile()
-    ).execute()
+    ).run()
     assert not result.failures
     frame = result.datasets["group", "summary"]
     if isinstance(frame, pl.LazyFrame):

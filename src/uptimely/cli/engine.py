@@ -64,7 +64,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             )
             engine = engine_module.Engine(bundle, settings)
             started = time.perf_counter()
-            result = engine.execute()
+            result = engine.run()
             duration = time.perf_counter() - started
             if result.failures:
                 failures = "; ".join(result.failures.values())
