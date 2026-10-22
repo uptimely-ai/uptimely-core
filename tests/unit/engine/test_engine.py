@@ -65,7 +65,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
     engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
 
-    result = engine.execute()
+    result = engine.run()
 
     assert set(result.callable_statuses.values()) == {"succeeded"}
     assert result.failures == {}
@@ -101,7 +101,7 @@ def test_saved_plan_executes_without_compiler(
     _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
     engine = _engine(saved_plan, {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
 
-    result = engine.execute()
+    result = engine.run()
 
     assert result.failures == {}
     assert result.datasets["asset", "telemetry"]["doubled"].to_list() == [4, 6]
@@ -128,8 +128,8 @@ def test_repeated_execution_does_not_leak_runtime_state(
     _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
     engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
 
-    first_result = engine.execute()
-    second_result = engine.execute()
+    first_result = engine.run()
+    second_result = engine.run()
 
     assert first_result.failures == second_result.failures == {}
     assert first_result.datasets is not second_result.datasets
@@ -153,7 +153,7 @@ def test_execute_stops_after_a_failed_operation(monkeypatch: pytest.MonkeyPatch)
     _patch_callables(monkeypatch, {"test:read": read, "test:write": write})
     engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
 
-    result = engine.execute()
+    result = engine.run()
 
     read_id = "callable:read:load:asset:telemetry:reading"
     write_id = "callable:write:save:asset:telemetry:doubled"
@@ -213,7 +213,7 @@ def test_escape_ignores_any_return_without_materializing_features(
     _patch_callables(monkeypatch, {"test:escape": lambda: return_value})
     engine = _engine(plan)
 
-    result = engine.execute()
+    result = engine.run()
 
     assert result.callable_statuses == {callable_id: "succeeded"}
     assert result.failures == {}
@@ -274,7 +274,7 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs(
     )
 
     _patch_callables(monkeypatch, {"test:first": first, "test:second": second})
-    result = _engine(plan).execute()
+    result = _engine(plan).run()
 
     assert calls == ["first", "second"]
     assert result.callable_statuses == {first_id: "succeeded", second_id: "succeeded"}
@@ -323,7 +323,7 @@ def test_escape_resolves_literal_and_runtime_arguments(monkeypatch: pytest.Monke
         received.append((path, mode))
 
     _patch_callables(monkeypatch, {"test:escape": external_action})
-    result = _engine(plan, {"storage": {"output": {"path": "/tmp/external-output.csv"}}}).execute()
+    result = _engine(plan, {"storage": {"output": {"path": "/tmp/external-output.csv"}}}).run()
 
     assert received == [("/tmp/external-output.csv", "replace")]
     assert result.callable_statuses == {callable_id: "succeeded"}
@@ -375,7 +375,7 @@ def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
     )
 
     _patch_callables(monkeypatch, {"test:first": lambda **_: None, "test:second": lambda **_: None})
-    result = _engine(plan).execute()
+    result = _engine(plan).run()
 
     assert result.callable_statuses == {first_id: "failed", second_id: "skipped"}
     assert "Dataset dataframe is unavailable: missing" in result.failures[first_id]
@@ -437,7 +437,7 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
     )
 
     _patch_callables(monkeypatch, {"test:read": read, "test:escape": external_action})
-    result = _engine(plan).execute()
+    result = _engine(plan).run()
 
     assert result.failures == {}
     assert result.callable_statuses == {read_id: "succeeded", escape_id: "succeeded"}
@@ -487,7 +487,7 @@ def test_escape_exception_fails_and_skips_downstream(monkeypatch: pytest.MonkeyP
         raise RuntimeError("external action failed")
 
     _patch_callables(monkeypatch, {"test:first": fail, "test:second": lambda: None})
-    result = _engine(plan).execute()
+    result = _engine(plan).run()
 
     assert result.callable_statuses == {first_id: "failed", second_id: "skipped"}
     assert result.failures == {first_id: "external action failed"}
@@ -530,7 +530,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
     compiled = uptimely_compiler.Compiler(spec_definition, features=["external_result"]).compile()
     compiled.export_json(plan_path)
     restored = uptimely_plan.ExecutionPlan.from_json(plan_path)
-    result = _engine(restored, project_root=tmp_path).execute()
+    result = _engine(restored, project_root=tmp_path).run()
 
     assert result.failures == {}
     assert result.callable_statuses == {compiled.callables[0].id: "succeeded"}
@@ -628,7 +628,7 @@ def test_execute_reports_unsupported_operation_types() -> None:
         )
     )
 
-    result = engine.execute()
+    result = engine.run()
 
     assert result.callable_statuses[invalid_callable.id] == "failed"
     assert result.failures[invalid_callable.id] == "Unsupported callable operation: unsupported"
@@ -647,7 +647,7 @@ def test_execute_rejects_scalar_calculations(monkeypatch: pytest.MonkeyPatch) ->
     )
     engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
 
-    result = engine.execute()
+    result = engine.run()
 
     assert "must return a Polars DataFrame or LazyFrame" in next(iter(result.failures.values()))
 
@@ -708,7 +708,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
     _patch_callables(monkeypatch, {"test:read": read, "test:calculate": calculate})
     engine = _engine(plan)
 
-    result = engine.execute()
+    result = engine.run()
 
     assert result.failures == {}
     assert calls == 1

@@ -268,7 +268,7 @@ def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Pat
     assert operation.input_features == ["temperature"]
     assert operation.row_context == context
     portable = uptimely_plan.ExecutionPlan(uptimely_plan.Plan.from_dict(compiled.to_dict()))
-    result = engine_for_plan(portable).execute()
+    result = engine_for_plan(portable).run()
     assert not result.failures
     frame = result.datasets["entity", "observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
@@ -335,7 +335,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     plan_path = plan.export_json(tmp_path / "plan.json")
     restored_plan = uptimely_plan.ExecutionPlan.from_json(plan_path)
     assert restored_plan.plan == plan.plan
-    result = engine_for_plan(restored_plan).execute()
+    result = engine_for_plan(restored_plan).run()
     assert not result.failures
     frame = next(iter(result.datasets.values()))
     assert frame["result"].to_list() == [11, 21]
@@ -414,6 +414,6 @@ def test_collapse_functions_execute_without_row_context() -> None:
     assert "row_context" not in payload["binding"]
     restored = uptimely_plan.Plan.from_dict(json.loads(json.dumps(plan.plan.to_dict())))
     assert restored == plan.plan
-    result = engine_for_plan(uptimely_plan.ExecutionPlan(restored)).execute()
+    result = engine_for_plan(uptimely_plan.ExecutionPlan(restored)).run()
     assert not result.failures
     assert result.datasets["summary", "summary"]["temperature_max"].to_list() == [20]

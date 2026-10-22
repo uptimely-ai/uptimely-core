@@ -133,7 +133,7 @@ def test_engine_previews_final_datasets(
         failures={},
         plan_version=1,
     )
-    monkeypatch.setattr(engine_module.Engine, "execute", lambda self: result)
+    monkeypatch.setattr(engine_module.Engine, "run", lambda self: result)
     collected_heights: list[int] = []
     original_collect = pl.LazyFrame.collect
 
@@ -186,10 +186,10 @@ def test_engine_previews_final_datasets(
 def test_engine_rejects_invalid_preview_before_execution(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], rows: str
 ) -> None:
-    def fail_execute(self: engine_module.Engine) -> engine_module.ExecutionResult:
+    def fail_run(self: engine_module.Engine) -> engine_module.ExecutionResult:
         pytest.fail("Invalid preview arguments must fail before execution")
 
-    monkeypatch.setattr(engine_module.Engine, "execute", fail_execute)
+    monkeypatch.setattr(engine_module.Engine, "run", fail_run)
     with pytest.raises(SystemExit) as error:
         invoke(monkeypatch, "engine", "run", "--preview", rows)
     assert error.value.code == 2
@@ -216,7 +216,7 @@ def test_engine_preview_errors_are_reported(
         failures={},
         plan_version=1,
     )
-    monkeypatch.setattr(engine_module.Engine, "execute", lambda self: result)
+    monkeypatch.setattr(engine_module.Engine, "run", lambda self: result)
     with pytest.raises(SystemExit) as error:
         invoke(
             monkeypatch,
@@ -309,7 +309,7 @@ def test_workflow_missing_inputs_are_reported(
             lambda *_args, **_kwargs: pytest.fail("Engine must not compile without a build"),
         )
         monkeypatch.setattr(
-            "uptimely.engine.Engine.execute",
+            "uptimely.engine.Engine.run",
             lambda *_args, **_kwargs: pytest.fail(
                 "Engine must not execute workflows without a valid build"
             ),
@@ -447,10 +447,10 @@ def test_engine_invalid_build_fails_before_execution(
     else:
         plan_path.write_text(content, encoding="utf-8")
 
-    def fail_execute(*args: object, **kwargs: object) -> None:
+    def fail_run(*args: object, **kwargs: object) -> None:
         pytest.fail("An invalid build must fail before workflow execution")
 
-    monkeypatch.setattr("uptimely.engine.Engine.execute", fail_execute)
+    monkeypatch.setattr("uptimely.engine.Engine.run", fail_run)
     with pytest.raises(SystemExit) as error:
         invoke(
             monkeypatch,
