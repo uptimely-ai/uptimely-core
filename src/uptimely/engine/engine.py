@@ -2,7 +2,6 @@
 
 import logging
 import time
-import typing
 
 from uptimely import contracts
 from uptimely import entrypoint as entrypoint_module
@@ -39,10 +38,6 @@ class Engine:
         self.backend = backend_module.create_backend(config.backend.dataframe)
         self.bind = config.bind
         self._verify_plan()
-
-    def _load_callable(self, location: str) -> typing.Callable[..., typing.Any]:
-        """Load a callable from its plan entrypoint in the bundle's project."""
-        return entrypoint_module.Entrypoint(location, self.bundle.project_root).function.load()
 
     def _verify_plan(self) -> None:
         """Verify that this runtime supports the portable plan."""
@@ -117,7 +112,9 @@ class Engine:
         dataset_key = (callable.entity_id, callable.dataset_id)
         frame = state.datasets.get(dataset_key)
         kwargs = bindings.resolve_args(callable)
-        result = self._load_callable(callable.entrypoint)(**kwargs)
+        result = entrypoint_module.Entrypoint(
+            callable.entrypoint, self.bundle.project_root
+        ).function.load()(**kwargs)
         entity = self.resources.get("entities", {}).get(callable.entity_id)
         if entity is None:
             raise ValueError(f"Unknown entity: {callable.entity_id}")
@@ -142,7 +139,9 @@ class Engine:
     ) -> None:
         """Invoke an uncontrolled mapping and discard its return value."""
         kwargs = bindings.resolve_args(callable)
-        self._load_callable(callable.entrypoint)(**kwargs)
+        entrypoint_module.Entrypoint(callable.entrypoint, self.bundle.project_root).function.load()(
+            **kwargs
+        )
 
     def _execute_sink(
         self,
@@ -155,4 +154,6 @@ class Engine:
         if dataset_key not in state.datasets:
             raise KeyError(dataset_key)
         kwargs = bindings.resolve_args(callable)
-        self._load_callable(callable.entrypoint)(**kwargs)
+        entrypoint_module.Entrypoint(callable.entrypoint, self.bundle.project_root).function.load()(
+            **kwargs
+        )
