@@ -4,7 +4,7 @@ import argparse
 import logging
 import pathlib
 
-from uptimely import project
+from uptimely import project, spec
 from uptimely.cli import common
 from uptimely.spec import feature_graph
 
@@ -24,9 +24,9 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     try:
         if args.spec is None:
             with project.read_build_bundle(project_root) as bundle:
-                spec_definition = common.load_spec(bundle.spec_path, project_root)
+                spec_definition = spec.load_spec(bundle.spec_path)
         else:
-            spec_definition = common.load_spec(args.spec, project_root)
+            spec_definition = spec.load_spec(args.spec)
         graph = feature_graph.FeatureGraph(spec_definition)
         subset = graph.subset(args.features) if args.features is not None else None
         logger.info("Feature graph: %d features", len(graph.feature_names))
