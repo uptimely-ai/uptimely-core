@@ -7,6 +7,7 @@ import subprocess
 import sys
 import types
 
+import polars as pl
 import pytest
 from conftest import EXAMPLES_ROOT
 
@@ -71,7 +72,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     assert "Engine completed in " in text
     assert "2 datasets processed" in text
     assert "Scope: selected features: health_signal_normalized" in text
-    assert "Dataset(pump, pump_dataset): 5 features" in text
+    assert "- Dataset: pump_dataset - 5 features" in text
 
 
 @pytest.mark.parametrize("scoped", [False, True])
@@ -94,6 +95,144 @@ def test_engine_default_logs_only_duration_and_processed_datasets(
     result = capsys.readouterr()
     assert not result.err
     assert result.out.splitlines() == ["", "Engine completed in 1.234 s: 2 datasets processed"]
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("row_count", [0, 3, 15])
+@pytest.mark.parametrize(
+    ("arguments", "row_limit"),
+    [
+        ([], None),
+        (["--preview"], 5),
+        (["--preview", "1"], 1),
+        (["--preview", "12", "--verbose"], 12),
+    ],
+)
+def test_engine_previews_final_datasets(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    lazy: bool,
+    row_count: int,
+    arguments: list[str],
+    row_limit: int | None,
+) -> None:
+    _write_empty_build(tmp_path)
+    config = tmp_path / "engine.json"
+    config.write_text("{}", encoding="utf-8")
+    frame = pl.DataFrame(
+        {"value": [f"row_{index:02d}" for index in range(row_count)]},
+        schema={"value": pl.String},
+    ).with_columns(pl.lit(index).alias(f"c{index}") for index in range(10))
+    output_frame = frame.lazy() if lazy else frame
+    result = engine_module.ExecutionResult(
+        datasets={("sample", "first"): output_frame, ("sample", "second"): output_frame},
+        calculated_outputs={},
+        callable_statuses={},
+        durations={},
+        failures={},
+        plan_version=1,
+    )
+    monkeypatch.setattr(engine_module.Engine, "execute", lambda self: result)
+    collected_heights: list[int] = []
+    original_collect = pl.LazyFrame.collect
+
+    def collect(frame: pl.LazyFrame) -> pl.DataFrame:
+        collected = original_collect(frame)
+        collected_heights.append(collected.height)
+        return collected
+
+    monkeypatch.setattr(pl.LazyFrame, "collect", collect)
+    with pl.Config(tbl_rows=2, tbl_cols=2, tbl_hide_dataframe_shape=False):
+        original_config = pl.Config.state()
+        invoke(
+            monkeypatch,
+            "engine",
+            "run",
+            "--project-root",
+            str(tmp_path),
+            "--config",
+            str(config),
+            *arguments,
+        )
+        assert pl.Config.state() == original_config
+
+    output = capsys.readouterr()
+    assert not output.err
+    assert "2 datasets processed" in output.out
+    assert "shape:" not in output.out
+    if row_limit is None:
+        assert "Dataset:" not in output.out
+        assert not collected_heights
+    else:
+        assert output.out.index("Engine completed") < output.out.index("Dataset: first")
+        if "--verbose" in arguments:
+            assert output.out.index("Processed datasets:") < output.out.index("Dataset: first")
+        for dataset in ("first", "second"):
+            assert f"Dataset: {dataset}\n" in output.out
+            assert f"Dataset(sample, {dataset}):\n" not in output.out
+        assert " rows:" not in output.out
+        for column in frame.columns:
+            assert column in output.out
+        expected_rows = min(row_limit, row_count)
+        for index in range(expected_rows):
+            assert output.out.count(f"row_{index:02d}") == 2
+        assert f"row_{expected_rows:02d}" not in output.out
+        assert collected_heights == ([expected_rows, expected_rows] if lazy else [])
+    assert frame.height == row_count
+
+
+@pytest.mark.parametrize("rows", ["0", "-1", "bad", "1.5"])
+def test_engine_rejects_invalid_preview_before_execution(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], rows: str
+) -> None:
+    def fail_execute(self: engine_module.Engine) -> engine_module.ExecutionResult:
+        pytest.fail("Invalid preview arguments must fail before execution")
+
+    monkeypatch.setattr(engine_module.Engine, "execute", fail_execute)
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, "engine", "run", "--preview", rows)
+    assert error.value.code == 2
+    output = capsys.readouterr()
+    assert "--preview" in output.err
+    assert not output.out
+
+
+@pytest.mark.parametrize("frame", [object(), pl.LazyFrame().select(pl.col("missing"))])
+def test_engine_preview_errors_are_reported(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    frame: object,
+) -> None:
+    _write_empty_build(tmp_path)
+    config = tmp_path / "engine.json"
+    config.write_text("{}", encoding="utf-8")
+    result = engine_module.ExecutionResult(
+        datasets={("sample", "values"): frame},
+        calculated_outputs={},
+        callable_statuses={},
+        durations={},
+        failures={},
+        plan_version=1,
+    )
+    monkeypatch.setattr(engine_module.Engine, "execute", lambda self: result)
+    with pytest.raises(SystemExit) as error:
+        invoke(
+            monkeypatch,
+            "engine",
+            "run",
+            "--project-root",
+            str(tmp_path),
+            "--config",
+            str(config),
+            "--preview",
+        )
+    assert error.value.code == 1
+    output = capsys.readouterr()
+    assert "uptimely: error:" in output.err
+    assert "Engine completed" in output.out
+    assert "Dataset:" not in output.out
 
 
 @pytest.mark.parametrize("verbose", [False, True])
@@ -243,12 +382,14 @@ def test_engine_operation_failures_are_reported(
             str(project_root),
             "--config",
             str(config),
+            "--preview",
         )
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "Engine flow failed:" in result.err
     assert "Unknown runtime namespace: storage" in result.err
     assert "Engine completed" not in result.out
+    assert "Dataset:" not in result.out
 
 
 def test_engine_config_loads_backend_and_bindings() -> None:
@@ -416,5 +557,5 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
     )
     assert result.returncode == 0, result.stderr
     assert "Scope: all features" in result.stdout
-    assert "Dataset(sample, sample_dataset): 1 features" in result.stdout
+    assert "- Dataset: sample_dataset - 1 features" in result.stdout
     assert (project / "_generated/build/execution_plan.json").is_file()

@@ -111,13 +111,28 @@ def test_engine_cli_reports_processed_datasets(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "engine", "run", "--project-root", str(project_root), "--verbose"],
+        [
+            "uptimely",
+            "engine",
+            "run",
+            "--project-root",
+            str(project_root),
+            "--verbose",
+            "--preview",
+            "1",
+        ],
     )
     cli.main()
 
     output = capsys.readouterr().out
     assert "Scope: all features" in output
-    assert "Dataset(pump, pump_dataset): 5 features" in output
+    assert "- Dataset: pump_dataset - 5 features" in output
+    assert "Dataset: pump_dataset\n" in output
+    assert "Dataset: pump_telemetry_dataset\n" in output
+    assert output.index("- Dataset: pump_dataset - 5 features") < output.index(
+        "Dataset: pump_dataset\n"
+    )
+    assert "shape:" not in output
 
 
 def test_engine_cli_reports_scoped_saved_build(
@@ -135,7 +150,7 @@ def test_engine_cli_reports_scoped_saved_build(
 
     output = capsys.readouterr().out
     assert "Scope: selected features: health_signal_normalized" in output
-    assert "Dataset(pump, pump_dataset): 5 features" in output
+    assert "- Dataset: pump_dataset - 5 features" in output
 
 
 def test_simple_analytics_engine_cli_executes_saved_build(
@@ -152,7 +167,7 @@ def test_simple_analytics_engine_cli_executes_saved_build(
 
     output = capsys.readouterr().out
     assert "Scope: all features" in output
-    assert "Dataset(simple_analytics, my_beautiful_dataset): 5 features" in output
+    assert "- Dataset: my_beautiful_dataset - 5 features" in output
     result_lines = [line for line in output.splitlines() if line.startswith("[")]
     assert len(result_lines) == 1
     assert json.loads(result_lines[0]) == [
