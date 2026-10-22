@@ -5,6 +5,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import types
 
 import pytest
 from conftest import EXAMPLES_ROOT
@@ -67,12 +68,68 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     monkeypatch.setattr("uptimely.compiler.Compiler.compile", fail_compile)
     invoke(monkeypatch, "engine", "run", "--project-root", str(project_root), "--verbose")
     text = capsys.readouterr().out
-    assert "Engine completed the flow" in text
-    assert "Build scope: selected features: health_signal_normalized" in text
-    assert "3 callables" in text
-    assert "Calculated features: health_signal_normalized" in text
-    assert "Execution stages" in text
+    assert "Engine completed in " in text
+    assert "2 datasets processed" in text
+    assert "Scope: selected features: health_signal_normalized" in text
     assert "Dataset(pump, pump_dataset): 5 features" in text
+
+
+@pytest.mark.parametrize("scoped", [False, True])
+def test_engine_default_logs_only_duration_and_processed_datasets(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    scoped: bool,
+) -> None:
+    project_root = _copy_pump_project(tmp_path)
+    project_module.build_project(
+        project_root, features=["health_signal_normalized"] if scoped else None
+    )
+    times = iter([10.0, 11.234])
+    monkeypatch.setattr(cli.engine, "time", types.SimpleNamespace(perf_counter=lambda: next(times)))
+    capsys.readouterr()
+
+    invoke(monkeypatch, "engine", "run", "--project-root", str(project_root))
+
+    result = capsys.readouterr()
+    assert not result.err
+    assert result.out.splitlines() == ["", "Engine completed in 1.234 s: 2 datasets processed"]
+
+
+@pytest.mark.parametrize("verbose", [False, True])
+def test_engine_empty_plan_summary(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    verbose: bool,
+) -> None:
+    _write_empty_build(tmp_path)
+    config = tmp_path / "engine.json"
+    config.write_text("{}", encoding="utf-8")
+    times = iter([10.0, 10.0])
+    monkeypatch.setattr(cli.engine, "time", types.SimpleNamespace(perf_counter=lambda: next(times)))
+    arguments = ["--verbose"] if verbose else []
+
+    invoke(
+        monkeypatch,
+        "engine",
+        "run",
+        "--project-root",
+        str(tmp_path),
+        "--config",
+        str(config),
+        *arguments,
+    )
+
+    result = capsys.readouterr()
+    assert not result.err
+    summary = "\nEngine completed in 0.000 s: 0 datasets processed\n"
+    if verbose:
+        assert result.out.startswith(summary)
+        assert "\nScope: all features\n" in result.out
+        assert "\nProcessed datasets:\n" in result.out
+    else:
+        assert result.out == summary
 
 
 @pytest.mark.parametrize(
@@ -358,6 +415,6 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
         check=False,
     )
     assert result.returncode == 0, result.stderr
-    assert "Build scope: all features" in result.stdout
-    assert "read_values(sample) -> value" in result.stdout
+    assert "Scope: all features" in result.stdout
+    assert "Dataset(sample, sample_dataset): 1 features" in result.stdout
     assert (project / "_generated/build/execution_plan.json").is_file()
