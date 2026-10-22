@@ -8,18 +8,43 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+
+## [0.6.0] - 2026-10-22
+
 ### Added
 
+- `uptimely engine run --preview [ROWS]` logs the first rows of each final
+  dataset after successful execution. Omit the count to preview five rows;
+  previews are opt-in and independent of `--verbose`.
 - Python entrypoint modules expose `source_file` for their loaded file path or
   remote source URI.
+- `uptimely.project.resolve_path` resolves explicit paths or defaults beneath
+  the project root.
 
 ### Changed
 
-- Project builds now log one success line by default; add `--verbose` for grouped
-  build timing, source and resource counts, and plan details.
-- CLI status and verbose output now use INFO-level Python logging.
+- **Breaking:** Construct the engine with `Engine(bundle, config)` using a
+  validated project build bundle and a required `EngineConfig`, then call
+  `run()` instead of `execute()`. Direct plan input, resource overrides, and
+  injected backend, resource-resolver, and callable-loader arguments are no
+  longer supported. Resources and callable project context come from the bundle.
+- **Breaking:** `EngineConfig` now validates the complete runtime configuration,
+  with backend settings nested under `backend` and runtime bindings under `bind`.
+  Use `EngineBackendConfig` for backend options instead of passing them directly
+  to `EngineConfig`. Removed `ResourceResolver`, `CallableLoader`,
+  `PlanResourceResolver`, and `EntrypointLoader` from the engine API.
 - **Breaking:** Removed the redundant `print()` method from feature graphs.
   Use `print_graph()` for terminal output or `render_graph()` to return text.
+- Project builds now log one success line by default; add `--verbose` for grouped
+  build timing, source and resource counts, and plan details.
+- Engine runs now report execution duration and dataset count, with feature
+  scope and per-dataset feature counts under `--verbose`.
+- CLI status and verbose output now use INFO-level Python logging.
+
+### Fixed
+
+- Explorer generation now reports entrypoint signature inspection errors
+  instead of silently omitting return types when signature validation is enabled.
 
 ## [0.5.0] - 2026-10-21
 
