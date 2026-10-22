@@ -37,10 +37,10 @@ class Engine:
         self.config = config
         self.backend = backend_module.create_backend(config.backend.dataframe)
         self.bind = config.bind
-        self._verify_plan()
+        self._validate_engine()
 
-    def _verify_plan(self) -> None:
-        """Verify that this runtime supports the portable plan."""
+    def _validate_engine(self) -> None:
+        """Validate that this engine can execute the plan."""
         if self.plan.plan.required_backend != self.backend.name:
             raise ValueError(
                 f"Unsupported plan backend: {self.plan.plan.required_backend}. "
@@ -61,7 +61,7 @@ class Engine:
             for callable in self.plan.callables:
                 statuses.setdefault(callable.id, "skipped")
 
-        logger.info("Executing plan: %d stages", len(self.plan.execution_stages))
+        logger.debug("Executing plan: %d stages", len(self.plan.execution_stages))
         for stage in self.plan.execution_stages:
             for callable in stage:
                 started = time.perf_counter()

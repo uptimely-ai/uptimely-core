@@ -3,10 +3,10 @@
 import argparse
 import logging
 import pathlib
+import time
 
 from uptimely import engine as engine_module
 from uptimely import project
-from uptimely.cli import plan
 from uptimely.project import imports
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,9 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         help="Project root containing the active build and function entrypoints",
     )
     execute.add_argument(
-        "--verbose", action="store_true", help="Log execution stages and dataset details"
+        "--verbose",
+        action="store_true",
+        help="Log resource statistics, stages, and dataset details",
     )
     execute.add_argument(
         "--config",
@@ -45,26 +47,29 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
                 config.read_text(encoding="utf-8")
             )
             execution_plan = bundle.execution_plan
-            result = engine_module.Engine(bundle, settings).execute()
+            engine = engine_module.Engine(bundle, settings)
+            started = time.perf_counter()
+            result = engine.execute()
+            duration = time.perf_counter() - started
             if result.failures:
                 failures = "; ".join(result.failures.values())
                 raise RuntimeError(f"Engine flow failed: {failures}")
     except (OSError, ValueError, ImportError, AttributeError, TypeError, RuntimeError) as error:
         parser.exit(1, f"uptimely: error: {error}\n")
-    calculated_features = sorted({feature_id for _, _, feature_id in result.calculated_outputs})
-    scope = (
-        "all features"
-        if bundle.manifest.features is None
-        else f"selected features: {', '.join(bundle.manifest.features)}"
+    logger.info(
+        "\nEngine completed in %.3f s: %d datasets processed", duration, len(result.datasets)
     )
-    logger.info("Engine completed the flow")
-    logger.info("Build scope: %s", scope)
-    logger.info("%d callables", len(execution_plan.callables))
-    logger.info("Calculated features: %s", ", ".join(calculated_features))
     if args.verbose:
-        plan.log_stages(execution_plan)
-        logger.info("\nDataset registry")
-        datasets = execution_plan.plan.resources.get("datasets", {})
+        scope = (
+            "all features"
+            if bundle.manifest.features is None
+            else f"selected features: {', '.join(bundle.manifest.features)}"
+        )
+        logger.info("\nScope: %s", scope)
+
+        resources = execution_plan.plan.resources
+        datasets = resources.get("datasets", {})
+        logger.info("\nProcessed datasets:")
         for entity_id, dataset_id in dict.fromkeys(
             (callable.entity_id, callable.dataset_id) for callable in execution_plan.callables
         ):
@@ -73,5 +78,5 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
                 logger.info("Dataset(%s, %s): feature metadata unavailable", entity_id, dataset_id)
                 continue
             logger.info(
-                "Dataset(%s, %s): %d features", entity_id, dataset_id, len(dataset["features"])
+                "- Dataset(%s, %s): %d features", entity_id, dataset_id, len(dataset["features"])
             )

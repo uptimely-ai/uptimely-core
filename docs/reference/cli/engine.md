@@ -13,7 +13,7 @@ uptimely engine run \
 | --- | --- | --- | --- |
 | `--project-root PATH` | No | Current working directory | Project root containing the active build and function entrypoints. |
 | `--config PATH` | No | `config/engine.json` under the project root or current working directory | Engine settings and runtime bindings in JSON. |
-| `--verbose` | No | `false` | Print execution stages and dataset registry details when enabled. |
+| `--verbose` | No | `false` | Add saved-resource statistics, execution counts, calculated features, stages, and dataset registry details. |
 
 Build or rebuild the project with `uptimely project build` to change its
 execution plan or feature scope. Engine validates and executes the saved build

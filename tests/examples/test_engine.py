@@ -103,7 +103,7 @@ def test_engine_returns_calculated_features_without_writing_output() -> None:
         )
 
 
-def test_engine_cli_reports_calculated_feature_ids(
+def test_engine_cli_reports_processed_datasets(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     project_root = _copy_pump_project(tmp_path)
@@ -111,25 +111,13 @@ def test_engine_cli_reports_calculated_feature_ids(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "engine", "run", "--project-root", str(project_root)],
+        ["uptimely", "engine", "run", "--project-root", str(project_root), "--verbose"],
     )
     cli.main()
 
-    expected_features = [
-        "bearing_temperature_delta",
-        "converged",
-        "energy_cost_score",
-        "health_signal_normalized",
-        "operating_point_recommendation",
-        "pressure_flow_efficiency",
-        "pump_health_score",
-        "recommended_discharge_pressure",
-        "recommended_flow_rate",
-        "vibration_delta",
-    ]
     output = capsys.readouterr().out
-    assert "Build scope: all features" in output
-    assert "Calculated features: " + ", ".join(expected_features) in output
+    assert "Scope: all features" in output
+    assert "Dataset(pump, pump_dataset): 5 features" in output
 
 
 def test_engine_cli_reports_scoped_saved_build(
@@ -140,14 +128,14 @@ def test_engine_cli_reports_scoped_saved_build(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "engine", "run", "--project-root", str(project_root)],
+        ["uptimely", "engine", "run", "--project-root", str(project_root), "--verbose"],
     )
 
     cli.main()
 
     output = capsys.readouterr().out
-    assert "Build scope: selected features: health_signal_normalized" in output
-    assert "Calculated features: health_signal_normalized" in output
+    assert "Scope: selected features: health_signal_normalized" in output
+    assert "Dataset(pump, pump_dataset): 5 features" in output
 
 
 def test_simple_analytics_engine_cli_executes_saved_build(
@@ -157,14 +145,14 @@ def test_simple_analytics_engine_cli_executes_saved_build(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "engine", "run", "--project-root", str(project_root)],
+        ["uptimely", "engine", "run", "--project-root", str(project_root), "--verbose"],
     )
 
     cli.main()
 
     output = capsys.readouterr().out
-    assert "Build scope: all features" in output
-    assert "Calculated features: column_3, column_4" in output
+    assert "Scope: all features" in output
+    assert "Dataset(simple_analytics, my_beautiful_dataset): 5 features" in output
     result_lines = [line for line in output.splitlines() if line.startswith("[")]
     assert len(result_lines) == 1
     assert json.loads(result_lines[0]) == [
