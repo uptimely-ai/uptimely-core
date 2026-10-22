@@ -3,6 +3,25 @@
 import pathlib
 import typing
 
+
+def resolve_path(
+    path: pathlib.Path | None,
+    project_root: pathlib.Path | None,
+    default: pathlib.Path,
+) -> pathlib.Path:
+    """Resolve an explicit path or a default beneath the project root.
+
+    Args:
+        path: Explicit path to preserve, if provided.
+        project_root: Project root; ``None`` uses the current working directory.
+        default: Default project-relative path.
+
+    Returns:
+        The explicit path or the default path joined to the project root.
+    """
+    return path if path is not None else (project_root or pathlib.Path()) / default
+
+
 CONFIG_DIR: typing.Final = pathlib.Path("config")
 SPEC_SOURCE_DIR: typing.Final = pathlib.Path("spec")
 SPEC_PYTHON_ENTRY_FILE: typing.Final = SPEC_SOURCE_DIR / "spec.py"

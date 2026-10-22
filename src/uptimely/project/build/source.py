@@ -60,9 +60,8 @@ class JsonSource:
     @property
     def path(self) -> pathlib.Path:
         """Return the configured or conventional JSON spec path."""
-        if self.json_spec is not None:
-            return pathlib.Path(self.json_spec)
-        return self.project_root / paths.SPEC_JSON_ENTRY_FILE
+        configured_path = pathlib.Path(self.json_spec) if self.json_spec is not None else None
+        return paths.resolve_path(configured_path, self.project_root, paths.SPEC_JSON_ENTRY_FILE)
 
     def is_available(self) -> bool:
         """Return whether the configured JSON spec source exists."""

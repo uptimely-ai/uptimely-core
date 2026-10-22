@@ -41,6 +41,25 @@ def test_standard_paths(path: pathlib.Path, expected: str) -> None:
     assert pathlib.Path("example") / path == pathlib.Path("example") / expected
 
 
+def test_resolve_path_preserves_explicit_path(tmp_path: pathlib.Path) -> None:
+    explicit_path = tmp_path / "custom.json"
+
+    resolved_path = project.resolve_path(explicit_path, tmp_path, project.ENGINE_CONFIG_FILE)
+    assert resolved_path is explicit_path
+
+
+def test_resolve_path_places_default_under_project_root(tmp_path: pathlib.Path) -> None:
+    assert project.resolve_path(None, tmp_path, project.ENGINE_CONFIG_FILE) == (
+        tmp_path / project.ENGINE_CONFIG_FILE
+    )
+
+
+def test_resolve_path_uses_working_directory_when_project_root_is_missing() -> None:
+    assert project.resolve_path(None, None, project.ENGINE_CONFIG_FILE) == (
+        project.ENGINE_CONFIG_FILE
+    )
+
+
 def _manifest_data() -> dict[str, object]:
     return {
         "build_version": project.BUILD_VERSION,

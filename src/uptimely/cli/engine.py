@@ -9,7 +9,7 @@ import pydantic
 
 from uptimely import engine as engine_module
 from uptimely import project
-from uptimely.cli import common, plan
+from uptimely.cli import plan
 from uptimely.project import imports
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Execute the active saved plan and report failures explicitly."""
     root = args.project_root or pathlib.Path.cwd()
-    config = common.project_path(args.config, args.project_root, project.ENGINE_CONFIG_FILE)
+    config = project.resolve_path(args.config, args.project_root, project.ENGINE_CONFIG_FILE)
     try:
         imports.prepare_project_root(root)
         with project.read_build_bundle(root) as bundle:
