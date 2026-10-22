@@ -2,11 +2,6 @@
 
 Long term plans.
 
-## Data validation
-
-Run data schema validation between functions.
-
-Natural place in projet structure could be `/validations` folder.
 
 ## Streaming
 
@@ -25,41 +20,3 @@ Add support for common orchestrator patterns. Most likely requires Python decora
 ## Extend the MCP support
 
 Add MCP support for each atomic analytical functions.
-
-## Add parameters to spec
-
-Parameter would be another column type aside of dimensions and features.
-
-It could be described as a control variable for spec: It is participating to calculation and enables configuration per dimension, but is not intended to be modified in the process.
-
-A constant could be used as a parameter.
-
-## Add constants to Spec
-
-Add a section to Spec to define something like this:
-
-```json
-{
-    "constants": {
-        "gravity_m2s": 9.81
-    },
-    "entities": {
-        "my_entity": {
-            "my_dataset": {
-                "vectorize": {
-                    "physics_feature": {
-                        "function": "gravity_calc",
-                        "args": {
-                            "gravity": "$constants.gravity_m2s"
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-```
-
-Before implementation, evaluate if this is just a special case for parameters.
-
-And whether constants and parameters should be stored among other data, not in the Spec document.
