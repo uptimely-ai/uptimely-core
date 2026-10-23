@@ -47,7 +47,10 @@ function mountGraphViews(sourceData, create2D, create3D, showDetails, detailsPan
 		errorMessage.hidden = true;
 	};
 	for (const button of buttons) button.addEventListener('click', () => showView(button.dataset.dimension));
-	document.getElementById('fit-graph').addEventListener('click', () => views.get(activeDimension)?.fit());
+	document.getElementById('reset-graph').addEventListener('click', () => {
+		selectNode(null);
+		views.get(activeDimension)?.fit();
+	});
 	for (const button of document.querySelectorAll('[data-zoom]')) {
 		button.addEventListener('click', () => views.get(activeDimension)?.zoom(Number(button.dataset.zoom)));
 	}

@@ -20,6 +20,7 @@ function createElement() {
 function createGraph(dimension) {
 	const properties = new Map();
 	const objects = new Map();
+	const fitCalls = [];
 	let graph;
 	const render = () => {
 		objects.clear();
@@ -27,11 +28,15 @@ function createGraph(dimension) {
 			if (dimension === '3d') objects.set(node.id, properties.get('nodeThreeObject')(node));
 		}
 	};
-	graph = new Proxy({ properties, objects }, {
+	graph = new Proxy({ properties, objects, fitCalls }, {
 		get(target, key) {
 			if (key in target) return target[key];
 			// force-graph 1.52 has no refresh method; 3d-force-graph does.
 			if (key === 'refresh') return dimension === '3d' ? render : undefined;
+			if (key === 'zoomToFit') return (...args) => {
+				fitCalls.push(args);
+				return graph;
+			};
 			if (key === 'd3Force') return () => ({
 				strength() { return this; }, distanceMax() { return this; }, distance() {},
 			});
@@ -76,7 +81,7 @@ for (const filename of ['feature_graph.js', 'callable_graph.js']) {
 			],
 		});
 		element('graph-style').textContent = JSON.stringify({
-			function_colors: { read: '#abcdef' }, link_width: 0.5,
+			function_colors: { read: '#abcdef' }, link_width: 0.5, link_color: '#8fa3b5',
 		});
 		const graphs = new Map();
 		const context = vm.createContext({
@@ -115,7 +120,7 @@ for (const filename of ['feature_graph.js', 'callable_graph.js']) {
 			vm.runInContext(fs.readFileSync(path.join(scriptDirectory, script), 'utf8'), context);
 		}
 		vm.runInContext(`
-			ExplorerGraph.showDetails = () => {};
+			ExplorerGraph.showDetails = (panel, title, rows) => { panel.rows = rows; };
 			ExplorerGraph.labeledMesh = mesh => mesh;
 		`, context);
 		vm.runInContext(fs.readFileSync(path.join(scriptDirectory, filename), 'utf8'), context);
@@ -148,6 +153,28 @@ for (const filename of ['feature_graph.js', 'callable_graph.js']) {
 		for (const link of graph.properties.get('graphData').links) {
 			assert.equal(graph.properties.get('linkColor')(link), '#46545f');
 			assert.equal(graph.properties.get('linkWidth')(link), 0.5);
+		}
+		for (const [index, dimension] of ['2d', '3d'].entries()) {
+			graph.properties.get('onNodeClick')(node);
+			buttons[index].listeners.click();
+			const activeGraph = graphs.get(dimension);
+			const fitCount = activeGraph.fitCalls.length;
+			element('reset-graph').listeners.click();
+			assert.equal(activeGraph.fitCalls.length, fitCount + 1);
+			assert.equal(activeGraph.fitCalls.at(-1)[0], 600);
+			assert.equal(buttons[index].attributes['aria-pressed'], 'true');
+			for (const viewGraph of graphs.values()) {
+				for (const link of viewGraph.properties.get('graphData').links) {
+					assert.equal(viewGraph.properties.get('linkColor')(link), '#8fa3b5');
+					assert.equal(viewGraph.properties.get('linkWidth')(link), 0.5);
+				}
+			}
+			assert.ok([...graph.objects.values()].every(object => object.scale.value === undefined));
+			const details = element(filename === 'feature_graph.js'
+				? 'node-details' : 'callable-node-details');
+			assert.equal(details.rows.length, 0);
+			buttons[1 - index].listeners.click();
+			assert.ok([...graph.objects.values()].every(object => object.scale.value === undefined));
 		}
 	});
 }
