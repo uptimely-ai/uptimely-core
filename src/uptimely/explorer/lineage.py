@@ -5,8 +5,10 @@ from __future__ import annotations
 import dataclasses
 import pathlib
 
-from uptimely import project, render, spec
+from uptimely import project, spec
 from uptimely.compiler import plan
+
+from . import render
 
 
 @dataclasses.dataclass(frozen=True)

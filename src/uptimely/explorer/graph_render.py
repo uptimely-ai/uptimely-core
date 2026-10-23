@@ -7,7 +7,9 @@ import typing
 
 from graphable import views
 
-from uptimely import project, render
+from uptimely import project
+
+from . import render
 
 if typing.TYPE_CHECKING:
     from uptimely.spec.feature_graph.graph import GraphBase

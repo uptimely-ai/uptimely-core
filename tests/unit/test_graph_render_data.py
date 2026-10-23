@@ -1,4 +1,5 @@
-from uptimely import compiler, render
+from uptimely import compiler
+from uptimely.explorer import render
 from uptimely.spec import model
 from uptimely.spec.feature_graph import models
 

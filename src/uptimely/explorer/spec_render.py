@@ -9,10 +9,12 @@ import typing
 from importlib import util
 from urllib import parse
 
-from uptimely import contracts, project, render
+from uptimely import contracts, project
 from uptimely import entrypoint as entrypoint_module
 from uptimely.spec import model as spec_model
 from uptimely.spec import references
+
+from . import render
 
 SPEC_PAGES = render.WEBSITE_PAGES["spec"]
 __all__ = [

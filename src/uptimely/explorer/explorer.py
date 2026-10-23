@@ -3,10 +3,9 @@
 import pathlib
 
 from uptimely import project, spec
-from uptimely import render as uptimely_render
 from uptimely.compiler import plan as plan_module
 
-from . import graph_render, lineage, plan_render, spec_render
+from . import graph_render, lineage, plan_render, render, spec_render
 
 
 class Explorer:
@@ -91,7 +90,7 @@ class Explorer:
             is_scoped=self.features is not None,
         )
         document = (
-            uptimely_render.html_environment()
+            render.html_environment()
             .get_template("index.html.j2")
             .render(
                 spec_definition=self.spec,

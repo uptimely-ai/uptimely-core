@@ -9,12 +9,11 @@ import pathlib
 import typing
 
 from uptimely import project
-from uptimely import render as uptimely_render
 from uptimely.compiler import plan as uptimely_plan
 
-from . import graph_render
+from . import graph_render, render
 
-PLAN_PAGES = uptimely_render.WEBSITE_PAGES["plan"]
+PLAN_PAGES = render.WEBSITE_PAGES["plan"]
 __all__ = [
     "PLAN_PAGES",
     "_callable_label",
@@ -206,7 +205,7 @@ def _create_website_pages(
                 else None
             )
 
-    environment = uptimely_render.html_environment()
+    environment = render.html_environment()
     context = {
         "plan_version": plan.plan.plan_version,
         "callable_count": len(plan.callables),

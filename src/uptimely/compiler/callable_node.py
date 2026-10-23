@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import dataclasses
 
-from uptimely import render, row_context
+from uptimely import row_context
+from uptimely.explorer import render
 
 
 @dataclasses.dataclass(frozen=True)
