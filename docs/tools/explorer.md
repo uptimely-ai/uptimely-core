@@ -2,7 +2,7 @@
 
 The Explorer turns a spec definition into a visual, browsable website.
 Use it to understand what an analytics project contains, how features relate,
-and how the compiled plan connects its functions. `project build` generates the
+and how the compiled plan connects its functions. `build` generates the
 complete project bundle, including its website.
 
 ## Build and preview
@@ -10,22 +10,22 @@ complete project bundle, including its website.
 Build the complete bundle:
 
 ```sh
-uptimely project build --project-root examples/pump_analytics
+uptimely build --project-root examples/pump_analytics
 ```
 
-`explorer serve` validates the active build and serves its saved website. It
+`explore` validates the active build and serves its saved website. It
 does not load source, compile, render, or write artifacts:
 
 ```sh
-uptimely explorer serve --project-root examples/pump_analytics
+uptimely explore --project-root examples/pump_analytics
 ```
 
 Open <http://127.0.0.1:8001/>. Stop the server with **Ctrl+C**. The CLI holds
 a read lock on the active build until the server exits, preventing a rebuild
 from replacing files while they are being served.
 
-If the active build is missing, incomplete, or invalid, `serve` exits before
-binding and prints a recovery `project build` command. A scoped build is labeled
+If the active build is missing, incomplete, or invalid, `explore` exits before
+binding and prints a recovery `build` command. A scoped build is labeled
 on the website: spec pages describe the complete model, while plan and execution
 pages describe the selected outputs and their dependencies.
 
@@ -71,10 +71,10 @@ not execute the analytics workflow.
 
 ## Preview options
 
-`serve` serves the website from the active project build:
+`explore` serves the website from the active project build:
 
 ```sh
-uptimely explorer serve \
+uptimely explore \
   --project-root examples/pump_analytics \
   --port 8001
 ```
@@ -86,7 +86,7 @@ uptimely explorer serve \
 | `--port` | Port to serve on. Defaults to `8001`; use `0` to choose an available port. |
 
 The preview server serves the saved files without watching for changes. Rebuild
-the active project bundle with `uptimely project build`, then rerun `serve` to
+the active project bundle with `uptimely build`, then rerun `explore` to
 preview source updates.
 
 ## Publish or share

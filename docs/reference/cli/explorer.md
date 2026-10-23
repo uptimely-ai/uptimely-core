@@ -4,6 +4,9 @@ Preview the saved Analytics Explorer website locally. Use
 [`uptimely project build`](project.md) to generate or replace the active
 project bundle before serving it.
 
+The shortcut `uptimely explore` serves the same saved website with the same
+options as `uptimely explorer serve`.
+
 ## `explorer serve`
 
 `serve` validates and serves the website from the active build. It does not
@@ -12,7 +15,7 @@ read lock remains held while the server is running, so a rebuild cannot replace
 the website until the server exits.
 
 ```console
-uptimely explorer serve \
+uptimely explore \
   [--project-root PATH] [--host ADDRESS] [--port PORT]
 ```
 
@@ -25,7 +28,7 @@ uptimely explorer serve \
 Example:
 
 ```console
-uptimely explorer serve --project-root examples/pump_analytics
+uptimely explore --project-root examples/pump_analytics
 ```
 
 If the build is missing or invalid, the command reports the problem and the

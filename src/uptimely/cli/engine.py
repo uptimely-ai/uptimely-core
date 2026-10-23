@@ -16,20 +16,25 @@ DEFAULT_PREVIEW_ROWS = 5
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure the engine run action."""
+    """Configure engine commands."""
     actions = parser.add_subparsers(dest="action", required=True)
     execute = actions.add_parser("run", help="Execute the active project's saved build")
-    execute.add_argument(
+    configure_run_parser(execute)
+
+
+def configure_run_parser(parser: argparse.ArgumentParser) -> None:
+    """Configure the engine run command."""
+    parser.add_argument(
         "--project-root",
         type=pathlib.Path,
         help="Project root containing the active build and function entrypoints",
     )
-    execute.add_argument(
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Log resource statistics, stages, and dataset details",
     )
-    execute.add_argument(
+    parser.add_argument(
         "--preview",
         nargs="?",
         type=int,
@@ -40,7 +45,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
             f"(default when supplied: {DEFAULT_PREVIEW_ROWS})"
         ),
     )
-    execute.add_argument(
+    parser.add_argument(
         "--config",
         type=pathlib.Path,
         help=(

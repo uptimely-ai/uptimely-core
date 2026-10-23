@@ -24,6 +24,13 @@ def main() -> None:
     )
     project.configure_parser(commands.add_parser("project", help="Build project resources"))
     engine.configure_parser(commands.add_parser("engine", help="Run analytics workflows"))
+    project.configure_build_parser(
+        commands.add_parser("build", help="Build a complete project bundle")
+    )
+    engine.configure_run_parser(commands.add_parser("run", help="Run an analytics workflow"))
+    explorer.configure_serve_parser(
+        commands.add_parser("explore", help="Serve the Analytics Explorer website")
+    )
     args = parser.parse_args()
     if args.command == "examples":
         examples.run(args, parser)
@@ -33,8 +40,12 @@ def main() -> None:
         spec.run(args, parser)
     elif args.command == "project":
         project.run(args, parser)
-    else:
+    elif args.command in ("engine", "run"):
         engine.run(args, parser)
+    elif args.command == "build":
+        project.run(args, parser)
+    elif args.command == "explore":
+        explorer.run(args, parser)
 
 
 if __name__ == "__main__":

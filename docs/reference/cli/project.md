@@ -2,13 +2,17 @@
 
 Build the generated resources for an analytics project.
 
+For the direct shortcut, use `uptimely build` with the same options.
+
 ## `project build`
 
 ```console
-uptimely project build \
+uptimely build \
   [--project-root PATH] [--python-spec MODULE:ATTRIBUTE | --json-spec PATH] \
   [--features FEATURE [FEATURE ...]] [--verbose]
 ```
+
+The grouped form `uptimely project build` is also available.
 
 The command validates the complete source specification, compiles one execution
 plan, and builds a complete Explorer website. It publishes all four artifacts
@@ -76,9 +80,9 @@ one outside the standard paths.
 ### Examples
 
 ```console
-uptimely project build --project-root examples/pump_analytics
-uptimely project build --project-root examples/pump_analytics --verbose
-uptimely project build --project-root examples/pump_analytics --features pump_health_score
+uptimely build --project-root examples/pump_analytics
+uptimely build --project-root examples/pump_analytics --verbose
+uptimely build --project-root examples/pump_analytics --features pump_health_score
 ```
 
 ### Build behavior
