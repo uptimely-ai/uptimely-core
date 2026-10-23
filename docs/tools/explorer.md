@@ -39,9 +39,20 @@ Use the sidebar to explore:
 | **Plan** | The compiled functions, their dependencies, and the stages used to organize the plan. |
 | **Execution / Data lineage** | A visual walkthrough of how declared inputs and outputs connect across functions. |
 
+Every page shares a top bar with the project name and a home icon linking to the
+project overview, plus a **Full build** or **Partial build** badge. Unnamed
+projects show **Untitled analytics project**. Partial builds include
+only selected outputs and their dependencies in plan and execution pages;
+spec pages always show the complete model. Hover over the badge for coverage
+details, also available to screen readers.
+
 The feature graph focuses on relationships between spec features. Plan
-graphs focus on function dependencies. Graphs offer 2D and 3D views; use **Fit
-graph** to bring the diagram into view and select a node to inspect it.
+graphs focus on function dependencies. Both use the same **2D / 3D** switch next
+to the graph title,
+**Zoom in**, **Zoom out**, **Fit graph**, collapsible legend, and selected-node
+details panel. Selection is preserved when switching dimensions. The feature
+graph retains its entity colors and the execution graph retains its stage lanes
+and operation colors.
 
 The graph views have distinct navigation and heading icons: Feature graph uses
 a teal network icon for feature relationships, while Execution graph uses an

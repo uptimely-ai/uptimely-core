@@ -1,0 +1,128 @@
+const ExplorerGraph = (() => {
+	function readPayload(id) {
+		return JSON.parse(document.getElementById(id).textContent);
+	}
+
+	function tooltip(text) {
+		const element = document.createElement('div');
+		element.className = 'graph-tooltip';
+		element.textContent = text;
+		return element;
+	}
+
+	function showDetails(panel, title, rows, summary = '') {
+		const heading = document.createElement('h2');
+		heading.textContent = title;
+		panel.replaceChildren(heading);
+		for (const [label, value] of rows) {
+			const row = document.createElement('div');
+			row.className = 'meta';
+			const name = document.createElement('strong');
+			name.textContent = `${label}: `;
+			row.append(name, document.createTextNode(value == null ? 'n/a' : String(value)));
+			panel.append(row);
+		}
+		if (summary) {
+			const text = document.createElement('div');
+			text.className = 'summary';
+			text.textContent = summary;
+			panel.append(text);
+		}
+	}
+
+	function appendLegend(container, entries) {
+		for (const { label, color } of entries) {
+			const item = document.createElement('span');
+			item.style.setProperty('--color', color);
+			item.textContent = label;
+			container.append(item);
+		}
+	}
+
+	function paintPointerArea(node, color, ctx) {
+		ctx.fillStyle = color;
+		ctx.fillRect(node.x - node.cardWidth / 2, node.y - node.cardHeight / 2,
+			node.cardWidth, node.cardHeight);
+	}
+
+	function selectCard(graph, container, nodes, event, onSelect) {
+		const bounds = container.getBoundingClientRect();
+		const point = graph.screen2GraphCoords(
+			event.clientX - bounds.left, event.clientY - bounds.top);
+		const node = [...nodes].reverse().find(node =>
+			Math.abs(point.x - node.x) <= node.cardWidth / 2 &&
+			Math.abs(point.y - node.y) <= node.cardHeight / 2);
+		if (node) onSelect(node);
+	}
+
+	function createView(graph, container, padding, dimension) {
+		let initialFitComplete = false;
+		graph.onEngineStop(() => {
+			if (!initialFitComplete) {
+				graph.zoomToFit(0, padding);
+				initialFitComplete = true;
+			}
+		});
+		const fit = () => graph.zoomToFit(600, padding);
+		const resize = () => {
+			graph.width(container.clientWidth).height(container.clientHeight);
+			fit();
+		};
+		const zoom = factor => {
+			if (dimension === '2d') {
+				graph.zoom(graph.zoom() * factor, 250);
+				return;
+			}
+			const position = graph.cameraPosition();
+			const target = graph.controls().target;
+			graph.cameraPosition({
+				x: target.x + (position.x - target.x) / factor,
+				y: target.y + (position.y - target.y) / factor,
+				z: target.z + (position.z - target.z) / factor,
+			}, target, 250);
+		};
+		return { graph, fit, resize, zoom };
+	}
+
+	function create3D(container, data, style, { label, color, object, onSelect, configure }) {
+		const graph = ForceGraph3D()(container)
+			.width(container.clientWidth)
+			.height(container.clientHeight)
+			.backgroundColor(style.background_color)
+			.nodeLabel(node => tooltip(label(node)))
+			.nodeColor(color)
+			.nodeRelSize(style.node_rel_size)
+			.nodeResolution(style.node_resolution)
+			.linkWidth(style.link_width)
+			.linkColor(() => style.link_color)
+			.linkOpacity(style.link_opacity)
+			.linkDirectionalParticles(2)
+			.linkDirectionalParticleWidth(2)
+			.linkDirectionalParticleSpeed(0.003)
+			.onNodeClick(onSelect)
+			.nodeThreeObject(object);
+		if (configure) configure(graph);
+		graph.d3Force('charge').strength(style.charge_strength).distanceMax(style.charge_distance_max);
+		graph.d3Force('link').distance(style.link_distance);
+		const view = createView(graph, container, 60, '3d');
+		graph.graphData(data);
+		return view;
+	}
+
+	function labeledMesh(mesh, text, style, offset) {
+		const group = new THREE.Group();
+		group.add(mesh);
+		const label = new SpriteText(text || '', 3.2, style.label_color);
+		label.backgroundColor = 'rgba(16,24,32,0.72)';
+		label.padding = 2;
+		label.borderRadius = 2;
+		label.position.set(0, offset, 0);
+		group.add(label);
+		return group;
+	}
+
+	return {
+		readPayload, tooltip, showDetails, appendLegend, paintPointerArea, selectCard,
+		createView, create3D, labeledMesh,
+	};
+})();

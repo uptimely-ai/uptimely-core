@@ -72,6 +72,7 @@ class Explorer:
             graph,
             target.parent,
             index_filename=target.name,
+            project_name=self.spec.name,
             execution_scope=execution_scope,
             is_scoped=self.features is not None,
         )
@@ -79,6 +80,7 @@ class Explorer:
             plan,
             target.parent,
             index_filename=target.name,
+            project_name=self.spec.name,
             execution_scope=execution_scope,
             is_scoped=self.features is not None,
         )
@@ -95,6 +97,7 @@ class Explorer:
             .get_template("index.html.j2")
             .render(
                 spec_definition=self.spec,
+                project_name=self.spec.name,
                 summary=context.summary,
                 callable_count=len(plan.callables),
                 stage_count=len(plan.execution_stages),

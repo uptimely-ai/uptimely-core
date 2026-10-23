@@ -114,6 +114,7 @@ def _create_website_pages(
     output_directory: pathlib.Path,
     *,
     index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    project_name: str | None = None,
     execution_scope: str = "all features",
     is_scoped: bool = False,
 ) -> None:
@@ -123,6 +124,7 @@ def _create_website_pages(
         plan: The compiled execution plan to render.
         output_directory: Directory shared by all website pages.
         index_filename: Filename of the website dashboard.
+        project_name: Project title displayed in the shared top bar.
         execution_scope: Feature coverage of the rendered build.
         is_scoped: Whether the plan covers a selected feature subset.
     """
@@ -233,6 +235,7 @@ def _create_website_pages(
         "include_navigation": True,
         "active_page": "plan",
         "index_filename": index_filename,
+        "project_name": project_name,
         "root_path": "../",
         "execution_scope": execution_scope,
         "is_scoped": is_scoped,

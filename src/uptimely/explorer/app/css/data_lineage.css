@@ -1,12 +1,8 @@
-.lineage-page { padding: 24px; background: #020617; color: #e2e8f0; font: 14px "DM Sans", sans-serif; min-height: 100vh; box-sizing: border-box; }
+.lineage-page { padding: 24px; min-height: calc(100vh - var(--site-topbar-height)); box-sizing: border-box; }
 .lineage-page h1 { font: 600 30px "Space Grotesk", sans-serif; color: #f8fafc; }
 .lineage-page p { color: #94a3b8; line-height: 1.6; }
-.lineage-page [hidden] { display: none !important; }
-.lineage-page :focus-visible { outline: 2px solid #c4b5fd; outline-offset: 3px; }
 .lineage-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 24px 0 12px; }
-.lineage-toolbar button { padding: 8px 16px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #e2e8f0; font: inherit; cursor: pointer; }
 .lineage-toolbar #lineage-play { background: #312e81; border-color: #6366f1; min-width: 100px; }
-.lineage-toolbar button:disabled { opacity: 0.4; cursor: default; }
 .lineage-playback-progress { margin: 0 0 20px; }
 .lineage-progress-track { display: flex; width: 100%; gap: 4px; }
 .lineage-progress-segment { flex: 1; min-width: 0; height: 6px; border-radius: 4px; background: #334155; }

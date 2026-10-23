@@ -67,6 +67,7 @@ def _render_document(
     template = f"spec/{section}.html.j2"
     document = environment.get_template(template).render(
         configuration=context["configuration"],
+        project_name=context["configuration"].get("name"),
         function_groups={
             operation: {
                 function_id: function

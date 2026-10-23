@@ -168,7 +168,7 @@ def test_explorer_reports_selected_scope(
 
     assert scopes == ["selected features: pump_health_score"]
     home = (bundle.explorer_path / "index.html").read_text(encoding="utf-8")
-    assert "Scoped build" in home
+    assert "Partial build" in home
     assert "Plan and execution: selected features: pump_health_score" in home
 
 

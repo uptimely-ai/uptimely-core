@@ -4,3 +4,6 @@
 {% block body %}
 {% include "plan/callable_graph.html.j2" %}
 {% endblock %}
+{% block graph_script %}
+<script src="{{ root_path or "" }}js/callable_graph.js"></script>
+{% endblock %}
