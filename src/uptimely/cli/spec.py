@@ -2,7 +2,6 @@
 
 import argparse
 import logging
-import pathlib
 
 from uptimely import project, spec
 from uptimely.cli import common
@@ -20,7 +19,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Log feature graph summaries and trees."""
-    project_root = args.project_root or pathlib.Path.cwd()
+    project_root = common.resolve_project_root(args, parser)
     try:
         if args.spec is None:
             with project.read_build_bundle(project_root) as bundle:

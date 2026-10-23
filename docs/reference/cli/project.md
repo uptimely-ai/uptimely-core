@@ -7,12 +7,14 @@ For the direct shortcut, use `uptimely build` with the same options.
 ## `project build`
 
 ```console
-uptimely build \
+uptimely build [PROJECT_ROOT] \
   [--project-root PATH] [--python-spec MODULE:ATTRIBUTE | --json-spec PATH] \
   [--features FEATURE [FEATURE ...]] [--verbose]
 ```
 
-The grouped form `uptimely project build` is also available.
+The project directory may be given positionally or with `--project-root`, but
+not both. If omitted, the current working directory is used. The grouped form
+`uptimely project build [PROJECT_ROOT]` is also available.
 
 The command validates the complete source specification, compiles one execution
 plan, and builds a complete Explorer website. It publishes all four artifacts
@@ -42,7 +44,8 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `--project-root PATH` | No | Current working directory | Root for source discovery, importing project functions, and generated output paths. |
+| `PROJECT_ROOT` | No | Current working directory | Project directory for source discovery, importing project functions, and generated output paths. May be passed as `--project-root PATH` instead. |
+| `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
 | `--python-spec MODULE:ATTRIBUTE` | No | Discover standard sources | Select a Python attribute containing a `PythonSpec` instance. Mutually exclusive with `--json-spec`. |
 | `--json-spec PATH` | No | Discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Relative to the current working directory. |
 | `--features FEATURE ...` | No | All features | Select one or more output features and their required dependencies. |
@@ -80,9 +83,9 @@ one outside the standard paths.
 ### Examples
 
 ```console
-uptimely build --project-root examples/pump_analytics
-uptimely build --project-root examples/pump_analytics --verbose
-uptimely build --project-root examples/pump_analytics --features pump_health_score
+uptimely build examples/pump_analytics
+uptimely build examples/pump_analytics --verbose
+uptimely build examples/pump_analytics --features pump_health_score
 ```
 
 ### Build behavior

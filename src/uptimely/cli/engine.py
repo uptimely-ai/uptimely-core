@@ -9,6 +9,7 @@ import polars as pl
 
 from uptimely import engine as engine_module
 from uptimely import project
+from uptimely.cli import common
 from uptimely.project import imports
 
 logger = logging.getLogger(__name__)
@@ -24,10 +25,9 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 
 def configure_run_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the engine run command."""
-    parser.add_argument(
-        "--project-root",
-        type=pathlib.Path,
-        help="Project root containing the active build and function entrypoints",
+    common.configure_project_root_arguments(
+        parser,
+        option_help="Project root containing the active build and function entrypoints",
     )
     parser.add_argument(
         "--verbose",
@@ -50,7 +50,7 @@ def configure_run_parser(parser: argparse.ArgumentParser) -> None:
         type=pathlib.Path,
         help=(
             "Backend settings and runtime bindings "
-            f"(default: {project.ENGINE_CONFIG_FILE} under --project-root)"
+            f"(default: {project.ENGINE_CONFIG_FILE} under the project root or current directory)"
         ),
     )
 
@@ -59,8 +59,8 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Execute the active saved plan and report failures explicitly."""
     if args.preview is not None and args.preview <= 0:
         parser.error("--preview must be a positive integer")
-    root = args.project_root or pathlib.Path.cwd()
-    config = project.resolve_path(args.config, args.project_root, project.ENGINE_CONFIG_FILE)
+    root = common.resolve_project_root(args, parser)
+    config = project.resolve_path(args.config, root, project.ENGINE_CONFIG_FILE)
     try:
         imports.prepare_imports(root)
         with project.read_build_bundle(root) as bundle:

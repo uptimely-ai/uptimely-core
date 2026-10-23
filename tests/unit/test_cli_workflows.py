@@ -67,7 +67,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
         pytest.fail("Engine execution must not compile")
 
     monkeypatch.setattr("uptimely.compiler.Compiler.compile", fail_compile)
-    invoke(monkeypatch, "engine", "run", "--project-root", str(project_root), "--verbose")
+    invoke(monkeypatch, "run", str(project_root), "--verbose")
     text = capsys.readouterr().out
     assert "Engine completed in " in text
     assert "2 datasets processed" in text

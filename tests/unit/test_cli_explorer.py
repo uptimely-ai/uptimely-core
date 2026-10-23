@@ -161,7 +161,7 @@ def test_explorer_reports_selected_scope(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "explorer", "serve", "--project-root", str(built_project)],
+        ["uptimely", "explore", str(built_project)],
     )
 
     cli.main()

@@ -86,7 +86,7 @@ while preserving flexibility in the analytics implementation.
 
 The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/pump_analytics/README.md) uses CLI commands
 for project builds, execution, Explorer, and feature graphs.
-`uptimely project build --project-root <project>` discovers
+`uptimely build <project>` discovers
 `spec/spec.py` or `spec/spec.json`, validates the source, and
 generates a complete active bundle under `_generated/build/`. If exactly one
 standard source exists, it is selected automatically. If both exist, the build

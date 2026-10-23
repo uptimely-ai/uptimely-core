@@ -81,7 +81,7 @@ Argument | Purpose
 Build the project first, for example:
 
 ```sh
-uptimely project build --project-root examples/pump_analytics
+uptimely build examples/pump_analytics
 ```
 
 The MCP server rejects missing, incomplete, or invalid builds with a recovery

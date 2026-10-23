@@ -6,6 +6,7 @@ import pathlib
 import time
 
 from uptimely import spec
+from uptimely.cli import common
 from uptimely.project import build as project_build
 from uptimely.project.build import source as build_source
 
@@ -35,10 +36,9 @@ def configure_build_parser(parser: argparse.ArgumentParser) -> None:
         type=pathlib.Path,
         help="Source spec JSON path (overrides standard source discovery)",
     )
-    parser.add_argument(
-        "--project-root",
-        type=pathlib.Path,
-        help="Root added to the import path and used to resolve the output bundle",
+    common.configure_project_root_arguments(
+        parser,
+        option_help="Root added to the import path and used to resolve the output bundle",
     )
     parser.add_argument(
         "--features",
@@ -96,7 +96,7 @@ def _log_build_details(
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Build and publish a complete project bundle."""
-    root = args.project_root or pathlib.Path.cwd()
+    root = common.resolve_project_root(args, parser)
     started = time.perf_counter()
     try:
         bundle = project_build.build_project(

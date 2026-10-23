@@ -7,6 +7,7 @@ import pathlib
 from http import server as http_server
 
 from uptimely import project
+from uptimely.cli import common
 
 logger = logging.getLogger(__name__)
 
@@ -76,10 +77,9 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
 
 def configure_serve_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the Explorer serve command."""
-    parser.add_argument(
-        "--project-root",
-        type=pathlib.Path,
-        help="Project root containing the active build",
+    common.configure_project_root_arguments(
+        parser,
+        option_help="Project root containing the active build",
     )
     parser.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
     parser.add_argument(
@@ -89,7 +89,7 @@ def configure_serve_parser(parser: argparse.ArgumentParser) -> None:
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Serve the active build's validated, saved Explorer website."""
-    project_root = (args.project_root or pathlib.Path.cwd()).resolve()
+    project_root = common.resolve_project_root(args, parser).resolve()
     try:
         with project.read_build_bundle(project_root) as bundle:
             scope = (
