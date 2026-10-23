@@ -17,7 +17,7 @@
     <svg class="dashboard-art" viewBox="0 0 420 280" fill="none" aria-hidden="true" focusable="false">
       <defs>
         <linearGradient id="journey-gradient" x1="80" y1="60" x2="340" y2="230" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#67e8f9"/><stop offset=".5" stop-color="#c4b5fd"/><stop offset="1" stop-color="#fcd34d"/>
+          <stop stop-color="#67e8f9"/><stop offset=".5" stop-color="#fcd34d"/><stop offset="1" stop-color="#e879f9"/>
         </linearGradient>
       </defs>
       <circle cx="210" cy="140" r="118" stroke="#334155" stroke-dasharray="3 9"/>
@@ -26,15 +26,15 @@
       <path d="M88 72V208H156M264 72H332V208" stroke="#334155" stroke-dasharray="4 6"/>
       <rect x="48" y="32" width="80" height="80" rx="20" fill="#0f172a" stroke="#67e8f9"/>
       <path d="M72 53H104V91H72V53ZM79 64H97M79 72H97M79 80H89" stroke="#67e8f9" stroke-width="2"/>
-      <rect x="170" y="100" width="80" height="80" rx="20" fill="#0f172a" stroke="#c4b5fd"/>
-      <path d="M196 124L224 140L196 156M196 124V156" stroke="#c4b5fd" stroke-width="2"/>
-      <circle cx="196" cy="124" r="5" fill="#0f172a" stroke="#c4b5fd" stroke-width="2"/>
-      <circle cx="224" cy="140" r="5" fill="#0f172a" stroke="#c4b5fd" stroke-width="2"/>
-      <circle cx="196" cy="156" r="5" fill="#0f172a" stroke="#c4b5fd" stroke-width="2"/>
-      <rect x="292" y="168" width="80" height="80" rx="20" fill="#0f172a" stroke="#fcd34d"/>
-      <path d="M314 193H350M314 208H338M314 223H326" stroke="#fcd34d" stroke-width="3" stroke-linecap="round"/>
+      <rect x="170" y="100" width="80" height="80" rx="20" fill="#0f172a" stroke="#fcd34d"/>
+      <path d="M196 124L224 140L196 156M196 124V156" stroke="#fcd34d" stroke-width="2"/>
+      <circle cx="196" cy="124" r="5" fill="#0f172a" stroke="#fcd34d" stroke-width="2"/>
+      <circle cx="224" cy="140" r="5" fill="#0f172a" stroke="#fcd34d" stroke-width="2"/>
+      <circle cx="196" cy="156" r="5" fill="#0f172a" stroke="#fcd34d" stroke-width="2"/>
+      <rect x="292" y="168" width="80" height="80" rx="20" fill="#0f172a" stroke="#e879f9"/>
+      <path d="M314 193H350M314 208H338M314 223H326" stroke="#e879f9" stroke-width="3" stroke-linecap="round"/>
       <circle cx="156" cy="208" r="4" fill="#67e8f9"/>
-      <circle cx="264" cy="72" r="4" fill="#fcd34d"/>
+      <circle cx="264" cy="72" r="4" fill="#e879f9"/>
     </svg>
   </header>
 
@@ -58,8 +58,8 @@
     <ol class="spec-journey" aria-label="Spec journey">
       {% for accent, number, title, description, href, action in [
         ("spec", "01", "Spec", "The source of truth. Browse entities, datasets, features, dimensions, and the functions bound to them.", website_pages["spec"]["overview"], "Explore spec"),
-        ("execution", "02", "Plan", "The path to execution. Inspect compiled operations, argument bindings, and dependency-ordered stages with potential parallelism.", website_pages["plan"]["overview"], "Inspect the plan"),
-        ("lineage", "03", "Execution", "Follow color-coded processing tables and the dependencies connecting them.", website_pages["execution"]["lineage"], "Explore execution")
+        ("plan", "02", "Plan", "The path to execution. Inspect compiled operations, argument bindings, and dependency-ordered stages with potential parallelism.", website_pages["plan"]["overview"], "Inspect the plan"),
+        ("execution", "03", "Execution", "Follow color-coded processing tables and the dependencies connecting them.", website_pages["execution"]["lineage"], "Explore execution")
       ] %}
       <li class="journey-step {{ accent }} icon--{{ accent }}">
         <div class="journey-step-header">

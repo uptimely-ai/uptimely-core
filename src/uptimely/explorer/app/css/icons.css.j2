@@ -1,4 +1,5 @@
-{% from "icons.html.j2" import icons %}
+{% from "icons.html.j2" import icons, palette %}
 {% for key, definition in icons.items() %}
-.icon--{{ key }} { --icon-color: {{ definition[1] }}; --icon-tint: {{ definition[2] }}; }
+{% set colors = palette[definition[1]] %}
+.icon--{{ key }} { --icon-color: {{ colors[0] }}; --icon-tint: {{ colors[1] }}; }
 {% endfor %}

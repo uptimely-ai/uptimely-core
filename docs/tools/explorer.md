@@ -43,6 +43,11 @@ The feature graph focuses on relationships between spec features. Plan
 graphs focus on function dependencies. Graphs offer 2D and 3D views; use **Fit
 graph** to bring the diagram into view and select a node to inspect it.
 
+The graph views have distinct navigation and heading icons: Feature graph uses
+a teal network icon for feature relationships, while Execution graph uses an
+orange workflow icon for left-to-right processing dependencies. These accents
+identify the views; graph nodes retain their data-specific colors.
+
 The data-lineage walkthrough is an illustration of the declared plan, not a
 run of your functions. Its example table values and rows are placeholders; it
 does not show real data or calculated results. Building the project bundle does
