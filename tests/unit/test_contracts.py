@@ -1,3 +1,5 @@
+import typing
+
 import pydantic
 import pytest
 
@@ -6,6 +8,21 @@ from uptimely.spec import model as spec_model
 from uptimely.spec.validation import bindings
 from uptimely.spec.validation import context as context_module
 from uptimely.spec.validation import functions as validation_functions
+
+
+def test_named_operations_match_the_public_operation_contract() -> None:
+    assert contracts.FUNCTION_OPERATIONS == (
+        contracts.READ,
+        contracts.WRITE,
+        contracts.ESCAPE,
+        contracts.VECTORIZE,
+        contracts.COLLAPSE,
+        contracts.EXPAND,
+        contracts.CONFORM,
+    )
+    assert typing.get_args(contracts.FunctionOperation) == contracts.FUNCTION_OPERATIONS
+    assert set(contracts.DATAFRAME_INPUT_COUNTS) == set(contracts.FUNCTION_OPERATIONS)
+    assert set(contracts.OPERATION_RETURN_KINDS) == set(contracts.FUNCTION_OPERATIONS)
 
 
 @pytest.mark.parametrize(

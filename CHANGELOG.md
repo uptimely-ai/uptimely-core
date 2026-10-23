@@ -10,6 +10,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Execution results index `datasets` by dataset ID and
+  `calculated_outputs` by `(dataset_id, feature_id)`, without redundant entity
+  IDs. Dataset IDs remain unique across the project.
 - **Breaking:** Spec version 2 stores each entity's datasets as an object keyed
   by dataset ID, not an array. Remove dataset `id` attributes and use their values
   as object keys. The canonical `Entity.datasets` API is now a dictionary.

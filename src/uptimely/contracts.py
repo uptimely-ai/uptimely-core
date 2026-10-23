@@ -2,20 +2,16 @@
 
 import typing
 
-FUNCTION_OPERATIONS = (
-    "read",
-    "write",
-    "escape",
-    "vectorize",
-    "collapse",
-    "expand",
-    "conform",
-)
 FunctionOperation = typing.Literal[
     "read", "write", "escape", "vectorize", "collapse", "expand", "conform"
 ]
+FUNCTION_OPERATIONS: typing.Final[tuple[FunctionOperation, ...]] = typing.get_args(
+    FunctionOperation
+)
+READ, WRITE, ESCAPE, VECTORIZE, COLLAPSE, EXPAND, CONFORM = FUNCTION_OPERATIONS
+
 FunctionReturns = typing.Literal["dataframe", "none", "any"]
-FRAGMENT_OPERATIONS: tuple[FunctionOperation, ...] = ("read", "conform", "expand", "collapse")
+FRAGMENT_OPERATIONS: tuple[FunctionOperation, ...] = (READ, CONFORM, EXPAND, COLLAPSE)
 
 FEATURE_PREFIX = "$features."
 DATASET_PREFIX = "$datasets."
@@ -26,30 +22,34 @@ DATAFRAME_SELECTOR = ".dataframe"
 STRUCTURAL_PREFIXES = (FEATURE_PREFIX, DATASET_PREFIX, DIMENSION_PREFIX)
 
 DATAFRAME_INPUT_COUNTS: dict[FunctionOperation, int | None] = {
-    "read": 0,
-    "collapse": 1,
-    "conform": 2,
-    "expand": 2,
-    "vectorize": 1,
-    "write": 1,
-    "escape": None,
+    READ: 0,
+    COLLAPSE: 1,
+    CONFORM: 2,
+    EXPAND: 2,
+    VECTORIZE: 1,
+    WRITE: 1,
+    ESCAPE: None,
 }
 OPERATION_RETURN_KINDS: dict[FunctionOperation, FunctionReturns] = {
-    "read": "dataframe",
-    "write": "none",
-    "escape": "any",
-    "vectorize": "dataframe",
-    "collapse": "dataframe",
-    "expand": "dataframe",
-    "conform": "dataframe",
+    READ: "dataframe",
+    WRITE: "none",
+    ESCAPE: "any",
+    VECTORIZE: "dataframe",
+    COLLAPSE: "dataframe",
+    EXPAND: "dataframe",
+    CONFORM: "dataframe",
 }
 
 __all__ = [
+    "COLLAPSE",
+    "CONFORM",
     "CURRENT_ID",
     "DATAFRAME_SELECTOR",
     "DATAFRAME_INPUT_COUNTS",
     "DATASET_PREFIX",
     "DIMENSION_PREFIX",
+    "ESCAPE",
+    "EXPAND",
     "FEATURE_PREFIX",
     "FUNCTION_OPERATIONS",
     "FRAGMENT_OPERATIONS",
@@ -57,5 +57,8 @@ __all__ = [
     "FunctionReturns",
     "ID_SELECTOR",
     "OPERATION_RETURN_KINDS",
+    "READ",
     "STRUCTURAL_PREFIXES",
+    "VECTORIZE",
+    "WRITE",
 ]

@@ -35,9 +35,10 @@ def test_spec_json_parses_compiles_and_executes() -> None:
 
     assert len(compiled.callables) == 2
     assert not execution.failures
-    assert execution.datasets["observation", "observations"].sort("id").select(
-        "id", "total"
-    ).rows() == [(1, 3), (2, 7)]
+    assert execution.datasets["observations"].sort("id").select("id", "total").rows() == [
+        (1, 3),
+        (2, 7),
+    ]
 
 
 def test_reference_exports_to_default_directory(

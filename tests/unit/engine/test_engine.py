@@ -11,6 +11,8 @@ from uptimely import entrypoint as entrypoint_module
 from uptimely import spec
 from uptimely.compiler import plan as uptimely_plan
 from uptimely.engine import bindings as bindings_module
+from uptimely.engine import dataframe as dataframe_module
+from uptimely.engine import execution as execution_module
 from uptimely.engine import state as state_module
 from uptimely.spec.python import bind, dataset, dimension, feature, mapping, ref
 
@@ -70,8 +72,9 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     assert set(result.callable_statuses.values()) == {"succeeded"}
     assert result.failures == {}
     assert result.plan_version == 1
-    assert isinstance(result.calculated_outputs["asset", "telemetry", "doubled"], pl.DataFrame)
-    assert result.datasets["asset", "telemetry"].select("doubled").to_series().to_list() == [
+    assert isinstance(result.calculated_outputs["telemetry", "doubled"], pl.DataFrame)
+    assert set(result.datasets) == {"telemetry"}
+    assert result.datasets["telemetry"].select("doubled").to_series().to_list() == [
         4,
         6,
     ]
@@ -104,7 +107,7 @@ def test_saved_plan_executes_without_compiler(
     result = engine.run()
 
     assert result.failures == {}
-    assert result.datasets["asset", "telemetry"]["doubled"].to_list() == [4, 6]
+    assert result.datasets["telemetry"]["doubled"].to_list() == [4, 6]
 
 
 def test_repeated_execution_does_not_leak_runtime_state(
@@ -134,9 +137,9 @@ def test_repeated_execution_does_not_leak_runtime_state(
     assert first_result.failures == second_result.failures == {}
     assert first_result.datasets is not second_result.datasets
     assert first_result.calculated_outputs is not second_result.calculated_outputs
-    assert first_result.datasets["asset", "telemetry"]["doubled"].to_list() == [2, 4]
-    assert second_result.datasets["asset", "telemetry"]["doubled"].to_list() == [4, 6]
-    first_output = first_result.calculated_outputs["asset", "telemetry", "doubled"]
+    assert first_result.datasets["telemetry"]["doubled"].to_list() == [2, 4]
+    assert second_result.datasets["telemetry"]["doubled"].to_list() == [4, 6]
+    first_output = first_result.calculated_outputs["telemetry", "doubled"]
     assert first_output["doubled"].to_list() == [2, 4]
 
 
@@ -441,8 +444,8 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
 
     assert result.failures == {}
     assert result.callable_statuses == {read_id: "succeeded", escape_id: "succeeded"}
-    assert observed == [result.datasets["asset", "telemetry"]]
-    assert "external_result" not in result.datasets["asset", "telemetry"].columns
+    assert observed == [result.datasets["telemetry"]]
+    assert "external_result" not in result.datasets["telemetry"].columns
     assert result.calculated_outputs == {}
 
 
@@ -598,11 +601,80 @@ def test_engine_rejects_ambiguous_fragment_references() -> None:
         state.dataframe_by_id("shared")
 
 
+def test_fragment_names_are_scoped_by_dataset_not_entity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def read(source: str) -> pl.DataFrame:
+        return pl.DataFrame({"asset_id": [source], "reading": [1]})
+
+    _patch_callables(monkeypatch, {"test:read": read})
+    engine = _engine(_plan(), {"storage": {"source": {"path": "source"}}})
+    state = state_module.RuntimeState()
+    executor = execution_module.CallableExecutor(
+        engine.bundle.project_root, engine.backend, engine.resources, engine.bind, state
+    )
+    for dataset_id in ("first", "second"):
+        executor.execute(
+            dataclasses.replace(
+                engine.plan.callables[0],
+                dataset_id=dataset_id,
+                output="shared",
+            )
+        )
+
+    assert set(state.datasets) == {"first", "second"}
+    assert set(state.fragments) == {("first", "shared"), ("second", "shared")}
+    with pytest.raises(ValueError, match="Ambiguous fragment reference: shared"):
+        state.dataframe_by_id("shared")
+
+
+def test_input_validation_reads_each_dataset_schema_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = _engine(_plan())
+    state = state_module.RuntimeState(
+        datasets={
+            "telemetry": pl.DataFrame({"asset_id": ["A"]}),
+            "source": pl.DataFrame({"asset_id": ["A"], "reading": [1], "other": [2]}),
+        }
+    )
+    column_names = engine.backend.column_names
+    inspected: list[object] = []
+
+    def inspect(frame: object) -> list[str]:
+        inspected.append(frame)
+        return column_names(frame)
+
+    monkeypatch.setattr(engine.backend, "column_names", inspect)
+    dataframe = dataframe_module.DataFrameExecution(engine.backend, engine.resources, state)
+    callable = dataclasses.replace(
+        engine.plan.callables[1], input_features=["asset_id", "reading", "other"]
+    )
+
+    dataframe.validate_inputs(callable)
+
+    assert len(inspected) == 2
+    assert inspected[0] is state.datasets["telemetry"]
+    assert inspected[1] is state.datasets["source"]
+
+
+@pytest.mark.parametrize("sources", [0, 2])
+def test_input_validation_rejects_missing_or_ambiguous_foreign_features(sources: int) -> None:
+    engine = _engine(_plan())
+    state = state_module.RuntimeState(
+        datasets={f"source_{index}": pl.DataFrame({"reading": [index]}) for index in range(sources)}
+    )
+    dataframe = dataframe_module.DataFrameExecution(engine.backend, engine.resources, state)
+
+    with pytest.raises(ValueError, match="input feature is unavailable or ambiguous: reading"):
+        dataframe.validate_inputs(engine.plan.callables[1])
+
+
 def test_runtime_state_prefers_dataset_to_fragment_lookup() -> None:
     dataset = pl.DataFrame({"asset_id": ["dataset"]})
     fragment = pl.DataFrame({"asset_id": ["fragment"]})
     state = state_module.RuntimeState(
-        datasets={("first", "shared"): dataset},
+        datasets={"shared": dataset},
         fragments={("first", "shared"): fragment},
     )
 
@@ -612,7 +684,7 @@ def test_runtime_state_prefers_dataset_to_fragment_lookup() -> None:
 def test_runtime_state_is_not_shared_between_instances() -> None:
     first = state_module.RuntimeState()
     second = state_module.RuntimeState()
-    first.datasets["asset", "telemetry"] = pl.DataFrame({"asset_id": ["A"]})
+    first.datasets["telemetry"] = pl.DataFrame({"asset_id": ["A"]})
 
     assert second.datasets == {}
 
@@ -712,12 +784,12 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
 
     assert result.failures == {}
     assert calls == 1
-    assert result.datasets["asset", "telemetry"].select(
-        "reading_plus_one", "reading_times_two"
-    ).rows() == [(4, 6)]
+    assert result.datasets["telemetry"].select("reading_plus_one", "reading_times_two").rows() == [
+        (4, 6)
+    ]
     assert set(result.calculated_outputs) == {
-        ("asset", "telemetry", "reading_plus_one"),
-        ("asset", "telemetry", "reading_times_two"),
+        ("telemetry", "reading_plus_one"),
+        ("telemetry", "reading_times_two"),
     }
 
 

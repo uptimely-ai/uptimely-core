@@ -64,14 +64,10 @@ def _build_stages(
         for feature in callable.output_features
         if feature not in spec_definition.dimensions
     }
-    datasets = {
-        dataset.id: dataset
-        for entity in spec_definition.entities.values()
-        for dataset in entity.datasets.values()
-    }
     feature_types = {
         name: feature.type or "Unspecified"
-        for dataset in datasets.values()
+        for entity in spec_definition.entities.values()
+        for dataset in entity.datasets.values()
         for name, feature in dataset.features.items()
         if name not in spec_definition.dimensions
     }
@@ -82,7 +78,8 @@ def _build_stages(
     for stage in ordered_stages:
         steps: list[DataLineageStep] = []
         for callable in stage:
-            dimensions = spec_definition.entities[callable.entity_id].dimension_ids
+            entity = spec_definition.entities[callable.entity_id]
+            dimensions = entity.dimension_ids
             columns = [
                 DataLineageColumn(
                     name, spec_definition.dimensions[name].type, "Dimension", "#93c5fd", None
@@ -117,7 +114,7 @@ def _build_stages(
                             producer is not None and producer.operation == "escape",
                         )
                     )
-            dataset = datasets.get(callable.dataset_id)
+            dataset = entity.datasets.get(callable.dataset_id)
             steps.append(
                 DataLineageStep(
                     number=numbers[callable.id],

@@ -126,7 +126,7 @@ def test_engine_previews_final_datasets(
     ).with_columns(pl.lit(index).alias(f"c{index}") for index in range(10))
     output_frame = frame.lazy() if lazy else frame
     result = engine_module.ExecutionResult(
-        datasets={("sample", "first"): output_frame, ("sample", "second"): output_frame},
+        datasets={"first": output_frame, "second": output_frame},
         calculated_outputs={},
         callable_statuses={},
         durations={},
@@ -209,7 +209,7 @@ def test_engine_preview_errors_are_reported(
     config = tmp_path / "engine.json"
     config.write_text("{}", encoding="utf-8")
     result = engine_module.ExecutionResult(
-        datasets={("sample", "values"): frame},
+        datasets={"values": frame},
         calculated_outputs={},
         callable_statuses={},
         durations={},

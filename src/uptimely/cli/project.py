@@ -61,9 +61,6 @@ def _log_build_details(
         source_file = source.entrypoint.module.source_file
     else:
         source_file = str(source.path.resolve())
-    datasets = [
-        dataset for entity in definition.entities.values() for dataset in entity.datasets.values()
-    ]
     scope = (
         "all features" if bundle.manifest.features is None else ", ".join(bundle.manifest.features)
     )
@@ -75,8 +72,18 @@ def _log_build_details(
     logger.info("\nSpec")
     logger.info("  Spec source file: %s", source_file)
     logger.info("  Number of functions: %d", len(definition.functions))
-    logger.info("  Number of datasets: %d", len(datasets))
-    logger.info("  Number of features: %d", sum(len(dataset.features) for dataset in datasets))
+    logger.info(
+        "  Number of datasets: %d",
+        sum(len(entity.datasets) for entity in definition.entities.values()),
+    )
+    logger.info(
+        "  Number of features: %d",
+        sum(
+            len(dataset.features)
+            for entity in definition.entities.values()
+            for dataset in entity.datasets.values()
+        ),
+    )
     logger.info("\nPlan")
     logger.info("  Number of stages: %d", len(bundle.execution_plan.plan.stages))
     logger.info("  Number of callables: %d", len(bundle.execution_plan.callables))

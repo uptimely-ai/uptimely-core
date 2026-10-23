@@ -343,8 +343,17 @@ def test_graph_subset_retains_validated_dataset_mapping_lookups() -> None:
     subset = graph.subset(["health_signal_normalized"])
 
     for node in subset.callables:
+        assert graph.dataset_for(node) is document.entities[node.entity].datasets[node.dataset_id]
         assert subset.dataset_for(node) is graph.dataset_for(node)
         assert subset.mapping_for(node) is graph.mapping_for(node)
+        assert {dependency.node_id for dependency in subset.dependencies(node)} == {
+            dependency.node_id for dependency in graph.dependencies(node)
+        }
+
+    nested_subset = subset.subset(["health_signal_normalized"])
+    assert {node.node_id for node in nested_subset.callables} == {
+        node.node_id for node in subset.callables
+    }
 
 
 def test_graph_rejects_duplicate_datasets_before_indexing() -> None:

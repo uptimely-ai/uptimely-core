@@ -285,19 +285,23 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         result = engine.run()
 
         expected_outputs = {
-            (callable.entity_id, callable.dataset_id, feature)
+            (callable.dataset_id, feature)
             for callable in plan.callables
             if callable.operation == "vectorize"
             for feature in callable.output_features
         }
         actual_outputs = set(result.calculated_outputs)
-        outputs_by_dataset: dict[tuple[str, str], list[str]] = {}
-        for entity_id, dataset_id, feature_id in sorted(actual_outputs):
-            outputs_by_dataset.setdefault((entity_id, dataset_id), []).append(feature_id)
+        outputs_by_dataset: dict[str, list[str]] = {}
+        for dataset_id, feature_id in sorted(actual_outputs):
+            outputs_by_dataset.setdefault(dataset_id, []).append(feature_id)
+        dataset_entities = {callable.dataset_id: callable.entity_id for callable in plan.callables}
 
         datasets: list[dict[str, typing.Any]] = []
-        for (entity_id, dataset_id), features in sorted(outputs_by_dataset.items()):
-            frame = _collect_frame(result.datasets.get((entity_id, dataset_id)))
+        for dataset_id, features in sorted(
+            outputs_by_dataset.items(), key=lambda item: (dataset_entities[item[0]], item[0])
+        ):
+            entity_id = dataset_entities[dataset_id]
+            frame = _collect_frame(result.datasets.get(dataset_id))
             if frame is None or not hasattr(frame, "to_dicts"):
                 raise TypeError(
                     f"Execution produced calculated outputs for {entity_id}.{dataset_id} "
