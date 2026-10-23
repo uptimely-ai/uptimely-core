@@ -50,9 +50,10 @@ The feature graph focuses on relationships between spec features. Plan
 graphs focus on function dependencies. Both use the same **2D / 3D** switch next
 to the graph title,
 **Zoom in**, **Zoom out**, **Fit graph**, collapsible legend, and selected-node
-details panel. Selection is preserved when switching dimensions. The feature
+details panel. Click a node to highlight its upstream dependencies and downstream
+dependents; the selection is preserved when switching dimensions. The feature
 graph retains its entity colors and the execution graph retains its stage lanes
-and operation colors.
+and operation colors when no node is selected.
 
 The graph views have distinct navigation and heading icons: Feature graph uses
 a teal network icon for feature relationships, while Execution graph uses an

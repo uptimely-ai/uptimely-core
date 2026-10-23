@@ -7,6 +7,7 @@ function mountGraphViews(sourceData, create2D, create3D, showDetails, detailsPan
 	const selectNode = node => {
 		selectedId = node?.id ?? null;
 		showDetails(node);
+		for (const view of views.values()) view.selectNode?.(selectedId);
 	};
 	const showView = dimension => {
 		if (dimension === activeDimension) return;

@@ -55,6 +55,7 @@
 	};
 
 	function create2D(graphContainer, data, updateDetails) {
+		const highlight = ExplorerGraph.createDependencyHighlight(data);
 		function rankNodes(graphData) {
 			const children = new Map(graphData.nodes.map(node => [node.id, []]));
 			const indegree = new Map(graphData.nodes.map(node => [node.id, 0]));
@@ -125,7 +126,11 @@
 		function drawNode(node, ctx) {
 			const label = node.label || node.id;
 			const isFunction = node.is_function === true;
-			const color = isFunction ? functionColor : node.entityColor;
+			const baseColor = isFunction ? functionColor : node.entityColor;
+			const color = highlight.hasSelection()
+				? highlight.isSelected(node) ? '#f8d66d'
+					: highlight.isNodeHighlighted(node) ? '#67e8f9' : '#46545f'
+				: baseColor;
 			const width = node.cardWidth;
 			const left = node.x - width / 2;
 			ctx.save();
@@ -134,10 +139,12 @@
 			ctx.shadowOffsetY = 4;
 			ctx.beginPath();
 			ctx.roundRect(left, node.y - node.cardHeight / 2, width, node.cardHeight, 12);
-			ctx.fillStyle = isFunction ? '#1a2732' : '#172a35';
+			ctx.fillStyle = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
+				? '#121c24'
+				: isFunction ? '#1a2732' : '#172a35';
 			ctx.fill();
 			ctx.shadowColor = 'transparent';
-			ctx.lineWidth = 1.5;
+			ctx.lineWidth = highlight.isSelected(node) ? 3 : 1.5;
 			ctx.strokeStyle = color;
 			ctx.stroke();
 			ctx.beginPath();
@@ -148,7 +155,9 @@
 			}
 			ctx.fillStyle = color;
 			ctx.fill();
-			ctx.fillStyle = '#e8edf2';
+			ctx.fillStyle = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
+				? 'rgba(232, 237, 242, .3)'
+				: '#e8edf2';
 			ctx.font = '600 12px "DM Sans", sans-serif';
 			ctx.textAlign = 'left';
 			ctx.textBaseline = 'middle';
@@ -202,8 +211,10 @@
 			const points = linkRoute(link);
 			const scale = Math.max(globalScale, 0.01);
 			ctx.save();
-			ctx.strokeStyle = style.link_color;
-			ctx.lineWidth = 1.5 / scale;
+			ctx.strokeStyle = highlight.isLinkHighlighted(link)
+				? '#67e8f9'
+				: highlight.hasSelection() ? 'rgba(70, 84, 95, .35)' : style.link_color;
+			ctx.lineWidth = (highlight.isLinkHighlighted(link) ? 3 : 1.5) / scale;
 			ctx.lineCap = 'round';
 			ctx.lineJoin = 'round';
 			ctx.beginPath();
@@ -215,7 +226,7 @@
 			const previous = points[points.length - 2];
 			const angle = Math.atan2(end[1] - previous[1], end[0] - previous[0]);
 			const arrowLength = 8 / scale;
-			ctx.fillStyle = style.link_color;
+			ctx.fillStyle = ctx.strokeStyle;
 			ctx.beginPath();
 			ctx.moveTo(end[0], end[1]);
 			ctx.lineTo(
@@ -242,7 +253,9 @@
 			const segmentStart = points[segmentIndex];
 			const segmentEnd = points[segmentIndex + 1];
 			const progress = distance / segmentLengths[segmentIndex];
-			ctx.fillStyle = '#e6f4ff';
+			ctx.fillStyle = highlight.isLinkHighlighted(link)
+				? '#f8d66d'
+				: highlight.hasSelection() ? 'rgba(70, 84, 95, .35)' : '#e6f4ff';
 			ctx.beginPath();
 			ctx.arc(
 				segmentStart[0] + (segmentEnd[0] - segmentStart[0]) * progress,
@@ -270,8 +283,10 @@
 			.nodeCanvasObjectMode(() => 'replace')
 			.nodeCanvasObject(drawNode)
 			.nodePointerAreaPaint(ExplorerGraph.paintPointerArea)
-			.linkColor(() => style.link_color)
-			.linkWidth(style.link_width)
+			.linkColor(link => highlight.isLinkHighlighted(link)
+				? '#67e8f9'
+				: highlight.hasSelection() ? 'rgba(70, 84, 95, .35)' : style.link_color)
+			.linkWidth(link => highlight.isLinkHighlighted(link) ? 3 : style.link_width)
 			.linkCanvasObjectMode(() => 'replace')
 			.linkCanvasObject(drawLink)
 			.linkDirectionalParticles(1)
@@ -283,15 +298,21 @@
 			.onBackgroundClick(event => selectAtPointer(event))
 			.cooldownTicks(1);
 		const view = ExplorerGraph.createView(graph, graphContainer, 80, '2d');
+		view.selectNode = id => {
+			highlight.select(data.nodes.find(node => node.id === id) || null);
+			graph.refresh();
+		};
 		graph.graphData(data);
 		return view;
 	}
 
 	function create3D(graphContainer, data, updateDetails) {
+		const highlight = ExplorerGraph.createDependencyHighlight(data);
 		return ExplorerGraph.create3D(graphContainer, data, style, {
 			label: node => `${node.is_function ? 'function' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`,
 			color: node => node.is_function ? functionColor : node.entityColor,
 			onSelect: updateDetails,
+			highlight,
 			configure: graph => graph.linkDirectionalArrowLength(style.arrow_length)
 				.linkDirectionalArrowRelPos(style.arrow_rel_pos),
 			object: node => {

@@ -55,6 +55,50 @@ const ExplorerGraph = (() => {
 		if (node) onSelect(node);
 	}
 
+	function createDependencyHighlight(data) {
+		const incoming = new Map(data.nodes.map(node => [node.id, []]));
+		const outgoing = new Map(data.nodes.map(node => [node.id, []]));
+		for (const link of data.links) {
+			incoming.get(link.target)?.push(link);
+			outgoing.get(link.source)?.push(link);
+		}
+		let selectedId = null;
+		let highlightedNodes = new Set();
+		let highlightedLinks = new Set();
+		const endpointId = endpoint => typeof endpoint === 'object' ? endpoint.id : endpoint;
+		return {
+			select(node) {
+				selectedId = node?.id ?? null;
+				highlightedNodes = new Set();
+				highlightedLinks = new Set();
+				if (!selectedId) return;
+				highlightedNodes.add(selectedId);
+				for (const links of [incoming, outgoing]) {
+					const visited = new Set([selectedId]);
+					const pending = [selectedId];
+					while (pending.length) {
+						const current = pending.pop();
+						for (const link of links.get(current) || []) {
+							highlightedLinks.add(link);
+							const next = links === incoming
+								? endpointId(link.source)
+								: endpointId(link.target);
+							highlightedNodes.add(next);
+							if (!visited.has(next)) {
+								visited.add(next);
+								pending.push(next);
+							}
+						}
+					}
+				}
+			},
+			hasSelection: () => selectedId !== null,
+			isSelected: node => node.id === selectedId,
+			isNodeHighlighted: node => highlightedNodes.has(node.id),
+			isLinkHighlighted: link => highlightedLinks.has(link),
+		};
+	}
+
 	function createView(graph, container, padding, dimension) {
 		let initialFitComplete = false;
 		graph.onEngineStop(() => {
@@ -84,27 +128,64 @@ const ExplorerGraph = (() => {
 		return { graph, fit, resize, zoom };
 	}
 
-	function create3D(container, data, style, { label, color, object, onSelect, configure }) {
+	function create3D(container, data, style, {
+		label, color, object, onSelect, configure, highlight,
+	}) {
+		const nodeObjects = new Map();
+		const graphColor = node => highlight && highlight.hasSelection()
+			? highlight.isSelected(node)
+				? '#f8d66d'
+				: highlight.isNodeHighlighted(node)
+					? '#67e8f9'
+					: '#46545f'
+			: color(node);
 		const graph = ForceGraph3D()(container)
 			.width(container.clientWidth)
 			.height(container.clientHeight)
 			.backgroundColor(style.background_color)
 			.nodeLabel(node => tooltip(label(node)))
-			.nodeColor(color)
+			.nodeColor(graphColor)
 			.nodeRelSize(style.node_rel_size)
 			.nodeResolution(style.node_resolution)
 			.linkWidth(style.link_width)
-			.linkColor(() => style.link_color)
-			.linkOpacity(style.link_opacity)
+			.linkColor(link => highlight?.isLinkHighlighted(link)
+				? '#67e8f9'
+				: highlight?.hasSelection() ? '#46545f' : style.link_color)
+			.linkOpacity(link => highlight?.hasSelection()
+				? highlight.isLinkHighlighted(link) ? 1 : 0.18
+				: style.link_opacity)
 			.linkDirectionalParticles(2)
 			.linkDirectionalParticleWidth(2)
 			.linkDirectionalParticleSpeed(0.003)
+			.linkDirectionalParticleColor(link => highlight?.isLinkHighlighted(link)
+				? '#f8d66d'
+				: highlight?.hasSelection() ? '#46545f' : style.link_color)
 			.onNodeClick(onSelect)
-			.nodeThreeObject(object);
+			.nodeThreeObject(node => {
+				const nodeObject = object(node);
+				nodeObjects.set(node.id, nodeObject);
+				return nodeObject;
+			});
 		if (configure) configure(graph);
 		graph.d3Force('charge').strength(style.charge_strength).distanceMax(style.charge_distance_max);
 		graph.d3Force('link').distance(style.link_distance);
 		const view = createView(graph, container, 60, '3d');
+		if (highlight) {
+			view.selectNode = id => {
+				highlight.select(data.nodes.find(node => node.id === id) || null);
+				for (const node of data.nodes) {
+					const nodeObject = nodeObjects.get(node.id);
+					if (!nodeObject) continue;
+					const displayColor = graphColor(node);
+					nodeObject.traverse(object3d => {
+						if (object3d.isMesh && object3d.material?.color) {
+							object3d.material.color.set(displayColor);
+						}
+					});
+				}
+				graph.refresh();
+			};
+		}
 		graph.graphData(data);
 		return view;
 	}
@@ -123,6 +204,6 @@ const ExplorerGraph = (() => {
 
 	return {
 		readPayload, tooltip, showDetails, appendLegend, paintPointerArea, selectCard,
-		createView, create3D, labeledMesh,
+		createDependencyHighlight, createView, create3D, labeledMesh,
 	};
 })();
