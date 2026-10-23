@@ -1,16 +1,31 @@
+{% set palette = {
+  "orientation": ("#93c5fd", "#1e3a8a4d"),
+  "declarations": ("#67e8f9", "#164e634d"),
+  "outputs": ("#f9a8d4", "#8318434d"),
+  "domain": ("#fdba74", "#7c2d124d"),
+  "data": ("#6ee7b7", "#064e3b4d"),
+  "structure": ("#818cf8", "#312e814d"),
+  "computation": ("#fcd34d", "#78350f4d"),
+  "relationships": ("#2dd4bf", "#134e4a4d"),
+  "dependencies": ("#fb923c", "#7c2d124d"),
+  "flow": ("#e879f9", "#701a754d")
+} %}
 {% set icons = {
-  "home": ("house", "#93c5fd", "#1e3a8a4d"),
-  "spec": ("book-open", "#67e8f9", "#164e634d"),
-  "overview": ("layout-dashboard", "#93c5fd", "#1e3a8a4d"),
-  "features": ("sparkles", "#f9a8d4", "#8318434d"),
-  "entities": ("boxes", "#fdba74", "#7c2d124d"),
-  "datasets": ("table", "#6ee7b7", "#064e3b4d"),
-  "dimensions": ("layers-3", "#a5b4fc", "#312e814d"),
-  "functions": ("braces", "#fcd34d", "#78350f4d"),
-  "lineage": ("git-fork", "#c4b5fd", "#4c1d954d"),
-  "execution": ("workflow", "#fcd34d", "#78350f4d"),
-  "execution-graph": ("network", "#fcd34d", "#78350f4d"),
-  "stages": ("list-ordered", "#fcd34d", "#78350f4d")
+  "home": ("house", "orientation"),
+  "spec": ("book-open", "declarations"),
+  "plan": ("list-tree", "computation"),
+  "execution": ("play", "flow"),
+  "overview": ("layout-dashboard", "orientation"),
+  "features": ("sparkles", "outputs"),
+  "entities": ("boxes", "domain"),
+  "datasets": ("table", "data"),
+  "dimensions": ("layers-3", "structure"),
+  "functions": ("braces", "computation"),
+  "callables": ("braces", "computation"),
+  "feature-graph": ("network", "relationships"),
+  "lineage": ("database-zap", "flow"),
+  "execution-graph": ("workflow", "dependencies"),
+  "stages": ("list-ordered", "structure")
 } %}
 {% macro icon(key, class="") -%}
 <i class="site-icon icon--{{ key }} {{ class }}" data-lucide="{{ icons[key][0] }}" aria-hidden="true"></i>

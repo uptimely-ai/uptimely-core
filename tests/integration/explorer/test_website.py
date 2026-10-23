@@ -122,28 +122,40 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         "spec/datasets.html": ("datasets", "table", "Datasets"),
         "spec/dimensions.html": ("dimensions", "layers-3", "Dimensions"),
         "spec/functions.html": ("functions", "braces", "Functions"),
-        "spec/graph.html": ("lineage", "git-fork", "Feature lineage"),
-        "plan/overview.html": ("execution", "workflow", "Overview"),
-        "plan/graph.html": ("execution-graph", "network", "Execution graph"),
+        "spec/graph.html": ("feature-graph", "network", "Feature lineage"),
+        "plan/overview.html": ("overview", "layout-dashboard", "Overview"),
+        "plan/graph.html": ("execution-graph", "workflow", "Execution graph"),
         "plan/stages.html": ("stages", "list-ordered", "Stages"),
-        "execution/data_lineage.html": ("lineage", "git-fork", "Data lineage"),
+        "execution/data_lineage.html": ("lineage", "database-zap", "Data lineage"),
     }
     palette = {
         "home": "#93c5fd",
         "spec": "#67e8f9",
+        "plan": "#fcd34d",
         "overview": "#93c5fd",
         "features": "#f9a8d4",
         "entities": "#fdba74",
         "datasets": "#6ee7b7",
-        "dimensions": "#a5b4fc",
+        "dimensions": "#818cf8",
         "functions": "#fcd34d",
-        "lineage": "#c4b5fd",
-        "execution": "#fcd34d",
-        "execution-graph": "#fcd34d",
-        "stages": "#fcd34d",
+        "lineage": "#e879f9",
+        "feature-graph": "#2dd4bf",
+        "callables": "#fcd34d",
+        "execution": "#e879f9",
+        "execution-graph": "#fb923c",
+        "stages": "#818cf8",
     }
     icon_styles = (tmp_path / "css/icons.css").read_text(encoding="utf-8")
     base_styles = (tmp_path / "css/base.css").read_text(encoding="utf-8")
+    for icon_key, color in palette.items():
+        assert f".icon--{icon_key} {{ --icon-color: {color};" in icon_styles
+    assert ".site-icon { color: var(--icon-color);" in base_styles
+    assert re.search(
+        r'a\[aria-current="page"\] \{[^}]*background: #1e293b;'
+        r"[^}]*box-shadow: inset 3px 0 #94a3b8;",
+        base_styles,
+    )
+    assert "a:focus-visible" in base_styles
     for filename, (key, symbol, title) in expected.items():
         document = (tmp_path / filename).read_text(encoding="utf-8")
         collector = IconCollector()
@@ -158,11 +170,79 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
             for item in collector.navigation_icons
         )
         assert all(item["aria-hidden"] == "true" for item in collector.icons)
-        for icon_key, color in palette.items():
-            assert f".icon--{icon_key} {{ --icon-color: {color};" in icon_styles
-        assert ".site-icon { color: var(--icon-color);" in base_styles
-        assert 'a[aria-current="page"]' in base_styles
-        assert "a:focus-visible" in base_styles
+        navigation = re.search(r"<nav\b.*?</nav>", document, re.DOTALL)
+        assert navigation is not None
+        assert re.findall(
+            r'class="site-icon icon--(\S+) nav-icon"[^>]*></i><span>([^<]+)</span>',
+            navigation.group(),
+        ) == [
+            ("home", "openanalytics/explorer"),
+            ("spec", "Spec"),
+            ("overview", "Overview"),
+            ("features", "Features"),
+            ("entities", "Entities"),
+            ("datasets", "Datasets"),
+            ("dimensions", "Dimensions"),
+            ("functions", "Functions"),
+            ("feature-graph", "Feature graph"),
+            ("plan", "Plan"),
+            ("overview", "Overview"),
+            ("execution-graph", "Execution graph"),
+            ("stages", "Stages"),
+            ("execution", "Execution"),
+            ("lineage", "Data lineage"),
+        ]
+        navigation_symbols = {
+            next(
+                part.removeprefix("icon--")
+                for part in (item["class"] or "").split()
+                if part.startswith("icon--")
+            ): item["data-lucide"]
+            for item in collector.navigation_icons
+        }
+        assert navigation_symbols["plan"] == "list-tree"
+        assert navigation_symbols["execution"] == "play"
+        assert navigation_symbols["feature-graph"] == "network"
+        assert navigation_symbols["execution-graph"] == "workflow"
+        assert navigation_symbols["lineage"] == "database-zap"
+
+    plan_overview = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
+    assert re.findall(
+        r'data-stat="([^"]+)">.*?class="site-icon icon--(\S+) nav-icon"',
+        plan_overview,
+        re.DOTALL,
+    ) == [
+        ("Callables", "callables"),
+        ("Functions", "functions"),
+        ("Entities", "entities"),
+        ("Features", "features"),
+        ("Stages", "stages"),
+        ("Dependencies", "execution-graph"),
+        ("Max parallel callables", "stages"),
+    ]
+
+
+def test_icon_palette_contrast(tmp_path: pathlib.Path) -> None:
+    """Keep concept colors legible on normal and selected navigation backgrounds."""
+    render_explorer(spec.Spec(), tmp_path / "index.html")
+    icon_styles = (tmp_path / "css/icons.css").read_text(encoding="utf-8")
+    colors = set(re.findall(r"--icon-color: (#[0-9a-f]{6});", icon_styles))
+    assert len(colors) == 10
+    for background in ("#0f172a", "#1e293b"):
+        for color in colors:
+            luminances = []
+            for hex_color in (color, background):
+                channels = [int(hex_color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+                linear = [
+                    value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+                    for value in channels
+                ]
+                luminances.append(
+                    sum(w * c for w, c in zip((0.2126, 0.7152, 0.0722), linear, strict=True))
+                )
+            foreground_luminance, background_luminance = luminances
+            contrast = (foreground_luminance + 0.05) / (background_luminance + 0.05)
+            assert contrast >= 3, (color, background, contrast)
 
 
 def test_website_exports_all_reports_with_relative_navigation(
@@ -277,8 +357,8 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert 'aria-label="Feature graph views"' not in graph_2d
     assert re.search(
         r'href="../spec/graph.html" aria-current="page">'
-        r'<i class="site-icon icon--lineage nav-icon" '
-        r'data-lucide="git-fork"',
+        r'<i class="site-icon icon--feature-graph nav-icon" '
+        r'data-lucide="network"',
         graph_2d,
     )
     assert ".onEngineStop(" in graph_script
@@ -342,8 +422,8 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
     assert 'aria-label="Spec journey"' in document
     assert re.findall(r'<li class="journey-step (\S+) icon--\1">', document) == [
         "spec",
+        "plan",
         "execution",
-        "lineage",
     ]
     for href, action in (
         ("spec/overview.html", "Explore spec"),

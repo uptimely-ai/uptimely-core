@@ -25,7 +25,7 @@
       <span>Spec: complete model</span>
       <span>Plan and execution: {{ execution_scope }}</span>
     </aside>
-    {% for page, label, icon_key in [("spec", "Spec", "spec"), ("plan", "Plan", "execution"), ("execution", "Execution", "execution")] %}
+    {% for page, label, icon_key in [("spec", "Spec", "spec"), ("plan", "Plan", "plan"), ("execution", "Execution", "execution")] %}
     <a href="{{ rel_root }}{{ website_pages[page]['lineage' if page == 'execution' else 'overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
     {% if page == "spec" %}
     <div class="site-subnav" role="group" aria-label="Spec sections">
@@ -36,7 +36,7 @@
         ("datasets", "Datasets", "datasets"),
         ("dimensions", "Dimensions", "dimensions"),
         ("functions", "Functions", "functions"),
-        ("graph", "Feature graph", "lineage")
+        ("graph", "Feature graph", "feature-graph")
       ] %}
       {% set section_href = website_pages["graph"]["lineage"] if section == "graph" else website_pages["spec"][section] %}
       <a href="{{ rel_root }}{{ section_href }}"{% if (active_page == "spec" and active_section == section) or (active_page == "graph" and section == "graph") %} aria-current="page"{% endif %}>{{ icon(section_icon, "nav-icon") }}<span>{{ section_label }}</span></a>
@@ -45,7 +45,7 @@
     {% elif page == "plan" %}
     <div class="site-subnav" role="group" aria-label="Plan sections">
       {% for section, section_label, section_icon in [
-        ("overview", "Overview", "execution"),
+        ("overview", "Overview", "overview"),
         ("graph", "Execution graph", "execution-graph"),
         ("stages", "Stages", "stages")
       ] %}

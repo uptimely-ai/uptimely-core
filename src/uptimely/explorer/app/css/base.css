@@ -19,7 +19,7 @@ html.with-navigation { --site-nav-width: 224px; }
 .site-nav .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
 .site-nav a span { min-width: 0; }
 .site-nav a:hover, .site-nav a:focus-visible { color: #fff; text-decoration: underline; }
-.site-nav a[aria-current="page"] { color: #67e8f9; background: #1e293b; }
+.site-nav a[aria-current="page"] { color: #fff; background: #1e293b; box-shadow: inset 3px 0 #94a3b8; }
 .site-brand { font-weight: 700; margin-bottom: 24px; }
 .site-subnav { margin-left: 16px; padding-left: 8px; border-left: 1px solid #334155; }
 .site-subnav a { font-size: 12px; padding: 8px 12px; }
