@@ -40,7 +40,7 @@ With poetry, add `poetry run` before the following commands.
 Download example files `examples` directory:
 
 ```sh
-uptimely examples download --output examples
+uptimely examples
 ```
 
 ### Build the spec
@@ -49,19 +49,19 @@ The build creates files under `examples/pump_analytics/_generated/build/`.
 Rebuild after changing the example's source files.
 
 ```sh
-uptimely project build --project-root examples/pump_analytics --verbose
+uptimely build --project-root examples/pump_analytics --verbose
 ```
 
 ### Run the calculations
 
 ```sh
-uptimely engine run --project-root examples/pump_analytics
+uptimely run --project-root examples/pump_analytics
 ```
 
 ### Open the project explorer
 
 ```sh
-uptimely explorer serve --project-root examples/pump_analytics
+uptimely explore --project-root examples/pump_analytics
 ```
 
 Open <http://127.0.0.1:8001/> to view the Explorer.

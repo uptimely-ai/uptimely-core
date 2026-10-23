@@ -1,11 +1,14 @@
 # `uptimely engine`
 
+Use the top-level shortcut `uptimely run` to execute a workflow. It accepts the
+same options as the grouped `uptimely engine run` command.
+
 ## `engine run`
 
 Execute the plan in the project's last successful active build:
 
 ```console
-uptimely engine run \
+uptimely run \
   [--project-root PATH] [--config PATH] [--verbose] [--preview [ROWS]]
 ```
 
@@ -19,8 +22,8 @@ uptimely engine run \
 For example, preview five rows per dataset, or request a specific row limit:
 
 ```console
-uptimely engine run --preview
-uptimely engine run --preview 10
+uptimely run --preview
+uptimely run --preview 10
 ```
 
 Previews show all columns and omit the Polars shape line. They are logged after
@@ -29,11 +32,11 @@ collection, but their upstream operations may still require substantial work or
 repeat computation. Execution timing excludes preview collection and display.
 Previews can expose dataset contents in logs; enable them only when appropriate.
 
-Build or rebuild the project with `uptimely project build` to change its
-execution plan or feature scope. Engine validates and executes the saved build
-without compiling or generating artifacts. This runs the plan's configured
-functions, including write sinks, and may have external side effects. Missing
-or invalid builds report a recovery command.
+Use `uptimely build` or the grouped `uptimely project build` command to change
+the execution plan or feature scope. Engine validates and executes the saved
+build without compiling or generating artifacts. This runs the plan's
+configured functions, including write sinks, and may have external side
+effects. Missing or invalid builds report a recovery command.
 
 The engine configuration is validated as `EngineConfig`. It contains a
 `backend` object for backend settings and a `bind` object for runtime values:

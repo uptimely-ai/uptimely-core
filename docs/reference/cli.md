@@ -4,6 +4,11 @@ The `uptimely` command provides project utilities for downloading examples,
 building project bundles, inspecting feature dependencies, running analytics
 workflows, and previewing the Analytics Explorer.
 
+For common tasks, use the top-level shortcuts `uptimely build`, `uptimely run`,
+and `uptimely explore`. The grouped forms `uptimely project build`,
+`uptimely engine run`, and `uptimely explorer serve` remain available and accept
+the same options.
+
 Run `uptimely --help` or `uptimely <command> --help` to see the options
 available in an installed version.
 
@@ -18,6 +23,9 @@ available in an installed version.
 | `uptimely examples` | [Examples](cli/examples.md) | Download runnable example projects. |
 | `uptimely explorer` | [Explorer](cli/explorer.md) | Preview the Analytics Explorer website. |
 | `uptimely project` | [Project](cli/project.md) | Build and publish a complete active bundle. |
+| `uptimely build` | [Project build](cli/project.md) | Shortcut for `uptimely project build`. |
+| `uptimely run` | [Engine run](cli/engine.md) | Shortcut for `uptimely engine run`. |
+| `uptimely explore` | [Explorer serve](cli/explorer.md) | Shortcut for `uptimely explorer serve`. |
 
 ## Typical workflow
 
@@ -25,19 +33,20 @@ From an installed package, download examples and build the complete active
 bundle, including its spec, execution plan, and Explorer website:
 
 ```console
-uptimely examples download --output examples
-uptimely project build --project-root examples/pump_analytics
+uptimely examples
+uptimely build --project-root examples/pump_analytics
 ```
 
 Run the saved execution plan from the active build:
 
 ```console
-uptimely engine run --project-root examples/pump_analytics
+uptimely run --project-root examples/pump_analytics
 ```
 
 The command defaults and options are documented on each command page. Project
 build consumers use the active bundle under `_generated/build/`; rebuild it
-with `uptimely project build` to change the saved plan or feature scope. The
-`uptimely-mcp` server is a separate optional command; see [AI agents](../tools/ai.md).
+with `uptimely build` (or `uptimely project build`) to change the saved plan or
+feature scope. The `uptimely-mcp` server is a separate optional command; see
+[AI agents](../tools/ai.md).
 
 </div>

@@ -79,6 +79,16 @@ def _extract_examples(archive: zipfile.ZipFile, destination: pathlib.Path) -> No
         raise ValueError("The repository archive contains no example files")
 
 
+def _ensure_destination_available(output: pathlib.Path) -> None:
+    """Fail with recovery guidance when the examples destination already exists."""
+    if output.exists() or output.is_symlink():
+        raise FileExistsError(
+            f"Examples destination already exists: {output}. Nothing was overwritten. "
+            "Choose a different destination with --output PATH, or move/remove the existing "
+            "directory and retry."
+        )
+
+
 def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.Path:
     """Download the public repository's examples into a new directory.
 
@@ -101,8 +111,7 @@ def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.P
         OSError: The files cannot be written.
     """
     output = output.absolute()
-    if output.exists() or output.is_symlink():
-        raise FileExistsError(f"Destination already exists: {output}")
+    _ensure_destination_available(output)
     revision = f"{RELEASE_TAG_PREFIX}{metadata.version(DISTRIBUTION_NAME)}" if ref is None else ref
     url = _archive_url(_repository_url(), revision)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -125,24 +134,39 @@ def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.P
             downloaded.seek(0)
             with zipfile.ZipFile(downloaded) as archive:
                 _extract_examples(archive, staging)
-        if output.exists() or output.is_symlink():
-            raise FileExistsError(f"Destination already exists: {output}")
+        _ensure_destination_available(output)
         staging.rename(output)
     return output
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the examples command and its download action."""
-    actions = parser.add_subparsers(dest="action", required=True)
+    parser.set_defaults(
+        action="download",
+        output=pathlib.Path("examples"),
+        ref=None,
+    )
+    configure_download_parser(parser)
+    actions = parser.add_subparsers(dest="action")
     download = actions.add_parser("download", help="Download examples from public GitHub")
-    download.add_argument(
+    configure_download_parser(download, suppress_defaults=True)
+
+
+def configure_download_parser(
+    parser: argparse.ArgumentParser, *, suppress_defaults: bool = False
+) -> None:
+    """Configure options for downloading examples."""
+    output_default = argparse.SUPPRESS if suppress_defaults else pathlib.Path("examples")
+    ref_default = argparse.SUPPRESS if suppress_defaults else None
+    parser.add_argument(
         "--output",
         type=pathlib.Path,
-        default=pathlib.Path("examples"),
+        default=output_default,
         help="Destination directory (default: examples)",
     )
-    download.add_argument(
+    parser.add_argument(
         "--ref",
+        default=ref_default,
         help="Branch, tag, or commit (default: v<installed package version>)",
     )
 

@@ -13,13 +13,18 @@ logger = logging.getLogger(__name__)
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure the project build action."""
+    """Configure project commands."""
     actions = parser.add_subparsers(dest="action", required=True)
     build = actions.add_parser(
         "build",
         help="Build and publish a complete project bundle without running workflows",
     )
-    source = build.add_mutually_exclusive_group()
+    configure_build_parser(build)
+
+
+def configure_build_parser(parser: argparse.ArgumentParser) -> None:
+    """Configure the project build command."""
+    source = parser.add_mutually_exclusive_group()
     source.add_argument(
         "--python-spec",
         metavar="MODULE:ATTRIBUTE",
@@ -30,18 +35,18 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
         type=pathlib.Path,
         help="Source spec JSON path (overrides standard source discovery)",
     )
-    build.add_argument(
+    parser.add_argument(
         "--project-root",
         type=pathlib.Path,
         help="Root added to the import path and used to resolve the output bundle",
     )
-    build.add_argument(
+    parser.add_argument(
         "--features",
         nargs="+",
         metavar="FEATURE",
         help="Select output features and their dependencies",
     )
-    build.add_argument(
+    parser.add_argument(
         "--verbose", action="store_true", help="Log build, specification, and plan details"
     )
 

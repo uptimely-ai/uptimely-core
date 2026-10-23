@@ -68,16 +68,21 @@ def _port(value: str) -> int:
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure the Explorer serve action."""
+    """Configure Explorer commands."""
     actions = parser.add_subparsers(dest="action", required=True)
     serve = actions.add_parser("serve", help="Serve the active build's saved website")
-    serve.add_argument(
+    configure_serve_parser(serve)
+
+
+def configure_serve_parser(parser: argparse.ArgumentParser) -> None:
+    """Configure the Explorer serve command."""
+    parser.add_argument(
         "--project-root",
         type=pathlib.Path,
         help="Project root containing the active build",
     )
-    serve.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
-    serve.add_argument(
+    parser.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
+    parser.add_argument(
         "--port", type=_port, default=8001, help="TCP port (default: 8001; 0 selects a free port)"
     )
 

@@ -1,5 +1,6 @@
 """Tests for the installed command and GitHub example downloads."""
 
+import argparse
 import io
 import pathlib
 import stat
@@ -188,6 +189,28 @@ def test_existing_destination_is_preserved(
         assert output.is_symlink()
 
 
+def test_examples_cli_reports_existing_default_destination(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output = tmp_path / "examples"
+    output.mkdir()
+    (output / "keep.txt").write_text("keep")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["uptimely", "examples"])
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 1
+    message = capsys.readouterr().err
+    assert f"Examples destination already exists: {output}" in message
+    assert "Nothing was overwritten." in message
+    assert "--output PATH" in message
+    assert (output / "keep.txt").read_text() == "keep"
+
+
 @pytest.mark.parametrize(
     "path",
     [
@@ -336,6 +359,54 @@ def test_cli_output_and_revision(
     assert (output / "README.md").exists()
 
 
+def test_examples_without_action_downloads_default_destination(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[pathlib.Path, str | None]] = []
+    monkeypatch.setattr(
+        examples,
+        "download_examples",
+        lambda output, ref: calls.append((output, ref)) or output,
+    )
+    monkeypatch.setattr(sys, "argv", ["uptimely", "examples"])
+
+    cli.main()
+
+    assert calls == [(pathlib.Path("examples"), None)]
+    assert "Downloaded examples to examples" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected_output", "expected_ref"),
+    [
+        (["examples", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD"),
+        (["examples", "download", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD"),
+        (
+            ["examples", "--output", "samples", "download", "--ref", "HEAD"],
+            "samples",
+            "HEAD",
+        ),
+    ],
+)
+def test_examples_options_work_with_shortcut_and_download_action(
+    monkeypatch: pytest.MonkeyPatch,
+    arguments: list[str],
+    expected_output: str,
+    expected_ref: str,
+) -> None:
+    calls: list[tuple[pathlib.Path, str | None]] = []
+    monkeypatch.setattr(
+        examples,
+        "download_examples",
+        lambda output, ref: calls.append((output, ref)) or output,
+    )
+    monkeypatch.setattr(sys, "argv", ["uptimely", *arguments])
+
+    cli.main()
+
+    assert calls == [(pathlib.Path(expected_output), expected_ref)]
+
+
 def test_download_help_describes_version_default(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -382,7 +453,7 @@ def test_destination_created_during_download_is_preserved(
     assert list(tmp_path.iterdir()) == [output]
 
 
-@pytest.mark.parametrize("arguments", [[], ["examples"], ["examples", "unknown"]])
+@pytest.mark.parametrize("arguments", [[], ["examples", "unknown"]])
 def test_cli_requires_valid_subcommands(
     monkeypatch: pytest.MonkeyPatch, arguments: list[str]
 ) -> None:
@@ -402,6 +473,47 @@ def test_console_script_registration() -> None:
 def test_cli_preserves_helper_imports() -> None:
     assert cli.download_examples is examples.download_examples
     assert cli.serve_explorer is explorer.serve_explorer
+
+
+@pytest.mark.parametrize(
+    ("arguments", "command", "expected_options"),
+    [
+        (
+            ["build", "--project-root", "project", "--features", "feature", "--verbose"],
+            "build",
+            {"project_root": pathlib.Path("project"), "features": ["feature"], "verbose": True},
+        ),
+        (
+            ["run", "--project-root", "project", "--preview", "3"],
+            "run",
+            {"project_root": pathlib.Path("project"), "preview": 3},
+        ),
+        (
+            ["explore", "--host", "0.0.0.0", "--port", "0"],
+            "explore",
+            {"host": "0.0.0.0", "port": 0},
+        ),
+    ],
+)
+def test_shortcut_commands_use_existing_handlers_and_options(
+    monkeypatch: pytest.MonkeyPatch,
+    arguments: list[str],
+    command: str,
+    expected_options: dict[str, object],
+) -> None:
+    handlers = {
+        "build": cli.project,
+        "run": cli.engine,
+        "explore": cli.explorer,
+    }
+    captured: list[argparse.Namespace] = []
+    monkeypatch.setattr(handlers[command], "run", lambda args, _parser: captured.append(args))
+    monkeypatch.setattr(sys, "argv", ["uptimely", *arguments])
+
+    cli.main()
+
+    assert len(captured) == 1
+    assert {key: getattr(captured[0], key) for key in expected_options} == expected_options
 
 
 @pytest.mark.parametrize(

@@ -7,6 +7,6 @@ ID.
 From the repository root, build and run the example:
 
 ```sh
-poetry run uptimely project build --project-root examples/simple_analytics --verbose
-poetry run uptimely engine run --project-root examples/simple_analytics
+poetry run uptimely build --project-root examples/simple_analytics --verbose
+poetry run uptimely run --project-root examples/simple_analytics
 ```
