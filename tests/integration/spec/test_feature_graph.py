@@ -161,11 +161,13 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     output = tmp_path / "spec/graph.html"
     html = output.read_text(encoding="utf-8")
     script = (tmp_path / "js/feature_graph.js").read_text(encoding="utf-8")
+    shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
 
     assert output.exists()
     assert 'src="../js/feature_graph.js"' in html
     assert "3d-force-graph" in html
-    assert "SphereGeometry" in script
+    assert "SphereGeometry" in shared_script
+    assert "ExplorerGraph.entityNodeObject(node, node.label, style)" in script
     assert "ConeGeometry" not in script
     assert "OctahedronGeometry" in script
     assert "CylinderGeometry" not in script
@@ -182,7 +184,6 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "['Function', label]" in script
     assert "rows.push([outputLabel, formatDetailValue(features.join(', '))])" in script
     assert "ExplorerGraph.showDetails(nodeDetails, 'Selected item', rows)" in script
-    shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
     assert 'src="../js/graph_components.js"' in html
     assert "document.createTextNode(value == null ? 'n/a' : String(value))" in shared_script
     assert "Function</span>" in html
@@ -216,14 +217,14 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
         in script
     )
     assert ".nodeCanvasObject(drawNode)" in script
-    assert "data.nodes.map(node => node.entity || 'Unassigned')" in script
+    assert "data.nodes.map(node => node.entity || 'Unassigned')" in shared_script
     assert "rankNodes" in script
     assert "node.fx = rankOffsets.get(rank) - graphWidth / 2" in script
     assert "(index - (nodes.length - 1) / 2) * 70" in script
-    assert "node.entityColor = entityColors.get(node.entity)" in script
-    assert "ExplorerGraph.appendLegend(entityLegend, entityNames.map(entity =>" in script
+    assert "node.entityColor = colors.get(node.entity)" in shared_script
+    assert "appendLegend(container, names.map(entity =>" in shared_script
     assert "item.textContent = label" in shared_script
-    assert "'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa'" in script
+    assert "'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa'" in shared_script
     assert '"#b9c9d8"' in html
     assert "function linkRoute(link)" in script
     assert "const corners = [[bendX, start[1]], [bendX, end[1]]]" in script

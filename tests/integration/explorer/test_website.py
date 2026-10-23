@@ -592,7 +592,8 @@ def test_execution_plan_pages_render_only_their_section(
         assert '<header class="site-topbar"' in document
         assert ">Callable graph</h2>" not in document
         assert ".linkDirectionalParticles(2)" in script
-        assert ".linkDirectionalArrow" not in script
+        assert ".linkDirectionalArrowLength(style.arrow_length)" in script
+        assert ".linkDirectionalArrowRelPos(style.arrow_rel_pos)" in script
         assert 'class="details details-2d"' in document
         if is_graph:
             assert (
