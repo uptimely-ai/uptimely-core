@@ -1,8 +1,7 @@
 """Dataframe execution contracts for portable plan callables."""
 
-import typing
-
 from uptimely.compiler import plan as plan_module
+from uptimely.spec import model as spec_model
 from uptimely.spec import operations
 
 from . import backend as backend_module
@@ -15,12 +14,12 @@ class DataFrameExecution:
     def __init__(
         self,
         backend: backend_module.DataFrameBackend,
-        resources: typing.Mapping[str, typing.Any],
+        spec_definition: spec_model.Spec,
         state: state_module.RuntimeState,
     ) -> None:
         """Create dataframe operations bound to one backend and execution state."""
         self.backend = backend
-        self.resources = resources
+        self.spec_definition = spec_definition
         self.state = state
 
     def validate_inputs(self, callable: plan_module.Callable) -> None:
@@ -62,14 +61,24 @@ class DataFrameExecution:
             raise ValueError(
                 f"Mapping {callable.id} is missing output columns: " + ", ".join(missing)
             )
-        dimension_definitions = self.resources.get("dimensions", {})
-        feature_definitions = (
-            self.resources.get("datasets", {}).get(callable.dataset_id, {}).get("features", {})
+        dataset = next(
+            (
+                dataset
+                for entity in self.spec_definition.entities.values()
+                if (dataset := entity.datasets.get(callable.dataset_id)) is not None
+            ),
+            None,
         )
+        if dataset is None:
+            raise ValueError(f"Unknown dataset: {callable.dataset_id}")
         types: dict[str, str] = {}
         for name in dict.fromkeys([*dimensions, *callable.output_features]):
-            definitions = dimension_definitions if name in dimensions else feature_definitions
-            column_type = definitions.get(name, {}).get("type")
+            definition = (
+                self.spec_definition.dimensions.get(name)
+                if name in dimensions
+                else dataset.features.get(name)
+            )
+            column_type = definition.type if definition is not None else None
             if column_type is not None:
                 types[name] = column_type
         self.backend.validate_types(result, types)

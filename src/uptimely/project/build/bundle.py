@@ -9,6 +9,7 @@ import typing
 
 import pydantic
 
+from uptimely import spec
 from uptimely.compiler.plan import models as plan_models
 from uptimely.project import paths
 from uptimely.project.build import errors, locking, models
@@ -124,6 +125,13 @@ def _load_execution_plan(
         ) from error
 
 
+def _load_spec_definition(spec_path: pathlib.Path, project_root: pathlib.Path) -> spec.Spec:
+    try:
+        return spec.load_spec(spec_path)
+    except (OSError, UnicodeDecodeError, ValueError, TypeError, AttributeError) as error:
+        raise errors.BuildError("invalid", f"cannot load Spec: {error}", project_root) from error
+
+
 def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> models.BuildBundle:
     """Load and validate a bundle directory while its project lock is held."""
     bundle_root = pathlib.Path(bundle_root)
@@ -140,6 +148,7 @@ def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> mod
     )
     _validate_required_artifacts(bundle_root, spec_path, execution_plan_path, project_root)
     _validate_explorer_inventory(explorer_path, manifest, project_root)
+    spec_definition = _load_spec_definition(spec_path, project_root)
     execution_plan = _load_execution_plan(execution_plan_path, project_root)
 
     return models.BuildBundle(
@@ -147,6 +156,7 @@ def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> mod
         root=bundle_root,
         manifest=manifest,
         spec_path=spec_path,
+        spec_definition=spec_definition,
         execution_plan_path=execution_plan_path,
         explorer_path=explorer_path,
         execution_plan=execution_plan,

@@ -14,6 +14,7 @@ from uptimely.engine import bindings as bindings_module
 from uptimely.engine import dataframe as dataframe_module
 from uptimely.engine import execution as execution_module
 from uptimely.engine import state as state_module
+from uptimely.spec import model as spec_model
 from uptimely.spec.python import bind, dataset, dimension, feature, mapping, ref
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
@@ -582,7 +583,7 @@ def test_engine_rejects_execution_plan_instead_of_bundle() -> None:
 def test_engine_rejects_malformed_runtime_references(reference: str) -> None:
     engine = _engine(_plan())
     bindings = bindings_module.RuntimeBindings(
-        engine.resources, state_module.RuntimeState(), engine.bind
+        engine.spec_definition, state_module.RuntimeState(), engine.bind
     )
 
     with pytest.raises(ValueError, match="Malformed runtime reference"):
@@ -609,9 +610,16 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
 
     _patch_callables(monkeypatch, {"test:read": read})
     engine = _engine(_plan(), {"storage": {"source": {"path": "source"}}})
+    entity = engine.spec_definition.entities["asset"]
+    for dataset_id in ("first", "second"):
+        entity.datasets[dataset_id] = spec_model.Dataset(id=dataset_id)
     state = state_module.RuntimeState()
     executor = execution_module.CallableExecutor(
-        engine.bundle.project_root, engine.backend, engine.resources, engine.bind, state
+        engine.bundle.project_root,
+        engine.backend,
+        engine.spec_definition,
+        engine.bind,
+        state,
     )
     for dataset_id in ("first", "second"):
         executor.execute(
@@ -646,7 +654,7 @@ def test_input_validation_reads_each_dataset_schema_once(
         return column_names(frame)
 
     monkeypatch.setattr(engine.backend, "column_names", inspect)
-    dataframe = dataframe_module.DataFrameExecution(engine.backend, engine.resources, state)
+    dataframe = dataframe_module.DataFrameExecution(engine.backend, engine.spec_definition, state)
     callable = dataclasses.replace(
         engine.plan.callables[1], input_features=["asset_id", "reading", "other"]
     )
@@ -664,7 +672,7 @@ def test_input_validation_rejects_missing_or_ambiguous_foreign_features(sources:
     state = state_module.RuntimeState(
         datasets={f"source_{index}": pl.DataFrame({"reading": [index]}) for index in range(sources)}
     )
-    dataframe = dataframe_module.DataFrameExecution(engine.backend, engine.resources, state)
+    dataframe = dataframe_module.DataFrameExecution(engine.backend, engine.spec_definition, state)
 
     with pytest.raises(ValueError, match="input feature is unavailable or ambiguous: reading"):
         dataframe.validate_inputs(engine.plan.callables[1])

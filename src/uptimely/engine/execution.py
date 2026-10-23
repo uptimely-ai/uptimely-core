@@ -6,6 +6,7 @@ import typing
 from uptimely import entrypoint as entrypoint_module
 from uptimely.compiler import plan as plan_module
 from uptimely.spec import arg_types, operations
+from uptimely.spec import model as spec_model
 
 from . import backend as backend_module
 from . import bindings as bindings_module
@@ -20,17 +21,17 @@ class CallableExecutor:
         self,
         project_root: pathlib.Path,
         backend: backend_module.DataFrameBackend,
-        resources: typing.Mapping[str, typing.Any],
+        spec_definition: spec_model.Spec,
         bind: typing.Mapping[str, typing.Mapping[str, typing.Mapping[str, typing.Any]]],
         state: state_module.RuntimeState,
     ) -> None:
         """Create a callable executor for one plan execution."""
         self.project_root = project_root
         self.backend = backend
-        self.resources = resources
+        self.spec_definition = spec_definition
         self.state = state
-        self.bindings = bindings_module.RuntimeBindings(resources, state, bind)
-        self.dataframe = dataframe_module.DataFrameExecution(backend, resources, state)
+        self.bindings = bindings_module.RuntimeBindings(spec_definition, state, bind)
+        self.dataframe = dataframe_module.DataFrameExecution(backend, spec_definition, state)
 
     def execute(self, callable: plan_module.Callable) -> None:
         """Dispatch and execute one callable."""
@@ -51,10 +52,10 @@ class CallableExecutor:
         """Invoke a data-producing mapping, validate its result, and update the dataset."""
         frame = self.state.datasets.get(callable.dataset_id)
         result = self._invoke(callable)
-        entity = self.resources.get("entities", {}).get(callable.entity_id)
+        entity = self.spec_definition.entities.get(callable.entity_id)
         if entity is None:
             raise ValueError(f"Unknown entity: {callable.entity_id}")
-        dimensions = list(entity.get("dimensions", []))
+        dimensions = entity.dimension_ids
         self.dataframe.validate_result(callable, result, frame, dimensions)
         columns = list(dict.fromkeys([*dimensions, *callable.output_features]))
         fragment = self.backend.select(result, columns)

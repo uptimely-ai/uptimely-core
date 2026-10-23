@@ -13,6 +13,7 @@ from uptimely import engine as engine_module
 from uptimely import project as project_module
 from uptimely.compiler import plan as plan_module
 from uptimely.explorer import explorer
+from uptimely.spec import model as spec_model
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
 EXAMPLES_ROOT = pathlib.Path(
@@ -20,15 +21,54 @@ EXAMPLES_ROOT = pathlib.Path(
 )
 _ORIGINAL_EXAMPLES_ROOT = os.environ.get("UPTIMELY_TEST_EXAMPLES_ROOT")
 _TEST_ROOT: pathlib.Path | None = None
+_PLAN_ROOTS: list[pathlib.Path] = []
+
+
+def _spec_for_plan(execution_plan: plan_module.ExecutionPlan) -> spec_model.Spec:
+    """Create a minimal runtime spec for tests using hand-authored plans."""
+    resources = execution_plan.plan.resources
+    dimensions = {
+        identifier: definition or {"type": "string"}
+        for identifier, definition in resources.get("dimensions", {}).items()
+    }
+    entities = dict(resources.get("entities", {}))
+    functions = dict(resources.get("functions", {}))
+
+    for callable in execution_plan.callables:
+        entity = entities.setdefault(callable.entity_id, {"dimensions": []})
+        for dimension_id in entity.get("dimensions", []):
+            dimensions.setdefault(dimension_id, {"type": "string"})
+        function = functions.setdefault(callable.function_id, {})
+        function.setdefault("operation", callable.operation)
+        function.setdefault(
+            "returns",
+            {"escape": "any", "write": "none"}.get(callable.operation, "dataframe"),
+        )
+        function.setdefault("entrypoint", callable.entrypoint)
+        function.setdefault("args", {})
+        entity.setdefault("name", callable.entity_id)
+        entity.setdefault("datasets", {}).setdefault(callable.dataset_id, {})
+
+    return spec_model.Spec.model_validate(
+        {
+            "dimensions": dimensions,
+            "functions": functions,
+            "entities": entities,
+        }
+    )
 
 
 def bundle_for_plan(
     execution_plan: plan_module.ExecutionPlan,
     project_root: pathlib.Path | None = None,
+    spec_definition: spec.Spec | None = None,
 ) -> project_module.BuildBundle:
     """Wrap a plan in a test bundle for engine execution."""
     root = (project_root or REPOSITORY_ROOT).resolve()
-    build_root = root / "_generated" / "build"
+    build_root = pathlib.Path(tempfile.mkdtemp(prefix="uptimely-test-plan-"))
+    _PLAN_ROOTS.append(build_root)
+    bundle_spec = spec_definition or _spec_for_plan(execution_plan)
+    spec.write_document(bundle_spec, build_root / "spec.json")
     return project_module.BuildBundle(
         project_root=root,
         root=build_root,
@@ -44,6 +84,7 @@ def bundle_for_plan(
             explorer_files=["index.html"],
         ),
         spec_path=build_root / "spec.json",
+        spec_definition=bundle_spec,
         execution_plan_path=build_root / "execution_plan.json",
         explorer_path=build_root / "explorer",
         execution_plan=execution_plan,
@@ -54,10 +95,11 @@ def engine_for_plan(
     execution_plan: plan_module.ExecutionPlan,
     bind: dict[str, dict[str, dict[str, object]]] | None = None,
     project_root: pathlib.Path | None = None,
+    spec_definition: spec.Spec | None = None,
 ) -> engine_module.Engine:
     """Create an engine for a plan using test runtime defaults."""
     return engine_module.Engine(
-        bundle_for_plan(execution_plan, project_root),
+        bundle_for_plan(execution_plan, project_root, spec_definition),
         engine_module.EngineConfig(bind=bind or {}),
     )
 
@@ -98,6 +140,8 @@ def pytest_configure(config: pytest.Config) -> None:
 
 def pytest_unconfigure(config: pytest.Config) -> None:
     """Remove the isolated example projects created for this test run."""
+    for path in _PLAN_ROOTS:
+        shutil.rmtree(path)
     if not hasattr(config, "workerinput") and _TEST_ROOT is not None:
         shutil.rmtree(_TEST_ROOT)
         if _ORIGINAL_EXAMPLES_ROOT is None:

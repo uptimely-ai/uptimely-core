@@ -32,7 +32,7 @@ def test_spec_reference_snippet_syntax(language: str, snippet: str) -> None:
 def test_spec_json_parses_compiles_and_executes() -> None:
     spec_definition = spec.load_spec(OBSERVATION_TOTALS_PATH)
     compiled = compiler.Compiler(spec_definition, features=["total"]).compile()
-    execution = engine_for_plan(compiled).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
 
     assert len(compiled.callables) == 2
     assert not execution.failures

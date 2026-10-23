@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import pathlib
-import typing
 from collections import abc
 
 from uptimely import entrypoint, spec
@@ -36,33 +35,6 @@ def _portable_value(value: object) -> object:
     if isinstance(value, list):
         return [_portable_value(item) for item in value]
     return value
-
-
-def _resource_models(spec_definition: spec.Spec) -> dict[str, typing.Any]:
-    """Export spec data required by the engine at runtime."""
-    return {
-        "dimensions": {
-            identifier: dimension.model_dump(exclude_none=False)
-            for identifier, dimension in spec_definition.dimensions.items()
-        },
-        "entities": {
-            identifier: {"id": entity.id, "dimensions": entity.dimension_ids}
-            for identifier, entity in spec_definition.entities.items()
-        },
-        "functions": spec_definition.functions.model_dump(exclude_none=False),
-        "datasets": {
-            dataset.id: {
-                "features": {
-                    identifier: feature.model_dump(exclude_none=True)
-                    for identifier, feature in dataset.features.items()
-                },
-                "order": [key.model_dump() for key in dataset.order],
-                "row_scope": dataset.row_scope.model_dump(),
-            }
-            for entity in spec_definition.entities.values()
-            for dataset in entity.datasets.values()
-        },
-    }
 
 
 class Compiler:
@@ -101,9 +73,8 @@ class Compiler:
             [node.node_id for node in stage if node.node_id in callable_ids]
             for stage in execution_stages
         ]
-        resources = _resource_models(self.spec)
-        resources["signatures"] = {
-            node_id: signature.returns for node_id, signature in signatures.items()
+        resources = {
+            "signatures": {node_id: signature.returns for node_id, signature in signatures.items()}
         }
         execution_plan = plan.Plan(
             plan_version=plan.PLAN_VERSION,

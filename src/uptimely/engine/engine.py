@@ -29,7 +29,7 @@ class Engine:
         self.bundle = bundle
         project_imports.prepare_imports(bundle.project_root)
         self.plan = bundle.execution_plan
-        self.resources = self.plan.plan.resources
+        self.spec_definition = bundle.spec_definition
         self.config = config
         self.backend = backend_module.create_backend(config.backend.dataframe)
         self.bind = config.bind
@@ -47,7 +47,7 @@ class Engine:
         """Execute plan stages and return explicit runtime state and statuses."""
         state = state_module.RuntimeState()
         callable_executor = execution_module.CallableExecutor(
-            self.bundle.project_root, self.backend, self.resources, self.bind, state
+            self.bundle.project_root, self.backend, self.spec_definition, self.bind, state
         )
         statuses: dict[str, result_module.CallableStatus] = {}
         durations: dict[str, float] = {}

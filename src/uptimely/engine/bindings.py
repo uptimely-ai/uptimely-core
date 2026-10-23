@@ -5,6 +5,7 @@ from collections import abc
 
 from uptimely.compiler import plan as plan_module
 from uptimely.spec import arg_types
+from uptimely.spec import model as spec_model
 
 from . import state as state_module
 
@@ -14,26 +15,29 @@ class RuntimeBindings:
 
     def __init__(
         self,
-        resources: abc.Mapping[str, typing.Any],
+        spec_definition: spec_model.Spec,
         state: state_module.RuntimeState,
         bind: abc.Mapping[str, abc.Mapping[str, abc.Mapping[str, typing.Any]]],
     ) -> None:
         """Create a resolver for one execution's resources, bindings, and runtime state."""
-        self.resources = resources
+        self.spec_definition = spec_definition
         self.state = state
         self.bind = bind
 
     def resolve_args(self, callable: plan_module.Callable) -> dict[str, object]:
         """Bind compiled argument values to runtime values using declared argument types."""
-        function = self.resources["functions"][callable.function_id]
-        if function["operation"] != callable.operation:
+        function = self.spec_definition.functions.get(callable.function_id)
+        if function is None:
+            raise ValueError(f"Unknown function: {callable.function_id}")
+        if function.operation != callable.operation:
             raise ValueError(
                 f"Callable {callable.id} operation {callable.operation} does not match "
-                f"function {callable.function_id} operation {function['operation']}"
+                f"function {callable.function_id} operation {function.operation}"
             )
-        arguments = function.get("args", {})
         return {
-            name: self.resolve_value(value, arguments.get(name, {}).get("type"))
+            name: self.resolve_value(
+                value, function.args[name].type if name in function.args else None
+            )
             for name, value in callable.arguments.items()
         }
 
