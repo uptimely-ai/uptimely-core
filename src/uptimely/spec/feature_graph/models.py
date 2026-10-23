@@ -1,6 +1,6 @@
 import dataclasses
 
-from uptimely import render
+from uptimely.explorer import render
 from uptimely.spec import model
 
 
