@@ -300,7 +300,6 @@
 		const view = ExplorerGraph.createView(graph, graphContainer, 80, '2d');
 		view.selectNode = id => {
 			highlight.select(data.nodes.find(node => node.id === id) || null);
-			graph.refresh();
 		};
 		graph.graphData(data);
 		return view;

@@ -131,7 +131,6 @@ const ExplorerGraph = (() => {
 	function create3D(container, data, style, {
 		label, color, object, onSelect, configure, highlight,
 	}) {
-		const nodeObjects = new Map();
 		const graphColor = node => highlight && highlight.hasSelection()
 			? highlight.isSelected(node)
 				? '#f8d66d'
@@ -139,6 +138,22 @@ const ExplorerGraph = (() => {
 					? '#67e8f9'
 					: '#46545f'
 			: color(node);
+		const createNodeObject = node => {
+			const nodeObject = object(node);
+			if (highlight?.hasSelection()) {
+				const nodeColor = graphColor(node);
+				nodeObject.traverse(object3d => {
+					if (!object3d.isMesh) return;
+					if (object3d.material?.color) object3d.material.color.set(nodeColor);
+					object3d.scale.setScalar(
+						highlight.isSelected(node)
+							? 1.4
+							: highlight.isNodeHighlighted(node) ? 1.15 : 0.75,
+					);
+				});
+			}
+			return nodeObject;
+		};
 		const graph = ForceGraph3D()(container)
 			.width(container.clientWidth)
 			.height(container.clientHeight)
@@ -147,13 +162,13 @@ const ExplorerGraph = (() => {
 			.nodeColor(graphColor)
 			.nodeRelSize(style.node_rel_size)
 			.nodeResolution(style.node_resolution)
-			.linkWidth(style.link_width)
+			.linkWidth(link => highlight?.isLinkHighlighted(link)
+				? style.link_width * 3
+				: style.link_width)
 			.linkColor(link => highlight?.isLinkHighlighted(link)
 				? '#67e8f9'
 				: highlight?.hasSelection() ? '#46545f' : style.link_color)
-			.linkOpacity(link => highlight?.hasSelection()
-				? highlight.isLinkHighlighted(link) ? 1 : 0.18
-				: style.link_opacity)
+			.linkOpacity(style.link_opacity)
 			.linkDirectionalParticles(2)
 			.linkDirectionalParticleWidth(2)
 			.linkDirectionalParticleSpeed(0.003)
@@ -161,11 +176,7 @@ const ExplorerGraph = (() => {
 				? '#f8d66d'
 				: highlight?.hasSelection() ? '#46545f' : style.link_color)
 			.onNodeClick(onSelect)
-			.nodeThreeObject(node => {
-				const nodeObject = object(node);
-				nodeObjects.set(node.id, nodeObject);
-				return nodeObject;
-			});
+			.nodeThreeObject(createNodeObject);
 		if (configure) configure(graph);
 		graph.d3Force('charge').strength(style.charge_strength).distanceMax(style.charge_distance_max);
 		graph.d3Force('link').distance(style.link_distance);
@@ -173,16 +184,6 @@ const ExplorerGraph = (() => {
 		if (highlight) {
 			view.selectNode = id => {
 				highlight.select(data.nodes.find(node => node.id === id) || null);
-				for (const node of data.nodes) {
-					const nodeObject = nodeObjects.get(node.id);
-					if (!nodeObject) continue;
-					const displayColor = graphColor(node);
-					nodeObject.traverse(object3d => {
-						if (object3d.isMesh && object3d.material?.color) {
-							object3d.material.color.set(displayColor);
-						}
-					});
-				}
 				graph.refresh();
 			};
 		}

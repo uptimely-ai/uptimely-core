@@ -37,13 +37,13 @@ function mountGraphViews(sourceData, create2D, create3D, showDetails, detailsPan
 			document.getElementById(`graph-${activeDimension}`).hidden = true;
 		}
 		activeDimension = dimension;
+		for (const button of buttons) {
+			button.setAttribute('aria-pressed', String(button.dataset.dimension === dimension));
+		}
 		view.graph.resumeAnimation();
 		view.resize();
 		detailsPanel.classList.toggle('details-2d', dimension === '2d');
 		selectNode(sourceData.nodes.find(node => node.id === selectedId) || null);
-		for (const button of buttons) {
-			button.setAttribute('aria-pressed', String(button.dataset.dimension === dimension));
-		}
 		errorMessage.hidden = true;
 	};
 	for (const button of buttons) button.addEventListener('click', () => showView(button.dataset.dimension));
