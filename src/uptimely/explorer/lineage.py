@@ -161,6 +161,7 @@ def _create_website_page(
         .get_template("execution/data_lineage.html.j2")
         .render(
             stages=_build_stages(spec_definition, execution_plan),
+            project_name=spec_definition.name,
             include_navigation=True,
             active_page="execution",
             active_section="lineage",

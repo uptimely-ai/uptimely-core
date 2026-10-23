@@ -55,6 +55,7 @@ def _render_graph_html(
     style: GraphStyle | None = None,
     *,
     index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    project_name: str | None = None,
     execution_scope: str = "all features",
     is_scoped: bool = False,
 ) -> str:
@@ -65,6 +66,7 @@ def _render_graph_html(
         links: Directed connections between node identifiers.
         style: Optional graph appearance settings.
         index_filename: Filename of the website dashboard.
+        project_name: Project title displayed in the shared top bar.
         execution_scope: Feature coverage of the rendered build.
         is_scoped: Whether the plan covers a selected feature subset.
 
@@ -87,6 +89,7 @@ def _render_graph_html(
         include_navigation=True,
         active_page="graph",
         index_filename=index_filename,
+        project_name=project_name,
         root_path="../",
         execution_scope=execution_scope,
         is_scoped=is_scoped,
@@ -126,6 +129,7 @@ def _create_website_pages(
     output_directory: pathlib.Path,
     *,
     index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    project_name: str | None = None,
     execution_scope: str = "all features",
     is_scoped: bool = False,
 ) -> None:
@@ -135,6 +139,7 @@ def _create_website_pages(
         graph: The feature dependency graph to export.
         output_directory: Directory shared by all website pages.
         index_filename: Filename of the website dashboard.
+        project_name: Project title displayed in the shared top bar.
         execution_scope: Feature coverage of the rendered build.
         is_scoped: Whether the plan covers a selected feature subset.
     """
@@ -145,6 +150,7 @@ def _create_website_pages(
         nodes,
         links,
         index_filename=index_filename,
+        project_name=project_name,
         execution_scope=execution_scope,
         is_scoped=is_scoped,
     )

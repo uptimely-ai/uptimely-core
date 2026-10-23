@@ -16,15 +16,10 @@
   {% block stylesheets %}{% endblock %}
 </head>
 <body {% block body_attributes %}{% endblock %}class="{% block body_class %}min-h-screen bg-slate-950 font-sans text-slate-200{% endblock %}">
-  {% if include_navigation %}
   {% set rel_root = root_path or "" %}
+  {% include "top_bar.html.j2" %}
+  {% if include_navigation %}
   <nav class="site-nav" aria-label="Explorer pages">
-    <a class="site-brand" href="{{ rel_root }}{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>{{ icon("home", "nav-icon") }}<span>openanalytics/explorer</span></a>
-    <aside class="build-scope-note" aria-label="Build coverage">
-      <strong>{{ "Scoped build" if is_scoped else "Full build" }}</strong>
-      <span>Spec: complete model</span>
-      <span>Plan and execution: {{ execution_scope }}</span>
-    </aside>
     {% for page, label, icon_key in [("spec", "Spec", "spec"), ("plan", "Plan", "plan"), ("execution", "Execution", "execution")] %}
     <a href="{{ rel_root }}{{ website_pages[page]['lineage' if page == 'execution' else 'overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
     {% if page == "spec" %}

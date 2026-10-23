@@ -7,7 +7,7 @@
 <main class="dashboard">
   <header class="dashboard-hero">
     <div>
-      <p class="eyebrow">OpenAnalytics / Project explorer</p>
+      <p class="eyebrow">Project explorer</p>
       <h1 class="title-with-icon">{{ icon("home", "title-icon") }}<span>{{ spec_definition.name or "Untitled analytics project" }}</span></h1>
       <p class="dashboard-intro">From declared data to a dependency-aware plan.
         Explore what this analytics project defines, how its plan is compiled,
@@ -53,7 +53,7 @@
 
   <section aria-labelledby="journey-heading">
     <p class="eyebrow">Three perspectives. One project.</p>
-    <h2 class="dashboard-section-title" id="journey-heading">Follow the spec journey</h2>
+    <h2 class="dashboard-section-title" id="journey-heading">Follow the analytics journey</h2>
     <p class="dashboard-section-intro">Start with the declarations, inspect the compiled plan, then explore execution.</p>
     <ol class="spec-journey" aria-label="Spec journey">
       {% for accent, number, title, description, href, action in [

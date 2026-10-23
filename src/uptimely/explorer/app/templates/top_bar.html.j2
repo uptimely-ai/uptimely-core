@@ -1,0 +1,6 @@
+<header class="site-topbar" aria-label="Project context">
+  <a class="site-product" href="{{ rel_root }}{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>{{ icon("home", "nav-icon") }}<span>{{ project_name or "Untitled analytics project" }}</span></a>
+  <span class="build-badge{% if is_scoped %} build-badge-partial{% endif %}"
+    title="Spec: complete model. Plan and execution: {{ execution_scope or 'all features' }}"
+    aria-label="Build coverage: {{ 'Partial build' if is_scoped else 'Full build' }}. Spec: complete model. Plan and execution: {{ execution_scope or 'all features' }}">{{ "Partial build" if is_scoped else "Full build" }}</span>
+</header>

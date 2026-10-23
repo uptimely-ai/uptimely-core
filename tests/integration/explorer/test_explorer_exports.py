@@ -194,7 +194,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     assert "Uncontrolled external operation" in functions_page
     assert "Python return value is ignored" in functions_page
     assert "External outputs: audit_reference, audit_status" in functions_page
-    assert "Declares external outputs:" in (index.parent / "js/feature_graph.js").read_text(
+    assert "Declares external outputs" in (index.parent / "js/feature_graph.js").read_text(
         encoding="utf-8"
     )
     assert '"function_type": "escape"' in graph_page

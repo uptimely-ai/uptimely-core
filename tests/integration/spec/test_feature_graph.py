@@ -171,16 +171,20 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "CylinderGeometry" not in script
     assert (
         "${node.is_function ? 'function' : 'feature'}: ${node.label}"
-        "<br>entity: ${node.entity || 'n/a'}" in script
+        r"\nentity: ${node.entity || 'n/a'}" in script
     )
     assert "entity: ${node.entity || 'n/a'}" in script
-    assert "<strong>Entity:</strong>" in script
+    assert "['Entity', formatDetailValue(entity)]" in script
     assert '"node_type": "feature"' in html
     assert '"is_function": true' in html
     assert '"is_function": false' in html
-    assert "<strong>Node type:</strong> Function" in script
-    assert "<strong>Function:</strong> ${label}" in script
-    assert "${outputLabel}</strong> ${formatDetailValue(features.join(', '))}" in script
+    assert "['Node type', 'Function']" in script
+    assert "['Function', label]" in script
+    assert "rows.push([outputLabel, formatDetailValue(features.join(', '))])" in script
+    assert "ExplorerGraph.showDetails(nodeDetails, 'Selected item', rows)" in script
+    shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
+    assert 'src="../js/graph_components.js"' in html
+    assert "document.createTextNode(value == null ? 'n/a' : String(value))" in shared_script
     assert "Function</span>" in html
     for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
         assert f"{category} function</span>" not in html
@@ -194,6 +198,7 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     output = tmp_path / "spec/graph.html"
     html = output.read_text(encoding="utf-8")
     script = (tmp_path / "js/feature_graph.js").read_text(encoding="utf-8")
+    shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
     styles = (tmp_path / "css/graph.css").read_text(encoding="utf-8")
 
     assert 'src="../js/feature_graph.js"' in html
@@ -205,14 +210,18 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "function prepareGraphLayout(graphData)" in script
     assert "function drawEntityLanes(ctx, globalScale)" not in script
     assert "function drawNode(node, ctx)" in script
-    assert "function selectAtPointer(event)" in script
+    assert (
+        "ExplorerGraph.selectCard(graph, graphContainer, data.nodes, event, updateDetails)"
+        in script
+    )
     assert ".nodeCanvasObject(drawNode)" in script
     assert "data.nodes.map(node => node.entity || 'Unassigned')" in script
     assert "rankNodes" in script
     assert "node.fx = rankOffsets.get(rank) - graphWidth / 2" in script
     assert "(index - (nodes.length - 1) / 2) * 70" in script
     assert "node.entityColor = entityColors.get(node.entity)" in script
-    assert "item.textContent = entity" in script
+    assert "ExplorerGraph.appendLegend(entityLegend, entityNames.map(entity =>" in script
+    assert "item.textContent = label" in shared_script
     assert "'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa'" in script
     assert '"#b9c9d8"' in html
     assert "function linkRoute(link)" in script
@@ -223,9 +232,10 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "link.flowOffset = index / Math.max(1, data.links.length)" in script
     assert "performance.now() / 2200" in script
     assert ".linkCurvature(0.18)" not in script
-    assert ".linkDirectionalParticles(2)" in script
+    assert ".linkDirectionalParticles(2)" in shared_script
     assert ".nodeColor(node => node.is_function ? functionColor : node.entityColor)" in script
-    assert "function resizeGraph()" in script
+    assert "ExplorerGraph.createView(graph, graphContainer, 80, '2d')" in script
+    assert "graph.width(container.clientWidth).height(container.clientHeight)" in shared_script
     assert "health_signal_normalized" in html
     assert '"label": "bearing_temperature_max", "tags": [], "node_type": "feature"' in html
     assert '"is_function": false, "entity": "pump", "data_type": "float"' in html
@@ -238,7 +248,7 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert 'class="details details-2d"' in html
     assert "Selected item" in html
     assert ".details-2d { right: auto; left: 16px;" in styles
-    assert "graph.screen2GraphCoords(" in script
+    assert "graph.screen2GraphCoords(" in shared_script
     assert ".onNodeClick((_node, event) => selectAtPointer(event))" in script
     assert ".onBackgroundClick(event => selectAtPointer(event))" in script
     assert "<h2>Node details</h2>" not in html

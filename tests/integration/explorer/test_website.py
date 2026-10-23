@@ -54,7 +54,7 @@ class NavigationCollector(html_parser.HTMLParser):
             self.html_count += 1
         if tag == "nav" and attributes.get("aria-label") == "Explorer pages":
             self.in_navigation = True
-        if tag == "a" and self.in_navigation:
+        if tag == "a" and (self.in_navigation or attributes.get("class") == "site-product"):
             href = attributes["href"]
             assert href is not None
             self.links.append(href)
@@ -165,10 +165,11 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         heading_icon = collector.heading_icons[0]
         assert heading_icon["data-lucide"] == symbol
         assert f"icon--{key}" in (heading_icon["class"] or "").split()
-        assert any(
-            item["data-lucide"] == symbol and f"icon--{key}" in (item["class"] or "").split()
-            for item in collector.navigation_icons
-        )
+        if key != "home":
+            assert any(
+                item["data-lucide"] == symbol and f"icon--{key}" in (item["class"] or "").split()
+                for item in collector.navigation_icons
+            )
         assert all(item["aria-hidden"] == "true" for item in collector.icons)
         navigation = re.search(r"<nav\b.*?</nav>", document, re.DOTALL)
         assert navigation is not None
@@ -176,7 +177,6 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
             r'class="site-icon icon--(\S+) nav-icon"[^>]*></i><span>([^<]+)</span>',
             navigation.group(),
         ) == [
-            ("home", "openanalytics/explorer"),
             ("spec", "Spec"),
             ("overview", "Overview"),
             ("features", "Features"),
@@ -361,8 +361,7 @@ def test_website_exports_all_reports_with_relative_navigation(
         r'data-lucide="network"',
         graph_2d,
     )
-    assert ".onEngineStop(" in graph_script
-    assert "graph.zoomToFit(0, 80)" in graph_script
+    assert "ExplorerGraph.createView(graph, graphContainer, 80, '2d')" in graph_script
     plan = (index.parent / "plan/graph.html").read_text(encoding="utf-8")
     assert 'id="callable-graph"' in plan
     assert "normalize_health_signal" in plan
@@ -589,14 +588,17 @@ def test_execution_plan_pages_render_only_their_section(
     if is_graph:
         script = (tmp_path / "js/callable_graph.js").read_text(encoding="utf-8")
         assert 'class="absolute inset-0"' in document
-        assert "<header" not in document
+        assert document.count("<header") == 1
+        assert '<header class="site-topbar"' in document
         assert ">Callable graph</h2>" not in document
         assert ".linkDirectionalParticles(2)" in script
         assert ".linkDirectionalArrow" not in script
         assert 'class="details details-2d"' in document
         if is_graph:
-            assert "callableGraph.zoomToFit(0, 140)" in script
-            assert ".onEngineStop(" in script
+            assert (
+                "ExplorerGraph.createView(callableGraph, callableGraphContainer, 140, '2d')"
+                in script
+            )
             expected_label = (
                 'read_pump_telemetry(source="?storage.telemetry_source.path", '
                 'environment="development")'
@@ -636,7 +638,7 @@ def test_execution_plan_pages_render_only_their_section(
                 ")",
             ]
             assert f'"label_lines": {json.dumps(expected_object_lines)}' in document
-            assert ".nodeLabel(node => node.label)" in script
+            assert ".nodeLabel(node => ExplorerGraph.tooltip(node.label))" in script
             assert "node.label_lines.forEach((line, index) =>" in script
             assert "const rank = node.stage - 1" in script
             graph_data_match = re.search(
@@ -674,6 +676,19 @@ def test_graph_pages_have_one_selector_and_shared_data(
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert document.count('aria-label="Graph view"') == 1
+    assert document.count('aria-label="Graph zoom"') == 1
+    assert re.search(
+        r'<div class="graph-title-controls">\s*<h1\b.*?</h1>\s*'
+        r'<div class="graph-buttons" role="group" aria-label="Graph view">',
+        document,
+        re.DOTALL,
+    )
+    assert 'aria-label="Zoom in"' in document
+    assert 'aria-label="Zoom out"' in document
+    assert '<details class="panel" open>' in document
+    assert document.index('src="../js/graph_components.js"') < document.index(
+        'src="../js/view_controller.js"'
+    )
     assert 'data-dimension="2d" aria-pressed="true" aria-controls="graph-2d"' in document
     assert 'data-dimension="3d" aria-pressed="false" aria-controls="graph-3d"' in document
     assert 'id="graph-3d" class="graph-view" hidden' in document
@@ -687,6 +702,7 @@ def test_graph_pages_have_one_selector_and_shared_data(
     assert "node.id === selectedId" in controller
     assert "console.error(" in controller
     assert "Unable to display the" in controller
+    assert "new ResizeObserver(" in controller
     assert document.count('"nodes":') == 1
     assert len(re.findall(r"<h1[ >]", document)) == 1
     assert "feature_graph_2d.html" not in document

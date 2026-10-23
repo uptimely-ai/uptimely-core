@@ -5,7 +5,7 @@ function mountGraphViews(sourceData, create2D, create3D, showDetails, detailsPan
 	let activeDimension = null;
 	let selectedId = null;
 	const selectNode = node => {
-		selectedId = node?.id || null;
+		selectedId = node?.id ?? null;
 		showDetails(node);
 	};
 	const showView = dimension => {
@@ -47,7 +47,11 @@ function mountGraphViews(sourceData, create2D, create3D, showDetails, detailsPan
 	};
 	for (const button of buttons) button.addEventListener('click', () => showView(button.dataset.dimension));
 	document.getElementById('fit-graph').addEventListener('click', () => views.get(activeDimension)?.fit());
-	window.addEventListener('resize', () => views.get(activeDimension)?.resize());
+	for (const button of document.querySelectorAll('[data-zoom]')) {
+		button.addEventListener('click', () => views.get(activeDimension)?.zoom(Number(button.dataset.zoom)));
+	}
+	const observer = new ResizeObserver(() => views.get(activeDimension)?.resize());
+	observer.observe(document.getElementById('graph'));
 	window.addEventListener('pagehide', () => {
 		for (const view of views.values()) view.graph.pauseAnimation();
 	});

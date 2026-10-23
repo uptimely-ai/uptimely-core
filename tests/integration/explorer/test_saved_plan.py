@@ -64,7 +64,7 @@ def test_explorer_distinguishes_full_model_from_scoped_plan(
     ).create_html(tmp_path / "index.html")
     document = index.read_text(encoding="utf-8")
 
-    assert "Scoped build" in document
+    assert "Partial build" in document
     assert "Spec: complete model" in document
     assert "Plan and execution: selected features: health_signal_normalized" in document
     assert "Plan and execution: selected features: health_signal_normalized" in (

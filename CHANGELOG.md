@@ -18,6 +18,9 @@ While the version is `0.x`, minor releases may include breaking changes.
   as object keys. The canonical `Entity.datasets` API is now a dictionary.
   Version 1 and dataset arrays are rejected; update JSON sources and rebuild
   generated project artifacts.
+- Explorer pages share a streamlined project-name top bar with a home link and a full or
+  partial build badge. Feature and execution graphs share a dimension selector
+  beside the title, zoom controls, collapsible legends, and consistent details panels.
 
 ## [0.6.0] - 2026-10-22
 

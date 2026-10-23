@@ -11,6 +11,14 @@
 <link rel="stylesheet" href="{{ root_path or "" }}css/graph.css">
 {% endblock %}
 {% block content %}
-	{% block body %}{% endblock %}
+<main class="graph-workspace">
+	{% include "graph/view_controls.html.j2" %}
+	<div class="graph-stage">{% block body %}{% endblock %}</div>
+</main>
 {% endblock %}
-{% block scripts %}{% if include_navigation %}{{ super() }}{% endif %}{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src="{{ root_path or "" }}js/graph_components.js"></script>
+<script src="{{ root_path or "" }}js/view_controller.js"></script>
+{% block graph_script %}{% endblock %}
+{% endblock %}

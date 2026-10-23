@@ -23,6 +23,7 @@ ASSETS = {
     "js/callable_graph.js",
     "js/data_lineage.js",
     "js/feature_graph.js",
+    "js/graph_components.js",
     "js/icons.js",
     "js/tailwind_config.js",
     "js/view_controller.js",
