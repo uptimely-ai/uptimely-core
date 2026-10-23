@@ -9,12 +9,17 @@ Execute the plan in the project's last successful active build:
 
 ```console
 uptimely run \
-  [--project-root PATH] [--config PATH] [--verbose] [--preview [ROWS]]
+  [PROJECT_ROOT] [--project-root PATH] [--config PATH] [--verbose] [--preview [ROWS]]
 ```
+
+Give the project directory positionally after `run`, or use
+`--project-root PATH`; do not use both. If omitted, the current working
+directory is used. The grouped form is `uptimely engine run [PROJECT_ROOT]`.
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `--project-root PATH` | No | Current working directory | Project root containing the active build and function entrypoints. |
+| `PROJECT_ROOT` | No | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
+| `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
 | `--config PATH` | No | `config/engine.json` under the project root or current working directory | Engine settings and runtime bindings in JSON. |
 | `--verbose` | No | `false` | Add saved-resource statistics, execution counts, calculated features, stages, and dataset registry details. |
 | `--preview [ROWS]` | No | Disabled; 5 rows when supplied without a count | Log the first positive number of rows from each final dataset after successful execution, independently of `--verbose`. |
@@ -22,6 +27,7 @@ uptimely run \
 For example, preview five rows per dataset, or request a specific row limit:
 
 ```console
+uptimely run examples/pump_analytics
 uptimely run --preview
 uptimely run --preview 10
 ```

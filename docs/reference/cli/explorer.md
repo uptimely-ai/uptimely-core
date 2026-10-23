@@ -16,19 +16,25 @@ the website until the server exits.
 
 ```console
 uptimely explore \
-  [--project-root PATH] [--host ADDRESS] [--port PORT]
+  [PROJECT_ROOT] [--project-root PATH] [--host ADDRESS] [--port PORT]
 ```
+
+Give the project directory positionally after `explore`, or use
+`--project-root PATH`; do not use both. If omitted, the current working
+directory is used. The grouped form is
+`uptimely explorer serve [PROJECT_ROOT]`.
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `--project-root PATH` | No | Current working directory | Project root containing the active build. |
+| `PROJECT_ROOT` | No | Current working directory | Project root containing the active build. May be passed as `--project-root PATH` instead. |
+| `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
 | `--host ADDRESS` | No | `127.0.0.1` | Address to bind. |
 | `--port PORT` | No | `8001` | TCP port; `0` selects an available port. |
 
 Example:
 
 ```console
-uptimely explore --project-root examples/pump_analytics
+uptimely explore examples/pump_analytics
 ```
 
 If the build is missing or invalid, the command reports the problem and the

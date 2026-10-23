@@ -10,14 +10,14 @@ complete project bundle, including its website.
 Build the complete bundle:
 
 ```sh
-uptimely build --project-root examples/pump_analytics
+uptimely build examples/pump_analytics
 ```
 
 `explore` validates the active build and serves its saved website. It
 does not load source, compile, render, or write artifacts:
 
 ```sh
-uptimely explore --project-root examples/pump_analytics
+uptimely explore examples/pump_analytics
 ```
 
 Open <http://127.0.0.1:8001/>. Stop the server with **Ctrl+C**. The CLI holds
@@ -75,13 +75,13 @@ not execute the analytics workflow.
 
 ```sh
 uptimely explore \
-  --project-root examples/pump_analytics \
+  examples/pump_analytics \
   --port 8001
 ```
 
 | Option | Purpose |
 | --- | --- |
-| `--project-root` | Project root containing the active build. Defaults to the current working directory. |
+| `PROJECT_ROOT` | Project root containing the active build. Defaults to the current working directory; `--project-root PATH` is an explicit alternative. |
 | `--host` | Address to serve on. Defaults to `127.0.0.1` (this machine only). |
 | `--port` | Port to serve on. Defaults to `8001`; use `0` to choose an available port. |
 

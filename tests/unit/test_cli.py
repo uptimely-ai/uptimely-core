@@ -479,19 +479,43 @@ def test_cli_preserves_helper_imports() -> None:
     ("arguments", "command", "expected_options"),
     [
         (
-            ["build", "--project-root", "project", "--features", "feature", "--verbose"],
+            ["build", "project", "--features", "feature", "--verbose"],
             "build",
-            {"project_root": pathlib.Path("project"), "features": ["feature"], "verbose": True},
+            {
+                "project_root_argument": pathlib.Path("project"),
+                "features": ["feature"],
+                "verbose": True,
+            },
         ),
         (
-            ["run", "--project-root", "project", "--preview", "3"],
+            ["run", "project", "--preview", "3"],
             "run",
-            {"project_root": pathlib.Path("project"), "preview": 3},
+            {"project_root_argument": pathlib.Path("project"), "preview": 3},
         ),
         (
-            ["explore", "--host", "0.0.0.0", "--port", "0"],
+            ["explore", "project", "--host", "0.0.0.0", "--port", "0"],
             "explore",
-            {"host": "0.0.0.0", "port": 0},
+            {"project_root_argument": pathlib.Path("project"), "host": "0.0.0.0", "port": 0},
+        ),
+        (
+            ["project", "build", "project"],
+            "build",
+            {"project_root_argument": pathlib.Path("project")},
+        ),
+        (
+            ["engine", "run", "project"],
+            "run",
+            {"project_root_argument": pathlib.Path("project")},
+        ),
+        (
+            ["explorer", "serve", "project"],
+            "explore",
+            {"project_root_argument": pathlib.Path("project")},
+        ),
+        (
+            ["spec", "feature-graph", "project"],
+            "spec",
+            {"project_root_argument": pathlib.Path("project")},
         ),
     ],
 )
@@ -505,6 +529,7 @@ def test_shortcut_commands_use_existing_handlers_and_options(
         "build": cli.project,
         "run": cli.engine,
         "explore": cli.explorer,
+        "spec": cli.spec,
     }
     captured: list[argparse.Namespace] = []
     monkeypatch.setattr(handlers[command], "run", lambda args, _parser: captured.append(args))
@@ -514,6 +539,30 @@ def test_shortcut_commands_use_existing_handlers_and_options(
 
     assert len(captured) == 1
     assert {key: getattr(captured[0], key) for key in expected_options} == expected_options
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["build", "project", "--project-root", "other"],
+        ["run", "project", "--project-root", "other"],
+        ["explore", "project", "--project-root", "other"],
+    ],
+)
+def test_project_root_cannot_be_both_positional_and_an_option(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    arguments: list[str],
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["uptimely", *arguments])
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 2
+    assert "project root may be provided positionally or with --project-root, not both" in (
+        capsys.readouterr().err
+    )
 
 
 @pytest.mark.parametrize(
