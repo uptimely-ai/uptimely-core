@@ -51,7 +51,7 @@ def _add_escape_mapping(
 def _escape_spec_configuration() -> dict:
     """Return a valid pump spec with chained, multi-output, and unrelated escapes."""
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    entrypoint = "examples.pump_analytics.functions.calculation:maximum"
+    entrypoint = "examples.pump_analytics.functions.analytics:maximum"
     _add_escape_mapping(
         configuration,
         "escape_start",

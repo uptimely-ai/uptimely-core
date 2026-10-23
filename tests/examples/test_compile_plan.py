@@ -112,7 +112,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert "Open Python module" in report
     assert "No callable dependencies" in report
     assert "maximum</span>" in report
-    source_match = re.search(r'href="([^"]*functions/calculation\.py)"', report)
+    source_match = re.search(r'href="([^"]*functions/analytics\.py)"', report)
     assert source_match is not None
     assert (report_path.parent / source_match.group(1)).resolve().is_file()
 

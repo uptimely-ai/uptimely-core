@@ -1,4 +1,3 @@
-import dataclasses
 import json
 import pathlib
 import typing
@@ -71,10 +70,13 @@ def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.
     second = spec.Dataset(id="second")
     first.order.append(spec.Order(**ORDER[0]))
     assert second.order == []
-    assert (
-        python_spec.dataset.Dataset(id="first").order
-        is not python_spec.dataset.Dataset(id="second").order
-    )
+    authored_first = python_spec.dataset.Dataset(id="first")
+    authored_second = python_spec.dataset.Dataset(id="second")
+    first_model = authored_first.to_model()
+    first_model.order.append(spec.Order(**ORDER[0]))
+    assert not authored_first.order
+    assert not authored_second.order
+    assert authored_second.to_model().order == []
 
 
 @pytest.mark.parametrize(
@@ -219,46 +221,38 @@ def test_dataset_order_appears_in_html(tmp_path: pathlib.Path) -> None:
 def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
     declaration = python_spec.dataset.Dataset(
         id=spec_module.dataset_.id,
-        features=[
-            python_spec.feature.Feature(id="input_1"),
-            python_spec.feature.Feature(id="input_2"),
-            python_spec.feature.Feature(id="id", type="integer"),
-            python_spec.feature.Feature(id="sum"),
-        ],
-        mappings=[
-            python_spec.mapping.Mapping(
-                id="read",
-                bind=python_spec.bind.bind(
-                    python_spec.ref.function(functions.read_data, operation="read")
-                ),
+        mappings={
+            "read": python_spec.mapping.FunctionMapping(
+                inputs=[],
+                function=python_spec.ref.function(functions.read_data, operation="read"),
+                arguments={},
                 outputs=[
-                    python_spec.ref.feature("input_1"),
-                    python_spec.ref.feature("input_2"),
-                    python_spec.ref.feature("id"),
+                    python_spec.feature.Feature(name="input_1"),
+                    python_spec.feature.Feature(name="input_2"),
+                    python_spec.feature.Feature(name="id", type="integer"),
                 ],
             ),
-            python_spec.mapping.Mapping(
-                id="sum",
-                bind=python_spec.bind.bind(
-                    python_spec.ref.function(functions.sum_features, operation="vectorize"),
-                    left_feature=python_spec.ref.feature("input_1"),
-                    right_feature=python_spec.ref.feature("input_2"),
-                    output="sum",
-                    dataset=python_spec.ref.current_dataset().dataframe,
-                ),
-                inputs=[
-                    python_spec.ref.feature("input_1"),
-                    python_spec.ref.feature("input_2"),
-                ],
-                outputs=[python_spec.ref.feature("sum")],
+            "sum": python_spec.mapping.FunctionMapping(
+                inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
+                function=python_spec.ref.function(functions.sum_features, operation="vectorize"),
+                arguments={
+                    "left_feature": python_spec.ref.feature("input_1"),
+                    "right_feature": python_spec.ref.feature("input_2"),
+                    "output": "sum",
+                    "dataset": python_spec.ref.current_dataset().dataframe,
+                },
+                outputs=[python_spec.feature.Feature(name="sum")],
             ),
-        ],
+        },
     )
-    unordered = spec.from_python(datasets=[declaration], dimensions=spec_module.dimensions)
+    unordered = spec.from_python(
+        datasets=[declaration], dimensions=spec_module.python_spec.dimensions
+    )
     ordered = spec.from_python(
         datasets=[
-            dataclasses.replace(
-                declaration,
+            python_spec.dataset.Dataset(
+                id=declaration.id,
+                mappings=declaration.mappings,
                 order=[
                     python_spec.dataset.Order(
                         dimension=python_spec.ref.dimension("id"), direction="desc"
@@ -266,7 +260,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
                 ],
             )
         ],
-        dimensions=spec_module.dimensions,
+        dimensions=spec_module.python_spec.dimensions,
     )
     assert (
         compiler.Compiler(ordered).compile().callables

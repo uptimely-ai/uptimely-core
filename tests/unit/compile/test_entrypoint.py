@@ -11,7 +11,7 @@ from conftest import EXAMPLES_ROOT, engine_for_plan
 from uptimely import compiler, spec, storage
 from uptimely import entrypoint as shared_entrypoint
 from uptimely.explorer import spec_render
-from uptimely.spec.python import bind, dataset, dimension, feature, mapping, ref
+from uptimely.spec.python import dataset, dimension, feature, mapping, ref
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
@@ -296,24 +296,23 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
         datasets=[
             dataset.Dataset(
                 id="observations",
-                mappings=[
-                    mapping.Mapping(
-                        bind=bind.bind(ref.function(f"{location}:read_values", operation="read")),
+                mappings={
+                    "read_values": mapping.FunctionMapping(
+                        inputs=[],
+                        function=ref.function(f"{location}:read_values", operation="read"),
+                        arguments={},
                         outputs=[
-                            feature.Feature(id="id", type="integer"),
-                            feature.Feature(id="value", type="integer"),
+                            feature.Feature(name="id", type="integer"),
+                            feature.Feature(name="value", type="integer"),
                         ],
                     ),
-                    mapping.Mapping(
-                        bind=bind.bind(
-                            ref.function(f"{location}:calculate", operation="vectorize"),
-                            dataset=ref.current_dataset().dataframe,
-                            output="result",
-                        ),
+                    "calculate": mapping.FunctionMapping(
                         inputs=[ref.feature("value")],
-                        outputs=[feature.Feature(id="result", type="integer")],
+                        function=ref.function(f"{location}:calculate", operation="vectorize"),
+                        arguments={"dataset": ref.current_dataset().dataframe, "output": "result"},
+                        outputs=[feature.Feature(name="result", type="integer")],
                     ),
-                ],
+                },
             )
         ],
     )

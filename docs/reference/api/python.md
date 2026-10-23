@@ -7,6 +7,89 @@ authoring modules in the source tree.
 For a runnable example, see the
 [analytics project structure](../../development/project-structure.md).
 
+## Declarative datasets
+
+```python
+import polars as pl
+
+from uptimely.spec.python import (
+    Dataset,
+    Dimension,
+    Entity,
+    Feature,
+    FunctionMapping,
+    operation,
+    ref,
+)
+
+pump_dimension = Dimension(id="pump", type="string")
+assets = Entity(id="assets", name="Assets", dimensions=[pump_dimension])
+
+
+@operation("collapse")
+def maximum(
+    dataset: pl.LazyFrame, feature: str, dimensions: list[str], output: str
+) -> pl.LazyFrame: ...
+
+
+class Pump(Dataset):
+    id = "pump_summary"
+    description = "Maximum bearing temperature per pump."
+    entity = assets
+
+    temperature_max = FunctionMapping(
+        function=maximum,
+        arguments=dict(
+            dataset=ref.dataset("telemetry").dataframe,
+            feature=ref.feature("bearing_temperature"),
+            dimensions=["pump"],
+            output=ref.feature("bearing_temperature_max").id,
+        ),
+        outputs=[
+            Feature(
+                name="bearing_temperature_max",
+                type="float",
+                unit="C",
+                description="Maximum observed bearing temperature.",
+            ),
+        ],
+    )
+```
+
+```python
+from uptimely.spec.python import PythonSpec
+
+python_spec = PythonSpec(
+    datasets={assets: [Pump()]},
+    name="Pump analytics",
+)
+```
+
+`PythonSpec` groups datasets by entity and derives its entities, dimensions, and
+function catalog. `Model([Pump]).to_declarations()` optionally registers dataset
+classes.
+
+`FunctionMapping` takes `function`, `arguments`, and `outputs`. Decorate callable
+implementations with `@operation(...)`; use `ref.function(..., operation=...)`
+for entrypoint strings. Implementations aren't called during authoring; assembly
+checks callable parameter names and required arguments.
+
+Feature references in `arguments` determine dependencies; use `inputs` when they
+can't be inferred. Writes use `outputs=[]`. For generated declarations, use
+`Dataset(id=..., mappings={...})`.
+
+### Migrating from list-based declarations
+
+- Replace `features` and list-based `mappings` with named mappings. Put feature
+  metadata in each mapping's `outputs`; use `Feature.name` for feature IDs.
+- Replace `Mapping(bind=..., id=...)` with `FunctionMapping(function=...,
+  arguments=..., outputs=...)`. The mapping attribute or dictionary key supplies
+  its ID; `function_id` can override the catalog ID.
+- Convert individual declarations with `Feature.to_model()` and
+  `FunctionMapping.to_model(identifier)`.
+
+The document model and exported JSON format are unchanged.
+
 <div class="api-reference" markdown="1">
 
 ## spec
@@ -21,9 +104,10 @@ For a runnable example, see the
 
 ## entity
 
-`uptimely.spec.python.entity` groups related datasets.
+`uptimely.spec.python.entity` declares entity metadata and dimensions.
 
-Python entity declarations accept a list of datasets with explicit IDs.
+Python entity declarations describe their dimensions and metadata. Associate
+datasets with them through the `PythonSpec.datasets` mapping.
 Conversion produces an ID-keyed dataset dictionary in the canonical model and
 exported JSON, without repeating `id` in the JSON attributes. Duplicate dataset
 IDs within an entity are rejected rather than overwritten.
@@ -35,7 +119,8 @@ IDs within an entity are rejected rather than overwritten.
 
 ## dataset
 
-`uptimely.spec.python.dataset` declares datasets and their features.
+`uptimely.spec.python.dataset` declares dataset scope, named mappings, and optional
+class registries.
 
 ::: uptimely.spec.python.dataset
     options:
@@ -53,7 +138,7 @@ IDs within an entity are rejected rather than overwritten.
 
 ## feature
 
-`uptimely.spec.python.feature` declares dataset features and calculations.
+`uptimely.spec.python.feature` declares metadata for mapping outputs.
 
 ::: uptimely.spec.python.feature
     options:
@@ -62,8 +147,8 @@ IDs within an entity are rejected rather than overwritten.
 
 ## mappings
 
-`uptimely.spec.python.mappings` declares relationships between datasets.
-It is also exposed as `uptimely.spec.mapping`.
+`uptimely.spec.python.mappings` declares analytical function bindings and outputs.
+The module is also exposed as `uptimely.spec.python.mapping`.
 
 ::: uptimely.spec.python.mappings
     options:
@@ -72,7 +157,9 @@ It is also exposed as `uptimely.spec.mapping`.
 
 ## bind
 
-`uptimely.spec.python.bind` binds function arguments to declared values.
+`uptimely.spec.python.bind` provides lower-level nested argument bindings and
+serialization helpers. Top-level mappings bind functions directly through their
+`function` and `arguments` attributes.
 
 ::: uptimely.spec.python.bind
     options:

@@ -12,16 +12,14 @@ omits supporting modules:
 project/
 ├── data/
 ├── functions/
-│   ├── source.py
-│   └── calculation.py
+│   └── analytics.py
 ├── config/
 │   └── engine.json
 ├── spec/
 │   ├── spec.py <-- default spec entrypoint
 │   ├── dataset_<name>.py
 │   ├── entity.py
-│   ├── dimension.py
-│   └── functions.py
+│   └── dimension.py
 └── _generated/
     └── build/
         ├── build.json
@@ -43,6 +41,12 @@ project/
 This separation keeps the project easy to reason about: specification declarations
 live in `spec/`, runtime logic lives in functions, and generated resources stay
 clearly separate from source inputs.
+
+Python dataset modules subclass `uptimely.spec.python.Dataset` and declare
+named `Mapping` attributes. Each mapping points directly to an implementation
+in `functions/`, binds its arguments, and defines its output features.
+There is no separate function-template module or authoring adapter. See
+[Python authoring](../reference/api/python.md) for the declaration syntax.
 
 ## Active build bundle
 

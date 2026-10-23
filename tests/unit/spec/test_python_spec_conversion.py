@@ -5,7 +5,6 @@ import pytest
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import (
     PythonSpec,
-    bind,
     conversion,
     dataset,
     dimension,
@@ -16,11 +15,21 @@ from uptimely.spec.python import (
 )
 
 
-def _source() -> None:
+def _source(
+    columns: list[str] | None = None,
+    path: str | int | None = None,
+    dataset: object = None,
+    other_dataset: object = None,
+) -> None:
     pass
 
 
-def _other_source() -> None:
+def _other_source(
+    columns: list[str] | None = None,
+    path: str | int | None = None,
+    dataset: object = None,
+    other_dataset: object = None,
+) -> None:
     pass
 
 
@@ -31,12 +40,11 @@ def _declaration(
     is_conform = category == "conform"
     return dataset.Dataset(
         id=identifier,
-        mappings=[
-            mapping.Mapping(
-                id=f"{identifier}_mapping",
-                bind=bind.bind(
-                    ref.function(function, operation=category),
-                    function_id=f"{category}_shared",
+        mappings={
+            f"{identifier}_mapping": mapping.FunctionMapping(
+                inputs=[ref.feature("temperature")] if is_expand or is_conform else [],
+                function=ref.function(function, operation=category),
+                arguments={
                     **(
                         {"dataset": ref.current_dataset().dataframe}
                         if category in {"write", "vectorize", "collapse"}
@@ -52,11 +60,12 @@ def _declaration(
                         if is_expand or is_conform
                         else {}
                     ),
-                    columns=[ref.feature("temperature")],
-                ),
-                inputs=[ref.feature("temperature")] if is_expand or is_conform else [],
+                    "columns": [ref.feature("temperature")],
+                },
+                outputs=[],
+                function_id=f"{category}_shared",
             )
-        ],
+        },
     )
 
 
@@ -69,6 +78,13 @@ def _entity(identifier: str, datasets: list[dataset.Dataset]) -> entity.Entity:
     )
 
 
+def _python_spec(entities: list[entity.Entity], name: str | None = None) -> PythonSpec:
+    return PythonSpec(
+        datasets={declaration: declaration.datasets for declaration in entities},
+        name=name,
+    )
+
+
 def _mapping_source(dimensions: list[dimension.Dimension]) -> entity.Entity:
     return entity.Entity(
         id="source",
@@ -77,12 +93,14 @@ def _mapping_source(dimensions: list[dimension.Dimension]) -> entity.Entity:
         datasets=[
             dataset.Dataset(
                 id="shared_source",
-                mappings=[
-                    mapping.Mapping(
-                        bind=bind.bind(ref.function(_other_source, operation="read")),
-                        outputs=[feature.Feature(id="temperature")],
+                mappings={
+                    "_other_source": mapping.FunctionMapping(
+                        inputs=[],
+                        function=ref.function(_other_source, operation="read"),
+                        arguments={},
+                        outputs=[feature.Feature(name="temperature")],
                     )
-                ],
+                },
             )
         ],
     )
@@ -91,17 +109,19 @@ def _mapping_source(dimensions: list[dimension.Dimension]) -> entity.Entity:
 def _conform_source(identifier: str) -> dataset.Dataset:
     return dataset.Dataset(
         id=f"{identifier}_source",
-        mappings=[
-            mapping.Mapping(
-                bind=bind.bind(ref.function(_other_source, operation="read")),
-                outputs=[feature.Feature(id="temperature")],
+        mappings={
+            "_other_source": mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function(_other_source, operation="read"),
+                arguments={},
+                outputs=[feature.Feature(name="temperature")],
             )
-        ],
+        },
     )
 
 
 def test_empty_spec_has_no_datasets_or_functions() -> None:
-    spec_definition = PythonSpec()
+    spec_definition = PythonSpec(datasets={})
 
     assert spec_definition.iter_datasets() == []
     assert spec_definition.function_catalog() == spec_model.FunctionCatalog()
@@ -113,20 +133,30 @@ def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
     first = dataset.Dataset(id="first")
     second = dataset.Dataset(id="second")
     third = dataset.Dataset(id="third")
-    spec_definition = PythonSpec(
-        entities=[_entity("empty", []), _entity("one", [first, second]), _entity("two", [third])]
+    spec_definition = _python_spec(
+        [_entity("empty", []), _entity("one", [first, second]), _entity("two", [third])]
     )
 
     assert spec_definition.iter_datasets() == [first, second, third]
+    assert [item.id for item in spec_definition.entities] == ["empty", "one", "two"]
+    assert [item.id for item in spec_definition.entities[1].datasets] == ["first", "second"]
+    assert [item.id for item in spec_definition.dimensions] == ["pump"]
 
 
 def test_function_catalog_keeps_distinct_functions_and_operations() -> None:
     additional = dataset.Dataset(
         id="additional",
-        mappings=[mapping.Mapping(bind=bind.bind(ref.function(_other_source, operation="read")))],
+        mappings={
+            "_other_source": mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function(_other_source, operation="read"),
+                arguments={},
+                outputs=[],
+            )
+        },
     )
-    spec_definition = PythonSpec(
-        entities=[
+    spec_definition = _python_spec(
+        [
             _entity("one", [_declaration("first", "read")]),
             _entity("two", [additional, _declaration("calculated", "vectorize")]),
         ]
@@ -157,7 +187,7 @@ def test_function_catalog_merges_and_deduplicates_each_operation(category: str) 
     entities = [_entity("one", first_datasets), _entity("two", second_datasets)]
     if category == "expand":
         entities.insert(0, _mapping_source([]))
-    spec_definition = PythonSpec(entities=entities)
+    spec_definition = _python_spec(entities)
 
     catalog = spec_definition.function_catalog()
 
@@ -232,7 +262,7 @@ def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None
     entities = [_entity("one", first_datasets), _entity("two", second_datasets)]
     if category == "expand":
         entities.insert(0, _mapping_source([]))
-    spec_definition = PythonSpec(entities=entities)
+    spec_definition = _python_spec(entities)
 
     with pytest.raises(
         ValueError, match=f"Conflicting function definition for '{category}_shared'"
@@ -243,44 +273,47 @@ def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None
 def test_catalog_conflicts_are_rejected_consistently() -> None:
     first = dataset.Dataset(
         id="first",
-        mappings=[
-            mapping.Mapping(
-                bind=bind.bind(
-                    ref.function(_source, operation="read"),
-                    function_id="shared",
-                    path="readings.json",
-                )
+        mappings={
+            "_source": mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function(_source, operation="read"),
+                arguments={"path": "readings.json"},
+                outputs=[],
+                function_id="shared",
             )
-        ],
+        },
     )
     second = dataset.Dataset(
         id="second",
-        mappings=[
-            mapping.Mapping(
-                bind=bind.bind(
-                    ref.function(_source, operation="read"),
-                    function_id="shared",
-                    path=42,
-                )
+        mappings={
+            "_source": mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function(_source, operation="read"),
+                arguments={"path": 42},
+                outputs=[],
+                function_id="shared",
             )
-        ],
+        },
     )
-    spec_definition = PythonSpec(entities=[_entity("one", [first, second])])
+    spec_definition = _python_spec([_entity("one", [first, second])])
 
     with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):
         spec_definition.function_catalog()
     with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):
         conversion.to_dict(datasets=[first, second])
 
-    combined = dataset.Dataset(id="combined", mappings=[*first.mappings, *second.mappings])
+    combined = dataset.Dataset(
+        id="combined",
+        mappings={
+            "first": next(iter(first.mappings.values())),
+            "second": next(iter(second.mappings.values())),
+        },
+    )
     with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):
         combined.function_catalog()
 
 
-@pytest.mark.parametrize("keyed_dimensions", [False, True])
-def test_to_dict_preserves_name_dimensions_and_dataset_metadata(
-    keyed_dimensions: bool,
-) -> None:
+def test_to_dict_preserves_name_dimensions_and_dataset_metadata() -> None:
     pump = dimension.Dimension(id="pump", type="string", description="Asset ID")
     declaration = dataset.Dataset(
         id="telemetry",
@@ -289,9 +322,14 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata(
         order=[dataset.Order(dimension=ref.dimension("pump"), direction="desc")],
     )
     spec_definition = PythonSpec(
+        datasets={
+            entity.Entity(
+                id="assets",
+                name="Assets",
+                dimensions=[pump],
+            ): [declaration]
+        },
         name="Pump analytics",
-        entities=[_entity("assets", [declaration])],
-        dimensions={"pump": pump} if keyed_dimensions else [pump],
     )
 
     payload = spec_definition.to_dict()
