@@ -1,6 +1,6 @@
 # Spec
 
-**Current spec version: 1**
+**Current spec version: 2**
 
 The spec definition is a single JSON document describing datasets, feature
 dependencies, and function bindings. JSON is the shared format used by
@@ -8,10 +8,10 @@ analytical declarations and the tools that validate, document, and compile them.
 
 ## Document Conventions
 
-The root is one JSON object. Dimensions, entities, function templates, features,
-arguments, and mappings use object keys as identifiers; do not repeat their
-`id` inside those entries. Datasets are array entries and require an explicit
-`id`. Identifiers should be stable, lowercase, and descriptive.
+The root is one JSON object. Dimensions, entities, datasets, function templates,
+features, arguments, and mappings use object keys as identifiers; do not repeat
+their `id` inside those entries. Identifiers should be stable, lowercase, and
+descriptive.
 
 Tables describe the current parser contract. A default applies when a field is
 omitted; it does not generally make explicit `null` valid. Unknown fields are
@@ -36,7 +36,7 @@ For example, dimensions and entities use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `spec_version` | integer | No | `1` | Spec format version; only `1` is supported. |
+| `spec_version` | integer | No | `2` | Spec format version; only `2` is supported. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
@@ -85,7 +85,7 @@ columns to an entity, group calculations, or expand observations.
 ## Entities
 
 An entity describes an analytical subject. It has a `name`, optional
-`description`, a list of dimension identifiers, and a list of datasets.
+`description`, a list of dimension identifiers, and an ID-keyed object of datasets.
 The complete entity dimension key identifies a dataset observation.
 
 | Field | JSON type | Required | Default | Meaning |
@@ -93,7 +93,7 @@ The complete entity dimension key identifies a dataset observation.
 | `name` | string | Yes | N/A | Display name. |
 | `description` | string or null | No | `null` | Explanation of the subject. |
 | `dimensions` | array of strings | No | `[]` | Bare identifiers from the root dimension registry. |
-| `datasets` | array of objects | No | `[]` | Datasets describing this subject. |
+| `datasets` | object | No | `{}` | Datasets keyed by identifier describing this subject. |
 
 ```json
 "entities": {
@@ -106,9 +106,13 @@ The complete entity dimension key identifies a dataset observation.
 
 ## Datasets
 
+Each key under an entity's `datasets` object is a globally unique dataset
+identifier, including across different entities. Dataset attributes must not
+include `id`. Omitting `datasets` gives an empty object; arrays and `null` are
+not accepted.
+
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
-| `id` | string | Yes | N/A | Globally unique dataset identifier. |
 | `description` | string or null | No | `null` | Explanation of the dataset. |
 | `row_scope` | object | No | Empty descriptions | Observation grain, filtering, and coverage. |
 | `order` | array of objects | No | `[]` | Logical ordering by entity dimensions. |
@@ -116,16 +120,20 @@ The complete entity dimension key identifies a dataset observation.
 | `mappings` | object | No | `{}` | Function bindings keyed by identifier, unique within this dataset. |
 
 ```json
-"datasets": [
-  {
-    "id": "telemetry",
+"datasets": {
+  "telemetry": {
     "row_scope": {"grain": "One row per pump and timestamp"},
     "order": [
       {"dimension": "$dimensions.timestamp", "direction": "asc"}
     ]
   }
-]
+}
 ```
+
+To migrate a version 1 document, replace each dataset array with an object,
+move each dataset's `id` to its object key, remove the `id` attribute, and set
+`spec_version` to `2`. Rebuild generated project artifacts. Version 1 documents
+and the old array format are not supported.
 
 ### Feature and Mapping Identifiers
 

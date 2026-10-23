@@ -25,12 +25,7 @@ def load_document(path: str | pathlib.Path) -> dict[str, typing.Any]:
 
 def to_document(spec_definition: spec_model.Spec) -> dict[str, typing.Any]:
     """Encode document models using the spec document's identifier rules."""
-    payload = spec_definition.model_dump(exclude_none=False)
-    for entity_id, entity in spec_definition.entities.items():
-        serialized_entity = payload["entities"][entity_id]
-        for index, dataset in enumerate(entity.datasets):
-            serialized_entity["datasets"][index]["id"] = dataset.id
-    return payload
+    return spec_definition.model_dump(exclude_none=False)
 
 
 def write_document(spec_definition: spec_model.Spec, path: str | pathlib.Path) -> str:

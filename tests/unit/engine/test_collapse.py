@@ -201,7 +201,7 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
 def test_collapse_consumes_expanded_features(lazy):
     spec_definition = _spec(lazy=lazy)
     spec_definition.entities.pop("global")
-    source = spec_definition.entities["observation"].datasets[0]
+    source = spec_definition.entities["observation"].datasets["observations"]
     source.features["expanded"] = spec.Feature(id="expanded")
     auxiliary = spec_model.Dataset(
         id="expansion_input",
@@ -218,7 +218,7 @@ def test_collapse_consumes_expanded_features(lazy):
         id="expansion",
         name="Expansion",
         dimensions=[spec_definition.dimensions["group"]],
-        datasets=[auxiliary],
+        datasets={auxiliary.id: auxiliary},
     )
     spec_definition.functions.root["read_expansion_input"] = spec_model.FunctionTemplate(
         id="read_expansion_input",
@@ -251,7 +251,7 @@ def test_collapse_consumes_expanded_features(lazy):
             "other_dataset": spec_model.Argument(id="other_dataset", type="dataframe"),
         },
     )
-    summary = spec_definition.entities["group"].datasets[0]
+    summary = spec_definition.entities["group"].datasets["summary"]
     summary.features = {"combined_maximum": spec.Feature(id="combined_maximum")}
     summary.mappings = {
         "nested": spec_model.Mapping(

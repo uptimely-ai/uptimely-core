@@ -13,7 +13,7 @@
   {{ section_header("Datasets", "Dataset schemas at a glance.", count=summary.dataset_count, count_label="datasets") }}
   <div class="space-y-8">
     {% for entity_id, entity in configuration.entities.items() %}
-      {% for dataset in entity.datasets %}
+      {% for dataset_id, dataset in entity.datasets.items() %}
       {% set schema = namespace(columns=[], producers={}) %}
       {% for mapping in dataset.mappings.values() %}
         {% set operation = mapping_operation(mapping, configuration.functions) %}
@@ -45,7 +45,7 @@
           <div>
             <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ entity.name or entity_id }}</p>
             {% set dataset_heading = "h2" %}
-            <{{ dataset_heading }} class="mt-2 break-words font-display text-xl font-semibold text-white">{{ dataset.id }}</{{ dataset_heading }}>
+            <{{ dataset_heading }} class="mt-2 break-words font-display text-xl font-semibold text-white">{{ dataset_id }}</{{ dataset_heading }}>
           </div>
           <span class="rounded-full bg-slate-800/70 px-3 py-1 font-mono text-[10px] text-slate-400">{{ columns|length }} columns</span>
         </header>
@@ -56,8 +56,8 @@
         {% if columns %}
         <div class="mt-6">
           <div class="dataset-table-scroll overflow-x-auto rounded-xl border border-slate-700/60">
-            <table data-dataset-schema="{{ dataset.id }}" class="w-full min-w-max border-collapse text-left font-mono text-xs">
-              <caption class="sr-only">Declared column types and units for {{ dataset.id }}; schema only, no sample records.</caption>
+            <table data-dataset-schema="{{ dataset_id }}" class="w-full min-w-max border-collapse text-left font-mono text-xs">
+              <caption class="sr-only">Declared column types and units for {{ dataset_id }}; schema only, no sample records.</caption>
               <thead>
                 <tr>
                   {% for column in columns %}

@@ -29,7 +29,7 @@ class CallableGraph:
         self._datasets = {
             (entity_id, dataset.id): dataset
             for entity_id, entity in spec.entities.items()
-            for dataset in entity.datasets
+            for dataset in entity.datasets.values()
         }
         # Map feature names to the callables that produce them
         self._feature_producers: dict[str, callable_node_module.CallableNode] = {}
@@ -42,7 +42,7 @@ class CallableGraph:
         nodes: dict[str, Node] = {}
 
         for entity_id, entity in self.spec.entities.items():
-            for dataset in entity.datasets:
+            for dataset in entity.datasets.values():
                 dataset_key = (entity_id, dataset.id)
                 for mapping in dataset.mappings.values():
                     operation = bindings.mapping_operation(mapping, self.spec.functions)

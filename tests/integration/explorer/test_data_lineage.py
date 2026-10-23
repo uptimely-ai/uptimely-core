@@ -246,7 +246,7 @@ def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -
 
 def test_lineage_omits_declared_row_grain(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    dataset = next(iter(spec_definition.entities.values())).datasets[0]
+    dataset = next(iter(next(iter(spec_definition.entities.values())).datasets.values()))
     dataset.row_scope.grain = "<script>alert('grain')</script>"
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")

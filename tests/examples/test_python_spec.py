@@ -96,7 +96,7 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert "maximum" not in spec_definition.functions.by_operation("vectorize")
     assert len(spec_definition.functions.by_operation("vectorize")) == 7
 
-    pump_dataset = spec_definition.entities["pump"].datasets[0]
+    pump_dataset = spec_definition.entities["pump"].datasets["pump_dataset"]
     collapse = pump_dataset.mappings["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.binding.function == "maximum"
@@ -110,7 +110,10 @@ def test_spec_from_entities_python_api(tmp_path: pathlib.Path) -> None:
         name=simple_analytics_module.python_spec.name,
     )
 
-    assert spec_definition.entities["simple_analytics"].datasets[0].id == "my_beautiful_dataset"
+    assert (
+        spec_definition.entities["simple_analytics"].datasets["my_beautiful_dataset"].id
+        == "my_beautiful_dataset"
+    )
     assert spec_definition.name == "Simple analytics"
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True
@@ -125,9 +128,12 @@ def test_example_timestamp_order_matches_python_declaration() -> None:
     expected = [{"dimension": "$dimensions.timestamp", "direction": "asc"}]
     for spec_definition in (authored, exported):
         assert [
-            key.model_dump() for key in spec_definition.entities["pump_telemetry"].datasets[0].order
+            key.model_dump()
+            for key in spec_definition.entities["pump_telemetry"]
+            .datasets["pump_telemetry_dataset"]
+            .order
         ] == expected
-        assert spec_definition.entities["pump"].datasets[0].order == []
+        assert spec_definition.entities["pump"].datasets["pump_dataset"].order == []
 
 
 def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None:
@@ -141,10 +147,10 @@ def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None
     spec.write_document(spec_definition, output_path)
 
     payload = json.loads(output_path.read_text(encoding="utf-8"))
-    dataset_payload = payload["entities"]["simple_analytics"]["datasets"][0]
+    dataset_payload = payload["entities"]["simple_analytics"]["datasets"]["my_beautiful_dataset"]
     assert {key: payload[key] for key in ("name", "spec_version", "source")} == {
         "name": "simple_analytics",
-        "spec_version": 1,
+        "spec_version": 2,
         "source": {"name": "python_api", "generated": True},
     }
     assert set(payload["functions"]) == {"read", "write", "sum_features", "column_4"}
@@ -157,7 +163,6 @@ def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None
         "sum_features": "sum_features",
     }
     assert set(dataset_payload) == {
-        "id",
         "description",
         "row_scope",
         "order",
@@ -263,7 +268,7 @@ def test_sources_and_transforms_python_spec() -> None:
         name="transforms_test",
     )
 
-    ds_model = spec_definition.entities["transforms_test"].datasets[0]
+    ds_model = spec_definition.entities["transforms_test"].datasets["target"]
     assert set(ds_model.mappings) == {"read", "expand_data"}
     assert {"target_value", "input_2"} <= set(ds_model.all_features)
     expand = ds_model.mappings["expand_data"]
@@ -273,7 +278,7 @@ def test_sources_and_transforms_python_spec() -> None:
         "df2": "$datasets.@.dataframe",
     }
     assert expand.input_features == ["input_1"]
-    collapse = spec_definition.entities["summary"].datasets[0].mappings["collapse_data"]
+    collapse = spec_definition.entities["summary"].datasets["summary"].mappings["collapse_data"]
     assert collapse.binding.function == "maximum"
     assert collapse.binding.args == {
         "dataset": "$datasets.target.dataframe",

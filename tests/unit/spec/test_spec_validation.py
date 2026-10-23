@@ -22,7 +22,7 @@ def _escape_configuration() -> dict:
         "entrypoint": "examples.pump_analytics.functions.calculation:maximum",
         "args": {"source": {"type": "dataframe"}},
     }
-    target = configuration["entities"]["pump_telemetry"]["datasets"][0]
+    target = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
     target["features"].update(
         {
             "external_first": {"type": "float"},
@@ -61,11 +61,11 @@ def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -
     model = spec_model.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     entity_id = next(iter(model.entities))
     entity = model.entities[entity_id]
-    dataset = entity.datasets[0]
+    dataset = next(iter(entity.datasets.values()))
     mapping = next(iter(dataset.mappings.values()))
     dataset.mappings["alias"] = mapping
     mapping.binding.function = "missing"
-    entity.datasets.append(dataset.model_copy(deep=True))
+    model.entities["duplicate"] = entity.model_copy(update={"id": "duplicate"}, deep=True)
 
     locations = list(context.SpecValidationContext.build(model).iter_mappings())
     declarations = list(references.iter_mapping_items(model))
@@ -100,8 +100,8 @@ def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -
 
 def test_validation_context_retains_duplicate_index_candidates() -> None:
     model = spec_model.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
-    pump_dataset = model.entities["pump"].datasets[0]
-    model.entities["pump"].datasets.append(pump_dataset.model_copy(deep=True))
+    pump_dataset = model.entities["pump"].datasets["pump_dataset"]
+    model.entities["pump_telemetry"].datasets[pump_dataset.id] = pump_dataset.model_copy(deep=True)
 
     validation_context = context.SpecValidationContext.build(model)
 
@@ -119,7 +119,7 @@ def test_validation_context_retains_duplicate_index_candidates() -> None:
     [
         {"spec_version": 0},
         {
-            "spec_version": 1,
+            "spec_version": 2,
             "functions": {"read": {"legacy_reader": {"entrypoint": "reader:load"}}},
         },
     ],
@@ -144,7 +144,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
             "target": {"type": "dataframe"},
         },
     }
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]
+    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
     dataset["features"]["expanded_feature"] = {"type": "float", "description": "Expanded feature"}
     dataset["mappings"]["expand_op"] = {
         "binding": {
@@ -163,17 +163,19 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     spec_path = tmp_path / "valid_mappings_spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
     parsed_spec = spec.load_spec(spec_path)
-    ds = parsed_spec.entities["pump_telemetry"].datasets[0]
+    ds = parsed_spec.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
 
     assert "read_pump_telemetry" in ds.mappings
     assert "expand_op" in ds.mappings
     assert "expanded_feature" in ds.all_features
 
     bad_source_config = json.loads(json.dumps(configuration))
-    bad_source_config["entities"]["pump_telemetry"]["datasets"][0]["features"][
-        "bad_source_feature"
-    ] = {"type": "float"}
-    bad_source_config["entities"]["pump_telemetry"]["datasets"][0]["mappings"]["bad_source"] = {
+    bad_source_config["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "features"
+    ]["bad_source_feature"] = {"type": "float"}
+    bad_source_config["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "mappings"
+    ]["bad_source"] = {
         "binding": {"function": "missing_read", "args": {}},
         "features": {"inputs": [], "outputs": ["$features.bad_source_feature"]},
     }
@@ -183,12 +185,12 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         spec.load_spec(bad_source_path)
 
     bad_transform_config = json.loads(json.dumps(configuration))
-    bad_transform_config["entities"]["pump_telemetry"]["datasets"][0]["features"][
-        "bad_transform_feature"
-    ] = {"type": "float"}
-    bad_transform_config["entities"]["pump_telemetry"]["datasets"][0]["mappings"][
-        "bad_transform"
-    ] = {
+    bad_transform_config["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "features"
+    ]["bad_transform_feature"] = {"type": "float"}
+    bad_transform_config["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "mappings"
+    ]["bad_transform"] = {
         "binding": {"function": "missing_expand", "args": {}},
         "features": {
             "inputs": ["$features.bearing_temperature_max"],
@@ -208,7 +210,7 @@ def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_ch
     path.write_text(json.dumps(_escape_configuration()), encoding="utf-8")
 
     parsed_spec = spec.load_spec(path)
-    mappings = parsed_spec.entities["pump_telemetry"].datasets[0].mappings
+    mappings = parsed_spec.entities["pump_telemetry"].datasets["pump_telemetry_dataset"].mappings
 
     assert mappings["escape_first"].input_features == [
         "bearing_temperature",
@@ -255,9 +257,9 @@ def test_escape_mappings_require_declared_inputs_and_outputs(
     path_suffix: tuple[str, ...] | None,
 ) -> None:
     configuration = _escape_configuration()
-    mapping_definition = configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"][
-        "escape_first"
-    ]
+    mapping_definition = configuration["entities"]["pump_telemetry"]["datasets"][
+        "pump_telemetry_dataset"
+    ]["mappings"]["escape_first"]
     mapping_definition["features"][field] = value
     path = tmp_path / "invalid_escape.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -273,7 +275,9 @@ def test_escape_mappings_require_declared_inputs_and_outputs(
 
 def test_escape_mappings_reject_duplicate_feature_producers(tmp_path: pathlib.Path) -> None:
     configuration = _escape_configuration()
-    mappings = configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"]
+    mappings = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "mappings"
+    ]
     duplicate = json.loads(json.dumps(mappings["escape_first"]))
     duplicate["features"]["outputs"] = ["$features.external_first"]
     mappings["escape_duplicate"] = duplicate
@@ -286,7 +290,9 @@ def test_escape_mappings_reject_duplicate_feature_producers(tmp_path: pathlib.Pa
 
 def test_escape_dependencies_reject_cycles(tmp_path: pathlib.Path) -> None:
     configuration = _escape_configuration()
-    first = configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"]["escape_first"]
+    first = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "mappings"
+    ]["escape_first"]
     first["features"]["inputs"] = ["$features.external_third"]
     path = tmp_path / "escape_cycle.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -341,7 +347,7 @@ def test_expand_mapping_requires_lower_dimensional_feature_input(tmp_path: pathl
             "target": {"type": "dataframe"},
         },
     }
-    target = configuration["entities"]["pump_telemetry"]["datasets"][0]
+    target = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
     target["features"]["expanded_feature"] = {"type": "float"}
     target["mappings"]["expand_op"] = {
         "binding": {
@@ -374,7 +380,7 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
             "target": {"type": "dataframe"},
         },
     }
-    target = configuration["entities"]["pump"]["datasets"][0]
+    target = configuration["entities"]["pump"]["datasets"]["pump_dataset"]
     target["features"]["conformed_feature"] = {"type": "float"}
     target["mappings"]["conform_op"] = {
         "binding": {
@@ -399,9 +405,9 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
 @pytest.mark.parametrize("mapping_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
 def test_mapping_rejects_explicit_source(tmp_path: pathlib.Path, mapping_id: str) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["entities"]["pump"]["datasets"][0]["mappings"][mapping_id]["source"] = (
-        "$datasets.pump_telemetry_dataset"
-    )
+    configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][mapping_id][
+        "source"
+    ] = "$datasets.pump_telemetry_dataset"
     invalid_operation_path = tmp_path / "invalid_aggregation_operation.json"
     invalid_operation_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -429,7 +435,7 @@ def test_collapse_validates_source_grouping_and_output_contract(
     tmp_path: pathlib.Path, field: str, value: object, message: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
+    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
         "bearing_temperature_by_pump"
     ]
     collapse[field] = value
@@ -453,7 +459,7 @@ def test_collapse_validates_explicit_inputs(
     tmp_path: pathlib.Path, inputs: list, message: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
+    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
         "bearing_temperature_by_pump"
     ]
     collapse["features"]["inputs"] = inputs
@@ -468,7 +474,7 @@ def test_removed_aggregation_and_wrapper_schemas_are_rejected(
     tmp_path: pathlib.Path, legacy: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
+    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
         "bearing_temperature_by_pump"
     ]
     if legacy == "catalog":
@@ -530,7 +536,7 @@ def test_collapse_rejects_inputs_from_multiple_datasets(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     references = ["$features.bearing_temperature", "$features.health_signal_normalized"]
-    collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
+    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
         "bearing_temperature_by_pump"
     ]
     collapse["features"]["inputs"] = references
@@ -544,7 +550,7 @@ def test_collapse_dimensions_alone_do_not_identify_input_dataset(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    collapse = configuration["entities"]["pump"]["datasets"][0]["mappings"][
+    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
         "bearing_temperature_by_pump"
     ]
     collapse["features"]["inputs"] = ["$features.pump"]

@@ -217,7 +217,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "Column metadata" not in datasets
     assert "Type / unit" not in datasets
     for entity in spec_definition.entities.values():
-        for dataset in entity.datasets:
+        for dataset in entity.datasets.values():
             table = re.search(
                 rf'<table data-dataset-schema="{dataset.id}".*?</table>', datasets, re.DOTALL
             ).group()
@@ -311,7 +311,9 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
     assert "<title>Pump analytics | OpenAnalytics</title>" in document
     assert heading_titles(document) == ["Pump analytics"]
     datasets = [
-        dataset for entity in spec_definition.entities.values() for dataset in entity.datasets
+        dataset
+        for entity in spec_definition.entities.values()
+        for dataset in entity.datasets.values()
     ]
     assert dict(re.findall(r'data-stat="([^"]+)" data-value="(\d+)"', document)) == {
         "Entities": str(len(spec_definition.entities)),
@@ -321,7 +323,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         "Callables": str(len(expected_plan.callables)),
         "Stages": str(len(expected_plan.execution_stages)),
     }
-    assert "Spec 1" in document
+    assert "Spec 2" in document
     assert 'aria-label="Project counts"' in document
     assert 'aria-label="Spec journey"' in document
     assert re.findall(r'<li class="journey-step (\S+) icon--\1">', document) == [

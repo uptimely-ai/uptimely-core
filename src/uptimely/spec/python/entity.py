@@ -31,5 +31,5 @@ class Entity:
             name=self.name,
             description=self.description,
             dimensions=[dimension.to_model() for dimension in self.dimensions],
-            datasets=[dataset.to_model() for dataset in self.datasets],
+            datasets=dataset_module.to_models(self.datasets),
         )

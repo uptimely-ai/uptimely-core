@@ -67,7 +67,7 @@ def _build_stages(
     datasets = {
         dataset.id: dataset
         for entity in spec_definition.entities.values()
-        for dataset in entity.datasets
+        for dataset in entity.datasets.values()
     }
     feature_types = {
         name: feature.type or "Unspecified"

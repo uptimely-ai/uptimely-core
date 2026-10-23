@@ -78,7 +78,7 @@ def to_model(
                 declarations.extend(entity.datasets)
                 canonical = entity.to_model()
             elif isinstance(entity, spec_model.Entity):
-                declarations.extend(entity.datasets)
+                declarations.extend(entity.datasets.values())
                 canonical = entity
             else:
                 raise TypeError("entities must contain Entity declarations or canonical models")
@@ -95,7 +95,7 @@ def to_model(
                 id=entity_id,
                 name=entity_id,
                 dimensions=list(dimension_values.values()),
-                datasets=[_dataset(declaration) for declaration in declarations],
+                datasets=dataset_module.to_models(declarations),
             )
         }
 
@@ -119,17 +119,6 @@ def to_model(
             "entities": entity_values,
         }
     )
-
-
-def _dataset(
-    declaration: dataset_module.Dataset | spec_model.Dataset,
-) -> spec_model.Dataset:
-    """Convert one dataset without accepting entity declarations in its place."""
-    if isinstance(declaration, dataset_module.Dataset):
-        return declaration.to_model()
-    if isinstance(declaration, spec_model.Dataset):
-        return declaration
-    raise TypeError("datasets must contain Dataset declarations or canonical models")
 
 
 def _dimensions(resources: Dimensions | None) -> dict[str, spec_model.Dimension]:

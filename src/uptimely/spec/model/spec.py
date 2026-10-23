@@ -10,7 +10,7 @@ from . import common
 from . import dataset as dataset_module
 from . import functions as functions_module
 
-SPEC_VERSION = 1
+SPEC_VERSION = 2
 
 
 def _with_mapping_ids(value: typing.Any) -> typing.Any:
@@ -39,7 +39,7 @@ class Spec(common.StrictModel):
     """The complete JSON spec document."""
 
     name: str | None = None
-    spec_version: typing.Literal[1] = SPEC_VERSION
+    spec_version: typing.Literal[2] = SPEC_VERSION
     source: common.SpecSource = pydantic.Field(
         default_factory=lambda: common.SpecSource(name="manual", generated=False)
     )
@@ -82,12 +82,18 @@ class Spec(common.StrictModel):
                 else dimension
                 for dimension in entity.get("dimensions", []) or []
             ]
-            datasets = [
-                dict(dataset) if isinstance(dataset, dict) else dataset
-                for dataset in entity.get("datasets", []) or []
-            ]
+            datasets = entity.get("datasets", {})
+            if not isinstance(datasets, dict):
+                continue
+            for dataset_id, dataset in datasets.items():
+                if isinstance(dataset, dict) and "id" in dataset:
+                    raise ValueError(
+                        f"Dataset {dataset_id} must use its object key as identifier, "
+                        "not an 'id' attribute"
+                    )
+            datasets = _with_mapping_ids(datasets)
             entity["datasets"] = datasets
-            for dataset in datasets:
+            for dataset in datasets.values():
                 if isinstance(dataset, dict):
                     dataset["features"] = _with_mapping_ids(dataset.get("features", {}) or {})
                     dataset["mappings"] = _with_mapping_ids(dataset.get("mappings", {}) or {})

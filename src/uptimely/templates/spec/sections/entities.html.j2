@@ -4,7 +4,7 @@
 {%- endmacro %}
 {% set total = namespace(feature_count=0) %}
 {% for entity in configuration.entities.values() %}
-  {% for dataset in entity.datasets %}
+  {% for dataset_id, dataset in entity.datasets.items() %}
     {% for mapping in dataset.mappings.values() %}
       {% for reference in mapping.features.outputs %}
         {% set feature_id = reference.removeprefix("$features.") %}
@@ -17,14 +17,14 @@
   {{ section_header("Features", "Browse feature declarations by dataset; escape outputs are shown as external boundaries.", count=total.feature_count, count_label="features") }}
   <div class="space-y-5">
     {% for entity_id, entity in configuration.entities.items() %}
-      {% for dataset in entity.datasets %}
+      {% for dataset_id, dataset in entity.datasets.items() %}
       <section>
         <header class="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p class="font-mono text-xs text-slate-400"><span class="uppercase tracking-wider text-slate-500">Entity:</span> {{ entity.name or entity_id }}</p>
             {% set dataset_heading = "h2" %}
             <{{ dataset_heading }} class="mt-2 font-display text-xl font-semibold tracking-tight text-cyan-100">
-              <span class="mr-2 font-mono text-[10px] font-medium uppercase tracking-wider text-cyan-400">Dataset name:</span>{{ dataset.id }}
+              <span class="mr-2 font-mono text-[10px] font-medium uppercase tracking-wider text-cyan-400">Dataset name:</span>{{ dataset_id }}
             </{{ dataset_heading }}>
           </div>
           {% set ns = namespace(feature_count=0) %}

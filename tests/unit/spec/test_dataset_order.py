@@ -22,7 +22,7 @@ ORDER = [
 
 def _configuration() -> dict[str, typing.Any]:
     return {
-        "spec_version": 1,
+        "spec_version": 2,
         "dimensions": {
             "machine": {"type": "string"},
             "timestamp": {"type": "datetime"},
@@ -33,7 +33,7 @@ def _configuration() -> dict[str, typing.Any]:
             "telemetry": {
                 "name": "Telemetry",
                 "dimensions": ["machine", "timestamp"],
-                "datasets": [{"id": "observations", "order": ORDER}],
+                "datasets": {"observations": {"order": ORDER}},
             }
         },
     }
@@ -41,7 +41,7 @@ def _configuration() -> dict[str, typing.Any]:
 
 def _parse(tmp_path: pathlib.Path, order: object) -> spec.Spec:
     configuration = _configuration()
-    configuration["entities"]["telemetry"]["datasets"][0]["order"] = order
+    configuration["entities"]["telemetry"]["datasets"]["observations"]["order"] = order
     path = tmp_path / "input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     return spec.load_spec(path)
@@ -49,23 +49,23 @@ def _parse(tmp_path: pathlib.Path, order: object) -> spec.Spec:
 
 def test_dataset_order_json_round_trip_preserves_precedence(tmp_path: pathlib.Path) -> None:
     spec_definition = _parse(tmp_path, ORDER)
-    keys = spec_definition.entities["telemetry"].datasets[0].order
+    keys = spec_definition.entities["telemetry"].datasets["observations"].order
     assert keys == [spec.Order(**key) for key in ORDER]
 
     path = tmp_path / "export.json"
     spec.write_document(spec_definition, path)
     payload = json.loads(path.read_text(encoding="utf-8"))
-    assert payload["entities"]["telemetry"]["datasets"][0]["order"] == ORDER
-    assert spec.load_spec(path).entities["telemetry"].datasets[0].order == keys
+    assert payload["entities"]["telemetry"]["datasets"]["observations"]["order"] == ORDER
+    assert spec.load_spec(path).entities["telemetry"].datasets["observations"].order == keys
 
 
 def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.Path) -> None:
-    assert _parse(tmp_path, []).entities["telemetry"].datasets[0].order == []
+    assert _parse(tmp_path, []).entities["telemetry"].datasets["observations"].order == []
     configuration = _configuration()
-    del configuration["entities"]["telemetry"]["datasets"][0]["order"]
+    del configuration["entities"]["telemetry"]["datasets"]["observations"]["order"]
     path = tmp_path / "omitted.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    assert spec.load_spec(path).entities["telemetry"].datasets[0].order == []
+    assert spec.load_spec(path).entities["telemetry"].datasets["observations"].order == []
 
     first = spec.Dataset(id="first")
     second = spec.Dataset(id="second")
@@ -175,12 +175,12 @@ def test_dataset_order_python_authoring_matches_json(
         spec_definition = spec.from_python(
             datasets=[declaration], dimensions=dimensions, name="telemetry"
         )
-    assert spec_definition.entities["telemetry"].datasets[0].order == (
-        _parse(tmp_path, ORDER).entities["telemetry"].datasets[0].order
+    assert spec_definition.entities["telemetry"].datasets["observations"].order == (
+        _parse(tmp_path, ORDER).entities["telemetry"].datasets["observations"].order
     )
     path = tmp_path / "python.json"
     spec.write_document(spec_definition, path)
-    assert spec.load_spec(path).entities["telemetry"].datasets[0].order == [
+    assert spec.load_spec(path).entities["telemetry"].datasets["observations"].order == [
         spec.Order(**key) for key in ORDER
     ]
 

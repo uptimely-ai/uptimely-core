@@ -150,7 +150,7 @@ class FeatureGraph(GraphBase):
         ] = []
 
         for entity_id, entity in spec.entities.items():
-            for dataset in entity.datasets:
+            for dataset in entity.datasets.values():
                 for operation_id, mapping in dataset.mappings.items():
                     function = spec.functions[mapping.binding.function]
                     dependencies = mapping.input_features
@@ -223,7 +223,7 @@ class FeatureGraph(GraphBase):
             )
 
         for entity_id, entity in self.spec.entities.items():
-            for dataset in entity.datasets:
+            for dataset in entity.datasets.values():
                 for mapping in dataset.mappings.values():
                     operation = bindings.mapping_operation(mapping, self.spec.functions)
                     for name in mapping.output_features:

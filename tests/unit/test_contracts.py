@@ -102,9 +102,8 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
             "entities": {
                 "entity": {
                     "name": "Entity",
-                    "datasets": [
-                        {
-                            "id": "dataset",
+                    "datasets": {
+                        "dataset": {
                             "mappings": {
                                 "zero_argument": {
                                     "binding": {"function": "zero_argument", "args": {}}
@@ -115,9 +114,9 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
                                         "args": {"value": 1.5},
                                     }
                                 },
-                            },
+                            }
                         }
-                    ],
+                    },
                 }
             },
         }

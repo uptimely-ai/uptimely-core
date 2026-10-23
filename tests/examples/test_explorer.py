@@ -40,7 +40,9 @@ class TextCollector(html_parser.HTMLParser):
 
 def _explorer_counts(spec_definition: spec.Spec) -> dict[str, int]:
     datasets = [
-        dataset for entity in spec_definition.entities.values() for dataset in entity.datasets
+        dataset
+        for entity in spec_definition.entities.values()
+        for dataset in entity.datasets.values()
     ]
     feature_count = sum(len(dataset.features) for dataset in datasets)
     function_count = len(spec_definition.functions)
@@ -105,7 +107,7 @@ def test_explorer_context_counts_match_spec() -> None:
             "dependencies": mapping.input_features,
         }
         for entity in spec_definition.entities.values()
-        for dataset in entity.datasets
+        for dataset in entity.datasets.values()
         for mapping in dataset.mappings.values()
         if spec_definition.functions[mapping.binding.function].operation in {"escape", "vectorize"}
         for feature in mapping.output_features

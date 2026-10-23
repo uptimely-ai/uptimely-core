@@ -196,7 +196,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             {
                 feature_id
                 for entity in spec_definition.entities.values()
-                for dataset in entity.datasets
+                for dataset in entity.datasets.values()
                 for mapping in dataset.mappings.values()
                 if hasattr(mapping, "binding")
                 if (

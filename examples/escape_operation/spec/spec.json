@@ -1,6 +1,6 @@
 {
   "name": "Escape operation example",
-  "spec_version": 1,
+  "spec_version": 2,
   "source": {
     "name": "json",
     "generated": false
@@ -31,9 +31,8 @@
     "asset": {
       "name": "Asset",
       "dimensions": ["asset_id"],
-      "datasets": [
-        {
-          "id": "external_workflow",
+      "datasets": {
+        "external_workflow": {
           "description": "Feature declarations for the external workflow.",
           "row_scope": {
             "grain": "One row per asset"
@@ -81,12 +80,14 @@
                   "$features.measurement",
                   "$features.reference_value"
                 ],
-                "outputs": ["$features.ratio"]
+                "outputs": [
+                  "$features.ratio"
+                ]
               }
             }
           }
         }
-      ]
+      }
     }
   }
 }
