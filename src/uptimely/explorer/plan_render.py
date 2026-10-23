@@ -11,6 +11,7 @@ import typing
 
 from uptimely import project
 from uptimely.compiler import plan as uptimely_plan
+from uptimely.spec import operations
 
 from . import graph_render, render
 
@@ -75,14 +76,14 @@ def _render_step(
         "dataset": callable.dataset_id,
         "feature": (
             ", ".join(callable.output_features)
-            if callable.operation in {"collapse", "escape"}
+            if callable.operation in {operations.COLLAPSE, operations.ESCAPE}
             else callable.output
-            if callable.operation == "vectorize"
+            if callable.operation == operations.VECTORIZE
             else None
         ),
         "input_features": callable.input_features,
         "output_features": callable.output_features,
-        "uncontrolled": callable.operation == "escape",
+        "uncontrolled": callable.operation == operations.ESCAPE,
         "row_context": callable.row_context.to_dict() if callable.row_context else None,
         "depends_on_callables": [
             {
@@ -162,9 +163,9 @@ def _create_website_pages(
             "dataset_id": callable.dataset_id,
             "feature": (
                 ", ".join(callable.output_features)
-                if callable.operation == "escape"
+                if callable.operation == operations.ESCAPE
                 else callable.output
-                if callable.operation == "vectorize"
+                if callable.operation == operations.VECTORIZE
                 else None
             ),
             "input_features": callable.input_features,
@@ -219,7 +220,7 @@ def _create_website_pages(
             {
                 callable.output
                 for callable in plan.callables
-                if callable.operation == "vectorize" and callable.output is not None
+                if callable.operation == operations.VECTORIZE and callable.output is not None
             }
         ),
         "stage_count": len(stages),

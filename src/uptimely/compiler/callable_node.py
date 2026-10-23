@@ -4,6 +4,7 @@ import dataclasses
 
 from uptimely import row_context
 from uptimely.explorer import render
+from uptimely.spec import operations
 
 
 @dataclasses.dataclass(frozen=True)
@@ -13,7 +14,7 @@ class CallableNode:
     function_id: str
     entity: str
     feature: str | None = None
-    operation: str = "vectorize"
+    operation: operations.FunctionOperation = operations.VECTORIZE
     dataset_id: str | None = None
     mapping_id: str | None = None
     output_features: tuple[str, ...] = ()
@@ -50,6 +51,6 @@ class CallableNode:
             feature=self.feature,
             output_features=list(self.output_features),
             depends_on_features=(
-                list(self.input_features) if self.operation == "vectorize" else None
+                list(self.input_features) if self.operation == operations.VECTORIZE else None
             ),
         )

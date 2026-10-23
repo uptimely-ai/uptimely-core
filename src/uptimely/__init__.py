@@ -1,8 +1,7 @@
 """Public package namespace for uptimely."""
 
-from .compiler import CallableGraph, CallableNode, Compiler, ExecutionPlan
-from .engine import Engine
-from .spec import (
+# Load spec first because its public API initializes RowContext for the compiler.
+from .spec import (  # noqa: I001
     Dimension,
     Entity,
     FeatureGraph,
@@ -13,6 +12,8 @@ from .spec import (
     load_spec,
     write_document,
 )
+from .compiler import CallableGraph, CallableNode, Compiler, ExecutionPlan
+from .engine import Engine
 
 __all__ = [
     "Spec",

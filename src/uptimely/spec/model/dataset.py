@@ -7,8 +7,8 @@ import typing
 
 import pydantic
 
-from uptimely import contracts
 from uptimely import row_context as uptimely_row_context
+from uptimely.spec import selectors
 
 from . import common
 
@@ -33,10 +33,10 @@ class MappingFeatures(common.StrictModel):
     def validate_references(cls, values: list[str]) -> list[str]:
         """Require distinct feature references without value selectors."""
         if any(
-            not value.startswith(contracts.FEATURE_PREFIX)
-            or "." in value[len(contracts.FEATURE_PREFIX) :]
-            or not value[len(contracts.FEATURE_PREFIX) :]
-            or value[len(contracts.FEATURE_PREFIX) :] == contracts.CURRENT_ID
+            not value.startswith(selectors.FEATURE_PREFIX)
+            or "." in value[len(selectors.FEATURE_PREFIX) :]
+            or not value[len(selectors.FEATURE_PREFIX) :]
+            or value[len(selectors.FEATURE_PREFIX) :] == selectors.CURRENT_ID
             for value in values
         ):
             raise ValueError("Mapping features must use $features.<id> references")
@@ -56,18 +56,18 @@ class Mapping(common.StrictModel):
     @property
     def input_features(self) -> list[str]:
         """Return identifiers of required materialized features."""
-        return [value.removeprefix(contracts.FEATURE_PREFIX) for value in self.features.inputs]
+        return [value.removeprefix(selectors.FEATURE_PREFIX) for value in self.features.inputs]
 
     @property
     def output_features(self) -> list[str]:
         """Return identifiers of produced features."""
-        return [value.removeprefix(contracts.FEATURE_PREFIX) for value in self.features.outputs]
+        return [value.removeprefix(selectors.FEATURE_PREFIX) for value in self.features.outputs]
 
 
 class Order(common.StrictModel):
     """One logical dataset ordering key, without a physical row-order guarantee."""
 
-    dimension: str = pydantic.Field(pattern=rf"^{re.escape(contracts.DIMENSION_PREFIX)}.+$")
+    dimension: str = pydantic.Field(pattern=rf"^{re.escape(selectors.DIMENSION_PREFIX)}.+$")
     direction: typing.Literal["asc", "desc"]
 
 

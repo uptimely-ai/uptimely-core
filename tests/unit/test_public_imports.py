@@ -28,6 +28,7 @@ def test_removed_compatibility_paths_are_unavailable_in_fresh_process() -> None:
         "uptimely.compile.execution_graph",
         "uptimely.compile.node",
         "uptimely.compile.render",
+        "uptimely.contracts",
         "uptimely.compiler.entrypoint",
         "uptimely.spec.explorer_render",
         "uptimely.spec.graph_render",

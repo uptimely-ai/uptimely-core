@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import collections.abc
 
-from uptimely import contracts
-
 from . import model as spec_model
+from . import operations
 
 
 def function_template(
     function_id: str,
-    operation: contracts.FunctionOperation,
+    operation: operations.FunctionOperation,
     entrypoint: str,
     args: dict[str, spec_model.Argument],
     *,
@@ -21,7 +20,7 @@ def function_template(
     return spec_model.FunctionTemplate(
         id=function_id,
         operation=operation,
-        returns=contracts.OPERATION_RETURN_KINDS[operation],
+        returns=operations.OPERATION_RETURN_KINDS[operation],
         entrypoint=entrypoint,
         validate_signature=validate_signature,
         args=args,

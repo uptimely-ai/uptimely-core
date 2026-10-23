@@ -107,4 +107,4 @@ nav:
       - row_context: reference/api/row-context.md
       - entrypoint: reference/api/entrypoint.md
       - storage: reference/api/storage.md
-      - contracts: reference/api/contracts.md
+      - spec vocabulary: reference/api/spec-vocabulary.md

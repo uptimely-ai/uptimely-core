@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from uptimely import contracts
 from uptimely.spec import model as spec_model
 
+from .. import operations
 from . import context as context_module
 from . import errors
 
@@ -14,7 +14,7 @@ def validate_return_kind(
 ) -> context_module.ValidationResult:
     """Require the return kind defined by the function's operation."""
     operation = function.operation
-    expected = contracts.OPERATION_RETURN_KINDS[operation]
+    expected = operations.OPERATION_RETURN_KINDS[operation]
     if function.returns != expected:
         return errors.SpecError(
             f"Operation {operation} must declare returns={expected}",
@@ -31,7 +31,7 @@ def validate_dataframe_count(
 ) -> context_module.ValidationResult:
     """Require the dataframe argument count defined by the operation."""
     operation = function.operation
-    expected = contracts.DATAFRAME_INPUT_COUNTS[operation]
+    expected = operations.DATAFRAME_INPUT_COUNTS[operation]
     if expected is not None and dataframe_inputs != expected:
         return errors.SpecError(
             f"Operation {operation} requires {expected} dataframe "

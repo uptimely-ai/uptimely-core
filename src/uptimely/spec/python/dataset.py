@@ -6,10 +6,10 @@ import dataclasses
 import typing
 from collections import abc
 
-from uptimely import contracts
 from uptimely.spec import catalog as function_catalog
 from uptimely.spec import model as spec_model
 
+from .. import selectors
 from . import bind, feature, ref
 from . import mappings as mapping_declarations
 
@@ -84,13 +84,13 @@ class Dataset:
                 if isinstance(output, feature.Feature):
                     feature_models.setdefault(output.id, output.to_model())
                 elif isinstance(output, ref.Reference):
-                    feature_id = output.value.removeprefix(contracts.FEATURE_PREFIX)
+                    feature_id = output.value.removeprefix(selectors.FEATURE_PREFIX)
                     if feature_id not in feature_models:
                         raise ValueError(
                             f"Mapping '{model.id}' references undeclared feature '{feature_id}'"
                         )
-                elif output.startswith(contracts.FEATURE_PREFIX):
-                    feature_id = output.removeprefix(contracts.FEATURE_PREFIX)
+                elif output.startswith(selectors.FEATURE_PREFIX):
+                    feature_id = output.removeprefix(selectors.FEATURE_PREFIX)
                     if feature_id not in feature_models:
                         raise ValueError(
                             f"Mapping '{model.id}' references undeclared feature '{feature_id}'"

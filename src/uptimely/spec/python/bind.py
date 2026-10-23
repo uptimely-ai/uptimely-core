@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 import typing
 
+from .. import arg_types
 from . import ref, row_context
 
 __all__ = [
@@ -76,34 +77,34 @@ def _binding_value(value: typing.Any) -> typing.Any:
     return value
 
 
-def _argument_definition(value: typing.Any) -> dict[str, typing.Any]:
+def _argument_definition(value: typing.Any) -> dict[str, str]:
     """Infer a recursive function-argument schema from a bound value."""
     if isinstance(value, row_context.RowContextBinding):
         return _argument_definition(value.value)
     if isinstance(value, ref.Reference):
-        return {"type": "dataframe" if value.type == "dataset" else "string"}
+        return {"type": arg_types.DATAFRAME if value.type == "dataset" else arg_types.STRING}
     if isinstance(value, (list, tuple)):
         item_definitions = [_argument_definition(item) for item in value]
         if item_definitions and all(item == item_definitions[0] for item in item_definitions[1:]):
-            return {"type": f"array[{item_definitions[0]['type']}]"}
-        return {"type": "array"}
+            return {"type": arg_types.array_of(item_definitions[0]["type"])}
+        return {"type": arg_types.ARRAY}
     if isinstance(value, dict):
         if value and all(isinstance(key, str) for key in value):
             value_definitions = [_argument_definition(item) for item in value.values()]
             if value_definitions and all(
                 item == value_definitions[0] for item in value_definitions[1:]
             ):
-                return {"type": f"object{{str: {value_definitions[0]['type']}}}"}
-        return {"type": "object"}
+                return {"type": arg_types.object_values_of(value_definitions[0]["type"])}
+        return {"type": arg_types.OBJECT}
     if isinstance(value, bool):
-        return {"type": "boolean"}
+        return {"type": arg_types.BOOLEAN}
     if isinstance(value, int):
-        return {"type": "integer"}
+        return {"type": arg_types.INTEGER}
     if isinstance(value, float):
-        return {"type": "float"}
+        return {"type": arg_types.FLOAT}
     if isinstance(value, str):
-        return {"type": "string"}
-    return {"type": "object"}
+        return {"type": arg_types.STRING}
+    return {"type": arg_types.OBJECT}
 
 
 def _function_id(bind: Bind) -> str:

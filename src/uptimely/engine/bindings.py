@@ -4,6 +4,7 @@ import typing
 from collections import abc
 
 from uptimely.compiler import plan as plan_module
+from uptimely.spec import arg_types
 
 from . import state as state_module
 
@@ -40,7 +41,7 @@ class RuntimeBindings:
         """Recursively resolve one typed plan binding value."""
         if hasattr(value, "model_dump"):
             value = value.model_dump()
-        if argument_type == "dataframe" and isinstance(value, str):
+        if argument_type == arg_types.DATAFRAME and isinstance(value, str):
             frame = self.state.dataframe_by_id(value)
             if frame is None:
                 raise ValueError(f"Dataset dataframe is unavailable: {value}")
@@ -49,16 +50,12 @@ class RuntimeBindings:
             return self.resolve_runtime_reference(value)
         if isinstance(value, list):
             element_type = (
-                argument_type[6:-1]
-                if argument_type is not None and argument_type.startswith("array[")
-                else None
+                arg_types.array_item_type(argument_type) if argument_type is not None else None
             )
             return [self.resolve_value(item, element_type) for item in value]
         if isinstance(value, dict):
             value_type = (
-                argument_type[12:-1]
-                if argument_type is not None and argument_type.startswith("object{str: ")
-                else None
+                arg_types.object_value_type(argument_type) if argument_type is not None else None
             )
             return {name: self.resolve_value(item, value_type) for name, item in value.items()}
         return value

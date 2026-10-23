@@ -5,9 +5,9 @@ from __future__ import annotations
 import dataclasses
 import typing
 
-from uptimely import contracts
 from uptimely.spec import model as spec_model
 
+from .. import operations, selectors
 from . import bind as bind_module
 from . import feature as feature_module
 from . import ref
@@ -42,7 +42,7 @@ class Mapping:
         )
 
     @property
-    def operation(self) -> contracts.FunctionOperation:
+    def operation(self) -> operations.FunctionOperation:
         """Return the operation declared by this mapping's function reference."""
         operation = self.bind.function.operation
         if operation is None:
@@ -63,10 +63,10 @@ class Mapping:
             ),
             features={
                 "inputs": [
-                    f"{contracts.FEATURE_PREFIX}{_feature_id(feature)}" for feature in self.inputs
+                    f"{selectors.FEATURE_PREFIX}{_feature_id(feature)}" for feature in self.inputs
                 ],
                 "outputs": [
-                    f"{contracts.FEATURE_PREFIX}{_feature_id(feature)}" for feature in self.outputs
+                    f"{selectors.FEATURE_PREFIX}{_feature_id(feature)}" for feature in self.outputs
                 ],
             },
             row_context=self.row_context,
@@ -77,11 +77,11 @@ def _feature_id(feature: feature_module.Feature | ref.Reference | str) -> str:
     """Return a mapping output's feature identifier."""
     if isinstance(feature, ref.Reference):
         prefix, _, identifier = feature.value.rpartition(".")
-        if prefix != contracts.FEATURE_PREFIX.removesuffix("."):
+        if prefix != selectors.FEATURE_PREFIX.removesuffix("."):
             raise ValueError(f"Mapping output must reference a feature, got {feature.value!r}")
         return identifier
     if not isinstance(feature, str):
         return feature.id
-    if feature.startswith(contracts.FEATURE_PREFIX):
-        return feature.removeprefix(contracts.FEATURE_PREFIX)
+    if feature.startswith(selectors.FEATURE_PREFIX):
+        return feature.removeprefix(selectors.FEATURE_PREFIX)
     return feature

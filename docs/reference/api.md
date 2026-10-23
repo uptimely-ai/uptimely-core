@@ -21,7 +21,9 @@ and return values generated from the Python source.
 | `uptimely.row_context` | [Row context](api/row-context.md) | Describe row windows passed to analytical functions. |
 | `uptimely.entrypoint` | [Python entrypoints](api/entrypoint.md) | Load Python callables and inspect their signatures. |
 | `uptimely.storage` | [Storage](api/storage.md) | Read local files and S3 objects through a shared interface. |
-| `uptimely.contracts` | [Function contracts](api/contracts.md) | Inspect operation types, return kinds, and reference syntax. |
+| `uptimely.spec.operations` | [Spec vocabulary](api/spec-vocabulary.md) | Inspect operations, return kinds, and operation rules. |
+| `uptimely.spec.arg_types` | [Spec vocabulary](api/spec-vocabulary.md) | Inspect atomic and recursive argument types. |
+| `uptimely.spec.selectors` | [Spec vocabulary](api/spec-vocabulary.md) | Inspect structural reference prefixes and selectors. |
 
 ## Finding the right interface
 

@@ -9,6 +9,7 @@ from collections import abc
 
 from uptimely import entrypoint, spec
 from uptimely.spec import model as spec_model
+from uptimely.spec import operations
 from uptimely.spec import references as bindings
 
 from . import callable_node as callable_node_module
@@ -130,9 +131,9 @@ class Compiler:
                     for feature in node.output_features
                     if feature not in self.spec.entities[node.entity].dimension_ids
                 )
-                if node.operation == "collapse"
+                if node.operation == operations.COLLAPSE
                 else node.feature
-                if node.operation == "vectorize"
+                if node.operation == operations.VECTORIZE
                 else None
             ),
         )

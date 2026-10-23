@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 from collections import abc
 
-from uptimely import contracts
+from .. import arg_types, operations, selectors
 
 __all__ = [
     "Reference",
@@ -26,7 +26,7 @@ class FunctionReference:
 
     module: str
     name: str
-    operation: contracts.FunctionOperation | None = None
+    operation: operations.FunctionOperation | None = None
     validate_signature: bool = True
 
     def __post_init__(self) -> None:
@@ -38,7 +38,7 @@ class FunctionReference:
             raise TypeError("Function reference name must be a string")
         if not self.name.isidentifier():
             raise ValueError("Function reference name must be a Python identifier")
-        if self.operation is not None and self.operation not in contracts.FUNCTION_OPERATIONS:
+        if self.operation is not None and self.operation not in operations.FUNCTION_OPERATIONS:
             raise ValueError(f"Unsupported function operation: {self.operation}")
         if not isinstance(self.validate_signature, bool):
             raise TypeError("validate_signature must be a boolean")
@@ -52,7 +52,7 @@ class FunctionReference:
 def function(
     function: abc.Callable[..., object] | str,
     *,
-    operation: contracts.FunctionOperation | None = None,
+    operation: operations.FunctionOperation | None = None,
     validate_signature: bool = True,
 ) -> FunctionReference:
     """Reference a callable or a ``module:function`` entrypoint string.
@@ -111,24 +111,24 @@ class Reference:
     @property
     def id(self) -> Reference:
         """Pass the referenced resource's identifier as a string argument."""
-        return Reference(type="string", value=f"{self.value}{contracts.ID_SELECTOR}")
+        return Reference(type=arg_types.STRING, value=f"{self.value}{selectors.ID_SELECTOR}")
 
     @property
     def dataframe(self) -> Reference:
         """Pass a dataset's materialized dataframe as an argument."""
         if self.type != "dataset":
             raise ValueError("Only dataset references have a dataframe selector")
-        return Reference(type="dataset", value=f"{self.value}{contracts.DATAFRAME_SELECTOR}")
+        return Reference(type="dataset", value=f"{self.value}{selectors.DATAFRAME_SELECTOR}")
 
 
 def current_dataset() -> Reference:
     """Reference the dataset currently being evaluated."""
-    return Reference(type="dataset", value=f"{contracts.DATASET_PREFIX}{contracts.CURRENT_ID}")
+    return Reference(type="dataset", value=f"{selectors.DATASET_PREFIX}{selectors.CURRENT_ID}")
 
 
 def dataset(name: str) -> Reference:
     """Reference a dataset by name."""
-    return Reference(type="dataset", value=f"{contracts.DATASET_PREFIX}{name}")
+    return Reference(type="dataset", value=f"{selectors.DATASET_PREFIX}{name}")
 
 
 def source(name: str, attribute: str = "path") -> str:
@@ -143,9 +143,9 @@ def sink(name: str, attribute: str = "path") -> str:
 
 def feature(name: str) -> Reference:
     """Reference a source or calculated feature by name."""
-    return Reference(type="feature", value=f"{contracts.FEATURE_PREFIX}{name}")
+    return Reference(type="feature", value=f"{selectors.FEATURE_PREFIX}{name}")
 
 
 def dimension(name: str) -> Reference:
     """Reference a dataset dimension by name."""
-    return Reference(type="dimension", value=f"{contracts.DIMENSION_PREFIX}{name}")
+    return Reference(type="dimension", value=f"{selectors.DIMENSION_PREFIX}{name}")

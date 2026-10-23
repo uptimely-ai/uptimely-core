@@ -18,12 +18,12 @@ import typing
 import fastmcp
 import polars as pl
 
-from uptimely import contracts, entrypoint, spec
 from uptimely import engine as uptimely_engine
+from uptimely import entrypoint, spec
 from uptimely.project import build as project_build
 from uptimely.project import imports
 from uptimely.spec import model as spec_model
-from uptimely.spec import references
+from uptimely.spec import operations, references
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +117,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 {
                     "id": function_id,
                     "operation": function.operation,
-                    "returns": contracts.OPERATION_RETURN_KINDS[function.operation],
+                    "returns": operations.OPERATION_RETURN_KINDS[function.operation],
                 }
                 for function_id, function in sorted(catalog.root.items())
             ]
@@ -149,7 +149,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             {
                 "id": function_id,
                 "operation": template.operation,
-                "declared_returns": contracts.OPERATION_RETURN_KINDS[template.operation],
+                "declared_returns": operations.OPERATION_RETURN_KINDS[template.operation],
                 "escape_mappings": [
                     {
                         "entity": entity_id,
@@ -161,12 +161,13 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                     for entity_id, dataset, mapping_id, mapping in references.iter_mapping_items(
                         snapshot.spec
                     )
-                    if mapping.binding.function == function_id and template.operation == "escape"
+                    if mapping.binding.function == function_id
+                    and template.operation == operations.ESCAPE
                 ],
                 "execution_semantics": (
                     "Uncontrolled external operation; its return value is ignored, and declared "
                     "outputs are not verified or materialized as dataframe columns."
-                    if template.operation == "escape"
+                    if template.operation == operations.ESCAPE
                     else None
                 ),
                 "entrypoint": template.entrypoint,
@@ -201,7 +202,8 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 if hasattr(mapping, "binding")
                 if (
                     mapping.binding.function in spec_definition.functions
-                    and spec_definition.functions[mapping.binding.function].operation == "vectorize"
+                    and spec_definition.functions[mapping.binding.function].operation
+                    == operations.VECTORIZE
                 )
                 for feature_id in mapping.output_features
             }
@@ -224,7 +226,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         by_feature = {
             feature: (entity_id, mapping)
             for entity_id, _dataset, mapping in references.iter_mappings(spec_definition)
-            if spec_definition.functions[mapping.binding.function].operation == "vectorize"
+            if spec_definition.functions[mapping.binding.function].operation == operations.VECTORIZE
             for feature in mapping.output_features
         }
         producer = by_feature.get(feature_id)
@@ -287,7 +289,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         expected_outputs = {
             (callable.dataset_id, feature)
             for callable in plan.callables
-            if callable.operation == "vectorize"
+            if callable.operation == operations.VECTORIZE
             for feature in callable.output_features
         }
         actual_outputs = set(result.calculated_outputs)

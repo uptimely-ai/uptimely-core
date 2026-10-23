@@ -8,8 +8,9 @@ import re
 import pytest
 from conftest import EXAMPLES_ROOT, engine_for_plan, render_explorer
 
-from uptimely import compiler, contracts, spec
+from uptimely import compiler, spec
 from uptimely.explorer import graph_render, spec_render
+from uptimely.spec import operations
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 REFERENCE_PATH = pathlib.Path("docs/components/spec.md")
@@ -83,12 +84,12 @@ def test_build_spec_context() -> None:
     )
     assert context.summary.entity_count == 2
     assert context.summary.dataset_count == 2
-    assert sorted(context.summary.function_buckets) == sorted(contracts.FUNCTION_OPERATIONS)
+    assert sorted(context.summary.function_buckets) == sorted(operations.FUNCTION_OPERATIONS)
     assert context.summary.function_buckets == {
         operation: sum(
             function.operation == operation for function in spec_definition.functions.root.values()
         )
-        for operation in contracts.FUNCTION_OPERATIONS
+        for operation in operations.FUNCTION_OPERATIONS
     }
     assert context.summary.function_buckets["escape"] == 0
     assert context.feature_dependencies
