@@ -73,10 +73,9 @@ def test_build_spec_context() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     context = spec_render._build_context(spec_definition, False)
 
-    assert (
-        context.configuration["entities"]["pump_telemetry"]["datasets"][0]["id"]
-        == "pump_telemetry_dataset"
-    )
+    datasets = context.configuration["entities"]["pump_telemetry"]["datasets"]
+    assert list(datasets) == ["pump_telemetry_dataset"]
+    assert "id" not in datasets["pump_telemetry_dataset"]
     assert (
         context.configuration["dimensions"]["plant"]["description"]
         == "Manufacturing plant identifier"
@@ -104,7 +103,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
         "args": {},
         "description": "Send an audit record to an external service.",
     }
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]
+    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
     dataset["features"]["audit_reference"] = {"type": "string"}
     dataset["features"]["audit_status"] = {"type": "string"}
     dataset["features"]["audit_followup"] = {"type": "string"}

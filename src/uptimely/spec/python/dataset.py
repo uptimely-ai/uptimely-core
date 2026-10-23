@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import typing
+from collections import abc
 
 from uptimely import contracts
 from uptimely.spec import catalog as function_catalog
@@ -139,3 +140,21 @@ class Dataset:
             register(declaration)
 
         return spec_model.FunctionCatalog(root=function_catalog.merge_function_catalogs(catalogs))
+
+
+def to_models(
+    declarations: abc.Iterable[Dataset | spec_model.Dataset],
+) -> dict[str, spec_model.Dataset]:
+    """Convert datasets to an ID-keyed registry without overwriting duplicates."""
+    models: dict[str, spec_model.Dataset] = {}
+    for declaration in declarations:
+        if isinstance(declaration, Dataset):
+            model = declaration.to_model()
+        elif isinstance(declaration, spec_model.Dataset):
+            model = declaration
+        else:
+            raise TypeError("datasets must contain Dataset declarations or canonical models")
+        if model.id in models:
+            raise ValueError(f"Duplicate dataset id {model.id}")
+        models[model.id] = model
+    return models

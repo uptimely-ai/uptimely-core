@@ -59,7 +59,7 @@ def _resource_models(spec_definition: spec.Spec) -> dict[str, typing.Any]:
                 "row_scope": dataset.row_scope.model_dump(),
             }
             for entity in spec_definition.entities.values()
-            for dataset in entity.datasets
+            for dataset in entity.datasets.values()
         },
     }
 

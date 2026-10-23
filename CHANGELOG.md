@@ -8,6 +8,13 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** Spec version 2 stores each entity's datasets as an object keyed
+  by dataset ID, not an array. Remove dataset `id` attributes and use their values
+  as object keys. The canonical `Entity.datasets` API is now a dictionary.
+  Version 1 and dataset arrays are rejected; update JSON sources and rebuild
+  generated project artifacts.
 
 ## [0.6.0] - 2026-10-22
 

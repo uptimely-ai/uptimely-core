@@ -129,7 +129,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     source.write_text(
         json.dumps(
             {
-                "spec_version": 1,
+                "spec_version": 2,
                 "name": "Build-only test",
                 "functions": {
                     "read": {
@@ -141,9 +141,8 @@ def test_project_build_explicit_source_does_not_execute_workflow(
                 "entities": {
                     "example": {
                         "name": "Example",
-                        "datasets": [
-                            {
-                                "id": "values",
+                        "datasets": {
+                            "values": {
                                 "features": {"value": {}},
                                 "mappings": {
                                     "read": {
@@ -152,7 +151,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
                                     }
                                 },
                             }
-                        ],
+                        },
                     }
                 },
             }
@@ -213,7 +212,9 @@ def test_project_build_verbose_summary(
     root = tmp_path / "project"
     source = copy_project_spec(root)
     definition = spec.load_spec(source)
-    datasets = [dataset for entity in definition.entities.values() for dataset in entity.datasets]
+    datasets = [
+        dataset for entity in definition.entities.values() for dataset in entity.datasets.values()
+    ]
     times = iter([10.0, 11.234])
     monkeypatch.setattr(cli.project.time, "perf_counter", lambda: next(times))
     arguments = ["--features", "pump_health_score"] if scoped else []

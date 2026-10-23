@@ -26,14 +26,16 @@ def test_indexed_source_resolution_matches_document_scan(
     inputs: list[str], ambiguous: bool
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["entities"]["pump"]["datasets"][0]["mappings"]["bearing_temperature_by_pump"][
-        "features"
-    ]["inputs"] = inputs
+    configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
+        "bearing_temperature_by_pump"
+    ]["features"]["inputs"] = inputs
     document = spec.Spec.model_validate(configuration)
     if ambiguous:
-        dataset = document.entities["pump_telemetry"].datasets[0]
-        document.entities["pump_telemetry"].datasets.append(dataset.model_copy(deep=True))
-    mapping = document.entities["pump"].datasets[0].mappings["bearing_temperature_by_pump"]
+        dataset = document.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
+        document.entities["pump"].datasets[dataset.id] = dataset.model_copy(deep=True)
+    mapping = (
+        document.entities["pump"].datasets["pump_dataset"].mappings["bearing_temperature_by_pump"]
+    )
     index = context.SpecValidationContext.build(document)
     owners = {
         feature_id: [(owner.entity, owner.dataset) for owner in candidates]
@@ -65,7 +67,7 @@ def test_indexed_source_resolution_matches_document_scan(
         assert actual_source[0] is expected[0]
         assert actual_source[1] is expected[1]
         assert prepared_error is None
-        dataset_id = document.entities["pump"].datasets[0].id
+        dataset_id = document.entities["pump"].datasets["pump_dataset"].id
         source = index.collapse_sources[("pump", dataset_id, mapping.id)]
         assert source.entity is expected[0]
         assert source.dataset is expected[1]
@@ -77,7 +79,11 @@ def test_validation_prepares_collapse_sources_once_per_invocation(
 ) -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     if with_row_context:
-        mapping = document.entities["pump"].datasets[0].mappings["bearing_temperature_by_pump"]
+        mapping = (
+            document.entities["pump"]
+            .datasets["pump_dataset"]
+            .mappings["bearing_temperature_by_pump"]
+        )
         mapping.row_context = row_context.RowContext(
             dimension="$dimensions.timestamp",
             before=row_context.ContextExtent(time="1h"),

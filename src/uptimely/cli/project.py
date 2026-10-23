@@ -61,7 +61,9 @@ def _log_build_details(
         source_file = source.entrypoint.module.source_file
     else:
         source_file = str(source.path.resolve())
-    datasets = [dataset for entity in definition.entities.values() for dataset in entity.datasets]
+    datasets = [
+        dataset for entity in definition.entities.values() for dataset in entity.datasets.values()
+    ]
     scope = (
         "all features" if bundle.manifest.features is None else ", ".join(bundle.manifest.features)
     )

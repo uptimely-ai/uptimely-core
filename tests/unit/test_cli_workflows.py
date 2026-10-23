@@ -504,7 +504,7 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
     spec_path.write_text(
         json.dumps(
             {
-                "spec_version": 1,
+                "spec_version": 2,
                 "functions": {
                     "read_values": {
                         "operation": "read",
@@ -516,9 +516,8 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
                 "entities": {
                     "sample": {
                         "name": "Sample",
-                        "datasets": [
-                            {
-                                "id": "sample_dataset",
+                        "datasets": {
+                            "sample_dataset": {
                                 "features": {"value": {"type": "float"}},
                                 "mappings": {
                                     "values": {
@@ -530,7 +529,7 @@ def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.P
                                     }
                                 },
                             }
-                        ],
+                        },
                     }
                 },
             }

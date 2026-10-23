@@ -215,7 +215,7 @@ class SpecValidationContext:
         duplicate_feature = None
         mappings: list[MappingFacts] = []
         for entity_id, entity in model.entities.items():
-            for dataset in entity.datasets:
+            for dataset in entity.datasets.values():
                 location = DatasetLocation(
                     entity_id, entity, dataset, frozenset(entity.dimension_ids)
                 )

@@ -176,9 +176,9 @@ def test_invalid_input_contracts_are_rejected(
     path = tmp_path / "spec.json"
     spec.write_document(_spec(), path)
     configuration = json.loads(path.read_text())
-    configuration["entities"]["entity"]["datasets"][0]["mappings"]["result"]["features"][
-        "inputs"
-    ] = inputs
+    configuration["entities"]["entity"]["datasets"]["observations"]["mappings"]["result"][
+        "features"
+    ]["inputs"] = inputs
     path.write_text(json.dumps(configuration))
     with pytest.raises(ValueError, match=message):
         spec.load_spec(path)
@@ -210,7 +210,9 @@ def test_implicit_dimensions_have_runtime_type_validation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     spec_definition = _spec()
-    source = next(iter(spec_definition.entities["entity"].datasets[0].mappings.values()))
+    source = next(
+        iter(spec_definition.entities["entity"].datasets["observations"].mappings.values())
+    )
     source.features.outputs = ["$features.value"]
     compiled = compiler.Compiler(spec_definition, features=["result"]).compile()
 
@@ -233,7 +235,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     path = tmp_path / "spec.json"
     spec.write_document(_spec(), path)
     configuration = json.loads(path.read_text())
-    dataset = configuration["entities"]["entity"]["datasets"][0]
+    dataset = configuration["entities"]["entity"]["datasets"]["observations"]
     del dataset["features"]["id"]
     dataset["mappings"]["read_values"]["features"]["outputs"] = ["$features.value"]
     dataset["mappings"]["result"]["features"]["inputs"].append("$features.id")

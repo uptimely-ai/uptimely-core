@@ -212,7 +212,9 @@ def test_function_catalog_merges_and_deduplicates_each_operation(category: str) 
         expected_args["dataset"] = f"$datasets.{source_id}.dataframe"
     if expected_dataframe_inputs == 2:
         expected_args["other_dataset"] = "$datasets.@.dataframe"
-    assert payload["entities"]["one"]["datasets"][0]["mappings"]["first_mapping"]["binding"] == {
+    assert payload["entities"]["one"]["datasets"]["first"]["mappings"]["first_mapping"][
+        "binding"
+    ] == {
         "function": function_id,
         "args": expected_args,
     }
@@ -295,7 +297,7 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata(
     payload = spec_definition.to_dict()
 
     assert payload["name"] == "Pump analytics"
-    assert payload["spec_version"] == 1
+    assert payload["spec_version"] == 2
     assert payload["source"] == {"name": "python_api", "generated": True}
     assert payload["dimensions"] == {
         "pump": {"type": "string", "description": "Asset ID", "parent": None}
@@ -305,9 +307,8 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata(
             "name": "Assets",
             "description": None,
             "dimensions": ["pump"],
-            "datasets": [
-                {
-                    "id": "telemetry",
+            "datasets": {
+                "telemetry": {
                     "description": "Telemetry readings",
                     "row_scope": {
                         "grain": "One row per pump",
@@ -318,6 +319,6 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata(
                     "features": {},
                     "mappings": {},
                 }
-            ],
+            },
         }
     }

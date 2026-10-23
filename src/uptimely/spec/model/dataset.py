@@ -80,7 +80,7 @@ class RowScope(common.StrictModel):
 
 
 class Dataset(common.StrictModel):
-    """An entry under an entity's `datasets` list."""
+    """An entry under an entity's ID-keyed `datasets` object."""
 
     id: str = pydantic.Field(exclude=True)
     description: str | None = None
@@ -102,7 +102,7 @@ class Entity(common.StrictModel):
     name: str
     description: str | None = None
     dimensions: list[common.Dimension] = pydantic.Field(default_factory=list)
-    datasets: list[Dataset] = pydantic.Field(default_factory=list)
+    datasets: dict[str, Dataset] = pydantic.Field(default_factory=dict)
 
     @property
     def dimension_ids(self) -> list[str]:

@@ -23,6 +23,11 @@ For a runnable example, see the
 
 `uptimely.spec.python.entity` groups related datasets.
 
+Python entity declarations accept a list of datasets with explicit IDs.
+Conversion produces an ID-keyed dataset dictionary in the canonical model and
+exported JSON, without repeating `id` in the JSON attributes. Duplicate dataset
+IDs within an entity are rejected rather than overwritten.
+
 ::: uptimely.spec.python.entity
     options:
       heading_level: 3

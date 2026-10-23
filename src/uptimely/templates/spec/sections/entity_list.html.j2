@@ -27,8 +27,8 @@
       <div class="mt-4 border-t border-slate-800 pt-3">
         <p class="mb-2 font-mono text-[10px] uppercase tracking-wider text-slate-500">Datasets</p>
         <ul class="space-y-1">
-          {% for dataset in entity.datasets %}
-          <li class="font-mono text-sm text-cyan-200">{{ dataset.id }}</li>
+          {% for dataset_id, dataset in entity.datasets.items() %}
+          <li class="font-mono text-sm text-cyan-200">{{ dataset_id }}</li>
           {% endfor %}
         </ul>
       </div>

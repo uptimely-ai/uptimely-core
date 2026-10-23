@@ -21,7 +21,7 @@ def _add_escape_mapping(
     dataframe_dataset: str | None = None,
 ) -> None:
     """Add one escape mapping and its function and output declarations."""
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"][0]
+    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
     dataset["features"].update({feature_id: {"type": "float"} for feature_id in output_features})
     arguments = {"source": {"type": "dataframe"}} if dataframe_dataset is not None else {}
     configuration["functions"][function_id] = {
@@ -30,7 +30,9 @@ def _add_escape_mapping(
         "entrypoint": entrypoint,
         "args": arguments,
     }
-    configuration["entities"]["pump_telemetry"]["datasets"][0]["mappings"][mapping_id] = {
+    configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]["mappings"][
+        mapping_id
+    ] = {
         "binding": {
             "function": function_id,
             "args": (
@@ -126,7 +128,7 @@ def test_compiler_creates_callable_graph_subset_for_requested_features() -> None
 
 def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
     spec_definition = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = spec_definition["entities"]["pump"]["datasets"][0]
+    dataset = spec_definition["entities"]["pump"]["datasets"]["pump_dataset"]
     mapping = dataset["mappings"]["health_signal_normalized"]
     mapping["features"]["outputs"].append("$features.health_signal_secondary")
     dataset["features"]["health_signal_secondary"] = {"type": "float"}
@@ -323,7 +325,7 @@ def test_compiled_inputs_match_each_entity_dataset_mapping() -> None:
     datasets = {
         (entity_id, dataset.id): dataset
         for entity_id, entity in document.entities.items()
-        for dataset in entity.datasets
+        for dataset in entity.datasets.values()
     }
 
     assert len(datasets) > 1
@@ -348,7 +350,8 @@ def test_graph_subset_retains_validated_dataset_mapping_lookups() -> None:
 def test_graph_rejects_duplicate_datasets_before_indexing() -> None:
     document = spec.load_spec(SPEC_PATH)
     entities = list(document.entities.values())
-    entities[1].datasets[0].id = entities[0].datasets[0].id
+    dataset = next(iter(entities[0].datasets.values()))
+    entities[1].datasets[dataset.id] = dataset.model_copy(deep=True)
 
     with pytest.raises(ValueError, match="Duplicate dataset id"):
         compiler.CallableGraph(document)

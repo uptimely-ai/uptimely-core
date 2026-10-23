@@ -139,7 +139,7 @@ def test_codec_preserves_function_descriptions_and_dataset_ids() -> None:
             "entities": {
                 "assets": {
                     "name": "Assets",
-                    "datasets": [{"id": "first"}, {"id": "second"}],
+                    "datasets": {"first": {}, "second": {}},
                 }
             },
         }
@@ -148,7 +148,7 @@ def test_codec_preserves_function_descriptions_and_dataset_ids() -> None:
     payload = codec.to_document(document)
 
     assert payload["functions"]["collapse"]["description"] is None
-    assert [item["id"] for item in payload["entities"]["assets"]["datasets"]] == [
+    assert list(payload["entities"]["assets"]["datasets"]) == [
         "first",
         "second",
     ]

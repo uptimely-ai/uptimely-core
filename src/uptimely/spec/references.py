@@ -26,7 +26,7 @@ def iter_mapping_items(
 ) -> typing.Iterator[tuple[str, spec_model.Dataset, str, spec_model.Mapping]]:
     """Yield mapping declarations with their dictionary keys in declaration order."""
     for entity_id, entity in document.entities.items():
-        for dataset in entity.datasets:
+        for dataset in entity.datasets.values():
             for mapping_id, mapping in dataset.mappings.items():
                 yield entity_id, dataset, mapping_id, mapping
 
@@ -105,7 +105,7 @@ def collapse_input_dataset(
             else [
                 (entity, dataset)
                 for entity in spec_definition.entities.values()
-                for dataset in entity.datasets
+                for dataset in entity.datasets.values()
                 if feature in dataset.features
             ]
         )

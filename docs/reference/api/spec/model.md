@@ -34,6 +34,11 @@ bindings.
 `uptimely.spec.model.dataset` defines entities, datasets, features, and
 their relationships.
 
+`Entity.datasets` is a dictionary keyed by dataset ID. Access a dataset with
+`document.entities["pump"].datasets["telemetry"]`, or iterate over
+`entity.datasets.values()`. The internal `Dataset.id` is derived from the JSON
+object key and excluded from serialized dataset attributes.
+
 ::: uptimely.spec.model.dataset
     options:
       heading_level: 3

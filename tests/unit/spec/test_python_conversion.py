@@ -49,7 +49,7 @@ def test_auto_catalog_converts_declaration_lists_and_dicts(keyed: bool, as_entit
     assert payload["name"] is None
     entity_id = "assets" if as_entities else "entity"
     assert payload["entities"][entity_id]["dimensions"] == ["pump"]
-    assert [item["id"] for item in payload["entities"][entity_id]["datasets"]] == [
+    assert list(payload["entities"][entity_id]["datasets"]) == [
         "first",
         "second",
     ]
@@ -137,7 +137,8 @@ def test_explicit_catalog_preserves_argument_metadata(
         },
     }
     assert payload["entities"]["Readings"]["name"] == "Readings"
-    assert payload["entities"]["Readings"]["datasets"][0]["id"] == "readings"
+    assert list(payload["entities"]["Readings"]["datasets"]) == ["readings"]
+    assert "id" not in payload["entities"]["Readings"]["datasets"]["readings"]
     assert payload["dimensions"] == {"pump": pump.to_model().model_dump()}
 
 

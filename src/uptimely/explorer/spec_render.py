@@ -129,7 +129,7 @@ def _feature_data(
     escape_features: list[dict] = []
     seen_inputs: set[tuple[str, str]] = set()
     for entity in entities.values():
-        for dataset in entity.get("datasets", []):
+        for dataset_id, dataset in entity.get("datasets", {}).items():
             for mapping in dataset.get("mappings", {}).values():
                 function_id = mapping.get("binding", {}).get("function")
                 function = functions.get(function_id, {})
@@ -147,12 +147,12 @@ def _feature_data(
                             }
                         )
                     elif operation == "escape":
-                        if (dataset.get("id", ""), feature_id) not in seen_inputs:
+                        if (dataset_id, feature_id) not in seen_inputs:
                             escape_features.append(feature)
-                            seen_inputs.add((dataset.get("id", ""), feature_id))
-                    elif (dataset.get("id", ""), feature_id) not in seen_inputs:
+                            seen_inputs.add((dataset_id, feature_id))
+                    elif (dataset_id, feature_id) not in seen_inputs:
                         fragment_features.append(feature)
-                        seen_inputs.add((dataset.get("id", ""), feature_id))
+                        seen_inputs.add((dataset_id, feature_id))
     referenced_features = {
         dependency
         for calculation in calculated_features
@@ -170,14 +170,6 @@ def _build_context(
 ) -> ExplorerContext:
     """Build the typed template context from a spec document model."""
     configuration = spec_definition.model_dump(mode="json", exclude_none=True)
-    for entity_id, entity in spec_definition.entities.items():
-        serialized_entity = configuration.get("entities", {}).get(entity_id)
-        if not isinstance(serialized_entity, dict):
-            continue
-        datasets = serialized_entity.get("datasets", [])
-        for index, dataset in enumerate(entity.datasets):
-            if index < len(datasets) and isinstance(datasets[index], dict):
-                datasets[index]["id"] = dataset.id
     entities = configuration.get("entities", {})
     dimensions = configuration.get("dimensions", {})
     function_definitions = configuration.get("functions", {})
@@ -252,11 +244,11 @@ def _build_context(
         operation: len(function_groups.get(operation, {}))
         for operation in contracts.FUNCTION_OPERATIONS
     }
-    dataset_count = sum(len(entity.get("datasets", [])) for entity in entities.values())
+    dataset_count = sum(len(entity.get("datasets", {})) for entity in entities.values())
     mapping_count = sum(
         1
         for entity in entities.values()
-        for dataset in entity.get("datasets", [])
+        for dataset in entity.get("datasets", {}).values()
         for mapping in dataset.get("mappings", {}).values()
         if any(
             mapping.get("binding", {}).get("function") in function_groups.get(operation, {})
