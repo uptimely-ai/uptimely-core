@@ -153,7 +153,6 @@
 		const view = ExplorerGraph.createView(callableGraph, callableGraphContainer, 140, '2d');
 		view.selectNode = id => {
 			highlight.select(callableGraphData.nodes.find(node => node.id === id) || null);
-			callableGraph.refresh();
 		};
 		callableGraph.graphData(callableGraphData);
 		return view;
