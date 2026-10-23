@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import collections
+import dataclasses
 import json
 import os
 import pathlib
@@ -206,6 +207,7 @@ def _create_website_pages(
             )
 
     environment = render.html_environment()
+    graph_style = graph_render.GraphStyle()
     context = {
         "plan_version": plan.plan.plan_version,
         "callable_count": len(plan.callables),
@@ -226,7 +228,8 @@ def _create_website_pages(
         ),
         "stages": stages,
         "callable_graph_data": callable_graph_data,
-        "graph_style": graph_render.GraphStyle(),
+        "graph_style": graph_style,
+        "graph_style_data": dataclasses.asdict(graph_style),
         "include_navigation": True,
         "active_page": "plan",
         "index_filename": index_filename,

@@ -1,3 +1,78 @@
+{
+	const callableGraphData = JSON.parse(document.getElementById('graph-data').textContent);
+	const style = JSON.parse(document.getElementById('graph-style').textContent);
+	const callableNodeDetails = document.getElementById('callable-node-details');
+	const formatList = (values) => Array.isArray(values) && values.length ? values.join(', ') : 'none';
+	const updateCallableDetails = (node) => {
+		if (!node) {
+			callableNodeDetails.innerHTML = `
+				<h3 class="mb-2 font-mono text-xs uppercase tracking-wider text-slate-400">Callable details</h3>
+				<div class="text-sm leading-6 text-slate-300">Select a callable to inspect its operation, entity, declared features, and callable dependencies.</div>
+			`;
+			return;
+		}
+		callableNodeDetails.innerHTML = `
+			<h3 class="mb-2 font-mono text-xs uppercase tracking-wider text-slate-400">Callable details</h3>
+			<div class="mb-1 break-all text-xs text-slate-300"><strong>Operation:</strong> ${node.operation || 'n/a'}</div>
+			<div class="mb-1 break-all text-xs text-slate-300"><strong>Function:</strong> ${node.function_id || 'n/a'}</div>
+			<div class="mb-1 break-all text-xs text-slate-300"><strong>Entity:</strong> ${node.entity || 'n/a'}</div>
+			<div class="mb-1 break-all text-xs text-slate-300"><strong>${node.operation === 'escape' ? 'Declares external outputs' : 'Produces'}:</strong> ${node.feature || 'n/a'}</div>
+			${node.operation === 'escape' ? '<div class="mb-1 text-xs text-violet-200">Not verified or materialized as dataframe columns.</div>' : ''}
+			${node.operation === 'escape' && node.input_features?.length ? `<div class="mb-1 break-all text-xs text-slate-300"><strong>Declared inputs:</strong> ${formatList(node.input_features)}</div>` : ''}
+			<div class="break-all text-xs text-slate-300"><strong>Callable dependencies:</strong> ${formatList(node.dependency_ids)}</div>
+		`;
+	};
+	const callableColors = style.function_colors;
+	function create3D(callableGraphContainer, callableGraphData, updateCallableDetails) {
+		let initialFitComplete = false;
+		const callableGraph = ForceGraph3D()(callableGraphContainer)
+			.width(callableGraphContainer.clientWidth)
+			.height(callableGraphContainer.clientHeight)
+			.graphData(callableGraphData)
+			.backgroundColor(style.background_color)
+			.nodeLabel(node => `${node.function_id}<br>produces: ${node.feature}`)
+			.nodeColor(node => callableColors[node.operation])
+			.nodeRelSize(style.node_rel_size)
+			.nodeResolution(style.node_resolution)
+			.linkWidth(style.link_width)
+			.linkColor(() => style.link_color)
+			.linkOpacity(style.link_opacity)
+			.linkDirectionalParticles(2)
+			.linkDirectionalParticleWidth(2)
+			.linkDirectionalParticleSpeed(0.003)
+			.onNodeClick(node => updateCallableDetails(node))
+			.onEngineStop(() => {
+				if (!initialFitComplete) {
+					callableGraph.zoomToFit(0, 60);
+					initialFitComplete = true;
+				}
+			})
+			.nodeThreeObject(node => {
+				const material = new THREE.MeshLambertMaterial({ color: callableColors[node.operation] });
+				const mesh = new THREE.Mesh(
+					new THREE.OctahedronGeometry(style.function_node_size, 0),
+					material,
+				);
+				const group = new THREE.Group();
+				group.add(mesh);
+				const label = new SpriteText(node.function_id || '', 3.2, style.label_color);
+				label.backgroundColor = 'rgba(16,24,32,0.72)';
+				label.padding = 2;
+				label.borderRadius = 2;
+				label.position.set(0, 18, 0);
+				group.add(label);
+				return group;
+			});
+		callableGraph.d3Force('charge').strength(style.charge_strength).distanceMax(style.charge_distance_max);
+		callableGraph.d3Force('link').distance(style.link_distance);
+		const fit = () => callableGraph.zoomToFit(0, 60);
+		const resize = () => {
+			callableGraph.width(callableGraphContainer.clientWidth)
+				.height(callableGraphContainer.clientHeight);
+			fit();
+	};
+	return { graph: callableGraph, fit, resize };
+	}
 	function create2D(callableGraphContainer, callableGraphData, updateCallableDetails) {
 		const layers = new Map();
 		for (const node of callableGraphData.nodes) {
@@ -68,7 +143,7 @@
 		const callableGraph = ForceGraph()(callableGraphContainer)
 			.width(callableGraphContainer.clientWidth)
 			.height(callableGraphContainer.clientHeight)
-			.backgroundColor('{{ graph_style.background_color }}')
+			.backgroundColor(style.background_color)
 			.nodeLabel(node => node.label)
 			.onRenderFramePre(drawStageLanes)
 			.nodeCanvasObjectMode(() => 'replace')
@@ -83,7 +158,7 @@
 				ctx.strokeStyle = callableColors[node.operation];
 				ctx.lineWidth = 1.5;
 				ctx.stroke();
-				ctx.fillStyle = '{{ graph_style.label_color }}';
+				ctx.fillStyle = style.label_color;
 				ctx.textBaseline = 'top';
 				node.label_lines.forEach((line, index) => {
 					ctx.font = index === 0
@@ -98,8 +173,8 @@
 				ctx.fillRect(node.x - node.cardWidth / 2, node.y - node.cardHeight / 2,
 					node.cardWidth, node.cardHeight);
 			})
-			.linkColor(() => '{{ graph_style.link_color }}')
-			.linkWidth({{ graph_style.link_width }})
+			.linkColor(() => style.link_color)
+			.linkWidth(style.link_width)
 			.linkDirectionalParticles(2)
 			.linkDirectionalParticleWidth(2)
 			.linkDirectionalParticleSpeed(0.003)
@@ -122,3 +197,6 @@
 		};
 		return { graph: callableGraph, fit: fitCallableGraph, resize };
 	}
+
+	mountGraphViews(callableGraphData, create2D, create3D, updateCallableDetails, callableNodeDetails);
+}

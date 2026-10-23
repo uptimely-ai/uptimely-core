@@ -37,11 +37,19 @@ class NavigationCollector(html_parser.HTMLParser):
         super().__init__()
         self.in_navigation = False
         self.links: list[str] = []
+        self.assets: list[str] = []
         self.active_links: list[str] = []
         self.html_count = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
+        asset = None
+        if tag == "script":
+            asset = attributes.get("src")
+        elif tag == "link" and attributes.get("rel") == "stylesheet":
+            asset = attributes.get("href")
+        if asset and not url_parse.urlsplit(asset).scheme:
+            self.assets.append(asset)
         if tag == "html":
             self.html_count += 1
         if tag == "nav" and attributes.get("aria-label") == "Explorer pages":
@@ -134,6 +142,8 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         "execution-graph": "#fcd34d",
         "stages": "#fcd34d",
     }
+    icon_styles = (tmp_path / "css/icons.css").read_text(encoding="utf-8")
+    base_styles = (tmp_path / "css/base.css").read_text(encoding="utf-8")
     for filename, (key, symbol, title) in expected.items():
         document = (tmp_path / filename).read_text(encoding="utf-8")
         collector = IconCollector()
@@ -149,10 +159,10 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         )
         assert all(item["aria-hidden"] == "true" for item in collector.icons)
         for icon_key, color in palette.items():
-            assert f".icon--{icon_key} {{ --icon-color: {color};" in document
-        assert ".site-icon { color: var(--icon-color);" in document
-        assert 'a[aria-current="page"]' in document
-        assert "a:focus-visible" in document
+            assert f".icon--{icon_key} {{ --icon-color: {color};" in icon_styles
+        assert ".site-icon { color: var(--icon-color);" in base_styles
+        assert 'a[aria-current="page"]' in base_styles
+        assert "a:focus-visible" in base_styles
 
 
 def test_website_exports_all_reports_with_relative_navigation(
@@ -169,6 +179,8 @@ def test_website_exports_all_reports_with_relative_navigation(
         "spec",
         "plan",
         "execution",
+        "css",
+        "js",
     }
     for filename in ("index.html", *REPORTS):
         page_file = index.parent / filename
@@ -251,14 +263,16 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "bg-violet-950" not in datasets
     assert "bg-amber-950" not in datasets
     assert 'class="dataset-table-scroll overflow-x-auto' in datasets
-    assert "scrollbar-width: thin" in datasets
-    assert "scrollbar-color: #475569 #0f172a" in datasets
-    assert ".dataset-table-scroll::-webkit-scrollbar" in datasets
+    spec_styles = (index.parent / "css/spec.css").read_text(encoding="utf-8")
+    assert "scrollbar-width: thin" in spec_styles
+    assert "scrollbar-color: #475569 #0f172a" in spec_styles
+    assert ".dataset-table-scroll::-webkit-scrollbar" in spec_styles
     assert "Pump analytics" in (index.parent / "spec/overview.html").read_text(encoding="utf-8")
     graph_2d = (index.parent / "spec/graph.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_2d
     assert "force-graph@1.52.0/dist/force-graph.min.js" in graph_2d
-    assert ".height(graphContainer.clientHeight)" in graph_2d
+    graph_script = (index.parent / "js/feature_graph.js").read_text(encoding="utf-8")
+    assert ".height(graphContainer.clientHeight)" in graph_script
     assert "3d-force-graph" in graph_2d
     assert 'aria-label="Feature graph views"' not in graph_2d
     assert re.search(
@@ -267,8 +281,8 @@ def test_website_exports_all_reports_with_relative_navigation(
         r'data-lucide="git-fork"',
         graph_2d,
     )
-    assert ".onEngineStop(" in graph_2d
-    assert "graph.zoomToFit(0, 80)" in graph_2d
+    assert ".onEngineStop(" in graph_script
+    assert "graph.zoomToFit(0, 80)" in graph_script
     plan = (index.parent / "plan/graph.html").read_text(encoding="utf-8")
     assert 'id="callable-graph"' in plan
     assert "normalize_health_signal" in plan
@@ -340,7 +354,9 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         assert (index.parent / href).is_file()
     assert re.findall(r"<h3>(.*?)</h3>", document) == ["Spec", "Plan", "Execution"]
     assert "does not run analytical operations" in document
-    assert "prefers-reduced-motion: reduce" in document
+    assert "prefers-reduced-motion: reduce" in (tmp_path / "css/dashboard.css").read_text(
+        encoding="utf-8"
+    )
 
 
 @pytest.mark.parametrize("name", [None, "", '<script>alert("title")</script> & Spec'])
@@ -458,6 +474,14 @@ def test_relocated_website_navigation_works_under_url_prefix(
                 for destination in destinations:
                     with request.urlopen(destination, timeout=5) as response:
                         assert response.status == 200
+                for asset in collector.assets:
+                    with request.urlopen(url_parse.urljoin(page_url, asset), timeout=5) as response:
+                        assert response.status == 200
+                        assert response.headers.get_content_type() in {
+                            "text/css",
+                            "text/javascript",
+                            "application/javascript",
+                        }
         finally:
             server.shutdown()
             worker.join(timeout=5)
@@ -483,15 +507,16 @@ def test_execution_plan_pages_render_only_their_section(
     is_graph = title == "Execution graph"
     assert heading_titles(document) == [title]
     if is_graph:
+        script = (tmp_path / "js/callable_graph.js").read_text(encoding="utf-8")
         assert 'class="absolute inset-0"' in document
         assert "<header" not in document
         assert ">Callable graph</h2>" not in document
-        assert ".linkDirectionalParticles(2)" in document
-        assert ".linkDirectionalArrow" not in document
+        assert ".linkDirectionalParticles(2)" in script
+        assert ".linkDirectionalArrow" not in script
         assert 'class="details details-2d"' in document
         if is_graph:
-            assert "callableGraph.zoomToFit(0, 140)" in document
-            assert ".onEngineStop(" in document
+            assert "callableGraph.zoomToFit(0, 140)" in script
+            assert ".onEngineStop(" in script
             expected_label = (
                 'read_pump_telemetry(source="?storage.telemetry_source.path", '
                 'environment="development")'
@@ -531,11 +556,11 @@ def test_execution_plan_pages_render_only_their_section(
                 ")",
             ]
             assert f'"label_lines": {json.dumps(expected_object_lines)}' in document
-            assert ".nodeLabel(node => node.label)" in document
-            assert "node.label_lines.forEach((line, index) =>" in document
-            assert "const rank = node.stage - 1" in document
+            assert ".nodeLabel(node => node.label)" in script
+            assert "node.label_lines.forEach((line, index) =>" in script
+            assert "const rank = node.stage - 1" in script
             graph_data_match = re.search(
-                r"const callableGraphData = (.*?);\n\t\tconst callableNodeDetails",
+                r'<script id="graph-data" type="application/json">(.*?)</script>',
                 document,
                 re.DOTALL,
             )
@@ -545,12 +570,12 @@ def test_execution_plan_pages_render_only_their_section(
                 node for node in graph_nodes if node["function_id"] == "normalize_health_signal"
             )
             assert normalize_node["stage"] == 3
-            assert "Stage ${stage + 1}" in document
-            assert ".onRenderFramePre(drawStageLanes)" in document
-            assert "ctx.fillRect(left, -laneHeight / 2, 360, laneHeight)" in document
+            assert "Stage ${stage + 1}" in script
+            assert ".onRenderFramePre(drawStageLanes)" in script
+            assert "ctx.fillRect(left, -laneHeight / 2, 360, laneHeight)" in script
     assert ('id="plan-overview"' in document) == (title == "Overview")
     assert ('id="callable-graph"' in document) == is_graph
-    assert ("const callableGraphData" in document) == is_graph
+    assert ('src="../js/callable_graph.js"' in document) == is_graph
     assert ('id="callables"' in document) == (title == "Stages")
     assert (">Argument</th>" in document) == (title == "Stages")
     if title == "Stages":
@@ -573,13 +598,15 @@ def test_graph_pages_have_one_selector_and_shared_data(
     assert 'data-dimension="3d" aria-pressed="false" aria-controls="graph-3d"' in document
     assert 'id="graph-3d" class="graph-view" hidden' in document
     assert 'id="graph-error" role="alert" hidden' in document
-    assert "showView('2d')" in document
-    assert "JSON.parse(JSON.stringify(sourceData))" in document
-    assert "pauseAnimation()" in document
-    assert "resumeAnimation()" in document
-    assert "node.id === selectedId" in document
-    assert "console.error(" in document
-    assert "Unable to display the" in document
+    controller = (tmp_path / "js/view_controller.js").read_text(encoding="utf-8")
+    assert 'src="../js/view_controller.js"' in document
+    assert "showView('2d')" in controller
+    assert "JSON.parse(JSON.stringify(sourceData))" in controller
+    assert "pauseAnimation()" in controller
+    assert "resumeAnimation()" in controller
+    assert "node.id === selectedId" in controller
+    assert "console.error(" in controller
+    assert "Unable to display the" in controller
     assert document.count('"nodes":') == 1
     assert len(re.findall(r"<h1[ >]", document)) == 1
     assert "feature_graph_2d.html" not in document
@@ -610,8 +637,17 @@ def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> N
     first = render_explorer(spec_definition, tmp_path / "first" / "index.html")
     second = render_explorer(spec_definition, tmp_path / "second" / "index.html")
 
-    for filename in ("index.html", *REPORTS):
-        assert (first.parent / filename).read_bytes() == (second.parent / filename).read_bytes()
+    first_files = {
+        path.relative_to(first.parent): path.read_bytes()
+        for path in first.parent.rglob("*")
+        if path.is_file()
+    }
+    second_files = {
+        path.relative_to(second.parent): path.read_bytes()
+        for path in second.parent.rglob("*")
+        if path.is_file()
+    }
+    assert first_files == second_files
 
 
 def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -> None:
@@ -702,19 +738,18 @@ def test_website_propagates_compilation_errors_without_writing_reports(
 
 
 @pytest.mark.parametrize(
-    ("filename", "variable"),
-    [
-        ("spec/graph.html", "data"),
-        ("plan/graph.html", "callableGraphData"),
-    ],
+    "filename",
+    ["spec/graph.html", "plan/graph.html"],
 )
 def test_website_graph_links_reference_exported_nodes(
-    tmp_path: pathlib.Path, filename: str, variable: str
+    tmp_path: pathlib.Path, filename: str
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
-    match = re.search(rf"const {variable} = (.+);", document)
+    match = re.search(
+        r'<script id="graph-data" type="application/json">(.*?)</script>', document, re.DOTALL
+    )
     assert match is not None
     payload = json.loads(match.group(1))
     identifiers = {node["id"] for node in payload["nodes"]}
@@ -732,7 +767,9 @@ def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pa
     plan = compiler.Compiler(spec_definition).compile()
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "plan/graph.html").read_text(encoding="utf-8")
-    match = re.search(r"const callableGraphData = (.+);", document)
+    match = re.search(
+        r'<script id="graph-data" type="application/json">(.*?)</script>', document, re.DOTALL
+    )
     assert match is not None
     payload = json.loads(match.group(1))
     assert {node["id"] for node in payload["nodes"]} == {callable.id for callable in plan.callables}

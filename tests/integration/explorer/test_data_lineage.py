@@ -159,6 +159,8 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    styles = (tmp_path / "css/data_lineage.css").read_text(encoding="utf-8")
+    script = (tmp_path / "js/data_lineage.js").read_text(encoding="utf-8")
     assert 'aria-label="Lineage playback" hidden' in document
     assert 'id="lineage-previous">Previous</button>' in document
     assert 'id="lineage-play" aria-pressed="false">Play</button>' in document
@@ -174,14 +176,14 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     assert document.index('id="lineage-stage-track"') < document.index(
         'id="lineage-stage-position"'
     )
-    assert "lineage-progress-track { display: flex; width: 100%;" in document
+    assert "lineage-progress-track { display: flex; width: 100%;" in styles
     assert 'class="lineage-kicker"' not in document
     assert "Stage {{ stage_number }} / Step {{ step.number }}" not in document
-    assert "Stage ${step.dataset.stage} of ${stages.length}" in document
-    assert ".lineage-scene { display: grid; grid-template-columns: minmax(0, 1fr);" in document
+    assert "Stage ${step.dataset.stage} of ${stages.length}" in script
+    assert ".lineage-scene { display: grid; grid-template-columns: minmax(0, 1fr);" in styles
     assert 'class="lineage-arrow">' in document
-    assert ".lineage-table-scroll { overflow-x: auto; overflow-y: hidden;" in document
-    assert ".lineage-step h3 {" in document and "text-align: center;" in document
+    assert ".lineage-table-scroll { overflow-x: auto; overflow-y: hidden;" in styles
+    assert ".lineage-step h3 {" in styles and "text-align: center;" in styles
     assert '<span class="lineage-arrow-icon" aria-hidden="true">&darr;</span>' in document
     assert "<h3>Maximum</h3>" in document
     assert (
@@ -196,7 +198,7 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     for operation_type in ("READ", "AGGREGATE", "VECTORIZE", "WRITE"):
         assert f'<span class="lineage-operation-label">{operation_type}</span>' in document
     assert '<span class="lineage-operation-label">OPERATION</span>' not in document
-    assert "lineage-step h3 {" in document
+    assert "lineage-step h3 {" in styles
     assert 'class="lineage-table-dataset">Dataset:' in document
     assert 'class="lineage-dataset"' not in document
     assert "transform: rotate(90deg)" not in document
@@ -211,22 +213,22 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     assert "<h3>Maximum</h3>" in document
     assert '<table class="lineage-table" data-side="input">' in document
     assert '<table class="lineage-table" data-side="output">' in document
-    assert "prefers-reduced-motion: reduce" in document
-    assert "reducedMotion.addEventListener" in document
-    assert 'document.addEventListener("visibilitychange"' in document
+    assert "prefers-reduced-motion: reduce" in script
+    assert "reducedMotion.addEventListener" in script
+    assert 'document.addEventListener("visibilitychange"' in script
     assert "three placeholder rows become one group" in document
     assert "Actual grouping and row counts are not known" in document
-    assert "window.clearTimeout(timer)" in document
-    assert 'type: "column"' in document
-    assert 'type: "row"' in document
-    assert 'type: "inputs"' in document
-    assert 'type: "group"' in document
-    assert 'type: "callable"' in document
-    assert 'type: "write"' in document
-    assert "Exact input-to-output mappings are not inferred" in document
-    assert "animation-play-state: paused" in document
-    assert 'step.classList.toggle("is-playing", playing)' in document
-    assert "lineage-grouped" in document
+    assert "window.clearTimeout(timer)" in script
+    assert 'type: "column"' in script
+    assert 'type: "row"' in script
+    assert 'type: "inputs"' in script
+    assert 'type: "group"' in script
+    assert 'type: "callable"' in script
+    assert 'type: "write"' in script
+    assert "Exact input-to-output mappings are not inferred" in script
+    assert "animation-play-state: paused" in styles
+    assert 'step.classList.toggle("is-playing", playing)' in script
+    assert "lineage-grouped" in styles
 
 
 def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -> None:

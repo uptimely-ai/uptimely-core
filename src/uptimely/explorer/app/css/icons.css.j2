@@ -1,0 +1,4 @@
+{% from "icons.html.j2" import icons %}
+{% for key, definition in icons.items() %}
+.icon--{{ key }} { --icon-color: {{ definition[1] }}; --icon-tint: {{ definition[2] }}; }
+{% endfor %}

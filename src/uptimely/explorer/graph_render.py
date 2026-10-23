@@ -82,6 +82,7 @@ def _render_graph_html(
     template = environment.get_template("graph/feature_graph.html.j2")
     return template.render(
         style=style,
+        graph_style_data=dataclasses.asdict(style),
         graph_data=graph_data,
         include_navigation=True,
         active_page="graph",

@@ -41,8 +41,8 @@ class Explorer:
 
         Args:
             output_path: Index file; defaults to ``project.EXPLORER_INDEX_FILE``.
-                Section pages are written in spec, plan, and execution subdirectories
-                beneath the index directory.
+                Section pages are written in spec, plan, and execution subdirectories;
+                scripts and styles are written in js and css subdirectories.
             include_generated_at: Include a timestamp on the spec page.
 
         Returns:
@@ -60,6 +60,7 @@ class Explorer:
         )
         graph = spec.FeatureGraph(self.spec)
         context = spec_render._build_context(self.spec, include_generated_at)
+        render.write_assets(target.parent)
         spec_render._create_website_pages(
             context,
             target.parent,
