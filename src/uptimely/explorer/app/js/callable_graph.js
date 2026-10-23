@@ -24,10 +24,12 @@
 	};
 	const callableColors = style.function_colors;
 	function create3D(callableGraphContainer, callableGraphData, updateCallableDetails) {
+		const highlight = ExplorerGraph.createDependencyHighlight(callableGraphData);
 		return ExplorerGraph.create3D(callableGraphContainer, callableGraphData, style, {
 			label: node => `${node.function_id}\n${node.operation === 'escape' ? 'declares external outputs' : 'produces'}: ${node.feature}`,
 			color: node => callableColors[node.operation],
 			onSelect: updateCallableDetails,
+			highlight,
 			object: node => {
 				const material = new THREE.MeshLambertMaterial({ color: callableColors[node.operation] });
 				const mesh = new THREE.Mesh(
@@ -39,6 +41,7 @@
 		});
 	}
 	function create2D(callableGraphContainer, callableGraphData, updateCallableDetails) {
+		const highlight = ExplorerGraph.createDependencyHighlight(callableGraphData);
 		const layers = new Map();
 		for (const node of callableGraphData.nodes) {
 			const rank = node.stage - 1;
@@ -110,12 +113,19 @@
 				ctx.save();
 				ctx.beginPath();
 				ctx.roundRect(left, top, node.cardWidth, node.cardHeight, 10);
-				ctx.fillStyle = '#172a35';
+				ctx.fillStyle = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
+					? '#121c24'
+					: '#172a35';
 				ctx.fill();
-				ctx.strokeStyle = callableColors[node.operation];
-				ctx.lineWidth = 1.5;
+				ctx.strokeStyle = highlight.hasSelection()
+					? highlight.isSelected(node) ? '#f8d66d'
+						: highlight.isNodeHighlighted(node) ? '#67e8f9' : '#46545f'
+					: callableColors[node.operation];
+				ctx.lineWidth = highlight.isSelected(node) ? 3 : 1.5;
 				ctx.stroke();
-				ctx.fillStyle = style.label_color;
+				ctx.fillStyle = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
+					? 'rgba(232, 237, 242, .3)'
+					: style.label_color;
 				ctx.textBaseline = 'top';
 				node.label_lines.forEach((line, index) => {
 					ctx.font = index === 0
@@ -126,16 +136,25 @@
 				ctx.restore();
 			})
 			.nodePointerAreaPaint(ExplorerGraph.paintPointerArea)
-			.linkColor(() => style.link_color)
-			.linkWidth(style.link_width)
+			.linkColor(link => highlight.isLinkHighlighted(link)
+				? '#67e8f9'
+				: highlight.hasSelection() ? 'rgba(70, 84, 95, .35)' : style.link_color)
+			.linkWidth(link => highlight.isLinkHighlighted(link) ? 3 : style.link_width)
 			.linkDirectionalParticles(2)
 			.linkDirectionalParticleWidth(2)
 			.linkDirectionalParticleSpeed(0.003)
+			.linkDirectionalParticleColor(link => highlight.isLinkHighlighted(link)
+				? '#f8d66d'
+				: highlight.hasSelection() ? '#46545f' : style.link_color)
 			.onNodeClick((_node, event) => selectCallableAtPointer(event))
 			.onLinkClick((_link, event) => selectCallableAtPointer(event))
 			.onBackgroundClick(event => selectCallableAtPointer(event))
 			.cooldownTicks(1);
 		const view = ExplorerGraph.createView(callableGraph, callableGraphContainer, 140, '2d');
+		view.selectNode = id => {
+			highlight.select(callableGraphData.nodes.find(node => node.id === id) || null);
+			callableGraph.refresh();
+		};
 		callableGraph.graphData(callableGraphData);
 		return view;
 	}
