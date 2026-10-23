@@ -8,26 +8,40 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-23
+
+### Added
+
+- Added `uptimely build`, `uptimely run`, and `uptimely explore` shortcuts for
+  project build, engine run, and Explorer serve. Project commands accept the
+  project directory as an optional positional argument or through
+  `--project-root`. `uptimely examples` downloads examples directly; the
+  `examples download` form remains available.
+
 ### Changed
 
 - **Breaking:** Python authoring now uses dataset classes with named declarative
-  mappings, real function references, and output-owned feature metadata. Replace
-  dataset feature/mapping lists with named mapping attributes or dictionaries,
-  and `Mapping(bind=...)` with explicit `function`, `operation`, `arguments`, and
-  `outputs`. Outputs are lists of `Feature(name=...)` declarations; feature names
-  become canonical IDs, while mapping identifiers come from declaration keys.
-  Pump and simple analytics examples use the integrated API; JSON is unchanged.
-- **Breaking:** Execution results index `datasets` by dataset ID and
+  mappings and output-owned feature metadata. Replace dataset feature and
+  mapping lists with named mapping attributes or dictionaries, and
+  `Mapping(bind=...)` with `FunctionMapping(function=..., arguments=...,
+  outputs=...)`. Declare operations with `@operation(...)` or
+  `ref.function(..., operation=...)`, and output features with
+  `Feature(name=...)`; mapping identifiers come from their declaration keys.
+  The document model and exported JSON format are unchanged.
+- **Breaking:** Execution results now index `datasets` by dataset ID and
   `calculated_outputs` by `(dataset_id, feature_id)`, without redundant entity
   IDs. Dataset IDs remain unique across the project.
 - **Breaking:** Spec version 2 stores each entity's datasets as an object keyed
-  by dataset ID, not an array. Remove dataset `id` attributes and use their values
-  as object keys. The canonical `Entity.datasets` API is now a dictionary.
-  Version 1 and dataset arrays are rejected; update JSON sources and rebuild
-  generated project artifacts.
-- Explorer pages share a streamlined project-name top bar with a home link and a full or
-  partial build badge. Feature and execution graphs share a dimension selector
-  beside the title, zoom controls, collapsible legends, and consistent details panels.
+  by dataset ID instead of an array. Remove dataset `id` attributes and use the
+  IDs as object keys. Version 1 and dataset arrays are rejected; update JSON
+  sources and rebuild generated project artifacts.
+- Execution plans no longer duplicate spec-derived entities, functions, and
+  datasets in `resources`; the build bundle's spec is the source for those
+  declarations.
+- Explorer pages now share a project-name top bar, home link, build-scope badge,
+  and consistent graph controls and details panels. Selecting graph nodes
+  highlights their dependencies and dependents; reset clears the selection
+  and fits the graph.
 
 ## [0.6.0] - 2026-10-22
 
