@@ -31,6 +31,14 @@ supplied separately.
 
 `uptimely.engine.result` describes execution outputs.
 
+`ExecutionResult.datasets` maps each project-wide unique dataset ID to its final
+dataframe, for example `result.datasets["telemetry"]`.
+`ExecutionResult.calculated_outputs` maps `(dataset_id, feature_id)` pairs to
+dimension-keyed output dataframes, for example
+`result.calculated_outputs["telemetry", "doubled"]`. Entity IDs are not part of
+either key; entity metadata remains available in the saved plan resources and
+callables.
+
 ::: uptimely.engine.result
     options:
       heading_level: 3

@@ -275,7 +275,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
 
     result = engine_for_plan(compiler.Compiler(ordered).compile()).run()
     assert result.failures == {}
-    frame = result.datasets[("entity", declaration.id)]
+    frame = result.datasets[declaration.id]
     assert isinstance(frame, pl.DataFrame)
     assert frame.select(functions.read_data().columns).rows() == functions.read_data().rows()
     assert frame["id"].to_list() != frame.sort("id", descending=True)["id"].to_list()

@@ -270,7 +270,7 @@ def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Pat
     portable = uptimely_plan.ExecutionPlan(uptimely_plan.Plan.from_dict(compiled.to_dict()))
     result = engine_for_plan(portable).run()
     assert not result.failures
-    frame = result.datasets["entity", "observations"]
+    frame = result.datasets["observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
     render_explorer(restored, tmp_path / "index.html")
     assert "Row context:" not in (tmp_path / "spec/features.html").read_text()
@@ -420,4 +420,4 @@ def test_collapse_functions_execute_without_row_context() -> None:
     assert restored == plan.plan
     result = engine_for_plan(uptimely_plan.ExecutionPlan(restored)).run()
     assert not result.failures
-    assert result.datasets["summary", "summary"]["temperature_max"].to_list() == [20]
+    assert result.datasets["summary"]["temperature_max"].to_list() == [20]

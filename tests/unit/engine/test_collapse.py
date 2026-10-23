@@ -168,7 +168,7 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
     assert len(collapse.dependency_ids) == 2
     result = engine_for_plan(plan).run()
     assert not result.failures
-    frame = result.datasets["group", "summary"]
+    frame = result.datasets["summary"]
     if isinstance(frame, pl.LazyFrame):
         frame = frame.collect()
     assert frame.sort("group").to_dicts() == [
@@ -190,7 +190,7 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
     )
     result = engine_for_plan(portable).run()
     assert not result.failures
-    frame = result.datasets["global", "global"]
+    frame = result.datasets["global"]
     if isinstance(frame, pl.LazyFrame):
         frame = frame.collect()
     assert frame.to_dicts() == [{"total": 0 if empty else 10, "global_max": None if empty else 6}]
@@ -283,7 +283,7 @@ def test_collapse_consumes_expanded_features(lazy):
         compiler.Compiler(spec_definition, features=["combined_maximum"]).compile()
     ).run()
     assert not result.failures
-    frame = result.datasets["group", "summary"]
+    frame = result.datasets["summary"]
     if isinstance(frame, pl.LazyFrame):
         frame = frame.collect()
     assert frame.sort("group").to_dicts() == [
@@ -319,7 +319,7 @@ def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
     monkeypatch.setattr(f"{__name__}.summarize", invalid)
     result = engine_for_plan(plan).run()
     assert message in next(iter(result.failures.values()))
-    assert ("group", "summary") not in result.datasets
+    assert "summary" not in result.datasets
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -330,7 +330,7 @@ def test_collapse_preserves_null_group_keys(lazy):
         compiler.Compiler(spec_definition, features=["maximum"]).compile()
     ).run()
     assert not result.failures
-    frame = result.datasets["group", "summary"]
+    frame = result.datasets["summary"]
     if isinstance(frame, pl.LazyFrame):
         frame = frame.collect()
     assert frame.sort("group").select("group", "maximum").rows() == [(None, 6), ("A", 4)]

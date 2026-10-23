@@ -322,7 +322,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
     result = engine_for_plan(compiled).run()
 
     assert not result.failures
-    assert result.datasets["entity", "observations"].sort("id")["result"].to_list() == [11, 21]
+    assert result.datasets["observations"].sort("id")["result"].to_list() == [11, 21]
     expected_downloads = [] if scheme == "local" else [location]
     assert downloads == expected_downloads
     if scheme == "https":

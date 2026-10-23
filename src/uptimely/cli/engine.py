@@ -115,13 +115,7 @@ def _log_summary(
         resources = execution_plan.plan.resources
         datasets = resources.get("datasets", {})
         logger.info("\nProcessed datasets:")
-        for entity_id, dataset_id in dict.fromkeys(
-            (callable.entity_id, callable.dataset_id) for callable in execution_plan.callables
-        ):
-            dataset = datasets.get(dataset_id)
-            if dataset is None:
-                logger.info("Dataset(%s, %s): feature metadata unavailable", entity_id, dataset_id)
-                continue
+        for dataset_id, dataset in datasets.items():
             logger.info(
                 "- Dataset: %s - %d features",
                 dataset_id,
@@ -136,10 +130,10 @@ def _log_previews(result: engine_module.ExecutionResult, rows: int) -> None:
         result: Execution result containing the final datasets.
         rows: Positive maximum number of rows to display per dataset.
     """
-    for (entity_id, dataset_id), frame in result.datasets.items():
+    for dataset_id, frame in result.datasets.items():
         if not isinstance(frame, (pl.DataFrame, pl.LazyFrame)):
             raise TypeError(
-                f"Cannot preview Dataset({entity_id}, {dataset_id}): "
+                f"Cannot preview Dataset({dataset_id}): "
                 f"unsupported frame type {type(frame).__name__}"
             )
         preview = frame.head(rows)

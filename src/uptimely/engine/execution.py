@@ -49,8 +49,7 @@ class CallableExecutor:
 
     def _execute_dataframe_mapping(self, callable: plan_module.Callable) -> None:
         """Invoke a data-producing mapping, validate its result, and update the dataset."""
-        dataset_key = (callable.entity_id, callable.dataset_id)
-        frame = self.state.datasets.get(dataset_key)
+        frame = self.state.datasets.get(callable.dataset_id)
         result = self._invoke(callable)
         entity = self.resources.get("entities", {}).get(callable.entity_id)
         if entity is None:
@@ -61,11 +60,11 @@ class CallableExecutor:
         fragment = self.backend.select(result, columns)
         merged = self.dataframe.merge_fragment(frame, fragment, dimensions)
 
-        self.state.datasets[dataset_key] = merged
-        self.state.fragments[(callable.entity_id, callable.output or callable.id)] = fragment
+        self.state.datasets[callable.dataset_id] = merged
+        self.state.fragments[(callable.dataset_id, callable.output or callable.id)] = fragment
         if callable.operation == "vectorize":
             for output in callable.output_features:
-                self.state.calculated_outputs[(*dataset_key, output)] = self.backend.select(
+                self.state.calculated_outputs[(callable.dataset_id, output)] = self.backend.select(
                     fragment, [*dimensions, output]
                 )
 
@@ -75,9 +74,8 @@ class CallableExecutor:
 
     def _execute_sink(self, callable: plan_module.Callable) -> None:
         """Invoke a sink after confirming its accumulated dataset exists."""
-        dataset_key = (callable.entity_id, callable.dataset_id)
-        if dataset_key not in self.state.datasets:
-            raise KeyError(dataset_key)
+        if callable.dataset_id not in self.state.datasets:
+            raise KeyError(callable.dataset_id)
         self._invoke(callable)
 
     def _invoke(self, callable: plan_module.Callable) -> object:

@@ -11,7 +11,7 @@ from uptimely.spec import validation
 from ..spec import references as bindings
 from . import callable_node as callable_node_module
 
-Node = graphable_.graphable.Graphable
+type Node = graphable_.graphable.Graphable
 NodeMeta = callable_node_module.CallableNode
 
 
@@ -26,24 +26,20 @@ class CallableGraph:
         """
         self.spec = spec
         validation.validate_spec(spec)
-        self._datasets = {
-            (entity_id, dataset.id): dataset
-            for entity_id, entity in spec.entities.items()
-            for dataset in entity.datasets.values()
-        }
         # Map feature names to the callables that produce them
         self._feature_producers: dict[str, callable_node_module.CallableNode] = {}
-        self._dataset_sources: dict[tuple[str, str], list[callable_node_module.CallableNode]] = {}
-        self._dataset_sinks: dict[tuple[str, str], list[callable_node_module.CallableNode]] = {}
+        self._dataset_sources: dict[str, list[callable_node_module.CallableNode]] = {}
+        self._dataset_sinks: dict[str, list[callable_node_module.CallableNode]] = {}
         self.graph = self._create_graph()
+        self._nodes = {node.reference.node_id: node for node in self.graph}
 
     def _create_graph(self) -> graphable_.graph.Graph:
         """Build a graph where nodes are callables and edges represent feature dependencies."""
         nodes: dict[str, Node] = {}
+        calculations: dict[str, list[callable_node_module.CallableNode]] = {}
 
         for entity_id, entity in self.spec.entities.items():
             for dataset in entity.datasets.values():
-                dataset_key = (entity_id, dataset.id)
                 for mapping in dataset.mappings.values():
                     operation = bindings.mapping_operation(mapping, self.spec.functions)
                     primary_feature = (
@@ -62,10 +58,12 @@ class CallableGraph:
                         row_context=mapping.row_context,
                     )
                     nodes[node.node_id] = graphable_.graphable.Graphable(node)
-                    if operation == "write":
-                        self._dataset_sinks.setdefault(dataset_key, []).append(node)
+                    if operation == contracts.WRITE:
+                        self._dataset_sinks.setdefault(dataset.id, []).append(node)
                     elif operation in contracts.FRAGMENT_OPERATIONS:
-                        self._dataset_sources.setdefault(dataset_key, []).append(node)
+                        self._dataset_sources.setdefault(dataset.id, []).append(node)
+                    elif operation == contracts.VECTORIZE:
+                        calculations.setdefault(dataset.id, []).append(node)
                     for feature in mapping.output_features:
                         if feature in self.spec.dimensions:
                             continue
@@ -73,41 +71,35 @@ class CallableGraph:
         graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
         # Source transforms follow reads in their dataset.
         for fragments in self._dataset_sources.values():
-            reads = [fragment for fragment in fragments if fragment.operation == "read"]
-            downstream = [fragment for fragment in fragments if fragment.operation != "read"]
+            reads = [fragment for fragment in fragments if fragment.operation == contracts.READ]
+            downstream = [
+                fragment for fragment in fragments if fragment.operation != contracts.READ
+            ]
             for fragment in downstream:
                 for read in reads:
                     graph.add_edge(nodes[read.node_id], nodes[fragment.node_id])
 
         # Mapping inputs create feature-level prerequisites.
-        for graph_node in list(nodes.values()):
+        for graph_node in nodes.values():
             consumer = graph_node.reference
             dataset = self.dataset_for(consumer)
             mapping = self.mapping_for(consumer)
             references = mapping.input_features
             dataset_references = bindings.dataset_dependencies(mapping.binding.args, dataset.id)
             for referenced_id in dataset_references:
-                for source_node in nodes.values():
-                    source = source_node.reference
-                    if (
-                        source.dataset_id == referenced_id
-                        and source != consumer
-                        and source.operation in contracts.FRAGMENT_OPERATIONS
-                        and (referenced_id != dataset.id or source.operation == "read")
+                for source in self._dataset_sources.get(referenced_id, []):
+                    if source != consumer and (
+                        referenced_id != dataset.id or source.operation == contracts.READ
                     ):
-                        graph.add_edge(source_node, graph_node)
-            if consumer.operation == "collapse":
+                        graph.add_edge(nodes[source.node_id], graph_node)
+            if consumer.operation == contracts.COLLAPSE:
                 source_id = self.collapse_input_dataset_id(consumer)
-                for source_node in nodes.values():
-                    source = source_node.reference
-                    if source.dataset_id == source_id and (
-                        source.operation in contracts.FRAGMENT_OPERATIONS
-                        or (
-                            source.operation == "vectorize"
-                            and set(references).intersection(source.output_features)
-                        )
-                    ):
-                        graph.add_edge(source_node, graph_node)
+                for source in self._dataset_sources.get(source_id, []):
+                    graph.add_edge(nodes[source.node_id], graph_node)
+                referenced_features = set(references)
+                for source in calculations.get(source_id, []):
+                    if referenced_features.intersection(source.output_features):
+                        graph.add_edge(nodes[source.node_id], graph_node)
                 continue
             for feature in references:
                 producer = self._feature_producers.get(feature)
@@ -115,29 +107,28 @@ class CallableGraph:
                     graph.add_edge(nodes[producer.node_id], graph_node)
 
         # Vectorize mappings consume the assembled dataset frame.
-        calculation_nodes = [
-            node.reference for node in nodes.values() if node.reference.operation == "vectorize"
-        ]
-        for callable_node in calculation_nodes:
-            consumer_node = nodes[callable_node.node_id]
-            dataset_key = (callable_node.entity, callable_node.dataset_id)
-            for source in self._dataset_sources.get(dataset_key, []):
-                graph.add_edge(nodes[source.node_id], consumer_node)
+        for dataset_id, dataset_calculations in calculations.items():
+            for callable_node in dataset_calculations:
+                consumer_node = nodes[callable_node.node_id]
+                for source in self._dataset_sources.get(dataset_id, []):
+                    graph.add_edge(nodes[source.node_id], consumer_node)
 
-        for dataset_key, sinks in self._dataset_sinks.items():
-            sources = self._dataset_sources.get(dataset_key, [])
-            calculations = [
-                node for node in calculation_nodes if (node.entity, node.dataset_id) == dataset_key
-            ]
+        for dataset_id, sinks in self._dataset_sinks.items():
+            sources = self._dataset_sources.get(dataset_id, [])
+            dataset_calculations = calculations.get(dataset_id, [])
             for sink in sinks:
                 sink_node = nodes[sink.node_id]
                 for source in sources:
                     graph.add_edge(nodes[source.node_id], sink_node)
                 referenced = set(self.mapping_for(sink).input_features)
                 dependencies = (
-                    [node for node in calculations if referenced.intersection(node.output_features)]
+                    [
+                        node
+                        for node in dataset_calculations
+                        if referenced.intersection(node.output_features)
+                    ]
                     if referenced
-                    else calculations
+                    else dataset_calculations
                 )
                 for calculation in dependencies:
                     graph.add_edge(nodes[calculation.node_id], sink_node)
@@ -146,16 +137,16 @@ class CallableGraph:
 
     def collapse_input_dataset_id(self, node: callable_node_module.CallableNode) -> str:
         """Infer the input dataset from a collapse node's spec binding."""
-        if node.operation != "collapse" or node.mapping_id is None:
+        if node.operation != contracts.COLLAPSE or node.mapping_id is None:
             raise ValueError(f"Expected a collapse mapping node: {node.node_id}")
         mapping = self.mapping_for(node)
         return bindings.collapse_input_dataset(self.spec, mapping)[1].id
 
     def dataset_for(self, node: callable_node_module.CallableNode) -> spec.Dataset:
-        """Return a node's dataset from the validated entity-scoped index."""
+        """Return a node's dataset directly from its declaring entity."""
         if node.dataset_id is None:
             raise ValueError(f"Callable node has no dataset: {node.node_id}")
-        return self._datasets[node.entity, node.dataset_id]
+        return self.spec.entities[node.entity].datasets[node.dataset_id]
 
     def mapping_for(self, node: callable_node_module.CallableNode) -> spec.Mapping:
         """Return the declaration that produced a callable node."""
@@ -194,35 +185,31 @@ class CallableGraph:
             raise ValueError("Unknown output feature(s): " + ", ".join(missing))
 
         requested_nodes = [self._feature_producers[feature] for feature in features]
-        nodes = {
-            graph_node
-            for callable_node in requested_nodes
-            for graph_node in [self._node_by_key(self._node_key(callable_node))]
-        }
+        nodes = {self._node_by_key(node.node_id) for node in requested_nodes}
         for node in list(nodes):
             nodes.update(self.graph.ancestors(node))
 
         subset = self.__class__.__new__(self.__class__)
         subset.spec = self.spec
-        subset._datasets = self._datasets
         subset._feature_producers = self._feature_producers
         subset._dataset_sources = self._dataset_sources
         subset._dataset_sinks = self._dataset_sinks
-        selected_dataset_keys = {(node.entity, node.dataset_id) for node in requested_nodes}
-        for dataset_key in selected_dataset_keys:
-            for sink in self._dataset_sinks.get(dataset_key, []):
+        selected_dataset_ids = {node.dataset_id for node in requested_nodes}
+        for dataset_id in selected_dataset_ids:
+            for sink in self._dataset_sinks.get(dataset_id, []):
                 sink_node = self._node_by_key(sink.node_id)
                 nodes.add(sink_node)
                 nodes.update(self.graph.ancestors(sink_node))
         subset.graph = graphable_.graph.Graph(nodes, discover=False).clone(include_edges=True)
+        subset._nodes = {node.reference.node_id: node for node in subset.graph}
         return subset
 
     def _node_by_key(self, node_key: str) -> Node:
         """Return a graph node using a callable node identifier."""
-        for graph_node in self.graph:
-            if self._node_key(graph_node.reference) == node_key:
-                return graph_node
-        raise ValueError(f"Callable node not found: {node_key}")
+        try:
+            return self._nodes[node_key]
+        except KeyError as error:
+            raise ValueError(f"Callable node not found: {node_key}") from error
 
     @property
     def callables(self) -> list[callable_node_module.CallableNode]:

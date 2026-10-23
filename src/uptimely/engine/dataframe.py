@@ -24,16 +24,20 @@ class DataFrameExecution:
 
     def validate_inputs(self, callable: plan_module.Callable) -> None:
         """Require declared input columns to be materialized before invocation."""
+        current = self.state.datasets.get(callable.dataset_id)
+        current_columns = set(self.backend.column_names(current)) if current is not None else set()
+        required = set(callable.input_features) - current_columns
+        if not required:
+            return
+        available = [
+            set(self.backend.column_names(frame))
+            for dataset_id, frame in self.state.datasets.items()
+            if dataset_id != callable.dataset_id
+        ]
         for feature in callable.input_features:
-            frames = [
-                frame
-                for frame in self.state.datasets.values()
-                if feature in self.backend.column_names(frame)
-            ]
-            current = self.state.datasets.get((callable.entity_id, callable.dataset_id))
-            if current is not None and feature in self.backend.column_names(current):
+            if feature not in required:
                 continue
-            if len(frames) != 1:
+            if sum(feature in columns for columns in available) != 1:
                 raise ValueError(
                     f"Mapping {callable.id} input feature is unavailable or ambiguous: {feature}"
                 )

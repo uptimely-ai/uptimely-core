@@ -45,7 +45,7 @@ def test_engine_returns_calculated_features_without_writing_output() -> None:
     result = engine.run()
 
     assert not result.failures
-    assert sorted({feature for _, _, feature in result.calculated_outputs}) == [
+    assert sorted({feature for _, feature in result.calculated_outputs}) == [
         "bearing_temperature_delta",
         "converged",
         "energy_cost_score",
@@ -58,17 +58,17 @@ def test_engine_returns_calculated_features_without_writing_output() -> None:
         "vibration_delta",
     ]
     assert isinstance(
-        result.calculated_outputs[("pump", "pump_dataset", "health_signal_normalized")],
+        result.calculated_outputs[("pump_dataset", "health_signal_normalized")],
         pl.LazyFrame,
     )
-    pump_frame = result.datasets[("pump", "pump_dataset")].collect()
+    pump_frame = result.datasets["pump_dataset"].collect()
     assert pump_frame.select("pump", "bearing_temperature_max", "health_signal_normalized").sort(
         "pump"
     ).rows() == [
         ("PUMP-101", 68.7, 1.0),
         ("PUMP-201", 64.5, -1.0),
     ]
-    telemetry_frame = result.datasets[("pump_telemetry", "pump_telemetry_dataset")].collect()
+    telemetry_frame = result.datasets["pump_telemetry_dataset"].collect()
     assert "health_signal_normalized" not in telemetry_frame.columns
     telemetry_frame = telemetry_frame.sort("pump", "timestamp")
     assert telemetry_frame["pump"].to_list() == ["PUMP-101", "PUMP-101", "PUMP-201"]
@@ -281,16 +281,12 @@ def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> Non
         )
 
 
-def test_engine_rejects_ambiguous_dataset_references() -> None:
-    state = state_module.RuntimeState(
-        datasets={
-            ("first", "shared"): pl.LazyFrame({"id": [1]}),
-            ("second", "shared"): pl.LazyFrame({"id": [2]}),
-        }
-    )
+def test_engine_looks_up_datasets_by_project_wide_id() -> None:
+    frame = pl.LazyFrame({"id": [1]})
+    state = state_module.RuntimeState(datasets={"shared": frame})
 
-    with pytest.raises(ValueError, match="Ambiguous dataset reference: shared"):
-        state.dataset_by_id("shared")
+    assert state.dataframe_by_id("shared") is frame
+    assert state.dataframe_by_id("missing") is None
 
 
 def test_example_deltas_are_partitioned_and_ordered() -> None:
@@ -355,4 +351,4 @@ def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathli
 
     result = engine.run()
 
-    assert result.datasets[("pump", "pump_dataset")].collect().height == 2
+    assert result.datasets["pump_dataset"].collect().height == 2

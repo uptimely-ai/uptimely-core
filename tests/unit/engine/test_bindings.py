@@ -26,8 +26,8 @@ def test_runtime_bindings_resolve_nested_runtime_values_and_dataframe_ids() -> N
     dataset = pl.DataFrame({"asset_id": ["A"]})
     fragment = pl.DataFrame({"reading": [2]})
     state = state_module.RuntimeState(
-        datasets={("asset", "telemetry"): dataset},
-        fragments={("asset", "reading"): fragment},
+        datasets={"telemetry": dataset},
+        fragments={("telemetry", "reading"): fragment},
     )
     bindings = _bindings(
         state=state,

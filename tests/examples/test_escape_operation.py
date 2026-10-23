@@ -36,6 +36,6 @@ def test_escape_example_reads_calculates_and_writes_without_materializing_output
     assert all(status == "succeeded" for status in result.callable_statuses.values())
     assert result.failures == {}
     assert len(result.datasets) == 1
-    assert "ratio" not in result.datasets["asset", "external_workflow"].columns
+    assert "ratio" not in result.datasets["external_workflow"].columns
     assert result.calculated_outputs == {}
     assert pl.read_csv(output_path).rows() == [("P-01", 0.75), ("P-02", 1.0)]

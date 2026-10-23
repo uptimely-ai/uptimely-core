@@ -112,7 +112,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     assert all("result" not in item.output_features for item in metadata.callables)
     execution = engine_for_plan(metadata).run()
     assert not execution.failures
-    assert execution.datasets["entity", "observations"]["metadata"].to_list() == [7, 7]
+    assert execution.datasets["observations"]["metadata"].to_list() == [7, 7]
 
 
 @pytest.mark.parametrize(
@@ -144,7 +144,7 @@ def test_dataframe_returns_are_validated(
     monkeypatch.setattr(f"{__name__}.add_one", invalid)
     execution = engine_for_plan(compiled).run()
     assert message in next(iter(execution.failures.values()))
-    assert ("entity", "observations", "result") not in execution.calculated_outputs
+    assert ("observations", "result") not in execution.calculated_outputs
 
 
 def test_returned_row_order_does_not_control_alignment(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -156,9 +156,10 @@ def test_returned_row_order_does_not_control_alignment(monkeypatch: pytest.Monke
     monkeypatch.setattr(f"{__name__}.add_one", reversed_result)
     execution = engine_for_plan(compiled).run()
     assert not execution.failures
-    assert execution.datasets["entity", "observations"].sort("id").select(
-        "id", "value", "result"
-    ).rows() == [(1, 10, 11), (2, 20, 21)]
+    assert execution.datasets["observations"].sort("id").select("id", "value", "result").rows() == [
+        (1, 10, 11),
+        (2, 20, 21),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -197,7 +198,7 @@ def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
 def test_nested_arguments_preserve_literals_and_resolve_dataframes() -> None:
     compiled = compiler.Compiler(_spec()).compile()
     frame = read_values()
-    state = state_module.RuntimeState(datasets={("entity", "observations"): frame})
+    state = state_module.RuntimeState(datasets={"observations": frame})
     bindings = bindings_module.RuntimeBindings(compiled.plan.resources, state, {})
     assert bindings.resolve_value([None, 1]) == [None, 1]
     resolved = bindings.resolve_value({"frames": ["observations"]}, "object{str: array[dataframe]}")
@@ -257,7 +258,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     compiled = compiler.Compiler(spec.load_spec(path), features=["result"]).compile()
     execution = engine_for_plan(compiled).run()
     assert not execution.failures
-    assert execution.datasets["entity", "observations"].sort("id")["result"].to_list() == [11, 21]
+    assert execution.datasets["observations"].sort("id")["result"].to_list() == [11, 21]
 
 
 @pytest.mark.parametrize("dataframe", [False, True])
@@ -339,6 +340,6 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
     assert len(compiled.callables) == 3
     execution = engine_for_plan(compiled).run()
     assert not execution.failures
-    assert execution.datasets["target_entity", "target"].sort("id")["copied"].to_list() == (
+    assert execution.datasets["target"].sort("id")["copied"].to_list() == (
         [10, 20] if dataframe else ["source"]
     )
