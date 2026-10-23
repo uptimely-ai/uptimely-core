@@ -3,9 +3,9 @@
 import pathlib
 import typing
 
-from uptimely import contracts
 from uptimely import entrypoint as entrypoint_module
 from uptimely.compiler import plan as plan_module
+from uptimely.spec import arg_types, operations
 
 from . import backend as backend_module
 from . import bindings as bindings_module
@@ -34,13 +34,13 @@ class CallableExecutor:
 
     def execute(self, callable: plan_module.Callable) -> None:
         """Dispatch and execute one callable."""
-        if callable.operation == "escape":
+        if callable.operation == operations.ESCAPE:
             self._execute_escape(callable)
             return
 
         self.dataframe.validate_inputs(callable)
-        return_kind = contracts.OPERATION_RETURN_KINDS.get(callable.operation)
-        if return_kind == "dataframe":
+        return_kind = operations.OPERATION_RETURN_KINDS.get(callable.operation)
+        if return_kind == arg_types.DATAFRAME:
             self._execute_dataframe_mapping(callable)
         elif return_kind == "none":
             self._execute_sink(callable)
@@ -62,7 +62,7 @@ class CallableExecutor:
 
         self.state.datasets[callable.dataset_id] = merged
         self.state.fragments[(callable.dataset_id, callable.output or callable.id)] = fragment
-        if callable.operation == "vectorize":
+        if callable.operation == operations.VECTORIZE:
             for output in callable.output_features:
                 self.state.calculated_outputs[(callable.dataset_id, output)] = self.backend.select(
                     fragment, [*dimensions, output]

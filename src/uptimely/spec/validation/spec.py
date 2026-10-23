@@ -6,6 +6,7 @@ import collections.abc
 
 from uptimely.spec import model as spec_model
 
+from .. import operations
 from . import (
     bindings,
     collapse_inputs,
@@ -52,7 +53,7 @@ def _early_declaration_results(
 ) -> collections.abc.Iterator[context_module.ValidationResult]:
     """Check declarations whose errors precede dimension and output validation."""
     for item in context.mappings:
-        if item.operation == "vectorize":
+        if item.operation == operations.VECTORIZE:
             yield mapping_outputs.validate_output_presence(item, item.location.mapping.id)
             yield mapping_outputs.validate_calculation_features(item)
             yield mapping_outputs.validate_function_id(item)
@@ -90,7 +91,7 @@ def _output_results(
     for output_mappings, missing in context.iter_output_datasets():
         for item, declarations in output_mappings:
             yield mapping_outputs.validate_function_reference(item)
-            if item.operation == "write":
+            if item.operation == operations.WRITE:
                 yield mapping_outputs.validate_write_outputs(item)
                 continue
             yield mapping_outputs.validate_output_presence(item, item.location.mapping_id)

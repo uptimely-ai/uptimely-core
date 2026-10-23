@@ -10,9 +10,10 @@ import dataclasses
 import functools
 import typing
 
-from uptimely import contracts
 from uptimely.spec import model as spec_model
 from uptimely.spec import references
+
+from .. import arg_types, operations, selectors
 
 type SpecPath = tuple[str | int, ...]
 type MappingKey = tuple[str, str]
@@ -124,7 +125,7 @@ class MappingFacts:
         return frozenset(self.location.dataset.features) | self.dimensions
 
     @property
-    def operation(self) -> contracts.FunctionOperation | None:
+    def operation(self) -> operations.FunctionOperation | None:
         """Return the declared operation without requiring function resolution."""
         return self.function.operation if self.function is not None else None
 
@@ -240,17 +241,17 @@ class SpecValidationContext:
                             outputs=tuple(mapping.output_features),
                             feature_references=tuple(
                                 references.structural_references(
-                                    mapping.binding.args, contracts.FEATURE_PREFIX
+                                    mapping.binding.args, selectors.FEATURE_PREFIX
                                 )
                             ),
                             dataset_references=tuple(
                                 references.structural_references(
-                                    mapping.binding.args, contracts.DATASET_PREFIX
+                                    mapping.binding.args, selectors.DATASET_PREFIX
                                 )
                             ),
                             dimension_references=tuple(
                                 references.structural_references(
-                                    mapping.binding.args, contracts.DIMENSION_PREFIX
+                                    mapping.binding.args, selectors.DIMENSION_PREFIX
                                 )
                             ),
                         )
@@ -293,7 +294,7 @@ class SpecValidationContext:
         for location in self.datasets:
             preceding: set[str] = set()
             for index, key in enumerate(location.dataset.order):
-                dimension_id = key.dimension.removeprefix(contracts.DIMENSION_PREFIX)
+                dimension_id = key.dimension.removeprefix(selectors.DIMENSION_PREFIX)
                 result.append(
                     OrderDimension(
                         location=location,
@@ -335,7 +336,7 @@ class SpecValidationContext:
         return (
             (item, feature_id, self.first_feature_owner(feature_id))
             for item in self.mappings
-            if item.operation == "vectorize"
+            if item.operation == operations.VECTORIZE
             for feature_id in item.inputs
         )
 
@@ -356,7 +357,7 @@ class SpecValidationContext:
                 ),
             )
             for item in self.mappings
-            if item.operation == "write"
+            if item.operation == operations.WRITE
         )
 
     def iter_output_datasets(
@@ -370,7 +371,7 @@ class SpecValidationContext:
             count = len(location.dataset.mappings)
             for item in self.mappings[offset : offset + count]:
                 declarations: list[tuple[str, str | None]] = []
-                if item.operation != "write":
+                if item.operation != operations.WRITE:
                     for feature_id in item.outputs:
                         declarations.append((feature_id, producers.get(feature_id)))
                         if feature_id not in item.dimensions:
@@ -388,7 +389,7 @@ class SpecValidationContext:
         return {
             feature_id: (item.location.dataset.id, item.location.mapping_id)
             for item in self.mappings
-            if item.operation != "write"
+            if item.operation != operations.WRITE
             for feature_id in item.outputs
             if feature_id not in item.dimensions and feature_id not in self.dimension_ids
         }
@@ -402,12 +403,12 @@ class SpecValidationContext:
         """Infer all collapse source candidates once for this invocation."""
         result: list[CollapseInputs] = []
         for item in self.mappings:
-            if item.operation != "collapse":
+            if item.operation != operations.COLLAPSE:
                 continue
             candidates = tuple(
                 (feature_id, self.feature_owners.get(feature_id, ()))
                 for feature_id in item.inputs
-                if feature_id != contracts.CURRENT_ID and feature_id not in self.dimension_ids
+                if feature_id != selectors.CURRENT_ID and feature_id not in self.dimension_ids
             )
             sources = {
                 owners[0].dataset.id: owners[0] for _, owners in candidates if len(owners) == 1
@@ -447,13 +448,13 @@ class SpecValidationContext:
             return None
         source = (
             self.collapse_sources.get(item.location.key)
-            if item.operation == "collapse"
+            if item.operation == operations.COLLAPSE
             else item.location.dataset_location
         )
         if source is None:
             return None
         reference = declaration.dimension
-        dimension_id = reference.removeprefix(contracts.DIMENSION_PREFIX) if reference else None
+        dimension_id = reference.removeprefix(selectors.DIMENSION_PREFIX) if reference else None
         dimension = self.model.dimensions.get(dimension_id) if dimension_id is not None else None
         measures = {
             measure
@@ -524,13 +525,11 @@ class SpecValidationContext:
     ) -> typing.Iterator[tuple[object, str]]:
         """Flatten nested binding values with their inherited argument types."""
         if isinstance(value, list):
-            element_type = argument_type[6:-1] if argument_type.startswith("array[") else "string"
+            element_type = arg_types.array_item_type(argument_type) or arg_types.STRING
             for item in value:
                 yield from SpecValidationContext._binding_selectors(item, element_type)
         elif isinstance(value, dict):
-            value_type = (
-                argument_type[12:-1] if argument_type.startswith("object{str: ") else "string"
-            )
+            value_type = arg_types.object_value_type(argument_type) or arg_types.STRING
             for item in value.values():
                 yield from SpecValidationContext._binding_selectors(item, value_type)
         else:
@@ -558,7 +557,7 @@ class SpecValidationContext:
             (
                 function_id,
                 function,
-                sum(argument.type == "dataframe" for argument in function.args.values()),
+                sum(argument.type == arg_types.DATAFRAME for argument in function.args.values()),
             )
             for function_id, function in self.model.functions.root.items()
         )
@@ -569,16 +568,16 @@ class SpecValidationContext:
             return ()
         result: list[DataframeInput] = []
         for argument_id, argument in item.function.args.items():
-            if argument.type != "dataframe":
+            if argument.type != arg_types.DATAFRAME:
                 continue
             value = item.location.mapping.binding.args.get(argument_id)
             source_id = None
-            if isinstance(value, str) and value.startswith(contracts.DATASET_PREFIX):
-                reference = value.removeprefix(contracts.DATASET_PREFIX).removesuffix(
-                    contracts.DATAFRAME_SELECTOR
+            if isinstance(value, str) and value.startswith(selectors.DATASET_PREFIX):
+                reference = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
+                    selectors.DATAFRAME_SELECTOR
                 )
                 source_id = (
-                    item.location.dataset.id if reference == contracts.CURRENT_ID else reference
+                    item.location.dataset.id if reference == selectors.CURRENT_ID else reference
                 )
             source = self.dataset(source_id) if source_id is not None else None
             result.append(

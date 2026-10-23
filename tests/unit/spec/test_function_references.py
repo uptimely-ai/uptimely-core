@@ -7,8 +7,8 @@ from collections import abc
 
 import pytest
 
-from uptimely import contracts
 from uptimely.spec import model as spec_model
+from uptimely.spec import operations
 from uptimely.spec.python import bind, conversion, dataset, mapping, ref
 
 MODULE_LOCATIONS = [
@@ -20,7 +20,7 @@ MODULE_LOCATIONS = [
     "https://example.org/team/repository.git",
     "git@example.org:team/repository.git",
 ]
-MAPPING_OPERATIONS: tuple[contracts.FunctionOperation, ...] = (
+MAPPING_OPERATIONS: tuple[operations.FunctionOperation, ...] = (
     "read",
     "write",
     "escape",
@@ -47,13 +47,13 @@ def test_callable_and_string_forms_have_identical_entrypoints(
 
 def test_function_reference_rejects_unsupported_operation() -> None:
     with pytest.raises(ValueError, match="Unsupported function operation"):
-        ref.function("math:ceil", operation=typing.cast(contracts.FunctionOperation, "unknown"))
+        ref.function("math:ceil", operation=typing.cast(operations.FunctionOperation, "unknown"))
 
 
 @pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
 @pytest.mark.parametrize("validate_signature", [False, True])
 def test_signature_validation_setting_survives_conversion_without_importing(
-    operation: contracts.FunctionOperation,
+    operation: operations.FunctionOperation,
     validate_signature: bool,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -152,7 +152,7 @@ def test_string_locations_are_preserved_without_importing(
 
 @pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
 def test_generic_mapping_exports_function_operation_without_importing(
-    operation: contracts.FunctionOperation, monkeypatch: pytest.MonkeyPatch
+    operation: operations.FunctionOperation, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def unexpected_import(*_args: object, **_kwargs: object) -> typing.NoReturn:
         pytest.fail(f"Unexpected function import during authoring: {_args!r} {_kwargs!r}")
@@ -209,7 +209,7 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
 
 @pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
 def test_generic_mapping_accepts_operation_metadata(
-    operation: contracts.FunctionOperation,
+    operation: operations.FunctionOperation,
 ) -> None:
     declaration = mapping.Mapping(
         bind=bind.bind(ref.function("math:ceil", operation=operation), x=1.2)
@@ -221,7 +221,7 @@ def test_generic_mapping_accepts_operation_metadata(
 @pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
 @pytest.mark.parametrize("function_id", [None, "rounded"])
 def test_references_supply_catalog_ids_and_preserve_overrides(
-    operation: contracts.FunctionOperation, function_id: str | None
+    operation: operations.FunctionOperation, function_id: str | None
 ) -> None:
     binding = bind.bind(
         ref.function("math:ceil", operation=operation), function_id=function_id, x=1.2

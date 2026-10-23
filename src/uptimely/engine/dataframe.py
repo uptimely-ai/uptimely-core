@@ -3,6 +3,7 @@
 import typing
 
 from uptimely.compiler import plan as plan_module
+from uptimely.spec import operations
 
 from . import backend as backend_module
 from . import state as state_module
@@ -72,7 +73,7 @@ class DataFrameExecution:
             if column_type is not None:
                 types[name] = column_type
         self.backend.validate_types(result, types)
-        if callable.operation == "vectorize" and (
+        if callable.operation == operations.VECTORIZE and (
             input_frame is None or not self.backend.same_keys(input_frame, result, dimensions)
         ):
             raise ValueError(

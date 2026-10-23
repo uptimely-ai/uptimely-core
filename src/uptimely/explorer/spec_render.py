@@ -9,10 +9,10 @@ import typing
 from importlib import util
 from urllib import parse
 
-from uptimely import contracts, project
 from uptimely import entrypoint as entrypoint_module
+from uptimely import project
 from uptimely.spec import model as spec_model
-from uptimely.spec import references
+from uptimely.spec import operations, references, selectors
 
 from . import render
 
@@ -74,7 +74,7 @@ def _render_document(
                 for function_id, function in context["configuration"]["functions"].items()
                 if function.get("operation") == operation
             }
-            for operation in contracts.FUNCTION_OPERATIONS
+            for operation in operations.FUNCTION_OPERATIONS
         },
         summary=context["summary"],
         feature_dependencies=context["feature_dependencies"],
@@ -138,10 +138,10 @@ def _feature_data(
                 function = functions.get(function_id, {})
                 operation = function.get("operation")
                 for reference in mapping.get("features", {}).get("outputs", []):
-                    feature_id = reference.removeprefix(contracts.FEATURE_PREFIX)
+                    feature_id = reference.removeprefix(selectors.FEATURE_PREFIX)
                     feature = dict(dataset.get("features", {}).get(feature_id, {}))
                     feature["id"] = feature_id
-                    if operation == "vectorize":
+                    if operation == operations.VECTORIZE:
                         calculated_features.append(
                             {
                                 **feature,
@@ -149,7 +149,7 @@ def _feature_data(
                                 "inputs": mapping.get("features", {}).get("inputs", []),
                             }
                         )
-                    elif operation == "escape":
+                    elif operation == operations.ESCAPE:
                         if (dataset_id, feature_id) not in seen_inputs:
                             escape_features.append(feature)
                             seen_inputs.add((dataset_id, feature_id))
@@ -160,7 +160,7 @@ def _feature_data(
         dependency
         for calculation in calculated_features
         for dependency in (
-            reference.removeprefix(contracts.FEATURE_PREFIX)
+            reference.removeprefix(selectors.FEATURE_PREFIX)
             for reference in calculation.get("inputs", [])
         )
     }
@@ -183,11 +183,11 @@ def _build_context(
         operation = function.get("operation")
         if isinstance(operation, str):
             function_groups.setdefault(operation, {})[function_id] = function
-            function["declared_returns"] = contracts.OPERATION_RETURN_KINDS[operation]
+            function["declared_returns"] = operations.OPERATION_RETURN_KINDS[operation]
             function["escape_mappings"] = []
     for entity_id, dataset, mapping in references.iter_mappings(spec_definition):
         function = function_definitions[mapping.binding.function]
-        if function.get("operation") == "escape":
+        if function.get("operation") == operations.ESCAPE:
             function["escape_mappings"].append(
                 {
                     "entity": entity_id,
@@ -245,7 +245,7 @@ def _build_context(
     }
     function_buckets = {
         operation: len(function_groups.get(operation, {}))
-        for operation in contracts.FUNCTION_OPERATIONS
+        for operation in operations.FUNCTION_OPERATIONS
     }
     dataset_count = sum(len(entity.get("datasets", {})) for entity in entities.values())
     mapping_count = sum(
@@ -255,7 +255,7 @@ def _build_context(
         for mapping in dataset.get("mappings", {}).values()
         if any(
             mapping.get("binding", {}).get("function") in function_groups.get(operation, {})
-            for operation in contracts.FRAGMENT_OPERATIONS
+            for operation in operations.FRAGMENT_OPERATIONS
         )
     )
     summary = ExplorerSummary(
@@ -280,7 +280,8 @@ def _build_context(
             "dependencies": mapping.input_features,
         }
         for _entity_id, _dataset, mapping in references.iter_mappings(spec_definition)
-        if spec_definition.functions[mapping.binding.function].operation in {"escape", "vectorize"}
+        if spec_definition.functions[mapping.binding.function].operation
+        in {operations.ESCAPE, operations.VECTORIZE}
         for feature in mapping.output_features
     ]
     generated_at = (

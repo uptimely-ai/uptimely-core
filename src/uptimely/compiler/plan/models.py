@@ -8,6 +8,7 @@ import pathlib
 import typing
 
 from uptimely import row_context as uptimely_row_context
+from uptimely.spec import operations
 
 PLAN_VERSION = 1
 
@@ -34,7 +35,7 @@ class Callable:
             raise ValueError("Callable output_features must be unique")
         if not isinstance(self.entrypoint, str) or not self.entrypoint:
             raise ValueError("Callables must declare an entrypoint")
-        if self.operation == "collapse" and not self.output_features:
+        if self.operation == operations.COLLAPSE and not self.output_features:
             raise ValueError("Collapse must declare output_features")
         if self.row_context is not None:
             object.__setattr__(

@@ -6,14 +6,14 @@ import typing
 
 import pydantic
 
-from uptimely import contracts
+from uptimely.spec import operations
 
 from . import common
 
 FUNCTION_TYPES = ["sql_query", "python_function"]
-FUNCTION_OPERATIONS = contracts.FUNCTION_OPERATIONS
-FunctionOperation = contracts.FunctionOperation
-FunctionReturns = contracts.FunctionReturns
+FUNCTION_OPERATIONS = operations.FUNCTION_OPERATIONS
+FunctionOperation = operations.FunctionOperation
+FunctionReturns = operations.FunctionReturns
 
 
 class FunctionTemplate(common.StrictModel):

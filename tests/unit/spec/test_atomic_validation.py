@@ -9,7 +9,8 @@ import json
 import pytest
 from conftest import EXAMPLES_ROOT
 
-from uptimely import contracts, spec
+from uptimely import spec
+from uptimely.spec import operations
 from uptimely.spec.validation import context, errors, functions, mapping_contracts, row_context
 
 type ContractRule = collections.abc.Callable[[context.MappingContract], ValueError | None]
@@ -99,7 +100,7 @@ def prepared() -> context.SpecValidationContext:
 def test_mapping_rules_return_structured_errors_without_raising(
     prepared: context.SpecValidationContext,
     rule: ContractRule,
-    operation: contracts.FunctionOperation,
+    operation: operations.FunctionOperation,
     changes: dict[str, object],
     code: str,
     path_suffix: tuple[str, ...],

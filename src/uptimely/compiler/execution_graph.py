@@ -5,8 +5,8 @@ from __future__ import annotations
 import graphable as graphable_
 from graphable.views import texttree
 
-from uptimely import contracts, spec
-from uptimely.spec import validation
+from uptimely import spec
+from uptimely.spec import operations, validation
 
 from ..spec import references as bindings
 from . import callable_node as callable_node_module
@@ -58,11 +58,11 @@ class CallableGraph:
                         row_context=mapping.row_context,
                     )
                     nodes[node.node_id] = graphable_.graphable.Graphable(node)
-                    if operation == contracts.WRITE:
+                    if operation == operations.WRITE:
                         self._dataset_sinks.setdefault(dataset.id, []).append(node)
-                    elif operation in contracts.FRAGMENT_OPERATIONS:
+                    elif operation in operations.FRAGMENT_OPERATIONS:
                         self._dataset_sources.setdefault(dataset.id, []).append(node)
-                    elif operation == contracts.VECTORIZE:
+                    elif operation == operations.VECTORIZE:
                         calculations.setdefault(dataset.id, []).append(node)
                     for feature in mapping.output_features:
                         if feature in self.spec.dimensions:
@@ -71,9 +71,9 @@ class CallableGraph:
         graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
         # Source transforms follow reads in their dataset.
         for fragments in self._dataset_sources.values():
-            reads = [fragment for fragment in fragments if fragment.operation == contracts.READ]
+            reads = [fragment for fragment in fragments if fragment.operation == operations.READ]
             downstream = [
-                fragment for fragment in fragments if fragment.operation != contracts.READ
+                fragment for fragment in fragments if fragment.operation != operations.READ
             ]
             for fragment in downstream:
                 for read in reads:
@@ -89,10 +89,10 @@ class CallableGraph:
             for referenced_id in dataset_references:
                 for source in self._dataset_sources.get(referenced_id, []):
                     if source != consumer and (
-                        referenced_id != dataset.id or source.operation == contracts.READ
+                        referenced_id != dataset.id or source.operation == operations.READ
                     ):
                         graph.add_edge(nodes[source.node_id], graph_node)
-            if consumer.operation == contracts.COLLAPSE:
+            if consumer.operation == operations.COLLAPSE:
                 source_id = self.collapse_input_dataset_id(consumer)
                 for source in self._dataset_sources.get(source_id, []):
                     graph.add_edge(nodes[source.node_id], graph_node)
@@ -137,7 +137,7 @@ class CallableGraph:
 
     def collapse_input_dataset_id(self, node: callable_node_module.CallableNode) -> str:
         """Infer the input dataset from a collapse node's spec binding."""
-        if node.operation != contracts.COLLAPSE or node.mapping_id is None:
+        if node.operation != operations.COLLAPSE or node.mapping_id is None:
             raise ValueError(f"Expected a collapse mapping node: {node.node_id}")
         mapping = self.mapping_for(node)
         return bindings.collapse_input_dataset(self.spec, mapping)[1].id

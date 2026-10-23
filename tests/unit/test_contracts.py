@@ -3,26 +3,26 @@ import typing
 import pydantic
 import pytest
 
-from uptimely import contracts
 from uptimely.spec import model as spec_model
+from uptimely.spec import operations
 from uptimely.spec.validation import bindings
 from uptimely.spec.validation import context as context_module
 from uptimely.spec.validation import functions as validation_functions
 
 
 def test_named_operations_match_the_public_operation_contract() -> None:
-    assert contracts.FUNCTION_OPERATIONS == (
-        contracts.READ,
-        contracts.WRITE,
-        contracts.ESCAPE,
-        contracts.VECTORIZE,
-        contracts.COLLAPSE,
-        contracts.EXPAND,
-        contracts.CONFORM,
+    assert operations.FUNCTION_OPERATIONS == (
+        operations.READ,
+        operations.WRITE,
+        operations.ESCAPE,
+        operations.VECTORIZE,
+        operations.COLLAPSE,
+        operations.EXPAND,
+        operations.CONFORM,
     )
-    assert typing.get_args(contracts.FunctionOperation) == contracts.FUNCTION_OPERATIONS
-    assert set(contracts.DATAFRAME_INPUT_COUNTS) == set(contracts.FUNCTION_OPERATIONS)
-    assert set(contracts.OPERATION_RETURN_KINDS) == set(contracts.FUNCTION_OPERATIONS)
+    assert typing.get_args(operations.FunctionOperation) == operations.FUNCTION_OPERATIONS
+    assert set(operations.DATAFRAME_INPUT_COUNTS) == set(operations.FUNCTION_OPERATIONS)
+    assert set(operations.OPERATION_RETURN_KINDS) == set(operations.FUNCTION_OPERATIONS)
 
 
 @pytest.mark.parametrize(
@@ -38,12 +38,12 @@ def test_named_operations_match_the_public_operation_contract() -> None:
     ],
 )
 def test_operation_contracts_validate_every_function_operation(
-    operation: contracts.FunctionOperation,
+    operation: operations.FunctionOperation,
     dataframe_input_count: int | None,
-    return_kind: contracts.FunctionReturns,
+    return_kind: operations.FunctionReturns,
 ) -> None:
-    assert contracts.DATAFRAME_INPUT_COUNTS[operation] == dataframe_input_count
-    assert contracts.OPERATION_RETURN_KINDS[operation] == return_kind
+    assert operations.DATAFRAME_INPUT_COUNTS[operation] == dataframe_input_count
+    assert operations.OPERATION_RETURN_KINDS[operation] == return_kind
 
     model = spec_model.Spec.model_validate(
         {
@@ -198,12 +198,12 @@ def test_fixed_operation_contracts_remain_enforced(
 
 
 def test_function_model_reexports_the_shared_operation_contract() -> None:
-    assert spec_model.FUNCTION_OPERATIONS is contracts.FUNCTION_OPERATIONS
+    assert spec_model.FUNCTION_OPERATIONS is operations.FUNCTION_OPERATIONS
 
 
 def test_fragment_operations_exclude_calculations_and_sinks() -> None:
-    assert set(contracts.FRAGMENT_OPERATIONS) == {"read", "conform", "expand", "collapse"}
-    assert set(contracts.FRAGMENT_OPERATIONS) < set(contracts.FUNCTION_OPERATIONS)
+    assert set(operations.FRAGMENT_OPERATIONS) == {"read", "conform", "expand", "collapse"}
+    assert set(operations.FRAGMENT_OPERATIONS) < set(operations.FUNCTION_OPERATIONS)
 
 
 @pytest.mark.parametrize("operation", ["python_one_liner", "sql_select", "unknown", ""])

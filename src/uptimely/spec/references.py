@@ -7,7 +7,7 @@ import typing
 
 import pydantic
 
-from uptimely import contracts
+from . import selectors
 
 if typing.TYPE_CHECKING:
     from . import model as spec_model
@@ -50,8 +50,8 @@ def structural_references(value: typing.Any, prefix: str) -> list[str]:
         if value.startswith(prefix):
             return [
                 value.removeprefix(prefix)
-                .removesuffix(contracts.ID_SELECTOR)
-                .removesuffix(contracts.DATAFRAME_SELECTOR)
+                .removesuffix(selectors.ID_SELECTOR)
+                .removesuffix(selectors.DATAFRAME_SELECTOR)
             ]
         return []
     if isinstance(value, dict):
@@ -93,7 +93,7 @@ def collapse_input_dataset(
     inputs = [
         feature
         for feature in mapping.input_features
-        if feature != contracts.CURRENT_ID and feature not in spec_definition.dimensions
+        if feature != selectors.CURRENT_ID and feature not in spec_definition.dimensions
     ]
     if not inputs:
         raise ValueError(f"Collapse {mapping.id} must reference a source feature")
@@ -130,13 +130,13 @@ def dataset_dependencies(args: dict[str, typing.Any], current_dataset: str) -> l
     def collect(value: object) -> None:
         if (
             isinstance(value, str)
-            and value.startswith(contracts.DATASET_PREFIX)
-            and not value.endswith(contracts.ID_SELECTOR)
+            and value.startswith(selectors.DATASET_PREFIX)
+            and not value.endswith(selectors.ID_SELECTOR)
         ):
-            identifier = value.removeprefix(contracts.DATASET_PREFIX).removesuffix(
-                contracts.DATAFRAME_SELECTOR
+            identifier = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
+                selectors.DATAFRAME_SELECTOR
             )
-            references.append(current_dataset if identifier == contracts.CURRENT_ID else identifier)
+            references.append(current_dataset if identifier == selectors.CURRENT_ID else identifier)
         elif isinstance(value, dict):
             for item in value.values():
                 collect(item)
@@ -175,22 +175,22 @@ def resolve_structural_reference(
 ) -> str:
     """Return the identifier represented by a structural binding reference."""
     if value in {
-        f"{contracts.FEATURE_PREFIX}{contracts.CURRENT_ID}",
-        f"{contracts.FEATURE_PREFIX}{contracts.CURRENT_ID}{contracts.ID_SELECTOR}",
+        f"{selectors.FEATURE_PREFIX}{selectors.CURRENT_ID}",
+        f"{selectors.FEATURE_PREFIX}{selectors.CURRENT_ID}{selectors.ID_SELECTOR}",
     }:
         return feature_id if feature_id is not None else value
-    for prefix in contracts.STRUCTURAL_PREFIXES:
+    for prefix in selectors.STRUCTURAL_PREFIXES:
         if value.startswith(prefix):
             identifier = value.removeprefix(prefix)
-            if prefix == contracts.DATASET_PREFIX:
-                identifier = identifier.removesuffix(contracts.DATAFRAME_SELECTOR).removesuffix(
-                    contracts.ID_SELECTOR
+            if prefix == selectors.DATASET_PREFIX:
+                identifier = identifier.removesuffix(selectors.DATAFRAME_SELECTOR).removesuffix(
+                    selectors.ID_SELECTOR
                 )
             else:
-                identifier = identifier.removesuffix(contracts.ID_SELECTOR)
+                identifier = identifier.removesuffix(selectors.ID_SELECTOR)
             return (
                 current_dataset_id
-                if prefix == contracts.DATASET_PREFIX and identifier == contracts.CURRENT_ID
+                if prefix == selectors.DATASET_PREFIX and identifier == selectors.CURRENT_ID
                 else identifier
             )
     return value

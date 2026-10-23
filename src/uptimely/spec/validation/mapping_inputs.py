@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from uptimely import contracts
-
+from .. import operations, selectors
 from . import context as context_module
 from . import errors
 
 
 def validate_escape_inputs(item: context_module.MappingFacts) -> context_module.ValidationResult:
     """Require escape mappings to declare feature inputs."""
-    if item.operation == "escape" and not item.inputs:
+    if item.operation == operations.ESCAPE and not item.inputs:
         return errors.SpecError(
             "Escape mappings must declare one or more input features",
             code="invalid_mapping_feature_inputs",
@@ -34,7 +33,9 @@ def validate_input_scope(
     item: context_module.MappingFacts, feature: str
 ) -> context_module.ValidationResult:
     """Require vectorize and write inputs to belong to the target dataset."""
-    if item.operation in {"vectorize", "write"} and feature not in item.local_features:
+    if item.operation in {operations.VECTORIZE, operations.WRITE} and feature not in (
+        item.local_features
+    ):
         return ValueError(
             f"Mapping {item.location.mapping.id} cannot read feature {feature} from another dataset"
         )
@@ -45,7 +46,7 @@ def validate_feature_reference(
     item: context_module.MappingFacts, feature: str, feature_names: frozenset[str]
 ) -> context_module.ValidationResult:
     """Require a structural feature reference to be declared."""
-    if feature != contracts.CURRENT_ID and feature not in feature_names:
+    if feature != selectors.CURRENT_ID and feature not in feature_names:
         return ValueError(
             f"Mapping {item.location.mapping.id} references unknown feature: {feature}"
         )
@@ -58,7 +59,7 @@ def validate_dataset_reference(
     datasets_by_id: dict[str, tuple[context_module.DatasetLocation, ...]],
 ) -> context_module.ValidationResult:
     """Require a structural dataset reference to be declared."""
-    if dataset != contracts.CURRENT_ID and dataset not in datasets_by_id:
+    if dataset != selectors.CURRENT_ID and dataset not in datasets_by_id:
         return ValueError(
             f"Mapping {item.location.mapping.id} references unknown dataset: {dataset}"
         )

@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from uptimely import contracts
-
+from .. import arg_types, selectors
 from . import context as context_module
 from . import errors
 
@@ -34,10 +33,10 @@ def validate_selector_type(
     """Require a structural selector's argument type to match its value kind."""
     if not isinstance(value, str) or not value.startswith("$"):
         return None
-    if value.startswith(contracts.DATASET_PREFIX) and value.endswith(contracts.DATAFRAME_SELECTOR):
-        expected = "dataframe"
-    elif value.endswith(contracts.ID_SELECTOR):
-        expected = "string"
+    if value.startswith(selectors.DATASET_PREFIX) and value.endswith(selectors.DATAFRAME_SELECTOR):
+        expected = arg_types.DATAFRAME
+    elif value.endswith(selectors.ID_SELECTOR):
+        expected = arg_types.STRING
     else:
         return None
     if argument_type != expected:

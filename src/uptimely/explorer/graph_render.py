@@ -8,6 +8,7 @@ import typing
 from graphable import views
 
 from uptimely import project
+from uptimely.spec import operations
 
 from . import render
 
@@ -24,13 +25,13 @@ class GraphStyle:
     feature_color: str = "#6ebcf4"
     function_colors: dict[str, str] = dataclasses.field(
         default_factory=lambda: {
-            "read": "#4c78a8",
-            "escape": "#a78bfa",
-            "vectorize": "#f58518",
-            "collapse": "#e45756",
-            "conform": "#72b7b2",
-            "expand": "#b279a2",
-            "write": "#ff9da6",
+            operations.READ: "#4c78a8",
+            operations.ESCAPE: "#a78bfa",
+            operations.VECTORIZE: "#f58518",
+            operations.COLLAPSE: "#e45756",
+            operations.CONFORM: "#72b7b2",
+            operations.EXPAND: "#b279a2",
+            operations.WRITE: "#ff9da6",
         }
     )
     background_color: str = "#101820"
