@@ -52,8 +52,10 @@ to the graph title,
 **Zoom in**, **Zoom out**, **Reset graph**, collapsible legend, and selected-node
 details panel. Click a node to highlight its upstream dependencies and downstream
 dependents; the selection is preserved when switching dimensions. The feature
-graph retains its entity colors and the execution graph retains its stage lanes
-and operation colors when no node is selected.
+graph retains its entity colors when no node is selected. In 3D, the execution
+graph uses the same entity-colored spheres, node sizes, label spacing, and edge
+length settings as the feature graph. Its 2D view retains stage lanes and
+operation colors.
 **Reset graph** clears the selection and dependency highlights in both dimensions
 and fits the current view to show the whole graph.
 

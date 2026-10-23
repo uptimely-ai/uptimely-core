@@ -1,6 +1,7 @@
 {
 	const callableGraphData = ExplorerGraph.readPayload('graph-data');
 	const style = ExplorerGraph.readPayload('graph-style');
+	ExplorerGraph.prepareEntityColors(callableGraphData, document.getElementById('entity-legend'));
 	const callableNodeDetails = document.getElementById('callable-node-details');
 	const formatList = (values) => Array.isArray(values) && values.length ? values.join(', ') : 'none';
 	const updateCallableDetails = (node) => {
@@ -27,17 +28,12 @@
 		const highlight = ExplorerGraph.createDependencyHighlight(callableGraphData);
 		return ExplorerGraph.create3D(callableGraphContainer, callableGraphData, style, {
 			label: node => `${node.function_id}\n${node.operation === 'escape' ? 'declares external outputs' : 'produces'}: ${node.feature}`,
-			color: node => callableColors[node.operation],
+			color: node => node.entityColor,
 			onSelect: updateCallableDetails,
 			highlight,
-			object: node => {
-				const material = new THREE.MeshLambertMaterial({ color: callableColors[node.operation] });
-				const mesh = new THREE.Mesh(
-					new THREE.OctahedronGeometry(style.function_node_size, 0),
-					material,
-				);
-				return ExplorerGraph.labeledMesh(mesh, node.function_id, style, 18);
-			},
+			configure: graph => graph.linkDirectionalArrowLength(style.arrow_length)
+				.linkDirectionalArrowRelPos(style.arrow_rel_pos),
+			object: node => ExplorerGraph.entityNodeObject(node, node.function_id, style),
 		});
 	}
 	function create2D(callableGraphContainer, callableGraphData, updateCallableDetails) {

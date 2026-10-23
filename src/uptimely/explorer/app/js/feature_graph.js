@@ -2,24 +2,7 @@
 	const data = ExplorerGraph.readPayload('graph-data');
 	const style = ExplorerGraph.readPayload('graph-style');
 	const functionColor = style.function_color;
-	const entityNames = [...new Set(data.nodes.map(node => node.entity || 'Unassigned'))]
-		.sort((a, b) => a.localeCompare(b));
-	const entityPalette = [
-		'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa',
-		'#facc15', '#60a5fa', '#f472b6', '#a3e635',
-		'#22d3ee', '#c084fc', '#4ade80', '#f87171',
-	];
-	const entityColors = new Map(entityNames.map(
-		(entity, index) => [entity, entityPalette[index % entityPalette.length]]
-	));
-	const entityLegend = document.getElementById('entity-legend');
-	ExplorerGraph.appendLegend(entityLegend, entityNames.map(entity => ({
-		label: entity, color: entityColors.get(entity),
-	})));
-	for (const node of data.nodes) {
-		node.entity = node.entity || 'Unassigned';
-		node.entityColor = entityColors.get(node.entity);
-	}
+	ExplorerGraph.prepareEntityColors(data, document.getElementById('entity-legend'));
 	const nodeDetails = document.getElementById('node-details');
 	const formatDetailValue = (value) => value == null ? 'n/a' : String(value).slice(0, 220);
 	const updateDetails = (node) => {
@@ -315,19 +298,13 @@
 			configure: graph => graph.linkDirectionalArrowLength(style.arrow_length)
 				.linkDirectionalArrowRelPos(style.arrow_rel_pos),
 			object: node => {
-				const color = node.is_function ? functionColor : node.entityColor;
-				const material = new THREE.MeshLambertMaterial({ color });
-				const isVariable = !node.is_function;
-				const geometry = isVariable
-					? new THREE.SphereGeometry(style.feature_node_size, 16, 12)
-					: new THREE.OctahedronGeometry(style.function_node_size, 0);
-				const mesh = new THREE.Mesh(geometry, material);
-
-				if (!isVariable) {
-					return mesh;
+				if (!node.is_function) {
+					return ExplorerGraph.entityNodeObject(node, node.label, style);
 				}
-
-				return ExplorerGraph.labeledMesh(mesh, node.label, style, 14);
+				return new THREE.Mesh(
+					new THREE.OctahedronGeometry(style.function_node_size, 0),
+					new THREE.MeshLambertMaterial({ color: functionColor }),
+				);
 			},
 		});
 	}
