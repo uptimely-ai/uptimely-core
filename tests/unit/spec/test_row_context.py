@@ -38,28 +38,29 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
             dataset.Dataset(
                 id="observations",
                 order=[dataset.Order(ref.dimension("timestamp"), "asc")] if ordered else [],
-                mappings=[
-                    mapping.Mapping(
-                        bind=bind.bind(ref.function(read_observations, operation="read")),
+                mappings={
+                    "read_observations": mapping.FunctionMapping(
+                        inputs=[],
+                        function=ref.function(read_observations, operation="read"),
+                        arguments={},
                         outputs=[
-                            feature.Feature(id="timestamp", type=dimension_type),
-                            feature.Feature(id="temperature", type="integer"),
+                            feature.Feature(name="timestamp", type=dimension_type),
+                            feature.Feature(name="temperature", type="integer"),
                         ],
                     ),
-                    mapping.Mapping(
-                        id="result",
+                    "result": mapping.FunctionMapping(
                         inputs=[ref.feature("temperature")],
-                        outputs=[feature.Feature(id="result", type="integer")],
                         row_context=context,
-                        bind=bind.bind(
-                            ref.function(calculate, operation="vectorize"),
-                            dataset=ref.current_dataset().dataframe,
-                            column=ref.feature("temperature").id,
-                            output=ref.feature("result").id,
-                            configuration={"windows": ["8h", "24h"]},
-                        ),
+                        function=ref.function(calculate, operation="vectorize"),
+                        arguments={
+                            "dataset": ref.current_dataset().dataframe,
+                            "column": ref.feature("temperature").id,
+                            "output": ref.feature("result").id,
+                            "configuration": {"windows": ["8h", "24h"]},
+                        },
+                        outputs=[feature.Feature(name="result", type="integer")],
                     ),
-                ],
+                },
             )
         ],
         dimensions=[dimension.Dimension(id="timestamp", type=dimension_type)],
@@ -116,27 +117,31 @@ def test_count_extents_require_nonnegative_integers(factory, value):
 
 
 def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
-    declaration = mapping.Mapping(
-        bind=bind.bind(
-            ref.function(calculate, operation="vectorize"),
-            configuration={
+    declaration = mapping.FunctionMapping(
+        row_context=authoring.time("explicit", dimension=ref.dimension("timestamp"), after="3h"),
+        inputs=[],
+        function=ref.function(f"{__name__}:calculate", operation="vectorize"),
+        arguments={
+            "configuration": {
                 "windows": [
                     authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h"),
                     authoring.time(
                         "24h", dimension=ref.dimension("timestamp"), before="24h", after="2h"
                     ),
-                ],
-            },
-        ),
-        row_context=authoring.time("explicit", dimension=ref.dimension("timestamp"), after="3h"),
+                ]
+            }
+        },
+        outputs=[],
     )
-    assert declaration.to_model().row_context.to_dict() == {
+    assert declaration.to_model("calculate").row_context.to_dict() == {
         "dimension": "$dimensions.timestamp",
         "before": {"time": "24h"},
         "after": {"time": "3h"},
     }
-    assert declaration.to_model().binding.args == {"configuration": {"windows": ["8h", "24h"]}}
-    assert bind._argument_definition(declaration.bind.args["configuration"]) == {
+    assert declaration.to_model("calculate").binding.args == {
+        "configuration": {"windows": ["8h", "24h"]}
+    }
+    assert bind._argument_definition(declaration.bound_arguments()["configuration"]) == {
         "type": "object{str: array[string]}"
     }
 
@@ -145,20 +150,18 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
     first = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h")
     second = authoring.time("8h", dimension=ref.dimension("other"), before="8h")
     with pytest.raises(ValueError, match="one dimension"):
-        mapping.Mapping(
-            bind=bind.bind(
-                ref.function(calculate, operation="vectorize"), configuration=[first, second]
-            )
+        mapping.FunctionMapping(
+            inputs=[],
+            function=ref.function(calculate, operation="vectorize"),
+            arguments={"configuration": [first, second]},
+            outputs=[],
         )
     with pytest.raises(ValueError, match="one measurement"):
-        mapping.Mapping(
-            bind=bind.bind(
-                ref.function(calculate, operation="vectorize"),
-                configuration=[
-                    first,
-                    authoring.rows(8, before=7),
-                ],
-            )
+        mapping.FunctionMapping(
+            inputs=[],
+            function=ref.function(calculate, operation="vectorize"),
+            arguments={"configuration": [first, authoring.rows(8, before=7)]},
+            outputs=[],
         )
 
 
@@ -189,7 +192,12 @@ def test_context_rejects_invalid_metadata(payload):
 
 def test_unknown_current_and_whole_dataset_context_are_distinct():
     assert (
-        mapping.Mapping(bind=bind.bind(ref.function(calculate, operation="vectorize"))).row_context
+        mapping.FunctionMapping(
+            inputs=[],
+            function=ref.function(calculate, operation="vectorize"),
+            arguments={},
+            outputs=[],
+        ).row_context
         is None
     )
     assert authoring.current().to_dict() == {"before": {}, "after": {}}
@@ -279,14 +287,14 @@ def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Pat
 
 @pytest.mark.parametrize("operation", ["read", "expand", "collapse", "vectorize"])
 def test_all_data_mappings_preserve_annotated_context(operation):
-    declaration = mapping.Mapping(
-        bind=bind.bind(
-            ref.function(calculate, operation=operation),
-            configuration={"windows": [authoring.rows(8, before=7)]},
-        )
+    declaration = mapping.FunctionMapping(
+        inputs=[],
+        function=ref.function(f"{__name__}:calculate", operation=operation),
+        arguments={"configuration": {"windows": [authoring.rows(8, before=7)]}},
+        outputs=[],
     )
-    assert declaration.to_model().row_context.before.rows == 7
-    assert declaration.to_model().binding.args == {"configuration": {"windows": [8]}}
+    assert declaration.to_model("calculate").row_context.before.rows == 7
+    assert declaration.to_model("calculate").binding.args == {"configuration": {"windows": [8]}}
 
 
 def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
@@ -365,31 +373,32 @@ def test_plan_context_is_present_in_portable_operations() -> None:
 def test_collapse_functions_execute_without_row_context() -> None:
     source = dataset.Dataset(
         id="observations",
-        mappings=[
-            mapping.Mapping(
-                bind=bind.bind(ref.function(read_observations, operation="read")),
+        mappings={
+            "read_observations": mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function(read_observations, operation="read"),
+                arguments={},
                 outputs=[
-                    feature.Feature(id="timestamp", type="datetime"),
-                    feature.Feature(id="temperature", type="integer"),
+                    feature.Feature(name="timestamp", type="datetime"),
+                    feature.Feature(name="temperature", type="integer"),
                 ],
             )
-        ],
+        },
     )
     summary = dataset.Dataset(
         id="summary",
-        mappings=[
-            mapping.Mapping(
-                id="summary",
-                bind=bind.bind(
-                    ref.function(maximum, operation="collapse"),
-                    dataset=ref.dataset("observations").dataframe,
-                    column=ref.feature("temperature").id,
-                    output=ref.feature("temperature_max").id,
-                ),
+        mappings={
+            "summary": mapping.FunctionMapping(
                 inputs=[ref.feature("temperature")],
-                outputs=[feature.Feature(id="temperature_max", type="integer")],
+                function=ref.function(maximum, operation="collapse"),
+                arguments={
+                    "dataset": ref.dataset("observations").dataframe,
+                    "column": ref.feature("temperature").id,
+                    "output": ref.feature("temperature_max").id,
+                },
+                outputs=[feature.Feature(name="temperature_max", type="integer")],
             )
-        ],
+        },
     )
     timestamp = dimension.Dimension(id="timestamp", type="datetime")
     spec_definition = spec.from_python(

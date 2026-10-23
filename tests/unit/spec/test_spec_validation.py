@@ -7,7 +7,7 @@ from conftest import EXAMPLES_ROOT
 from uptimely import spec
 from uptimely.spec import model as spec_model
 from uptimely.spec import references
-from uptimely.spec.python import bind, conversion, dataset, feature, mapping, ref
+from uptimely.spec.python import conversion, dataset, feature, mapping, ref
 from uptimely.spec.validation import context
 from uptimely.spec.validation import errors as validation_errors
 
@@ -19,7 +19,7 @@ def _escape_configuration() -> dict:
     configuration["functions"]["external_action"] = {
         "operation": "escape",
         "returns": "any",
-        "entrypoint": "examples.pump_analytics.functions.calculation:maximum",
+        "entrypoint": "examples.pump_analytics.functions.analytics:maximum",
         "args": {"source": {"type": "dataframe"}},
     }
     target = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
@@ -138,7 +138,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     configuration["functions"]["expand_telemetry"] = {
         "operation": "expand",
         "returns": "dataframe",
-        "entrypoint": "examples.pump_analytics.functions.source:read_pump_telemetry",
+        "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
             "target": {"type": "dataframe"},
@@ -306,13 +306,14 @@ def test_python_conversion_and_json_loading_share_escape_input_validation(
 ) -> None:
     declaration = dataset.Dataset(
         id="observations",
-        mappings=[
-            mapping.Mapping(
-                id="escape",
-                bind=bind.bind(ref.function("example:escape", operation="escape")),
-                outputs=[feature.Feature(id="external_result")],
+        mappings={
+            "escape": mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function("example:escape", operation="escape"),
+                arguments={},
+                outputs=[feature.Feature(name="external_result")],
             )
-        ],
+        },
     )
     expected_message = (
         "entities.entity.datasets.observations.mappings.escape.features.inputs: "
@@ -341,7 +342,7 @@ def test_expand_mapping_requires_lower_dimensional_feature_input(tmp_path: pathl
     configuration["functions"]["expand_telemetry"] = {
         "operation": "expand",
         "returns": "dataframe",
-        "entrypoint": "examples.pump_analytics.functions.source:read_pump_telemetry",
+        "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
             "target": {"type": "dataframe"},
@@ -374,7 +375,7 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
     configuration["functions"]["conform_telemetry"] = {
         "operation": "conform",
         "returns": "dataframe",
-        "entrypoint": "examples.pump_analytics.functions.source:read_pump_telemetry",
+        "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
             "target": {"type": "dataframe"},
@@ -522,7 +523,7 @@ def test_function_contract_validates_operation_inputs_and_return(
         configuration["functions"]["unmapped_vectorize"] = {
             "operation": "vectorize",
             "returns": "dataframe",
-            "entrypoint": "examples.pump_analytics.functions.calculation:maximum",
+            "entrypoint": "examples.pump_analytics.functions.analytics:maximum",
             "args": value,
         }
     path = tmp_path / "invalid_function_contract.json"

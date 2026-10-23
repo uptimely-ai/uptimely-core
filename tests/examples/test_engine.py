@@ -6,7 +6,7 @@ import sys
 import polars as pl
 import pytest
 from conftest import EXAMPLES_ROOT, engine_for_plan
-from examples.pump_analytics.functions import calculation
+from examples.pump_analytics.functions import analytics
 
 from uptimely import compiler
 from uptimely import project as project_module
@@ -307,19 +307,19 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
         }
     )
 
-    result = calculation.bearing_temperature_delta(
+    result = analytics.bearing_temperature_delta(
+        frame.lazy(),
         "bearing_temperature",
         ["pump"],
         "timestamp",
-        frame.lazy(),
         "temperature_delta",
     )
     result = (
-        calculation.vibration_delta_from_previous(
+        analytics.vibration_delta_from_previous(
+            result,
             "vibration_rms",
             ["pump"],
             "timestamp",
-            result,
             "vibration_delta",
         )
         .collect()

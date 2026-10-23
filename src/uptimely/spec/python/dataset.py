@@ -5,16 +5,22 @@ from __future__ import annotations
 import dataclasses
 import typing
 from collections import abc
+from typing import TYPE_CHECKING
 
 from uptimely.spec import catalog as function_catalog
 from uptimely.spec import model as spec_model
+from uptimely.spec import operations, selectors
 
-from .. import selectors
-from . import bind, feature, ref
-from . import mappings as mapping_declarations
+from . import dimension as dimension_module
+from . import ref
+from .mappings import FunctionMapping
+
+if TYPE_CHECKING:
+    from .entity import Entity
 
 __all__ = [
     "Dataset",
+    "Model",
     "Order",
     "RowScope",
 ]
@@ -62,84 +68,132 @@ class Order:
         )
 
 
-@dataclasses.dataclass(frozen=True)
 class Dataset:
-    """A Python declaration of one dataset, its features, and mappings."""
+    """Observation scope with named, declarative mapping attributes.
+
+    Subclass this declaration for hand-written models, or supply an ID-keyed
+    mapping dictionary to the constructor for programmatic construction.
+    Feature metadata belongs to each mapping's outputs, not a separate inventory.
+    """
 
     id: str
-    features: list[feature.Feature] = dataclasses.field(default_factory=list)
-    mappings: list[mapping_declarations.Mapping] = dataclasses.field(default_factory=list)
     description: str | None = None
-    row_scope: RowScope = dataclasses.field(default_factory=RowScope)
-    order: list[Order] = dataclasses.field(default_factory=list)
+    entity: Entity | None = None
+    keys: tuple[dimension_module.Dimension, ...] = ()
+    row_scope = RowScope()
+    order: abc.Sequence[Order] = ()
+
+    def __init__(
+        self,
+        *,
+        id: str | None = None,
+        mappings: abc.Mapping[str, FunctionMapping] | None = None,
+        description: str | None = None,
+        entity: Entity | None = None,
+        keys: tuple[dimension_module.Dimension, ...] | None = None,
+        row_scope: RowScope | None = None,
+        order: abc.Sequence[Order] | None = None,
+    ) -> None:
+        if id is not None:
+            self.id = id
+        if not isinstance(getattr(self, "id", None), str) or not self.id.strip():
+            raise ValueError("Dataset requires a non-empty id")
+        if description is not None:
+            self.description = description
+        if entity is not None:
+            self.entity = entity
+        if keys is not None:
+            self.keys = keys
+        if row_scope is not None:
+            self.row_scope = row_scope
+        if order is not None:
+            self.order = tuple(order)
+        self._mappings = dict(mappings) if mappings is not None else None
+
+    @property
+    def mappings(self) -> dict[str, FunctionMapping]:
+        """Collect named mappings, preserving inheritance and override order."""
+        if self._mappings is not None:
+            return self._mappings.copy()
+        attributes: dict[str, object] = {}
+        for base in reversed(type(self).__mro__):
+            attributes.update(vars(base))
+        return {
+            name: declaration
+            for name, declaration in attributes.items()
+            if isinstance(declaration, FunctionMapping)
+        }
 
     def to_model(self) -> spec_model.Dataset:
-        """Convert this declaration to the Pydantic dataset document model."""
+        """Build the canonical dataset, rejecting duplicate feature producers."""
         mappings: dict[str, spec_model.Mapping] = {}
-        feature_models = {item.id: item.to_model() for item in self.features}
-        for declaration in self.mappings:
-            model = declaration.to_model()
-            mappings[model.id] = model
-            for output in declaration.outputs:
-                if isinstance(output, feature.Feature):
-                    feature_models.setdefault(output.id, output.to_model())
-                elif isinstance(output, ref.Reference):
-                    feature_id = output.value.removeprefix(selectors.FEATURE_PREFIX)
-                    if feature_id not in feature_models:
-                        raise ValueError(
-                            f"Mapping '{model.id}' references undeclared feature '{feature_id}'"
-                        )
-                elif output.startswith(selectors.FEATURE_PREFIX):
-                    feature_id = output.removeprefix(selectors.FEATURE_PREFIX)
-                    if feature_id not in feature_models:
-                        raise ValueError(
-                            f"Mapping '{model.id}' references undeclared feature '{feature_id}'"
-                        )
-                elif output not in feature_models:
+        features: dict[str, spec_model.Feature] = {}
+        producers: dict[str, str] = {}
+        keys = self.entity.dimensions if self.entity is not None else self.keys
+        for name, declaration in self.mappings.items():
+            model = self._mapping_model(name, declaration)
+            for metadata in declaration.outputs:
+                identifier = metadata.name
+                if identifier in producers:
                     raise ValueError(
-                        f"Mapping '{model.id}' references undeclared feature '{output}'"
+                        f"Dataset '{self.id}' feature '{identifier}' has duplicate producers: "
+                        f"'{producers[identifier]}' and '{name}'"
                     )
+                producers[identifier] = name
+                features[identifier] = metadata.to_model()
+            if declaration.operation in {operations.READ, operations.COLLAPSE}:
+                for key in keys:
+                    if key.id not in features:
+                        features[key.id] = spec_model.Feature(
+                            id=key.id, type=key.type, description=key.description
+                        )
+                key_outputs = [
+                    f"{selectors.FEATURE_PREFIX}{key.id}"
+                    for key in keys
+                    if f"{selectors.FEATURE_PREFIX}{key.id}" not in model.features.outputs
+                ]
+                model.features.outputs[:0] = key_outputs
+            mappings[name] = model
         return spec_model.Dataset(
             id=self.id,
             description=self.description,
             row_scope=self.row_scope.to_model(),
             order=[key.to_model() for key in self.order],
-            features=feature_models,
+            features=features,
             mappings=mappings,
         )
 
+    def _mapping_model(self, name: str, declaration: FunctionMapping) -> spec_model.Mapping:
+        try:
+            return declaration.to_model(name)
+        except TypeError as error:
+            raise TypeError(f"Dataset '{self.id}', mapping '{name}': {error}") from error
+        except ValueError as error:
+            raise ValueError(f"Dataset '{self.id}', mapping '{name}': {error}") from error
+
     def function_catalog(self) -> spec_model.FunctionCatalog:
-        """Build the function templates required by this dataset declaration."""
-
-        def argument(name: str, value: typing.Any) -> spec_model.Argument:
-            return spec_model.Argument(id=name, **bind._argument_definition(value))
-
+        """Collect reusable function contracts without executing implementations."""
         catalogs: list[spec_model.FunctionCatalog] = []
-
-        def register(declaration: mapping_declarations.Mapping) -> None:
-            operation = declaration.operation
-            function_id = bind._function_id(declaration.bind)
-            arguments = {
-                name: argument(name, value) for name, value in declaration.bind.args.items()
-            }
-            catalogs.append(
-                spec_model.FunctionCatalog(
-                    root={
-                        function_id: function_catalog.function_template(
-                            function_id=function_id,
-                            operation=operation,
-                            entrypoint=bind._entrypoint(declaration.bind.function),
-                            args=arguments,
-                            validate_signature=declaration.bind.function.validate_signature,
-                        )
-                    }
-                )
-            )
-
-        for declaration in self.mappings:
-            register(declaration)
-
+        for name, declaration in self.mappings.items():
+            self._mapping_model(name, declaration)
+            catalogs.append(declaration.function_catalog())
         return spec_model.FunctionCatalog(root=function_catalog.merge_function_catalogs(catalogs))
+
+
+class Model:
+    """Register dataset classes and instantiate their declarations without execution."""
+
+    def __init__(self, datasets: abc.Sequence[type[Dataset]]) -> None:
+        self.datasets: dict[str, Dataset] = {}
+        for declaration in datasets:
+            instance = declaration()
+            if instance.id in self.datasets:
+                raise ValueError(f"Duplicate dataset ID: {instance.id}")
+            self.datasets[instance.id] = instance
+
+    def to_declarations(self) -> dict[str, Dataset]:
+        """Return registered dataset declarations in composition order."""
+        return self.datasets.copy()
 
 
 def to_models(

@@ -8,7 +8,7 @@ from conftest import engine_for_plan
 from uptimely import compiler, engine, spec
 from uptimely.compiler import plan as plan_module
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import bind, dataset, dimension, entity, feature, mapping, ref
+from uptimely.spec.python import dataset, dimension, entity, feature, mapping, ref
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -74,72 +74,66 @@ def nested_maximum(
 def _spec(*, lazy=False, empty=False):
     source = dataset.Dataset(
         id="observations",
-        mappings=[
-            mapping.Mapping(
-                bind=bind.bind(ref.function(read_values, operation="read"), lazy=lazy, empty=empty),
-                outputs=[feature.Feature(id=name) for name in ("group", "id", "value")],
+        mappings={
+            "read_values": mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function(read_values, operation="read"),
+                arguments={"lazy": lazy, "empty": empty},
+                outputs=[feature.Feature(name=name) for name in ("group", "id", "value")],
             ),
-            mapping.Mapping(
-                bind=bind.bind(
-                    ref.function(double, operation="vectorize"),
-                    dataset=ref.current_dataset().dataframe,
-                    column=ref.feature("value").id,
-                    output=ref.feature("doubled").id,
-                ),
+            "double": mapping.FunctionMapping(
                 inputs=[ref.feature("value")],
-                outputs=[feature.Feature(id="doubled")],
+                function=ref.function(double, operation="vectorize"),
+                arguments={
+                    "dataset": ref.current_dataset().dataframe,
+                    "column": ref.feature("value").id,
+                    "output": ref.feature("doubled").id,
+                },
+                outputs=[feature.Feature(name="doubled")],
             ),
-            mapping.Mapping(
-                id="unneeded",
-                bind=bind.bind(
-                    ref.function(double, operation="vectorize"),
-                    dataset=ref.current_dataset().dataframe,
-                    column=ref.feature("value").id,
-                    output=ref.feature("unneeded").id,
-                ),
+            "unneeded": mapping.FunctionMapping(
                 inputs=[ref.feature("value")],
-                outputs=[feature.Feature(id="unneeded")],
+                function=ref.function(double, operation="vectorize"),
+                arguments={
+                    "dataset": ref.current_dataset().dataframe,
+                    "column": ref.feature("value").id,
+                    "output": ref.feature("unneeded").id,
+                },
+                outputs=[feature.Feature(name="unneeded")],
             ),
-        ],
+        },
     )
     summary = dataset.Dataset(
         id="summary",
-        mappings=[
-            mapping.Mapping(
-                id="group_summary",
-                bind=bind.bind(
-                    ref.function(summarize, operation="collapse"),
-                    dataset=ref.dataset("observations").dataframe,
-                    column=ref.feature("value").id,
-                    calculated=ref.feature("doubled").id,
-                ),
+        mappings={
+            "group_summary": mapping.FunctionMapping(
                 inputs=[ref.feature("value"), ref.feature("doubled")],
-                outputs=[feature.Feature(id=name) for name in ("maximum", "average", "values")],
-            ),
-        ],
+                function=ref.function(summarize, operation="collapse"),
+                arguments={
+                    "dataset": ref.dataset("observations").dataframe,
+                    "column": ref.feature("value").id,
+                    "calculated": ref.feature("doubled").id,
+                },
+                outputs=[feature.Feature(name=name) for name in ("maximum", "average", "values")],
+            )
+        },
     )
     global_summary = dataset.Dataset(
         id="global",
-        mappings=[
-            mapping.Mapping(
-                id="global_total",
-                bind=bind.bind(
-                    ref.function(total, operation="collapse"),
-                    dataset=ref.dataset("summary").dataframe,
-                ),
+        mappings={
+            "global_total": mapping.FunctionMapping(
                 inputs=[ref.feature("maximum")],
-                outputs=[feature.Feature(id="total")],
+                function=ref.function(total, operation="collapse"),
+                arguments={"dataset": ref.dataset("summary").dataframe},
+                outputs=[feature.Feature(name="total")],
             ),
-            mapping.Mapping(
-                id="global_maximum",
-                bind=bind.bind(
-                    ref.function(maximum, operation="collapse"),
-                    dataset=ref.dataset("summary").dataframe,
-                ),
+            "global_maximum": mapping.FunctionMapping(
                 inputs=[ref.feature("maximum")],
-                outputs=[feature.Feature(id="global_max")],
+                function=ref.function(maximum, operation="collapse"),
+                arguments={"dataset": ref.dataset("summary").dataframe},
+                outputs=[feature.Feature(name="global_max")],
             ),
-        ],
+        },
     )
     group = dimension.Dimension(id="group", type="string")
     identifier = dimension.Dimension(id="id", type="integer")

@@ -11,17 +11,17 @@ __all__ = ["Feature"]
 
 @dataclasses.dataclass(frozen=True)
 class Feature:
-    """Metadata for a dataset feature, independent of how it is produced."""
+    """A named output feature; its name becomes the canonical feature ID."""
 
-    id: str
-    description: str | None = None
+    name: str
     type: str | None = None
     unit: str | None = None
+    description: str | None = None
 
     def to_model(self) -> spec_model.Feature:
         """Convert this feature declaration to its JSON model."""
         return spec_model.Feature(
-            id=self.id,
+            id=self.name,
             description=self.description,
             type=self.type,
             unit=self.unit,

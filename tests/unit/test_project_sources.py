@@ -81,9 +81,8 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(tmp_path: pathl
         f"import {dependency_name}\n"
         "from uptimely.spec.python.entity import Entity\n"
         "from uptimely.spec.python.spec import PythonSpec\n"
-        f"python_spec = PythonSpec(name={dependency_name}.VALUE, entities=["
-        "Entity(id='assets', name='Assets', "
-        "dimensions=[], datasets=[])])\n",
+        f"python_spec = PythonSpec(name={dependency_name}.VALUE, datasets={{"
+        "Entity(id='assets', name='Assets', dimensions=[]): []})\n",
         encoding="utf-8",
     )
 

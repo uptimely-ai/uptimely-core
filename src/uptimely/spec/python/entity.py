@@ -21,8 +21,12 @@ class Entity:
     id: str
     name: str
     dimensions: list[dimension_module.Dimension]
-    datasets: list[dataset_module.Dataset]
+    datasets: list[dataset_module.Dataset] = dataclasses.field(default_factory=list)
     description: str | None = None
+
+    def __hash__(self) -> int:
+        """Hash an entity declaration by its canonical identifier."""
+        return hash(self.id)
 
     def to_model(self) -> spec_model.Entity:
         """Convert this entity declaration to its JSON model."""

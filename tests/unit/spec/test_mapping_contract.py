@@ -8,7 +8,7 @@ from conftest import engine_for_plan
 from uptimely import compiler, spec
 from uptimely.engine import bindings as bindings_module
 from uptimely.engine import state as state_module
-from uptimely.spec.python import bind, dataset, dimension, entity, feature, mapping, ref
+from uptimely.spec.python import dataset, dimension, entity, feature, mapping, ref
 
 
 def read_values() -> pl.DataFrame:
@@ -65,34 +65,35 @@ def _spec() -> spec.Spec:
         datasets=[
             dataset.Dataset(
                 id="observations",
-                mappings=[
-                    mapping.Mapping(
-                        bind=bind.bind(ref.function(read_values, operation="read")),
+                mappings={
+                    "read_values": mapping.FunctionMapping(
+                        inputs=[],
+                        function=ref.function(read_values, operation="read"),
+                        arguments={},
                         outputs=[
-                            feature.Feature(id="id", type="integer"),
-                            feature.Feature(id="value", type="integer"),
+                            feature.Feature(name="id", type="integer"),
+                            feature.Feature(name="value", type="integer"),
                         ],
                     ),
-                    mapping.Mapping(
-                        id="result",
+                    "result": mapping.FunctionMapping(
                         inputs=[ref.feature("value")],
-                        outputs=[feature.Feature(id="result", type="integer")],
-                        bind=bind.bind(
-                            ref.function(add_one, operation="vectorize"),
-                            dataset=ref.current_dataset().dataframe,
-                            output=ref.feature("result").id,
-                        ),
+                        function=ref.function(add_one, operation="vectorize"),
+                        arguments={
+                            "dataset": ref.current_dataset().dataframe,
+                            "output": ref.feature("result").id,
+                        },
+                        outputs=[feature.Feature(name="result", type="integer")],
                     ),
-                    mapping.Mapping(
-                        id="metadata",
-                        outputs=[feature.Feature(id="metadata", type="integer")],
-                        bind=bind.bind(
-                            ref.function(metadata_only, operation="vectorize"),
-                            dataset=ref.current_dataset().dataframe,
-                            identifier=ref.feature("result").id,
-                        ),
+                    "metadata": mapping.FunctionMapping(
+                        inputs=[],
+                        function=ref.function(metadata_only, operation="vectorize"),
+                        arguments={
+                            "dataset": ref.current_dataset().dataframe,
+                            "identifier": ref.feature("result").id,
+                        },
+                        outputs=[feature.Feature(name="metadata", type="integer")],
                     ),
-                ],
+                },
             )
         ],
         dimensions=[dimension.Dimension(id="id", type="integer")],
@@ -280,14 +281,14 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
                 datasets=[
                     dataset.Dataset(
                         id="source",
-                        mappings=[
-                            mapping.Mapping(
-                                bind=bind.bind(ref.function(read_lower_grain, operation="read")),
-                                outputs=[
-                                    feature.Feature(id="value", type="integer"),
-                                ],
+                        mappings={
+                            "read_lower_grain": mapping.FunctionMapping(
+                                inputs=[],
+                                function=ref.function(read_lower_grain, operation="read"),
+                                arguments={},
+                                outputs=[feature.Feature(name="value", type="integer")],
                             )
-                        ],
+                        },
                     )
                 ],
             ),
@@ -301,39 +302,32 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
                 datasets=[
                     dataset.Dataset(
                         id="target",
-                        mappings=[
-                            mapping.Mapping(
-                                bind=bind.bind(
-                                    ref.function(read_target_grain, operation="read"),
-                                    include_second=dataframe,
-                                ),
-                                outputs=[feature.Feature(id="target_value", type="integer")],
+                        mappings={
+                            "read_target_grain": mapping.FunctionMapping(
+                                inputs=[],
+                                function=ref.function(read_target_grain, operation="read"),
+                                arguments={"include_second": dataframe},
+                                outputs=[feature.Feature(name="target_value", type="integer")],
                             ),
-                            mapping.Mapping(
+                            "copied": mapping.FunctionMapping(
                                 inputs=[ref.feature("value")],
                                 outputs=[
                                     feature.Feature(
-                                        id="copied", type="integer" if dataframe else "string"
+                                        name="copied", type="integer" if dataframe else "string"
                                     )
                                 ],
-                                bind=(
-                                    bind.bind(
-                                        ref.function(copy_values, operation="expand"),
-                                        dataset=source_reference.dataframe,
-                                        other_dataset=ref.current_dataset().dataframe,
-                                        output=ref.feature("copied").id,
-                                    )
-                                    if dataframe
-                                    else bind.bind(
-                                        ref.function(dataset_identifier, operation="expand"),
-                                        dataset=source_reference.dataframe,
-                                        other_dataset=ref.current_dataset().dataframe,
-                                        identifier=source_reference.id,
-                                        output=ref.feature("copied").id,
-                                    )
+                                function=ref.function(
+                                    copy_values if dataframe else dataset_identifier,
+                                    operation="expand",
                                 ),
+                                arguments={
+                                    "dataset": source_reference.dataframe,
+                                    "other_dataset": ref.current_dataset().dataframe,
+                                    "output": ref.feature("copied").id,
+                                    **({} if dataframe else {"identifier": source_reference.id}),
+                                },
                             ),
-                        ],
+                        },
                     )
                 ],
             ),

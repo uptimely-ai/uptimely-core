@@ -10,6 +10,13 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Python authoring now uses dataset classes with named declarative
+  mappings, real function references, and output-owned feature metadata. Replace
+  dataset feature/mapping lists with named mapping attributes or dictionaries,
+  and `Mapping(bind=...)` with explicit `function`, `operation`, `arguments`, and
+  `outputs`. Outputs are lists of `Feature(name=...)` declarations; feature names
+  become canonical IDs, while mapping identifiers come from declaration keys.
+  Pump and simple analytics examples use the integrated API; JSON is unchanged.
 - **Breaking:** Execution results index `datasets` by dataset ID and
   `calculated_outputs` by `(dataset_id, feature_id)`, without redundant entity
   IDs. Dataset IDs remain unique across the project.

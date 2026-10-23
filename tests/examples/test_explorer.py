@@ -13,8 +13,8 @@ SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 def test_spec_exports_only_json(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.from_python(
-        entities=pump_analytics_module.entities,
-        dimensions=pump_analytics_module.dimensions,
+        entities=pump_analytics_module.python_spec.entities,
+        dimensions=pump_analytics_module.python_spec.dimensions,
         name="Pump analytics",
     )
     spec.write_document(spec_definition, tmp_path / "spec.json")

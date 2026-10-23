@@ -68,7 +68,9 @@ def test_signature_validation_setting_survives_conversion_without_importing(
     )
     declaration = dataset.Dataset(
         id="observations",
-        mappings=[mapping.Mapping(bind=bind.bind(reference))],
+        mappings={
+            "calculate": mapping.FunctionMapping(function=reference, arguments={}, outputs=[])
+        },
     )
 
     payload = conversion.to_dict(datasets=[declaration])
@@ -106,17 +108,16 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
     declarations = [
         dataset.Dataset(
             id=identifier,
-            mappings=[
-                mapping.Mapping(
-                    bind=bind.bind(
-                        ref.function(
-                            "math:ceil",
-                            operation="vectorize",
-                            validate_signature=validate_signature,
-                        )
-                    )
+            mappings={
+                "ceil": mapping.FunctionMapping(
+                    inputs=[],
+                    function=ref.function(
+                        "math:ceil", operation="vectorize", validate_signature=validate_signature
+                    ),
+                    arguments={},
+                    outputs=[],
                 )
-            ],
+            },
         )
         for identifier, validate_signature in [("first", True), ("second", False)]
     ]
@@ -136,7 +137,9 @@ def test_string_locations_are_preserved_without_importing(
     reference = ref.function(f"{location}:ceil", operation="vectorize")
     declaration = dataset.Dataset(
         id="observations",
-        mappings=[mapping.Mapping(bind=bind.bind(reference, x=1.2))],
+        mappings={
+            "ceil": mapping.FunctionMapping(function=reference, arguments={"x": 1.2}, outputs=[])
+        },
     )
 
     payload = conversion.to_dict(datasets=[declaration])
@@ -160,15 +163,17 @@ def test_generic_mapping_exports_function_operation_without_importing(
     monkeypatch.setattr(importlib, "import_module", unexpected_import)
     declaration = dataset.Dataset(
         id="observations",
-        mappings=[
-            mapping.Mapping(
-                bind=bind.bind(
-                    ref.function("https://example.org/functions.py:calculate", operation=operation),
-                    function_id="calculate",
-                    dataset=ref.current_dataset().dataframe,
-                )
+        mappings={
+            "calculate": mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function(
+                    "https://example.org/functions.py:calculate", operation=operation
+                ),
+                arguments={"dataset": ref.current_dataset().dataframe},
+                outputs=[],
+                function_id="calculate",
             )
-        ],
+        },
     )
 
     catalog = declaration.function_catalog()
@@ -183,19 +188,26 @@ def test_generic_mapping_exports_function_operation_without_importing(
 
 
 def test_generic_mapping_requires_operation_metadata() -> None:
-    with pytest.raises(ValueError, match="requires operation metadata"):
-        mapping.Mapping(bind=bind.bind(ref.function("math:ceil"), x=1.2))
+    with pytest.raises(ValueError, match="operation"):
+        mapping.FunctionMapping(
+            inputs=[],
+            function=ref.function("math:ceil"),
+            arguments={"x": 1.2},
+            outputs=[],
+        )
 
 
 def test_escape_catalog_metadata_survives_json_round_trip() -> None:
     declaration = dataset.Dataset(
         id="observations",
-        mappings=[
-            mapping.Mapping(
-                id="external_update",
-                bind=bind.bind(ref.function("math:ceil", operation="escape")),
+        mappings={
+            "external_update": mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function("math:ceil", operation="escape"),
+                arguments={},
+                outputs=[],
             )
-        ],
+        },
     )
 
     payload = conversion.to_dict(datasets=[declaration])
@@ -211,8 +223,11 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
 def test_generic_mapping_accepts_operation_metadata(
     operation: operations.FunctionOperation,
 ) -> None:
-    declaration = mapping.Mapping(
-        bind=bind.bind(ref.function("math:ceil", operation=operation), x=1.2)
+    declaration = mapping.FunctionMapping(
+        inputs=[],
+        function=ref.function("math:ceil", operation=operation),
+        arguments={"x": 1.2},
+        outputs=[],
     )
 
     assert declaration.operation == operation
@@ -223,17 +238,19 @@ def test_generic_mapping_accepts_operation_metadata(
 def test_references_supply_catalog_ids_and_preserve_overrides(
     operation: operations.FunctionOperation, function_id: str | None
 ) -> None:
-    binding = bind.bind(
-        ref.function("math:ceil", operation=operation), function_id=function_id, x=1.2
+    declaration = mapping.FunctionMapping(
+        function=ref.function("math:ceil", operation=operation),
+        function_id=function_id,
+        arguments={"x": 1.2},
+        outputs=[],
     )
-    declaration = mapping.Mapping(id="calculate", bind=binding)
-    catalog = dataset.Dataset(id="values", mappings=[declaration]).function_catalog()
+    catalog = dataset.Dataset(id="values", mappings={"calculate": declaration}).function_catalog()
     identifier = function_id or "ceil"
 
     assert catalog[identifier].operation == operation
     assert catalog[identifier].entrypoint == "math:ceil"
     assert catalog[identifier].args["x"].type == "float"
-    model = declaration.to_model()
+    model = declaration.to_model("calculate")
     assert model.id == "calculate"
     assert model.binding.function == identifier
     assert model.binding.args == {"x": 1.2}

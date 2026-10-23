@@ -1,8 +1,9 @@
 import json
 import pathlib
 
+import polars as pl
 from conftest import EXAMPLES_ROOT
-from examples.pump_analytics.functions import calculation
+from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension as pump_dimensions
 from examples.pump_analytics.spec import entity as pump_entities
 from examples.pump_analytics.spec import spec as pump_telemetry_spec
@@ -16,7 +17,16 @@ from uptimely.spec.python import bind
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
-def test_pump_dimensions_are_collected_in_declaration_order() -> None:
+def test_maximum_executes_independently() -> None:
+    frame = pl.LazyFrame({"pump": ["a", "a"], "temperature": [10.0, 20.0]})
+
+    result = analytics.maximum(frame, "temperature", ["pump"], "maximum")
+
+    assert isinstance(result, pl.LazyFrame)
+    assert result.collect().to_dicts() == [{"pump": "a", "maximum": 20.0}]
+
+
+def test_pump_dimensions_are_declared_in_spec_order() -> None:
     expected = [
         pump_dimensions.PLANT,
         pump_dimensions.PRODUCTION_LINE,
@@ -24,29 +34,31 @@ def test_pump_dimensions_are_collected_in_declaration_order() -> None:
         pump_dimensions.TIMESTAMP,
     ]
 
-    assert pump_dimensions.dimensions == expected
-    assert list(pump_dimensions.by_id) == ["plant", "production_line", "pump", "timestamp"]
-    for declaration in expected:
-        assert pump_dimensions.by_id[declaration.id] is declaration
-    assert pump_telemetry_spec.dimensions is pump_dimensions.dimensions
+    assert pump_telemetry_spec.python_spec.dimensions == expected
     assert pump_dimensions.PRODUCTION_LINE.parent == pump_dimensions.PLANT.id
     assert pump_dimensions.PUMP.parent == pump_dimensions.PRODUCTION_LINE.id
 
 
-def test_pump_entities_are_collected_in_declaration_order() -> None:
+def test_pump_entities_are_declared_in_spec_order() -> None:
     expected = [pump_entities.PUMP_TELEMETRY, pump_entities.PUMP]
 
     assert pump_entities.entities == expected
-    assert list(pump_entities.by_id) == ["pump_telemetry", "pump"]
-    for declaration in expected:
-        assert pump_entities.by_id[declaration.id] is declaration
-    assert pump_telemetry_spec.entities is pump_entities.entities
-    assert pump_entities.PUMP_TELEMETRY.dimensions == pump_dimensions.dimensions
+    assert [entity.id for entity in pump_telemetry_spec.python_spec.entities] == [
+        "pump_telemetry",
+        "pump",
+    ]
+    assert pump_entities.PUMP_TELEMETRY.dimensions == pump_telemetry_spec.python_spec.dimensions
     assert pump_entities.PUMP.dimensions == [
         pump_dimensions.PLANT,
         pump_dimensions.PRODUCTION_LINE,
         pump_dimensions.PUMP,
     ]
+    assert list(pump_telemetry_spec.python_spec.datasets) == expected
+    assert [
+        dataset.id
+        for entity in pump_telemetry_spec.python_spec.entities
+        for dataset in entity.datasets
+    ] == ["pump_telemetry_dataset", "pump_dataset"]
 
 
 def test_argument_definition_supports_recursive_compact_types() -> None:
@@ -122,7 +134,8 @@ def test_spec_from_entities_python_api(tmp_path: pathlib.Path) -> None:
 
 def test_example_timestamp_order_matches_python_declaration() -> None:
     authored = spec.from_python(
-        entities=pump_telemetry_spec.entities, dimensions=pump_telemetry_spec.dimensions
+        entities=pump_telemetry_spec.python_spec.entities,
+        dimensions=pump_telemetry_spec.python_spec.dimensions,
     )
     exported = spec.load_spec(SPEC_PATH)
     expected = [{"dimension": "$dimensions.timestamp", "direction": "asc"}]
@@ -141,7 +154,7 @@ def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None
         datasets=[simple_analytics_module.dataset_],
         functions=simple_analytics_module.dataset_.function_catalog(),
         name="simple_analytics",
-        dimensions=simple_analytics_module.dimensions,
+        dimensions=simple_analytics_module.python_spec.dimensions,
     )
     output_path = tmp_path / "spec.json"
     spec.write_document(spec_definition, output_path)
@@ -179,7 +192,7 @@ def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None
     assert mappings["column_3"]["binding"]["args"] == {
         "left_feature": "$features.input_1",
         "right_feature": "$features.input_2",
-        "output": "$features.column_3",
+        "output": "$features.column_3.id",
         "dataset": "$datasets.@.dataframe",
     }
     assert dataset_payload["features"]["column_3"] == {
@@ -199,15 +212,14 @@ def test_sources_and_transforms_python_spec() -> None:
         datasets=[
             python_spec.dataset.Dataset(
                 id="transformed_dataset",
-                mappings=[
-                    python_spec.mapping.Mapping(
-                        id="read",
-                        bind=bind.bind(
-                            python_spec.ref.function(functions.read_data, operation="read")
-                        ),
-                        outputs=[python_spec.feature.Feature(id="input_1")],
-                    ),
-                ],
+                mappings={
+                    "read": python_spec.mapping.FunctionMapping(
+                        inputs=[],
+                        function=python_spec.ref.function(functions.read_data, operation="read"),
+                        arguments={},
+                        outputs=[python_spec.feature.Feature(name="input_1")],
+                    )
+                },
             )
         ],
     )
@@ -218,25 +230,25 @@ def test_sources_and_transforms_python_spec() -> None:
         datasets=[
             python_spec.dataset.Dataset(
                 id="target",
-                mappings=[
-                    python_spec.mapping.Mapping(
-                        id="read",
-                        bind=bind.bind(
-                            python_spec.ref.function(functions.read_data, operation="read")
-                        ),
-                        outputs=[python_spec.feature.Feature(id="target_value")],
+                mappings={
+                    "read": python_spec.mapping.FunctionMapping(
+                        inputs=[],
+                        function=python_spec.ref.function(functions.read_data, operation="read"),
+                        arguments={},
+                        outputs=[python_spec.feature.Feature(name="target_value")],
                     ),
-                    python_spec.mapping.Mapping(
-                        id="expand_data",
+                    "expand_data": python_spec.mapping.FunctionMapping(
                         inputs=[python_spec.ref.feature("input_1")],
-                        bind=bind.bind(
-                            python_spec.ref.function(functions.expand_data, operation="expand"),
-                            df1=python_spec.ref.dataset("transformed_dataset").dataframe,
-                            df2=python_spec.ref.current_dataset().dataframe,
+                        function=python_spec.ref.function(
+                            functions.expand_data, operation="expand"
                         ),
-                        outputs=[python_spec.feature.Feature(id="input_2")],
+                        arguments={
+                            "df1": python_spec.ref.dataset("transformed_dataset").dataframe,
+                            "df2": python_spec.ref.current_dataset().dataframe,
+                        },
+                        outputs=[python_spec.feature.Feature(name="input_2")],
                     ),
-                ],
+                },
             )
         ],
     )
@@ -247,18 +259,19 @@ def test_sources_and_transforms_python_spec() -> None:
         datasets=[
             python_spec.dataset.Dataset(
                 id="summary",
-                mappings=[
-                    python_spec.mapping.Mapping(
-                        id="collapse_data",
-                        bind=bind.bind(
-                            python_spec.ref.function(calculation.maximum, operation="collapse"),
-                            dataset=python_spec.ref.dataset("target").dataframe,
-                            feature=python_spec.ref.feature("input_2"),
-                        ),
+                mappings={
+                    "collapse_data": python_spec.mapping.FunctionMapping(
                         inputs=[python_spec.ref.feature("input_2")],
-                        outputs=[python_spec.feature.Feature(id="collapsed_feature")],
+                        function=python_spec.ref.function(analytics.maximum, operation="collapse"),
+                        arguments={
+                            "dataset": python_spec.ref.dataset("target").dataframe,
+                            "feature": python_spec.ref.feature("input_2").id,
+                            "group_by": [python_spec.ref.dimension("id").id],
+                            "output": python_spec.ref.feature("collapsed_feature").id,
+                        },
+                        outputs=[python_spec.feature.Feature(name="collapsed_feature")],
                     )
-                ],
+                },
             )
         ],
     )
@@ -282,7 +295,9 @@ def test_sources_and_transforms_python_spec() -> None:
     assert collapse.binding.function == "maximum"
     assert collapse.binding.args == {
         "dataset": "$datasets.target.dataframe",
-        "feature": "$features.input_2",
+        "feature": "$features.input_2.id",
+        "group_by": ["$dimensions.id.id"],
+        "output": "$features.collapsed_feature.id",
     }
     assert collapse.output_features == ["collapsed_feature"]
     assert spec_definition.functions["maximum"].operation == "collapse"

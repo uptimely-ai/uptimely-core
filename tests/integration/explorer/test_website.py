@@ -11,7 +11,7 @@ from urllib import request
 
 import pytest
 from conftest import EXAMPLES_ROOT, render_explorer
-from examples.pump_analytics.functions import source
+from examples.pump_analytics.functions import analytics
 
 from uptimely import compiler, spec
 from uptimely.explorer import graph_render, spec_render
@@ -614,6 +614,7 @@ def test_execution_plan_pages_render_only_their_section(
             assert f'"label_lines": {json.dumps(expected_lines)}' in document
             expected_list_lines = [
                 "optimize_pump_operating_point(",
+                '  dataset="pump_telemetry_dataset",',
                 "  optimization_features=[",
                 '    "discharge_pressure",',
                 '    "flow_rate",',
@@ -621,15 +622,14 @@ def test_execution_plan_pages_render_only_their_section(
                 '    "bearing_temperature",',
                 '    "vibration_rms"',
                 "  ],",
-                '  dataset="pump_telemetry_dataset",',
                 '  output="operating_point_recommendation"',
                 ")",
             ]
             assert f'"label_lines": {json.dumps(expected_list_lines)}' in document
             expected_object_lines = [
                 "maximum(",
-                '  feature="bearing_temperature",',
                 '  dataset="pump_telemetry_dataset",',
+                '  feature="bearing_temperature",',
                 "  dimensions=[",
                 '    "plant",',
                 '    "production_line",',
@@ -879,11 +879,11 @@ def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pa
 
 
 def test_website_does_not_execute_spec(tmp_path: pathlib.Path, monkeypatch) -> None:
-    @functools.wraps(source.read_pump_telemetry)
+    @functools.wraps(analytics.read_pump_telemetry)
     def fail_if_executed(*args: object, **kwargs: object) -> None:
         raise AssertionError("Website generation must not execute spec")
 
-    monkeypatch.setattr(source, "read_pump_telemetry", fail_if_executed)
+    monkeypatch.setattr(analytics, "read_pump_telemetry", fail_if_executed)
     spec_definition = spec.load_spec(SPEC_PATH)
 
     assert render_explorer(spec_definition, tmp_path / "index.html").is_file()

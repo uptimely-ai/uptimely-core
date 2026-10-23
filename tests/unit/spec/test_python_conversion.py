@@ -1,30 +1,31 @@
 import pytest
 
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import bind, conversion, dataset, dimension, entity, mapping, ref
+from uptimely.spec.python import conversion, dataset, dimension, entity, mapping, ref
 
 
-def _source() -> None:
+def _source(path: str, columns: list[str]) -> None:
     pass
 
 
-def _other_source() -> None:
+def _other_source(path: str, columns: list[str]) -> None:
     pass
 
 
 def _dataset(identifier: str, conflicting: bool = False) -> dataset.Dataset:
     return dataset.Dataset(
         id=identifier,
-        mappings=[
-            mapping.Mapping(
-                bind=bind.bind(
-                    ref.function(_other_source if conflicting else _source, operation="read"),
-                    function_id="source",
-                    path="readings.json",
-                    columns=[ref.feature("temperature")],
-                )
+        mappings={
+            ref.function(
+                _other_source if conflicting else _source, operation="read"
+            ).name: mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function(_other_source if conflicting else _source, operation="read"),
+                arguments={"path": "readings.json", "columns": [ref.feature("temperature")]},
+                outputs=[],
+                function_id="source",
             )
-        ],
+        },
     )
 
 

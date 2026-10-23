@@ -1,14 +1,15 @@
 """Combined spec declarations for the pump analytics project."""
 
-from uptimely.spec import python as spec_python
+from uptimely.spec.python import PythonSpec
 
-from . import dimension, entity
+from . import entity
+from .datasets.pump import Pump
+from .datasets.telemetry import Telemetry
 
-dimensions = dimension.dimensions
-entities = entity.entities
-
-python_spec = spec_python.PythonSpec(
-    entities=entities,
-    dimensions=dimensions,
+python_spec = PythonSpec(
+    datasets={
+        entity.PUMP_TELEMETRY: [Telemetry()],
+        entity.PUMP: [Pump()],
+    },
     name="Pump analytics",
 )

@@ -63,6 +63,9 @@ line-length = 100
 select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RET", "D"]
 ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107"]
 
+[tool.ruff.lint.per-file-ignores]
+"examples/**/*.py" = ["C408", "RET504"]
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
