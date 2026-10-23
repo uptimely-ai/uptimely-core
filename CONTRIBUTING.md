@@ -38,6 +38,39 @@ The CI quality job skips the pytest hook to avoid running tests twice. The
 separate test job runs the suite with coverage; local commit hooks still run
 tests when Python files are staged.
 
+## Multi-agent coding
+
+Use one main VS Code window to manage `main` and basic tasks. For parallel
+agent-driven work, use a separate Git worktree and VS Code window for each task.
+
+From the project root inside the VS Code devcontainer, create a detached
+worktree from `main` under `/workspaces/`. This keeps the directory name
+independent of the branch name and avoids creating a branch named `worktree-a`:
+
+```sh
+git worktree add --detach ~/worktrees/worktree-a main
+```
+
+Create the task branch in the worktree and open it in a new VS Code window
+without changing the current directory:
+
+```sh
+git -C ~/worktrees/worktree-a switch -c feature/tune-explorer-layout
+git -C ~/worktrees/worktree-a branch --show-current
+code --new-window ~/worktrees/worktree-a
+```
+
+For an existing branch, omit `-c` from the `git -C ... switch` command.
+A branch can only be checked out in one worktree at a time. Switch to a task
+branch before making commits; do not leave the worktree detached.
+Verify that `branch --show-current` prints the intended branch before opening
+the new window. Opening a folder in VS Code does not switch its Git branch.
+
+Keep each agent's changes on its own branch and follow the normal pull request
+process to merge them into `main`.
+
+You might need to run `poetry install` when opening the worktree first time.
+
 ## Coding style
 
 Follow the project's coding conventions in
