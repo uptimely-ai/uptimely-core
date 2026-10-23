@@ -166,7 +166,7 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
     collapse = next(item for item in plan.callables if item.operation == "collapse")
     assert collapse.input_features == ["value", "doubled"]
     assert len(collapse.dependency_ids) == 2
-    result = engine_for_plan(plan).run()
+    result = engine_for_plan(plan, spec_definition=spec_definition).run()
     assert not result.failures
     frame = result.datasets["summary"]
     if isinstance(frame, pl.LazyFrame):
@@ -188,7 +188,7 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
     portable = plan_module.ExecutionPlan(
         plan_module.Plan.from_dict(json.loads(json.dumps(plan.to_dict())))
     )
-    result = engine_for_plan(portable).run()
+    result = engine_for_plan(portable, spec_definition=restored).run()
     assert not result.failures
     frame = result.datasets["global"]
     if isinstance(frame, pl.LazyFrame):
@@ -280,7 +280,8 @@ def test_collapse_consumes_expanded_features(lazy):
         },
     )
     result = engine_for_plan(
-        compiler.Compiler(spec_definition, features=["combined_maximum"]).compile()
+        compiler.Compiler(spec_definition, features=["combined_maximum"]).compile(),
+        spec_definition=spec_definition,
     ).run()
     assert not result.failures
     frame = result.datasets["summary"]
@@ -303,7 +304,8 @@ def test_collapse_consumes_expanded_features(lazy):
     ],
 )
 def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
-    plan = compiler.Compiler(_spec(), features=["average"]).compile()
+    spec_definition = _spec()
+    plan = compiler.Compiler(spec_definition, features=["average"]).compile()
     original = summarize
 
     def invalid(dataset, column, calculated):
@@ -317,7 +319,7 @@ def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
         return frame.drop("average") if shape == "missing" else pl.concat([frame, frame])
 
     monkeypatch.setattr(f"{__name__}.summarize", invalid)
-    result = engine_for_plan(plan).run()
+    result = engine_for_plan(plan, spec_definition=spec_definition).run()
     assert message in next(iter(result.failures.values()))
     assert "summary" not in result.datasets
 
@@ -327,7 +329,8 @@ def test_collapse_preserves_null_group_keys(lazy):
     spec_definition = _spec(lazy=lazy)
     spec_definition.functions["read_values"].entrypoint = f"{__name__}:read_null_groups"
     result = engine_for_plan(
-        compiler.Compiler(spec_definition, features=["maximum"]).compile()
+        compiler.Compiler(spec_definition, features=["maximum"]).compile(),
+        spec_definition=spec_definition,
     ).run()
     assert not result.failures
     frame = result.datasets["summary"]

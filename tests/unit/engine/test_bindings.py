@@ -2,21 +2,23 @@ import dataclasses
 
 import polars as pl
 import pytest
+from conftest import _spec_for_plan
 
 from uptimely.compiler import plan as plan_module
 from uptimely.engine import bindings as bindings_module
 from uptimely.engine import state as state_module
+from uptimely.spec import model as spec_model
 
 PLAN = plan_module.ExecutionPlan.from_json("tests/fixtures/plans/simple_engine.json")
 
 
 def _bindings(
-    resources: dict[str, object] | None = None,
+    spec_definition: spec_model.Spec | None = None,
     state: state_module.RuntimeState | None = None,
     bind: dict[str, dict[str, dict[str, object]]] | None = None,
 ) -> bindings_module.RuntimeBindings:
     return bindings_module.RuntimeBindings(
-        resources or PLAN.plan.resources,
+        spec_definition or _spec_for_plan(PLAN),
         state or state_module.RuntimeState(),
         bind or {},
     )
@@ -78,22 +80,14 @@ def test_runtime_bindings_reject_unavailable_dataframe_reference() -> None:
         bindings.resolve_value("missing", "dataframe")
 
 
-def test_runtime_bindings_apply_resource_and_runtime_binding_overrides() -> None:
-    resources = {
-        **PLAN.plan.resources,
-        "functions": {
-            **PLAN.plan.resources["functions"],
-            "load": {
-                **PLAN.plan.resources["functions"]["load"],
-                "args": {"source": {"type": "array[string]"}},
-            },
-        },
-    }
+def test_runtime_bindings_apply_spec_and_runtime_binding_overrides() -> None:
+    spec_definition = _spec_for_plan(PLAN)
+    spec_definition.functions["load"].args["source"].type = "array[string]"
     read_callable = dataclasses.replace(
         PLAN.callables[0], arguments={"source": ["?storage.source.path"]}
     )
     bindings = _bindings(
-        resources=resources,
+        spec_definition=spec_definition,
         bind={"storage": {"source": {"path": "/override/input.parquet"}}},
     )
 

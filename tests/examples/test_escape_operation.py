@@ -26,7 +26,11 @@ def test_escape_example_reads_calculates_and_writes_without_materializing_output
     output_path = tmp_path / "workflow_results.csv"
     monkeypatch.setattr(workflow, "OUTPUT_PATH", output_path)
 
-    result = engine_for_plan(saved_plan, project_root=EXAMPLE_ROOT).run()
+    result = engine_for_plan(
+        saved_plan,
+        project_root=EXAMPLE_ROOT,
+        spec_definition=spec_definition,
+    ).run()
 
     escape = next(callable for callable in saved_plan.callables if callable.operation == "escape")
     assert escape.operation == "escape"

@@ -10,6 +10,7 @@ import pydantic
 
 from uptimely.compiler.plan import models as plan_models
 from uptimely.project.build import features
+from uptimely.spec import model as spec_models
 
 BUILD_VERSION = 1
 
@@ -126,6 +127,7 @@ class BuildBundle:
     root: pathlib.Path
     manifest: BuildManifest
     spec_path: pathlib.Path
+    spec_definition: spec_models.Spec
     execution_plan_path: pathlib.Path
     explorer_path: pathlib.Path
     execution_plan: plan_models.ExecutionPlan

@@ -42,11 +42,12 @@ Spec document.
 ## Executing a build bundle
 
 The engine accepts a validated build bundle and executes its compiled portable
-plan. The bundle provides the plan resources and project root used to resolve
-callable entrypoints. A plan can be compiled for
-selected output features; the compiler includes their prerequisite calculations
-and dependencies, so the engine needs no special subset logic. An exported plan
-can also be executed without recompilation.
+plan. It reads dimensions, entities, functions, and datasets from the bundled
+`spec.json`, which is loaded as part of the build bundle, and uses the project
+root to resolve callable entrypoints. A plan can be compiled for selected
+output features; the compiler includes their prerequisite calculations and
+dependencies, so the engine needs no special subset logic. An exported plan is
+executed as part of its build bundle, without recompilation.
 
 Execution returns datasets, calculated outputs, per-callable statuses and
 durations, failures, and the plan version. A failed callable is reported in the

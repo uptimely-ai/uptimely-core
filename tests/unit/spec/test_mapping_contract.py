@@ -110,7 +110,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     ]
     metadata = compiler.Compiler(spec_definition, features=["metadata"]).compile()
     assert all("result" not in item.output_features for item in metadata.callables)
-    execution = engine_for_plan(metadata).run()
+    execution = engine_for_plan(metadata, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["observations"]["metadata"].to_list() == [7, 7]
 
@@ -128,7 +128,8 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
 def test_dataframe_returns_are_validated(
     monkeypatch: pytest.MonkeyPatch, shape: str, message: str
 ) -> None:
-    compiled = compiler.Compiler(_spec(), features=["result"]).compile()
+    spec_definition = _spec()
+    compiled = compiler.Compiler(spec_definition, features=["result"]).compile()
 
     def invalid(dataset: pl.DataFrame, output: str) -> object:
         if shape == "missing":
@@ -142,19 +143,20 @@ def test_dataframe_returns_are_validated(
         return 1
 
     monkeypatch.setattr(f"{__name__}.add_one", invalid)
-    execution = engine_for_plan(compiled).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert message in next(iter(execution.failures.values()))
     assert ("observations", "result") not in execution.calculated_outputs
 
 
 def test_returned_row_order_does_not_control_alignment(monkeypatch: pytest.MonkeyPatch) -> None:
-    compiled = compiler.Compiler(_spec(), features=["result"]).compile()
+    spec_definition = _spec()
+    compiled = compiler.Compiler(spec_definition, features=["result"]).compile()
 
     def reversed_result(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
         return dataset.with_columns((pl.col("value") + 1).alias(output)).reverse()
 
     monkeypatch.setattr(f"{__name__}.add_one", reversed_result)
-    execution = engine_for_plan(compiled).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["observations"].sort("id").select("id", "value", "result").rows() == [
         (1, 10, 11),
@@ -196,10 +198,10 @@ def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
 
 
 def test_nested_arguments_preserve_literals_and_resolve_dataframes() -> None:
-    compiled = compiler.Compiler(_spec()).compile()
+    spec_definition = _spec()
     frame = read_values()
     state = state_module.RuntimeState(datasets={"observations": frame})
-    bindings = bindings_module.RuntimeBindings(compiled.plan.resources, state, {})
+    bindings = bindings_module.RuntimeBindings(spec_definition, state, {})
     assert bindings.resolve_value([None, 1]) == [None, 1]
     resolved = bindings.resolve_value({"frames": ["observations"]}, "object{str: array[dataframe]}")
     assert resolved["frames"][0] is frame
@@ -222,7 +224,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
 
     read_values_original = read_values
     monkeypatch.setattr(f"{__name__}.read_values", wrong_dimension)
-    execution = engine_for_plan(compiled).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert "Output column id has type String; expected integer" in next(
         iter(execution.failures.values())
     )
@@ -255,8 +257,9 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
             },
         }
     path.write_text(json.dumps(configuration))
-    compiled = compiler.Compiler(spec.load_spec(path), features=["result"]).compile()
-    execution = engine_for_plan(compiled).run()
+    spec_definition = spec.load_spec(path)
+    compiled = compiler.Compiler(spec_definition, features=["result"]).compile()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["observations"].sort("id")["result"].to_list() == [11, 21]
 
@@ -338,7 +341,7 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
     )
     compiled = compiler.Compiler(spec_definition, features=["copied"]).compile()
     assert len(compiled.callables) == 3
-    execution = engine_for_plan(compiled).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["target"].sort("id")["copied"].to_list() == (
         [10, 20] if dataframe else ["source"]

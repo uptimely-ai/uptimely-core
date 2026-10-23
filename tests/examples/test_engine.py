@@ -28,6 +28,10 @@ def _execution_plan() -> compiler.ExecutionPlan:
     return compiler.Compiler(spec_module.load_spec(SPEC_PATH)).compile()
 
 
+def _execution_spec() -> spec_module.Spec:
+    return spec_module.load_spec(SPEC_PATH)
+
+
 def _copy_pump_project(tmp_path: pathlib.Path) -> pathlib.Path:
     project_root = tmp_path / "examples" / "pump_analytics"
     shutil.copytree(
@@ -40,7 +44,7 @@ def _copy_pump_project(tmp_path: pathlib.Path) -> pathlib.Path:
 
 
 def test_engine_returns_calculated_features_without_writing_output() -> None:
-    engine = engine_for_plan(_execution_plan(), _engine_bind())
+    engine = engine_for_plan(_execution_plan(), _engine_bind(), spec_definition=_execution_spec())
 
     result = engine.run()
 
@@ -177,7 +181,7 @@ def test_simple_analytics_engine_cli_executes_saved_build(
 
 
 def test_engine_rejects_unknown_runtime_namespace() -> None:
-    engine = engine_for_plan(_execution_plan(), {})
+    engine = engine_for_plan(_execution_plan(), {}, spec_definition=_execution_spec())
 
     result = engine.run()
 
@@ -187,7 +191,7 @@ def test_engine_rejects_unknown_runtime_namespace() -> None:
 
 
 def test_engine_rejects_unknown_runtime_object() -> None:
-    engine = engine_for_plan(_execution_plan(), {"storage": {}})
+    engine = engine_for_plan(_execution_plan(), {"storage": {}}, spec_definition=_execution_spec())
 
     result = engine.run()
 
@@ -198,7 +202,11 @@ def test_engine_rejects_unknown_runtime_object() -> None:
 
 
 def test_engine_rejects_unknown_runtime_attribute() -> None:
-    engine = engine_for_plan(_execution_plan(), {"storage": {"telemetry_source": {}}})
+    engine = engine_for_plan(
+        _execution_plan(),
+        {"storage": {"telemetry_source": {}}},
+        spec_definition=_execution_spec(),
+    )
 
     result = engine.run()
 
@@ -209,9 +217,9 @@ def test_engine_rejects_unknown_runtime_attribute() -> None:
 
 
 def test_engine_merges_fragments_by_entity_dimensions() -> None:
-    engine = engine_for_plan(_execution_plan())
+    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
     dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.resources, state_module.RuntimeState()
+        engine.backend, engine.spec_definition, state_module.RuntimeState()
     )
     existing = pl.LazyFrame(
         {
@@ -235,7 +243,7 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
         for operation in engine.plan.callables
         if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
     )
-    dimensions = engine.resources["entities"][operation.entity_id]["dimensions"]
+    dimensions = engine.spec_definition.entities[operation.entity_id].dimension_ids
     merged = dataframe.merge_fragment(existing, fragment, dimensions).collect()
 
     assert merged.select("pump", "existing", "new").sort("pump").rows() == [
@@ -262,9 +270,9 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
     ],
 )
 def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> None:
-    engine = engine_for_plan(_execution_plan())
+    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
     dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.resources, state_module.RuntimeState()
+        engine.backend, engine.spec_definition, state_module.RuntimeState()
     )
     operation = next(
         operation
@@ -277,7 +285,7 @@ def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> Non
             operation,
             fragment,
             None,
-            engine.resources["entities"][operation.entity_id]["dimensions"],
+            engine.spec_definition.entities[operation.entity_id].dimension_ids,
         )
 
 
@@ -331,8 +339,9 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
 
 
 def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathlib.Path) -> None:
-    plan = compiler.Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
-    engine = engine_for_plan(plan, _engine_bind())
+    spec_definition = _execution_spec()
+    plan = compiler.Compiler(spec_definition, features=["health_signal_normalized"]).compile()
+    engine = engine_for_plan(plan, _engine_bind(), spec_definition=spec_definition)
     assert [
         operation.output
         for stage in engine.plan.execution_stages

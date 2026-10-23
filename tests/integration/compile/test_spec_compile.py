@@ -87,7 +87,9 @@ def test_compilation_preserves_the_saved_plan() -> None:
     assert actual.keys() == expected.keys()
     assert actual["plan_version"] == expected["plan_version"]
     assert actual["required_backend"] == expected["required_backend"]
-    assert actual["resources"] == expected["resources"]
+    assert actual["resources"] == {
+        "signatures": expected["resources"]["signatures"],
+    }
     assert {
         item["id"]: item | {"dependency_ids": sorted(item["dependency_ids"])}
         for item in actual["callables"]

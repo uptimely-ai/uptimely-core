@@ -319,7 +319,7 @@ def calculate(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
     )
 
     compiled = compiler.Compiler(spec_definition).compile()
-    result = engine_for_plan(compiled).run()
+    result = engine_for_plan(compiled, spec_definition=spec_definition).run()
 
     assert not result.failures
     assert result.datasets["observations"].sort("id")["result"].to_list() == [11, 21]

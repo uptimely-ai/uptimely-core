@@ -1,9 +1,10 @@
 # Compiler
 
-The compiler converts a Spec document into a portable execution
-plan. The plan records the operations, their dependencies, and the runtime
-resources an engine needs. It does not contain the compiler's in-memory graph
-or execute analytical functions.
+The compiler converts a Spec document into a portable execution plan. The plan
+records operations, their dependencies, and compiler-generated metadata. The
+build bundle contains both the plan and its Spec document; runtime declarations
+are read from the Spec rather than duplicated in the plan. The compiler does not
+include its in-memory graph in the plan or execute analytical functions.
 
 This page describes the generated plan. Dataset, feature, function, and mapping
 semantics are defined by the Spec document.
@@ -16,7 +17,7 @@ A plan is one JSON object. Its root fields are:
 | --- | --- | --- |
 | `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `1`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
-| `resources` | object | Runtime metadata needed by the engine. |
+| `resources` | object | Compiler-generated metadata not represented by the Spec, including inspected callable return annotations. |
 | `callables` | array of objects | Operations to execute and their declared inputs and dependencies. |
 | `stages` | array of arrays of strings | Callable identifiers grouped by dependency order. |
 
@@ -26,16 +27,12 @@ incompatibly.
 
 ## Resources
 
-Resources copy the parts of Spec needed to interpret the plan. They allow
-an engine to load the plan without the original Spec document.
-
-| Resource | Contents |
-| --- | --- |
-| `dimensions` | Dimension definitions keyed by identifier. |
-| `entities` | Entity identifiers and their dimension identifiers. |
-| `functions` | Function templates used by the callables. |
-| `datasets` | Dataset features, logical order, and row scope, keyed by dataset identifier. |
-| `signatures` | Inspected return annotations keyed by callable identifier. Functions with signature validation disabled have no entry here. |
+The build bundle includes `spec.json`, which is the source of dimensions,
+entities, functions, and datasets used by the engine. Plan resources contain
+only compiler-generated metadata that is not part of the Spec: inspected return
+annotations keyed by callable identifier. Functions with signature validation
+disabled have no entry. A plan is consumed as part of its build bundle, not as
+a replacement for `spec.json`.
 
 ## Callables
 
