@@ -73,7 +73,8 @@ preview source updates.
 The Explorer is a static website. To publish it, build the site and host the
 entire output directory with a static web host; do not publish only
 `index.html`, because the section pages and their navigation are alongside it.
-The website can be moved or hosted under a URL path.
+The generated `js/` and `css/` directories contain the Explorer's scripts and
+styles and must be included too. The website can be moved or hosted under a URL path.
 
 The preview server has no authentication or TLS and is intended only for local
 review. Avoid binding it to `0.0.0.0` unless you intend to expose it to other

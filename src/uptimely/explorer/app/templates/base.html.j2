@@ -1,55 +1,21 @@
-{% from "icons.html.j2" import icon, icons %}
+{% from "icons.html.j2" import icon %}
 <!DOCTYPE html>
-<html lang="en" class="bg-slate-950">
+<html lang="en" class="bg-slate-950{% if include_navigation %} with-navigation{% endif %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Analytics Explorer{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {theme: {extend: {fontFamily: {
-      sans: ["DM Sans", "sans-serif"], display: ["Space Grotesk", "sans-serif"], mono: ["JetBrains Mono", "monospace"]
-    }}}}
-  </script>
+  <script src="{{ root_path or "" }}js/tailwind_config.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   {% block head %}{% endblock %}
-  <style>
-    :root { --site-nav-width: {% if include_navigation %}224px{% else %}0px{% endif %}; }
-    {% for key, definition in icons.items() %}
-    .icon--{{ key }} { --icon-color: {{ definition[1] }}; --icon-tint: {{ definition[2] }}; }
-    {% endfor %}
-    .site-icon { color: var(--icon-color); width: 20px; height: 20px; flex-shrink: 0; }
-    .title-with-icon { display: flex; align-items: center; gap: 12px; }
-    .title-icon { width: 28px; height: 28px; }
-    .site-content { margin-left: var(--site-nav-width); min-width: 0; }
-    .build-scope-note { margin: 0 8px 12px; padding: 10px; border: 1px solid #334155;
-      border-radius: 8px; color: #cbd5e1; font-size: 11px; line-height: 1.5; }
-    .build-scope-note strong, .build-scope-note span { display: block; }
-    .build-scope-note strong { color: #67e8f9; margin-bottom: 4px; }
-    .site-nav { position: fixed; inset: 0 auto 0 0; width: var(--site-nav-width); z-index: 50;
-      box-sizing: border-box; display: flex; flex-direction: column; gap: 8px;
-      padding: 24px 16px; overflow-y: auto;
-      background: #0f172a; border-right: 1px solid #334155; font: 14px "DM Sans", sans-serif; }
-    .site-nav a { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px;
-      color: #cbd5e1; text-decoration: none; overflow-wrap: anywhere; }
-    .site-nav .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
-    .site-nav a span { min-width: 0; }
-    .site-nav a:hover, .site-nav a:focus-visible { color: #fff; text-decoration: underline; }
-    .site-nav a[aria-current="page"] { color: #67e8f9; background: #1e293b; }
-    .site-brand { font-weight: 700; margin-bottom: 24px; }
-    .site-subnav { margin-left: 16px; padding-left: 8px; border-left: 1px solid #334155; }
-    .site-subnav a { font-size: 12px; padding: 8px 12px; }
-    @media (max-width: 640px) {
-      :root { --site-nav-width: {% if include_navigation %}136px{% else %}0px{% endif %}; }
-      .site-nav { padding: 16px 8px; font-size: 12px; }
-      .site-nav a { padding: 10px 8px; }
-    }
-    {% block style %}{% endblock %}
-  </style>
+  <link rel="stylesheet" href="{{ root_path or "" }}css/base.css">
+  <link rel="stylesheet" href="{{ root_path or "" }}css/icons.css">
+  {% block stylesheets %}{% endblock %}
 </head>
-<body class="{% block body_class %}min-h-screen bg-slate-950 font-sans text-slate-200{% endblock %}">
+<body {% block body_attributes %}{% endblock %}class="{% block body_class %}min-h-screen bg-slate-950 font-sans text-slate-200{% endblock %}">
   {% if include_navigation %}
   {% set rel_root = root_path or "" %}
   <nav class="site-nav" aria-label="Explorer pages">
@@ -98,7 +64,7 @@
     {% block content %}{% endblock %}
   </div>
   {% block scripts %}
-  <script src="https://unpkg.com/lucide@latest"></script><script>lucide.createIcons();</script>
+  <script src="https://unpkg.com/lucide@latest"></script><script src="{{ root_path or "" }}js/icons.js"></script>
   {% endblock %}
 </body>
 </html>

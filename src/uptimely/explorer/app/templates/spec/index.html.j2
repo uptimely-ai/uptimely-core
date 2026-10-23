@@ -1,14 +1,10 @@
 {% extends "base.html.j2" %}
 {% block title %}OpenAnalytics spec{% endblock %}
-{% block style %}
-  .dataset-table-scroll { scrollbar-width: thin; scrollbar-color: #475569 #0f172a; }
-  .dataset-table-scroll::-webkit-scrollbar { height: 6px; }
-  .dataset-table-scroll::-webkit-scrollbar-track { background: #0f172a; }
-  .dataset-table-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 999px; }
-  .dataset-table-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+{% block stylesheets %}
+<link rel="stylesheet" href="{{ root_path or "" }}css/spec.css">
 {% endblock %}
 {% block content %}
-  <div class="pointer-events-none fixed inset-0 -z-0 opacity-30" style="background-image: linear-gradient(rgba(51,65,85,.22) 1px, transparent 1px), linear-gradient(90deg, rgba(51,65,85,.22) 1px, transparent 1px); background-size: 48px 48px;"></div>
+  <div class="model-grid pointer-events-none fixed inset-0 -z-0 opacity-30"></div>
   <div class="relative z-10 mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
     <div class="mb-6 flex flex-wrap items-center gap-3 font-mono text-[10px] text-slate-500"><span class="rounded-md border border-slate-800 px-2 py-1">OpenAnalytics {{ configuration.version }}</span>{% if generated_at %}<span>generated {{ generated_at }}</span>{% endif %}</div>
     <div>

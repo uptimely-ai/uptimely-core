@@ -1,5 +1,5 @@
 {% extends "graph/base.html.j2" %}
-{% from "graph/feature_graph_shared.html.j2" import node_details_panel, node_details_script %}
+{% from "graph/feature_graph_shared.html.j2" import node_details_panel %}
 {% block title %}Feature lineage{% endblock %}
 {% block body %}
 	<div class="panel">
@@ -15,36 +15,9 @@
 		<div id="graph-2d" class="graph-view"></div>
 		<div id="graph-3d" class="graph-view" hidden></div>
 	</div>
-	<script>
-	{
-		const data = {{ graph_data|safe }};
-		const functionColor = {{ style.function_color|tojson }};
-		const entityNames = [...new Set(data.nodes.map(node => node.entity || 'Unassigned'))]
-			.sort((a, b) => a.localeCompare(b));
-		const entityPalette = [
-			'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa',
-			'#facc15', '#60a5fa', '#f472b6', '#a3e635',
-			'#22d3ee', '#c084fc', '#4ade80', '#f87171',
-		];
-		const entityColors = new Map(entityNames.map(
-			(entity, index) => [entity, entityPalette[index % entityPalette.length]]
-		));
-		const entityLegend = document.getElementById('entity-legend');
-		for (const entity of entityNames) {
-			const item = document.createElement('span');
-			item.style.setProperty('--color', entityColors.get(entity));
-			item.textContent = entity;
-			entityLegend.append(item);
-		}
-		for (const node of data.nodes) {
-			node.entity = node.entity || 'Unassigned';
-			node.entityColor = entityColors.get(node.entity);
-		}
-		{{ node_details_script("Selected item") }}
-		{% include "graph/feature_renderer_2d.js.j2" %}
-		{% include "graph/feature_renderer_3d.js.j2" %}
-		{% include "graph/view_controller.js.j2" %}
-		mountGraphViews(data, create2D, create3D, updateDetails, document.getElementById('node-details'));
-	}
-	</script>
+	<script id="graph-data" type="application/json">{{ graph_data|safe }}</script>
+	<script id="graph-style" type="application/json">{{ graph_style_data|tojson }}</script>
+	<script src="{{ root_path or "" }}js/view_controller.js"></script>
+	<script src="{{ root_path or "" }}js/feature_graph.js"></script>
+
 {% endblock %}

@@ -1,6 +1,11 @@
 """Shared render-data filtering and template loading for the Explorer website."""
 
+import importlib.resources
+import pathlib
+
 import jinja2
+
+ASSET_DIRECTORIES = ("css", "js")
 
 WEBSITE_PAGES = {
     "spec": {
@@ -30,3 +35,23 @@ def html_environment() -> jinja2.Environment:
     )
     environment.globals["website_pages"] = WEBSITE_PAGES
     return environment
+
+
+def write_assets(output_directory: pathlib.Path) -> None:
+    """Write the packaged scripts and styles alongside the Explorer pages.
+
+    Args:
+        output_directory: Root of the generated Explorer website.
+    """
+    app = importlib.resources.files("uptimely.explorer").joinpath("app")
+    environment = html_environment().overlay(autoescape=False)
+    for directory in ASSET_DIRECTORIES:
+        target_directory = output_directory / directory
+        target_directory.mkdir(parents=True, exist_ok=True)
+        for resource in sorted(app.joinpath(directory).iterdir(), key=lambda item: item.name):
+            content = resource.read_text(encoding="utf-8")
+            filename = resource.name
+            if filename.endswith(".j2"):
+                content = environment.from_string(content).render()
+                filename = filename.removesuffix(".j2")
+            (target_directory / filename).write_text(content, encoding="utf-8")

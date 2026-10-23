@@ -1,3 +1,71 @@
+{
+	const data = JSON.parse(document.getElementById('graph-data').textContent);
+	const style = JSON.parse(document.getElementById('graph-style').textContent);
+	const functionColor = style.function_color;
+	const entityNames = [...new Set(data.nodes.map(node => node.entity || 'Unassigned'))]
+		.sort((a, b) => a.localeCompare(b));
+	const entityPalette = [
+		'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa',
+		'#facc15', '#60a5fa', '#f472b6', '#a3e635',
+		'#22d3ee', '#c084fc', '#4ade80', '#f87171',
+	];
+	const entityColors = new Map(entityNames.map(
+		(entity, index) => [entity, entityPalette[index % entityPalette.length]]
+	));
+	const entityLegend = document.getElementById('entity-legend');
+	for (const entity of entityNames) {
+		const item = document.createElement('span');
+		item.style.setProperty('--color', entityColors.get(entity));
+		item.textContent = entity;
+		entityLegend.append(item);
+	}
+	for (const node of data.nodes) {
+		node.entity = node.entity || 'Unassigned';
+		node.entityColor = entityColors.get(node.entity);
+	}
+	const nodeDetails = document.getElementById('node-details');
+	const formatDetailValue = (value) => value == null ? 'n/a' : String(value).slice(0, 220);
+	const updateDetails = (node) => {
+		if (!node) {
+			nodeDetails.innerHTML = `
+				<h2>Selected item</h2>
+				<div class="meta">Click a node</div>
+				<div class="summary">Select any feature in the graph to see its identifier and details.</div>
+			`;
+			return;
+		}
+		const label = node.label || node.id || 'Unknown';
+		const isFunction = node.is_function === true;
+		if (isFunction) {
+			const entrypoint = node.entrypoint || null;
+			const features = Array.isArray(node.features) ? node.features : [];
+			const outputLabel = node.function_type === 'escape'
+				? 'Declares external outputs:'
+				: 'Produces:';
+			const detailParts = [
+				`<div class="meta"><strong>Node type:</strong> Function</div>`,
+				`<div class="meta"><strong>Function:</strong> ${label}</div>`,
+				`<div class="meta"><strong>Function type:</strong> ${node.function_type || 'n/a'}</div>`,
+				features.length ? `<div class="meta"><strong>${outputLabel}</strong> ${formatDetailValue(features.join(', '))}</div>` : '',
+				entrypoint ? `<div class="meta"><strong>Entrypoint:</strong> ${formatDetailValue(entrypoint)}</div>` : '',
+			].filter(Boolean).join('');
+			nodeDetails.innerHTML = `
+				<h2>Selected item</h2>
+				${detailParts || '<div class="meta">No function metadata available.</div>'}
+			`;
+			return;
+		}
+		const dataType = node.data_type || node.type || 'unknown';
+		const entity = node.entity || 'n/a';
+		nodeDetails.innerHTML = `
+			<h2>Selected item</h2>
+			<div class="meta"><strong>Node type:</strong> Feature</div>
+			<div class="meta"><strong>Feature:</strong> ${label}</div>
+			<div class="meta"><strong>Entity:</strong> ${formatDetailValue(entity)}</div>
+			<div class="meta"><strong>Data type:</strong> ${formatDetailValue(dataType)}</div>
+		`;
+	};
+
 	function create2D(graphContainer, data, updateDetails) {
 		function rankNodes(graphData) {
 			const children = new Map(graphData.nodes.map(node => [node.id, []]));
@@ -153,7 +221,7 @@
 			const points = linkRoute(link);
 			const scale = Math.max(globalScale, 0.01);
 			ctx.save();
-			ctx.strokeStyle = '{{ style.link_color }}';
+			ctx.strokeStyle = style.link_color;
 			ctx.lineWidth = 1.5 / scale;
 			ctx.lineCap = 'round';
 			ctx.lineJoin = 'round';
@@ -166,7 +234,7 @@
 			const previous = points[points.length - 2];
 			const angle = Math.atan2(end[1] - previous[1], end[0] - previous[0]);
 			const arrowLength = 8 / scale;
-			ctx.fillStyle = '{{ style.link_color }}';
+			ctx.fillStyle = style.link_color;
 			ctx.beginPath();
 			ctx.moveTo(end[0], end[1]);
 			ctx.lineTo(
@@ -214,7 +282,7 @@
 		const graph = ForceGraph()(graphContainer)
 			.width(graphContainer.clientWidth)
 			.height(graphContainer.clientHeight)
-			.backgroundColor('{{ style.background_color }}')
+			.backgroundColor(style.background_color)
 			.nodeLabel(node => `${node.is_function ? 'function' : 'feature'}: ${node.label}<br>entity: ${node.entity || 'n/a'}`)
 			.nodeRelSize(6)
 			.nodeVal(node => node.is_function ? 7 : 5)
@@ -226,8 +294,8 @@
 				ctx.fillRect(node.x - node.cardWidth / 2, node.y - node.cardHeight / 2,
 					node.cardWidth, node.cardHeight);
 			})
-			.linkColor(() => '{{ style.link_color }}')
-			.linkWidth({{ style.link_width }})
+			.linkColor(() => style.link_color)
+			.linkWidth(style.link_width)
 			.linkCanvasObjectMode(() => 'replace')
 			.linkCanvasObject(drawLink)
 			.linkDirectionalParticles(1)
@@ -257,3 +325,67 @@
 
 		return { graph, fit: fitGraph, resize: resizeGraph };
 	}
+
+	function create3D(graphContainer, data, updateDetails) {
+		let initialFitComplete = false;
+		const graph = ForceGraph3D()(graphContainer)
+			.width(graphContainer.clientWidth)
+			.height(graphContainer.clientHeight)
+			.graphData(data)
+			.backgroundColor(style.background_color)
+			.nodeLabel(node => `${node.is_function ? 'function' : 'feature'}: ${node.label}<br>entity: ${node.entity || 'n/a'}`)
+			.nodeColor(node => node.is_function ? functionColor : node.entityColor)
+			.nodeRelSize(style.node_rel_size)
+			.nodeResolution(style.node_resolution)
+			.linkDirectionalArrowLength(style.arrow_length)
+			.linkDirectionalArrowRelPos(style.arrow_rel_pos)
+			.linkWidth(style.link_width)
+			.linkColor(() => style.link_color)
+			.linkOpacity(style.link_opacity)
+			.linkDirectionalParticles(2)
+			.linkDirectionalParticleWidth(2)
+			.linkDirectionalParticleSpeed(0.003)
+			.onNodeClick(node => updateDetails(node))
+			.onEngineStop(() => {
+				if (!initialFitComplete) {
+					graph.zoomToFit(0, 60);
+					initialFitComplete = true;
+				}
+			})
+			.nodeThreeObject(node => {
+				const color = node.is_function ? functionColor : node.entityColor;
+				const material = new THREE.MeshLambertMaterial({ color });
+				const isVariable = !node.is_function;
+				const geometry = isVariable
+					? new THREE.SphereGeometry(style.feature_node_size, 16, 12)
+					: new THREE.OctahedronGeometry(style.function_node_size, 0);
+				const mesh = new THREE.Mesh(geometry, material);
+
+				if (!isVariable) {
+					return mesh;
+				}
+
+				const group = new THREE.Group();
+				group.add(mesh);
+				const label = new SpriteText(node.label || '', 3.2, style.label_color);
+				label.backgroundColor = 'rgba(16,24,32,0.72)';
+				label.padding = 2;
+				label.borderRadius = 2;
+				label.position.set(0, 14, 0);
+				group.add(label);
+				return group;
+			});
+		const chargeForce = graph.d3Force('charge');
+		chargeForce.strength(style.charge_strength);
+		chargeForce.distanceMax(style.charge_distance_max);
+		graph.d3Force('link').distance(style.link_distance);
+		const fit = () => graph.zoomToFit(0, 60);
+		const resize = () => {
+			graph.width(graphContainer.clientWidth).height(graphContainer.clientHeight);
+			fit();
+		};
+		return { graph, fit, resize };
+	}
+
+	mountGraphViews(data, create2D, create3D, updateDetails, document.getElementById('node-details'));
+}

@@ -137,7 +137,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
         '"target": "callable:vectorize:normalize_health_signal:'
         'pump:pump_dataset:health_signal_normalized"' in report
     )
-    assert "OctahedronGeometry" in report
+    assert "OctahedronGeometry" in (tmp_path / "js/callable_graph.js").read_text(encoding="utf-8")
 
 
 def test_website_exports_plan_pages_to_default_path(tmp_path: pathlib.Path, monkeypatch) -> None:

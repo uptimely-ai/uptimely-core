@@ -1,60 +1,14 @@
 {% extends "base.html.j2" %}
 {% block body_class %}graph-page{% endblock %}
+{% block body_attributes %}style="--graph-background: {{ style.background_color }}" {% endblock %}
 {% block head %}
 	<script src="https://unpkg.com/force-graph@1.52.0/dist/force-graph.min.js"></script>
 	<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 	<script src="https://unpkg.com/3d-force-graph@1.77.0/dist/3d-force-graph.min.js"></script>
 	<script src="https://unpkg.com/three-spritetext@1.10.0/dist/three-spritetext.min.js"></script>
 {% endblock %}
-{% block style %}
-		html, body, #graph { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-		.site-content { position: relative; width: calc(100% - var(--site-nav-width)); height: 100%; }
-		body { background: {{ style.background_color }}; color: #f5f1e8; font: 14px system-ui, sans-serif; }
-		.graph-toolbar { position: absolute; inset: 0 0 auto 0; z-index: 2; min-height: 64px;
-			box-sizing: border-box; display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
-			padding: 12px 16px; background: #101820; border-bottom: 1px solid #52616b; }
-		.graph-toolbar h1 { margin: 0 auto 0 0; }
-		.graph-buttons { display: flex; gap: 4px; }
-		.graph-toolbar button { padding: 8px 12px; border: 1px solid #52616b; border-radius: 8px;
-			background: #1c2b36; color: #e8edf2; font: inherit; cursor: pointer; }
-		.graph-toolbar button[aria-pressed="true"] { border-color: #67e8f9; background: #164e63; }
-		.graph-toolbar button:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
-		#graph { position: absolute; top: 64px; bottom: 0; height: auto; }
-		.graph-view { position: absolute; inset: 0; }
-		.graph-view[hidden], #graph-error[hidden] { display: none; }
-		#graph-error, .graph-error { position: absolute; top: 70px; left: 16px; right: 16px;
-			z-index: 3; padding: 12px; border: 1px solid #fbbf24; border-radius: 8px;
-			background: #422006; color: #fef3c7; }
-		.panel { position: absolute; top: 64px; left: 0; z-index: 1; margin: 16px; padding: 14px 16px;
-			background: rgba(16, 24, 32, .9); border: 1px solid #52616b; border-radius: 8px; }
-		h1 { font-size: 18px; margin: 0 0 10px; }
-		.legend { display: grid; gap: 6px; }
-		.legend span:not(.legend-heading)::before { content: ''; display: inline-block; width: 10px; height: 10px;
-			margin-right: 7px; background: var(--color); border-radius: 50%; }
-		.legend .function::before { border-radius: 2px; }
-		.legend-heading { margin-top: 4px; color: #9fb3c3; font-size: 11px; text-transform: uppercase;
-			letter-spacing: .06em; }
-		.entity-legend { display: grid; gap: 5px; max-height: 30vh; overflow-y: auto; }
-		.entity-legend span { overflow-wrap: anywhere; }
-		.details { position: absolute; right: 16px; bottom: 16px; width: 260px;
-			max-width: calc(100% - 32px); max-height: 40%; overflow-y: auto;
-			box-sizing: border-box; padding: 14px 16px;
-			background: rgba(16, 24, 32, .9); border: 1px solid #52616b; border-radius: 8px;
-			color: #f5f1e8; z-index: 1; }
-		.details h2 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: #b7c5cf; }
-		.details .meta { font-size: 12px; color: #cfe0ea; margin-bottom: 6px; white-space: normal; word-break: break-word; }
-		.details .summary { font-size: 13px; line-height: 1.5; color: #e8edf2; white-space: normal; word-break: break-word; }
-		.details-2d { right: auto; left: 16px; width: 320px; max-height: 34%;
-			border-color: #3b8291; border-left: 3px solid #67e8f9; border-radius: 12px; }
-		.details-2d h2, .details-2d h3 { color: #67e8f9; }
-		@media (max-width: 800px) {
-			.graph-toolbar h1 { flex-basis: 100%; font-size: 14px; }
-			.graph-toolbar { min-height: 100px; }
-			#graph, .panel { top: 100px; }
-			#graph-error, .graph-error { top: 106px; }
-			.panel { font-size: 11px; padding: 10px; }
-		}
-		{% block graph_style %}{% endblock %}
+{% block stylesheets %}
+<link rel="stylesheet" href="{{ root_path or "" }}css/graph.css">
 {% endblock %}
 {% block content %}
 	{% block body %}{% endblock %}

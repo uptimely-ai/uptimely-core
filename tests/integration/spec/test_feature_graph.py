@@ -160,30 +160,32 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     render_explorer(spec_definition, tmp_path / "index.html")
     output = tmp_path / "spec/graph.html"
     html = output.read_text(encoding="utf-8")
+    script = (tmp_path / "js/feature_graph.js").read_text(encoding="utf-8")
 
     assert output.exists()
+    assert 'src="../js/feature_graph.js"' in html
     assert "3d-force-graph" in html
-    assert "SphereGeometry" in html
-    assert "ConeGeometry" not in html
-    assert "OctahedronGeometry" in html
-    assert "CylinderGeometry" not in html
+    assert "SphereGeometry" in script
+    assert "ConeGeometry" not in script
+    assert "OctahedronGeometry" in script
+    assert "CylinderGeometry" not in script
     assert (
         "${node.is_function ? 'function' : 'feature'}: ${node.label}"
-        "<br>entity: ${node.entity || 'n/a'}" in html
+        "<br>entity: ${node.entity || 'n/a'}" in script
     )
-    assert "entity: ${node.entity || 'n/a'}" in html
-    assert "<strong>Entity:</strong>" in html
+    assert "entity: ${node.entity || 'n/a'}" in script
+    assert "<strong>Entity:</strong>" in script
     assert '"node_type": "feature"' in html
     assert '"is_function": true' in html
     assert '"is_function": false' in html
-    assert "<strong>Node type:</strong> Function" in html
-    assert "<strong>Function:</strong> ${label}" in html
-    assert "${outputLabel}</strong> ${formatDetailValue(features.join(', '))}" in html
+    assert "<strong>Node type:</strong> Function" in script
+    assert "<strong>Function:</strong> ${label}" in script
+    assert "${outputLabel}</strong> ${formatDetailValue(features.join(', '))}" in script
     assert "Function</span>" in html
     for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
         assert f"{category} function</span>" not in html
     assert "entity-legend" in html
-    assert "input_color" not in html
+    assert "input_color" not in script
 
 
 def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
@@ -191,35 +193,39 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     render_explorer(spec_definition, tmp_path / "index.html")
     output = tmp_path / "spec/graph.html"
     html = output.read_text(encoding="utf-8")
+    script = (tmp_path / "js/feature_graph.js").read_text(encoding="utf-8")
+    styles = (tmp_path / "css/graph.css").read_text(encoding="utf-8")
 
+    assert 'src="../js/feature_graph.js"' in html
+    assert 'href="../css/graph.css"' in html
     assert "force-graph@1.52.0/dist/force-graph.min.js" in html
-    assert "ForceGraph()(graphContainer)" in html
+    assert "ForceGraph()(graphContainer)" in script
     assert "graph-hint" not in html
     assert 'id="fit-graph"' in html
-    assert "function prepareGraphLayout(graphData)" in html
-    assert "function drawEntityLanes(ctx, globalScale)" not in html
-    assert "function drawNode(node, ctx)" in html
-    assert "function selectAtPointer(event)" in html
-    assert ".nodeCanvasObject(drawNode)" in html
-    assert "data.nodes.map(node => node.entity || 'Unassigned')" in html
-    assert "rankNodes" in html
-    assert "node.fx = rankOffsets.get(rank) - graphWidth / 2" in html
-    assert "(index - (nodes.length - 1) / 2) * 70" in html
-    assert "node.entityColor = entityColors.get(node.entity)" in html
-    assert "item.textContent = entity" in html
-    assert "'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa'" in html
+    assert "function prepareGraphLayout(graphData)" in script
+    assert "function drawEntityLanes(ctx, globalScale)" not in script
+    assert "function drawNode(node, ctx)" in script
+    assert "function selectAtPointer(event)" in script
+    assert ".nodeCanvasObject(drawNode)" in script
+    assert "data.nodes.map(node => node.entity || 'Unassigned')" in script
+    assert "rankNodes" in script
+    assert "node.fx = rankOffsets.get(rank) - graphWidth / 2" in script
+    assert "(index - (nodes.length - 1) / 2) * 70" in script
+    assert "node.entityColor = entityColors.get(node.entity)" in script
+    assert "item.textContent = entity" in script
+    assert "'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa'" in script
     assert '"#b9c9d8"' in html
-    assert "function linkRoute(link)" in html
-    assert "const corners = [[bendX, start[1]], [bendX, end[1]]]" in html
-    assert "2 * inverse * t * corner[0] + t * t * after[0]" in html
-    assert ".linkCanvasObjectMode(() => 'replace')" in html
-    assert ".linkDirectionalParticles(1)" in html
-    assert "link.flowOffset = index / Math.max(1, data.links.length)" in html
-    assert "performance.now() / 2200" in html
-    assert ".linkCurvature(0.18)" not in html
-    assert ".linkDirectionalParticles(2)" in html
-    assert ".nodeColor(node => node.is_function ? functionColor : node.entityColor)" in html
-    assert "function resizeGraph()" in html
+    assert "function linkRoute(link)" in script
+    assert "const corners = [[bendX, start[1]], [bendX, end[1]]]" in script
+    assert "2 * inverse * t * corner[0] + t * t * after[0]" in script
+    assert ".linkCanvasObjectMode(() => 'replace')" in script
+    assert ".linkDirectionalParticles(1)" in script
+    assert "link.flowOffset = index / Math.max(1, data.links.length)" in script
+    assert "performance.now() / 2200" in script
+    assert ".linkCurvature(0.18)" not in script
+    assert ".linkDirectionalParticles(2)" in script
+    assert ".nodeColor(node => node.is_function ? functionColor : node.entityColor)" in script
+    assert "function resizeGraph()" in script
     assert "health_signal_normalized" in html
     assert '"label": "bearing_temperature_max", "tags": [], "node_type": "feature"' in html
     assert '"is_function": false, "entity": "pump", "data_type": "float"' in html
@@ -231,9 +237,9 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
         assert f"{category} function</span>" not in html
     assert 'class="details details-2d"' in html
     assert "Selected item" in html
-    assert ".details-2d { right: auto; left: 16px;" in html
-    assert "graph.screen2GraphCoords(" in html
-    assert ".onNodeClick((_node, event) => selectAtPointer(event))" in html
-    assert ".onBackgroundClick(event => selectAtPointer(event))" in html
+    assert ".details-2d { right: auto; left: 16px;" in styles
+    assert "graph.screen2GraphCoords(" in script
+    assert ".onNodeClick((_node, event) => selectAtPointer(event))" in script
+    assert ".onBackgroundClick(event => selectAtPointer(event))" in script
     assert "<h2>Node details</h2>" not in html
     assert "3d-force-graph" in html
