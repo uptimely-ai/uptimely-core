@@ -206,7 +206,8 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "force-graph@1.52.0/dist/force-graph.min.js" in html
     assert "ForceGraph()(graphContainer)" in script
     assert "graph-hint" not in html
-    assert 'id="fit-graph"' in html
+    assert 'id="reset-graph"' in html
+    assert ">Reset graph</button>" in html
     assert "function prepareGraphLayout(graphData)" in script
     assert "function drawEntityLanes(ctx, globalScale)" not in script
     assert "function drawNode(node, ctx)" in script
