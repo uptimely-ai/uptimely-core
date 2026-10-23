@@ -39,6 +39,34 @@ const ExplorerGraph = (() => {
 		}
 	}
 
+	function prepareEntityColors(data, container) {
+		const names = [...new Set(data.nodes.map(node => node.entity || 'Unassigned'))]
+			.sort((a, b) => a.localeCompare(b));
+		const palette = [
+			'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa',
+			'#facc15', '#60a5fa', '#f472b6', '#a3e635',
+			'#22d3ee', '#c084fc', '#4ade80', '#f87171',
+		];
+		const colors = new Map(names.map(
+			(entity, index) => [entity, palette[index % palette.length]]
+		));
+		appendLegend(container, names.map(entity => ({
+			label: entity, color: colors.get(entity),
+		})));
+		for (const node of data.nodes) {
+			node.entity = node.entity || 'Unassigned';
+			node.entityColor = colors.get(node.entity);
+		}
+	}
+
+	function entityNodeObject(node, text, style) {
+		const mesh = new THREE.Mesh(
+			new THREE.SphereGeometry(style.feature_node_size, 16, 12),
+			new THREE.MeshLambertMaterial({ color: node.entityColor }),
+		);
+		return labeledMesh(mesh, text, style, 14);
+	}
+
 	function paintPointerArea(node, color, ctx) {
 		ctx.fillStyle = color;
 		ctx.fillRect(node.x - node.cardWidth / 2, node.y - node.cardHeight / 2,
@@ -205,6 +233,7 @@ const ExplorerGraph = (() => {
 
 	return {
 		readPayload, tooltip, showDetails, appendLegend, paintPointerArea, selectCard,
+		prepareEntityColors, entityNodeObject,
 		createDependencyHighlight, createView, create3D, labeledMesh,
 	};
 })();
