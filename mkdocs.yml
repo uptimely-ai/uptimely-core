@@ -57,16 +57,11 @@ validation:
 
 nav:
   - Home: index.md
-  - Demo:
-      - Intro: demo/index.md
-      - Pump Analytics: examples/pump_analytics/index.html
-  - Overview:
+  - Getting started:
+      - "Demo: Pump Analytics": examples/pump_analytics/index.html
       - The problem: overview/problem.md
       - Architecture: overview/architecture.md
-      - Spec: overview/spec.md
-  - Comparisons:
-      - Analytics platforms: comparisons/analytics-platforms.md
-      - Data science work: comparisons/data-science-work.md
+      - Spec infographic: overview/spec.md
   - Components:
       - About: components/index.md
       - Spec: components/spec.md
@@ -76,10 +71,13 @@ nav:
       - Overview: tools/index.md
       - Explorer: tools/explorer.md
       - AI agents: tools/ai.md
-  - Analytics development:
-      - Project structure: development/project-structure.md
-      - Organizing analytics: development/organize.md
-      - Analytical functions: development/analytical-functions.md
+  - Data science:
+      - Platform comparison: data-science/platform-comparison.md
+      - Data science work: data-science/way-of-work.md
+      - Analytical functions: data-science/analytical-functions.md
+  - Project layout:
+      - Project structure: project-layout/project-structure.md
+      - Organizing analytics: project-layout/organize.md
   - Roadmap:
       - Development roadmap: roadmap/index.md
       - Backlog: roadmap/backlog.md
