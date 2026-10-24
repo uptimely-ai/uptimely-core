@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 
 from uptimely import row_context
-from uptimely.explorer import render
 from uptimely.spec import operations
 
 
@@ -38,19 +37,3 @@ class CallableNode:
 
     def __repr__(self) -> str:
         return f"{self.function_id}({self.entity})"
-
-    def to_render_data(self, node_type: str = "callable") -> dict[str, object]:
-        """Return display metadata for rendering this callable node."""
-        return render.filled_fields(
-            node_type=node_type,
-            operation=self.operation,
-            label=str(self),
-            function_id=self.function_id,
-            entity=self.entity,
-            dataset_id=self.dataset_id,
-            feature=self.feature,
-            output_features=list(self.output_features),
-            depends_on_features=(
-                list(self.input_features) if self.operation == operations.VECTORIZE else None
-            ),
-        )

@@ -1,4 +1,3 @@
-from uptimely import compiler
 from uptimely.explorer import render
 from uptimely.spec import model
 from uptimely.spec.feature_graph import models
@@ -8,19 +7,6 @@ def test_render_field_filter_preserves_falsy_values() -> None:
     assert render.filled_fields(
         absent=None, flag=False, count=0, text="", items=[], metadata={}
     ) == {"flag": False, "count": 0, "text": "", "items": [], "metadata": {}}
-
-
-def test_callable_render_data_preserves_empty_values_and_omits_none() -> None:
-    node = compiler.CallableNode(function_id="load", entity="asset", operation="read")
-
-    assert node.to_render_data() == {
-        "node_type": "callable",
-        "operation": "read",
-        "label": "load(asset)",
-        "function_id": "load",
-        "entity": "asset",
-        "output_features": [],
-    }
 
 
 def test_feature_render_data_preserves_empty_strings() -> None:
