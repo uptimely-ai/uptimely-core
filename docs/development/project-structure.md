@@ -4,9 +4,8 @@ This page shows a recommended project layout for a single analytics project buil
 
 ## Suggested structure
 
-A practical setup keeps source data, Python declarations, and generated artifacts
-separate. This minimal layout keeps specifications at the project root and
-omits supporting modules:
+A practical setup keeps source data, spec declarations, runtime configuration
+and generated artifacts separate:
 
 ```text
 project/
@@ -48,63 +47,14 @@ in `functions/`, binds its arguments, and defines its output features.
 There is no separate function-template module or authoring adapter. See
 [Python authoring](../reference/api/python.md) for the declaration syntax.
 
-## Active build bundle
+## Building the project
 
-The active-build contract uses one bundle at `_generated/build/`:
+`uptimely build <project>` reads `spec/spec.py` or `spec/spec.json` and generates
+the build bundle shown above. If both sources exist, select one with
+`--python-spec` or `--json-spec`. Rebuild after source changes: execution and
+Explorer use the saved bundle rather than regenerating it.
 
-```text
-_generated/
-└── build/
-    ├── build.json
-    ├── spec.json
-    ├── execution_plan.json
-    └── explorer/
-        ├── index.html
-        └── ... website assets and pages
-```
-
-`build.json` records its `build_version`, the Uptimely version, the selected
-features (`null` means all features), relative artifact paths, and the complete
-Explorer file inventory. A scoped feature list is nonempty and normalized to
-unique, sorted names. The spec artifact always contains the complete model;
-the execution plan may be scoped to selected outputs and their dependencies.
-`build_version` is an integer that identifies the manifest and bundle format.
-It is currently `1`;
-increment it when that format changes incompatibly. It is independent of the
-spec's `spec_version`, the plan's `plan_version`, and the Uptimely package
-version recorded as `uptimely_version`.
-The shared loader rejects missing or invalid artifacts and validates the saved
-execution plan. A successful build replaces the prior active bundle, while a
-failed build leaves that bundle intact. Source edits do not trigger a rebuild:
-run `uptimely project build` explicitly to publish updates. Engine, Explorer,
-feature-graph CLI, and MCP consumers use the saved bundle and fail with an
-actionable build command if it is missing or invalid.
-
-Building imports declarations and may inspect function signatures, but never
-executes workflow functions or sinks. Engine and MCP execute the saved plan as
-is, including configured sinks that may have external side effects. Explorer
-serves the saved website without compiling, rendering, or modifying it.
-
-The fixed project structure enables automation of repetitive setup and tooling
-while preserving flexibility in the analytics implementation.
-
-The [end-to-end example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/pump_analytics/README.md) uses CLI commands
-for project builds, execution, Explorer, and feature graphs.
-`uptimely build <project>` discovers
-`spec/spec.py` or `spec/spec.json`, validates the source, and
-generates a complete active bundle under `_generated/build/`. If exactly one
-standard source exists, it is selected automatically. If both exist, the build
-fails as ambiguous; select one explicitly with `--python-spec` or
-`--json-spec`. If neither exists, the build fails and reports the expected
-paths. Use
-`--features <name> [<name> ...]` to publish a scoped plan; omit it to include
-all features. Python sources expose `python_spec`, a `PythonSpec` instance. Use
-`--python-spec <module>.<sub_module>:<attribute>` or `--json-spec <path>` to select a source
-explicitly. The generated website and plan
-are included in that bundle. `uptimely spec feature-graph` prints graph
-summaries and, with `--verbose`, dependency trees from the saved spec without
-writing files. Engine and Explorer do not regenerate from source; edits require
-an explicit rebuild. See the [CLI reference](../reference/cli.md) for recovery
-behavior and the documented commands.
-The [smaller Python example](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/simple_analytics/README.md) demonstrates
-spec declarations independently of the full compilation and execution workflow.
+See the [CLI reference](../reference/cli.md) for build options and the
+[pump analytics example](../../examples/pump_analytics/README.md) for a runnable
+project. For structures spanning multiple projects or repositories, see
+[organizing analytics projects](organize.md).
