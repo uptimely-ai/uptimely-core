@@ -6,6 +6,7 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import compiler, spec
 from uptimely.compiler import plan as compiler_plan
+from uptimely.spec import model as spec_model
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
@@ -99,6 +100,90 @@ def test_compilation_preserves_the_saved_plan() -> None:
     assert [set(stage) for stage in actual["stages"]] == [
         set(stage) for stage in expected["stages"]
     ]
+
+
+def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> None:
+    plan = compiler.Compiler(SPEC_PATH).compile()
+    invocations = [
+        callable
+        for callable in plan.callables
+        if callable.function_id == "extract_recommendation_value"
+    ]
+
+    assert {callable.output for callable in invocations} == {
+        "recommended_flow_rate",
+        "recommended_discharge_pressure",
+        "energy_cost_score",
+        "converged",
+    }
+    assert len(invocations) == 4
+    assert len({callable.id for callable in invocations}) == 4
+
+
+def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None:
+    definition = spec.load_spec(SPEC_PATH)
+    pump_entity = definition.entities["pump"]
+    pump_dataset = pump_entity.datasets["pump_dataset"]
+    read_mapping = (
+        definition.entities["pump_telemetry"]
+        .datasets["pump_telemetry_dataset"]
+        .mappings["read_pump_telemetry"]
+    )
+
+    pump_entity.datasets["auxiliary_dataset"] = spec_model.Dataset(
+        id="auxiliary_dataset",
+        features={"auxiliary_value": spec_model.Feature(id="auxiliary_value")},
+        mappings={
+            "read_auxiliary": spec_model.Mapping(
+                id="read_auxiliary",
+                binding=spec_model.Binding(
+                    function="read_pump_telemetry",
+                    args=dict(read_mapping.binding.args),
+                ),
+                features=spec_model.MappingFeatures(outputs=["$features.auxiliary_value"]),
+            )
+        },
+    )
+    pump_dataset.features["conformed_auxiliary"] = spec_model.Feature(id="conformed_auxiliary")
+    pump_dataset.mappings["conform_auxiliary"] = spec_model.Mapping(
+        id="conform_auxiliary",
+        binding=spec_model.Binding(
+            function="conform_auxiliary",
+            args={
+                "source": "$datasets.auxiliary_dataset.dataframe",
+                "target": "$datasets.@.dataframe",
+            },
+        ),
+        features=spec_model.MappingFeatures(
+            inputs=["$features.auxiliary_value"],
+            outputs=["$features.conformed_auxiliary"],
+        ),
+    )
+    definition.functions.root["conform_auxiliary"] = spec_model.FunctionTemplate(
+        id="conform_auxiliary",
+        operation="conform",
+        returns="dataframe",
+        entrypoint="examples.pump_analytics.functions.analytics:maximum",
+        validate_signature=False,
+        args={
+            "source": spec_model.Argument(id="source", type="dataframe"),
+            "target": spec_model.Argument(id="target", type="dataframe"),
+        },
+    )
+
+    plan = compiler.Compiler(definition, features=["conformed_auxiliary"]).compile()
+    conform = next(callable for callable in plan.callables if callable.operation == "conform")
+    source = next(
+        callable for callable in plan.callables if callable.id.endswith(":read_auxiliary")
+    )
+    stage_by_id = {
+        callable_id: index for index, stage in enumerate(plan.plan.stages) for callable_id in stage
+    }
+
+    assert source.id in conform.dependency_ids
+    assert stage_by_id[source.id] < stage_by_id[conform.id]
+    restored = compiler_plan.Plan.from_dict(json.loads(json.dumps(plan.to_dict())))
+    assert restored.to_dict() == plan.to_dict()
 
 
 def test_compiler_creates_callable_graph_subset_for_requested_features() -> None:
