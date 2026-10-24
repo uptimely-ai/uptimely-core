@@ -1,0 +1,13 @@
+[build-system]
+requires = ["poetry-core>=2.0"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "uptimely-import-fixture"
+version = "1.2.3"
+description = "Installed analytics package for production import regression tests"
+requires-python = ">=3.13"
+dependencies = ["uptimely-core"]
+
+[tool.poetry]
+packages = [{ include = "installed_analytics", from = "src" }]

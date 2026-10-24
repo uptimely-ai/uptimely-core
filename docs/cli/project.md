@@ -44,9 +44,9 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `PROJECT_ROOT` | No | Current working directory | Project directory for source discovery, importing project functions, and generated output paths. May be passed as `--project-root PATH` instead. |
-| `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
-| `--python-spec MODULE:ATTRIBUTE` | No | Discover standard sources | Select a Python attribute containing a `PythonSpec` instance. Mutually exclusive with `--json-spec`. |
+| `PROJECT_ROOT` | No | Current working directory | Project directory for source discovery and generated output paths. Function packages must already be installed in the build and runtime environments. May be passed as `--project-root PATH` instead. |
+| `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. It does not add the project directory to Python's import path. |
+| `--python-spec MODULE:ATTRIBUTE` | No | Discover standard sources | Select an importable Python attribute containing a `PythonSpec` instance. The module must already be importable; the project root is not added to `sys.path`. Mutually exclusive with `--json-spec`. |
 | `--json-spec PATH` | No | Discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Relative to the current working directory. |
 | `--features FEATURE ...` | No | All features | Select one or more output features and their required dependencies. |
 | `--verbose` | No | Disabled | Log build duration, output folder, source file, resource counts, and plan size. |
@@ -78,7 +78,8 @@ Without `--python-spec` or `--json-spec`, source discovery checks
 - If neither exists, the build fails and reports the expected paths.
 
 Use `--python-spec` or `--json-spec` to select a source explicitly, including
-one outside the standard paths.
+one outside the standard paths. A discovered Python spec is imported as a
+module; discovery does not make an otherwise unavailable package importable.
 
 ### Examples
 

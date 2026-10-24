@@ -1,9 +1,9 @@
-"""Isolate generated example builds and expose the example packages to tests."""
+"""Isolate generated example builds using the installed example packages."""
 
+import functools
 import os
 import pathlib
 import shutil
-import sys
 import tempfile
 
 import pytest
@@ -21,7 +21,55 @@ EXAMPLES_ROOT = pathlib.Path(
 )
 _ORIGINAL_EXAMPLES_ROOT = os.environ.get("UPTIMELY_TEST_EXAMPLES_ROOT")
 _TEST_ROOT: pathlib.Path | None = None
-_PLAN_ROOTS: list[pathlib.Path] = []
+_TEMP_ROOTS: list[pathlib.Path] = []
+
+
+@functools.cache
+def _example_project(example: str, features: tuple[str, ...] | None) -> pathlib.Path:
+    """Prepare each scoped example once per worker; reuse full session builds."""
+    source = EXAMPLES_ROOT / example
+    if features is None:
+        return source
+    root = pathlib.Path(tempfile.mkdtemp(prefix="uptimely-test-example-"))
+    _TEMP_ROOTS.append(root)
+    target = root / example
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns("_generated", "__pycache__"))
+    project_module.build_project(
+        target,
+        json_spec=source / project_module.BUILD_OUTPUT_DIR / "spec.json",
+        features=features,
+    )
+    return target
+
+
+def example_bundle(
+    example: str = "pump_analytics", features: tuple[str, ...] | None = None
+) -> project_module.BuildBundle:
+    """Load fresh, mutable objects from a reusable example build."""
+    return project_module.load_build_bundle(_example_project(example, features))
+
+
+def copy_example_project(
+    target: pathlib.Path,
+    example: str = "pump_analytics",
+    features: tuple[str, ...] | None = None,
+) -> pathlib.Path:
+    """Copy a prepared example, including its build, for an isolated test."""
+    shutil.copytree(
+        _example_project(example, features),
+        target,
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
+    return target
+
+
+def plan_for_spec(spec_definition: spec.Spec) -> plan_module.ExecutionPlan:
+    """Reuse saved example plans; compile only new or modified specifications."""
+    for example in ("pump_analytics", "simple_analytics"):
+        bundle = example_bundle(example)
+        if spec_definition == bundle.spec_definition:
+            return bundle.execution_plan
+    return compiler.Compiler(spec_definition).compile()
 
 
 def _spec_for_plan(execution_plan: plan_module.ExecutionPlan) -> spec_model.Spec:
@@ -66,7 +114,7 @@ def bundle_for_plan(
     """Wrap a plan in a test bundle for engine execution."""
     root = (project_root or REPOSITORY_ROOT).resolve()
     build_root = pathlib.Path(tempfile.mkdtemp(prefix="uptimely-test-plan-"))
-    _PLAN_ROOTS.append(build_root)
+    _TEMP_ROOTS.append(build_root)
     bundle_spec = spec_definition or _spec_for_plan(execution_plan)
     spec.write_document(bundle_spec, build_root / "spec.json")
     return project_module.BuildBundle(
@@ -108,9 +156,12 @@ def render_explorer(
     spec_definition: spec.Spec,
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
+    *,
+    plan: plan_module.ExecutionPlan | None = None,
 ) -> pathlib.Path:
-    """Render a test website with an explicitly compiled execution plan."""
-    plan = compiler.Compiler(spec_definition).compile()
+    """Render with a supplied or reusable plan, compiling only custom specs."""
+    if plan is None:
+        plan = plan_for_spec(spec_definition)
     return explorer.Explorer(spec_definition, plan=plan).create_html(
         output_path, include_generated_at
     )
@@ -121,7 +172,6 @@ def pytest_configure(config: pytest.Config) -> None:
     global EXAMPLES_ROOT, _TEST_ROOT
 
     if hasattr(config, "workerinput"):
-        sys.path.insert(0, str(EXAMPLES_ROOT.parent))
         return
 
     _TEST_ROOT = pathlib.Path(tempfile.mkdtemp(prefix="uptimely-core-tests-"))
@@ -132,7 +182,6 @@ def pytest_configure(config: pytest.Config) -> None:
         ignore=shutil.ignore_patterns("_generated", "__pycache__"),
     )
     os.environ["UPTIMELY_TEST_EXAMPLES_ROOT"] = str(EXAMPLES_ROOT)
-    sys.path.insert(0, str(_TEST_ROOT))
 
     for example in ("pump_analytics", "simple_analytics"):
         project_module.build_project(EXAMPLES_ROOT / example)
@@ -140,7 +189,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
 def pytest_unconfigure(config: pytest.Config) -> None:
     """Remove the isolated example projects created for this test run."""
-    for path in _PLAN_ROOTS:
+    for path in _TEMP_ROOTS:
         shutil.rmtree(path)
     if not hasattr(config, "workerinput") and _TEST_ROOT is not None:
         shutil.rmtree(_TEST_ROOT)

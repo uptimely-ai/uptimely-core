@@ -67,14 +67,23 @@ class Compiler:
             callable_graph = callable_graph.subset(self.features)
         execution_stages = callable_graph.topology()
         callables = [self._callable(callable_graph, node) for node in callable_graph.callables]
-        signatures = self._read_signatures(callable_graph)
+        entrypoints = self._read_entrypoints(callables)
+        packages = self._read_packages(entrypoints)
+        signatures = self._read_signatures(callable_graph, entrypoints)
         callable_ids = {callable.id for callable in callables}
         stages = [
             [node.node_id for node in stage if node.node_id in callable_ids]
             for stage in execution_stages
         ]
         resources = {
-            "signatures": {node_id: signature.returns for node_id, signature in signatures.items()}
+            "signatures": {node_id: signature.returns for node_id, signature in signatures.items()},
+            "entrypoint_packages": {
+                location: {
+                    "distribution": package.distribution,
+                    "version": package.version,
+                }
+                for location, package in packages.items()
+            },
         }
         execution_plan = plan.Plan(
             plan_version=plan.PLAN_VERSION,
@@ -131,24 +140,57 @@ class Compiler:
             raise ValueError("features must be a collection of feature identifiers")
         return list(dict.fromkeys(features))
 
-    def _read_signatures(self, callable_graph: execution_graph.CallableGraph) -> dict[str, object]:
-        """Read callable signatures for compiler diagnostics."""
-        signatures: dict[str, object] = {}
-        for node in callable_graph.callables:
-            function = _resolve_function(self.spec, node)
-            if function is None or not function.entrypoint:
+    @staticmethod
+    def _read_entrypoints(callables: list[plan.Callable]) -> dict[str, entrypoint.Entrypoint]:
+        """Parse each distinct implementation location once."""
+        entrypoints: dict[str, entrypoint.Entrypoint] = {}
+        for callable in callables:
+            if callable.entrypoint in entrypoints:
                 continue
             try:
-                function_entrypoint = entrypoint.Entrypoint(function.entrypoint, pathlib.Path.cwd())
-                if not function.validate_signature:
-                    continue
-                signature = function_entrypoint.function.signature
+                entrypoints[callable.entrypoint] = entrypoint.Entrypoint(callable.entrypoint)
+            except ValueError as error:
+                raise ValueError(
+                    f"Invalid entrypoint for function {callable.function_id}: {error}"
+                ) from error
+        return entrypoints
+
+    @staticmethod
+    def _read_packages(
+        entrypoints: dict[str, entrypoint.Entrypoint],
+    ) -> dict[str, entrypoint.PackageProvenance]:
+        """Read package provenance independently of signature validation."""
+        packages: dict[str, entrypoint.PackageProvenance] = {}
+        for location, implementation in entrypoints.items():
+            try:
+                packages[location] = implementation.module.package
+            except (ImportError, ValueError) as error:
+                raise ValueError(
+                    f"Could not read package provenance for entrypoint {location}: {error}"
+                ) from error
+        return packages
+
+    def _read_signatures(
+        self,
+        callable_graph: execution_graph.CallableGraph,
+        entrypoints: dict[str, entrypoint.Entrypoint],
+    ) -> dict[str, entrypoint.Signature]:
+        """Inspect enabled signatures and validate their return contracts."""
+        signatures: dict[str, entrypoint.Signature] = {}
+        for node in callable_graph.callables:
+            function = _resolve_function(self.spec, node)
+            if function is None or not function.validate_signature:
+                continue
+            implementation = entrypoints[function.entrypoint]
+            try:
+                signature = implementation.function.signature
+                self._validate_return_annotation(function, signature.returns)
             except (ImportError, AttributeError, ValueError, TypeError) as error:
                 raise ValueError(
                     f"Could not read signature of function {function.id} "
-                    f"from entrypoint {function.entrypoint}: {error}"
+                    f"from entrypoint {function.entrypoint}; "
+                    f"available build package: {implementation.module.package}: {error}"
                 ) from error
-            self._validate_return_annotation(function, signature.returns)
             signatures[node.node_id] = signature
         return signatures
 

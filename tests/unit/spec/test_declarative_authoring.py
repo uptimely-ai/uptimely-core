@@ -6,6 +6,16 @@ from uptimely.spec import python as authoring
 from uptimely.spec.python import conversion, dimension, entity, ref, row_context
 
 
+@authoring.operation("vectorize")
+def must_not_execute(values: list[str], output: str) -> None:
+    raise AssertionError("Assembly executed the implementation")
+
+
+@authoring.operation("vectorize")
+def calculate(value: str) -> str:
+    return value
+
+
 def test_function_mapping_is_the_only_public_mapping_declaration_name() -> None:
     assert authoring.FunctionMapping.__name__ == "FunctionMapping"
     assert not hasattr(authoring, "FunctionCall")
@@ -57,10 +67,6 @@ def test_mapping_rejects_duplicate_output_names() -> None:
 
 
 def test_assembly_collects_inputs_without_executing_implementation() -> None:
-    @authoring.operation("vectorize")
-    def must_not_execute(values: list[str], output: str) -> None:
-        raise AssertionError("Assembly executed the implementation")
-
     class Example(authoring.Dataset):
         id = "example"
         result = authoring.FunctionMapping(
@@ -115,15 +121,13 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
 
 @pytest.mark.parametrize("identifier", ["result", "asset"])
 def test_duplicate_producers_are_rejected(identifier: str) -> None:
-    @authoring.operation("vectorize")
-    def implementation(output: str) -> None:
-        pass
-
     class Example(authoring.Dataset):
         id = "example"
         keys = (dimension.Dimension(id="asset", type="string"),)
         first = authoring.FunctionMapping(
-            function=implementation,
+            function=ref.function(
+                "test_declarative_authoring:implementation", operation="vectorize"
+            ),
             arguments={"output": ref.feature(identifier).id},
             outputs=[authoring.Feature(name=identifier, type="float")],
         )
@@ -305,10 +309,6 @@ def test_mapping_requires_function_operation_metadata() -> None:
 
 
 def test_operation_annotation_is_inferred_without_wrapping_function() -> None:
-    @authoring.operation("vectorize")
-    def calculate(value: str) -> str:
-        return value
-
     declaration = authoring.FunctionMapping(
         function=calculate,
         arguments={"value": "input"},

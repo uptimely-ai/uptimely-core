@@ -7,7 +7,6 @@ import datetime
 import pathlib
 import typing
 from importlib import util
-from urllib import parse
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely import project
@@ -206,13 +205,9 @@ def _build_context(
         if not isinstance(entrypoint, str) or ":" not in entrypoint:
             continue
         module_name = entrypoint.rsplit(":", 1)[0]
-        if parse.urlsplit(module_name).scheme in entrypoint_module.REMOTE_SCHEMES:
-            function["entrypoint_file"] = module_name
-        elif pathlib.Path(module_name).is_file():
-            function["entrypoint_file"] = pathlib.Path(module_name).resolve().as_uri()
-        elif validate_signature:
+        if validate_signature:
             try:
-                module_spec = util.find_spec(module_name.removesuffix(".py").replace("/", "."))
+                module_spec = util.find_spec(module_name)
             except (ModuleNotFoundError, ValueError):
                 module_spec = None
             if module_spec is not None and module_spec.origin not in (
@@ -222,9 +217,10 @@ def _build_context(
             ):
                 function["entrypoint_file"] = pathlib.Path(module_spec.origin).resolve().as_uri()
         if validate_signature:
-            return_type = entrypoint_module.Entrypoint(
-                entrypoint, pathlib.Path.cwd()
-            ).function.signature.returns
+            function_entrypoint = entrypoint_module.Entrypoint(entrypoint)
+            source_file = function_entrypoint.module.source_file
+            function["entrypoint_file"] = pathlib.Path(source_file).resolve().as_uri()
+            return_type = function_entrypoint.function.signature.returns
             if return_type:
                 function["return_type"] = return_type
     (

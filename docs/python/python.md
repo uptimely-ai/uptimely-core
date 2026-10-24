@@ -73,6 +73,8 @@ classes.
 implementations with `@operation(...)`; use `ref.function(..., operation=...)`
 for entrypoint strings. Implementations aren't called during authoring; assembly
 checks callable parameter names and required arguments.
+The implementation module's package must be installed in the build and runtime
+environments; install a local project package in editable mode for development.
 
 Feature references in `arguments` determine dependencies; use `inputs` when they
 can't be inferred. Writes use `outputs=[]`. For generated declarations, use

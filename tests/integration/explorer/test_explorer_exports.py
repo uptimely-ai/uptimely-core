@@ -177,7 +177,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     )
     assert first_escape.id in followup_escape.dependency_ids
 
-    index = render_explorer(definition, tmp_path / "site/index.html")
+    index = render_explorer(definition, tmp_path / "site/index.html", plan=plan)
     feature_page = (index.parent / "spec/features.html").read_text(encoding="utf-8")
     datasets_page = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     functions_page = (index.parent / "spec/functions.html").read_text(encoding="utf-8")

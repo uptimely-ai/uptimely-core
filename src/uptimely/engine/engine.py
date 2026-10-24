@@ -3,7 +3,7 @@
 import logging
 import time
 
-from uptimely.project import imports as project_imports
+from uptimely import entrypoint as entrypoint_module
 from uptimely.project.build import models as build_models
 
 from . import backend as backend_module
@@ -27,7 +27,6 @@ class Engine:
         if not isinstance(bundle, build_models.BuildBundle):
             raise ValueError("bundle must be a BuildBundle")
         self.bundle = bundle
-        project_imports.prepare_imports(bundle.project_root)
         self.plan = bundle.execution_plan
         self.spec_definition = bundle.spec_definition
         self.config = config
@@ -46,8 +45,23 @@ class Engine:
     def run(self) -> result_module.ExecutionResult:
         """Execute plan stages and return explicit runtime state and statuses."""
         state = state_module.RuntimeState()
+        packages = self.plan.plan.resources.get("entrypoint_packages", {})
         callable_executor = execution_module.CallableExecutor(
-            self.bundle.project_root, self.backend, self.spec_definition, self.bind, state
+            self.backend,
+            self.spec_definition,
+            {
+                c.entrypoint: entrypoint_module.Entrypoint(
+                    c.entrypoint,
+                    package=(
+                        entrypoint_module.PackageProvenance(**packages[c.entrypoint])
+                        if c.entrypoint in packages
+                        else None
+                    ),
+                )
+                for c in self.plan.plan.callables
+            },
+            self.bind,
+            state,
         )
         statuses: dict[str, result_module.CallableStatus] = {}
         durations: dict[str, float] = {}

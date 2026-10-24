@@ -40,3 +40,23 @@ jobs:
         with:
           name: coverage-report
           path: coverage.xml
+
+  installed-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: pipx install poetry
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: poetry build --format wheel
+      - name: Build separate analytics package
+        working-directory: tests/fixtures/installed_project
+        run: poetry build --format wheel --output ../../../dist
+      - name: Install release wheels in a clean environment
+        run: |
+          python -m venv "${{ runner.temp }}/uptimely-installed"
+          "${{ runner.temp }}/uptimely-installed/bin/python" -m pip install dist/*.whl
+      - name: Test installed console commands outside the checkout
+        run: |
+          "${{ runner.temp }}/uptimely-installed/bin/python" -I tests/packaging/check_installed.py -v

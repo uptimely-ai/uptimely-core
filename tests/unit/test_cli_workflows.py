@@ -2,14 +2,12 @@
 
 import json
 import pathlib
-import shutil
-import subprocess
 import sys
 import types
 
 import polars as pl
 import pytest
-from conftest import EXAMPLES_ROOT
+from conftest import EXAMPLES_ROOT, copy_example_project
 
 from uptimely import engine as engine_module
 from uptimely import project as project_module
@@ -24,9 +22,13 @@ def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
     cli.main()
 
 
-def _copy_pump_project(tmp_path: pathlib.Path) -> pathlib.Path:
+def _copy_pump_project(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    features: tuple[str, ...] | None = None,
+) -> pathlib.Path:
     project_root = tmp_path / "examples" / "pump_analytics"
-    shutil.copytree(PROJECT, project_root, ignore=shutil.ignore_patterns("_generated"))
+    copy_example_project(project_root, features=features)
     (project_root.parent / "__init__.py").write_text("", encoding="utf-8")
     return project_root
 
@@ -60,8 +62,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    project_root = _copy_pump_project(tmp_path)
-    project_module.build_project(project_root, features=["health_signal_normalized"])
+    project_root = _copy_pump_project(tmp_path, monkeypatch, features=("health_signal_normalized",))
 
     def fail_compile(*args: object, **kwargs: object) -> None:
         pytest.fail("Engine execution must not compile")
@@ -82,9 +83,8 @@ def test_engine_default_logs_only_duration_and_processed_datasets(
     capsys: pytest.CaptureFixture[str],
     scoped: bool,
 ) -> None:
-    project_root = _copy_pump_project(tmp_path)
-    project_module.build_project(
-        project_root, features=["health_signal_normalized"] if scoped else None
+    project_root = _copy_pump_project(
+        tmp_path, monkeypatch, features=("health_signal_normalized",) if scoped else None
     )
     times = iter([10.0, 11.234])
     monkeypatch.setattr(cli.engine, "time", types.SimpleNamespace(perf_counter=lambda: next(times)))
@@ -371,8 +371,7 @@ def test_engine_operation_failures_are_reported(
 ) -> None:
     config = tmp_path / "engine.json"
     config.write_text("{}", encoding="utf-8")
-    project_root = _copy_pump_project(tmp_path)
-    project_module.build_project(project_root, features=["health_signal_normalized"])
+    project_root = _copy_pump_project(tmp_path, monkeypatch, features=("health_signal_normalized",))
     with pytest.raises(SystemExit) as error:
         invoke(
             monkeypatch,
@@ -481,80 +480,3 @@ def test_invalid_spec_is_reported(
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
     assert not result.out
-
-
-def test_workflows_import_project_functions_in_fresh_process(tmp_path: pathlib.Path) -> None:
-    project = tmp_path / "project"
-    project.mkdir()
-    (project / "cli_project_functions.py").write_text(
-        "import polars\n"
-        "def read_values(path: str) -> polars.DataFrame:\n"
-        "    return polars.read_json(path)\n",
-        encoding="utf-8",
-    )
-    data = project / "data.json"
-    data.write_text('[{"value": 1.0}]', encoding="utf-8")
-    config = project / "config" / "engine.json"
-    config.parent.mkdir()
-    config.write_text(
-        json.dumps({"bind": {"storage": {"source": {"path": str(data)}}}}), encoding="utf-8"
-    )
-    spec_path = project / "config" / "spec.json"
-    spec_path.parent.mkdir(parents=True, exist_ok=True)
-    spec_path.write_text(
-        json.dumps(
-            {
-                "spec_version": 2,
-                "functions": {
-                    "read_values": {
-                        "operation": "read",
-                        "returns": "dataframe",
-                        "entrypoint": "cli_project_functions:read_values",
-                        "args": {"path": {"type": "string"}},
-                    }
-                },
-                "entities": {
-                    "sample": {
-                        "name": "Sample",
-                        "datasets": {
-                            "sample_dataset": {
-                                "features": {"value": {"type": "float"}},
-                                "mappings": {
-                                    "values": {
-                                        "binding": {
-                                            "function": "read_values",
-                                            "args": {"path": "?storage.source.path"},
-                                        },
-                                        "features": {"inputs": [], "outputs": ["$features.value"]},
-                                    }
-                                },
-                            }
-                        },
-                    }
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-    project_module.build_project(project, json_spec=spec_path)
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "uptimely.cli.cli",
-            "engine",
-            "run",
-            "--verbose",
-            "--project-root",
-            str(project),
-        ],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    assert "Scope: all features" in result.stdout
-    assert "- Dataset: sample_dataset - 1 features" in result.stdout
-    assert (project / "_generated/build/execution_plan.json").is_file()
