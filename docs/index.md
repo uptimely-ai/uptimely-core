@@ -43,5 +43,5 @@ The package has been developed especially for industrial organizations working w
 
 See [examples from the repository](https://github.com/uptimely-ai/uptimely-core/tree/main/examples) to see how it works in practice.
 
-Use the [CLI reference](reference/cli.md) for commands and options, and the
-[Python API reference](reference/api.md) for class and function signatures.
+Use the [CLI reference](cli/index.md) for commands and options, and the
+[Python API reference](python/index.md) for class and function signatures.

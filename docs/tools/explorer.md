@@ -106,4 +106,4 @@ connection is needed for the full visual experience.
 For the command workflow used by the examples, see the
 [examples guide](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/README.md).
 For programmatic website generation, see the
-[Explorer API reference](../reference/api/explorer.md).
+[Explorer API reference](../python/explorer.md).

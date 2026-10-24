@@ -45,7 +45,7 @@ Python dataset modules subclass `uptimely.spec.python.Dataset` and declare
 named `Mapping` attributes. Each mapping points directly to an implementation
 in `functions/`, binds its arguments, and defines its output features.
 There is no separate function-template module or authoring adapter. See
-[Python authoring](../reference/api/python.md) for the declaration syntax.
+[Python authoring](../python/python.md) for the declaration syntax.
 
 ## Building the project
 
@@ -54,7 +54,7 @@ the build bundle shown above. If both sources exist, select one with
 `--python-spec` or `--json-spec`. Rebuild after source changes: execution and
 Explorer use the saved bundle rather than regenerating it.
 
-See the [CLI reference](../reference/cli.md) for build options and the
+See the [CLI reference](../cli/index.md) for build options and the
 [pump analytics example](../../examples/pump_analytics/README.md) for a runnable
 project. For structures spanning multiple projects or repositories, see
 [organizing analytics projects](organize.md).
