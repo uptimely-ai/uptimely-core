@@ -5,17 +5,7 @@ the order we intend to ship them. Version numbers are assigned when a release
 is published, so the titles describe each release's theme instead. The
 *breaking* column marks items that require changes to existing
 specifications, projects, functions or CLI usage. The sequence prioritizes
-structural refactoring before dependent capabilities, then follows their
-technical dependencies.
-
-## Planned release: Structural refactoring
-
-Remove duplication and prepare the code and UI for planned extensions.
-
-| title | breaking | description |
-|---|---|---|
-| Reuse specification validation functions | No | Call the specification validators in unit tests instead of duplicating their logic. |
-| Modularize Explorer templates | No | Move Explorer JavaScript and CSS into separate files where practical, creating a clearer foundation for subsequent layout and visualization work. |
+dependent capabilities and follows their technical dependencies.
 
 ## Planned release: Code from installed packages
 
@@ -23,8 +13,8 @@ Make function code resolution predictable and versioned.
 
 | title | breaking | description |
 |---|---|---|
-| Resolve entrypoints from installed packages | Yes | Analytics projects are installed packages, and entrypoints are `module.path:qualname` resolved with `importlib`. The build records each entrypoint's distribution name and version. Automatic `sys.path` handling and remote URL entrypoints are removed; code that isn't packaged yet is installed in editable mode. |
-| Replace `validate_signature` with `integration` | Yes | The new `integration` field takes `native`, `opaque` or `external`. `native` code is imported, checked and run. `opaque` legacy code is run without signature checks and marked "unverified" in Explorer. `external` code isn't importable: it is cataloged for Explorer but not run. |
+| Resolve entrypoints from installed packages | Yes | Entrypoints are `module.path:qualname` resolved with `importlib` from installed packages. The build records each entrypoint's distribution name and version as provenance, not an enforced runtime requirement. The engine does not validate versions; resolution or callable-compatibility errors include relevant recorded and available runtime package information. Namespace conflicts that prevent resolution raise an error explaining the conflict. Automatic `sys.path` handling, local-file entrypoints and remote URL entrypoints are removed. Authors install their packages into the build and runtime environments; editable installs support local development, but Uptimely does not install packages automatically. |
+| Preserve signature validation as a separate choice | No | Keep `validate_signature`, defaulting to `true`, rather than introducing `integration`. When `false`, builds do not import implementations for inspection; package provenance is read from installed metadata, with ambiguity reported explicitly. Execution still requires a loadable callable. Signature validation is independent of dependency declarations and operation types, including `escape`. Black-box procedures can be invoked through `escape` wrappers with explicit feature dependencies. Catalog-only procedures are deferred. |
 
 ## Planned release: Function contracts
 
@@ -33,7 +23,7 @@ One breaking change to how calculations declare their features.
 | title | breaking | description |
 |---|---|---|
 | Rename mappings to calculations | Yes | Use a clearer name and align terminology with planned validations. |
-| Analytical functions take only dependencies | Yes | Every feature reference in an analytical function's arguments is an input or an output; feature labels are not allowed. Calculations declare `outputs`, and inputs are derived from the binding arguments, so the separate `inputs` list is removed. External catalog entries keep explicit inputs and outputs. |
+| Analytical functions take only dependencies | Yes | Every feature reference in an analytical function's arguments is an input or an output; feature labels are not allowed. Calculations declare `outputs`, and inputs are derived from structural binding arguments where possible. Keep explicit `inputs` for dependencies hidden inside procedures, including internal I/O in `escape` functions, independently of `validate_signature`. |
 | Reject non-conforming functions with a hint | No | When a function doesn't fit its operation's contract, the compiler fails with a hint about which operation fits. Functions are never relabeled as `escape` automatically; `escape` is always an explicit choice. |
 | Drop dependency requirements for `escape` operation | No | Functions with the `escape` operation currently require their input features to be produced by a `read` operation. Drop this requirement. |
 | Warn when unused features are declared | No | Change spec validation so unused declared features produce a warning instead of stopping the build. |
@@ -145,6 +135,7 @@ Support unit tests, worked examples and workflow tests with pytest.
 
 | title | breaking | description |
 |---|---|---|
+| Reuse specification validation functions | No | Call the specification validators in unit tests instead of duplicating their logic. |
 | Add the `uptimely.testing` pytest plugin | No | Provide a project fixture, a helper that runs the workflow on fixture data with all validations, and assertions that show failing rows in the test failure. In CI/CD, each specification validation can also be collected as a separate pytest item. |
 | Add worked examples | No | Store small input and output tables per function in the specification. Explorer shows them as before-and-after tables, and the pytest plugin runs them as tests. |
 | Document testing levels | No | Describe unit tests (one function, small frames), worked examples, workflow tests (full system on fixture data) and validations (full system on real data) in the project structure guide, with `tests/unit/`, `tests/workflow/`, `tests/fixtures/` and `validations/` folders. |
@@ -169,7 +160,6 @@ Prepare Explorer for the explanation features.
 | Show dimension hierarchy in Explorer | No | Display the hierarchy among dimensions in Explorer instead of presenting dimensions only as a flat list. |
 | Remove full argument texts from the execution graph | No | Keep full argument text out of execution graph nodes so the graph remains readable; make details available outside the graph. |
 | Improve Explorer chart legends | No | Make chart legends clearer and easier to use across Explorer visualizations. |
-| Show external catalog entries in Explorer | No | Render `integration: external` functions as catalog-only nodes with owner, location and where they run. |
 
 ## Planned release: Authoring and explanations
 
@@ -199,8 +189,9 @@ Consolidate and extend the runnable analytics examples.
 
 ## Planned release: Specification composition
 
-Compose independently maintained specifications from installed packages.
+Combine repository-published JSON fragments into one specification without
+requiring implementation packages or a new fragment format.
 
 | title | breaking | description |
 |---|---|---|
-| Compose specifications across packages | No | Each package publishes its specification JSON through an `uptimely.specs` entry point. A master project includes specifications by package and version range, merges them with namespaced IDs and depends only on exported features. |
+| Merge JSON specification files | No | Add an explicit API that reads multiple JSON files and recursively combines objects before passing the complete document through the existing spec model and semantic validation. Identical overlapping values are accepted; conflicting values raise an error identifying the files and JSON path. Arrays are whole values, not concatenated or deduplicated. Set the combined spec's name and source explicitly rather than merging contributor metadata. Fragments need not be semantically valid alone. Leave reference, contract, producer and cycle checks to existing validation; do not add repository fetching, package discovery, version-range resolution, automatic namespacing or identifier rewriting. |
