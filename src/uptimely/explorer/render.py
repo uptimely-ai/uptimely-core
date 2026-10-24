@@ -1,5 +1,6 @@
 """Shared render-data filtering and template loading for the Explorer website."""
 
+import functools
 import importlib.resources
 import pathlib
 
@@ -23,11 +24,12 @@ def filled_fields(**fields: object) -> dict[str, object]:
     return {key: value for key, value in fields.items() if value is not None}
 
 
+@functools.cache
 def html_environment() -> jinja2.Environment:
     """Load the Explorer templates and shared website layout.
 
     Returns:
-        An HTML-autoescaping environment with access to the shared base template.
+        A shared HTML-autoescaping environment that caches compiled templates.
     """
     environment = jinja2.Environment(
         loader=jinja2.PackageLoader("uptimely.explorer.app", "templates"),

@@ -17,7 +17,7 @@ A plan is one JSON object. Its root fields are:
 | --- | --- | --- |
 | `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `1`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
-| `resources` | object | Compiler-generated metadata not represented by the Spec, including inspected callable return annotations. |
+| `resources` | object | Compiler-generated metadata not represented by the Spec, including inspected callable return annotations and entrypoint package provenance. |
 | `callables` | array of objects | Operations to execute and their declared inputs and dependencies. |
 | `stages` | array of arrays of strings | Callable identifiers grouped by dependency order. |
 
@@ -29,10 +29,14 @@ incompatibly.
 
 The build bundle includes `spec.json`, which is the source of dimensions,
 entities, functions, and datasets used by the engine. Plan resources contain
-only compiler-generated metadata that is not part of the Spec: inspected return
-annotations keyed by callable identifier. Functions with signature validation
-disabled have no entry. A plan is consumed as part of its build bundle, not as
-a replacement for `spec.json`.
+compiler-generated metadata that is not part of the Spec: inspected return
+annotations keyed by callable identifier and the installed distribution name
+and version associated with each entrypoint. Signature-disabled functions have
+no return-annotation entry, but their package provenance is read from installed
+metadata without importing their implementation. Missing distribution metadata
+is recorded as unavailable; ambiguous namespace ownership is an error. Package
+versions are informational and are not enforced by the engine. A plan is
+consumed as part of its build bundle, not as a replacement for `spec.json`.
 
 ## Callables
 
@@ -89,11 +93,12 @@ valid, schedulable plan:
   separate resolved spec. The compiler builds one invocation node per mapping
   and resolves structural arguments when producing plan callables.
 - Selected output features exist, and the dependency graph is acyclic.
-- Function entrypoint syntax is checked. Unless a function sets
-  `validate_signature` to `false`, its implementation is loaded, its Python
-  signature is inspected, and its return annotation is checked against the
-  declared return contract. Disabling signature validation does not disable
-  spec-level contract or dependency validation, and the implementation must
-  still be loadable at execution time.
+- Function entrypoints use `module.path:qualname` and resolve through Python's
+  import system. Package provenance is read from installed metadata. Unless a
+  function sets `validate_signature` to `false`, its implementation is loaded,
+  its Python signature is inspected, and its return annotation is checked
+  against the declared return contract. Disabling signature validation does
+  not import the implementation or disable spec-level contract or dependency
+  validation; execution still requires a loadable callable.
 - Loaded plans use a supported version and valid root fields, callable IDs,
   dependency references, and stage ordering.

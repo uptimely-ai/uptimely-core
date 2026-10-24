@@ -4,9 +4,9 @@ import pathlib
 import re
 from html import parser as html_parser
 
-from conftest import EXAMPLES_ROOT, render_explorer
+from conftest import EXAMPLES_ROOT, plan_for_spec, render_explorer
 
-from uptimely import compiler, spec
+from uptimely import spec
 from uptimely.explorer import lineage
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -45,7 +45,7 @@ class LineageStructureCollector(html_parser.HTMLParser):
 
 def test_lineage_layout_has_balanced_stage_and_card_containers(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    plan = compiler.Compiler(spec_definition).compile()
+    plan = plan_for_spec(spec_definition)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     collector = LineageStructureCollector()
@@ -64,7 +64,7 @@ def test_lineage_layout_has_balanced_stage_and_card_containers(tmp_path: pathlib
 
 def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    plan = compiler.Compiler(spec_definition).compile()
+    plan = plan_for_spec(spec_definition)
 
     stages = lineage._build_stages(spec_definition, plan)
 
@@ -113,7 +113,7 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
 
 def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    plan = compiler.Compiler(spec_definition).compile()
+    plan = plan_for_spec(spec_definition)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     tables = re.findall(
@@ -170,7 +170,8 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     assert document.index('id="lineage-step-track"') < document.index('id="lineage-position"')
     assert 'class="lineage-stage-position" id="lineage-stage-position"' in document
     assert 'id="lineage-stage-track" role="list" aria-label="Execution stages"' in document
-    execution_stages = compiler.Compiler(spec_definition).compile().execution_stages
+    execution_plan = plan_for_spec(spec_definition)
+    execution_stages = execution_plan.execution_stages
     assert document.count('data-stage-marker="') == len(execution_stages)
     assert document.count('data-step-marker="') == sum(map(len, execution_stages))
     assert document.index('id="lineage-stage-track"') < document.index(
@@ -203,7 +204,7 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     assert 'class="lineage-dataset"' not in document
     assert "transform: rotate(90deg)" not in document
     assert document.count("<summary>Declared schema and dependencies</summary>") == len(
-        compiler.Compiler(spec_definition).compile().callables
+        execution_plan.callables
     )
     assert "<details open" not in document
     assert "lineage-inspector" not in document
@@ -233,7 +234,7 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
 
 def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    execution_plan = compiler.Compiler(spec_definition).compile()
+    execution_plan = plan_for_spec(spec_definition)
     stages = lineage._build_stages(spec_definition, execution_plan)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")

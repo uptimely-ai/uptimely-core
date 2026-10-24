@@ -25,6 +25,8 @@ same spec document; the Explorer does not verify their correspondence.
 
 Spec-definition and portable-plan JSON exports remain available through
 their respective spec and compiler APIs; the explorer writes HTML only.
+The renderer reuses its Jinja environment and compiled templates between pages
+and website builds. Project-specific data is passed separately to each render.
 
 ::: uptimely.explorer.explorer
     options:

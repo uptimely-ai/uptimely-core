@@ -1,13 +1,12 @@
 """Tests for serving the active Explorer build from the command line."""
 
 import pathlib
-import shutil
 import sys
 import threading
 from urllib import request
 
 import pytest
-from conftest import EXAMPLES_ROOT
+from conftest import EXAMPLES_ROOT, copy_example_project
 
 from uptimely import compiler, project
 from uptimely.cli import cli, explorer
@@ -21,11 +20,7 @@ SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 @pytest.fixture
 def built_project(tmp_path: pathlib.Path) -> pathlib.Path:
     root = tmp_path / "project with spaces"
-    source = root / project.SPEC_JSON_ENTRY_FILE
-    source.parent.mkdir(parents=True)
-    shutil.copyfile(SPEC_PATH, source)
-    project_build.build_project(root, json_spec=source)
-    return root
+    return copy_example_project(root)
 
 
 @pytest.mark.parametrize(
@@ -147,10 +142,12 @@ def test_explorer_serves_saved_website_without_building_or_rendering(
 
 
 def test_explorer_reports_selected_scope(
-    built_project: pathlib.Path,
+    tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    project_build.build_project(built_project, features=["pump_health_score"])
+    built_project = copy_example_project(
+        tmp_path / "project with spaces", features=("pump_health_score",)
+    )
     bundle = project.load_build_bundle(built_project)
     scopes: list[str] = []
 

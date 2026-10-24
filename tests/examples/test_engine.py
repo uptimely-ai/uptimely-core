@@ -1,15 +1,13 @@
 import json
 import pathlib
-import shutil
 import sys
 
 import polars as pl
 import pytest
-from conftest import EXAMPLES_ROOT, engine_for_plan
+from conftest import EXAMPLES_ROOT, copy_example_project, engine_for_plan, example_bundle
 from examples.pump_analytics.functions import analytics
 
 from uptimely import compiler
-from uptimely import project as project_module
 from uptimely import spec as spec_module
 from uptimely.cli import cli
 from uptimely.engine import dataframe as dataframe_module
@@ -25,20 +23,18 @@ def _engine_bind() -> dict[str, object]:
 
 
 def _execution_plan() -> compiler.ExecutionPlan:
-    return compiler.Compiler(spec_module.load_spec(SPEC_PATH)).compile()
+    return example_bundle().execution_plan
 
 
 def _execution_spec() -> spec_module.Spec:
     return spec_module.load_spec(SPEC_PATH)
 
 
-def _copy_pump_project(tmp_path: pathlib.Path) -> pathlib.Path:
+def _copy_pump_project(
+    tmp_path: pathlib.Path, features: tuple[str, ...] | None = None
+) -> pathlib.Path:
     project_root = tmp_path / "examples" / "pump_analytics"
-    shutil.copytree(
-        EXAMPLES_ROOT / "pump_analytics",
-        project_root,
-        ignore=shutil.ignore_patterns("_generated"),
-    )
+    copy_example_project(project_root, features=features)
     (project_root.parent / "__init__.py").write_text("", encoding="utf-8")
     return project_root
 
@@ -111,7 +107,6 @@ def test_engine_cli_reports_processed_datasets(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     project_root = _copy_pump_project(tmp_path)
-    project_module.build_project(project_root)
     monkeypatch.setattr(
         sys,
         "argv",
@@ -142,8 +137,7 @@ def test_engine_cli_reports_processed_datasets(
 def test_engine_cli_reports_scoped_saved_build(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    project_root = _copy_pump_project(tmp_path)
-    project_module.build_project(project_root, features=["health_signal_normalized"])
+    project_root = _copy_pump_project(tmp_path, features=("health_signal_normalized",))
     monkeypatch.setattr(
         sys,
         "argv",
@@ -340,7 +334,7 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
 
 def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathlib.Path) -> None:
     spec_definition = _execution_spec()
-    plan = compiler.Compiler(spec_definition, features=["health_signal_normalized"]).compile()
+    plan = example_bundle(features=("health_signal_normalized",)).execution_plan
     engine = engine_for_plan(plan, _engine_bind(), spec_definition=spec_definition)
     assert [
         operation.output

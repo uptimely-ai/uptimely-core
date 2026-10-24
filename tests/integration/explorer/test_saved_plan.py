@@ -4,7 +4,7 @@ import dataclasses
 import pathlib
 
 import pytest
-from conftest import EXAMPLES_ROOT
+from conftest import EXAMPLES_ROOT, example_bundle
 
 from uptimely import compiler, spec
 from uptimely.compiler import plan as plan_module
@@ -18,7 +18,7 @@ def test_render_saved_plan_without_compiling(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     definition = spec.load_spec(SPEC_PATH)
-    compiled = compiler.Compiler(definition).compile()
+    compiled = example_bundle().execution_plan
     first, *remaining = compiled.callables
     custom = dataclasses.replace(
         first, arguments={**first.arguments, "saved_plan_marker": SAVED_PLAN_MARKER}
@@ -56,7 +56,7 @@ def test_explorer_distinguishes_full_model_from_scoped_plan(
     tmp_path: pathlib.Path,
 ) -> None:
     definition = spec.load_spec(SPEC_PATH)
-    plan = compiler.Compiler(definition, features=["health_signal_normalized"]).compile()
+    plan = example_bundle(features=("health_signal_normalized",)).execution_plan
     index = explorer.Explorer(
         definition,
         plan=plan,

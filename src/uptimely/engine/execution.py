@@ -1,6 +1,5 @@
 """Invoke individual plan callables during an engine execution."""
 
-import pathlib
 import typing
 
 from uptimely import entrypoint as entrypoint_module
@@ -19,16 +18,16 @@ class CallableExecutor:
 
     def __init__(
         self,
-        project_root: pathlib.Path,
         backend: backend_module.DataFrameBackend,
         spec_definition: spec_model.Spec,
+        entrypoints: typing.Mapping[str, entrypoint_module.Entrypoint],
         bind: typing.Mapping[str, typing.Mapping[str, typing.Mapping[str, typing.Any]]],
         state: state_module.RuntimeState,
     ) -> None:
         """Create a callable executor for one plan execution."""
-        self.project_root = project_root
         self.backend = backend
         self.spec_definition = spec_definition
+        self.entrypoints = entrypoints
         self.state = state
         self.bindings = bindings_module.RuntimeBindings(spec_definition, state, bind)
         self.dataframe = dataframe_module.DataFrameExecution(backend, spec_definition, state)
@@ -82,7 +81,8 @@ class CallableExecutor:
     def _invoke(self, callable: plan_module.Callable) -> object:
         """Resolve arguments and invoke the callable's entrypoint."""
         kwargs = self.bindings.resolve_args(callable)
-        function = entrypoint_module.Entrypoint(
-            callable.entrypoint, self.project_root
-        ).function.load()
+        entrypoint = self.entrypoints.get(callable.entrypoint)
+        if entrypoint is None:
+            entrypoint = entrypoint_module.Entrypoint(callable.entrypoint)
+        function = entrypoint.load()
         return function(**kwargs)

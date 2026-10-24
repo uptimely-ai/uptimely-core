@@ -13,12 +13,7 @@ from uptimely.spec.python import bind, conversion, dataset, mapping, ref
 
 MODULE_LOCATIONS = [
     "math",
-    "functions/calculation.py",
-    "./functions/calculation.py",
-    "/opt/spec/calculation.py",
-    "https://example.org/calculation.py",
-    "https://example.org/team/repository.git",
-    "git@example.org:team/repository.git",
+    "unavailable_package.functions",
 ]
 MAPPING_OPERATIONS: tuple[operations.FunctionOperation, ...] = (
     "read",
@@ -43,6 +38,13 @@ def test_callable_and_string_forms_have_identical_entrypoints(
     assert reference.validate_signature is True
     with pytest.raises(dataclasses.FrozenInstanceError):
         reference.name = "floor"
+
+
+def test_function_reference_accepts_qualified_names() -> None:
+    reference = ref.function("decimal:Decimal.from_float")
+
+    assert reference.name == "Decimal.from_float"
+    assert reference.entrypoint == "decimal:Decimal.from_float"
 
 
 def test_function_reference_rejects_unsupported_operation() -> None:
@@ -167,7 +169,7 @@ def test_generic_mapping_exports_function_operation_without_importing(
             "calculate": mapping.FunctionMapping(
                 inputs=[],
                 function=ref.function(
-                    "https://example.org/functions.py:calculate", operation=operation
+                    "unavailable_package.functions:calculate", operation=operation
                 ),
                 arguments={"dataset": ref.current_dataset().dataframe},
                 outputs=[],
@@ -184,7 +186,7 @@ def test_generic_mapping_exports_function_operation_without_importing(
         "escape": "any",
     }.get(operation, "dataframe")
     assert catalog["calculate"].returns == expected_returns
-    assert catalog["calculate"].entrypoint == "https://example.org/functions.py:calculate"
+    assert catalog["calculate"].entrypoint == "unavailable_package.functions:calculate"
 
 
 def test_generic_mapping_requires_operation_metadata() -> None:
@@ -267,13 +269,13 @@ def test_nested_bindings_use_reference_names_and_overrides() -> None:
 
 @pytest.mark.parametrize("entrypoint", ["", "ceil", "math.ceil", "path/to/module.py"])
 def test_entrypoints_require_a_module_and_function_separator(entrypoint: str) -> None:
-    with pytest.raises(ValueError, match="module:function"):
+    with pytest.raises(ValueError, match="module.path:qualname"):
         ref.function(entrypoint)
 
 
 @pytest.mark.parametrize("module", ["", "  "])
 def test_empty_module_locations_are_rejected(module: str) -> None:
-    with pytest.raises(ValueError, match="module must not be empty"):
+    with pytest.raises(ValueError, match="importable dotted module name"):
         ref.function(f"{module}:ceil")
 
 
@@ -283,10 +285,26 @@ def test_invalid_function_types_are_rejected(function: typing.Any) -> None:
         ref.function(function)
 
 
-@pytest.mark.parametrize("name", ["", "  ", "ceil()", "a.b", "<lambda>"])
+@pytest.mark.parametrize("name", ["", "  ", "ceil()", "a..b", "<lambda>"])
 def test_invalid_function_names_are_rejected(name: str) -> None:
-    with pytest.raises(ValueError, match="Python identifier"):
+    with pytest.raises(ValueError, match="Python qualified name"):
         ref.function(f"math:{name}")
+
+
+@pytest.mark.parametrize(
+    "location",
+    [
+        "functions/calculation.py",
+        "package.py",
+        "./functions/calculation.py",
+        "/opt/spec/calculation.py",
+        "https://example.org/calculation.py",
+        "s3://bucket/calculation.py",
+    ],
+)
+def test_non_import_module_locations_are_rejected(location: str) -> None:
+    with pytest.raises(ValueError, match="importable dotted module name"):
+        ref.function(f"{location}:calculate")
 
 
 def test_callable_without_a_name_requires_a_string() -> None:
@@ -310,7 +328,7 @@ def test_callable_without_a_module_requires_an_entrypoint_string(
 
 
 def test_lambda_is_rejected_as_an_unnamed_function() -> None:
-    with pytest.raises(ValueError, match="Python identifier"):
+    with pytest.raises(ValueError, match="Python qualified name"):
         ref.function(lambda: None)
 
 

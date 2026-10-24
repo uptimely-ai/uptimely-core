@@ -5,6 +5,8 @@ from __future__ import annotations
 import dataclasses
 from collections import abc
 
+from uptimely import entrypoint as entrypoint_module
+
 from .. import arg_types, operations, selectors
 
 __all__ = [
@@ -32,12 +34,12 @@ class FunctionReference:
     def __post_init__(self) -> None:
         if not isinstance(self.module, str):
             raise TypeError("Function reference module must be a string")
-        if not self.module.strip():
-            raise ValueError("Function reference module must not be empty")
+        if not entrypoint_module.Module.is_valid_location(self.module):
+            raise ValueError("Function reference module must be an importable dotted module name")
         if not isinstance(self.name, str):
             raise TypeError("Function reference name must be a string")
-        if not self.name.isidentifier():
-            raise ValueError("Function reference name must be a Python identifier")
+        if not all(part.isidentifier() for part in self.name.split(".")):
+            raise ValueError("Function reference name must be a Python qualified name")
         if self.operation is not None and self.operation not in operations.FUNCTION_OPERATIONS:
             raise ValueError(f"Unsupported function operation: {self.operation}")
         if not isinstance(self.validate_signature, bool):
@@ -45,8 +47,8 @@ class FunctionReference:
 
     @property
     def entrypoint(self) -> str:
-        """Return the entrypoint in ``module:function`` format."""
-        return f"{self.module}:{self.name}"
+        """Return the entrypoint in ``module.path:qualname`` format."""
+        return entrypoint_module.Entrypoint.format(self.module, self.name)
 
 
 def function(
@@ -55,14 +57,12 @@ def function(
     operation: operations.FunctionOperation | None = None,
     validate_signature: bool = True,
 ) -> FunctionReference:
-    """Reference a callable or a ``module:function`` entrypoint string.
+    """Reference a callable or a ``module.path:qualname`` entrypoint string.
 
     Args:
         function: A named Python callable such as ``module.calculate``, or an
-            entrypoint string such as ``path/to/module.py:calculate``,
-            ``https://example.org/module.py:calculate``, or
-            ``s3://bucket/module.py:calculate``. Creating a reference does not
-            load code; compilation and execution do.
+            importable module and qualified name separated by a colon. Creating
+            a reference does not load code; compilation and execution do.
         operation: Optional operation metadata for generic mapping declarations.
         validate_signature: Whether compilation and documentation should inspect
             the Python signature and validate implementation contracts.
@@ -79,16 +79,13 @@ def function(
     if isinstance(function, str):
         module, separator, name = function.rpartition(":")
         if not separator:
-            raise ValueError("Function entrypoint must use 'module:function' or 'path:function'")
+            raise ValueError("Function entrypoint must use 'module.path:qualname'")
     else:
         if not callable(function):
             raise TypeError("function must be a Python callable or a string")
-        module = getattr(function, "__module__", None)
-        name = getattr(function, "__name__", None)
-        if not isinstance(module, str) or not isinstance(name, str):
-            raise ValueError(
-                "Callable must have a module and function name; pass an entrypoint string instead"
-            )
+        callable_function = entrypoint_module.Function.from_callable(function)
+        module = callable_function.module.location
+        name = callable_function.name
     return FunctionReference(
         module=module,
         name=name,

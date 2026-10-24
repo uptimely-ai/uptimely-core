@@ -10,7 +10,6 @@ import polars as pl
 from uptimely import engine as engine_module
 from uptimely import project
 from uptimely.cli import common
-from uptimely.project import imports
 
 logger = logging.getLogger(__name__)
 DEFAULT_PREVIEW_ROWS = 5
@@ -62,7 +61,6 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     root = common.resolve_project_root(args, parser)
     config = project.resolve_path(args.config, root, project.ENGINE_CONFIG_FILE)
     try:
-        imports.prepare_imports(root)
         with project.read_build_bundle(root) as bundle:
             settings = engine_module.EngineConfig.model_validate_json(
                 config.read_text(encoding="utf-8")

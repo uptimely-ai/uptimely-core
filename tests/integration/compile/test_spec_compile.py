@@ -87,9 +87,8 @@ def test_compilation_preserves_the_saved_plan() -> None:
     assert actual.keys() == expected.keys()
     assert actual["plan_version"] == expected["plan_version"]
     assert actual["required_backend"] == expected["required_backend"]
-    assert actual["resources"] == {
-        "signatures": expected["resources"]["signatures"],
-    }
+    assert actual["resources"]["signatures"] == expected["resources"]["signatures"]
+    assert actual["resources"]["entrypoint_packages"]
     assert {
         item["id"]: item | {"dependency_ids": sorted(item["dependency_ids"])}
         for item in actual["callables"]
@@ -228,8 +227,11 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
     assert restored.callables == selected.callables
 
 
-def test_escape_return_annotations_do_not_constrain_compilation(tmp_path: pathlib.Path) -> None:
-    module_path = tmp_path / "escape_functions.py"
+def test_escape_return_annotations_do_not_constrain_compilation(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module_name = f"escape_functions_{tmp_path.name.replace('-', '_')}"
+    module_path = tmp_path / f"{module_name}.py"
     module_path.write_text(
         "import polars as pl\n"
         "def returns_none() -> None:\n    raise RuntimeError('must not run')\n"
@@ -239,6 +241,7 @@ def test_escape_return_annotations_do_not_constrain_compilation(tmp_path: pathli
         "def returns_unannotated():\n    raise RuntimeError('must not run')\n",
         encoding="utf-8",
     )
+    monkeypatch.syspath_prepend(str(tmp_path))
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     for function_id in (
         "returns_none",
@@ -253,7 +256,7 @@ def test_escape_return_annotations_do_not_constrain_compilation(tmp_path: pathli
             function_id,
             [f"output_{function_id}"],
             ["bearing_temperature"],
-            f"{module_path}:{function_id}",
+            f"{module_name}:{function_id}",
         )
     path = tmp_path / "escape_signatures.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")

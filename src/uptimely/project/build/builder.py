@@ -14,7 +14,7 @@ import jinja2
 import pydantic
 
 from uptimely import compiler, spec
-from uptimely.project import imports, paths
+from uptimely.project import paths
 from uptimely.project.build import bundle, errors, locking, models
 from uptimely.project.build import features as feature_selection
 from uptimely.project.build import source as build_source
@@ -211,7 +211,6 @@ def build_project(
         selected_features = feature_selection.normalize_features(features)
     except (ValueError, TypeError) as error:
         raise errors.ProjectBuildError("feature selection", str(error)) from error
-    imports.prepare_imports(root)
     spec_definition = _load_spec_definition(root, python_spec, json_spec)
 
     with locking.build_lock(root, exclusive=True, wait=False):

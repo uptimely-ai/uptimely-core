@@ -10,7 +10,7 @@ from urllib import parse as url_parse
 from urllib import request
 
 import pytest
-from conftest import EXAMPLES_ROOT, render_explorer
+from conftest import EXAMPLES_ROOT, plan_for_spec, render_explorer
 from examples.pump_analytics.functions import analytics
 
 from uptimely import compiler, spec
@@ -386,21 +386,15 @@ def test_feature_graph_payload_uses_explorer_graph_renderer() -> None:
 
 def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monkeypatch) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    expected_plan = compiler.Compiler(spec_definition).compile()
-    compile_calls = 0
-    original_compile = compiler.Compiler.compile
+    expected_plan = plan_for_spec(spec_definition)
 
-    @functools.wraps(original_compile)
-    def count_compile(self):
-        nonlocal compile_calls
-        compile_calls += 1
-        return original_compile(self)
+    def fail_compile(*args: object, **kwargs: object) -> None:
+        pytest.fail("Example rendering must reuse the saved plan")
 
-    monkeypatch.setattr(compiler.Compiler, "compile", count_compile)
+    monkeypatch.setattr(compiler.Compiler, "compile", fail_compile)
     index = render_explorer(spec_definition, tmp_path / "index.html")
     document = index.read_text(encoding="utf-8")
 
-    assert compile_calls == 1
     assert "<title>Pump analytics | OpenAnalytics</title>" in document
     assert heading_titles(document) == ["Pump analytics"]
     datasets = [
@@ -749,7 +743,7 @@ def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> N
 
 def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    plan = compiler.Compiler(spec_definition).compile()
+    plan = plan_for_spec(spec_definition)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
     cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
@@ -813,7 +807,7 @@ def test_standalone_html_apis_are_removed() -> None:
     assert not hasattr(spec_definition, "create_html")
     assert not hasattr(graph, "export_html")
     assert not hasattr(graph.subset(["health_signal_normalized"]), "export_html")
-    assert not hasattr(compiler.Compiler(spec_definition).compile(), "export_html")
+    assert not hasattr(plan_for_spec(spec_definition), "export_html")
     assert not hasattr(spec_render, "create_html")
     assert not hasattr(spec_render, "create_website_pages")
     assert not hasattr(graph_render, "render_graph_html")
@@ -861,7 +855,7 @@ def test_website_graph_links_reference_exported_nodes(
 
 def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    plan = compiler.Compiler(spec_definition).compile()
+    plan = plan_for_spec(spec_definition)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "plan/graph.html").read_text(encoding="utf-8")
     match = re.search(

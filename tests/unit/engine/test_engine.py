@@ -1,5 +1,6 @@
 import dataclasses
 import pathlib
+import types
 
 import polars as pl
 import pytest
@@ -36,8 +37,12 @@ def _engine(
 
 def _patch_callables(monkeypatch: pytest.MonkeyPatch, callables: dict[str, object]) -> None:
     class _TestEntrypoint:
-        def __init__(self, location: str, _root: pathlib.Path) -> None:
+        def __init__(
+            self, location: str, package: entrypoint_module.PackageProvenance | None = None
+        ) -> None:
             self.location = location
+            self.package = package
+            self.module = types.SimpleNamespace(location=location.split(":", 1)[0])
 
         @property
         def function(self) -> object:
@@ -109,6 +114,65 @@ def test_saved_plan_executes_without_compiler(
 
     assert result.failures == {}
     assert result.datasets["telemetry"]["doubled"].to_list() == [4, 6]
+
+
+def test_engine_reports_package_provenance_without_enforcing_versions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = _engine(_plan())
+    runtime_package = entrypoint_module.PackageProvenance("runtime-package", "2.0")
+    monkeypatch.setattr(
+        entrypoint_module.PackageProvenance,
+        "read",
+        lambda _module: runtime_package,
+    )
+    executor = execution_module.CallableExecutor(
+        engine.backend,
+        engine.spec_definition,
+        {
+            location: entrypoint_module.Entrypoint(
+                location,
+                package=entrypoint_module.PackageProvenance("recorded-package", "1.0"),
+            )
+            for location in ("uptimely.entrypoint:PackageProvenance", "math:pi")
+        },
+        engine.bind,
+        state_module.RuntimeState(),
+    )
+
+    callable = dataclasses.replace(
+        engine.plan.callables[0],
+        entrypoint="uptimely.entrypoint:PackageProvenance",
+        arguments={"distribution": "recorded-package", "version": "1.0"},
+    )
+
+    assert executor._invoke(callable) == entrypoint_module.PackageProvenance(
+        "recorded-package", "1.0"
+    )
+
+    incompatible = dataclasses.replace(callable, entrypoint="math:pi", arguments={})
+    with pytest.raises(
+        ValueError,
+        match="recorded-package.*available runtime package: runtime-package==2.0",
+    ):
+        executor._invoke(incompatible)
+
+
+def test_engine_entrypoints_include_saved_package_provenance() -> None:
+    saved_plan = _plan()
+    location = saved_plan.callables[0].entrypoint
+    saved_plan.plan.resources["entrypoint_packages"] = {
+        location: {"distribution": "recorded-package", "version": "1.0"}
+    }
+    engine = _engine(saved_plan, {"storage": {"source": {"path": "/tmp/input.parquet"}}})
+
+    result = engine.run()
+
+    assert result.callable_statuses[saved_plan.callables[0].id] == "failed"
+    assert (
+        "recorded package provenance: recorded-package==1.0"
+        in result.failures[saved_plan.callables[0].id]
+    )
 
 
 def test_repeated_execution_does_not_leak_runtime_state(
@@ -498,14 +562,17 @@ def test_escape_exception_fails_and_skips_downstream(monkeypatch: pytest.MonkeyP
 
 
 def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     source_path = tmp_path / "input.csv"
     output_path = tmp_path / "output.csv"
     plan_path = tmp_path / "execution_plan.json"
     source_path.write_text("asset_id,value\nA,2\nB,3\n", encoding="utf-8")
-    module_path = tmp_path / "external_action.py"
-    module_path.write_text(
+    package_name = f"engine_fixture_{tmp_path.name.replace('-', '_')}"
+    package = tmp_path / package_name
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "external_action.py").write_text(
         "import polars as pl\n"
         f"SOURCE = {str(source_path)!r}\n"
         f"OUTPUT = {str(output_path)!r}\n"
@@ -515,12 +582,15 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
         "    result.write_csv(OUTPUT)\n",
         encoding="utf-8",
     )
+    monkeypatch.syspath_prepend(str(tmp_path))
     declaration = dataset.Dataset(
         id="external",
         mappings={
             "external_action": mapping.FunctionMapping(
                 inputs=[ref.feature("asset_id")],
-                function=ref.function(f"{module_path}:process", operation="escape"),
+                function=ref.function(
+                    f"{package_name}.external_action:process", operation="escape"
+                ),
                 arguments={},
                 outputs=[feature.Feature(name="external_result")],
             )
@@ -615,9 +685,9 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
         entity.datasets[dataset_id] = spec_model.Dataset(id=dataset_id)
     state = state_module.RuntimeState()
     executor = execution_module.CallableExecutor(
-        engine.bundle.project_root,
         engine.backend,
         engine.spec_definition,
+        {},
         engine.bind,
         state,
     )

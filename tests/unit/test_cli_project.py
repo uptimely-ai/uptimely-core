@@ -1,13 +1,14 @@
 """Tests for building and publishing project bundles without executing workflows."""
 
 import json
+import os
 import pathlib
 import shutil
 import subprocess
 import sys
 
 import pytest
-from conftest import EXAMPLES_ROOT
+from conftest import EXAMPLES_ROOT, copy_example_project, example_bundle
 
 from uptimely import project, spec
 from uptimely.cli import cli
@@ -68,16 +69,23 @@ def test_project_build_examples(
     arguments = ["--project-root", str(root)] if explicit_root else []
     if verbose:
         arguments.append("--verbose")
-    command = [sys.executable, "-m", "uptimely.cli.cli", "project", "build", *arguments]
+    executable = shutil.which("uptimely")
+    assert executable is not None, "The installed uptimely console script is required"
+    command = [executable, "project", "build", *arguments]
     cwd = tmp_path if explicit_root else root
-    result = subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=90)
+    environment = os.environ.copy()
+    environment.pop("PYTHONPATH", None)
+    result = subprocess.run(
+        command, cwd=cwd, env=environment, capture_output=True, text=True, timeout=90
+    )
 
     assert result.returncode == 0, result.stderr
     assert not result.stderr
     if verbose:
         assert result.stdout.startswith("\n\nBuild\n")
         assert "  Build scope: all features\n" in result.stdout
-        assert f"  Spec source file: {root / project.SPEC_PYTHON_ENTRY_FILE}\n" in result.stdout
+        source = REPOSITORY_ROOT / "examples" / example / project.SPEC_PYTHON_ENTRY_FILE
+        assert f"  Spec source file: {source}\n" in result.stdout
         assert "Build files created to" not in result.stdout
     else:
         assert result.stdout == f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
@@ -86,14 +94,24 @@ def test_project_build_examples(
     assert spec.load_spec(bundle.spec_path).entities
     assert bundle.execution_plan.callables
     assert (bundle.explorer_path / "index.html").is_file()
+
+
+@pytest.mark.parametrize("example", ["pump_analytics", "simple_analytics"])
+def test_project_rebuild_replaces_previous_bundle(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    example: str,
+) -> None:
+    root = copy_example_project(tmp_path / "examples" / example, example=example)
+    (root.parent / "__init__.py").write_text("", encoding="utf-8")
+    bundle = project.load_build_bundle(root)
     old_plan = bundle.execution_plan
     old_spec = bundle.spec_path.read_bytes()
     stale_file = bundle.explorer_path / "stale.html"
     stale_file.write_text("stale", encoding="utf-8")
 
-    rebuilt = subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=90)
+    invoke(monkeypatch, "--project-root", str(root))
 
-    assert rebuilt.returncode == 0, rebuilt.stderr
     rebuilt_bundle = project.load_build_bundle(root)
     assert rebuilt_bundle.spec_path.read_bytes() == old_spec
     assert {item.id: item for item in rebuilt_bundle.execution_plan.callables} == {
@@ -105,7 +123,7 @@ def test_project_build_examples(
     assert not (root / "_generated/compile/execution_plan.json").exists()
 
 
-@pytest.mark.parametrize("source_kind", ["entrypoint", "python_file", "json"])
+@pytest.mark.parametrize("source_kind", ["entrypoint", "json"])
 @pytest.mark.parametrize("verbose", [False, True])
 def test_project_build_explicit_source_does_not_execute_workflow(
     tmp_path: pathlib.Path,
@@ -125,6 +143,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
         "    raise RuntimeError('Build must not execute spec')\n",
         encoding="utf-8",
     )
+    monkeypatch.syspath_prepend(str(root))
     source = tmp_path / "source.json"
     source.write_text(
         json.dumps(
@@ -171,12 +190,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             "            outputs=[feature.Feature(name='value')])})]})\n",
             encoding="utf-8",
         )
-        entrypoint = (
-            "declaration:definition"
-            if source_kind == "entrypoint"
-            else f"{root / 'declaration.py'}:definition"
-        )
-        arguments = ["--python-spec", entrypoint]
+        arguments = ["--python-spec", "declaration:definition"]
     else:
         arguments = ["--json-spec", "source.json"]
 
@@ -292,7 +306,7 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
         assert set(callable_.dependency_ids) <= plan_ids
     for sink in sinks:
         assert set(sink.input_features) <= produced_features | dimensions
-    full_plan = project_build.compiler.Compiler(source_spec).compile()
+    full_plan = example_bundle().execution_plan
     assert len(bundle.execution_plan.callables) <= len(full_plan.callables)
     assert len({callable_.id for callable_ in bundle.execution_plan.callables}) == len(
         bundle.execution_plan.callables
@@ -353,7 +367,7 @@ def test_project_build_failures_preserve_previous_bundle(
 ) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
-    project_build.build_project(root)
+    shutil.copytree(example_bundle().root, root / project.BUILD_OUTPUT_DIR)
     old_bundle = bundle_files(root)
 
     if stage == "compile":
@@ -401,7 +415,7 @@ def test_project_build_fails_while_bundle_lock_is_held(
 ) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
-    project_build.build_project(root)
+    shutil.copytree(example_bundle().root, root / project.BUILD_OUTPUT_DIR)
 
     with (
         project.build_lock(root, exclusive=exclusive),
@@ -417,7 +431,8 @@ def test_read_build_bundle_holds_lock_for_consumer_lifetime(
 ) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
-    built_bundle = project_build.build_project(root)
+    shutil.copytree(example_bundle().root, root / project.BUILD_OUTPUT_DIR)
+    built_bundle = project.load_build_bundle(root)
 
     with project.read_build_bundle(root) as bundle:
         assert bundle.root == built_bundle.root

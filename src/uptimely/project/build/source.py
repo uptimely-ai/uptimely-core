@@ -16,34 +16,28 @@ class PythonSource:
     """Resolve and load a Python spec declaration for a project."""
 
     def __init__(self, project_root: pathlib.Path, python_spec: str | None = None) -> None:
-        self.project_root = project_root
         self.path = project_root / paths.SPEC_PYTHON_ENTRY_FILE
-        self.entrypoint = entrypoint_module.Entrypoint(
-            self._default_entrypoint() if python_spec is None else python_spec,
-            root=imports.project_import_root(project_root),
-        )
+        if python_spec is None:
+            self.entrypoint = entrypoint_module.Entrypoint.from_path(
+                self.path,
+                imports.project_import_root(project_root),
+                paths.DEFAULT_SPEC_ATTRIBUTE,
+            )
+        else:
+            self.entrypoint = entrypoint_module.Entrypoint(python_spec)
 
     def is_available(self) -> bool:
         """Return whether the conventional Python spec entrypoint exists."""
         return self.path.is_file()
 
-    def _default_entrypoint(self) -> str:
-        module = ".".join(
-            self.path.resolve()
-            .relative_to(imports.project_import_root(self.project_root))
-            .with_suffix("")
-            .parts
-        )
-        return f"{module}:{paths.DEFAULT_SPEC_ATTRIBUTE}"
-
     def load(self) -> spec.Spec:
         """Validate and load a Python spec declaration."""
-        imports.prepare_imports(self.project_root)
-        module = self.entrypoint.module.load()
-        name = self.entrypoint.function.name
-        declaration = getattr(module, name)
+        declaration = self.entrypoint.resolve()
         if not isinstance(declaration, python_spec_api.PythonSpec):
-            raise TypeError(f"{self.entrypoint.module.location}:{name} must be a PythonSpec")
+            raise TypeError(
+                f"{self.entrypoint.module.location}:{self.entrypoint.function.name} "
+                "must be a PythonSpec"
+            )
         return spec.from_python(
             entities=declaration.entities,
             dimensions=declaration.dimensions,

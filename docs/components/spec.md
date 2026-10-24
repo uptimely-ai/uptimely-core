@@ -235,7 +235,7 @@ identifiers.
 | --- | --- | --- | --- | --- |
 | `operation` | string | Yes | N/A | Analytical operation performed by the function. |
 | `returns` | string | Yes | N/A | Return contract: `dataframe` for data-producing operations or `none` for `write`. |
-| `entrypoint` | string | Yes | N/A | Implementation reference resolved by the execution environment. |
+| `entrypoint` | string | Yes | N/A | Python import reference in `module.path:qualname` form. |
 | `validate_signature` | boolean | No | `true` | Whether compilation and documentation inspect the Python signature and check implementation return annotations. |
 | `args` | object | No | `{}` | Argument definitions keyed by argument name. |
 | `description` | string or null | No | `null` | Explanation of the function. |
@@ -245,18 +245,21 @@ return annotation compatible with `returns`; an unannotated return is invalid.
 When it is `false`, compilation and documentation do not load the implementation
 or inspect its signature. This disables only implementation signature and
 return-annotation checks: declared contracts, binding arguments, feature
-dependencies, and entrypoint syntax are still validated. Execution still
-requires a loadable implementation.
+dependencies, package provenance, and entrypoint syntax are still validated.
+Execution still requires a loadable implementation. Function packages must be
+installed in both the build and runtime environments; Uptimely does not install
+them or add project paths to `sys.path`. Recorded distribution versions are
+provenance only and are not enforced at runtime. Ambiguous installed package
+namespaces are reported explicitly.
 
-An entrypoint identifies the implementation associated with a function. Its
-resolution is determined by the execution environment. The value below is
-symbolic; a concrete runtime defines its accepted entrypoint syntax.
+An entrypoint identifies the implementation associated with a function. Python
+imports the module and resolves the callable's qualified name.
 
 ```json
 "sum_features": {
   "operation": "vectorize",
   "returns": "dataframe",
-  "entrypoint": "spec.sum_features",
+  "entrypoint": "spec:sum_features",
   "validate_signature": false,
   "args": {
     "dataset": {"type": "dataframe"},

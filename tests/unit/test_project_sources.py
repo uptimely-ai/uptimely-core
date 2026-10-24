@@ -37,17 +37,25 @@ def test_spec_source_discovers_conventional_json_source(tmp_path: pathlib.Path) 
     assert loaded == spec.load_spec(FIXTURE_SPEC)
 
 
-@pytest.mark.parametrize("explicit", [False, True])
-def test_spec_source_resolves_without_loading(tmp_path: pathlib.Path, explicit: bool) -> None:
+def test_spec_source_resolves_without_loading(tmp_path: pathlib.Path) -> None:
     python_path = tmp_path / project.SPEC_PYTHON_ENTRY_FILE
     python_path.parent.mkdir(parents=True)
     python_path.write_text("raise RuntimeError('Source must not be loaded')\n", encoding="utf-8")
-    source = build_source.SpecSource(tmp_path).resolve(
-        python_spec=f"{python_path}:python_spec" if explicit else None
-    )
+    source = build_source.SpecSource(tmp_path).resolve()
 
     assert isinstance(source, build_source.PythonSource)
     assert source.path == python_path
+    assert source.entrypoint.module.location == "spec.spec"
+    assert source.entrypoint.function.name == project.DEFAULT_SPEC_ATTRIBUTE
+
+
+def test_python_spec_rejects_local_file_entrypoints(tmp_path: pathlib.Path) -> None:
+    python_path = tmp_path / project.SPEC_PYTHON_ENTRY_FILE
+    python_path.parent.mkdir(parents=True)
+    python_path.write_text("python_spec = None\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid module path"):
+        build_source.PythonSource(tmp_path, f"{python_path}:python_spec")
 
 
 def test_spec_source_rejects_ambiguous_discovered_sources(tmp_path: pathlib.Path) -> None:
@@ -71,7 +79,9 @@ def test_spec_source_missing_source_error_is_not_cli_specific(tmp_path: pathlib.
     assert "--json-spec" not in str(error.value)
 
 
-def test_python_source_loads_explicit_entrypoint_with_module_api(tmp_path: pathlib.Path) -> None:
+def test_python_source_loads_explicit_entrypoint_with_module_api(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     module_name = f"custom_project_spec_{tmp_path.name.replace('-', '_')}"
     dependency_name = f"custom_project_dependency_{tmp_path.name.replace('-', '_')}"
     (tmp_path / f"{dependency_name}.py").write_text(
@@ -85,6 +95,7 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(tmp_path: pathl
         "Entity(id='assets', name='Assets', dimensions=[]): []})\n",
         encoding="utf-8",
     )
+    monkeypatch.syspath_prepend(str(tmp_path))
 
     loaded = build_source.PythonSource(tmp_path, f"{module_name}:python_spec").load()
 
