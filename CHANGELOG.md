@@ -8,6 +8,14 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** Removed the unused `CallableNode.to_render_data()`,
+  `CallableGraph._node_data()`, `CallableGraph._node_key()`,
+  `CallableGraph.print_graph()`, and `CallableGraph.print()` presentation
+  helpers. For textual output from an existing callable graph, use
+  `graphable.views.texttree.create_topology_tree_txt(graph.graph)`.
+
 ## [0.7.0] - 2026-10-23
 
 ### Added

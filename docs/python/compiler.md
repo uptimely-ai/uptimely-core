@@ -1,7 +1,9 @@
 # Compiler and plans
 
 `uptimely.compiler` turns spec into portable execution plans. Its `plan`
-subpackage owns the plan models and JSON serialization.
+subpackage owns the plan models and JSON serialization. The compiler graph
+provides dependency and topology queries; presentation and graph formatting are
+owned by Explorer.
 
 <div class="api-reference" markdown="1">
 
@@ -17,7 +19,8 @@ subpackage owns the plan models and JSON serialization.
 
 ## callable_node
 
-`uptimely.compiler.callable_node` represents a callable in the compilation graph.
+`uptimely.compiler.callable_node` represents a function invocation in the
+compilation graph.
 
 ::: uptimely.compiler.callable_node
     options:
@@ -27,7 +30,7 @@ subpackage owns the plan models and JSON serialization.
 
 ## execution_graph
 
-`uptimely.compiler.execution_graph` organizes callable dependencies.
+`uptimely.compiler.execution_graph` organizes invocation dependencies.
 
 ::: uptimely.compiler.execution_graph
     options:

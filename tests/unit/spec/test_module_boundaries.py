@@ -72,6 +72,24 @@ def test_canonical_models_do_not_import_outer_layers() -> None:
                 assert all(not alias.name.startswith("uptimely") for alias in node.names), path
 
 
+def test_compiler_does_not_import_presentation_or_runtime_layers() -> None:
+    directory = pathlib.Path(compiler.__file__).parent
+    for path in directory.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                assert all(
+                    not alias.name.startswith(("uptimely.explorer", "uptimely.engine"))
+                    for alias in node.names
+                ), path
+            elif isinstance(node, ast.ImportFrom):
+                if node.module == "uptimely":
+                    assert not {"explorer", "engine"} & {alias.name for alias in node.names}, path
+                assert not (node.module or "").startswith(
+                    ("uptimely.explorer", "uptimely.engine")
+                ), path
+
+
 @pytest.mark.parametrize(
     "module",
     [
@@ -84,6 +102,9 @@ def test_canonical_models_do_not_import_outer_layers() -> None:
         "uptimely.spec.python.conversion",
         "uptimely.spec.json.codec",
         "uptimely.spec.api",
+        "uptimely.compiler.callable_node",
+        "uptimely.compiler.execution_graph",
+        "uptimely.compiler.compiler",
     ],
 )
 def test_modules_import_in_a_fresh_process(module: str) -> None:

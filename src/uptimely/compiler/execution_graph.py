@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import graphable as graphable_
-from graphable.views import texttree
 
 from uptimely import spec
 from uptimely.spec import operations, validation
@@ -154,29 +153,10 @@ class CallableGraph:
             raise ValueError(f"Callable node has no mapping: {node.node_id}")
         return self.dataset_for(node).mappings[node.mapping_id]
 
-    @staticmethod
-    def _node_key(node: callable_node_module.CallableNode) -> str:
-        """Return a stable node key for a callable."""
-        return node.node_id
-
-    def _node_data(self, node: callable_node_module.CallableNode) -> dict:
-        """Build display metadata for a graph node."""
-        return node.to_render_data()
-
     def topology(self) -> list[list[callable_node_module.CallableNode]]:
         """Return callables grouped by dependency level (topological order)."""
         levels = self.graph.parallelized_topological_order()
         return [[level_node.reference for level_node in level] for level in levels]
-
-    def print_graph(self) -> str:
-        """Return a text representation of the callable dependency graph."""
-        graph_text = texttree.create_topology_tree_txt(self.graph)
-        print(graph_text)
-        return graph_text
-
-    def print(self) -> None:
-        """Print the callable dependency graph."""
-        self.print_graph()
 
     def subset(self, features: list[str]) -> CallableGraph:
         """Return the dependency closure needed to produce selected features."""
