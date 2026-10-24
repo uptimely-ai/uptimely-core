@@ -1,7 +1,7 @@
 # Spec models
 
 `uptimely.spec.model` defines the spec document structure, independent
-of its authoring format. The [spec format reference](../../../components/spec.md)
+of its authoring format. The [spec format reference](../../components/spec.md)
 describes the document structure.
 
 The compiler constructs executable invocations from these declarations.

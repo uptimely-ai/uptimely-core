@@ -54,5 +54,5 @@ The engine configuration is validated as `EngineConfig`. It contains a
 }
 ```
 
-See the [execution engine specification](../../components/engine.md) for
+See the [execution engine specification](../components/engine.md) for
 backend settings and runtime overrides.

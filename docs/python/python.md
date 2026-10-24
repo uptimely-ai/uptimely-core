@@ -5,7 +5,7 @@
 authoring modules in the source tree.
 
 For a runnable example, see the
-[analytics project structure](../../development/project-structure.md).
+[analytics project structure](../development/project-structure.md).
 
 ## Declarative datasets
 

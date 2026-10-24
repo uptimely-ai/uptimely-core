@@ -84,27 +84,27 @@ nav:
       - Development roadmap: roadmap/index.md
       - Backlog: roadmap/backlog.md
   - CLI:
-      - Overview: reference/cli.md
-      - spec: reference/cli/spec.md
-      - engine: reference/cli/engine.md
-      - examples: reference/cli/examples.md
-      - explorer: reference/cli/explorer.md
-      - project: reference/cli/project.md
+      - Overview: cli/index.md
+      - spec: cli/spec.md
+      - engine: cli/engine.md
+      - examples: cli/examples.md
+      - explorer: cli/explorer.md
+      - project: cli/project.md
   - Python API:
-      - Overview: reference/api.md
-      - project: reference/api/project.md
+      - Overview: python/index.md
+      - project: python/project.md
       - spec:
-          - Overview: reference/api/spec.md
-          - api: reference/api/spec/api.md
-          - model: reference/api/spec/model.md
-          - json: reference/api/spec/json.md
-          - validation: reference/api/spec/validation.md
-          - python: reference/api/python.md
-          - feature_graph: reference/api/feature-graph.md
-      - compiler: reference/api/compiler.md
-      - engine: reference/api/engine.md
-      - explorer: reference/api/explorer.md
-      - row_context: reference/api/row-context.md
-      - entrypoint: reference/api/entrypoint.md
-      - storage: reference/api/storage.md
-      - spec vocabulary: reference/api/spec-vocabulary.md
+          - Overview: python/spec.md
+          - api: python/spec/api.md
+          - model: python/spec/model.md
+          - json: python/spec/json.md
+          - validation: python/spec/validation.md
+          - python: python/python.md
+          - feature_graph: python/feature-graph.md
+      - compiler: python/compiler.md
+      - engine: python/engine.md
+      - explorer: python/explorer.md
+      - row_context: python/row-context.md
+      - entrypoint: python/entrypoint.md
+      - storage: python/storage.md
+      - spec vocabulary: python/spec-vocabulary.md

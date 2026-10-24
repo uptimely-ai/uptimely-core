@@ -4,7 +4,7 @@
 validation, serialization, and feature dependency inspection. Executable
 invocations and execution plans belong to the compiler.
 
-The [spec format reference](../../components/spec.md) describes the
+The [spec format reference](../components/spec.md) describes the
 contract. See [Python authoring](python.md) for declarations that produce it, or
 [feature graphs](feature-graph.md) for dependency analysis.
 
