@@ -3,7 +3,7 @@
 import typing
 from collections import abc
 
-from uptimely.compiler import plan as plan_module
+from uptimely import execution_plan
 from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
 
@@ -24,7 +24,7 @@ class RuntimeBindings:
         self.state = state
         self.bind = bind
 
-    def resolve_args(self, callable: plan_module.Callable) -> dict[str, object]:
+    def resolve_args(self, callable: execution_plan.Callable) -> dict[str, object]:
         """Bind compiled argument values to runtime values using declared argument types."""
         function = self.spec_definition.functions.get(callable.function_id)
         if function is None:

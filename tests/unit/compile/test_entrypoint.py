@@ -10,7 +10,7 @@ from conftest import EXAMPLES_ROOT, example_bundle
 
 from uptimely import compiler, spec
 from uptimely import entrypoint as shared_entrypoint
-from uptimely.compiler import plan
+from uptimely import execution_plan as plan
 from uptimely.explorer import spec_render
 from uptimely.spec.python import ref
 
@@ -87,9 +87,7 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
 
     assert not marker.exists()
     assert package_name not in sys.modules
-    assert [set(stage) for stage in compiled.plan.stages] == [
-        set(stage) for stage in baseline.plan.stages
-    ]
+    assert [set(stage) for stage in compiled.stages] == [set(stage) for stage in baseline.stages]
     assert len(compiled.callables) == len(baseline.callables)
     baseline_callables = {node.id: node for node in baseline.callables}
     assert {node.id for node in compiled.callables} == set(baseline_callables)
@@ -100,13 +98,13 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
         assert actual.output_features == expected.output_features
         if actual.function_id == function.id:
             assert actual.entrypoint == function.entrypoint
-            assert actual.id not in compiled.plan.resources["signatures"]
-            assert compiled.plan.resources["entrypoint_packages"][function.entrypoint] == {
+            assert actual.id not in compiled.resources["signatures"]
+            assert compiled.resources["entrypoint_packages"][function.entrypoint] == {
                 "distribution": None,
                 "version": None,
             }
         else:
-            assert actual.id in compiled.plan.resources["signatures"]
+            assert actual.id in compiled.resources["signatures"]
 
     function.validate_signature = True
     with pytest.raises(
@@ -181,7 +179,7 @@ def test_compiler_checks_entrypoint_syntax_when_signature_validation_is_disabled
     ("entrypoint", "error"),
     [
         ("invalid-entrypoint", ValueError),
-        ("uptimely.compiler.plan.models:not_a_function", AttributeError),
+        ("uptimely.execution_plan.models:not_a_function", AttributeError),
     ],
 )
 def test_function_load_rejects_invalid_entrypoints(
@@ -494,8 +492,8 @@ def test_compiler_inspects_each_distinct_entrypoint_once(
     assert len(compiled.callables) > len(reads)
     assert reads
     assert all(count == 1 for count in reads.values())
-    restored = plan.Plan.from_dict(compiled.plan.to_dict())
-    assert restored.resources == compiled.plan.resources
+    restored = plan.from_dict(plan.to_dict(compiled))
+    assert restored.resources == compiled.resources
     assert set(restored.resources["entrypoint_packages"]) == {
         node.entrypoint for node in compiled.callables
     }

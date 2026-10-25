@@ -90,7 +90,7 @@ def _log_build_details(
         ),
     )
     logger.info("\nPlan")
-    logger.info("  Number of stages: %d", len(bundle.execution_plan.plan.stages))
+    logger.info("  Number of stages: %d", len(bundle.execution_plan.stages))
     logger.info("  Number of callables: %d", len(bundle.execution_plan.callables))
 
 

@@ -8,7 +8,7 @@ from conftest import engine_for_plan
 from examples.escape_operation.functions import workflow
 
 from uptimely import compiler, spec
-from uptimely.compiler import plan as plan_module
+from uptimely import execution_plan as plan_module
 
 EXAMPLE_ROOT = pathlib.Path(__file__).parents[2] / "examples" / "escape_operation"
 SPEC_PATH = EXAMPLE_ROOT / "spec" / "spec.json"
@@ -21,8 +21,8 @@ def test_escape_example_reads_calculates_and_writes_without_materializing_output
     spec_definition = spec.load_spec(SPEC_PATH)
     compiled = compiler.Compiler(spec_definition).compile()
     plan_path = tmp_path / "execution_plan.json"
-    compiled.export_json(plan_path)
-    saved_plan = plan_module.ExecutionPlan.from_json(plan_path)
+    plan_module.export_json(compiled, plan_path)
+    saved_plan = plan_module.from_json(plan_path)
     output_path = tmp_path / "workflow_results.csv"
     monkeypatch.setattr(workflow, "OUTPUT_PATH", output_path)
 

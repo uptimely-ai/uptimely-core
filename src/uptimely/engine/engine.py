@@ -36,16 +36,16 @@ class Engine:
 
     def _validate_engine(self) -> None:
         """Validate that this engine can execute the plan."""
-        if self.plan.plan.required_backend != self.backend.name:
+        if self.plan.required_backend != self.backend.name:
             raise ValueError(
-                f"Unsupported plan backend: {self.plan.plan.required_backend}. "
+                f"Unsupported plan backend: {self.plan.required_backend}. "
                 f"Expected {self.backend.name}."
             )
 
     def run(self) -> result_module.ExecutionResult:
         """Execute plan stages and return explicit runtime state and statuses."""
         state = state_module.RuntimeState()
-        packages = self.plan.plan.resources.get("entrypoint_packages", {})
+        packages = self.plan.resources.get("entrypoint_packages", {})
         callable_executor = execution_module.CallableExecutor(
             self.backend,
             self.spec_definition,
@@ -58,7 +58,7 @@ class Engine:
                         else None
                     ),
                 )
-                for c in self.plan.plan.callables
+                for c in self.plan.callables
             },
             self.bind,
             state,
@@ -94,5 +94,5 @@ class Engine:
             callable_statuses=statuses,
             durations=durations,
             failures=failures,
-            plan_version=self.plan.plan.plan_version,
+            plan_version=self.plan.plan_version,
         )

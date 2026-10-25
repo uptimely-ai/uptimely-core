@@ -9,12 +9,13 @@ from conftest import bundle_for_plan
 from uptimely import compiler as uptimely_compiler
 from uptimely import engine as uptimely_engine
 from uptimely import entrypoint as entrypoint_module
+from uptimely import execution_plan as uptimely_plan
 from uptimely import spec
-from uptimely.compiler import plan as uptimely_plan
 from uptimely.engine import bindings as bindings_module
 from uptimely.engine import dataframe as dataframe_module
 from uptimely.engine import execution as execution_module
 from uptimely.engine import state as state_module
+from uptimely.execution_plan import serialization as plan_serialization
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import dataset, dimension, feature, mapping, ref
 
@@ -22,7 +23,7 @@ PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_e
 
 
 def _plan() -> uptimely_plan.ExecutionPlan:
-    return uptimely_plan.ExecutionPlan.from_json(PLAN_PATH)
+    return uptimely_plan.from_json(PLAN_PATH)
 
 
 def _engine(
@@ -161,7 +162,7 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
 def test_engine_entrypoints_include_saved_package_provenance() -> None:
     saved_plan = _plan()
     location = saved_plan.callables[0].entrypoint
-    saved_plan.plan.resources["entrypoint_packages"] = {
+    saved_plan.resources["entrypoint_packages"] = {
         location: {"distribution": "recorded-package", "version": "1.0"}
     }
     engine = _engine(saved_plan, {"storage": {"source": {"path": "/tmp/input.parquet"}}})
@@ -261,22 +262,20 @@ def test_escape_ignores_any_return_without_materializing_features(
         input_features=["external_input"],
     )
     plan = uptimely_plan.ExecutionPlan(
-        uptimely_plan.Plan(
-            plan_version=1,
-            required_backend="polars",
-            resources={
-                "entities": {"asset": {"dimensions": []}},
-                "functions": {
-                    "external_action": {
-                        "operation": "escape",
-                        "returns": "any",
-                        "args": {},
-                    }
-                },
+        plan_version=1,
+        required_backend="polars",
+        resources={
+            "entities": {"asset": {"dimensions": []}},
+            "functions": {
+                "external_action": {
+                    "operation": "escape",
+                    "returns": "any",
+                    "args": {},
+                }
             },
-            callables=[escape],
-            stages=[[callable_id]],
-        )
+        },
+        callables=[escape],
+        stages=[[callable_id]],
     )
     _patch_callables(monkeypatch, {"test:escape": lambda: return_value})
     engine = _engine(plan)
@@ -326,19 +325,17 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        uptimely_plan.Plan(
-            plan_version=1,
-            required_backend="polars",
-            resources={
-                "entities": {"asset": {"dimensions": []}},
-                "functions": {
-                    function_id: {"operation": "escape", "returns": "any", "args": {}}
-                    for function_id in ("first", "second")
-                },
+        plan_version=1,
+        required_backend="polars",
+        resources={
+            "entities": {"asset": {"dimensions": []}},
+            "functions": {
+                function_id: {"operation": "escape", "returns": "any", "args": {}}
+                for function_id in ("first", "second")
             },
-            callables=[first_callable, second_callable],
-            stages=[[first_id], [second_id]],
-        )
+        },
+        callables=[first_callable, second_callable],
+        stages=[[first_id], [second_id]],
     )
 
     _patch_callables(monkeypatch, {"test:first": first, "test:second": second})
@@ -365,25 +362,23 @@ def test_escape_resolves_literal_and_runtime_arguments(monkeypatch: pytest.Monke
         arguments={"path": "?storage.output.path", "mode": "replace"},
     )
     plan = uptimely_plan.ExecutionPlan(
-        uptimely_plan.Plan(
-            plan_version=1,
-            required_backend="polars",
-            resources={
-                "entities": {"asset": {"dimensions": []}},
-                "functions": {
-                    "external_action": {
-                        "operation": "escape",
-                        "returns": "any",
-                        "args": {
-                            "path": {"type": "string"},
-                            "mode": {"type": "string"},
-                        },
-                    }
-                },
+        plan_version=1,
+        required_backend="polars",
+        resources={
+            "entities": {"asset": {"dimensions": []}},
+            "functions": {
+                "external_action": {
+                    "operation": "escape",
+                    "returns": "any",
+                    "args": {
+                        "path": {"type": "string"},
+                        "mode": {"type": "string"},
+                    },
+                }
             },
-            callables=[escape],
-            stages=[[callable_id]],
-        )
+        },
+        callables=[escape],
+        stages=[[callable_id]],
     )
     received: list[tuple[str, str]] = []
 
@@ -423,23 +418,21 @@ def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        uptimely_plan.Plan(
-            plan_version=1,
-            required_backend="polars",
-            resources={
-                "entities": {"asset": {"dimensions": []}},
-                "functions": {
-                    function_id: {
-                        "operation": "escape",
-                        "returns": "any",
-                        "args": {"frame": {"type": "dataframe"}},
-                    }
-                    for function_id in ("first", "second")
-                },
+        plan_version=1,
+        required_backend="polars",
+        resources={
+            "entities": {"asset": {"dimensions": []}},
+            "functions": {
+                function_id: {
+                    "operation": "escape",
+                    "returns": "any",
+                    "args": {"frame": {"type": "dataframe"}},
+                }
+                for function_id in ("first", "second")
             },
-            callables=[first_callable, second_callable],
-            stages=[[first_id], [second_id]],
-        )
+        },
+        callables=[first_callable, second_callable],
+        stages=[[first_id], [second_id]],
     )
 
     _patch_callables(monkeypatch, {"test:first": lambda **_: None, "test:second": lambda **_: None})
@@ -485,23 +478,21 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
         dependency_ids=[read_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        uptimely_plan.Plan(
-            plan_version=1,
-            required_backend="polars",
-            resources={
-                "entities": {"asset": {"dimensions": ["asset_id"]}},
-                "functions": {
-                    "load": {"operation": "read", "returns": "dataframe", "args": {}},
-                    "external_action": {
-                        "operation": "escape",
-                        "returns": "any",
-                        "args": {"dataset": {"type": "dataframe"}},
-                    },
+        plan_version=1,
+        required_backend="polars",
+        resources={
+            "entities": {"asset": {"dimensions": ["asset_id"]}},
+            "functions": {
+                "load": {"operation": "read", "returns": "dataframe", "args": {}},
+                "external_action": {
+                    "operation": "escape",
+                    "returns": "any",
+                    "args": {"dataset": {"type": "dataframe"}},
                 },
             },
-            callables=[read_callable, escape_callable],
-            stages=[[read_id], [escape_id]],
-        )
+        },
+        callables=[read_callable, escape_callable],
+        stages=[[read_id], [escape_id]],
     )
 
     _patch_callables(monkeypatch, {"test:read": read, "test:escape": external_action})
@@ -536,19 +527,17 @@ def test_escape_exception_fails_and_skips_downstream(monkeypatch: pytest.MonkeyP
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        uptimely_plan.Plan(
-            plan_version=1,
-            required_backend="polars",
-            resources={
-                "entities": {"asset": {"dimensions": []}},
-                "functions": {
-                    function_id: {"operation": "escape", "returns": "any", "args": {}}
-                    for function_id in ("first", "second")
-                },
+        plan_version=1,
+        required_backend="polars",
+        resources={
+            "entities": {"asset": {"dimensions": []}},
+            "functions": {
+                function_id: {"operation": "escape", "returns": "any", "args": {}}
+                for function_id in ("first", "second")
             },
-            callables=[first_callable, second_callable],
-            stages=[[first_id], [second_id]],
-        )
+        },
+        callables=[first_callable, second_callable],
+        stages=[[first_id], [second_id]],
     )
 
     def fail() -> None:
@@ -602,8 +591,8 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
     )
 
     compiled = uptimely_compiler.Compiler(spec_definition, features=["external_result"]).compile()
-    compiled.export_json(plan_path)
-    restored = uptimely_plan.ExecutionPlan.from_json(plan_path)
+    plan_serialization.export_json(compiled, plan_path)
+    restored = uptimely_plan.from_json(plan_path)
     result = _engine(restored, project_root=tmp_path).run()
 
     assert result.failures == {}
@@ -614,14 +603,10 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
 
 
 def test_engine_validates_plan_backend() -> None:
-    plan = _plan().plan
+    plan = _plan()
 
     with pytest.raises(ValueError, match="Unsupported plan backend"):
-        _engine(
-            uptimely_plan.ExecutionPlan(
-                uptimely_plan.Plan(**{**plan.__dict__, "required_backend": "pandas"})
-            )
-        )
+        _engine(uptimely_plan.ExecutionPlan(**{**plan.__dict__, "required_backend": "pandas"}))
 
 
 def test_engine_selects_dataframe_backend_from_config() -> None:
@@ -768,13 +753,11 @@ def test_runtime_state_is_not_shared_between_instances() -> None:
 
 
 def test_execute_reports_unsupported_operation_types() -> None:
-    plan = _plan().plan
+    plan = _plan()
     invalid_callable = dataclasses.replace(plan.callables[0], operation="unsupported")
     engine = _engine(
         uptimely_plan.ExecutionPlan(
-            uptimely_plan.Plan(
-                **{**plan.__dict__, "callables": [invalid_callable, *plan.callables[1:]]}
-            )
+            **{**plan.__dict__, "callables": [invalid_callable, *plan.callables[1:]]}
         )
     )
 
@@ -841,19 +824,17 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         dependency_ids=[read_callable.id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        uptimely_plan.Plan(
-            plan_version=1,
-            required_backend="polars",
-            resources={
-                "entities": {"asset": {"dimensions": ["asset_id"]}},
-                "functions": {
-                    "load": {"operation": "read", "args": {}},
-                    "calculate": {"operation": "vectorize", "args": {}},
-                },
+        plan_version=1,
+        required_backend="polars",
+        resources={
+            "entities": {"asset": {"dimensions": ["asset_id"]}},
+            "functions": {
+                "load": {"operation": "read", "args": {}},
+                "calculate": {"operation": "vectorize", "args": {}},
             },
-            callables=[read_callable, vectorize_callable],
-            stages=[[read_callable.id], [vectorize_callable.id]],
-        )
+        },
+        callables=[read_callable, vectorize_callable],
+        stages=[[read_callable.id], [vectorize_callable.id]],
     )
     _patch_callables(monkeypatch, {"test:read": read, "test:calculate": calculate})
     engine = _engine(plan)

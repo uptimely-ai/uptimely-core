@@ -8,10 +8,9 @@ import tempfile
 
 import pytest
 
-from uptimely import compiler, spec
+from uptimely import compiler, execution_plan, spec
 from uptimely import engine as engine_module
 from uptimely import project as project_module
-from uptimely.compiler import plan as plan_module
 from uptimely.explorer import explorer
 from uptimely.spec import model as spec_model
 
@@ -63,7 +62,7 @@ def copy_example_project(
     return target
 
 
-def plan_for_spec(spec_definition: spec.Spec) -> plan_module.ExecutionPlan:
+def plan_for_spec(spec_definition: spec.Spec) -> execution_plan.ExecutionPlan:
     """Reuse saved example plans; compile only new or modified specifications."""
     for example in ("pump_analytics", "simple_analytics"):
         bundle = example_bundle(example)
@@ -72,9 +71,9 @@ def plan_for_spec(spec_definition: spec.Spec) -> plan_module.ExecutionPlan:
     return compiler.Compiler(spec_definition).compile()
 
 
-def _spec_for_plan(execution_plan: plan_module.ExecutionPlan) -> spec_model.Spec:
+def _spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Spec:
     """Create a minimal runtime spec for tests using hand-authored plans."""
-    resources = execution_plan.plan.resources
+    resources = execution_plan.resources
     dimensions = {
         identifier: definition or {"type": "string"}
         for identifier, definition in resources.get("dimensions", {}).items()
@@ -107,7 +106,7 @@ def _spec_for_plan(execution_plan: plan_module.ExecutionPlan) -> spec_model.Spec
 
 
 def bundle_for_plan(
-    execution_plan: plan_module.ExecutionPlan,
+    execution_plan: execution_plan.ExecutionPlan,
     project_root: pathlib.Path | None = None,
     spec_definition: spec.Spec | None = None,
 ) -> project_module.BuildBundle:
@@ -140,7 +139,7 @@ def bundle_for_plan(
 
 
 def engine_for_plan(
-    execution_plan: plan_module.ExecutionPlan,
+    execution_plan: execution_plan.ExecutionPlan,
     bind: dict[str, dict[str, dict[str, object]]] | None = None,
     project_root: pathlib.Path | None = None,
     spec_definition: spec.Spec | None = None,
@@ -157,7 +156,7 @@ def render_explorer(
     output_path: str | pathlib.Path | None = None,
     include_generated_at: bool = False,
     *,
-    plan: plan_module.ExecutionPlan | None = None,
+    plan: execution_plan.ExecutionPlan | None = None,
 ) -> pathlib.Path:
     """Render with a supplied or reusable plan, compiling only custom specs."""
     if plan is None:

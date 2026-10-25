@@ -6,7 +6,7 @@ import pytest
 from conftest import engine_for_plan
 
 from uptimely import compiler, engine, spec
-from uptimely.compiler import plan as plan_module
+from uptimely import execution_plan as plan_module
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import dataset, dimension, entity, feature, mapping, ref
 
@@ -179,9 +179,7 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
     spec.write_document(spec_definition, path)
     restored = spec.load_spec(path)
     plan = compiler.Compiler(restored).compile()
-    portable = plan_module.ExecutionPlan(
-        plan_module.Plan.from_dict(json.loads(json.dumps(plan.to_dict())))
-    )
+    portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
     result = engine_for_plan(portable, spec_definition=restored).run()
     assert not result.failures
     frame = result.datasets["global"]

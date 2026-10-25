@@ -4,14 +4,14 @@ import sys
 import uptimely
 import uptimely.compiler as compiler
 import uptimely.engine as engine
+import uptimely.execution_plan as execution_plan
 import uptimely.spec as spec
-from uptimely.compiler import plan
 from uptimely.compiler.callable_node import CallableNode as CallableNodeImplementation
 from uptimely.compiler.compiler import Compiler as CompilerImplementation
 from uptimely.compiler.execution_graph import CallableGraph as CallableGraphImplementation
-from uptimely.compiler.plan.models import ExecutionPlan, Plan
 from uptimely.engine.config import EngineConfig
 from uptimely.engine.engine import Engine as EngineImplementation
+from uptimely.execution_plan.models import ExecutionPlan
 from uptimely.explorer import graph_render
 from uptimely.spec import feature_graph
 from uptimely.spec.feature_graph import FeatureGraph, SubGraph
@@ -30,6 +30,9 @@ def test_removed_compatibility_paths_are_unavailable_in_fresh_process() -> None:
         "uptimely.compile.render",
         "uptimely.contracts",
         "uptimely.compiler.entrypoint",
+        "uptimely.compiler.plan",
+        "uptimely.compiler.plan.models",
+        "uptimely.compiler.plan.serialization",
         "uptimely.spec.explorer_render",
         "uptimely.spec.graph_render",
         "uptimely.spec.feature_graph.render",
@@ -83,5 +86,4 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert uptimely.Engine is engine.Engine is EngineImplementation
     assert engine.EngineConfig is EngineConfig
 
-    assert plan.Plan is Plan
-    assert plan.ExecutionPlan is ExecutionPlan
+    assert execution_plan.ExecutionPlan is ExecutionPlan

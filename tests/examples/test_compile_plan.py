@@ -7,7 +7,7 @@ import sys
 import pytest
 from conftest import EXAMPLES_ROOT, example_bundle, render_explorer
 
-from uptimely import project, spec
+from uptimely import execution_plan, project, spec
 from uptimely.cli import cli
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
@@ -52,10 +52,10 @@ def test_project_build_cli_exports_complete_bundle(
 def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) -> None:
     plan = example_bundle().execution_plan
 
-    output_path = plan.export_json(tmp_path / "execution_plan.json")
+    output_path = execution_plan.export_json(plan, tmp_path / "execution_plan.json")
     metadata = json.loads(output_path.read_text(encoding="utf-8"))
 
-    assert metadata == plan.plan.to_dict()
+    assert metadata == execution_plan.to_dict(plan)
     assert set(metadata["resources"]) == {"signatures", "entrypoint_packages"}
     assert "spec_version" not in metadata
     assert set(metadata) == {

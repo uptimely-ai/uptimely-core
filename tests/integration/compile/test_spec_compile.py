@@ -5,7 +5,7 @@ import pytest
 from conftest import EXAMPLES_ROOT
 
 from uptimely import compiler, spec
-from uptimely.compiler import plan as compiler_plan
+from uptimely import execution_plan as compiler_plan
 from uptimely.spec import model as spec_model
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -83,7 +83,7 @@ def _escape_spec_configuration() -> dict:
 
 def test_compilation_preserves_the_saved_plan() -> None:
     expected = json.loads(SPEC_PATH.with_name("execution_plan.json").read_text(encoding="utf-8"))
-    actual = compiler.Compiler(SPEC_PATH).compile().plan.to_dict()
+    actual = compiler_plan.to_dict(compiler.Compiler(SPEC_PATH).compile())
 
     assert actual.keys() == expected.keys()
     assert actual["plan_version"] == expected["plan_version"]
@@ -177,13 +177,13 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         callable for callable in plan.callables if callable.id.endswith(":read_auxiliary")
     )
     stage_by_id = {
-        callable_id: index for index, stage in enumerate(plan.plan.stages) for callable_id in stage
+        callable_id: index for index, stage in enumerate(plan.stages) for callable_id in stage
     }
 
     assert source.id in conform.dependency_ids
     assert stage_by_id[source.id] < stage_by_id[conform.id]
-    restored = compiler_plan.Plan.from_dict(json.loads(json.dumps(plan.to_dict())))
-    assert restored.to_dict() == plan.to_dict()
+    restored = compiler_plan.from_dict(json.loads(json.dumps(compiler_plan.to_dict(plan))))
+    assert restored == plan
 
 
 def test_compiler_creates_callable_graph_subset_for_requested_features() -> None:
@@ -307,8 +307,8 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
     )
     assert all(dependency in selected_by_id for dependency in selected_start.dependency_ids)
 
-    restored = compiler_plan.Plan.from_dict(json.loads(json.dumps(selected.to_dict())))
-    assert restored.to_dict() == selected.to_dict()
+    restored = compiler_plan.from_dict(json.loads(json.dumps(compiler_plan.to_dict(selected))))
+    assert restored == selected
     assert restored.callables == selected.callables
 
 
@@ -350,7 +350,7 @@ def test_escape_return_annotations_do_not_constrain_compilation(
     escaped = {callable.function_id: callable for callable in compiled.callables}
 
     assert {
-        function_id: compiled.plan.resources["signatures"][callable.id]
+        function_id: compiled.resources["signatures"][callable.id]
         for function_id, callable in escaped.items()
         if function_id
         in {
