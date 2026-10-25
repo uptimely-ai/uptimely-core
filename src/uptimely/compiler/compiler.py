@@ -8,17 +8,16 @@ from collections import abc
 
 from uptimely import entrypoint, execution_plan, spec
 from uptimely.spec import model as spec_model
-from uptimely.spec import operations
+from uptimely.spec import operations, validation
 from uptimely.spec import references as bindings
 
-from . import callable_node as callable_node_module
-from . import execution_graph
+from . import graph as invocation_graph
 
 logger = logging.getLogger(__name__)
 
 
 def _resolve_function(
-    spec_definition: spec.Spec, node: callable_node_module.CallableNode
+    spec_definition: spec.Spec, node: invocation_graph.InvocationNode
 ) -> spec_model.FunctionTemplate | None:
     """Return the function definition for an operation node."""
     return spec_definition.functions.get(node.function_id)
@@ -59,12 +58,13 @@ class Compiler:
                 raise ValueError("No spec or spec path provided.")
             self.spec = spec.load_spec(self.spec_path)
 
-        callable_graph = execution_graph.CallableGraph(self.spec)
+        validation.validate_spec(self.spec)
+        callable_graph = invocation_graph.InvocationGraph(self.spec)
         if self.features is not None:
             logger.debug("Compiling feature subset: %s", sorted(self.features))
             callable_graph = callable_graph.subset(self.features)
         execution_stages = callable_graph.topology()
-        callables = [self._callable(callable_graph, node) for node in callable_graph.callables]
+        callables = [self._callable(callable_graph, node) for node in callable_graph.invocations]
         entrypoints = self._read_entrypoints(callables)
         packages = self._read_packages(entrypoints)
         signatures = self._read_signatures(callable_graph, entrypoints)
@@ -94,23 +94,23 @@ class Compiler:
         return compiled_plan
 
     def _callable(
-        self, graph: execution_graph.CallableGraph, node: callable_node_module.CallableNode
+        self, graph: invocation_graph.InvocationGraph, node: invocation_graph.InvocationNode
     ) -> execution_plan.Callable:
         """Convert one live graph node into a portable callable DTO."""
         function = _resolve_function(self.spec, node)
         if function is None or not function.entrypoint:
             raise ValueError(f"Missing entrypoint for function: {node.function_id}")
         arguments = bindings.resolve_binding_args(
-            node.args,
+            node.arguments,
             node.dataset_id,
             (
                 next(
                     feature
                     for feature in node.output_features
-                    if feature not in self.spec.entities[node.entity].dimension_ids
+                    if feature not in self.spec.entities[node.entity_id].dimension_ids
                 )
                 if node.operation == operations.COLLAPSE
-                else node.feature
+                else node.feature_id
                 if node.operation == operations.VECTORIZE
                 else None
             ),
@@ -119,11 +119,11 @@ class Compiler:
             id=node.node_id,
             operation=node.operation,
             entrypoint=function.entrypoint,
-            entity_id=node.entity,
+            entity_id=node.entity_id,
             dataset_id=node.dataset_id,
-            output=node.feature or node.mapping_id,
+            output=node.feature_id or node.mapping_id,
             output_features=list(node.output_features),
-            input_features=graph.mapping_for(node).input_features,
+            input_features=list(node.input_features),
             arguments=_portable_value(arguments),
             dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
             row_context=node.row_context,
@@ -172,12 +172,12 @@ class Compiler:
 
     def _read_signatures(
         self,
-        callable_graph: execution_graph.CallableGraph,
+        callable_graph: invocation_graph.InvocationGraph,
         entrypoints: dict[str, entrypoint.Entrypoint],
     ) -> dict[str, entrypoint.Signature]:
         """Inspect enabled signatures and validate their return contracts."""
         signatures: dict[str, entrypoint.Signature] = {}
-        for node in callable_graph.callables:
+        for node in callable_graph.invocations:
             function = _resolve_function(self.spec, node)
             if function is None or not function.validate_signature:
                 continue

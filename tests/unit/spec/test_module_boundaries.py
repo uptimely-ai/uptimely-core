@@ -131,8 +131,7 @@ def test_execution_plan_does_not_import_outer_layers() -> None:
         "uptimely.spec.python.conversion",
         "uptimely.spec.json.codec",
         "uptimely.spec.api",
-        "uptimely.compiler.callable_node",
-        "uptimely.compiler.execution_graph",
+        "uptimely.compiler.graph",
         "uptimely.compiler.compiler",
     ],
 )
