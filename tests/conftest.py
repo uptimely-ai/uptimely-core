@@ -68,7 +68,7 @@ def plan_for_spec(spec_definition: spec.Spec) -> execution_plan.ExecutionPlan:
         bundle = example_bundle(example)
         if spec_definition == bundle.spec_definition:
             return bundle.execution_plan
-    return compiler.Compiler(spec_definition).compile()
+    return compiler.Compiler().compile(spec_definition)
 
 
 def _spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Spec:

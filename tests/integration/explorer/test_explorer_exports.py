@@ -31,7 +31,7 @@ def test_spec_reference_snippet_syntax(language: str, snippet: str) -> None:
 
 def test_spec_json_parses_compiles_and_executes() -> None:
     spec_definition = spec.load_spec(OBSERVATION_TOTALS_PATH)
-    compiled = compiler.Compiler(spec_definition, features=["total"]).compile()
+    compiled = compiler.Compiler().compile(spec_definition, features=["total"])
     execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
 
     assert len(compiled.callables) == 2
@@ -126,7 +126,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     spec_path = tmp_path / "escape-spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
     definition = spec.load_spec(spec_path)
-    plan = compiler.Compiler(definition).compile()
+    plan = compiler.Compiler().compile(definition)
 
     context = spec_render._build_context(definition, False)
     assert context.summary.function_buckets["escape"] == 1

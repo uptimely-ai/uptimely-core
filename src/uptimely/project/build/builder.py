@@ -94,7 +94,7 @@ def _compile_plan(
 ) -> compiler.ExecutionPlan:
     """Compile a specification into its execution plan."""
     try:
-        return compiler.Compiler(spec_definition, features=selected_features).compile()
+        return compiler.Compiler().compile(spec_definition, features=selected_features)
     except _SPEC_PROCESSING_ERRORS as error:
         raise errors.ProjectBuildError("compilation", str(error)) from error
 

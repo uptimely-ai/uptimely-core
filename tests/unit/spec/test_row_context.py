@@ -271,7 +271,7 @@ def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Pat
     assert "row_context" not in authored_dataset["features"]["result"]
     assert authored_dataset["mappings"]["result"]["row_context"] == context.to_dict()
     restored = spec.load_spec(path)
-    compiled = compiler.Compiler(restored).compile()
+    compiled = compiler.Compiler().compile(restored)
     operation = next(item for item in compiled.callables if item.operation == "vectorize")
     assert operation.input_features == ["temperature"]
     assert operation.row_context == context
@@ -331,7 +331,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     )
     assert spec_definition.functions["calculate"].args["column"].type == "string"
 
-    plan = compiler.Compiler(restored_spec).compile()
+    plan = compiler.Compiler().compile(restored_spec)
     operation = next(item for item in plan.callables if item.operation == "vectorize")
     assert operation.row_context == context
     assert all(item.row_context is None for item in plan.callables if item.operation != "vectorize")
@@ -365,7 +365,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
 
 
 def test_plan_context_is_present_in_portable_operations() -> None:
-    plan = compiler.Compiler(_spec(context=authoring.current())).compile()
+    plan = compiler.Compiler().compile(_spec(context=authoring.current()))
     operation = next(item for item in plan.callables if item.output == "result")
     assert operation.row_context == authoring.current()
 
@@ -410,7 +410,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         ],
         dimensions=[timestamp],
     )
-    plan = compiler.Compiler(spec_definition).compile()
+    plan = compiler.Compiler().compile(spec_definition)
     operation = next(item for item in plan.callables if item.operation == "collapse")
     assert operation.row_context is None
     assert operation.entrypoint.endswith(":maximum")

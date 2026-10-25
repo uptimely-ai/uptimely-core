@@ -155,7 +155,7 @@ def _spec(*, lazy=False, empty=False):
 @pytest.mark.parametrize("lazy", [False, True])
 def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
     spec_definition = _spec(lazy=lazy)
-    plan = compiler.Compiler(spec_definition, features=["average"]).compile()
+    plan = compiler.Compiler().compile(spec_definition, features=["average"])
     assert not any("unneeded" in item.output_features for item in plan.callables)
     collapse = next(item for item in plan.callables if item.operation == "collapse")
     assert collapse.input_features == ["value", "doubled"]
@@ -178,7 +178,7 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
     path = tmp_path / "spec.json"
     spec.write_document(spec_definition, path)
     restored = spec.load_spec(path)
-    plan = compiler.Compiler(restored).compile()
+    plan = compiler.Compiler().compile(restored)
     portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
     result = engine_for_plan(portable, spec_definition=restored).run()
     assert not result.failures
@@ -272,7 +272,7 @@ def test_collapse_consumes_expanded_features(lazy):
         },
     )
     result = engine_for_plan(
-        compiler.Compiler(spec_definition, features=["combined_maximum"]).compile(),
+        compiler.Compiler().compile(spec_definition, features=["combined_maximum"]),
         spec_definition=spec_definition,
     ).run()
     assert not result.failures
@@ -297,7 +297,7 @@ def test_collapse_consumes_expanded_features(lazy):
 )
 def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
     spec_definition = _spec()
-    plan = compiler.Compiler(spec_definition, features=["average"]).compile()
+    plan = compiler.Compiler().compile(spec_definition, features=["average"])
     original = summarize
 
     def invalid(dataset, column, calculated):
@@ -321,7 +321,7 @@ def test_collapse_preserves_null_group_keys(lazy):
     spec_definition = _spec(lazy=lazy)
     spec_definition.functions["read_values"].entrypoint = f"{__name__}:read_null_groups"
     result = engine_for_plan(
-        compiler.Compiler(spec_definition, features=["maximum"]).compile(),
+        compiler.Compiler().compile(spec_definition, features=["maximum"]),
         spec_definition=spec_definition,
     ).run()
     assert not result.failures

@@ -86,8 +86,8 @@ backend.
 
 ## Validation
 
-Compiler validation checks that a Spec document can be compiled into a
-valid, schedulable plan:
+The compiler accepts a loaded Spec and validates its current declarations
+before compiling it into a valid, schedulable plan:
 
 - Spec declarations are semantically validated directly, without creating a
   separate resolved spec. The compiler builds one invocation node per mapping

@@ -102,14 +102,14 @@ def _spec() -> spec.Spec:
 
 def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     spec_definition = _spec()
-    computed = compiler.Compiler(spec_definition, features=["result"]).compile()
+    computed = compiler.Compiler().compile(spec_definition, features=["result"])
     assert len(computed.callables) == 2
     assert next(
         item for item in computed.callables if item.operation == "vectorize"
     ).input_features == [
         "value",
     ]
-    metadata = compiler.Compiler(spec_definition, features=["metadata"]).compile()
+    metadata = compiler.Compiler().compile(spec_definition, features=["metadata"])
     assert all("result" not in item.output_features for item in metadata.callables)
     execution = engine_for_plan(metadata, spec_definition=spec_definition).run()
     assert not execution.failures
@@ -130,7 +130,7 @@ def test_dataframe_returns_are_validated(
     monkeypatch: pytest.MonkeyPatch, shape: str, message: str
 ) -> None:
     spec_definition = _spec()
-    compiled = compiler.Compiler(spec_definition, features=["result"]).compile()
+    compiled = compiler.Compiler().compile(spec_definition, features=["result"])
 
     def invalid(dataset: pl.DataFrame, output: str) -> object:
         if shape == "missing":
@@ -151,7 +151,7 @@ def test_dataframe_returns_are_validated(
 
 def test_returned_row_order_does_not_control_alignment(monkeypatch: pytest.MonkeyPatch) -> None:
     spec_definition = _spec()
-    compiled = compiler.Compiler(spec_definition, features=["result"]).compile()
+    compiled = compiler.Compiler().compile(spec_definition, features=["result"])
 
     def reversed_result(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
         return dataset.with_columns((pl.col("value") + 1).alias(output)).reverse()
@@ -218,7 +218,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
         iter(spec_definition.entities["entity"].datasets["observations"].mappings.values())
     )
     source.features.outputs = ["$features.value"]
-    compiled = compiler.Compiler(spec_definition, features=["result"]).compile()
+    compiled = compiler.Compiler().compile(spec_definition, features=["result"])
 
     def wrong_dimension() -> pl.DataFrame:
         return read_values_original().with_columns(pl.col("id").cast(pl.String))
@@ -259,7 +259,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
         }
     path.write_text(json.dumps(configuration))
     spec_definition = spec.load_spec(path)
-    compiled = compiler.Compiler(spec_definition, features=["result"]).compile()
+    compiled = compiler.Compiler().compile(spec_definition, features=["result"])
     execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["observations"].sort("id")["result"].to_list() == [11, 21]
@@ -333,7 +333,7 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
             ),
         ],
     )
-    compiled = compiler.Compiler(spec_definition, features=["copied"]).compile()
+    compiled = compiler.Compiler().compile(spec_definition, features=["copied"])
     assert len(compiled.callables) == 3
     execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
