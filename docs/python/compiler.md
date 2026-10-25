@@ -1,24 +1,23 @@
 # Compiler and plans
 
-`uptimely.compiler` turns a loaded Spec into a portable execution plan.
-`uptimely.execution_plan` owns the neutral plan model and JSON serialization.
-The compiler graph provides dependency and topology queries; presentation and
-graph formatting are owned by Explorer.
+`uptimely.compiler` creates an execution plan from a loaded Spec.
+`uptimely.execution_plan` reads and writes plans. A mapping describes how a
+function is used; the plan records that work for the engine to run.
 
 Load a Spec with `uptimely.spec.load_spec` (or create one with
 `uptimely.spec.from_python`), then compile it:
 
 ```python
-from uptimely import compiler, spec
+from uptimely import compiler, execution_plan, spec
 
 specification = spec.load_spec("spec.json")
 plan = compiler.Compiler().compile(specification, features=["health_signal_normalized"])
+execution_plan.export_json(plan, "execution_plan.json")
 ```
 
-Compilation validates the current Spec, so semantic changes made after loading
-are checked before graph construction.
-The phases are validation, graph construction and feature selection, scheduling,
-portable invocation creation, implementation inspection, and plan assembly.
+Compilation checks the Spec before creating the plan. Use
+`execution_plan.export_json` to save it and `execution_plan.from_json` to load
+it. Version 1 plans are not supported; rebuild the bundle from its source Spec.
 
 <div class="api-reference" markdown="1">
 

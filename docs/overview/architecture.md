@@ -83,17 +83,21 @@ describes subjects, datasets, features, functions, and mappings without
 depending on a particular authoring language. The other tools consume this
 shared contract.
 
+The Spec declares functions and mappings. A mapping says what data a function
+reads and writes. The compiler records each mapping as a planned step; the
+engine runs those steps using the Python functions. Building a plan does not
+run the analytics.
+
 ## Compiler
 
-The compiler prepares the definition for execution. It resolves declared
-dependencies and creates an execution plan describing the work and its order,
-without tying the plan to a live engine instance.
+The compiler checks the Spec and creates an execution plan that lists the work
+and its order. The engine supplies runtime values and runs the plan.
 
 ## Engine
 
-The engine executes the plan against runtime data and functions. It resolves
-runtime values for the current environment and returns execution state,
-including calculated outputs and operation results.
+The engine runs the plan saved in the build bundle, using the bundled Spec and
+the runtime configuration. It returns calculated outputs and details about
+the run, including successes and failures.
 
 Separating definition, planning, and execution keeps spec portable while
 allowing plans to run in different environments.

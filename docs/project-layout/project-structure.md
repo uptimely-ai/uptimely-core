@@ -55,6 +55,6 @@ the build bundle shown above. If both sources exist, select one with
 Explorer use the saved bundle rather than regenerating it.
 
 See the [CLI reference](../cli/index.md) for build options and the
-[pump analytics example](../../examples/pump_analytics/README.md) for a runnable
-project. For structures spanning multiple projects or repositories, see
+[pump analytics example](https://github.com/uptimely-ai/uptimely-core/tree/main/examples/pump_analytics)
+for a runnable project. For structures spanning multiple projects or repositories, see
 [organizing analytics projects](organize.md).

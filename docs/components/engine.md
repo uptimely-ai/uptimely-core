@@ -1,9 +1,9 @@
 # Execution engine
 
-This page describes the built-in Uptimely Core runtime and its execution
-contract. It consumes a validated build bundle, executes plan invocations, and
-accumulates tabular results. Runtime configuration and
-environment-specific bindings are supplied separately.
+The built-in engine runs the plan in a validated build bundle. It uses the
+bundled Spec to find each function and its mapping, calls the Python
+implementation, and collects the results. Runtime configuration is supplied
+separately.
 
 ## Engine settings
 

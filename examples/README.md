@@ -3,6 +3,9 @@
 These examples show how to define analytics projects and explore how their
 parts fit together.
 
+Build the project to create an execution plan from its Spec. Run the project to
+execute that plan.
+
 ## Examples
 
 | Directory | What it demonstrates |
@@ -46,7 +49,8 @@ uptimely examples
 ### Build the spec
 
 The build creates files under `examples/pump_analytics/_generated/build/`.
-Rebuild after changing the example's source files.
+Rebuild after changing the example's source files. Older version 1 bundles are
+not supported; rebuild them from their source Specs.
 
 ```sh
 uptimely build examples/pump_analytics --verbose
