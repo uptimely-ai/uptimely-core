@@ -146,6 +146,33 @@ def test_modules_import_in_a_fresh_process(module: str) -> None:
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.parametrize(
+    "modules",
+    [
+        ("uptimely.project", "uptimely.explorer.explorer"),
+        ("uptimely.explorer.explorer", "uptimely.project"),
+        ("uptimely.project.build.builder", "uptimely.explorer.explorer"),
+        ("uptimely.explorer.explorer", "uptimely.project.build.builder"),
+    ],
+)
+def test_project_and_explorer_import_in_either_order_in_a_fresh_process(
+    modules: tuple[str, str],
+) -> None:
+    script = f"""
+import importlib
+for name in {modules!r}:
+    importlib.import_module(name)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_json_round_trip_preserves_the_document_and_compiled_plan(
     tmp_path: pathlib.Path,
 ) -> None:

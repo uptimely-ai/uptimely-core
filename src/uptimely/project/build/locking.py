@@ -7,7 +7,7 @@ import os
 import pathlib
 import typing
 
-from uptimely.project import paths
+from uptimely import project_paths as paths
 from uptimely.project.build.errors import BuildLockError
 
 if os.name == "nt":

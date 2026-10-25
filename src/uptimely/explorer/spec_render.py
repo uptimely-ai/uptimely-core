@@ -9,7 +9,7 @@ import typing
 from importlib import util
 
 from uptimely import entrypoint as entrypoint_module
-from uptimely import project
+from uptimely import project_paths
 from uptimely.spec import model as spec_model
 from uptimely.spec import operations, references, selectors
 
@@ -95,7 +95,7 @@ def _create_website_pages(
     context: ExplorerContext,
     output_directory: pathlib.Path,
     *,
-    index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    index_filename: str = project_paths.EXPLORER_INDEX_FILE.name,
     execution_scope: str = "all features",
     is_scoped: bool = False,
 ) -> None:

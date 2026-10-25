@@ -14,14 +14,12 @@ import jinja2
 import pydantic
 
 from uptimely import compiler, spec
+from uptimely import project_paths as paths
 from uptimely.execution_plan import serialization as plan_serialization
-from uptimely.project import paths
+from uptimely.explorer import explorer as explorer_module
 from uptimely.project.build import bundle, errors, locking, models
 from uptimely.project.build import features as feature_selection
 from uptimely.project.build import source as build_source
-
-BuildBundle = models.BuildBundle
-FeatureSelection = feature_selection.FeatureSelection
 
 _SPEC_PROCESSING_ERRORS = (
     OSError,
@@ -107,9 +105,6 @@ def _generate_artifacts(
 ) -> None:
     """Write the specification, execution plan, and Explorer site."""
     try:
-        # Explorer imports project path constants; defer it until package initialization.
-        from uptimely.explorer import explorer as explorer_module
-
         spec.write_document(spec_definition, staging_root / "spec.json")
         plan_serialization.export_json(execution_plan, staging_root / "execution_plan.json")
         explorer_module.Explorer(
@@ -190,8 +185,8 @@ def build_project(
     project_root: str | pathlib.Path,
     python_spec: str | None = None,
     json_spec: build_source.JsonSourceInput = None,
-    features: FeatureSelection = None,
-) -> BuildBundle:
+    features: feature_selection.FeatureSelection = None,
+) -> models.BuildBundle:
     """Build and publish a complete spec, execution plan, and Explorer bundle.
 
     Args:
