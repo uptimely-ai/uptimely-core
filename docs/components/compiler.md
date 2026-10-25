@@ -1,10 +1,12 @@
 # Compiler
 
-The compiler converts a Spec document into a portable execution plan. The plan
-records operations, their dependencies, and compiler-generated metadata. The
-build bundle contains both the plan and its Spec document; runtime declarations
-are read from the Spec rather than duplicated in the plan. The compiler does not
-include its in-memory graph in the plan or execute analytical functions.
+The Spec declares functions and mappings. A mapping says how a function is
+used. The compiler records each mapping as an invocation, or planned step, and
+orders the steps by their input features. The engine later loads and calls the
+Python function named in the Spec. Compiling a plan does not run the analytics.
+
+The build bundle contains both the plan and the Spec. The engine uses the Spec
+for declarations and supplies runtime values when it runs each step.
 
 This page describes the generated plan. Dataset, feature, function, and mapping
 semantics are defined by the Spec document.
@@ -21,10 +23,9 @@ A plan is one JSON object. Its root fields are:
 | `invocations` | array of objects | Operations to execute and their declared inputs and dependencies. |
 | `stages` | array of arrays of strings | Invocation identifiers grouped by dependency order. |
 
-All root fields are required. Unknown root fields and unsupported plan versions
-are rejected. Increment `plan_version` when the portable plan format changes
-incompatibly. Version 1 plans are not converted; rebuild generated bundles from
-their source Specs to produce version 2 plans.
+All root fields are required. Unknown fields and unsupported versions are
+rejected. Version 1 plans are not converted; rebuild generated bundles from
+their source Specs to create version 2 plans.
 
 ## Resources
 
@@ -105,3 +106,36 @@ before compiling it into a valid, schedulable plan:
   validation; execution still requires a loadable function.
 - Loaded plans use a supported version and valid root fields, invocation IDs,
   dependency references, and stage ordering.
+
+## API migration and rebuilding plans
+
+Load the Spec, compile it, and save the plan with `uptimely.execution_plan`:
+
+```python
+from uptimely import compiler, execution_plan, spec
+
+specification = spec.load_spec("spec.json")
+plan = compiler.Compiler().compile(
+    specification,
+    features=["health_signal_normalized"],
+)
+execution_plan.export_json(plan, "execution_plan.json")
+restored = execution_plan.from_json("execution_plan.json")
+assert [invocation.id for invocation in restored.invocations] == [
+    invocation.id for invocation in plan.invocations
+]
+```
+
+Load a Spec with `uptimely.spec.load_spec` before passing it to `Compiler`.
+Use `uptimely.execution_plan` to read and write plans, and use
+`ExecutionPlan.invocations` to access the planned steps. Do not rely on the
+format of their IDs.
+
+Version 1 plans and bundles are not supported. Rebuild from the source Spec
+with `uptimely build PROJECT_ROOT`.
+
+The engine returns results: `result.datasets` contains final datasets,
+`result.calculated_outputs` contains calculated features, and
+`result.invocation_statuses` reports whether each planned step succeeded,
+failed, or was skipped. `result.durations` and `result.failures` give more run
+details.

@@ -37,6 +37,9 @@ dataframe, for example `result.datasets["telemetry"]`.
 dimension-keyed output dataframes, for example
 `result.calculated_outputs["telemetry", "doubled"]`. Entity IDs are not part of
 either key; entity metadata is available in the bundled Spec and plan invocations.
+`result.invocation_statuses` reports whether each planned step succeeded,
+failed, or was skipped. `result.durations` and `result.failures` give the
+duration and any error for each step.
 
 ::: uptimely.engine.result
     options:

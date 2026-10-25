@@ -225,8 +225,9 @@ execution engine guide.
 A function is a logical analytical function definition bound to an implementation. Each
 function declares an operation and implementation entrypoint, plus the schema
 for its arguments. A mapping binds a function to concrete arguments and feature
-inputs and outputs. Compilation turns each mapping into a callable in the
-execution plan.
+inputs and outputs. When you build the project, each mapping becomes a step in
+the execution plan. The engine runs those steps using the Python
+implementations.
 
 Functions are expressed as objects keyed by globally unique function
 identifiers.
