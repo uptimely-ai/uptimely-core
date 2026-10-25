@@ -4,12 +4,12 @@ import polars as pl
 import pytest
 from conftest import _spec_for_plan
 
-from uptimely.compiler import plan as plan_module
+from uptimely import execution_plan as plan_module
 from uptimely.engine import bindings as bindings_module
 from uptimely.engine import state as state_module
 from uptimely.spec import model as spec_model
 
-PLAN = plan_module.ExecutionPlan.from_json("tests/fixtures/plans/simple_engine.json")
+PLAN = plan_module.from_json("tests/fixtures/plans/simple_engine.json")
 
 
 def _bindings(

@@ -12,7 +12,8 @@ from .spec import (  # noqa: I001
     load_spec,
     write_document,
 )
-from .compiler import CallableGraph, CallableNode, Compiler, ExecutionPlan
+from .compiler import CallableGraph, CallableNode, Compiler
+from .execution_plan.models import ExecutionPlan
 from .engine import Engine
 
 __all__ = [

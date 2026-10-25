@@ -7,7 +7,7 @@ import pytest
 from conftest import EXAMPLES_ROOT, example_bundle
 
 from uptimely import compiler, spec
-from uptimely.compiler import plan as plan_module
+from uptimely import execution_plan as plan_module
 from uptimely.explorer import explorer
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -23,13 +23,11 @@ def test_render_saved_plan_without_compiling(
     custom = dataclasses.replace(
         first, arguments={**first.arguments, "saved_plan_marker": SAVED_PLAN_MARKER}
     )
-    supplied = plan_module.ExecutionPlan(
-        dataclasses.replace(compiled.plan, callables=[custom, *remaining])
-    )
+    supplied = dataclasses.replace(compiled, callables=[custom, *remaining])
     path = tmp_path / "plan.json"
-    supplied.export_json(path)
-    supplied = plan_module.ExecutionPlan.from_json(path)
-    original = supplied.plan.to_dict()
+    plan_module.export_json(supplied, path)
+    supplied = plan_module.from_json(path)
+    original = plan_module.to_dict(supplied)
 
     def fail_compile(*args: object, **kwargs: object) -> None:
         pytest.fail("A supplied plan must not be recompiled")
@@ -42,7 +40,7 @@ def test_render_saved_plan_without_compiling(
     for page in ("plan/graph.html", "plan/stages.html"):
         assert SAVED_PLAN_MARKER in (index.parent / page).read_text(encoding="utf-8")
     assert (index.parent / "execution/data_lineage.html").is_file()
-    assert supplied.plan.to_dict() == original
+    assert plan_module.to_dict(supplied) == original
 
 
 def test_explorer_requires_existing_plan() -> None:

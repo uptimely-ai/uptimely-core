@@ -10,10 +10,10 @@ import sys
 import pytest
 from conftest import EXAMPLES_ROOT, copy_example_project, example_bundle
 
+from uptimely import execution_plan as plan_module
 from uptimely import project, spec
 from uptimely.cli import cli
 from uptimely.compiler import compiler as compiler_module
-from uptimely.compiler import plan as plan_module
 from uptimely.explorer import explorer as explorer_module
 from uptimely.project.build import builder as project_build
 
@@ -250,7 +250,7 @@ def test_project_build_verbose_summary(
         f"  Number of datasets: {len(datasets)}\n"
         f"  Number of features: {sum(len(dataset.features) for dataset in datasets)}\n"
         "\nPlan\n"
-        f"  Number of stages: {len(bundle.execution_plan.plan.stages)}\n"
+        f"  Number of stages: {len(bundle.execution_plan.stages)}\n"
         f"  Number of callables: {len(bundle.execution_plan.callables)}\n"
     )
 

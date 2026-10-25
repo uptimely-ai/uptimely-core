@@ -44,7 +44,7 @@ def test_disabled_signature_renders_without_importing_module_or_parent(
 
     assert not marker.exists()
     assert "signature_validation_fixture" not in sys.modules
-    assert callable.id not in compiled.plan.resources["signatures"]
+    assert callable.id not in compiled.resources["signatures"]
     assert callable.input_features
     assert step["returns"]["type"]["engine"] is None
     assert "Python signature validation disabled" in functions_page

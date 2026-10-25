@@ -2,8 +2,7 @@
 
 import pathlib
 
-from uptimely import project, spec
-from uptimely.compiler import plan as plan_module
+from uptimely import execution_plan, project, spec
 
 from . import graph_render, lineage, plan_render, render, spec_render
 
@@ -22,7 +21,7 @@ class Explorer:
         self,
         spec_definition: spec.Spec,
         *,
-        plan: plan_module.ExecutionPlan,
+        plan: execution_plan.ExecutionPlan,
         features: list[str] | None = None,
     ) -> None:
         self.spec = spec_definition

@@ -8,7 +8,7 @@ import pytest
 from conftest import engine_for_plan, render_explorer
 
 from uptimely import compiler, row_context, spec
-from uptimely.compiler import plan as uptimely_plan
+from uptimely import execution_plan as uptimely_plan
 from uptimely.spec.python import bind, dataset, dimension, entity, feature, mapping, ref
 from uptimely.spec.python import row_context as authoring
 
@@ -275,7 +275,7 @@ def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Pat
     operation = next(item for item in compiled.callables if item.operation == "vectorize")
     assert operation.input_features == ["temperature"]
     assert operation.row_context == context
-    portable = uptimely_plan.ExecutionPlan(uptimely_plan.Plan.from_dict(compiled.to_dict()))
+    portable = uptimely_plan.from_dict(uptimely_plan.to_dict(compiled))
     result = engine_for_plan(portable, spec_definition=restored).run()
     assert not result.failures
     frame = result.datasets["observations"]
@@ -344,9 +344,9 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     assert spec_definition.entities["entity"].datasets["observations"].order == [
         spec.Order(dimension="$dimensions.timestamp", direction="asc")
     ]
-    plan_path = plan.export_json(tmp_path / "plan.json")
-    restored_plan = uptimely_plan.ExecutionPlan.from_json(plan_path)
-    assert restored_plan.plan == plan.plan
+    plan_path = uptimely_plan.export_json(plan, tmp_path / "plan.json")
+    restored_plan = uptimely_plan.from_json(plan_path)
+    assert restored_plan == plan
     result = engine_for_plan(restored_plan, spec_definition=restored_spec).run()
     assert not result.failures
     frame = next(iter(result.datasets.values()))
@@ -425,10 +425,8 @@ def test_collapse_functions_execute_without_row_context() -> None:
     payload = output.model_dump()
     assert "group_by" not in payload
     assert "row_context" not in payload["binding"]
-    restored = uptimely_plan.Plan.from_dict(json.loads(json.dumps(plan.plan.to_dict())))
-    assert restored == plan.plan
-    result = engine_for_plan(
-        uptimely_plan.ExecutionPlan(restored), spec_definition=spec_definition
-    ).run()
+    restored = uptimely_plan.from_dict(json.loads(json.dumps(uptimely_plan.to_dict(plan))))
+    assert restored == plan
+    result = engine_for_plan(restored, spec_definition=spec_definition).run()
     assert not result.failures
     assert result.datasets["summary"]["temperature_max"].to_list() == [20]

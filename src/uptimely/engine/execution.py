@@ -3,7 +3,7 @@
 import typing
 
 from uptimely import entrypoint as entrypoint_module
-from uptimely.compiler import plan as plan_module
+from uptimely import execution_plan
 from uptimely.spec import arg_types, operations
 from uptimely.spec import model as spec_model
 
@@ -32,7 +32,7 @@ class CallableExecutor:
         self.bindings = bindings_module.RuntimeBindings(spec_definition, state, bind)
         self.dataframe = dataframe_module.DataFrameExecution(backend, spec_definition, state)
 
-    def execute(self, callable: plan_module.Callable) -> None:
+    def execute(self, callable: execution_plan.Callable) -> None:
         """Dispatch and execute one callable."""
         if callable.operation == operations.ESCAPE:
             self._execute_escape(callable)
@@ -47,7 +47,7 @@ class CallableExecutor:
         else:
             raise ValueError(f"Unsupported callable operation: {callable.operation}")
 
-    def _execute_dataframe_mapping(self, callable: plan_module.Callable) -> None:
+    def _execute_dataframe_mapping(self, callable: execution_plan.Callable) -> None:
         """Invoke a data-producing mapping, validate its result, and update the dataset."""
         frame = self.state.datasets.get(callable.dataset_id)
         result = self._invoke(callable)
@@ -68,17 +68,17 @@ class CallableExecutor:
                     fragment, [*dimensions, output]
                 )
 
-    def _execute_escape(self, callable: plan_module.Callable) -> None:
+    def _execute_escape(self, callable: execution_plan.Callable) -> None:
         """Invoke an uncontrolled mapping and discard its return value."""
         self._invoke(callable)
 
-    def _execute_sink(self, callable: plan_module.Callable) -> None:
+    def _execute_sink(self, callable: execution_plan.Callable) -> None:
         """Invoke a sink after confirming its accumulated dataset exists."""
         if callable.dataset_id not in self.state.datasets:
             raise KeyError(callable.dataset_id)
         self._invoke(callable)
 
-    def _invoke(self, callable: plan_module.Callable) -> object:
+    def _invoke(self, callable: execution_plan.Callable) -> object:
         """Resolve arguments and invoke the callable's entrypoint."""
         kwargs = self.bindings.resolve_args(callable)
         entrypoint = self.entrypoints.get(callable.entrypoint)

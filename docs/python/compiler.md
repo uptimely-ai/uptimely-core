@@ -1,9 +1,9 @@
 # Compiler and plans
 
-`uptimely.compiler` turns spec into portable execution plans. Its `plan`
-subpackage owns the plan models and JSON serialization. The compiler graph
-provides dependency and topology queries; presentation and graph formatting are
-owned by Explorer.
+`uptimely.compiler` turns a loaded Spec into a portable execution plan.
+`uptimely.execution_plan` owns the neutral plan model and JSON serialization.
+The compiler graph provides dependency and topology queries; presentation and
+graph formatting are owned by Explorer.
 
 <div class="api-reference" markdown="1">
 
@@ -38,24 +38,25 @@ compilation graph.
       show_root_heading: false
       members: [CallableGraph]
 
-## plan.models
+## execution_plan.models
 
-`uptimely.compiler.plan.models` defines the portable plan and its callables.
+`uptimely.execution_plan.models` defines the portable execution plan and its
+callables.
 
-::: uptimely.compiler.plan.models
+::: uptimely.execution_plan.models
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Callable, Plan, ExecutionPlan, PLAN_VERSION]
+      members: [Callable, ExecutionPlan, PLAN_VERSION]
 
-## plan.serialization
+## execution_plan.serialization
 
-`uptimely.compiler.plan.serialization` reads and writes plan JSON.
+`uptimely.execution_plan.serialization` reads and writes plan JSON.
 
-::: uptimely.compiler.plan.serialization
+::: uptimely.execution_plan.serialization
     options:
       heading_level: 3
       show_root_heading: false
-      members: [export_json, from_json]
+      members: [to_dict, from_dict, export_json, from_json]
 
 </div>

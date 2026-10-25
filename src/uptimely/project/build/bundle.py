@@ -10,7 +10,8 @@ import typing
 import pydantic
 
 from uptimely import spec
-from uptimely.compiler.plan import models as plan_models
+from uptimely.execution_plan import models as plan_models
+from uptimely.execution_plan import serialization as plan_serialization
 from uptimely.project import paths
 from uptimely.project.build import errors, locking, models
 
@@ -110,7 +111,7 @@ def _load_execution_plan(
     execution_plan_path: pathlib.Path, project_root: pathlib.Path
 ) -> plan_models.ExecutionPlan:
     try:
-        return plan_models.ExecutionPlan.from_json(execution_plan_path)
+        return plan_serialization.from_json(execution_plan_path)
     except (
         OSError,
         UnicodeDecodeError,

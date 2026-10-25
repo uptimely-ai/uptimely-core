@@ -14,6 +14,7 @@ import jinja2
 import pydantic
 
 from uptimely import compiler, spec
+from uptimely.execution_plan import serialization as plan_serialization
 from uptimely.project import paths
 from uptimely.project.build import bundle, errors, locking, models
 from uptimely.project.build import features as feature_selection
@@ -110,7 +111,7 @@ def _generate_artifacts(
         from uptimely.explorer import explorer as explorer_module
 
         spec.write_document(spec_definition, staging_root / "spec.json")
-        execution_plan.export_json(staging_root / "execution_plan.json")
+        plan_serialization.export_json(execution_plan, staging_root / "execution_plan.json")
         explorer_module.Explorer(
             spec_definition,
             plan=execution_plan,

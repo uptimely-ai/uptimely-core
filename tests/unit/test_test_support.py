@@ -5,7 +5,7 @@ import pathlib
 import pytest
 from conftest import copy_example_project, example_bundle, plan_for_spec, render_explorer
 
-from uptimely import compiler, project, spec
+from uptimely import compiler, execution_plan, project, spec
 
 
 def test_example_setup_reuses_artifacts_without_building_or_compiling(
@@ -20,7 +20,7 @@ def test_example_setup_reuses_artifacts_without_building_or_compiling(
     plan = plan_for_spec(bundle.spec_definition)
     copied_root = copy_example_project(tmp_path / "project")
 
-    assert plan.plan.to_dict() == bundle.execution_plan.plan.to_dict()
+    assert execution_plan.to_dict(plan) == execution_plan.to_dict(bundle.execution_plan)
     assert project.load_build_bundle(copied_root).manifest == bundle.manifest
     assert render_explorer(bundle.spec_definition, tmp_path / "site/index.html").is_file()
 
@@ -28,7 +28,7 @@ def test_example_setup_reuses_artifacts_without_building_or_compiling(
 def test_example_objects_and_project_copies_are_independent(tmp_path: pathlib.Path) -> None:
     first = example_bundle()
     second = example_bundle()
-    original_plan = second.execution_plan.plan.to_dict()
+    original_plan = execution_plan.to_dict(second.execution_plan)
     first.spec_definition.name = "Changed by one test"
     first.execution_plan.callables[0].arguments["test_only"] = True
     copied_root = copy_example_project(tmp_path / "project")
@@ -36,8 +36,8 @@ def test_example_objects_and_project_copies_are_independent(tmp_path: pathlib.Pa
     copied.spec_path.write_text("changed by one test", encoding="utf-8")
 
     assert second.spec_definition.name != first.spec_definition.name
-    assert second.execution_plan.plan.to_dict() == original_plan
-    assert example_bundle().execution_plan.plan.to_dict() == original_plan
+    assert execution_plan.to_dict(second.execution_plan) == original_plan
+    assert execution_plan.to_dict(example_bundle().execution_plan) == original_plan
     assert spec.load_spec(first.spec_path).name == second.spec_definition.name
 
 

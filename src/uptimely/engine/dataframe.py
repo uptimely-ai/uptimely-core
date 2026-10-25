@@ -1,6 +1,6 @@
 """Dataframe execution contracts for portable plan callables."""
 
-from uptimely.compiler import plan as plan_module
+from uptimely import execution_plan
 from uptimely.spec import model as spec_model
 from uptimely.spec import operations
 
@@ -22,7 +22,7 @@ class DataFrameExecution:
         self.spec_definition = spec_definition
         self.state = state
 
-    def validate_inputs(self, callable: plan_module.Callable) -> None:
+    def validate_inputs(self, callable: execution_plan.Callable) -> None:
         """Require declared input columns to be materialized before invocation."""
         current = self.state.datasets.get(callable.dataset_id)
         current_columns = set(self.backend.column_names(current)) if current is not None else set()
@@ -44,7 +44,7 @@ class DataFrameExecution:
 
     def validate_result(
         self,
-        callable: plan_module.Callable,
+        callable: execution_plan.Callable,
         result: object,
         input_frame: object,
         dimensions: list[str],
@@ -109,7 +109,7 @@ class DataFrameExecution:
         return self.backend.join(left, right, dimensions)
 
     def validate_fragment_keys(
-        self, callable: plan_module.Callable, fragment: object, dimensions: list[str]
+        self, callable: execution_plan.Callable, fragment: object, dimensions: list[str]
     ) -> None:
         """Validate the dimension-key contract of one dataframe fragment."""
         columns = set(self.backend.column_names(fragment))

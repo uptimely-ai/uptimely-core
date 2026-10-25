@@ -6,17 +6,15 @@ import logging
 import pathlib
 from collections import abc
 
-from uptimely import entrypoint, spec
+from uptimely import entrypoint, execution_plan, spec
 from uptimely.spec import model as spec_model
 from uptimely.spec import operations
 from uptimely.spec import references as bindings
 
 from . import callable_node as callable_node_module
-from . import execution_graph, plan
+from . import execution_graph
 
 logger = logging.getLogger(__name__)
-
-ExecutionPlan = plan.ExecutionPlan
 
 
 def _resolve_function(
@@ -54,7 +52,7 @@ class Compiler:
         else:
             self.spec_path = pathlib.Path(spec_definition)
 
-    def compile(self) -> plan.ExecutionPlan:
+    def compile(self) -> execution_plan.ExecutionPlan:
         """Build and serialize the dependency graph into a portable plan."""
         if self.spec is None:
             if self.spec_path is None:
@@ -85,19 +83,19 @@ class Compiler:
                 for location, package in packages.items()
             },
         }
-        execution_plan = plan.Plan(
-            plan_version=plan.PLAN_VERSION,
+        compiled_plan = execution_plan.ExecutionPlan(
+            plan_version=execution_plan.PLAN_VERSION,
             required_backend="polars",
             resources=resources,
             callables=callables,
             stages=stages,
         )
         logger.debug("Compiled plan: %d callables in %d stages", len(callables), len(stages))
-        return plan.ExecutionPlan(execution_plan)
+        return compiled_plan
 
     def _callable(
         self, graph: execution_graph.CallableGraph, node: callable_node_module.CallableNode
-    ) -> plan.Callable:
+    ) -> execution_plan.Callable:
         """Convert one live graph node into a portable callable DTO."""
         function = _resolve_function(self.spec, node)
         if function is None or not function.entrypoint:
@@ -117,7 +115,7 @@ class Compiler:
                 else None
             ),
         )
-        return plan.Callable(
+        return execution_plan.Callable(
             id=node.node_id,
             operation=node.operation,
             entrypoint=function.entrypoint,
@@ -141,7 +139,9 @@ class Compiler:
         return list(dict.fromkeys(features))
 
     @staticmethod
-    def _read_entrypoints(callables: list[plan.Callable]) -> dict[str, entrypoint.Entrypoint]:
+    def _read_entrypoints(
+        callables: list[execution_plan.Callable],
+    ) -> dict[str, entrypoint.Entrypoint]:
         """Parse each distinct implementation location once."""
         entrypoints: dict[str, entrypoint.Entrypoint] = {}
         for callable in callables:

@@ -9,8 +9,7 @@ import os
 import pathlib
 import typing
 
-from uptimely import project
-from uptimely.compiler import plan as uptimely_plan
+from uptimely import execution_plan, project
 from uptimely.spec import operations
 
 from . import graph_render, render
@@ -25,7 +24,7 @@ __all__ = [
 ]
 
 
-def _callable_label(callable: uptimely_plan.Callable) -> str:
+def _callable_label(callable: execution_plan.Callable) -> str:
     """Format a callable identifier with its actual bound arguments."""
     arguments = ", ".join(
         f"{name}={json.dumps(value, ensure_ascii=False, separators=(',', ':'))}"
@@ -34,7 +33,7 @@ def _callable_label(callable: uptimely_plan.Callable) -> str:
     return f"{callable.function_id}({arguments})"
 
 
-def _callable_label_lines(callable: uptimely_plan.Callable) -> list[str]:
+def _callable_label_lines(callable: execution_plan.Callable) -> list[str]:
     """Return a multiline callable signature with indented bound arguments."""
     if not callable.arguments:
         return [f"{callable.function_id}()"]
@@ -53,7 +52,7 @@ def _callable_label_lines(callable: uptimely_plan.Callable) -> list[str]:
 
 
 def _render_step(
-    position: int, callable: uptimely_plan.Callable, plan: uptimely_plan.ExecutionPlan
+    position: int, callable: execution_plan.Callable, plan: execution_plan.ExecutionPlan
 ) -> dict[str, typing.Any]:
     """Build the display model used by the execution-plan HTML templates."""
 
@@ -106,12 +105,12 @@ def _render_step(
             }
             for name, value in callable.arguments.items()
         },
-        "returns": {"type": {"engine": plan.plan.resources.get("signatures", {}).get(callable.id)}},
+        "returns": {"type": {"engine": plan.resources.get("signatures", {}).get(callable.id)}},
     }
 
 
 def _create_website_pages(
-    plan: uptimely_plan.ExecutionPlan,
+    plan: execution_plan.ExecutionPlan,
     output_directory: pathlib.Path,
     *,
     index_filename: str = project.EXPLORER_INDEX_FILE.name,
@@ -212,7 +211,7 @@ def _create_website_pages(
     environment = render.html_environment()
     graph_style = graph_render.GraphStyle()
     context = {
-        "plan_version": plan.plan.plan_version,
+        "plan_version": plan.plan_version,
         "callable_count": len(plan.callables),
         "function_count": len({step["function"] for step in steps}),
         "entity_count": len({callable.entity_id for callable in callables_in_order}),

@@ -11,6 +11,7 @@ from conftest import EXAMPLES_ROOT
 import uptimely
 from uptimely import entrypoint, spec
 from uptimely.compiler import compiler
+from uptimely.execution_plan import models as execution_plan_models
 from uptimely.spec import model, validation
 from uptimely.spec.json import codec
 from uptimely.spec.python import conversion, dataset, dimension, entity
@@ -90,6 +91,34 @@ def test_compiler_does_not_import_presentation_or_runtime_layers() -> None:
                 ), path
 
 
+def test_execution_plan_does_not_import_outer_layers() -> None:
+    directory = pathlib.Path(execution_plan_models.__file__).parent
+    for path in directory.glob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                assert all(
+                    not alias.name.startswith(
+                        (
+                            "uptimely.compiler",
+                            "uptimely.engine",
+                            "uptimely.explorer",
+                            "uptimely.project",
+                        )
+                    )
+                    for alias in node.names
+                ), path
+            elif isinstance(node, ast.ImportFrom):
+                assert not (node.module or "").startswith(
+                    (
+                        "uptimely.compiler",
+                        "uptimely.engine",
+                        "uptimely.explorer",
+                        "uptimely.project",
+                    )
+                ), path
+
+
 @pytest.mark.parametrize(
     "module",
     [
@@ -135,7 +164,7 @@ def test_json_round_trip_preserves_the_document_and_compiled_plan(
     assert reloaded == document
     first = compiler.Compiler(document).compile()
     second = compiler.Compiler(reloaded).compile()
-    assert first.plan.resources == second.plan.resources
+    assert first.resources == second.resources
     assert {
         item.id: dataclasses.replace(item, dependency_ids=sorted(item.dependency_ids))
         for item in first.callables
@@ -143,9 +172,7 @@ def test_json_round_trip_preserves_the_document_and_compiled_plan(
         item.id: dataclasses.replace(item, dependency_ids=sorted(item.dependency_ids))
         for item in second.callables
     }
-    assert [set(stage) for stage in first.plan.stages] == [
-        set(stage) for stage in second.plan.stages
-    ]
+    assert [set(stage) for stage in first.stages] == [set(stage) for stage in second.stages]
 
 
 def test_codec_preserves_function_descriptions_and_dataset_ids() -> None:
