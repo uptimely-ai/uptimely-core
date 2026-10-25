@@ -82,10 +82,10 @@ def _write_bundle(project_root: pathlib.Path) -> pathlib.Path:
     (build_root / "execution_plan.json").write_text(
         json.dumps(
             {
-                "plan_version": 1,
+                "plan_version": 2,
                 "required_backend": "polars",
                 "resources": {},
-                "callables": [],
+                "invocations": [],
                 "stages": [],
             }
         ),
@@ -145,7 +145,7 @@ def test_load_build_bundle_validates_and_loads_all_declared_artifacts(
     assert bundle.spec_definition.spec_version == 2
     assert bundle.execution_plan_path == bundle.root / "execution_plan.json"
     assert bundle.explorer_path == bundle.root / "explorer"
-    assert bundle.execution_plan.callables == []
+    assert bundle.execution_plan.invocations == []
 
 
 def test_load_build_bundle_reports_missing_build_with_quoted_recovery_command(
@@ -224,7 +224,7 @@ def test_load_build_bundle_rejects_incomplete_website_inventory(
 
 def test_load_build_bundle_rejects_invalid_saved_plan(tmp_path: pathlib.Path) -> None:
     build_root = _write_bundle(tmp_path)
-    (build_root / "execution_plan.json").write_text('{"callables": []}', encoding="utf-8")
+    (build_root / "execution_plan.json").write_text('{"invocations": []}', encoding="utf-8")
 
     with pytest.raises(project.BuildError, match="invalid.*cannot load execution plan"):
         project.load_build_bundle(tmp_path)

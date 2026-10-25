@@ -14,7 +14,7 @@ import executable function implementations.
 ## Responsibilities and phase order
 
 Document validation checks declared relationships and dataflow, not generated
-callables. Its ordered phases are:
+invocations. Its ordered phases are:
 
 1. Vectorize output declarations, dataset IDs, feature ownership, and local
    calculation/write dependencies.
@@ -123,7 +123,7 @@ and ignores its return value without materializing declared outputs.
    callers that resolve directly from the document.
 
 Semantic validation must remain independent of executable entrypoints and
-compiler-generated callables. Do not reintroduce prepared-spec objects or move
+compiler-generated invocations. Do not reintroduce prepared-spec objects or move
 signature and schedulability checks out of the compiler.
 
 <div class="api-reference" markdown="1">

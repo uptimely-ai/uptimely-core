@@ -15,23 +15,24 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
         "plan_version": plan.plan_version,
         "required_backend": plan.required_backend,
         "resources": plan.resources,
-        "callables": [
+        "invocations": [
             {
-                "id": callable.id,
-                "operation": callable.operation,
-                "entrypoint": callable.entrypoint,
-                "entity_id": callable.entity_id,
-                "dataset_id": callable.dataset_id,
-                "output": callable.output,
-                "arguments": callable.arguments,
-                "dependency_ids": callable.dependency_ids,
-                "output_features": callable.output_features,
-                "input_features": callable.input_features,
+                "id": invocation.id,
+                "operation": invocation.operation,
+                "entrypoint": invocation.entrypoint,
+                "function_id": invocation.function_id,
+                "mapping_id": invocation.mapping_id,
+                "entity_id": invocation.entity_id,
+                "dataset_id": invocation.dataset_id,
+                "arguments": invocation.arguments,
+                "dependency_ids": invocation.dependency_ids,
+                "output_features": invocation.output_features,
+                "input_features": invocation.input_features,
                 "row_context": (
-                    callable.row_context.to_dict() if callable.row_context is not None else None
+                    invocation.row_context.to_dict() if invocation.row_context is not None else None
                 ),
             }
-            for callable in plan.callables
+            for invocation in plan.invocations
         ],
         "stages": plan.stages,
     }
@@ -39,11 +40,13 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
 
 def from_dict(payload: dict[str, typing.Any]) -> models.ExecutionPlan:
     """Load a plan from a decoded JSON object."""
+    if "plan_version" in payload:
+        models._validate_plan_version(payload["plan_version"])
     required = {
         "plan_version",
         "required_backend",
         "resources",
-        "callables",
+        "invocations",
         "stages",
     }
     missing = sorted(required - payload.keys())
@@ -52,13 +55,12 @@ def from_dict(payload: dict[str, typing.Any]) -> models.ExecutionPlan:
     unexpected = sorted(payload.keys() - required)
     if unexpected:
         raise ValueError("Plan contains unknown fields: " + ", ".join(unexpected))
-    models._validate_plan_version(payload["plan_version"])
-    callables = [models.Callable(**callable) for callable in payload["callables"]]
+    invocations = [models.Invocation(**invocation) for invocation in payload["invocations"]]
     return models.ExecutionPlan(
         plan_version=payload["plan_version"],
         required_backend=payload["required_backend"],
         resources=payload["resources"],
-        callables=callables,
+        invocations=invocations,
         stages=payload["stages"],
     )
 

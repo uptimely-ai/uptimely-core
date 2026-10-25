@@ -19,11 +19,11 @@ def test_render_saved_plan_without_compiling(
 ) -> None:
     definition = spec.load_spec(SPEC_PATH)
     compiled = example_bundle().execution_plan
-    first, *remaining = compiled.callables
+    first, *remaining = compiled.invocations
     custom = dataclasses.replace(
         first, arguments={**first.arguments, "saved_plan_marker": SAVED_PLAN_MARKER}
     )
-    supplied = dataclasses.replace(compiled, callables=[custom, *remaining])
+    supplied = dataclasses.replace(compiled, invocations=[custom, *remaining])
     path = tmp_path / "plan.json"
     plan_module.export_json(supplied, path)
     supplied = plan_module.from_json(path)

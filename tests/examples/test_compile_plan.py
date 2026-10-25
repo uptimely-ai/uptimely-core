@@ -62,28 +62,30 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
         "plan_version",
         "required_backend",
         "resources",
-        "callables",
+        "invocations",
         "stages",
     }
-    assert metadata["plan_version"] == 1
-    assert {callable["operation"] for callable in metadata["callables"]} == {
+    assert metadata["plan_version"] == 2
+    assert {invocation["operation"] for invocation in metadata["invocations"]} == {
         "read",
         "collapse",
         "vectorize",
         "write",
     }
-    collapse_callable = next(
-        callable for callable in metadata["callables"] if callable["operation"] == "collapse"
+    collapse_invocation = next(
+        invocation
+        for invocation in metadata["invocations"]
+        if invocation["operation"] == "collapse"
     )
-    assert collapse_callable["entity_id"] == "pump"
-    assert collapse_callable["entrypoint"].endswith(":maximum")
-    assert collapse_callable["arguments"] == {
+    assert collapse_invocation["entity_id"] == "pump"
+    assert collapse_invocation["entrypoint"].endswith(":maximum")
+    assert collapse_invocation["arguments"] == {
         "feature": "bearing_temperature",
         "dataset": "pump_telemetry_dataset",
         "dimensions": ["plant", "production_line", "pump"],
         "output": "bearing_temperature_max",
     }
-    assert collapse_callable["output_features"] == [
+    assert collapse_invocation["output_features"] == [
         "plant",
         "production_line",
         "pump",
@@ -99,28 +101,28 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert "<title>Plan Stages</title>" in report
     assert ">Stages</span></h1>" in report
     assert "Stage 1" in report
-    assert "parallel callables" in report
+    assert "parallel invocations" in report
     assert ">Operation</dt>" in report
     assert ">Function</dt>" in report
     assert ">Produces</dt>" in report
-    assert ">Depends on callables</dt>" in report
+    assert ">Depends on invocations</dt>" in report
     assert ">Returns</dt>" in report
     assert ">health_signal_normalized</dd>" in report
     assert "md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]" in report
     assert "md:col-span-4" in report
     assert ">Maximum</h3>" in report
     assert "Open Python module" in report
-    assert "No callable dependencies" in report
+    assert "No invocation dependencies" in report
     assert "maximum</span>" in report
     source_match = re.search(r'href="([^"]*functions/analytics\.py)"', report)
     assert source_match is not None
     assert (report_path.parent / source_match.group(1)).resolve().is_file()
 
     report = (tmp_path / "plan/graph.html").read_text(encoding="utf-8")
-    assert 'id="callable-graph"' in report
+    assert 'id="invocation-graph"' in report
     assert "3d-force-graph" in report
-    assert "Callable details" in report
-    assert '"node_type": "callable"' in report
+    assert "Invocation details" in report
+    assert '"node_type": "invocation"' in report
     assert '"operation": "read"' in report
     assert '"operation": "collapse"' in report
     assert '"operation": "vectorize"' in report
@@ -129,16 +131,16 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert "Vectorize function</span>" in report
     assert "Write function</span>" in report
     assert (
-        '"source": "callable:collapse:maximum:'
+        '"source": "invocation:collapse:maximum:'
         'pump:pump_dataset:bearing_temperature_by_pump"' in report
     )
     assert (
-        '"target": "callable:vectorize:normalize_health_signal:'
+        '"target": "invocation:vectorize:normalize_health_signal:'
         'pump:pump_dataset:health_signal_normalized"' in report
     )
-    callable_script = (tmp_path / "js/callable_graph.js").read_text(encoding="utf-8")
+    invocation_script = (tmp_path / "js/invocation_graph.js").read_text(encoding="utf-8")
     shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
-    assert "ExplorerGraph.entityNodeObject(node, node.function_id, style)" in callable_script
+    assert "ExplorerGraph.entityNodeObject(node, node.function_id, style)" in invocation_script
     assert "SphereGeometry" in shared_script
 
 

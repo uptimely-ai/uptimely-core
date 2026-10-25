@@ -91,7 +91,7 @@ def _log_build_details(
     )
     logger.info("\nPlan")
     logger.info("  Number of stages: %d", len(bundle.execution_plan.stages))
-    logger.info("  Number of callables: %d", len(bundle.execution_plan.callables))
+    logger.info("  Number of invocations: %d", len(bundle.execution_plan.invocations))
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:

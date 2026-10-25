@@ -1,5 +1,5 @@
 {% from "graph/components.html.j2" import node_details_panel, graph_canvas, graph_legend %}
-<section id="callable-graph" class="absolute inset-0">
+<section id="invocation-graph" class="absolute inset-0">
 		{% call graph_legend("Execution graph legend") %}
 				<span class="legend-heading">Operations (2D)</span>
 				{% for function_type, color in graph_style.function_colors.items() %}
@@ -8,8 +8,8 @@
 				<span class="legend-heading">Entities (3D)</span>
 				<div class="entity-legend" id="entity-legend"></div>
 		{% endcall %}
-		{{ node_details_panel("details details-2d", "Callable details", "callable-node-details", "Select a callable to inspect its operation, entity, declared features, and callable dependencies.") }}
+		{{ node_details_panel("details details-2d", "Invocation details", "invocation-node-details", "Select an invocation to inspect its operation, entity, declared features, and invocation dependencies.") }}
 		{{ graph_canvas() }}
 </section>
-<script id="graph-data" type="application/json">{{ callable_graph_data|safe }}</script>
+<script id="graph-data" type="application/json">{{ invocation_graph_data|safe }}</script>
 <script id="graph-style" type="application/json">{{ graph_style_data|tojson }}</script>

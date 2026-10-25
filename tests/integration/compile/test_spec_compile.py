@@ -93,10 +93,10 @@ def test_compilation_preserves_the_saved_plan() -> None:
     assert actual["resources"]["entrypoint_packages"]
     assert {
         item["id"]: item | {"dependency_ids": sorted(item["dependency_ids"])}
-        for item in actual["callables"]
+        for item in actual["invocations"]
     } == {
         item["id"]: item | {"dependency_ids": sorted(item["dependency_ids"])}
-        for item in expected["callables"]
+        for item in expected["invocations"]
     }
     assert [set(stage) for stage in actual["stages"]] == [
         set(stage) for stage in expected["stages"]
@@ -106,19 +106,19 @@ def test_compilation_preserves_the_saved_plan() -> None:
 def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> None:
     plan = compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
     invocations = [
-        callable
-        for callable in plan.callables
-        if callable.function_id == "extract_recommendation_value"
+        invocation
+        for invocation in plan.invocations
+        if invocation.function_id == "extract_recommendation_value"
     ]
 
-    assert {callable.output for callable in invocations} == {
+    assert {feature for invocation in invocations for feature in invocation.output_features} == {
         "recommended_flow_rate",
         "recommended_discharge_pressure",
         "energy_cost_score",
         "converged",
     }
     assert len(invocations) == 4
-    assert len({callable.id for callable in invocations}) == 4
+    assert len({invocation.id for invocation in invocations}) == 4
 
 
 def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None:
@@ -173,12 +173,14 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
     )
 
     plan = compiler.Compiler().compile(definition, features=["conformed_auxiliary"])
-    conform = next(callable for callable in plan.callables if callable.operation == "conform")
+    conform = next(
+        invocation for invocation in plan.invocations if invocation.operation == "conform"
+    )
     source = next(
-        callable for callable in plan.callables if callable.id.endswith(":read_auxiliary")
+        invocation for invocation in plan.invocations if invocation.mapping_id == "read_auxiliary"
     )
     stage_by_id = {
-        callable_id: index for index, stage in enumerate(plan.stages) for callable_id in stage
+        invocation_id: index for index, stage in enumerate(plan.stages) for invocation_id in stage
     }
 
     assert source.id in conform.dependency_ids
@@ -187,26 +189,30 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
     assert restored == plan
 
 
-def test_compiler_creates_callable_graph_subset_for_requested_features() -> None:
+def test_compiler_creates_invocation_graph_subset_for_requested_features() -> None:
     plan = compiler.Compiler().compile(
         spec.load_spec(SPEC_PATH), features=["health_signal_normalized"]
     )
 
     assert [
-        callable.output
+        feature
         for stage in plan.execution_stages
-        for callable in stage
-        if callable.operation == "vectorize"
+        for invocation in stage
+        if invocation.operation == "vectorize"
+        for feature in invocation.output_features
     ] == [
         "health_signal_normalized",
     ]
-    assert {callable.operation for callable in plan.callables} == {
+    assert {invocation.operation for invocation in plan.invocations} == {
         "read",
         "collapse",
         "vectorize",
     }
     assert {
-        callable.output for callable in plan.callables if callable.operation == "vectorize"
+        feature
+        for invocation in plan.invocations
+        if invocation.operation == "vectorize"
+        for feature in invocation.output_features
     } == {
         "health_signal_normalized",
     }
@@ -227,12 +233,12 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
     plan = compiler.Compiler().compile(
         spec.load_spec(spec_path), features=["health_signal_normalized"]
     )
-    vectorize_callables = [
-        callable for callable in plan.callables if callable.operation == "vectorize"
+    vectorize_invocations = [
+        invocation for invocation in plan.invocations if invocation.operation == "vectorize"
     ]
 
-    assert len(vectorize_callables) == 1
-    assert vectorize_callables[0].output_features == [
+    assert len(vectorize_invocations) == 1
+    assert vectorize_invocations[0].output_features == [
         "health_signal_normalized",
         "health_signal_secondary",
     ]
@@ -280,31 +286,35 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
 
     selected = compiler.Compiler().compile(document, features=["external_third"])
     selected_escape_mappings = {
-        callable.id.rsplit(":", 1)[-1]
-        for callable in selected.callables
-        if callable.operation == "escape"
+        invocation.mapping_id
+        for invocation in selected.invocations
+        if invocation.operation == "escape"
     }
     assert selected_escape_mappings == {"escape_start", "escape_chain"}
     selected_start = next(
-        callable for callable in selected.callables if callable.id.endswith(":escape_start")
+        invocation for invocation in selected.invocations if invocation.mapping_id == "escape_start"
     )
     assert selected_start.output_features == ["external_first", "external_second"]
-    selected_by_id = {callable.id: callable for callable in selected.callables}
-    assert {dependency.rsplit(":", 1)[-1] for dependency in selected_start.dependency_ids} == {
+    selected_by_id = selected.invocations_by_id
+    assert {
+        selected_by_id[dependency_id].mapping_id for dependency_id in selected_start.dependency_ids
+    } == {
         "read_pump_telemetry",
         "bearing_temperature_by_pump",
     }
 
     stages = selected.execution_stages
     stage_by_mapping = {
-        callable.id.rsplit(":", 1)[-1]: stage_index
+        invocation.mapping_id: stage_index
         for stage_index, stage in enumerate(stages)
-        for callable in stage
-        if callable.operation == "escape"
+        for invocation in stage
+        if invocation.operation == "escape"
     }
     assert stage_by_mapping["escape_start"] < stage_by_mapping["escape_chain"]
     stage_by_id = {
-        callable.id: stage_index for stage_index, stage in enumerate(stages) for callable in stage
+        invocation.id: stage_index
+        for stage_index, stage in enumerate(stages)
+        for invocation in stage
     }
     assert all(
         stage_by_id[dependency] < stage_by_id[selected_start.id]
@@ -314,7 +324,7 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
 
     restored = compiler_plan.from_dict(json.loads(json.dumps(compiler_plan.to_dict(selected))))
     assert restored == selected
-    assert restored.callables == selected.callables
+    assert restored.invocations == selected.invocations
 
 
 def test_escape_return_annotations_do_not_constrain_compilation(
@@ -352,11 +362,11 @@ def test_escape_return_annotations_do_not_constrain_compilation(
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
     compiled = compiler.Compiler().compile(spec.load_spec(path))
-    escaped = {callable.function_id: callable for callable in compiled.callables}
+    escaped = {invocation.function_id: invocation for invocation in compiled.invocations}
 
     assert {
-        function_id: compiled.resources["signatures"][callable.id]
-        for function_id, callable in escaped.items()
+        function_id: compiled.resources["signatures"][invocation.id]
+        for function_id, invocation in escaped.items()
         if function_id
         in {
             "returns_none",
@@ -373,9 +383,9 @@ def test_escape_return_annotations_do_not_constrain_compilation(
         "returns_unannotated": None,
     }
     assert {
-        callable.output_features[0]
-        for callable in compiled.callables
-        if callable.operation == "escape"
+        invocation.output_features[0]
+        for invocation in compiled.invocations
+        if invocation.operation == "escape"
     } == {
         "output_returns_none",
         "output_returns_scalar",
@@ -425,11 +435,12 @@ def test_compiled_inputs_match_each_entity_dataset_mapping() -> None:
 
     assert len(datasets) > 1
     assert len({entity_id for entity_id, _ in datasets}) > 1
-    for callable in execution_plan.callables:
-        mapping_id = callable.id.rsplit(":", 1)[1]
-        mapping = datasets[callable.entity_id, callable.dataset_id].mappings[mapping_id]
-        assert callable.input_features == mapping.input_features
-        assert callable.output_features == mapping.output_features
+    for invocation in execution_plan.invocations:
+        mapping = datasets[invocation.entity_id, invocation.dataset_id].mappings[
+            invocation.mapping_id
+        ]
+        assert invocation.input_features == mapping.input_features
+        assert invocation.output_features == mapping.output_features
 
 
 def test_graph_subset_retains_dataset_mapping_lookups() -> None:

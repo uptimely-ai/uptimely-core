@@ -10,6 +10,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Execution plans now use `invocations` with explicit `function_id`
+  and `mapping_id` fields, opaque invocation IDs, and version 2. Execution
+  results expose `invocation_statuses`. Version 1 plans are rejected; rebuild
+  generated bundles from their source Specs.
 - **Breaking:** Removed the unused `CallableNode.to_render_data()`,
   `CallableGraph._node_data()`, `CallableGraph._node_key()`,
   `CallableGraph.print_graph()`, and `CallableGraph.print()` presentation

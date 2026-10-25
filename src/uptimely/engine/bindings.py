@@ -11,7 +11,7 @@ from . import state as state_module
 
 
 class RuntimeBindings:
-    """Resolve typed callable arguments, runtime placeholders, and dataframe IDs."""
+    """Resolve typed invocation arguments, runtime placeholders, and dataframe IDs."""
 
     def __init__(
         self,
@@ -24,21 +24,22 @@ class RuntimeBindings:
         self.state = state
         self.bind = bind
 
-    def resolve_args(self, callable: execution_plan.Callable) -> dict[str, object]:
+    def resolve_args(self, invocation: execution_plan.Invocation) -> dict[str, object]:
         """Bind compiled argument values to runtime values using declared argument types."""
-        function = self.spec_definition.functions.get(callable.function_id)
+        function = self.spec_definition.functions.get(invocation.function_id)
         if function is None:
-            raise ValueError(f"Unknown function: {callable.function_id}")
-        if function.operation != callable.operation:
+            raise ValueError(f"Unknown function: {invocation.function_id}")
+        if function.operation != invocation.operation:
             raise ValueError(
-                f"Callable {callable.id} operation {callable.operation} does not match "
-                f"function {callable.function_id} operation {function.operation}"
+                f"Invocation {invocation.id} for mapping {invocation.mapping_id} "
+                f"operation {invocation.operation} does not match function "
+                f"{invocation.function_id} operation {function.operation}"
             )
         return {
             name: self.resolve_value(
                 value, function.args[name].type if name in function.args else None
             )
-            for name, value in callable.arguments.items()
+            for name, value in invocation.arguments.items()
         }
 
     def resolve_value(self, value: object, argument_type: str | None = None) -> object:

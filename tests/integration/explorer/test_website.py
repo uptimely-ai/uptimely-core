@@ -140,7 +140,7 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         "functions": "#fcd34d",
         "lineage": "#e879f9",
         "feature-graph": "#2dd4bf",
-        "callables": "#fcd34d",
+        "invocations": "#fcd34d",
         "execution": "#e879f9",
         "execution-graph": "#fb923c",
         "stages": "#818cf8",
@@ -212,13 +212,13 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         plan_overview,
         re.DOTALL,
     ) == [
-        ("Callables", "callables"),
+        ("Invocations", "invocations"),
         ("Functions", "functions"),
         ("Entities", "entities"),
         ("Features", "features"),
         ("Stages", "stages"),
         ("Dependencies", "execution-graph"),
-        ("Max parallel callables", "stages"),
+        ("Max parallel invocations", "stages"),
     ]
 
 
@@ -363,7 +363,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     )
     assert "ExplorerGraph.createView(graph, graphContainer, 80, '2d')" in graph_script
     plan = (index.parent / "plan/graph.html").read_text(encoding="utf-8")
-    assert 'id="callable-graph"' in plan
+    assert 'id="invocation-graph"' in plan
     assert "normalize_health_signal" in plan
     assert not pathlib.Path("_generated/spec").exists()
     assert not pathlib.Path("_generated/compile").exists()
@@ -407,7 +407,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         "Datasets": str(len(datasets)),
         "Features": str(sum(len(dataset.features) for dataset in datasets)),
         "Functions": str(len(spec_definition.functions)),
-        "Callables": str(len(expected_plan.callables)),
+        "Invocations": str(len(expected_plan.invocations)),
         "Stages": str(len(expected_plan.execution_stages)),
     }
     assert "Spec 2" in document
@@ -580,18 +580,18 @@ def test_execution_plan_pages_render_only_their_section(
     is_graph = title == "Execution graph"
     assert heading_titles(document) == [title]
     if is_graph:
-        script = (tmp_path / "js/callable_graph.js").read_text(encoding="utf-8")
+        script = (tmp_path / "js/invocation_graph.js").read_text(encoding="utf-8")
         assert 'class="absolute inset-0"' in document
         assert document.count("<header") == 1
         assert '<header class="site-topbar"' in document
-        assert ">Callable graph</h2>" not in document
+        assert ">Invocation graph</h2>" not in document
         assert ".linkDirectionalParticles(2)" in script
         assert ".linkDirectionalArrowLength(style.arrow_length)" in script
         assert ".linkDirectionalArrowRelPos(style.arrow_rel_pos)" in script
         assert 'class="details details-2d"' in document
         if is_graph:
             assert (
-                "ExplorerGraph.createView(callableGraph, callableGraphContainer, 140, '2d')"
+                "ExplorerGraph.createView(invocationGraph, invocationGraphContainer, 140, '2d')"
                 in script
             )
             expected_label = (
@@ -651,9 +651,9 @@ def test_execution_plan_pages_render_only_their_section(
             assert ".onRenderFramePre(drawStageLanes)" in script
             assert "ctx.fillRect(left, -laneHeight / 2, 360, laneHeight)" in script
     assert ('id="plan-overview"' in document) == (title == "Overview")
-    assert ('id="callable-graph"' in document) == is_graph
-    assert ('src="../js/callable_graph.js"' in document) == is_graph
-    assert ('id="callables"' in document) == (title == "Stages")
+    assert ('id="invocation-graph"' in document) == is_graph
+    assert ('src="../js/invocation_graph.js"' in document) == is_graph
+    assert ('id="invocations"' in document) == (title == "Stages")
     assert (">Argument</th>" in document) == (title == "Stages")
     if title == "Stages":
         assert "Source dataset:" not in document
@@ -748,25 +748,26 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
     cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
     assert cards == {
-        "Callables": str(len(plan.callables)),
-        "Functions": str(len({callable.function_id for callable in plan.callables})),
-        "Entities": str(len({callable.entity_id for callable in plan.callables})),
+        "Invocations": str(len(plan.invocations)),
+        "Functions": str(len({invocation.function_id for invocation in plan.invocations})),
+        "Entities": str(len({invocation.entity_id for invocation in plan.invocations})),
         "Features": str(
             len(
                 {
-                    callable.output
-                    for callable in plan.callables
-                    if callable.operation == "vectorize" and callable.output is not None
+                    feature
+                    for invocation in plan.invocations
+                    if invocation.operation == "vectorize"
+                    for feature in invocation.output_features
                 }
             )
         ),
         "Stages": str(len(plan.execution_stages)),
-        "Dependencies": str(sum(len(callable.dependency_ids) for callable in plan.callables)),
-        "Max parallel callables": str(max(map(len, plan.execution_stages), default=0)),
+        "Dependencies": str(sum(len(invocation.dependency_ids) for invocation in plan.invocations)),
+        "Max parallel invocations": str(max(map(len, plan.execution_stages), default=0)),
     }
     assert dict(re.findall(r'data-operation="([^"]+)" data-count="(\d+)"', document)) == {
         kind: str(count)
-        for kind, count in collections.Counter(item.operation for item in plan.callables).items()
+        for kind, count in collections.Counter(item.operation for item in plan.invocations).items()
     }
     assert re.findall(r'data-stage="(\d+)" data-count="(\d+)"', document) == [
         (str(index), str(len(stage))) for index, stage in enumerate(plan.execution_stages, start=1)
@@ -778,7 +779,7 @@ def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> Non
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
 
     assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 7
-    assert "No callables." in document
+    assert "No invocations." in document
     assert "No execution stages." in document
 
 
@@ -853,7 +854,9 @@ def test_website_graph_links_reference_exported_nodes(
         assert link["target"] in identifiers
 
 
-def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pathlib.Path) -> None:
+def test_execution_plan_graphs_match_compiled_invocation_dependencies(
+    tmp_path: pathlib.Path,
+) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = plan_for_spec(spec_definition)
     render_explorer(spec_definition, tmp_path / "index.html")
@@ -863,12 +866,14 @@ def test_execution_plan_graphs_match_compiled_callable_dependencies(tmp_path: pa
     )
     assert match is not None
     payload = json.loads(match.group(1))
-    assert {node["id"] for node in payload["nodes"]} == {callable.id for callable in plan.callables}
-    assert all(node["node_type"] == "callable" for node in payload["nodes"])
+    assert {node["id"] for node in payload["nodes"]} == {
+        invocation.id for invocation in plan.invocations
+    }
+    assert all(node["node_type"] == "invocation" for node in payload["nodes"])
     assert {(link["source"], link["target"]) for link in payload["links"]} == {
-        (dependency_id, callable.id)
-        for callable in plan.callables
-        for dependency_id in callable.dependency_ids
+        (dependency_id, invocation.id)
+        for invocation in plan.invocations
+        for dependency_id in invocation.dependency_ids
     }
 
 

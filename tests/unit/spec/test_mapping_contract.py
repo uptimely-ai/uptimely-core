@@ -103,14 +103,14 @@ def _spec() -> spec.Spec:
 def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     spec_definition = _spec()
     computed = compiler.Compiler().compile(spec_definition, features=["result"])
-    assert len(computed.callables) == 2
+    assert len(computed.invocations) == 2
     assert next(
-        item for item in computed.callables if item.operation == "vectorize"
+        item for item in computed.invocations if item.operation == "vectorize"
     ).input_features == [
         "value",
     ]
     metadata = compiler.Compiler().compile(spec_definition, features=["metadata"])
-    assert all("result" not in item.output_features for item in metadata.callables)
+    assert all("result" not in item.output_features for item in metadata.invocations)
     execution = engine_for_plan(metadata, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["observations"]["metadata"].to_list() == [7, 7]
@@ -334,7 +334,7 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
         ],
     )
     compiled = compiler.Compiler().compile(spec_definition, features=["copied"])
-    assert len(compiled.callables) == 3
+    assert len(compiled.invocations) == 3
     execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["target"].sort("id")["copied"].to_list() == (

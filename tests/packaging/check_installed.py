@@ -82,7 +82,7 @@ class InstalledImportsTest(unittest.TestCase):
                 self.assertTrue((build / "explorer" / "css" / "base.css").is_file())
                 self.assertTrue((build / "explorer" / "js" / "feature_graph.js").is_file())
                 plan = json.loads((build / "execution_plan.json").read_text(encoding="utf-8"))
-                self.assertTrue(plan["callables"])
+                self.assertTrue(plan["invocations"])
                 for package in plan["resources"]["entrypoint_packages"].values():
                     self.assertEqual(package["distribution"], "uptimely-core")
                     self.assertEqual(
@@ -125,7 +125,7 @@ class InstalledImportsTest(unittest.TestCase):
                 "bundle = project.load_build_bundle(pathlib.Path(sys.argv[1]))\n"
                 "result = engine.Engine(bundle, engine.EngineConfig()).run()\n"
                 "assert not result.failures, result.failures\n"
-                "assert set(result.callable_statuses.values()) == {'succeeded'}\n"
+                "assert set(result.invocation_statuses.values()) == {'succeeded'}\n"
                 "assert sys.path == original_path\n"
                 "print(json.dumps(result.datasets['values'].to_dict(as_series=False)))\n",
                 str(project),

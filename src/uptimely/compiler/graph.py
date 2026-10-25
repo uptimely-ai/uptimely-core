@@ -36,10 +36,9 @@ class InvocationNode:
     @property
     def node_id(self) -> str:
         """Stable graph identifier for this invocation."""
-        identifier = self.mapping_id or self.feature_id or self.function_id
         return (
-            f"callable:{self.operation}:{self.function_id}:"
-            f"{self.entity_id}:{self.dataset_id}:{identifier}"
+            f"invocation:{self.operation}:{self.function_id}:"
+            f"{self.entity_id}:{self.dataset_id}:{self.mapping_id}"
         )
 
     def __str__(self) -> str:

@@ -17,29 +17,29 @@ from . import graph_render, render
 PLAN_PAGES = render.WEBSITE_PAGES["plan"]
 __all__ = [
     "PLAN_PAGES",
-    "_callable_label",
-    "_callable_label_lines",
+    "_invocation_label",
+    "_invocation_label_lines",
     "_create_website_pages",
     "_render_step",
 ]
 
 
-def _callable_label(callable: execution_plan.Callable) -> str:
-    """Format a callable identifier with its actual bound arguments."""
+def _invocation_label(invocation: execution_plan.Invocation) -> str:
+    """Format an invocation with its actual bound arguments."""
     arguments = ", ".join(
         f"{name}={json.dumps(value, ensure_ascii=False, separators=(',', ':'))}"
-        for name, value in callable.arguments.items()
+        for name, value in invocation.arguments.items()
     )
-    return f"{callable.function_id}({arguments})"
+    return f"{invocation.function_id}({arguments})"
 
 
-def _callable_label_lines(callable: execution_plan.Callable) -> list[str]:
-    """Return a multiline callable signature with indented bound arguments."""
-    if not callable.arguments:
-        return [f"{callable.function_id}()"]
+def _invocation_label_lines(invocation: execution_plan.Invocation) -> list[str]:
+    """Return a multiline invocation signature with indented bound arguments."""
+    if not invocation.arguments:
+        return [f"{invocation.function_id}()"]
 
-    arguments = list(callable.arguments.items())
-    lines = [f"{callable.function_id}("]
+    arguments = list(invocation.arguments.items())
+    lines = [f"{invocation.function_id}("]
     for index, (name, value) in enumerate(arguments):
         value_lines = json.dumps(value, ensure_ascii=False, indent=2).splitlines()
         argument_lines = [f"  {name}={value_lines[0]}"]
@@ -52,7 +52,7 @@ def _callable_label_lines(callable: execution_plan.Callable) -> list[str]:
 
 
 def _render_step(
-    position: int, callable: execution_plan.Callable, plan: execution_plan.ExecutionPlan
+    position: int, invocation: execution_plan.Invocation, plan: execution_plan.ExecutionPlan
 ) -> dict[str, typing.Any]:
     """Build the display model used by the execution-plan HTML templates."""
 
@@ -67,30 +67,26 @@ def _render_step(
 
     return {
         "position": position,
-        "function": callable.function_id,
-        "operation": callable.operation,
-        "title": callable.function_id.replace("_", " ").capitalize(),
-        "entrypoint": callable.entrypoint,
-        "entity": callable.entity_id,
-        "dataset": callable.dataset_id,
+        "function": invocation.function_id,
+        "operation": invocation.operation,
+        "title": invocation.function_id.replace("_", " ").capitalize(),
+        "entrypoint": invocation.entrypoint,
+        "entity": invocation.entity_id,
+        "dataset": invocation.dataset_id,
         "feature": (
-            ", ".join(callable.output_features)
-            if callable.operation in {operations.COLLAPSE, operations.ESCAPE}
-            else callable.output
-            if callable.operation == operations.VECTORIZE
+            ", ".join(invocation.output_features)
+            if invocation.operation in {operations.COLLAPSE, operations.ESCAPE}
+            else ", ".join(invocation.output_features)
+            if invocation.operation == operations.VECTORIZE
             else None
         ),
-        "input_features": callable.input_features,
-        "output_features": callable.output_features,
-        "uncontrolled": callable.operation == operations.ESCAPE,
-        "row_context": callable.row_context.to_dict() if callable.row_context else None,
-        "depends_on_callables": [
-            {
-                "function": dependency.split(":")[2]
-                if dependency.startswith("callable:")
-                else dependency
-            }
-            for dependency in callable.dependency_ids
+        "input_features": invocation.input_features,
+        "output_features": invocation.output_features,
+        "uncontrolled": invocation.operation == operations.ESCAPE,
+        "row_context": invocation.row_context.to_dict() if invocation.row_context else None,
+        "depends_on_invocations": [
+            {"function": plan.invocations_by_id[dependency_id].function_id}
+            for dependency_id in invocation.dependency_ids
         ],
         "args": {
             name: {
@@ -103,9 +99,9 @@ def _render_step(
                     value.get("value") if isinstance(value, dict) and "type" in value else value
                 ),
             }
-            for name, value in callable.arguments.items()
+            for name, value in invocation.arguments.items()
         },
-        "returns": {"type": {"engine": plan.resources.get("signatures", {}).get(callable.id)}},
+        "returns": {"type": {"engine": plan.resources.get("signatures", {}).get(invocation.id)}},
     }
 
 
@@ -118,7 +114,7 @@ def _create_website_pages(
     execution_scope: str = "all features",
     is_scoped: bool = False,
 ) -> None:
-    """Write linked overview, callable graph, and stage pages for a plan.
+    """Write linked overview, invocation graph, and stage pages for a plan.
 
     Args:
         plan: The compiled execution plan to render.
@@ -128,57 +124,56 @@ def _create_website_pages(
         execution_scope: Feature coverage of the rendered build.
         is_scoped: Whether the plan covers a selected feature subset.
     """
-    callables_by_stage = plan.execution_stages
-    callables_in_order = [callable for stage in callables_by_stage for callable in stage]
-    position_by_callable = {
-        callable.id: position for position, callable in enumerate(callables_in_order, start=1)
+    invocations_by_stage = plan.execution_stages
+    invocations_in_order = [invocation for stage in invocations_by_stage for invocation in stage]
+    position_by_invocation = {
+        invocation.id: position for position, invocation in enumerate(invocations_in_order, start=1)
     }
     stages = [
         {
             "stage": stage_number,
             "steps": [
-                _render_step(position_by_callable[callable.id], callable, plan)
-                for callable in stage
+                _render_step(position_by_invocation[invocation.id], invocation, plan)
+                for invocation in stage
             ],
         }
-        for stage_number, stage in enumerate(callables_by_stage, start=1)
+        for stage_number, stage in enumerate(invocations_by_stage, start=1)
     ]
     steps = [step for stage in stages for step in stage["steps"]]
-    stage_by_callable = {
-        callable.id: stage_number
-        for stage_number, stage in enumerate(callables_by_stage, start=1)
-        for callable in stage
+    stage_by_invocation = {
+        invocation.id: stage_number
+        for stage_number, stage in enumerate(invocations_by_stage, start=1)
+        for invocation in stage
     }
     graph_nodes = [
         {
-            "id": callable.id,
-            "node_type": "callable",
-            "operation": callable.operation,
-            "stage": stage_by_callable[callable.id],
-            "label": _callable_label(callable),
-            "label_lines": _callable_label_lines(callable),
-            "function_id": callable.function_id,
-            "entity": callable.entity_id,
-            "dataset_id": callable.dataset_id,
+            "id": invocation.id,
+            "node_type": "invocation",
+            "operation": invocation.operation,
+            "stage": stage_by_invocation[invocation.id],
+            "label": _invocation_label(invocation),
+            "label_lines": _invocation_label_lines(invocation),
+            "function_id": invocation.function_id,
+            "mapping_id": invocation.mapping_id,
+            "entity": invocation.entity_id,
+            "dataset_id": invocation.dataset_id,
             "feature": (
-                ", ".join(callable.output_features)
-                if callable.operation == operations.ESCAPE
-                else callable.output
-                if callable.operation == operations.VECTORIZE
+                ", ".join(invocation.output_features)
+                if invocation.operation in {operations.ESCAPE, operations.VECTORIZE}
                 else None
             ),
-            "input_features": callable.input_features,
-            "output_features": callable.output_features,
-            "dependency_ids": sorted(callable.dependency_ids),
+            "input_features": invocation.input_features,
+            "output_features": invocation.output_features,
+            "dependency_ids": sorted(invocation.dependency_ids),
         }
-        for callable in sorted(plan.callables, key=lambda callable: callable.id)
+        for invocation in sorted(plan.invocations, key=lambda item: item.id)
     ]
     graph_links = [
-        {"source": dependency_id, "target": callable.id}
-        for callable in plan.callables
-        for dependency_id in callable.dependency_ids
+        {"source": dependency_id, "target": invocation.id}
+        for invocation in plan.invocations
+        for dependency_id in invocation.dependency_ids
     ]
-    callable_graph_data = json.dumps(
+    invocation_graph_data = json.dumps(
         {
             "nodes": graph_nodes,
             "links": sorted(graph_links, key=lambda link: (link["source"], link["target"])),
@@ -195,7 +190,7 @@ def _create_website_pages(
             )
         )
         for step in stage["steps"]:
-            step["depends_on_callables"].sort(key=lambda dependency: dependency["function"])
+            step["depends_on_invocations"].sort(key=lambda dependency: dependency["function"])
             entrypoint = step["entrypoint"]
             source_path = entrypoint.partition(":")[0] if entrypoint else None
             if source_path and not source_path.endswith(".py"):
@@ -212,24 +207,25 @@ def _create_website_pages(
     graph_style = graph_render.GraphStyle()
     context = {
         "plan_version": plan.plan_version,
-        "callable_count": len(plan.callables),
+        "invocation_count": len(plan.invocations),
         "function_count": len({step["function"] for step in steps}),
-        "entity_count": len({callable.entity_id for callable in callables_in_order}),
+        "entity_count": len({invocation.entity_id for invocation in invocations_in_order}),
         "feature_count": len(
             {
-                callable.output
-                for callable in plan.callables
-                if callable.operation == operations.VECTORIZE and callable.output is not None
+                feature
+                for invocation in plan.invocations
+                if invocation.operation == operations.VECTORIZE
+                for feature in invocation.output_features
             }
         ),
         "stage_count": len(stages),
         "dependency_count": len(graph_links),
-        "max_parallel_callables": max((len(stage["steps"]) for stage in stages), default=0),
+        "max_parallel_invocations": max((len(stage["steps"]) for stage in stages), default=0),
         "operation_counts": sorted(
-            collections.Counter(callable.operation for callable in plan.callables).items()
+            collections.Counter(invocation.operation for invocation in plan.invocations).items()
         ),
         "stages": stages,
-        "callable_graph_data": callable_graph_data,
+        "invocation_graph_data": invocation_graph_data,
         "graph_style": graph_style,
         "graph_style_data": dataclasses.asdict(graph_style),
         "include_navigation": True,

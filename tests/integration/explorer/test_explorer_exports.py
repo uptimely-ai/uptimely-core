@@ -34,7 +34,7 @@ def test_spec_json_parses_compiles_and_executes() -> None:
     compiled = compiler.Compiler().compile(spec_definition, features=["total"])
     execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
 
-    assert len(compiled.callables) == 2
+    assert len(compiled.invocations) == 2
     assert not execution.failures
     assert execution.datasets["observations"].sort("id").select("id", "total").rows() == [
         (1, 3),
@@ -165,15 +165,17 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
             "outputs": ["audit_followup"],
         },
     ]
-    escape_callables = [callable for callable in plan.callables if callable.operation == "escape"]
-    assert len(escape_callables) == 2
+    escape_invocations = [
+        invocation for invocation in plan.invocations if invocation.operation == "escape"
+    ]
+    assert len(escape_invocations) == 2
     first_escape = next(
-        callable for callable in escape_callables if callable.id.endswith(":external_audit")
+        invocation for invocation in escape_invocations if invocation.mapping_id == "external_audit"
     )
     followup_escape = next(
-        callable
-        for callable in escape_callables
-        if callable.id.endswith(":external_audit_followup")
+        invocation
+        for invocation in escape_invocations
+        if invocation.mapping_id == "external_audit_followup"
     )
     assert first_escape.id in followup_escape.dependency_ids
 
@@ -201,7 +203,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     assert '"function_type": "escape"' in graph_page
     assert '"features": ["audit_reference", "audit_status"]' in graph_page
     assert '"features": ["audit_followup"]' in graph_page
-    assert "Declares external outputs" in (index.parent / "js/callable_graph.js").read_text(
+    assert "Declares external outputs" in (index.parent / "js/invocation_graph.js").read_text(
         encoding="utf-8"
     )
     assert "audit_reference, audit_status" in plan_page

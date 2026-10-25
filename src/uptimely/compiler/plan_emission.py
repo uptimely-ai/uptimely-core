@@ -12,7 +12,7 @@ from . import graph as invocation_graph
 def emit_invocations(
     spec_definition: spec.Spec,
     graph: invocation_graph.InvocationGraph,
-) -> list[execution_plan.Callable]:
+) -> list[execution_plan.Invocation]:
     """Create portable invocations for all nodes in a selected graph."""
     return [emit_invocation(spec_definition, graph, node) for node in graph.invocations]
 
@@ -21,7 +21,7 @@ def emit_invocation(
     spec_definition: spec.Spec,
     graph: invocation_graph.InvocationGraph,
     node: invocation_graph.InvocationNode,
-) -> execution_plan.Callable:
+) -> execution_plan.Invocation:
     """Create one portable invocation, resolving its arguments and dependencies."""
     function = spec_definition.functions.get(node.function_id)
     if function is None or not function.entrypoint:
@@ -33,13 +33,14 @@ def emit_invocation(
         node.dataset_id,
         _output_feature_for_binding(spec_definition, node),
     )
-    return execution_plan.Callable(
+    return execution_plan.Invocation(
         id=node.node_id,
         operation=node.operation,
         entrypoint=function.entrypoint,
+        function_id=node.function_id,
+        mapping_id=node.mapping_id,
         entity_id=node.entity_id,
         dataset_id=node.dataset_id,
-        output=node.feature_id or node.mapping_id,
         output_features=list(node.output_features),
         input_features=list(node.input_features),
         arguments=arguments,

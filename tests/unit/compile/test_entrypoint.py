@@ -88,11 +88,11 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
     assert not marker.exists()
     assert package_name not in sys.modules
     assert [set(stage) for stage in compiled.stages] == [set(stage) for stage in baseline.stages]
-    assert len(compiled.callables) == len(baseline.callables)
-    baseline_callables = {node.id: node for node in baseline.callables}
-    assert {node.id for node in compiled.callables} == set(baseline_callables)
-    for actual in compiled.callables:
-        expected = baseline_callables[actual.id]
+    assert len(compiled.invocations) == len(baseline.invocations)
+    baseline_invocations = {node.id: node for node in baseline.invocations}
+    assert {node.id for node in compiled.invocations} == set(baseline_invocations)
+    for actual in compiled.invocations:
+        expected = baseline_invocations[actual.id]
         assert set(actual.dependency_ids) == set(expected.dependency_ids)
         assert actual.input_features == expected.input_features
         assert actual.output_features == expected.output_features
@@ -143,11 +143,12 @@ def test_compiler_instance_can_compile_independent_specs_and_selections() -> Non
     complete = compiler_instance.compile(spec_definition)
     selected = compiler_instance.compile(spec_definition, features=["health_signal_normalized"])
 
-    assert len(complete.callables) > len(selected.callables)
+    assert len(complete.invocations) > len(selected.invocations)
     assert {
-        invocation.output
-        for invocation in selected.callables
+        feature
+        for invocation in selected.invocations
         if invocation.operation == "vectorize"
+        for feature in invocation.output_features
     } == {"health_signal_normalized"}
 
 
@@ -504,13 +505,13 @@ def test_compiler_inspects_each_distinct_entrypoint_once(
 
     compiled = compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
 
-    assert len(compiled.callables) > len(reads)
+    assert len(compiled.invocations) > len(reads)
     assert reads
     assert all(count == 1 for count in reads.values())
     restored = plan.from_dict(plan.to_dict(compiled))
     assert restored.resources == compiled.resources
     assert set(restored.resources["entrypoint_packages"]) == {
-        node.entrypoint for node in compiled.callables
+        node.entrypoint for node in compiled.invocations
     }
 
 

@@ -37,15 +37,15 @@ def test_disabled_signature_renders_without_importing_module_or_parent(
     function.validate_signature = False
 
     compiled = compiler.Compiler().compile(definition)
-    callable = next(item for item in compiled.callables if item.function_id == function.id)
-    step = plan_render._render_step(1, callable, compiled)
+    invocation = next(item for item in compiled.invocations if item.function_id == function.id)
+    step = plan_render._render_step(1, invocation, compiled)
     index = explorer.Explorer(definition, plan=compiled).create_html(tmp_path / "site/index.html")
     functions_page = (index.parent / "spec/functions.html").read_text(encoding="utf-8")
 
     assert not marker.exists()
     assert "signature_validation_fixture" not in sys.modules
-    assert callable.id not in compiled.resources["signatures"]
-    assert callable.input_features
+    assert invocation.id not in compiled.resources["signatures"]
+    assert invocation.input_features
     assert step["returns"]["type"]["engine"] is None
     assert "Python signature validation disabled" in functions_page
     assert function.entrypoint in functions_page

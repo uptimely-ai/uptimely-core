@@ -83,20 +83,20 @@ def test_runtime_bindings_reject_unavailable_dataframe_reference() -> None:
 def test_runtime_bindings_apply_spec_and_runtime_binding_overrides() -> None:
     spec_definition = _spec_for_plan(PLAN)
     spec_definition.functions["load"].args["source"].type = "array[string]"
-    read_callable = dataclasses.replace(
-        PLAN.callables[0], arguments={"source": ["?storage.source.path"]}
+    read_invocation = dataclasses.replace(
+        PLAN.invocations[0], arguments={"source": ["?storage.source.path"]}
     )
     bindings = _bindings(
         spec_definition=spec_definition,
         bind={"storage": {"source": {"path": "/override/input.parquet"}}},
     )
 
-    assert bindings.resolve_args(read_callable) == {"source": ["/override/input.parquet"]}
+    assert bindings.resolve_args(read_invocation) == {"source": ["/override/input.parquet"]}
 
 
 def test_runtime_bindings_reject_function_operation_mismatch() -> None:
-    read_callable = dataclasses.replace(PLAN.callables[0], operation="write")
+    read_invocation = dataclasses.replace(PLAN.invocations[0], operation="write")
     bindings = _bindings()
 
     with pytest.raises(ValueError, match="does not match function load operation read"):
-        bindings.resolve_args(read_callable)
+        bindings.resolve_args(read_invocation)

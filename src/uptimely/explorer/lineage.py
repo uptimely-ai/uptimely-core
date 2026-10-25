@@ -28,7 +28,7 @@ class DataLineageStep:
     """One processing table in dependency order."""
 
     number: int
-    callable_id: str
+    invocation_id: str
     function: str
     operation: str
     entity: str
@@ -46,24 +46,25 @@ def _build_stages(
 
     Args:
         spec_definition: Declared dimensions, datasets, and column metadata.
-        execution_plan: Compiled callables and their dependencies.
+        execution_plan: Compiled invocations and their dependencies.
 
     Returns:
         Processing tables grouped by dependency stage.
     """
     ordered_stages = [
-        sorted(stage, key=lambda callable: callable.id) for stage in execution_plan.execution_stages
+        sorted(stage, key=lambda invocation: invocation.id)
+        for stage in execution_plan.execution_stages
     ]
-    callables = [callable for stage in ordered_stages for callable in stage]
-    numbers = {callable.id: number for number, callable in enumerate(callables, 1)}
+    invocations = [invocation for stage in ordered_stages for invocation in stage]
+    numbers = {invocation.id: number for number, invocation in enumerate(invocations, 1)}
     colors = {
-        callable.id: f"hsl({(150 + number * 137) % 360}, 70%, 75%)"
-        for number, callable in enumerate(callables, 1)
+        invocation.id: f"hsl({(150 + number * 137) % 360}, 70%, 75%)"
+        for number, invocation in enumerate(invocations, 1)
     }
     producers = {
-        feature: callable
-        for callable in callables
-        for feature in callable.output_features
+        feature: invocation
+        for invocation in invocations
+        for feature in invocation.output_features
         if feature not in spec_definition.dimensions
     }
     feature_types = {
@@ -79,8 +80,8 @@ def _build_stages(
     stages: list[list[DataLineageStep]] = []
     for stage in ordered_stages:
         steps: list[DataLineageStep] = []
-        for callable in stage:
-            entity = spec_definition.entities[callable.entity_id]
+        for invocation in stage:
+            entity = spec_definition.entities[invocation.entity_id]
             dimensions = entity.dimension_ids
             columns = [
                 DataLineageColumn(
@@ -90,14 +91,14 @@ def _build_stages(
             ]
             for role, features in (
                 (
-                    "Declared input" if callable.operation == operations.ESCAPE else "Input",
-                    callable.input_features,
+                    "Declared input" if invocation.operation == operations.ESCAPE else "Input",
+                    invocation.input_features,
                 ),
                 (
                     "Declared external output"
-                    if callable.operation == operations.ESCAPE
+                    if invocation.operation == operations.ESCAPE
                     else "Output",
-                    callable.output_features,
+                    invocation.output_features,
                 ),
             ):
                 for feature in features:
@@ -118,20 +119,20 @@ def _build_stages(
                             producer is not None and producer.operation == operations.ESCAPE,
                         )
                     )
-            dataset = entity.datasets.get(callable.dataset_id)
+            dataset = entity.datasets.get(invocation.dataset_id)
             steps.append(
                 DataLineageStep(
-                    number=numbers[callable.id],
-                    callable_id=callable.id,
-                    function=callable.function_id,
-                    operation=callable.operation,
-                    entity=callable.entity_id,
-                    dataset=callable.dataset_id,
+                    number=numbers[invocation.id],
+                    invocation_id=invocation.id,
+                    function=invocation.function_id,
+                    operation=invocation.operation,
+                    entity=invocation.entity_id,
+                    dataset=invocation.dataset_id,
                     grain=dataset.row_scope.grain if dataset else "",
-                    color=colors[callable.id],
+                    color=colors[invocation.id],
                     columns=columns,
                     dependencies=sorted(
-                        numbers[dependency] for dependency in callable.dependency_ids
+                        numbers[dependency] for dependency in invocation.dependency_ids
                     ),
                 )
             )

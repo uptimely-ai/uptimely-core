@@ -2,8 +2,8 @@
 {% set style = graph_style %}
 {% block title %}Plan {{ section_title }}{% endblock %}
 {% block body %}
-{% include "plan/callable_graph.html.j2" %}
+{% include "plan/invocation_graph.html.j2" %}
 {% endblock %}
 {% block graph_script %}
-<script src="{{ root_path or "" }}js/callable_graph.js"></script>
+<script src="{{ root_path or "" }}js/invocation_graph.js"></script>
 {% endblock %}

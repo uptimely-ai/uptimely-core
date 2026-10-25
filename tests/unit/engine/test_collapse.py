@@ -156,8 +156,8 @@ def _spec(*, lazy=False, empty=False):
 def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
     spec_definition = _spec(lazy=lazy)
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
-    assert not any("unneeded" in item.output_features for item in plan.callables)
-    collapse = next(item for item in plan.callables if item.operation == "collapse")
+    assert not any("unneeded" in item.output_features for item in plan.invocations)
+    collapse = next(item for item in plan.invocations if item.operation == "collapse")
     assert collapse.input_features == ["value", "doubled"]
     assert len(collapse.dependency_ids) == 2
     result = engine_for_plan(plan, spec_definition=spec_definition).run()
