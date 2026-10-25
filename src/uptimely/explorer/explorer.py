@@ -2,7 +2,7 @@
 
 import pathlib
 
-from uptimely import execution_plan, project, spec
+from uptimely import execution_plan, project_paths, spec
 
 from . import graph_render, lineage, plan_render, render, spec_render
 
@@ -39,7 +39,7 @@ class Explorer:
         Individual HTML report and subset-graph exports are not supported.
 
         Args:
-            output_path: Index file; defaults to ``project.EXPLORER_INDEX_FILE``.
+            output_path: Index file; defaults to ``project_paths.EXPLORER_INDEX_FILE``.
                 Section pages are written in spec, plan, and execution subdirectories;
                 scripts and styles are written in js and css subdirectories.
             include_generated_at: Include a timestamp on the spec page.
@@ -48,7 +48,9 @@ class Explorer:
             The path to the website index.
         """
         target = (
-            pathlib.Path(output_path) if output_path is not None else project.EXPLORER_INDEX_FILE
+            pathlib.Path(output_path)
+            if output_path is not None
+            else project_paths.EXPLORER_INDEX_FILE
         )
         target = target.with_suffix(".html")
         plan = self.plan

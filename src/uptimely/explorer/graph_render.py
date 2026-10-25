@@ -7,7 +7,7 @@ import typing
 
 from graphable import views
 
-from uptimely import project
+from uptimely import project_paths
 from uptimely.spec import operations
 
 from . import render
@@ -55,7 +55,7 @@ def _render_graph_html(
     links: list[dict[str, str]],
     style: GraphStyle | None = None,
     *,
-    index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    index_filename: str = project_paths.EXPLORER_INDEX_FILE.name,
     project_name: str | None = None,
     execution_scope: str = "all features",
     is_scoped: bool = False,
@@ -129,7 +129,7 @@ def _create_website_pages(
     graph: "GraphBase",
     output_directory: pathlib.Path,
     *,
-    index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    index_filename: str = project_paths.EXPLORER_INDEX_FILE.name,
     project_name: str | None = None,
     execution_scope: str = "all features",
     is_scoped: bool = False,

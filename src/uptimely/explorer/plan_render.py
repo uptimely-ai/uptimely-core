@@ -9,7 +9,7 @@ import os
 import pathlib
 import typing
 
-from uptimely import execution_plan, project
+from uptimely import execution_plan, project_paths
 from uptimely.spec import operations
 
 from . import graph_render, render
@@ -52,9 +52,14 @@ def _invocation_label_lines(invocation: execution_plan.Invocation) -> list[str]:
 
 
 def _render_step(
-    position: int, invocation: execution_plan.Invocation, plan: execution_plan.ExecutionPlan
+    position: int,
+    invocation: execution_plan.Invocation,
+    plan: execution_plan.ExecutionPlan,
+    invocations_by_id: typing.Mapping[str, execution_plan.Invocation] | None = None,
 ) -> dict[str, typing.Any]:
     """Build the display model used by the execution-plan HTML templates."""
+    if invocations_by_id is None:
+        invocations_by_id = plan.invocations_by_id
 
     def display_value(value: object) -> object:
         if isinstance(value, dict):
@@ -73,19 +78,15 @@ def _render_step(
         "entrypoint": invocation.entrypoint,
         "entity": invocation.entity_id,
         "dataset": invocation.dataset_id,
-        "feature": (
-            ", ".join(invocation.output_features)
-            if invocation.operation in {operations.COLLAPSE, operations.ESCAPE}
-            else ", ".join(invocation.output_features)
-            if invocation.operation == operations.VECTORIZE
-            else None
-        ),
+        "feature": ", ".join(invocation.output_features)
+        if invocation.operation in {operations.COLLAPSE, operations.ESCAPE, operations.VECTORIZE}
+        else None,
         "input_features": invocation.input_features,
         "output_features": invocation.output_features,
         "uncontrolled": invocation.operation == operations.ESCAPE,
         "row_context": invocation.row_context.to_dict() if invocation.row_context else None,
         "depends_on_invocations": [
-            {"function": plan.invocations_by_id[dependency_id].function_id}
+            {"function": invocations_by_id[dependency_id].function_id}
             for dependency_id in invocation.dependency_ids
         ],
         "args": {
@@ -109,7 +110,7 @@ def _create_website_pages(
     plan: execution_plan.ExecutionPlan,
     output_directory: pathlib.Path,
     *,
-    index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    index_filename: str = project_paths.EXPLORER_INDEX_FILE.name,
     project_name: str | None = None,
     execution_scope: str = "all features",
     is_scoped: bool = False,
@@ -126,6 +127,7 @@ def _create_website_pages(
     """
     invocations_by_stage = plan.execution_stages
     invocations_in_order = [invocation for stage in invocations_by_stage for invocation in stage]
+    invocations_by_id = {invocation.id: invocation for invocation in invocations_in_order}
     position_by_invocation = {
         invocation.id: position for position, invocation in enumerate(invocations_in_order, start=1)
     }
@@ -133,7 +135,12 @@ def _create_website_pages(
         {
             "stage": stage_number,
             "steps": [
-                _render_step(position_by_invocation[invocation.id], invocation, plan)
+                _render_step(
+                    position_by_invocation[invocation.id],
+                    invocation,
+                    plan,
+                    invocations_by_id,
+                )
                 for invocation in stage
             ],
         }

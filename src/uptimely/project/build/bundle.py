@@ -9,10 +9,10 @@ import typing
 
 import pydantic
 
+from uptimely import project_paths as paths
 from uptimely import spec
 from uptimely.execution_plan import models as plan_models
 from uptimely.execution_plan import serialization as plan_serialization
-from uptimely.project import paths
 from uptimely.project.build import errors, locking, models
 
 

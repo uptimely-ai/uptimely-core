@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import pathlib
 
-from uptimely import execution_plan, project, spec
+from uptimely import execution_plan, project_paths, spec
 from uptimely.spec import operations
 
 from . import render
@@ -145,7 +145,7 @@ def _create_website_page(
     execution_plan: execution_plan.ExecutionPlan,
     output_directory: pathlib.Path,
     *,
-    index_filename: str = project.EXPLORER_INDEX_FILE.name,
+    index_filename: str = project_paths.EXPLORER_INDEX_FILE.name,
     execution_scope: str = "all features",
     is_scoped: bool = False,
 ) -> None:
