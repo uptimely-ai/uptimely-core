@@ -161,8 +161,8 @@ def test_json_round_trip_preserves_the_document_and_compiled_plan(
 
     reloaded = spec.load_spec(path)
     assert reloaded == document
-    first = compiler.Compiler(document).compile()
-    second = compiler.Compiler(reloaded).compile()
+    first = compiler.Compiler().compile(document)
+    second = compiler.Compiler().compile(reloaded)
     assert first.resources == second.resources
     assert {
         item.id: dataclasses.replace(item, dependency_ids=sorted(item.dependency_ids))

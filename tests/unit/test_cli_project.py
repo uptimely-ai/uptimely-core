@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+from collections import abc
 
 import pytest
 from conftest import EXAMPLES_ROOT, copy_example_project, example_bundle
@@ -264,9 +265,13 @@ def test_project_build_keeps_warnings_visible(
     copy_project_spec(root)
     original_compile = project_build.compiler.Compiler.compile
 
-    def compile_with_warning(self: project_build.compiler.Compiler) -> plan_module.ExecutionPlan:
+    def compile_with_warning(
+        self: project_build.compiler.Compiler,
+        spec_definition: spec.Spec,
+        features: abc.Collection[str] | None = None,
+    ) -> plan_module.ExecutionPlan:
         compiler_module.logger.warning("Build warning")
-        return original_compile(self)
+        return original_compile(self, spec_definition, features)
 
     monkeypatch.setattr(project_build.compiler.Compiler, "compile", compile_with_warning)
 
@@ -326,10 +331,14 @@ def test_project_build_compiles_once_and_renders_the_compiled_plan(
     original_compile = project_build.compiler.Compiler.compile
     original_create_html = explorer_module.Explorer.create_html
 
-    def compile_once(self: project_build.compiler.Compiler) -> plan_module.ExecutionPlan:
-        execution_plan = original_compile(self)
-        compiled.append(execution_plan)
-        return execution_plan
+    def compile_once(
+        self: project_build.compiler.Compiler,
+        spec_definition: spec.Spec,
+        features: abc.Collection[str] | None = None,
+    ) -> plan_module.ExecutionPlan:
+        compiled_plan = original_compile(self, spec_definition, features)
+        compiled.append(compiled_plan)
+        return compiled_plan
 
     def render_compiled_plan(
         self: explorer_module.Explorer, *args: object, **kwargs: object
@@ -372,7 +381,11 @@ def test_project_build_failures_preserve_previous_bundle(
 
     if stage == "compile":
 
-        def fail_compile(self: object) -> None:
+        def fail_compile(
+            self: object,
+            spec_definition: spec.Spec,
+            features: abc.Collection[str] | None = None,
+        ) -> None:
             raise ValueError("Injected compile failure")
 
         monkeypatch.setattr(project_build.compiler.Compiler, "compile", fail_compile)

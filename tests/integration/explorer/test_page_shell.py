@@ -70,7 +70,7 @@ def test_top_bar_project_name_is_escaped_with_untitled_fallback(
     tmp_path: pathlib.Path, name: str | None, expected: str
 ) -> None:
     definition = spec.Spec(name=name)
-    plan = compiler.Compiler(definition).compile()
+    plan = compiler.Compiler().compile(definition)
     explorer.Explorer(definition, plan=plan).create_html(tmp_path / "index.html")
     for path in tmp_path.rglob("*.html"):
         document = path.read_text(encoding="utf-8")

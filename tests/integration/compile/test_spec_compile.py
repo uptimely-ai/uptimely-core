@@ -6,6 +6,7 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import compiler, spec
 from uptimely import execution_plan as compiler_plan
+from uptimely.compiler import inspection
 from uptimely.spec import model as spec_model
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -83,7 +84,7 @@ def _escape_spec_configuration() -> dict:
 
 def test_compilation_preserves_the_saved_plan() -> None:
     expected = json.loads(SPEC_PATH.with_name("execution_plan.json").read_text(encoding="utf-8"))
-    actual = compiler_plan.to_dict(compiler.Compiler(SPEC_PATH).compile())
+    actual = compiler_plan.to_dict(compiler.Compiler().compile(spec.load_spec(SPEC_PATH)))
 
     assert actual.keys() == expected.keys()
     assert actual["plan_version"] == expected["plan_version"]
@@ -103,7 +104,7 @@ def test_compilation_preserves_the_saved_plan() -> None:
 
 
 def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> None:
-    plan = compiler.Compiler(SPEC_PATH).compile()
+    plan = compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
     invocations = [
         callable
         for callable in plan.callables
@@ -171,7 +172,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         },
     )
 
-    plan = compiler.Compiler(definition, features=["conformed_auxiliary"]).compile()
+    plan = compiler.Compiler().compile(definition, features=["conformed_auxiliary"])
     conform = next(callable for callable in plan.callables if callable.operation == "conform")
     source = next(
         callable for callable in plan.callables if callable.id.endswith(":read_auxiliary")
@@ -187,7 +188,9 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
 
 
 def test_compiler_creates_callable_graph_subset_for_requested_features() -> None:
-    plan = compiler.Compiler(SPEC_PATH, features=["health_signal_normalized"]).compile()
+    plan = compiler.Compiler().compile(
+        spec.load_spec(SPEC_PATH), features=["health_signal_normalized"]
+    )
 
     assert [
         callable.output
@@ -209,7 +212,7 @@ def test_compiler_creates_callable_graph_subset_for_requested_features() -> None
     }
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
-        compiler.Compiler(SPEC_PATH, features=["missing"]).compile()
+        compiler.Compiler().compile(spec.load_spec(SPEC_PATH), features=["missing"])
 
 
 def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
@@ -221,7 +224,9 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(spec_definition), encoding="utf-8")
 
-    plan = compiler.Compiler(spec_path, features=["health_signal_normalized"]).compile()
+    plan = compiler.Compiler().compile(
+        spec.load_spec(spec_path), features=["health_signal_normalized"]
+    )
     vectorize_callables = [
         callable for callable in plan.callables if callable.operation == "vectorize"
     ]
@@ -273,7 +278,7 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
             node.mapping_id for node in subset.invocations if node.operation == "escape"
         } == expected_mappings
 
-    selected = compiler.Compiler(document, features=["external_third"]).compile()
+    selected = compiler.Compiler().compile(document, features=["external_third"])
     selected_escape_mappings = {
         callable.id.rsplit(":", 1)[-1]
         for callable in selected.callables
@@ -346,7 +351,7 @@ def test_escape_return_annotations_do_not_constrain_compilation(
     path = tmp_path / "escape_signatures.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    compiled = compiler.Compiler(spec.load_spec(path)).compile()
+    compiled = compiler.Compiler().compile(spec.load_spec(path))
     escaped = {callable.function_id: callable for callable in compiled.callables}
 
     assert {
@@ -384,7 +389,7 @@ def test_controlled_function_return_annotations_remain_validated() -> None:
     function = spec.load_spec(SPEC_PATH).functions["pressure_flow_efficiency"]
 
     with pytest.raises(ValueError, match="expected DataFrame or LazyFrame"):
-        compiler.Compiler._validate_return_annotation(function, "int")
+        inspection.validate_return_annotation(function, "int")
 
 
 def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> None:
@@ -411,7 +416,7 @@ def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> No
 
 def test_compiled_inputs_match_each_entity_dataset_mapping() -> None:
     document = spec.load_spec(SPEC_PATH)
-    execution_plan = compiler.Compiler(document).compile()
+    execution_plan = compiler.Compiler().compile(document)
     datasets = {
         (entity_id, dataset.id): dataset
         for entity_id, entity in document.entities.items()
@@ -455,4 +460,4 @@ def test_graph_rejects_duplicate_datasets_before_indexing() -> None:
     entities[1].datasets[dataset.id] = dataset.model_copy(deep=True)
 
     with pytest.raises(ValueError, match="Duplicate dataset id"):
-        compiler.Compiler(document).compile()
+        compiler.Compiler().compile(document)

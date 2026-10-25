@@ -27,7 +27,7 @@ def isolate_package_index() -> abc.Iterator[None]:
 
 def test_compiler_rejects_string_feature_selection() -> None:
     with pytest.raises(ValueError, match="features must be a collection"):
-        compiler.Compiler(SPEC_PATH, features="health_signal_normalized")
+        compiler.Compiler().compile(spec.load_spec(SPEC_PATH), features="health_signal_normalized")
 
 
 @pytest.mark.parametrize(
@@ -38,8 +38,8 @@ def test_compiler_rejects_missing_function_entrypoints(category: str, function_i
     spec_definition = spec.load_spec(SPEC_PATH)
     spec_definition.functions[function_id].entrypoint = ""
 
-    with pytest.raises(ValueError, match=f"Missing entrypoint for function: {function_id}"):
-        compiler.Compiler(spec_definition).compile()
+    with pytest.raises(ValueError, match=f"Missing entrypoint for function {function_id}"):
+        compiler.Compiler().compile(spec_definition)
 
 
 def test_compiler_reports_unreadable_function_signatures() -> None:
@@ -49,7 +49,7 @@ def test_compiler_reports_unreadable_function_signatures() -> None:
     with pytest.raises(
         ValueError, match="Invalid entrypoint for function pressure_flow_efficiency"
     ):
-        compiler.Compiler(spec_definition).compile()
+        compiler.Compiler().compile(spec_definition)
 
 
 def test_explorer_context_reports_unloadable_function_modules() -> None:
@@ -83,7 +83,7 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
     function.entrypoint = f"{package_name}.calculation:calculate"
     function.validate_signature = False
 
-    compiled = compiler.Compiler(spec_definition).compile()
+    compiled = compiler.Compiler().compile(spec_definition)
 
     assert not marker.exists()
     assert package_name not in sys.modules
@@ -110,7 +110,7 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
     with pytest.raises(
         ValueError, match="Could not read signature.*uptimely_test_missing_dependency"
     ):
-        compiler.Compiler(spec_definition).compile()
+        compiler.Compiler().compile(spec_definition)
 
 
 def test_compiler_still_checks_other_functions_when_a_signature_is_disabled() -> None:
@@ -119,7 +119,7 @@ def test_compiler_still_checks_other_functions_when_a_signature_is_disabled() ->
     spec_definition.functions["maximum"].entrypoint = "uptimely_test_missing_dependency:calculate"
 
     with pytest.raises(ValueError, match="Could not read signature.*maximum"):
-        compiler.Compiler(spec_definition).compile()
+        compiler.Compiler().compile(spec_definition)
 
 
 def test_compiler_still_validates_spec_when_signature_validation_is_disabled() -> None:
@@ -133,7 +133,22 @@ def test_compiler_still_validates_spec_when_signature_validation_is_disabled() -
     mapping.features.inputs = ["$features.missing_input"]
 
     with pytest.raises(ValueError, match="unknown input feature"):
-        compiler.Compiler(spec_definition).compile()
+        compiler.Compiler().compile(spec_definition)
+
+
+def test_compiler_instance_can_compile_independent_specs_and_selections() -> None:
+    compiler_instance = compiler.Compiler()
+    spec_definition = spec.load_spec(SPEC_PATH)
+
+    complete = compiler_instance.compile(spec_definition)
+    selected = compiler_instance.compile(spec_definition, features=["health_signal_normalized"])
+
+    assert len(complete.callables) > len(selected.callables)
+    assert {
+        invocation.output
+        for invocation in selected.callables
+        if invocation.operation == "vectorize"
+    } == {"health_signal_normalized"}
 
 
 def test_compiler_skips_disabled_return_annotation_validation(
@@ -152,11 +167,11 @@ def test_compiler_skips_disabled_return_annotation_validation(
     function.entrypoint = f"{package_name}.calculation:calculate"
     function.validate_signature = False
 
-    compiler.Compiler(spec_definition).compile()
+    compiler.Compiler().compile(spec_definition)
 
     function.validate_signature = True
     with pytest.raises(ValueError, match="Python return annotation is int"):
-        compiler.Compiler(spec_definition).compile()
+        compiler.Compiler().compile(spec_definition)
 
 
 @pytest.mark.parametrize("validate_signature", [False, True])
@@ -172,7 +187,7 @@ def test_compiler_checks_entrypoint_syntax_when_signature_validation_is_disabled
         ValueError,
         match="Invalid entrypoint for function pressure_flow_efficiency",
     ):
-        compiler.Compiler(spec_definition).compile()
+        compiler.Compiler().compile(spec_definition)
 
 
 @pytest.mark.parametrize(
@@ -353,8 +368,8 @@ def test_package_index_is_scanned_once_across_modules_and_compilations(
     )
     shared_entrypoint.PackageProvenance.read("first_package.module")
     shared_entrypoint.PackageProvenance.read("second_package.module")
-    compiler.Compiler(SPEC_PATH).compile()
-    compiler.Compiler(SPEC_PATH).compile()
+    compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
+    compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
 
     assert scans == 1
 
@@ -487,7 +502,7 @@ def test_compiler_inspects_each_distinct_entrypoint_once(
 
     monkeypatch.setattr(shared_entrypoint.Signature, "read", classmethod(read))
 
-    compiled = compiler.Compiler(SPEC_PATH).compile()
+    compiled = compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
 
     assert len(compiled.callables) > len(reads)
     assert reads

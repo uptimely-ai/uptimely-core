@@ -44,7 +44,7 @@ def mapping_operation(mapping: spec_model.Mapping, catalog: spec_model.FunctionC
 
 def structural_references(value: typing.Any, prefix: str) -> list[str]:
     """Collect reference identifiers from nested bindings, retaining their order."""
-    if hasattr(value, "model_dump"):
+    if isinstance(value, pydantic.BaseModel):
         value = value.model_dump()
     if isinstance(value, str):
         if value.startswith(prefix):

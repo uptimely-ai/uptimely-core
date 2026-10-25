@@ -36,7 +36,7 @@ def test_disabled_signature_renders_without_importing_module_or_parent(
     function.entrypoint = "signature_validation_fixture.calculation:calculate"
     function.validate_signature = False
 
-    compiled = compiler.Compiler(definition).compile()
+    compiled = compiler.Compiler().compile(definition)
     callable = next(item for item in compiled.callables if item.function_id == function.id)
     step = plan_render._render_step(1, callable, compiled)
     index = explorer.Explorer(definition, plan=compiled).create_html(tmp_path / "site/index.html")

@@ -19,7 +19,7 @@ def test_escape_example_reads_calculates_and_writes_without_materializing_output
 ) -> None:
     """The declared boundary compiles while the function owns internal I/O."""
     spec_definition = spec.load_spec(SPEC_PATH)
-    compiled = compiler.Compiler(spec_definition).compile()
+    compiled = compiler.Compiler().compile(spec_definition)
     plan_path = tmp_path / "execution_plan.json"
     plan_module.export_json(compiled, plan_path)
     saved_plan = plan_module.from_json(plan_path)

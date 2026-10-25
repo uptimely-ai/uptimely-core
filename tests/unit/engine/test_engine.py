@@ -590,7 +590,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
         dimensions=[dimension.Dimension(id="asset_id", type="string")],
     )
 
-    compiled = uptimely_compiler.Compiler(spec_definition, features=["external_result"]).compile()
+    compiled = uptimely_compiler.Compiler().compile(spec_definition, features=["external_result"])
     plan_serialization.export_json(compiled, plan_path)
     restored = uptimely_plan.from_json(plan_path)
     result = _engine(restored, project_root=tmp_path).run()

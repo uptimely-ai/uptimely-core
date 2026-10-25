@@ -5,6 +5,21 @@
 The compiler graph provides dependency and topology queries; presentation and
 graph formatting are owned by Explorer.
 
+Load a Spec with `uptimely.spec.load_spec` (or create one with
+`uptimely.spec.from_python`), then compile it:
+
+```python
+from uptimely import compiler, spec
+
+specification = spec.load_spec("spec.json")
+plan = compiler.Compiler().compile(specification, features=["health_signal_normalized"])
+```
+
+Compilation validates the current Spec, so semantic changes made after loading
+are checked before graph construction.
+The phases are validation, graph construction and feature selection, scheduling,
+portable invocation creation, implementation inspection, and plan assembly.
+
 <div class="api-reference" markdown="1">
 
 ## compiler
