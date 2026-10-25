@@ -6,9 +6,13 @@ import uptimely.compiler as compiler
 import uptimely.engine as engine
 import uptimely.execution_plan as execution_plan
 import uptimely.spec as spec
-from uptimely.compiler.callable_node import CallableNode as CallableNodeImplementation
 from uptimely.compiler.compiler import Compiler as CompilerImplementation
-from uptimely.compiler.execution_graph import CallableGraph as CallableGraphImplementation
+from uptimely.compiler.graph import (
+    InvocationGraph as InvocationGraphImplementation,
+)
+from uptimely.compiler.graph import (
+    InvocationNode as InvocationNodeImplementation,
+)
 from uptimely.engine.config import EngineConfig
 from uptimely.engine.engine import Engine as EngineImplementation
 from uptimely.execution_plan.models import ExecutionPlan
@@ -33,6 +37,8 @@ def test_removed_compatibility_paths_are_unavailable_in_fresh_process() -> None:
         "uptimely.compiler.plan",
         "uptimely.compiler.plan.models",
         "uptimely.compiler.plan.serialization",
+        "uptimely.compiler.callable_node",
+        "uptimely.compiler.execution_graph",
         "uptimely.spec.explorer_render",
         "uptimely.spec.graph_render",
         "uptimely.spec.feature_graph.render",
@@ -79,8 +85,8 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert uptimely.PythonSpec is spec.PythonSpec
     assert uptimely.SubGraph is spec.SubGraph is SubGraph
 
-    assert uptimely.CallableGraph is compiler.CallableGraph is CallableGraphImplementation
-    assert uptimely.CallableNode is compiler.CallableNode is CallableNodeImplementation
+    assert uptimely.InvocationGraph is compiler.InvocationGraph is InvocationGraphImplementation
+    assert uptimely.InvocationNode is compiler.InvocationNode is InvocationNodeImplementation
     assert uptimely.Compiler is compiler.Compiler is CompilerImplementation
     assert uptimely.ExecutionPlan is compiler.ExecutionPlan is ExecutionPlan
     assert uptimely.Engine is engine.Engine is EngineImplementation

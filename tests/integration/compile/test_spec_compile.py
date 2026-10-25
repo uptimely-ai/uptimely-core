@@ -237,10 +237,10 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
     path = tmp_path / "escape_spec.json"
     path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
     document = spec.load_spec(path)
-    graph = compiler.CallableGraph(document)
-    by_mapping = {node.mapping_id: node for node in graph.callables}
+    graph = compiler.InvocationGraph(document)
+    by_mapping = {node.mapping_id: node for node in graph.invocations}
 
-    assert {node.mapping_id for node in graph.callables if node.operation == "escape"} == {
+    assert {node.mapping_id for node in graph.invocations if node.operation == "escape"} == {
         "escape_start",
         "escape_chain",
         "escape_unrelated",
@@ -256,7 +256,7 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
     } == {"read_pump_telemetry"}
 
     escape_ids = {node.node_id for node in by_mapping.values() if node.operation == "escape"}
-    for node in graph.callables:
+    for node in graph.invocations:
         if node.operation in {"vectorize", "write"}:
             assert not escape_ids.intersection(
                 dependency.node_id for dependency in graph.dependencies(node)
@@ -270,7 +270,7 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
     ):
         subset = graph.subset([feature_id])
         assert {
-            node.mapping_id for node in subset.callables if node.operation == "escape"
+            node.mapping_id for node in subset.invocations if node.operation == "escape"
         } == expected_mappings
 
     selected = compiler.Compiler(document, features=["external_third"]).compile()
@@ -387,23 +387,23 @@ def test_controlled_function_return_annotations_remain_validated() -> None:
         compiler.Compiler._validate_return_annotation(function, "int")
 
 
-def test_callable_graph_subset_contains_requested_output_and_ancestors() -> None:
-    graph = compiler.CallableGraph(spec.load_spec(SPEC_PATH))
+def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> None:
+    graph = compiler.InvocationGraph(spec.load_spec(SPEC_PATH))
 
     subset = graph.subset(["health_signal_normalized"])
     normalized = next(
-        node for node in subset.callables if node.feature == "health_signal_normalized"
+        node for node in subset.invocations if node.feature_id == "health_signal_normalized"
     )
 
     assert [
-        node.feature for node in subset.get_callable_order() if node.operation == "vectorize"
+        node.feature_id for node in subset.get_invocation_order() if node.operation == "vectorize"
     ] == [
         "health_signal_normalized",
     ]
     assert {(node.operation, node.function_id) for node in subset.dependencies(normalized)} == {
         ("collapse", "maximum"),
     }
-    assert len(graph.callables) == 13
+    assert len(graph.invocations) == 13
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
         graph.subset(["missing"])
@@ -427,13 +427,15 @@ def test_compiled_inputs_match_each_entity_dataset_mapping() -> None:
         assert callable.output_features == mapping.output_features
 
 
-def test_graph_subset_retains_validated_dataset_mapping_lookups() -> None:
+def test_graph_subset_retains_dataset_mapping_lookups() -> None:
     document = spec.load_spec(SPEC_PATH)
-    graph = compiler.CallableGraph(document)
+    graph = compiler.InvocationGraph(document)
     subset = graph.subset(["health_signal_normalized"])
 
-    for node in subset.callables:
-        assert graph.dataset_for(node) is document.entities[node.entity].datasets[node.dataset_id]
+    for node in subset.invocations:
+        assert (
+            graph.dataset_for(node) is document.entities[node.entity_id].datasets[node.dataset_id]
+        )
         assert subset.dataset_for(node) is graph.dataset_for(node)
         assert subset.mapping_for(node) is graph.mapping_for(node)
         assert {dependency.node_id for dependency in subset.dependencies(node)} == {
@@ -441,8 +443,8 @@ def test_graph_subset_retains_validated_dataset_mapping_lookups() -> None:
         }
 
     nested_subset = subset.subset(["health_signal_normalized"])
-    assert {node.node_id for node in nested_subset.callables} == {
-        node.node_id for node in subset.callables
+    assert {node.node_id for node in nested_subset.invocations} == {
+        node.node_id for node in subset.invocations
     }
 
 
@@ -453,4 +455,4 @@ def test_graph_rejects_duplicate_datasets_before_indexing() -> None:
     entities[1].datasets[dataset.id] = dataset.model_copy(deep=True)
 
     with pytest.raises(ValueError, match="Duplicate dataset id"):
-        compiler.CallableGraph(document)
+        compiler.Compiler(document).compile()

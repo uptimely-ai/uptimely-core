@@ -12,14 +12,12 @@ from .spec import (  # noqa: I001
     load_spec,
     write_document,
 )
-from .compiler import CallableGraph, CallableNode, Compiler
+from .compiler import Compiler, InvocationGraph, InvocationNode
 from .execution_plan.models import ExecutionPlan
 from .engine import Engine
 
 __all__ = [
     "Spec",
-    "CallableGraph",
-    "CallableNode",
     "Compiler",
     "Dimension",
     "Entity",
@@ -31,4 +29,6 @@ __all__ = [
     "SubGraph",
     "FeatureGraph",
     "Engine",
+    "InvocationGraph",
+    "InvocationNode",
 ]

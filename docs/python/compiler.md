@@ -17,26 +17,16 @@ graph formatting are owned by Explorer.
       show_root_heading: false
       members: [Compiler]
 
-## callable_node
+## graph
 
-`uptimely.compiler.callable_node` represents a function invocation in the
-compilation graph.
+`uptimely.compiler.graph` defines invocation nodes and organizes their
+dependencies.
 
-::: uptimely.compiler.callable_node
+::: uptimely.compiler.graph
     options:
       heading_level: 3
       show_root_heading: false
-      members: [CallableNode]
-
-## execution_graph
-
-`uptimely.compiler.execution_graph` organizes invocation dependencies.
-
-::: uptimely.compiler.execution_graph
-    options:
-      heading_level: 3
-      show_root_heading: false
-      members: [CallableGraph]
+      members: [InvocationNode, InvocationGraph]
 
 ## execution_plan.models
 
