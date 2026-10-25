@@ -32,12 +32,14 @@ def test_escape_example_reads_calculates_and_writes_without_materializing_output
         spec_definition=spec_definition,
     ).run()
 
-    escape = next(callable for callable in saved_plan.callables if callable.operation == "escape")
+    escape = next(
+        invocation for invocation in saved_plan.invocations if invocation.operation == "escape"
+    )
     assert escape.operation == "escape"
     assert escape.input_features == ["measurement", "reference_value"]
     assert escape.output_features == ["ratio"]
-    assert result.callable_statuses[escape.id] == "succeeded"
-    assert all(status == "succeeded" for status in result.callable_statuses.values())
+    assert result.invocation_statuses[escape.id] == "succeeded"
+    assert all(status == "succeeded" for status in result.invocation_statuses.values())
     assert result.failures == {}
     assert len(result.datasets) == 1
     assert "ratio" not in result.datasets["external_workflow"].columns

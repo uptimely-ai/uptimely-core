@@ -65,7 +65,7 @@ function createGraph(dimension) {
 	return graph;
 }
 
-for (const filename of ['feature_graph.js', 'callable_graph.js']) {
+for (const filename of ['feature_graph.js', 'invocation_graph.js']) {
 	test(`${filename}: 3D clicks highlight both directions after creating the 2D view`, () => {
 		const elements = new Map();
 		const element = id => {
@@ -225,7 +225,7 @@ for (const filename of ['feature_graph.js', 'callable_graph.js']) {
 			assert.ok([...graph.objects.values()].every(
 				object => object.material.color.value === '#ff9f43'));
 			const details = element(filename === 'feature_graph.js'
-				? 'node-details' : 'callable-node-details');
+				? 'node-details' : 'invocation-node-details');
 			assert.equal(details.rows.length, 0);
 			buttons[1 - index].listeners.click();
 			assert.ok([...graph.objects.values()].every(object => object.scale.value === undefined));

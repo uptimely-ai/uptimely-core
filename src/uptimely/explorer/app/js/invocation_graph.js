@@ -1,13 +1,13 @@
 {
-	const callableGraphData = ExplorerGraph.readPayload('graph-data');
+	const invocationGraphData = ExplorerGraph.readPayload('graph-data');
 	const style = ExplorerGraph.readPayload('graph-style');
-	ExplorerGraph.prepareEntityColors(callableGraphData, document.getElementById('entity-legend'));
-	const callableNodeDetails = document.getElementById('callable-node-details');
+	ExplorerGraph.prepareEntityColors(invocationGraphData, document.getElementById('entity-legend'));
+	const invocationNodeDetails = document.getElementById('invocation-node-details');
 	const formatList = (values) => Array.isArray(values) && values.length ? values.join(', ') : 'none';
-	const updateCallableDetails = (node) => {
+	const updateinvocationDetails = (node) => {
 		if (!node) {
-			ExplorerGraph.showDetails(callableNodeDetails, 'Callable details', [],
-				'Select a callable to inspect its operation, entity, declared features, and callable dependencies.');
+			ExplorerGraph.showDetails(invocationNodeDetails, 'invocation details', [],
+				'Select a invocation to inspect its operation, entity, declared features, and invocation dependencies.');
 			return;
 		}
 		const rows = [
@@ -19,27 +19,27 @@
 		if (node.operation === 'escape' && node.input_features?.length) {
 			rows.push(['Declared inputs', formatList(node.input_features)]);
 		}
-		rows.push(['Callable dependencies', formatList(node.dependency_ids)]);
-		ExplorerGraph.showDetails(callableNodeDetails, 'Callable details', rows,
+		rows.push(['invocation dependencies', formatList(node.dependency_ids)]);
+		ExplorerGraph.showDetails(invocationNodeDetails, 'invocation details', rows,
 			node.operation === 'escape' ? 'Not verified or materialized as dataframe columns.' : '');
 	};
-	const callableColors = style.function_colors;
-	function create3D(callableGraphContainer, callableGraphData, updateCallableDetails) {
-		const highlight = ExplorerGraph.createDependencyHighlight(callableGraphData);
-		return ExplorerGraph.create3D(callableGraphContainer, callableGraphData, style, {
+	const invocationColors = style.function_colors;
+	function create3D(invocationGraphContainer, invocationGraphData, updateinvocationDetails) {
+		const highlight = ExplorerGraph.createDependencyHighlight(invocationGraphData);
+		return ExplorerGraph.create3D(invocationGraphContainer, invocationGraphData, style, {
 			label: node => `${node.function_id}\n${node.operation === 'escape' ? 'declares external outputs' : 'produces'}: ${node.feature}`,
 			color: node => node.entityColor,
-			onSelect: updateCallableDetails,
+			onSelect: updateinvocationDetails,
 			highlight,
 			configure: graph => graph.linkDirectionalArrowLength(style.arrow_length)
 				.linkDirectionalArrowRelPos(style.arrow_rel_pos),
 			object: node => ExplorerGraph.entityNodeObject(node, node.function_id, style),
 		});
 	}
-	function create2D(callableGraphContainer, callableGraphData, updateCallableDetails) {
-		const highlight = ExplorerGraph.createDependencyHighlight(callableGraphData);
+	function create2D(invocationGraphContainer, invocationGraphData, updateinvocationDetails) {
+		const highlight = ExplorerGraph.createDependencyHighlight(invocationGraphData);
 		const layers = new Map();
-		for (const node of callableGraphData.nodes) {
+		for (const node of invocationGraphData.nodes) {
 			const rank = node.stage - 1;
 			if (!layers.has(rank)) layers.set(rank, []);
 			layers.get(rank).push(node);
@@ -94,11 +94,11 @@
 			}
 			ctx.restore();
 		};
-		const selectCallableAtPointer = event => ExplorerGraph.selectCard(
-			callableGraph, callableGraphContainer, callableGraphData.nodes, event, updateCallableDetails);
-		const callableGraph = ForceGraph()(callableGraphContainer)
-			.width(callableGraphContainer.clientWidth)
-			.height(callableGraphContainer.clientHeight)
+		const selectinvocationAtPointer = event => ExplorerGraph.selectCard(
+			invocationGraph, invocationGraphContainer, invocationGraphData.nodes, event, updateinvocationDetails);
+		const invocationGraph = ForceGraph()(invocationGraphContainer)
+			.width(invocationGraphContainer.clientWidth)
+			.height(invocationGraphContainer.clientHeight)
 			.backgroundColor(style.background_color)
 			.nodeLabel(node => ExplorerGraph.tooltip(node.label))
 			.onRenderFramePre(drawStageLanes)
@@ -116,7 +116,7 @@
 				ctx.strokeStyle = highlight.hasSelection()
 					? highlight.isSelected(node) ? '#f8d66d'
 						: highlight.isNodeHighlighted(node) ? '#67e8f9' : '#46545f'
-					: callableColors[node.operation];
+					: invocationColors[node.operation];
 				ctx.lineWidth = highlight.isSelected(node) ? 3 : 1.5;
 				ctx.stroke();
 				ctx.fillStyle = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
@@ -142,17 +142,17 @@
 			.linkDirectionalParticleColor(link => highlight.isLinkHighlighted(link)
 				? '#f8d66d'
 				: highlight.hasSelection() ? '#46545f' : style.link_color)
-			.onNodeClick((_node, event) => selectCallableAtPointer(event))
-			.onLinkClick((_link, event) => selectCallableAtPointer(event))
-			.onBackgroundClick(event => selectCallableAtPointer(event))
+			.onNodeClick((_node, event) => selectinvocationAtPointer(event))
+			.onLinkClick((_link, event) => selectinvocationAtPointer(event))
+			.onBackgroundClick(event => selectinvocationAtPointer(event))
 			.cooldownTicks(1);
-		const view = ExplorerGraph.createView(callableGraph, callableGraphContainer, 140, '2d');
+		const view = ExplorerGraph.createView(invocationGraph, invocationGraphContainer, 140, '2d');
 		view.selectNode = id => {
-			highlight.select(callableGraphData.nodes.find(node => node.id === id) || null);
+			highlight.select(invocationGraphData.nodes.find(node => node.id === id) || null);
 		};
-		callableGraph.graphData(callableGraphData);
+		invocationGraph.graphData(invocationGraphData);
 		return view;
 	}
 
-	mountGraphViews(callableGraphData, create2D, create3D, updateCallableDetails, callableNodeDetails);
+	mountGraphViews(invocationGraphData, create2D, create3D, updateinvocationDetails, invocationNodeDetails);
 }

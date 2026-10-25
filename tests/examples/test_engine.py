@@ -234,7 +234,7 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
 
     operation = next(
         operation
-        for operation in engine.plan.callables
+        for operation in engine.plan.invocations
         if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
     )
     dimensions = engine.spec_definition.entities[operation.entity_id].dimension_ids
@@ -270,7 +270,7 @@ def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> Non
     )
     operation = next(
         operation
-        for operation in engine.plan.callables
+        for operation in engine.plan.invocations
         if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
     )
 
@@ -337,10 +337,11 @@ def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathli
     plan = example_bundle(features=("health_signal_normalized",)).execution_plan
     engine = engine_for_plan(plan, _engine_bind(), spec_definition=spec_definition)
     assert [
-        operation.output
+        feature
         for stage in engine.plan.execution_stages
         for operation in stage
         if operation.operation == "vectorize"
+        for feature in operation.output_features
     ] == [
         "health_signal_normalized",
     ]

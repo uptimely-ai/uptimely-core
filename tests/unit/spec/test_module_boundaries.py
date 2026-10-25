@@ -166,10 +166,10 @@ def test_json_round_trip_preserves_the_document_and_compiled_plan(
     assert first.resources == second.resources
     assert {
         item.id: dataclasses.replace(item, dependency_ids=sorted(item.dependency_ids))
-        for item in first.callables
+        for item in first.invocations
     } == {
         item.id: dataclasses.replace(item, dependency_ids=sorted(item.dependency_ids))
-        for item in second.callables
+        for item in second.invocations
     }
     assert [set(stage) for stage in first.stages] == [set(stage) for stage in second.stages]
 

@@ -46,13 +46,13 @@ dependencies.
 ## execution_plan.models
 
 `uptimely.execution_plan.models` defines the portable execution plan and its
-callables.
+invocations.
 
 ::: uptimely.execution_plan.models
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Callable, ExecutionPlan, PLAN_VERSION]
+      members: [Invocation, ExecutionPlan, PLAN_VERSION]
 
 ## execution_plan.serialization
 

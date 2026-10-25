@@ -2,7 +2,7 @@
 
 `uptimely.engine` executes the saved plan in a validated project build bundle.
 It reads runtime declarations from the bundled Spec and uses project context
-to resolve callable entrypoints. Runtime configuration and environment-specific
+to resolve function entrypoints. Runtime configuration and environment-specific
 bindings are supplied separately.
 
 <div class="api-reference" markdown="1">
@@ -36,7 +36,7 @@ dataframe, for example `result.datasets["telemetry"]`.
 `ExecutionResult.calculated_outputs` maps `(dataset_id, feature_id)` pairs to
 dimension-keyed output dataframes, for example
 `result.calculated_outputs["telemetry", "doubled"]`. Entity IDs are not part of
-either key; entity metadata is available in the bundled Spec and plan callables.
+either key; entity metadata is available in the bundled Spec and plan invocations.
 
 ::: uptimely.engine.result
     options:
@@ -63,7 +63,7 @@ Implement this interface to customize dataframe operations.
 
 The engine selects the dataframe backend using the configured `dataframe`
 string. The built-in backend is Polars; runtime resources come from the bundled
-Spec and callable entrypoints come from the plan.
+Spec and function entrypoints come from the plan.
 
 ::: uptimely.engine.backend
     options:

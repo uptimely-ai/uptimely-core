@@ -1,4 +1,4 @@
-"""Invoke individual plan callables during an engine execution."""
+"""Invoke individual plan invocations during an engine execution."""
 
 import typing
 
@@ -13,8 +13,8 @@ from . import dataframe as dataframe_module
 from . import state as state_module
 
 
-class CallableExecutor:
-    """Dispatch and invoke callables against one execution's runtime state."""
+class InvocationExecutor:
+    """Dispatch and execute invocations against one execution's runtime state."""
 
     def __init__(
         self,
@@ -24,7 +24,7 @@ class CallableExecutor:
         bind: typing.Mapping[str, typing.Mapping[str, typing.Mapping[str, typing.Any]]],
         state: state_module.RuntimeState,
     ) -> None:
-        """Create a callable executor for one plan execution."""
+        """Create an invocation executor for one plan execution."""
         self.backend = backend
         self.spec_definition = spec_definition
         self.entrypoints = entrypoints
@@ -32,57 +32,57 @@ class CallableExecutor:
         self.bindings = bindings_module.RuntimeBindings(spec_definition, state, bind)
         self.dataframe = dataframe_module.DataFrameExecution(backend, spec_definition, state)
 
-    def execute(self, callable: execution_plan.Callable) -> None:
-        """Dispatch and execute one callable."""
-        if callable.operation == operations.ESCAPE:
-            self._execute_escape(callable)
+    def execute(self, invocation: execution_plan.Invocation) -> None:
+        """Dispatch and execute one invocation."""
+        if invocation.operation == operations.ESCAPE:
+            self._execute_escape(invocation)
             return
 
-        self.dataframe.validate_inputs(callable)
-        return_kind = operations.OPERATION_RETURN_KINDS.get(callable.operation)
+        self.dataframe.validate_inputs(invocation)
+        return_kind = operations.OPERATION_RETURN_KINDS.get(invocation.operation)
         if return_kind == arg_types.DATAFRAME:
-            self._execute_dataframe_mapping(callable)
+            self._execute_dataframe_mapping(invocation)
         elif return_kind == "none":
-            self._execute_sink(callable)
+            self._execute_sink(invocation)
         else:
-            raise ValueError(f"Unsupported callable operation: {callable.operation}")
+            raise ValueError(f"Unsupported invocation operation: {invocation.operation}")
 
-    def _execute_dataframe_mapping(self, callable: execution_plan.Callable) -> None:
+    def _execute_dataframe_mapping(self, invocation: execution_plan.Invocation) -> None:
         """Invoke a data-producing mapping, validate its result, and update the dataset."""
-        frame = self.state.datasets.get(callable.dataset_id)
-        result = self._invoke(callable)
-        entity = self.spec_definition.entities.get(callable.entity_id)
+        frame = self.state.datasets.get(invocation.dataset_id)
+        result = self._invoke(invocation)
+        entity = self.spec_definition.entities.get(invocation.entity_id)
         if entity is None:
-            raise ValueError(f"Unknown entity: {callable.entity_id}")
+            raise ValueError(f"Unknown entity: {invocation.entity_id}")
         dimensions = entity.dimension_ids
-        self.dataframe.validate_result(callable, result, frame, dimensions)
-        columns = list(dict.fromkeys([*dimensions, *callable.output_features]))
+        self.dataframe.validate_result(invocation, result, frame, dimensions)
+        columns = list(dict.fromkeys([*dimensions, *invocation.output_features]))
         fragment = self.backend.select(result, columns)
         merged = self.dataframe.merge_fragment(frame, fragment, dimensions)
 
-        self.state.datasets[callable.dataset_id] = merged
-        self.state.fragments[(callable.dataset_id, callable.output or callable.id)] = fragment
-        if callable.operation == operations.VECTORIZE:
-            for output in callable.output_features:
-                self.state.calculated_outputs[(callable.dataset_id, output)] = self.backend.select(
-                    fragment, [*dimensions, output]
+        self.state.datasets[invocation.dataset_id] = merged
+        self.state.fragments[(invocation.dataset_id, invocation.mapping_id)] = fragment
+        if invocation.operation == operations.VECTORIZE:
+            for output in invocation.output_features:
+                self.state.calculated_outputs[(invocation.dataset_id, output)] = (
+                    self.backend.select(fragment, [*dimensions, output])
                 )
 
-    def _execute_escape(self, callable: execution_plan.Callable) -> None:
+    def _execute_escape(self, invocation: execution_plan.Invocation) -> None:
         """Invoke an uncontrolled mapping and discard its return value."""
-        self._invoke(callable)
+        self._invoke(invocation)
 
-    def _execute_sink(self, callable: execution_plan.Callable) -> None:
+    def _execute_sink(self, invocation: execution_plan.Invocation) -> None:
         """Invoke a sink after confirming its accumulated dataset exists."""
-        if callable.dataset_id not in self.state.datasets:
-            raise KeyError(callable.dataset_id)
-        self._invoke(callable)
+        if invocation.dataset_id not in self.state.datasets:
+            raise KeyError(invocation.dataset_id)
+        self._invoke(invocation)
 
-    def _invoke(self, callable: execution_plan.Callable) -> object:
-        """Resolve arguments and invoke the callable's entrypoint."""
-        kwargs = self.bindings.resolve_args(callable)
-        entrypoint = self.entrypoints.get(callable.entrypoint)
+    def _invoke(self, invocation: execution_plan.Invocation) -> object:
+        """Resolve arguments and invoke the entrypoint for one plan invocation."""
+        kwargs = self.bindings.resolve_args(invocation)
+        entrypoint = self.entrypoints.get(invocation.entrypoint)
         if entrypoint is None:
-            entrypoint = entrypoint_module.Entrypoint(callable.entrypoint)
+            entrypoint = entrypoint_module.Entrypoint(invocation.entrypoint)
         function = entrypoint.load()
         return function(**kwargs)

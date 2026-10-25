@@ -23,7 +23,7 @@
     const table = step.querySelector('table[data-side="output"]');
     const preparation = [{ type: "inputs" }];
     if (step.dataset.operation === "collapse") preparation.push({ type: "group" });
-    preparation.push({ type: "callable" });
+    preparation.push({ type: "invocation" });
     if (!table) {
       if (step.dataset.operation === "write") preparation.push({ type: "write" });
       return preparation;
@@ -55,7 +55,7 @@
     }
     const arrow = step.querySelector(".lineage-arrow");
     arrow.classList.toggle("is-working", phase > 0 && !completed);
-    if (newFrame && playing && frame?.type === "callable") arrow.classList.add("lineage-new");
+    if (newFrame && playing && frame?.type === "invocation") arrow.classList.add("lineage-new");
     const source = step.querySelector(".lineage-panel .lineage-boundary");
     if (source) source.classList.toggle("is-working", phase > 0 && !completed);
     const table = step.querySelector('table[data-side="output"]');
@@ -84,7 +84,7 @@
       || (table ? !table.hidden : boundary ? !boundary.hidden : true);
     const status = step.querySelector(".lineage-status");
     if (phase === 0) {
-      status.textContent = "Input ready. Play to illustrate the callable.";
+      status.textContent = "Input ready. Play to illustrate the invocation.";
     } else if (phase > sequence.length) {
       status.textContent = descriptions[index];
     } else {
@@ -96,7 +96,7 @@
           : "Highlighting all declared input columns. Exact input-to-output mappings are not inferred.";
       } else if (frame.type === "group") {
         status.textContent = "Grouping the three placeholder rows by their shared keys (one illustrative group).";
-      } else if (frame.type === "callable") {
+      } else if (frame.type === "invocation") {
         status.textContent = `Illustrating ${step.querySelector("h3").textContent}. The function is not executed.`;
       } else if (frame.type === "write") {
         status.textContent = "Passing the illustrative input table to the write destination. No new analytical columns.";

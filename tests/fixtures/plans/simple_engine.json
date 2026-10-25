@@ -1,5 +1,5 @@
 {
-  "plan_version": 1,
+  "plan_version": 2,
   "required_backend": "polars",
   "resources": {
     "entities": {
@@ -45,14 +45,15 @@
       }
     }
   },
-  "callables": [
+  "invocations": [
     {
-      "id": "callable:read:load:asset:telemetry:reading",
+      "id": "invocation:read:load:asset:telemetry:reading",
       "operation": "read",
       "entrypoint": "test:read",
+      "function_id": "load",
+      "mapping_id": "reading",
       "entity_id": "asset",
       "dataset_id": "telemetry",
-      "output": "reading",
       "output_features": [
         "reading"
       ],
@@ -62,12 +63,13 @@
       "dependency_ids": []
     },
     {
-      "id": "callable:vectorize:double:asset:telemetry:doubled",
+      "id": "invocation:vectorize:double:asset:telemetry:doubled",
       "operation": "vectorize",
       "entrypoint": "test:double",
+      "function_id": "double",
+      "mapping_id": "doubled",
       "entity_id": "asset",
       "dataset_id": "telemetry",
-      "output": "doubled",
       "input_features": [
         "reading"
       ],
@@ -79,16 +81,17 @@
         "dataset": "telemetry"
       },
       "dependency_ids": [
-        "callable:read:load:asset:telemetry:reading"
+        "invocation:read:load:asset:telemetry:reading"
       ]
     },
     {
-      "id": "callable:write:save:asset:telemetry:doubled",
+      "id": "invocation:write:save:asset:telemetry:doubled",
       "operation": "write",
       "entrypoint": "test:write",
+      "function_id": "save",
+      "mapping_id": "save_doubled",
       "entity_id": "asset",
       "dataset_id": "telemetry",
-      "output": "doubled",
       "arguments": {
         "dataset": "telemetry",
         "features": [
@@ -96,19 +99,19 @@
         ]
       },
       "dependency_ids": [
-        "callable:vectorize:double:asset:telemetry:doubled"
+        "invocation:vectorize:double:asset:telemetry:doubled"
       ]
     }
   ],
   "stages": [
     [
-      "callable:read:load:asset:telemetry:reading"
+      "invocation:read:load:asset:telemetry:reading"
     ],
     [
-      "callable:vectorize:double:asset:telemetry:doubled"
+      "invocation:vectorize:double:asset:telemetry:doubled"
     ],
     [
-      "callable:write:save:asset:telemetry:doubled"
+      "invocation:write:save:asset:telemetry:doubled"
     ]
   ]
 }

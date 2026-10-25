@@ -282,16 +282,18 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         result = engine.run()
 
         expected_outputs = {
-            (callable.dataset_id, feature)
-            for callable in plan.callables
-            if callable.operation == operations.VECTORIZE
-            for feature in callable.output_features
+            (invocation.dataset_id, feature)
+            for invocation in plan.invocations
+            if invocation.operation == operations.VECTORIZE
+            for feature in invocation.output_features
         }
         actual_outputs = set(result.calculated_outputs)
         outputs_by_dataset: dict[str, list[str]] = {}
         for dataset_id, feature_id in sorted(actual_outputs):
             outputs_by_dataset.setdefault(dataset_id, []).append(feature_id)
-        dataset_entities = {callable.dataset_id: callable.entity_id for callable in plan.callables}
+        dataset_entities = {
+            invocation.dataset_id: invocation.entity_id for invocation in plan.invocations
+        }
 
         datasets: list[dict[str, typing.Any]] = []
         for dataset_id, features in sorted(

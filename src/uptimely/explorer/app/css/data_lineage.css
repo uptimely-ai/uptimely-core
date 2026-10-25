@@ -21,7 +21,7 @@
 .lineage-arrow-icon { font-size: 20px; line-height: 1; }
 .lineage-arrow strong { max-width: 100%; color: #e2e8f0; font: 600 12px "JetBrains Mono", monospace; overflow-wrap: anywhere; }
 .lineage-arrow small { font: 10px "JetBrains Mono", monospace; }
-.lineage-callable-type { color: #a5b4fc; text-transform: uppercase; }
+.lineage-invocation-type { color: #a5b4fc; text-transform: uppercase; }
 .lineage-table-scroll { overflow-x: auto; overflow-y: hidden; border: 1px solid #334155; border-radius: 8px; }
 .lineage-table .lineage-table-dataset { margin: 4px 0 0; color: #a5b4fc; font: 10px "JetBrains Mono", monospace; font-weight: 400; }
 .lineage-table { width: 100%; border-collapse: collapse; font: 12px "JetBrains Mono", monospace; }

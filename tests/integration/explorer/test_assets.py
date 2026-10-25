@@ -20,7 +20,7 @@ ASSETS = {
     "css/graph.css",
     "css/icons.css",
     "css/spec.css",
-    "js/callable_graph.js",
+    "js/invocation_graph.js",
     "js/data_lineage.js",
     "js/feature_graph.js",
     "js/graph_components.js",

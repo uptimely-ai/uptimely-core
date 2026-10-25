@@ -81,20 +81,20 @@ def _spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.S
     entities = dict(resources.get("entities", {}))
     functions = dict(resources.get("functions", {}))
 
-    for callable in execution_plan.callables:
-        entity = entities.setdefault(callable.entity_id, {"dimensions": []})
+    for invocation in execution_plan.invocations:
+        entity = entities.setdefault(invocation.entity_id, {"dimensions": []})
         for dimension_id in entity.get("dimensions", []):
             dimensions.setdefault(dimension_id, {"type": "string"})
-        function = functions.setdefault(callable.function_id, {})
-        function.setdefault("operation", callable.operation)
+        function = functions.setdefault(invocation.function_id, {})
+        function.setdefault("operation", invocation.operation)
         function.setdefault(
             "returns",
-            {"escape": "any", "write": "none"}.get(callable.operation, "dataframe"),
+            {"escape": "any", "write": "none"}.get(invocation.operation, "dataframe"),
         )
-        function.setdefault("entrypoint", callable.entrypoint)
+        function.setdefault("entrypoint", invocation.entrypoint)
         function.setdefault("args", {})
-        entity.setdefault("name", callable.entity_id)
-        entity.setdefault("datasets", {}).setdefault(callable.dataset_id, {})
+        entity.setdefault("name", invocation.entity_id)
+        entity.setdefault("datasets", {}).setdefault(invocation.dataset_id, {})
 
     return spec_model.Spec.model_validate(
         {

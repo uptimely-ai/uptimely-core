@@ -76,9 +76,9 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
 
     result = engine.run()
 
-    assert set(result.callable_statuses.values()) == {"succeeded"}
+    assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert result.failures == {}
-    assert result.plan_version == 1
+    assert result.plan_version == 2
     assert isinstance(result.calculated_outputs["telemetry", "doubled"], pl.DataFrame)
     assert set(result.datasets) == {"telemetry"}
     assert result.datasets["telemetry"].select("doubled").to_series().to_list() == [
@@ -127,7 +127,7 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
         "read",
         lambda _module: runtime_package,
     )
-    executor = execution_module.CallableExecutor(
+    executor = execution_module.InvocationExecutor(
         engine.backend,
         engine.spec_definition,
         {
@@ -141,17 +141,17 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
         state_module.RuntimeState(),
     )
 
-    callable = dataclasses.replace(
-        engine.plan.callables[0],
+    invocation = dataclasses.replace(
+        engine.plan.invocations[0],
         entrypoint="uptimely.entrypoint:PackageProvenance",
         arguments={"distribution": "recorded-package", "version": "1.0"},
     )
 
-    assert executor._invoke(callable) == entrypoint_module.PackageProvenance(
+    assert executor._invoke(invocation) == entrypoint_module.PackageProvenance(
         "recorded-package", "1.0"
     )
 
-    incompatible = dataclasses.replace(callable, entrypoint="math:pi", arguments={})
+    incompatible = dataclasses.replace(invocation, entrypoint="math:pi", arguments={})
     with pytest.raises(
         ValueError,
         match="recorded-package.*available runtime package: runtime-package==2.0",
@@ -161,7 +161,7 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
 
 def test_engine_entrypoints_include_saved_package_provenance() -> None:
     saved_plan = _plan()
-    location = saved_plan.callables[0].entrypoint
+    location = saved_plan.invocations[0].entrypoint
     saved_plan.resources["entrypoint_packages"] = {
         location: {"distribution": "recorded-package", "version": "1.0"}
     }
@@ -169,10 +169,10 @@ def test_engine_entrypoints_include_saved_package_provenance() -> None:
 
     result = engine.run()
 
-    assert result.callable_statuses[saved_plan.callables[0].id] == "failed"
+    assert result.invocation_statuses[saved_plan.invocations[0].id] == "failed"
     assert (
         "recorded package provenance: recorded-package==1.0"
-        in result.failures[saved_plan.callables[0].id]
+        in result.failures[saved_plan.invocations[0].id]
     )
 
 
@@ -224,14 +224,14 @@ def test_execute_stops_after_a_failed_operation(monkeypatch: pytest.MonkeyPatch)
 
     result = engine.run()
 
-    read_id = "callable:read:load:asset:telemetry:reading"
-    write_id = "callable:write:save:asset:telemetry:doubled"
-    assert result.callable_statuses[read_id] == "failed"
+    read_id = "invocation:read:load:asset:telemetry:reading"
+    write_id = "invocation:write:save:asset:telemetry:doubled"
+    assert result.invocation_statuses[read_id] == "failed"
     assert "source unavailable" in result.failures[read_id]
-    assert result.callable_statuses[write_id] == "skipped"
-    assert result.callable_statuses == {
-        callable.id: "failed" if callable.id == read_id else "skipped"
-        for callable in engine.plan.callables
+    assert result.invocation_statuses[write_id] == "skipped"
+    assert result.invocation_statuses == {
+        invocation.id: "failed" if invocation.id == read_id else "skipped"
+        for invocation in engine.plan.invocations
     }
     assert set(result.durations) == {read_id}
     assert called is False
@@ -250,19 +250,20 @@ def test_execute_stops_after_a_failed_operation(monkeypatch: pytest.MonkeyPatch)
 def test_escape_ignores_any_return_without_materializing_features(
     return_value: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    callable_id = "callable:escape:external_action:asset:external:action"
-    escape = uptimely_plan.Callable(
-        id=callable_id,
+    invocation_id = "invocation:escape:external_action:asset:external:action"
+    escape = uptimely_plan.Invocation(
+        id=invocation_id,
         operation="escape",
         entrypoint="test:escape",
+        function_id="external_action",
+        mapping_id="action",
         entity_id="asset",
         dataset_id="external",
-        output="external_result",
         output_features=["external_result"],
         input_features=["external_input"],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=1,
+        plan_version=2,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -274,15 +275,15 @@ def test_escape_ignores_any_return_without_materializing_features(
                 }
             },
         },
-        callables=[escape],
-        stages=[[callable_id]],
+        invocations=[escape],
+        stages=[[invocation_id]],
     )
     _patch_callables(monkeypatch, {"test:escape": lambda: return_value})
     engine = _engine(plan)
 
     result = engine.run()
 
-    assert result.callable_statuses == {callable_id: "succeeded"}
+    assert result.invocation_statuses == {invocation_id: "succeeded"}
     assert result.failures == {}
     assert result.datasets == {}
     assert result.calculated_outputs == {}
@@ -291,8 +292,8 @@ def test_escape_ignores_any_return_without_materializing_features(
 def test_escape_chain_runs_without_materializing_declared_feature_inputs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    first_id = "callable:escape:first:asset:external:first"
-    second_id = "callable:escape:second:asset:external:second"
+    first_id = "invocation:escape:first:asset:external:first"
+    second_id = "invocation:escape:second:asset:external:second"
     calls: list[str] = []
 
     def first() -> int:
@@ -303,29 +304,31 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs(
         calls.append("second")
         return object()
 
-    first_callable = uptimely_plan.Callable(
+    first_invocation = uptimely_plan.Invocation(
         id=first_id,
         operation="escape",
         entrypoint="test:first",
+        function_id="first",
+        mapping_id="first",
         entity_id="asset",
         dataset_id="external",
-        output="first_output",
         output_features=["first_output"],
         input_features=["external_input"],
     )
-    second_callable = uptimely_plan.Callable(
+    second_invocation = uptimely_plan.Invocation(
         id=second_id,
         operation="escape",
         entrypoint="test:second",
+        function_id="second",
+        mapping_id="second",
         entity_id="asset",
         dataset_id="external",
-        output="second_output",
         output_features=["second_output"],
         input_features=["first_output"],
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=1,
+        plan_version=2,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -334,7 +337,7 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs(
                 for function_id in ("first", "second")
             },
         },
-        callables=[first_callable, second_callable],
+        invocations=[first_invocation, second_invocation],
         stages=[[first_id], [second_id]],
     )
 
@@ -342,27 +345,28 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs(
     result = _engine(plan).run()
 
     assert calls == ["first", "second"]
-    assert result.callable_statuses == {first_id: "succeeded", second_id: "succeeded"}
+    assert result.invocation_statuses == {first_id: "succeeded", second_id: "succeeded"}
     assert result.failures == {}
     assert result.datasets == {}
     assert result.calculated_outputs == {}
 
 
 def test_escape_resolves_literal_and_runtime_arguments(monkeypatch: pytest.MonkeyPatch) -> None:
-    callable_id = "callable:escape:external_action:asset:external:action"
-    escape = uptimely_plan.Callable(
-        id=callable_id,
+    invocation_id = "invocation:escape:external_action:asset:external:action"
+    escape = uptimely_plan.Invocation(
+        id=invocation_id,
         operation="escape",
         entrypoint="test:escape",
+        function_id="external_action",
+        mapping_id="action",
         entity_id="asset",
         dataset_id="external",
-        output="external_result",
         output_features=["external_result"],
         input_features=["external_input"],
         arguments={"path": "?storage.output.path", "mode": "replace"},
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=1,
+        plan_version=2,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -377,8 +381,8 @@ def test_escape_resolves_literal_and_runtime_arguments(monkeypatch: pytest.Monke
                 }
             },
         },
-        callables=[escape],
-        stages=[[callable_id]],
+        invocations=[escape],
+        stages=[[invocation_id]],
     )
     received: list[tuple[str, str]] = []
 
@@ -389,36 +393,38 @@ def test_escape_resolves_literal_and_runtime_arguments(monkeypatch: pytest.Monke
     result = _engine(plan, {"storage": {"output": {"path": "/tmp/external-output.csv"}}}).run()
 
     assert received == [("/tmp/external-output.csv", "replace")]
-    assert result.callable_statuses == {callable_id: "succeeded"}
+    assert result.invocation_statuses == {invocation_id: "succeeded"}
     assert result.failures == {}
 
 
 def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    first_id = "callable:escape:first:asset:external:first"
-    second_id = "callable:escape:second:asset:external:second"
-    first_callable = uptimely_plan.Callable(
+    first_id = "invocation:escape:first:asset:external:first"
+    second_id = "invocation:escape:second:asset:external:second"
+    first_invocation = uptimely_plan.Invocation(
         id=first_id,
         operation="escape",
         entrypoint="test:first",
+        function_id="first",
+        mapping_id="first",
         entity_id="asset",
         dataset_id="external",
-        output="external_result",
         output_features=["external_result"],
         input_features=["external_input"],
         arguments={"frame": "missing"},
     )
-    second_callable = dataclasses.replace(
-        first_callable,
+    second_invocation = dataclasses.replace(
+        first_invocation,
         id=second_id,
         entrypoint="test:second",
-        output="downstream_result",
+        function_id="second",
+        mapping_id="second",
         output_features=["downstream_result"],
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=1,
+        plan_version=2,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -431,22 +437,22 @@ def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
                 for function_id in ("first", "second")
             },
         },
-        callables=[first_callable, second_callable],
+        invocations=[first_invocation, second_invocation],
         stages=[[first_id], [second_id]],
     )
 
     _patch_callables(monkeypatch, {"test:first": lambda **_: None, "test:second": lambda **_: None})
     result = _engine(plan).run()
 
-    assert result.callable_statuses == {first_id: "failed", second_id: "skipped"}
+    assert result.invocation_statuses == {first_id: "failed", second_id: "skipped"}
     assert "Dataset dataframe is unavailable: missing" in result.failures[first_id]
 
 
 def test_escape_resolves_dataframe_arguments_from_preceding_read(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    read_id = "callable:read:load:asset:telemetry:load"
-    escape_id = "callable:escape:external_action:asset:telemetry:action"
+    read_id = "invocation:read:load:asset:telemetry:load"
+    escape_id = "invocation:escape:external_action:asset:telemetry:action"
     observed: list[pl.DataFrame] = []
 
     def read() -> pl.DataFrame:
@@ -456,29 +462,31 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
         observed.append(dataset)
         return object()
 
-    read_callable = uptimely_plan.Callable(
+    read_invocation = uptimely_plan.Invocation(
         id=read_id,
         operation="read",
         entrypoint="test:read",
+        function_id="load",
+        mapping_id="load",
         entity_id="asset",
         dataset_id="telemetry",
-        output="load",
         output_features=["asset_id", "reading"],
     )
-    escape_callable = uptimely_plan.Callable(
+    escape_invocation = uptimely_plan.Invocation(
         id=escape_id,
         operation="escape",
         entrypoint="test:escape",
+        function_id="external_action",
+        mapping_id="external_result",
         entity_id="asset",
         dataset_id="telemetry",
-        output="external_result",
         output_features=["external_result"],
         input_features=["reading"],
         arguments={"dataset": "telemetry"},
         dependency_ids=[read_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=1,
+        plan_version=2,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": ["asset_id"]}},
@@ -491,7 +499,7 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
                 },
             },
         },
-        callables=[read_callable, escape_callable],
+        invocations=[read_invocation, escape_invocation],
         stages=[[read_id], [escape_id]],
     )
 
@@ -499,35 +507,37 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
     result = _engine(plan).run()
 
     assert result.failures == {}
-    assert result.callable_statuses == {read_id: "succeeded", escape_id: "succeeded"}
+    assert result.invocation_statuses == {read_id: "succeeded", escape_id: "succeeded"}
     assert observed == [result.datasets["telemetry"]]
     assert "external_result" not in result.datasets["telemetry"].columns
     assert result.calculated_outputs == {}
 
 
 def test_escape_exception_fails_and_skips_downstream(monkeypatch: pytest.MonkeyPatch) -> None:
-    first_id = "callable:escape:first:asset:external:first"
-    second_id = "callable:escape:second:asset:external:second"
-    first_callable = uptimely_plan.Callable(
+    first_id = "invocation:escape:first:asset:external:first"
+    second_id = "invocation:escape:second:asset:external:second"
+    first_invocation = uptimely_plan.Invocation(
         id=first_id,
         operation="escape",
         entrypoint="test:first",
+        function_id="first",
+        mapping_id="first",
         entity_id="asset",
         dataset_id="external",
-        output="external_result",
         output_features=["external_result"],
         input_features=["external_input"],
     )
-    second_callable = dataclasses.replace(
-        first_callable,
+    second_invocation = dataclasses.replace(
+        first_invocation,
         id=second_id,
         entrypoint="test:second",
-        output="downstream_result",
+        function_id="second",
+        mapping_id="second",
         output_features=["downstream_result"],
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=1,
+        plan_version=2,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -536,7 +546,7 @@ def test_escape_exception_fails_and_skips_downstream(monkeypatch: pytest.MonkeyP
                 for function_id in ("first", "second")
             },
         },
-        callables=[first_callable, second_callable],
+        invocations=[first_invocation, second_invocation],
         stages=[[first_id], [second_id]],
     )
 
@@ -546,7 +556,7 @@ def test_escape_exception_fails_and_skips_downstream(monkeypatch: pytest.MonkeyP
     _patch_callables(monkeypatch, {"test:first": fail, "test:second": lambda: None})
     result = _engine(plan).run()
 
-    assert result.callable_statuses == {first_id: "failed", second_id: "skipped"}
+    assert result.invocation_statuses == {first_id: "failed", second_id: "skipped"}
     assert result.failures == {first_id: "external action failed"}
 
 
@@ -596,7 +606,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
     result = _engine(restored, project_root=tmp_path).run()
 
     assert result.failures == {}
-    assert result.callable_statuses == {compiled.callables[0].id: "succeeded"}
+    assert result.invocation_statuses == {compiled.invocations[0].id: "succeeded"}
     assert result.datasets == {}
     assert result.calculated_outputs == {}
     assert pl.read_csv(output_path).rows() == [("A", 2, 4), ("B", 3, 6)]
@@ -669,7 +679,7 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
     for dataset_id in ("first", "second"):
         entity.datasets[dataset_id] = spec_model.Dataset(id=dataset_id)
     state = state_module.RuntimeState()
-    executor = execution_module.CallableExecutor(
+    executor = execution_module.InvocationExecutor(
         engine.backend,
         engine.spec_definition,
         {},
@@ -679,9 +689,9 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
     for dataset_id in ("first", "second"):
         executor.execute(
             dataclasses.replace(
-                engine.plan.callables[0],
+                engine.plan.invocations[0],
                 dataset_id=dataset_id,
-                output="shared",
+                mapping_id="shared",
             )
         )
 
@@ -710,11 +720,11 @@ def test_input_validation_reads_each_dataset_schema_once(
 
     monkeypatch.setattr(engine.backend, "column_names", inspect)
     dataframe = dataframe_module.DataFrameExecution(engine.backend, engine.spec_definition, state)
-    callable = dataclasses.replace(
-        engine.plan.callables[1], input_features=["asset_id", "reading", "other"]
+    invocation = dataclasses.replace(
+        engine.plan.invocations[1], input_features=["asset_id", "reading", "other"]
     )
 
-    dataframe.validate_inputs(callable)
+    dataframe.validate_inputs(invocation)
 
     assert len(inspected) == 2
     assert inspected[0] is state.datasets["telemetry"]
@@ -730,7 +740,7 @@ def test_input_validation_rejects_missing_or_ambiguous_foreign_features(sources:
     dataframe = dataframe_module.DataFrameExecution(engine.backend, engine.spec_definition, state)
 
     with pytest.raises(ValueError, match="input feature is unavailable or ambiguous: reading"):
-        dataframe.validate_inputs(engine.plan.callables[1])
+        dataframe.validate_inputs(engine.plan.invocations[1])
 
 
 def test_runtime_state_prefers_dataset_to_fragment_lookup() -> None:
@@ -754,17 +764,17 @@ def test_runtime_state_is_not_shared_between_instances() -> None:
 
 def test_execute_reports_unsupported_operation_types() -> None:
     plan = _plan()
-    invalid_callable = dataclasses.replace(plan.callables[0], operation="unsupported")
+    invalid_invocation = dataclasses.replace(plan.invocations[0], operation="unsupported")
     engine = _engine(
         uptimely_plan.ExecutionPlan(
-            **{**plan.__dict__, "callables": [invalid_callable, *plan.callables[1:]]}
+            **{**plan.__dict__, "invocations": [invalid_invocation, *plan.invocations[1:]]}
         )
     )
 
     result = engine.run()
 
-    assert result.callable_statuses[invalid_callable.id] == "failed"
-    assert result.failures[invalid_callable.id] == "Unsupported callable operation: unsupported"
+    assert result.invocation_statuses[invalid_invocation.id] == "failed"
+    assert result.failures[invalid_invocation.id] == "Unsupported invocation operation: unsupported"
 
 
 def test_execute_rejects_scalar_calculations(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -804,27 +814,29 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
             }
         )
 
-    read_callable = uptimely_plan.Callable(
-        id="callable:read:load:asset:telemetry:load",
+    read_invocation = uptimely_plan.Invocation(
+        id="invocation:read:load:asset:telemetry:load",
         operation="read",
         entrypoint="test:read",
+        function_id="load",
+        mapping_id="load",
         entity_id="asset",
         dataset_id="telemetry",
-        output="load",
         output_features=["asset_id", "reading"],
     )
-    vectorize_callable = uptimely_plan.Callable(
-        id="callable:vectorize:calculate:asset:telemetry:reading_plus_one",
+    vectorize_invocation = uptimely_plan.Invocation(
+        id="invocation:vectorize:calculate:asset:telemetry:reading_plus_one",
         operation="vectorize",
         entrypoint="test:calculate",
+        function_id="calculate",
+        mapping_id="reading_plus_one",
         entity_id="asset",
         dataset_id="telemetry",
-        output="reading_plus_one",
         output_features=["reading_plus_one", "reading_times_two"],
-        dependency_ids=[read_callable.id],
+        dependency_ids=[read_invocation.id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=1,
+        plan_version=2,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": ["asset_id"]}},
@@ -833,8 +845,8 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
                 "calculate": {"operation": "vectorize", "args": {}},
             },
         },
-        callables=[read_callable, vectorize_callable],
-        stages=[[read_callable.id], [vectorize_callable.id]],
+        invocations=[read_invocation, vectorize_invocation],
+        stages=[[read_invocation.id], [vectorize_invocation.id]],
     )
     _patch_callables(monkeypatch, {"test:read": read, "test:calculate": calculate})
     engine = _engine(plan)

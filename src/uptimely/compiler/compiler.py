@@ -67,7 +67,7 @@ class Compiler:
             plan_version=execution_plan.PLAN_VERSION,
             required_backend="polars",
             resources=resources,
-            callables=invocations,
+            invocations=invocations,
             stages=stages,
         )
         logger.debug("Compiled plan: %d invocations in %d stages", len(invocations), len(stages))

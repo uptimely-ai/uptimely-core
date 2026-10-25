@@ -28,7 +28,7 @@
 <main class="lineage-page">
   <p>Execution</p>
   <h1 class="title-with-icon">{{ icon("lineage", "title-icon") }}<span>Data lineage</span></h1>
-  <p>Follow each callable's declared inputs and outputs. Escape outputs are external declarations, not dataframe columns.</p>
+  <p>Follow each invocation's declared inputs and outputs. Escape outputs are external declarations, not dataframe columns.</p>
   <p>Illustration only: keys, values, results, and row counts are placeholders, not calculated data.
     No spec are executed.</p>
   {% if stages %}
@@ -70,16 +70,16 @@
       {% set outputs = step.columns|selectattr("role", "equalto", "Output")|list %}
       {% set external_outputs = step.columns|selectattr("role", "equalto", "Declared external output")|list %}
       {% set keys = step.columns|selectattr("role", "equalto", "Dimension")|list %}
-      <article class="lineage-step" id="step-{{ step.number }}" data-callable-id="{{ step.callable_id }}"
+      <article class="lineage-step" id="step-{{ step.number }}" data-invocation-id="{{ step.invocation_id }}"
         data-dependencies="{{ step.dependencies|join(',') }}" data-operation="{{ step.operation }}" data-stage="{{ stage_number }}">
         <h3>{{ step.function|replace("_", " ")|title }}</h3>
         <span class="lineage-operation-label">{{ {"collapse": "Aggregate"}.get(step.operation, step.operation)|upper }}</span>
         <div class="lineage-scene">
           <div class="lineage-panel">
             {% if step.operation == "read" %}
-            <div class="lineage-boundary"><strong>Source</strong>{{ step.dataset or step.entity }}<p>The read callable supplies the declared columns.</p></div>
+            <div class="lineage-boundary"><strong>Source</strong>{{ step.dataset or step.entity }}<p>The read invocation supplies the declared columns.</p></div>
             {% elif step.operation == "escape" %}
-            <div class="lineage-boundary"><strong>Declared feature inputs</strong>{{ (declared_inputs|map(attribute="name")|list)|join(", ") or "None" }}<p>These declarations do not establish that dataframe columns are available to the callable.</p></div>
+            <div class="lineage-boundary"><strong>Declared feature inputs</strong>{{ (declared_inputs|map(attribute="name")|list)|join(", ") or "None" }}<p>These declarations do not establish that dataframe columns are available to the invocation.</p></div>
             {% elif inputs or keys %}
             {{ sample_table(inputs, keys, "Input", "input", 3, step.operation == "collapse", step.dataset or step.entity) }}
             {% else %}
@@ -88,10 +88,10 @@
           </div>
           <div class="lineage-arrow">
             <span class="lineage-arrow-icon" aria-hidden="true">&darr;</span>
-            <small class="lineage-callable-type">{{ {"collapse": "Aggregate", "escape": "Uncontrolled external operation"}.get(step.operation, step.operation|title) }}</small>
+            <small class="lineage-invocation-type">{{ {"collapse": "Aggregate", "escape": "Uncontrolled external operation"}.get(step.operation, step.operation|title) }}</small>
           </div>
           <div class="lineage-panel lineage-panel-output">
-            <p class="lineage-waiting" hidden>Output will form here as the callable is illustrated.</p>
+            <p class="lineage-waiting" hidden>Output will form here as the invocation is illustrated.</p>
             {% if step.operation == "write" %}
             <div class="lineage-boundary" data-write-boundary><strong>Write destination</strong>{{ step.dataset or step.entity }}<p>Consumes the input columns; produces no analytical features.</p></div>
             {% elif step.operation == "escape" %}
@@ -132,8 +132,8 @@
     </section>
     {% endfor %}
   </div>
-  <p>Playback follows dependency stages. Callables in the same stage are independent.</p>
-  <noscript><p>Playback needs JavaScript. All callable tables and declared schemas remain available below their stage headings.</p></noscript>
+  <p>Playback follows dependency stages. Invocations in the same stage are independent.</p>
+  <noscript><p>Playback needs JavaScript. All invocation tables and declared schemas remain available below their stage headings.</p></noscript>
   {% else %}
   <p>No processing steps. Add function mappings to the spec to display data lineage.</p>
   {% endif %}

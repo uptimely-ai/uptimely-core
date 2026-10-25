@@ -56,10 +56,10 @@ def test_lineage_layout_has_balanced_stage_and_card_containers(tmp_path: pathlib
     ] * len(plan.execution_stages)
     assert [parent for name, parent in collector.parents if name == "lineage-step"] == [
         "lineage-stage"
-    ] * len(plan.callables)
+    ] * len(plan.invocations)
     assert [parent for name, parent in collector.parents if name == "lineage-dependencies"] == [
         "lineage-details"
-    ] * len(plan.callables)
+    ] * len(plan.invocations)
 
 
 def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
@@ -69,27 +69,27 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
     stages = lineage._build_stages(spec_definition, plan)
 
     assert [len(stage) for stage in stages] == [len(stage) for stage in plan.execution_stages]
-    steps = {step.callable_id: step for stage in stages for step in stage}
+    steps = {step.invocation_id: step for stage in stages for step in stage}
     numbers = {identifier: step.number for identifier, step in steps.items()}
     producers = {
-        feature: steps[callable.id]
-        for callable in plan.callables
-        for feature in callable.output_features
+        feature: steps[invocation.id]
+        for invocation in plan.invocations
+        for feature in invocation.output_features
         if feature not in spec_definition.dimensions
     }
     assert len({step.color for step in steps.values()}) == len(steps)
-    for callable in plan.callables:
-        step = steps[callable.id]
-        dimensions = spec_definition.entities[callable.entity_id].dimension_ids
-        assert step.dataset == callable.dataset_id
-        assert step.operation == callable.operation
+    for invocation in plan.invocations:
+        step = steps[invocation.id]
+        dimensions = spec_definition.entities[invocation.entity_id].dimension_ids
+        assert step.dataset == invocation.dataset_id
+        assert step.operation == invocation.operation
         assert step.dependencies == sorted(
-            numbers[identifier] for identifier in callable.dependency_ids
+            numbers[identifier] for identifier in invocation.dependency_ids
         )
         assert [column.name for column in step.columns if column.role == "Dimension"] == dimensions
         for role, features in (
-            ("Input", callable.input_features),
-            ("Output", callable.output_features),
+            ("Input", invocation.input_features),
+            ("Output", invocation.output_features),
         ):
             assert [column.name for column in step.columns if column.role == role] == [
                 feature for feature in features if feature not in dimensions
@@ -105,9 +105,9 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
                 assert column.producer == producer.number
                 if column.role == "Output":
                     assert producer.number == step.number
-        if callable.operation == "collapse":
+        if invocation.operation == "collapse":
             assert "timestamp" not in [column.name for column in step.columns]
-        if callable.operation == "write":
+        if invocation.operation == "write":
             assert not any(column.role == "Output" for column in step.columns)
 
 
@@ -117,18 +117,19 @@ def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> N
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     tables = re.findall(
-        r'<article class="lineage-step" id="step-(\d+)" data-callable-id="([^"]+)"'
+        r'<article class="lineage-step" id="step-(\d+)" data-invocation-id="([^"]+)"'
         r'\s+data-dependencies="([^"]*)"',
         document,
     )
-    numbers = {callable_id: number for number, callable_id, _ in tables}
-    assert set(numbers) == {callable.id for callable in plan.callables}
-    dependencies = {callable_id: values for _, callable_id, values in tables}
-    for callable in plan.callables:
-        assert dependencies[callable.id].split(",") == (
-            sorted((numbers[identifier] for identifier in callable.dependency_ids), key=int) or [""]
+    numbers = {invocation_id: number for number, invocation_id, _ in tables}
+    assert set(numbers) == {invocation.id for invocation in plan.invocations}
+    dependencies = {invocation_id: values for _, invocation_id, values in tables}
+    for invocation in plan.invocations:
+        assert dependencies[invocation.id].split(",") == (
+            sorted((numbers[identifier] for identifier in invocation.dependency_ids), key=int)
+            or [""]
         )
-    assert document.count('<table class="lineage-table lineage-schema">') == len(plan.callables)
+    assert document.count('<table class="lineage-table lineage-schema">') == len(plan.invocations)
     assert 'aria-label="Execution sections"' in document
     assert 'aria-label="Plan sections"' in document
     assert "Execution plan" not in document
@@ -155,7 +156,7 @@ def test_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
     assert "Data lineage color key" not in document
 
 
-def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
+def test_lineage_has_focused_invocation_playback(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
@@ -190,11 +191,11 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     assert (
         '<div class="lineage-arrow">\n'
         '            <span class="lineage-arrow-icon" aria-hidden="true">&darr;</span>\n'
-        '            <small class="lineage-callable-type">' in document
+        '            <small class="lineage-invocation-type">' in document
     )
     assert "<strong>maximum</strong>" not in document
-    assert 'class="lineage-callable-type">Aggregate</small>' in document
-    assert "lineage-callable-phase" not in document
+    assert 'class="lineage-invocation-type">Aggregate</small>' in document
+    assert "lineage-invocation-phase" not in document
     assert "<h3>Maximum</h3>" in document
     for operation_type in ("READ", "AGGREGATE", "VECTORIZE", "WRITE"):
         assert f'<span class="lineage-operation-label">{operation_type}</span>' in document
@@ -204,7 +205,7 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     assert 'class="lineage-dataset"' not in document
     assert "transform: rotate(90deg)" not in document
     assert document.count("<summary>Declared schema and dependencies</summary>") == len(
-        execution_plan.callables
+        execution_plan.invocations
     )
     assert "<details open" not in document
     assert "lineage-inspector" not in document
@@ -224,7 +225,7 @@ def test_lineage_has_focused_callable_playback(tmp_path: pathlib.Path) -> None:
     assert 'type: "row"' in script
     assert 'type: "inputs"' in script
     assert 'type: "group"' in script
-    assert 'type: "callable"' in script
+    assert 'type: "invocation"' in script
     assert 'type: "write"' in script
     assert "Exact input-to-output mappings are not inferred" in script
     assert "animation-play-state: paused" in styles

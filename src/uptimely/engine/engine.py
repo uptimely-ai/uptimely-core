@@ -46,52 +46,52 @@ class Engine:
         """Execute plan stages and return explicit runtime state and statuses."""
         state = state_module.RuntimeState()
         packages = self.plan.resources.get("entrypoint_packages", {})
-        callable_executor = execution_module.CallableExecutor(
+        invocation_executor = execution_module.InvocationExecutor(
             self.backend,
             self.spec_definition,
             {
-                c.entrypoint: entrypoint_module.Entrypoint(
-                    c.entrypoint,
+                invocation.entrypoint: entrypoint_module.Entrypoint(
+                    invocation.entrypoint,
                     package=(
-                        entrypoint_module.PackageProvenance(**packages[c.entrypoint])
-                        if c.entrypoint in packages
+                        entrypoint_module.PackageProvenance(**packages[invocation.entrypoint])
+                        if invocation.entrypoint in packages
                         else None
                     ),
                 )
-                for c in self.plan.callables
+                for invocation in self.plan.invocations
             },
             self.bind,
             state,
         )
-        statuses: dict[str, result_module.CallableStatus] = {}
+        statuses: dict[str, result_module.InvocationStatus] = {}
         durations: dict[str, float] = {}
         failures: dict[str, str] = {}
 
         logger.debug("Executing plan: %d stages", len(self.plan.execution_stages))
         for stage in self.plan.execution_stages:
-            for callable in stage:
+            for invocation in stage:
                 started = time.perf_counter()
-                logger.debug("Running %s callable %s", callable.operation, callable.id)
+                logger.debug("Running %s invocation %s", invocation.operation, invocation.id)
                 try:
-                    callable_executor.execute(callable)
+                    invocation_executor.execute(invocation)
                 except Exception as error:
-                    statuses[callable.id] = "failed"
-                    failures[callable.id] = str(error)
-                    durations[callable.id] = time.perf_counter() - started
-                    logger.warning("Callable %s failed: %s", callable.id, error)
+                    statuses[invocation.id] = "failed"
+                    failures[invocation.id] = str(error)
+                    durations[invocation.id] = time.perf_counter() - started
+                    logger.warning("Invocation %s failed: %s", invocation.id, error)
                     break
-                statuses[callable.id] = "succeeded"
-                durations[callable.id] = time.perf_counter() - started
+                statuses[invocation.id] = "succeeded"
+                durations[invocation.id] = time.perf_counter() - started
             if failures:
                 break
 
-        for callable in self.plan.callables:
-            statuses.setdefault(callable.id, "skipped")
+        for invocation in self.plan.invocations:
+            statuses.setdefault(invocation.id, "skipped")
 
         return result_module.ExecutionResult(
             datasets=dict(state.datasets),
             calculated_outputs=dict(state.calculated_outputs),
-            callable_statuses=statuses,
+            invocation_statuses=statuses,
             durations=durations,
             failures=failures,
             plan_version=self.plan.plan_version,

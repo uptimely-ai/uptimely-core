@@ -98,7 +98,7 @@ class Explorer:
                 spec_definition=self.spec,
                 project_name=self.spec.name,
                 summary=context.summary,
-                callable_count=len(plan.callables),
+                invocation_count=len(plan.invocations),
                 stage_count=len(plan.execution_stages),
                 execution_scope=execution_scope,
                 is_scoped=self.features is not None,

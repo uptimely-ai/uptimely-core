@@ -1,8 +1,8 @@
 # Execution engine
 
 This page describes the built-in Uptimely Core runtime and its execution
-contract. It consumes a validated build bundle, invokes the plan's callable
-entrypoints, and accumulates tabular results. Runtime configuration and
+contract. It consumes a validated build bundle, executes plan invocations, and
+accumulates tabular results. Runtime configuration and
 environment-specific bindings are supplied separately.
 
 ## Engine settings
@@ -44,14 +44,14 @@ Spec document.
 The engine accepts a validated build bundle and executes its compiled portable
 plan. It reads dimensions, entities, functions, and datasets from the bundled
 `spec.json`, which is loaded as part of the build bundle, and uses the project
-root to resolve callable entrypoints. A plan can be compiled for selected
+root to resolve function entrypoints. A plan can be compiled for selected
 output features; the compiler includes their prerequisite calculations and
 dependencies, so the engine needs no special subset logic. An exported plan is
 executed as part of its build bundle, without recompilation.
 
-Execution returns datasets, calculated outputs, per-callable statuses and
-durations, failures, and the plan version. A failed callable is reported in the
-result, and execution stops; callables that did not run are marked skipped.
+Execution returns datasets, calculated outputs, per-invocation statuses and
+durations, failures, and the plan version. A failed invocation is reported in
+the result, and execution stops; invocations that did not run are marked skipped.
 
 ### Row-context metadata
 
@@ -113,7 +113,7 @@ The engine accepts an `EngineConfig` rather than a file path. The CLI and
 [MCP server](../tools/ai.md#running-the-server) load this JSON through
 `EngineConfig`. Neither interface automatically selects an
 environment or merges multiple configuration files. Each supplied mapping must
-provide all values required by the callables being executed; missing values
+provide all values required by the invocations being executed; missing values
 are errors, not fallbacks to another environment.
 
 ## Fragments
@@ -144,8 +144,8 @@ Combining sources requires an explicit expand operation first. Functions are
 responsible for grouping, matching, output names, and constructing literal
 values.
 
-The compiled plan groups independent callables into stages. The built-in engine
-processes stages and callables sequentially. Dataset `order` metadata does not
+The compiled plan groups independent invocations into stages. The built-in engine
+processes stages and invocations sequentially. Dataset `order` metadata does not
 sort data or guarantee physical row order; order-sensitive functions must
 explicitly declare and implement their ordering inputs.
 
@@ -167,9 +167,9 @@ source to the target dataset's row scope before returning a fragment.
 
 ## Runtime validation
 
-Before invoking a callable, the engine checks that its declared feature inputs
+Before invoking a plan invocation, the engine checks that its declared feature inputs
 are materialized and resolves its arguments, including runtime placeholders.
-Missing inputs or bindings fail that callable. For data-producing mappings,
+Missing inputs or bindings fail that invocation. For data-producing mappings,
 the built-in Polars backend accepts `DataFrame` and `LazyFrame` results. The
 engine then validates the returned fragment before merging it:
 

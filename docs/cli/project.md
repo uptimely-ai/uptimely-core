@@ -58,7 +58,7 @@ Warnings and errors remain visible. Add `--verbose` for a summary grouped into:
 
 - **Build:** duration in seconds, output folder, and feature scope.
 - **Spec:** source file and numbers of functions, datasets, and features.
-- **Plan:** numbers of execution stages and callables.
+- **Plan:** numbers of execution stages and invocations.
 
 Duration covers building, validating, and publishing the bundle, not workflow
 execution. Spec counts cover the complete specification, including for scoped

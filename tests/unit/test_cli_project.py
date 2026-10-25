@@ -93,7 +93,7 @@ def test_project_build_examples(
     bundle = project.load_build_bundle(root)
     assert bundle.manifest.features is None
     assert spec.load_spec(bundle.spec_path).entities
-    assert bundle.execution_plan.callables
+    assert bundle.execution_plan.invocations
     assert (bundle.explorer_path / "index.html").is_file()
 
 
@@ -115,8 +115,8 @@ def test_project_rebuild_replaces_previous_bundle(
 
     rebuilt_bundle = project.load_build_bundle(root)
     assert rebuilt_bundle.spec_path.read_bytes() == old_spec
-    assert {item.id: item for item in rebuilt_bundle.execution_plan.callables} == {
-        item.id: item for item in old_plan.callables
+    assert {item.id: item for item in rebuilt_bundle.execution_plan.invocations} == {
+        item.id: item for item in old_plan.invocations
     }
     assert len(rebuilt_bundle.execution_plan.execution_stages) == len(old_plan.execution_stages)
     assert not (rebuilt_bundle.explorer_path / "stale.html").exists()
@@ -211,7 +211,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     else:
         assert result.out == f"Build files created to {bundle.root}\n"
     assert spec.load_spec(bundle.spec_path).entities
-    assert bundle.execution_plan.callables
+    assert bundle.execution_plan.invocations
     assert (bundle.explorer_path / "index.html").exists()
     assert not (root / "_generated/spec").exists()
     assert not (root / project.EXPLORER_OUTPUT_DIR).exists()
@@ -252,7 +252,7 @@ def test_project_build_verbose_summary(
         f"  Number of features: {sum(len(dataset.features) for dataset in datasets)}\n"
         "\nPlan\n"
         f"  Number of stages: {len(bundle.execution_plan.stages)}\n"
-        f"  Number of callables: {len(bundle.execution_plan.callables)}\n"
+        f"  Number of invocations: {len(bundle.execution_plan.invocations)}\n"
     )
 
 
@@ -297,24 +297,24 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
     )
 
     assert bundle.manifest.features == ["pump_health_score"]
-    plan_callables = bundle.execution_plan.callables
-    sinks = [callable_ for callable_ in plan_callables if callable_.operation == "write"]
+    plan_invocations = bundle.execution_plan.invocations
+    sinks = [invocation for invocation in plan_invocations if invocation.operation == "write"]
     assert sinks
-    plan_ids = {callable_.id for callable_ in plan_callables}
+    plan_ids = {invocation.id for invocation in plan_invocations}
     produced_features = {
-        feature for callable_ in plan_callables for feature in callable_.output_features
+        feature for invocation in plan_invocations for feature in invocation.output_features
     }
     dimensions = set(source_spec.dimensions)
     for entity in source_spec.entities.values():
         dimensions.update(entity.dimension_ids)
-    for callable_ in plan_callables:
-        assert set(callable_.dependency_ids) <= plan_ids
+    for invocation in plan_invocations:
+        assert set(invocation.dependency_ids) <= plan_ids
     for sink in sinks:
         assert set(sink.input_features) <= produced_features | dimensions
     full_plan = example_bundle().execution_plan
-    assert len(bundle.execution_plan.callables) <= len(full_plan.callables)
-    assert len({callable_.id for callable_ in bundle.execution_plan.callables}) == len(
-        bundle.execution_plan.callables
+    assert len(bundle.execution_plan.invocations) <= len(full_plan.invocations)
+    assert len({invocation.id for invocation in bundle.execution_plan.invocations}) == len(
+        bundle.execution_plan.invocations
     )
     full_bundle = project_build.build_project(root)
     assert full_bundle.manifest.features is None

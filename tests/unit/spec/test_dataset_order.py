@@ -263,8 +263,8 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
         dimensions=spec_module.python_spec.dimensions,
     )
     assert (
-        compiler.Compiler().compile(ordered).callables
-        == compiler.Compiler().compile(unordered).callables
+        compiler.Compiler().compile(ordered).invocations
+        == compiler.Compiler().compile(unordered).invocations
     )
 
     result = engine_for_plan(compiler.Compiler().compile(ordered), spec_definition=ordered).run()
