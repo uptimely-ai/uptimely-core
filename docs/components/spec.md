@@ -281,29 +281,37 @@ declared operation determines its analytical role.
 
 ### Operations
 
-Each function is labeled with exactly one operation. The function's inputs determine
-which datasets it consumes. The table defines the dataset input and
-output counts for each operation:
+Each function is labeled with exactly one operation. The function's dataframe arguments determine which datasets it consumes. The
+table defines the dataframe argument and result counts for each operation:
 
-| Operation | Datasets in | Datasets out | Analytical | Dimension change | Purpose |
+| Operation | Dataframes in | Results out | Analytical | Dimension change | Purpose |
 | --- | ---: | ---: | --- | --- | --- |
 | `read` | 0 | 1 | No |  | Read external observations into a dataset. |
-| `collapse` | 1 | 1 | Yes | Down | Calculate features at a coarser grain. |
-| `conform` | 2 | 1 | No |  | Adapt observations to the target row scope. |
-| `expand` | 2 | 1 | No | Up | Transfer or join observations into target dimensional coverage. |
+| `collapse` | 1 | 1 | Yes | Down | Calculate features from a higher-dimensional foreign dataset. |
+| `conform` | 1 | 1 | No | Same | Adapt a same-dimension foreign dataset to the target row scope. |
+| `expand` | 1 | 1 | No | Up | Transfer observations from a lower-dimensional foreign dataset. |
 | `vectorize` | 1 | 1 | Yes | | Calculate features while preserving observation keys. |
 | `write` | 1 | 0 | No |  | Persist or evaluate selected data. |
 
-All data-producing functions return tabular data. They perform their own
-calculations, grouping, output naming, and scalar broadcasting.
-Analytical functions should not perform external I/O.
+Data-producing functions return tabular results. Their implementations follow
+the operation contract; analytical functions perform their calculations and
+grouping but should not perform external I/O.
+`read` takes no dataframe argument. Each of `conform`, `collapse`, and
+`expand` takes exactly one dataframe argument: its foreign/source dataset. The
+target dataset is engine-owned and is not passed to these functions.
+`conform` requires the source and target to declare the same dimensions, but
+they may belong to different entities. `collapse` requires the source
+dimensions to be a strict superset of the target dimensions; `expand` requires
+them to be a strict subset.
 
 ### Arguments
 
 The `args` schema must declare exactly the number of `dataframe` arguments
-listed for the function's operation. A dataframe argument represents a dataset
-input; other arguments may carry identifiers, features, or external resource
-settings.
+listed for the function's operation. `vectorize` and `write` receive their
+target dataset as their dataframe argument. A dataframe argument represents a
+dataset input; other arguments may carry identifiers, features, or external
+resource settings. `escape` is uncontrolled and may declare any number of
+dataframe arguments.
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |

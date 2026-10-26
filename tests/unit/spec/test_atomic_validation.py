@@ -82,13 +82,6 @@ def prepared() -> context.SpecValidationContext:
             ("binding", "args"),
         ),
         (
-            mapping_contracts.validate_conform_entity,
-            "conform",
-            {"same_entity": False},
-            "invalid_mapping_entity",
-            ("binding", "args"),
-        ),
-        (
             mapping_contracts.validate_expand_dimensions,
             "expand",
             {"has_lower_feature": False},
@@ -149,7 +142,11 @@ def test_dataframe_rules_return_errors(
     changes: dict[str, object],
     message: str,
 ) -> None:
-    argument = next(item.arguments[0] for item in prepared.mapping_contracts if item.arguments)
+    argument = next(
+        item.dataframe_arguments[0]
+        for item in prepared.mapping_contracts
+        if item.dataframe_arguments
+    )
 
     error = rule(dataclasses.replace(argument, **changes))
 
@@ -221,3 +218,106 @@ def test_function_rules_are_independent(
     assert "fit operation(s): write" in str(return_error)
     assert isinstance(count_error, errors.SpecError)
     assert count_error.code == "invalid_function_input_contract"
+
+
+@pytest.mark.parametrize("operation", ["conform", "collapse", "expand"])
+@pytest.mark.parametrize("source_ids", [frozenset({"foreign"}), frozenset({"one", "two"})])
+def test_dimensional_source_uses_feature_owners_for_every_operation(
+    prepared: context.SpecValidationContext,
+    operation: operations.FunctionOperation,
+    source_ids: frozenset[str],
+) -> None:
+    item = next(item for item in prepared.mapping_contracts if item.source is not None)
+    assert item.mapping.function is not None
+    mapping = dataclasses.replace(
+        item.mapping, function=item.mapping.function.model_copy(update={"operation": operation})
+    )
+    contract = dataclasses.replace(item, mapping=mapping, feature_dataset_ids=source_ids)
+
+    count_error = mapping_contracts.validate_input_feature_source_count(contract)
+    source_error = mapping_contracts.validate_dataframe_feature_source(contract)
+
+    if len(source_ids) > 1:
+        assert isinstance(count_error, errors.SpecError)
+        assert count_error.code == "invalid_mapping_dataset_input"
+        assert count_error.path == (*mapping.location.path, "features", "inputs")
+        assert "inputs must belong to one source dataset" in str(count_error)
+        assert source_error is None
+    else:
+        assert count_error is None
+        assert isinstance(source_error, errors.SpecError)
+        assert source_error.code == "invalid_mapping_dataset_input"
+        assert source_error.path == contract.dataframe_arguments[0].path
+        assert "must reference its foreign source dataset foreign" in str(source_error)
+
+
+@pytest.mark.parametrize("operation", ["conform", "collapse", "expand"])
+def test_foreign_dataframe_rule_is_independent_of_feature_ownership(
+    prepared: context.SpecValidationContext,
+    operation: operations.FunctionOperation,
+) -> None:
+    item = next(item for item in prepared.mapping_contracts if item.source is not None)
+    assert item.mapping.function is not None
+    mapping = dataclasses.replace(
+        item.mapping, function=item.mapping.function.model_copy(update={"operation": operation})
+    )
+    contract = dataclasses.replace(item, mapping=mapping, feature_dataset_ids=frozenset())
+    assert mapping_contracts.validate_foreign_dataframe(contract) is None
+
+    dataframe = dataclasses.replace(
+        contract.dataframe_arguments[0],
+        source_id=mapping.location.dataset.id,
+        source=mapping.location.dataset_location,
+    )
+    invalid = dataclasses.replace(contract, dataframe_arguments=(dataframe,))
+
+    error = mapping_contracts.validate_foreign_dataframe(invalid)
+
+    assert isinstance(error, errors.SpecError)
+    assert error.code == "invalid_mapping_dataset_input"
+    assert error.path == dataframe.path
+    assert mapping_contracts.validate_input_feature_source_count(invalid) is None
+    assert mapping_contracts.validate_dataframe_feature_source(invalid) is None
+
+
+@pytest.mark.parametrize("operation", ["conform", "collapse", "expand"])
+def test_mapping_rules_use_operation_dataframe_counts(
+    prepared: context.SpecValidationContext,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: operations.FunctionOperation,
+) -> None:
+    item = next(item for item in prepared.mapping_contracts if item.source is not None)
+    assert item.mapping.function is not None
+    mapping = dataclasses.replace(
+        item.mapping, function=item.mapping.function.model_copy(update={"operation": operation})
+    )
+    contract = dataclasses.replace(item, mapping=mapping)
+    assert len(contract.dataframe_arguments) == 1
+
+    monkeypatch.setitem(operations.DATAFRAME_INPUT_COUNTS, operation, 2)
+
+    error = mapping_contracts.validate_dataset_count(contract)
+    assert isinstance(error, errors.SpecError)
+    assert "exactly 2 foreign dataset(s)" in str(error)
+    assert mapping_contracts.validate_dataframe_feature_source(contract) is None
+
+
+def test_collapse_rejects_a_source_with_fewer_dimensions(
+    prepared: context.SpecValidationContext,
+) -> None:
+    item = next(item for item in prepared.mapping_contracts if item.source is not None)
+    assert item.mapping.function is not None
+    mapping = dataclasses.replace(
+        item.mapping, function=item.mapping.function.model_copy(update={"operation": "collapse"})
+    )
+    invalid = dataclasses.replace(
+        item,
+        mapping=mapping,
+        source_dimensions=frozenset(),
+    )
+
+    error = mapping_contracts.validate_collapse_dimensions(invalid)
+
+    assert isinstance(error, errors.SpecError)
+    assert error.code == "invalid_mapping_dimensions"
+    assert error.path == (*mapping.location.path, "features", "inputs")

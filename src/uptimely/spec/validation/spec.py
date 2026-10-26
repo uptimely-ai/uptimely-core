@@ -169,11 +169,14 @@ def _binding_and_contract_results(
         yield functions.validate_return_kind(function_id, function, dataframe_inputs)
         yield functions.validate_dataframe_count(function_id, function, dataframe_inputs)
     for item in context.mapping_contracts:
-        for argument in item.arguments:
+        for argument in item.dataframe_arguments:
             yield mapping_contracts.validate_dataframe_reference(argument)
             yield mapping_contracts.validate_dataframe_selector(argument)
             yield mapping_contracts.validate_dataframe_source(argument)
         yield mapping_contracts.validate_dataset_count(item)
+        yield mapping_contracts.validate_input_feature_source_count(item)
+        yield mapping_contracts.validate_foreign_dataframe(item)
+        yield mapping_contracts.validate_dataframe_feature_source(item)
         yield mapping_contracts.validate_dataframe_features(item)
         yield mapping_contracts.validate_read_inputs(item.mapping)
         yield mapping_contracts.validate_target_input(item)
@@ -181,5 +184,4 @@ def _binding_and_contract_results(
         yield mapping_contracts.validate_collapse_source(item)
         yield mapping_contracts.validate_collapse_dimensions(item)
         yield mapping_contracts.validate_conform_dimensions(item)
-        yield mapping_contracts.validate_conform_entity(item)
         yield mapping_contracts.validate_expand_dimensions(item)

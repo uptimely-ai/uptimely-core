@@ -25,8 +25,8 @@ FRAGMENT_OPERATIONS: typing.Final[tuple[FunctionOperation, ...]] = (
 DATAFRAME_INPUT_COUNTS: typing.Final[dict[FunctionOperation, int | None]] = {
     READ: 0,
     COLLAPSE: 1,
-    CONFORM: 2,
-    EXPAND: 2,
+    CONFORM: 1,
+    EXPAND: 1,
     VECTORIZE: 1,
     WRITE: 1,
     ESCAPE: None,

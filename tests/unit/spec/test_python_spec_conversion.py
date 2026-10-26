@@ -37,12 +37,12 @@ def _declaration(
     identifier: str, category: str, function: abc.Callable[..., object] = _source
 ) -> dataset.Dataset:
     is_expand = category == "expand"
-    is_conform = category == "conform"
+    is_dimensional = category in {"conform", "expand"}
     return dataset.Dataset(
         id=identifier,
         mappings={
             f"{identifier}_mapping": mapping.FunctionMapping(
-                inputs=[ref.feature("temperature")] if is_expand or is_conform else [],
+                inputs=[ref.feature("temperature")] if is_dimensional else [],
                 function=ref.function(function, operation=category),
                 arguments={
                     **(
@@ -55,9 +55,8 @@ def _declaration(
                             "dataset": ref.dataset(
                                 "shared_source" if is_expand else f"{identifier}_source"
                             ).dataframe,
-                            "other_dataset": ref.current_dataset().dataframe,
                         }
-                        if is_expand or is_conform
+                        if is_dimensional
                         else {}
                     ),
                     "columns": [ref.feature("temperature")],
@@ -199,8 +198,8 @@ def test_function_catalog_merges_and_deduplicates_each_operation(category: str) 
         "write": 1,
         "vectorize": 1,
         "collapse": 1,
-        "expand": 2,
-        "conform": 2,
+        "expand": 1,
+        "conform": 1,
     }[category]
     assert sum(arg.type == "dataframe" for arg in catalog[function_id].args.values()) == (
         expected_dataframe_inputs
@@ -220,14 +219,6 @@ def test_function_catalog_merges_and_deduplicates_each_operation(category: str) 
                 if expected_dataframe_inputs == 1
                 else {}
             ),
-            **(
-                {
-                    "dataset": {"type": "dataframe", "comment": None},
-                    "other_dataset": {"type": "dataframe", "comment": None},
-                }
-                if expected_dataframe_inputs == 2
-                else {}
-            ),
         },
     }
     expected_args = {"columns": ["$features.temperature"]}
@@ -240,8 +231,6 @@ def test_function_catalog_merges_and_deduplicates_each_operation(category: str) 
             else "@"
         )
         expected_args["dataset"] = f"$datasets.{source_id}.dataframe"
-    if expected_dataframe_inputs == 2:
-        expected_args["other_dataset"] = "$datasets.@.dataframe"
     assert payload["entities"]["one"]["datasets"]["first"]["mappings"]["first_mapping"][
         "binding"
     ] == {

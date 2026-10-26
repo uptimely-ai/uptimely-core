@@ -33,8 +33,8 @@ def test_named_operations_match_the_public_operation_contract() -> None:
         ("escape", None, "any"),
         ("vectorize", 1, "dataframe"),
         ("collapse", 1, "dataframe"),
-        ("expand", 2, "dataframe"),
-        ("conform", 2, "dataframe"),
+        ("expand", 1, "dataframe"),
+        ("conform", 1, "dataframe"),
     ],
 )
 def test_operation_contracts_validate_every_function_operation(
@@ -184,6 +184,27 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
                 "returns": "none",
                 "entrypoint": "example:write",
                 "args": {},
+            },
+            "requires 1 dataframe argument",
+        ),
+        (
+            {
+                "operation": "read",
+                "returns": "dataframe",
+                "entrypoint": "example:read",
+                "args": {"dataset": {"type": "dataframe"}},
+            },
+            "requires 0 dataframe argument",
+        ),
+        (
+            {
+                "operation": "conform",
+                "returns": "dataframe",
+                "entrypoint": "example:conform",
+                "args": {
+                    "source": {"type": "dataframe"},
+                    "target": {"type": "dataframe"},
+                },
             },
             "requires 1 dataframe argument",
         ),

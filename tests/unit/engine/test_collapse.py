@@ -55,13 +55,27 @@ def maximum(dataset: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.LazyFrame
 
 
 def expanded_values(
-    dataset: pl.DataFrame | pl.LazyFrame, other_dataset: pl.DataFrame | pl.LazyFrame
+    dataset: pl.DataFrame | pl.LazyFrame,
+    observation_ids_by_group: dict[str, list[int]],
 ) -> pl.DataFrame | pl.LazyFrame:
-    return dataset.select("group", "id", (pl.col("value") * 3).alias("expanded"))
+    keys: pl.DataFrame | pl.LazyFrame = pl.DataFrame(
+        [
+            (group, identifier)
+            for group, identifiers in observation_ids_by_group.items()
+            for identifier in identifiers
+        ],
+        schema={"group": pl.String, "id": pl.Int64},
+        orient="row",
+    )
+    if isinstance(dataset, pl.LazyFrame):
+        keys = keys.lazy()
+    return dataset.join(keys, on="group").select(
+        "group", "id", pl.col("expansion_value").alias("expanded")
+    )
 
 
 def read_expansion_input(lazy: bool) -> pl.DataFrame | pl.LazyFrame:
-    frame = pl.DataFrame({"group": ["A", "B"], "expansion_value": [1, 1]})
+    frame = pl.DataFrame({"group": ["A", "B"], "expansion_value": [12, 18]})
     return frame.lazy() if lazy else frame
 
 
@@ -224,12 +238,12 @@ def test_collapse_consumes_expanded_features(lazy):
         binding=spec_model.Binding(
             function="expanded_values",
             args={
-                "dataset": "$datasets.observations.dataframe",
-                "other_dataset": "$datasets.expansion_input.dataframe",
+                "dataset": "$datasets.expansion_input.dataframe",
+                "observation_ids_by_group": {"A": [1, 2], "B": [3, 4]},
             },
         ),
         features={
-            "inputs": ["$features.value", "$features.expansion_value"],
+            "inputs": ["$features.expansion_value"],
             "outputs": ["$features.expanded"],
         },
     )
@@ -240,7 +254,9 @@ def test_collapse_consumes_expanded_features(lazy):
         entrypoint=f"{__name__}:expanded_values",
         args={
             "dataset": spec_model.Argument(id="dataset", type="dataframe"),
-            "other_dataset": spec_model.Argument(id="other_dataset", type="dataframe"),
+            "observation_ids_by_group": spec_model.Argument(
+                id="observation_ids_by_group", type="object{str: array[integer]}"
+            ),
         },
     )
     summary = spec_definition.entities["group"].datasets["summary"]

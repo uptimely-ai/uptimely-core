@@ -247,8 +247,7 @@ def test_sources_and_transforms_python_spec() -> None:
                             functions.expand_data, operation="expand"
                         ),
                         arguments={
-                            "df1": python_spec.ref.dataset("transformed_dataset").dataframe,
-                            "df2": python_spec.ref.current_dataset().dataframe,
+                            "source": python_spec.ref.dataset("transformed_dataset").dataframe,
                         },
                         outputs=[python_spec.feature.Feature(name="input_2")],
                     ),
@@ -291,8 +290,7 @@ def test_sources_and_transforms_python_spec() -> None:
     expand = ds_model.mappings["expand_data"]
     assert expand.binding.function == "expand_data"
     assert expand.binding.args == {
-        "df1": "$datasets.transformed_dataset.dataframe",
-        "df2": "$datasets.@.dataframe",
+        "source": "$datasets.transformed_dataset.dataframe",
     }
     assert expand.input_features == ["input_1"]
     collapse = spec_definition.entities["summary"].datasets["summary"].mappings["collapse_data"]

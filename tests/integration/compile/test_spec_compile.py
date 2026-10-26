@@ -131,17 +131,24 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         .mappings["read_pump_telemetry"]
     )
 
-    pump_entity.datasets["auxiliary_dataset"] = spec_model.Dataset(
-        id="auxiliary_dataset",
-        features={"auxiliary_value": spec_model.Feature(id="auxiliary_value")},
-        mappings={
-            "read_auxiliary": spec_model.Mapping(
-                id="read_auxiliary",
-                binding=spec_model.Binding(
-                    function="read_pump_telemetry",
-                    args=dict(read_mapping.binding.args),
-                ),
-                features=spec_model.MappingFeatures(outputs=["$features.auxiliary_value"]),
+    definition.entities["auxiliary_entity"] = spec_model.Entity(
+        id="auxiliary_entity",
+        name="Auxiliary",
+        dimensions=pump_entity.dimensions,
+        datasets={
+            "auxiliary_dataset": spec_model.Dataset(
+                id="auxiliary_dataset",
+                features={"auxiliary_value": spec_model.Feature(id="auxiliary_value")},
+                mappings={
+                    "read_auxiliary": spec_model.Mapping(
+                        id="read_auxiliary",
+                        binding=spec_model.Binding(
+                            function="read_pump_telemetry",
+                            args=dict(read_mapping.binding.args),
+                        ),
+                        features=spec_model.MappingFeatures(outputs=["$features.auxiliary_value"]),
+                    ),
+                },
             )
         },
     )
@@ -152,7 +159,6 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
             function="conform_auxiliary",
             args={
                 "source": "$datasets.auxiliary_dataset.dataframe",
-                "target": "$datasets.@.dataframe",
             },
         ),
         features=spec_model.MappingFeatures(
@@ -168,7 +174,6 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         validate_signature=False,
         args={
             "source": spec_model.Argument(id="source", type="dataframe"),
-            "target": spec_model.Argument(id="target", type="dataframe"),
         },
     )
 
