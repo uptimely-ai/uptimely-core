@@ -102,29 +102,28 @@ def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(value) * 2).alias(output))
 
 
-dataset = Dataset(
-    id="measurements",
-    entity=measurements,
-    mappings={
-        "read": FunctionMapping(
-            function=read_values,
-            arguments={},
-            outputs=[Feature(name="value")],
-        ),
-        "double": FunctionMapping(
-            function=double,
-            arguments={
-                "dataset": ref.current_dataset().dataframe,
-                "value": ref.feature("value"),
-                "output": "doubled",
-            },
-            outputs=[Feature(name="doubled")],
-        ),
-    },
-)
+class Measurements(Dataset):
+    id = "measurements"
+    entity = measurements
+
+    read = FunctionMapping(
+        function=read_values,
+        arguments={},
+        outputs=[Feature(name="value")],
+    )
+    double = FunctionMapping(
+        function=double,
+        arguments={
+            "dataset": ref.current_dataset().dataframe,
+            "value": ref.feature("value"),
+            "output": ref.feature("doubled").id,
+        },
+        outputs=[Feature(name="doubled")],
+    )
+
 
 definition = PythonSpec(
-    datasets={measurements: [dataset]},
+    datasets=[Measurements],
     name="Measurements",
 )
 specification = definition.to_model()

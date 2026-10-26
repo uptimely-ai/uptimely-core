@@ -57,7 +57,10 @@ def test_pump_entities_are_declared_in_spec_order() -> None:
         pump_dimensions.PRODUCTION_LINE,
         pump_dimensions.PUMP,
     ]
-    assert list(pump_telemetry_spec.python_spec.datasets) == expected
+    assert [declaration.id for declaration in pump_telemetry_spec.python_spec.datasets] == [
+        "pump_telemetry_dataset",
+        "pump_dataset",
+    ]
     assert [
         dataset.id
         for entity in pump_telemetry_spec.python_spec.entities
@@ -156,9 +159,10 @@ def test_example_timestamp_order_matches_python_declaration() -> None:
 
 
 def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None:
+    declaration = simple_analytics_module.SimpleAnalytics()
     spec_definition = spec.from_python(
-        datasets=[simple_analytics_module.dataset_],
-        functions=simple_analytics_module.dataset_.function_catalog(),
+        datasets=[declaration],
+        functions=declaration.function_catalog(),
         name="simple_analytics",
         dimensions=simple_analytics_module.python_spec.dimensions,
     )

@@ -78,8 +78,13 @@ def _entity(identifier: str, datasets: list[dataset.Dataset]) -> entity.Entity:
 
 
 def _python_spec(entities: list[entity.Entity], name: str | None = None) -> PythonSpec:
+    declarations: list[dataset.Dataset] = []
+    for owner in entities:
+        for declaration in owner.datasets:
+            declaration.entity = owner
+            declarations.append(declaration)
     return PythonSpec(
-        datasets={declaration: declaration.datasets for declaration in entities},
+        datasets=declarations,
         name=name,
     )
 
@@ -120,7 +125,7 @@ def _conform_source(identifier: str) -> dataset.Dataset:
 
 
 def test_empty_spec_has_no_datasets_or_functions() -> None:
-    spec_definition = PythonSpec(datasets={})
+    spec_definition = PythonSpec(datasets=[])
 
     assert spec_definition.iter_datasets() == []
     assert spec_definition.function_catalog() == spec_model.FunctionCatalog()
@@ -128,18 +133,47 @@ def test_empty_spec_has_no_datasets_or_functions() -> None:
         spec_definition.to_dict()
 
 
+def test_python_spec_requires_a_sequence_and_dataset_entities() -> None:
+    with pytest.raises(TypeError, match="datasets must be a sequence"):
+        tuple(PythonSpec(datasets={}).datasets)
+    with pytest.raises(ValueError, match="Dataset 'readings' must declare an entity"):
+        tuple(PythonSpec(datasets=[dataset.Dataset(id="readings")]).datasets)
+
+
 def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
     first = dataset.Dataset(id="first")
     second = dataset.Dataset(id="second")
     third = dataset.Dataset(id="third")
-    spec_definition = _python_spec(
-        [_entity("empty", []), _entity("one", [first, second]), _entity("two", [third])]
-    )
+    spec_definition = _python_spec([_entity("one", [first, second]), _entity("two", [third])])
 
     assert spec_definition.iter_datasets() == [first, second, third]
-    assert [item.id for item in spec_definition.entities] == ["empty", "one", "two"]
-    assert [item.id for item in spec_definition.entities[1].datasets] == ["first", "second"]
+    assert [item.id for item in spec_definition.entities] == ["one", "two"]
+    assert [item.id for item in spec_definition.entities[0].datasets] == ["first", "second"]
     assert [item.id for item in spec_definition.dimensions] == ["pump"]
+
+
+def test_python_spec_derives_entity_from_dataset_class() -> None:
+    owner = entity.Entity(
+        id="assets",
+        name="Assets",
+        dimensions=[dimension.Dimension(id="pump", type="string")],
+    )
+
+    class Readings(dataset.Dataset):
+        id = "readings"
+        entity = owner
+
+    class Summary(dataset.Dataset):
+        id = "summary"
+        entity = owner
+
+    spec_definition = PythonSpec(datasets=[Readings, Summary])
+
+    assert [item.id for item in spec_definition.entities] == ["assets"]
+    assert [item.id for item in spec_definition.entities[0].datasets] == [
+        "readings",
+        "summary",
+    ]
 
 
 def test_function_catalog_keeps_distinct_functions_and_operations() -> None:
@@ -304,20 +338,21 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
 
 def test_to_dict_preserves_name_dimensions_and_dataset_metadata() -> None:
     pump = dimension.Dimension(id="pump", type="string", description="Asset ID")
-    declaration = dataset.Dataset(
-        id="telemetry",
-        description="Telemetry readings",
-        row_scope=dataset.RowScope(grain="One row per pump", coverage="All pumps"),
-        order=[dataset.Order(dimension=ref.dimension("pump"), direction="desc")],
+    owner = entity.Entity(
+        id="assets",
+        name="Assets",
+        dimensions=[pump],
     )
+
+    class Telemetry(dataset.Dataset):
+        id = "telemetry"
+        description = "Telemetry readings"
+        entity = owner
+        row_scope = dataset.RowScope(grain="One row per pump", coverage="All pumps")
+        order = [dataset.Order(dimension=ref.dimension("pump"), direction="desc")]
+
     spec_definition = PythonSpec(
-        datasets={
-            entity.Entity(
-                id="assets",
-                name="Assets",
-                dimensions=[pump],
-            ): [declaration]
-        },
+        datasets=[Telemetry],
         name="Pump analytics",
     )
 

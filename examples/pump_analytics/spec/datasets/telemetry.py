@@ -1,6 +1,7 @@
 """Minute-level pump observations and declarative dataframe transformations."""
 
 from examples.pump_analytics.functions import analytics
+from examples.pump_analytics.spec import dimension, entity
 
 from uptimely.spec.python import (
     Dataset,
@@ -11,9 +12,6 @@ from uptimely.spec.python import (
     ref,
     row_context,
 )
-
-from .. import entity
-from ..dimension import TIMESTAMP
 
 
 class Telemetry(Dataset):
@@ -26,7 +24,7 @@ class Telemetry(Dataset):
         grain="One row per pump and timestamp",
         filtering="Development telemetry selected by the read function",
     )
-    order = (Order(dimension=ref.dimension(TIMESTAMP.id), direction="asc"),)
+    order = (Order(dimension=ref.dimension(dimension.TIMESTAMP.id), direction="asc"),)
 
     read_pump_telemetry = FunctionMapping(
         function=analytics.read_pump_telemetry,
@@ -158,7 +156,7 @@ class Telemetry(Dataset):
             dataset=ref.current_dataset().dataframe,
             temperature=ref.feature("bearing_temperature"),
             partition_by=[ref.dimension(key.id) for key in entity.dimensions[:-1]],
-            order_by=ref.dimension(TIMESTAMP.id),
+            order_by=ref.dimension(dimension.TIMESTAMP.id),
             output=ref.feature("bearing_temperature_delta").id,
         ),
         outputs=[
@@ -178,7 +176,7 @@ class Telemetry(Dataset):
             dataset=ref.current_dataset().dataframe,
             vibration=ref.feature("vibration_rms"),
             partition_by=[ref.dimension(key.id) for key in entity.dimensions[:-1]],
-            order_by=ref.dimension(TIMESTAMP.id),
+            order_by=ref.dimension(dimension.TIMESTAMP.id),
             output=ref.feature("vibration_delta").id,
         ),
         outputs=[

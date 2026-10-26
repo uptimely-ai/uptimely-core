@@ -1,10 +1,9 @@
 """Pump-level observation scope and declarative dataframe transformations."""
 
 from examples.pump_analytics.functions import analytics
+from examples.pump_analytics.spec import entity
 
 from uptimely.spec.python import Dataset, Feature, FunctionMapping, RowScope, ref
-
-from .. import entity
 
 
 class Pump(Dataset):
