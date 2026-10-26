@@ -89,10 +89,13 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
     )
     (tmp_path / f"{module_name}.py").write_text(
         f"import {dependency_name}\n"
-        "from uptimely.spec.python.entity import Entity\n"
+        "from uptimely.spec.python import Dataset, Entity\n"
         "from uptimely.spec.python.spec import PythonSpec\n"
-        f"python_spec = PythonSpec(name={dependency_name}.VALUE, datasets={{"
-        "Entity(id='assets', name='Assets', dimensions=[]): []})\n",
+        "assets = Entity(id='assets', name='Assets', dimensions=[])\n"
+        "class Values(Dataset):\n"
+        "    id = 'values'\n"
+        "    entity = assets\n"
+        f"python_spec = PythonSpec(name={dependency_name}.VALUE, datasets=[Values])\n",
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(tmp_path))
@@ -101,4 +104,5 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
 
     assert isinstance(loaded, spec.Spec)
     assert loaded.entities["assets"].name == "Assets"
+    assert list(loaded.entities["assets"].datasets) == ["values"]
     assert loaded.name == "Custom project spec"

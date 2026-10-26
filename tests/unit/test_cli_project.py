@@ -181,14 +181,18 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     if source_kind != "json":
         (root / "declaration.py").write_text(
             "from uptimely.spec import python as api\n"
-            "from uptimely.spec.python import dataset, entity, feature, mapping\n"
+            "from uptimely.spec.python import Dataset, Entity, Feature, FunctionMapping\n"
             "import build_functions\n"
-            "definition = api.PythonSpec(datasets={entity.Entity(\n"
-            "    id='example', name='Example', dimensions=[]): [dataset.Dataset(\n"
-            "        id='values', mappings={'read': mapping.FunctionMapping(\n"
-            "            function=api.ref.function(build_functions.read, operation='read'),\n"
-            "            arguments={},\n"
-            "            outputs=[feature.Feature(name='value')])})]})\n",
+            "example = Entity(id='example', name='Example', dimensions=[])\n"
+            "class Values(Dataset):\n"
+            "    id = 'values'\n"
+            "    entity = example\n"
+            "    read = FunctionMapping(\n"
+            "        function=api.ref.function(build_functions.read, operation='read'),\n"
+            "        arguments={},\n"
+            "        outputs=[Feature(name='value')],\n"
+            "    )\n"
+            "definition = api.PythonSpec(datasets=[Values])\n",
             encoding="utf-8",
         )
         arguments = ["--python-spec", "declaration:definition"]

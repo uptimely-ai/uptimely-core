@@ -268,15 +268,13 @@ def test_python_dictionary_and_json_export_share_the_same_encoding(
     tmp_path: pathlib.Path,
 ) -> None:
     pump = dimension.Dimension(id="pump", type="string")
-    declaration = spec.PythonSpec(
-        datasets={
-            entity.Entity(
-                id="assets",
-                name="Assets",
-                dimensions=[pump],
-            ): [dataset.Dataset(id="readings")]
-        },
-    )
+    assets = entity.Entity(id="assets", name="Assets", dimensions=[pump])
+
+    class Readings(dataset.Dataset):
+        id = "readings"
+        entity = assets
+
+    declaration = spec.PythonSpec(datasets=[Readings])
     document = declaration.to_model()
     path = tmp_path / "spec.json"
     codec.write_document(document, path)

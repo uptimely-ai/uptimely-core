@@ -60,14 +60,14 @@ class Pump(Dataset):
 from uptimely.spec.python import PythonSpec
 
 python_spec = PythonSpec(
-    datasets={assets: [Pump()]},
+    datasets=[Pump],
     name="Pump analytics",
 )
 ```
 
-`PythonSpec` groups datasets by entity and derives its entities, dimensions, and
-function catalog. `Model([Pump]).to_declarations()` optionally registers dataset
-classes.
+`PythonSpec` instantiates the dataset classes, groups them using each class's
+`entity` attribute, and derives its entities, dimensions, and function catalog.
+`Model([Pump]).to_declarations()` optionally registers dataset classes.
 
 `FunctionMapping` takes `function`, `arguments`, and `outputs`. Decorate callable
 implementations with `@operation(...)`; use `ref.function(..., operation=...)`
@@ -130,7 +130,7 @@ The document model and exported JSON format are unchanged.
 `uptimely.spec.python.entity` declares entity metadata and dimensions.
 
 Python entity declarations describe their dimensions and metadata. Associate
-datasets with them through the `PythonSpec.datasets` mapping.
+datasets with them by setting the `entity` class attribute on each dataset.
 Conversion produces an ID-keyed dataset dictionary in the canonical model and
 exported JSON, without repeating `id` in the JSON attributes. Duplicate dataset
 IDs within an entity are rejected rather than overwritten.

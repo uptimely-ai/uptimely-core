@@ -220,7 +220,7 @@ def test_dataset_order_appears_in_html(tmp_path: pathlib.Path) -> None:
 
 def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
     declaration = python_spec.dataset.Dataset(
-        id=spec_module.dataset_.id,
+        id=spec_module.SimpleAnalytics.id,
         mappings={
             "read": python_spec.mapping.FunctionMapping(
                 inputs=[],
