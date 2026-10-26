@@ -75,18 +75,18 @@ class Engine:
                 try:
                     invocation_executor.execute(invocation)
                 except Exception as error:
-                    statuses[invocation.id] = "failed"
+                    statuses[invocation.id] = result_module.INVOCATION_STATUS_FAILED
                     failures[invocation.id] = str(error)
                     durations[invocation.id] = time.perf_counter() - started
                     logger.warning("Invocation %s failed: %s", invocation.id, error)
                     break
-                statuses[invocation.id] = "succeeded"
+                statuses[invocation.id] = result_module.INVOCATION_STATUS_SUCCEEDED
                 durations[invocation.id] = time.perf_counter() - started
             if failures:
                 break
 
         for invocation in self.plan.invocations:
-            statuses.setdefault(invocation.id, "skipped")
+            statuses.setdefault(invocation.id, result_module.INVOCATION_STATUS_SKIPPED)
 
         return result_module.ExecutionResult(
             datasets=dict(state.datasets),
