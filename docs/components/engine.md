@@ -30,6 +30,7 @@ JSON key | Type | Purpose
 `backend.type` | string | Engine type, such as `docker` or `python_venv`.
 `backend.definition` | string or `null` | Folder containing configuration files for the engine.
 `backend.dataframe` | string | Dataframe backend. The built-in engine currently supports `polars`.
+`backend.validate_lazy_frames` | boolean | Defaults to `true`. Set to `false` to skip value checks that would execute a Polars lazy query during engine validation.
 `backend.evaluation` | string | Reserved. Values such as `eager`, `lazy`, and `persist` are stored but have no effect on execution.
 `backend.batch_size` | integer, `"*"`, or `null` | Reserved. Validates positive integers, `"*"`, or `null`, but does not change how many records are read at a time.
 `bind` | object | Runtime values keyed by namespace, object identifier, and attribute for resolving placeholders.
@@ -157,6 +158,11 @@ coalesces key columns, treats null keys as equal, and requires a one-to-one
 key relationship. Keys present on only one side are retained, with nulls for
 the other fragment's absent values.
 
+Only declared dimension keys may overlap between fragments; overlapping feature
+columns are rejected rather than silently discarded. A dimensionless fragment
+represents zero or one global row, and the engine uses an internal
+collision-safe join key that is not exposed in the result.
+
 The join is intentionally permissive about coverage: it does not prove that
 fragments satisfy the dataset's declared grain, filtering, or `row_scope`.
 Fragments for one dataset should represent the same intended observations.
@@ -181,7 +187,22 @@ results. The engine then validates the returned fragment before merging it:
 | Outputs | Every declared output feature is present as a column. |
 | Keys | Complete dimension keys are unique; dimensionless datasets contain at most one row. |
 | Types | Declared dimension and feature types match the returned schema. |
+| Feature collisions | Output feature columns do not replace columns already assembled. |
 | Vectorize coverage | The result has exactly the existing dataset key set; row order may differ. |
+
+By default, checking lazy-frame key uniqueness, dimensionless row counts, and
+vectorize coverage executes queries. Set `backend.validate_lazy_frames` to
+`false` to skip these data-dependent checks for lazy frames. Required-column,
+schema/type, and feature-collision checks remain enabled, as do value checks for
+eager frames. Polars joins retain `validate="1:1"` and enforce that constraint
+when the resulting lazy query is collected. Skipped fragment checks (including
+vectorize coverage) are not otherwise deferred or guaranteed. Errors during
+later collection are not reflected in an already returned engine result.
+
+This option does not prevent explicit collection by user functions, sinks, or
+`PolarsBackend.collect()`, nor does it prevent schema resolution from reading
+source metadata. Direct backend value queries such as `row_count()` on a lazy
+frame raise an error while implicit lazy execution is disabled.
 
 Logical types used for validation are:
 

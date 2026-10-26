@@ -348,15 +348,43 @@ def test_collapse_preserves_null_group_keys(lazy):
 
 
 @pytest.mark.parametrize("lazy", [False, True])
-@pytest.mark.parametrize("empty", [False, True])
-def test_dimensionless_alignment_preserves_empty_fragments_and_user_column_names(lazy, empty):
+@pytest.mark.parametrize(
+    ("empty_left", "empty_right"),
+    [(False, False), (False, True), (True, False), (True, True)],
+)
+def test_dimensionless_alignment_preserves_empty_fragments_and_user_column_names(
+    lazy, empty_left, empty_right
+):
     left = pl.DataFrame({"__uptimely_global_key": [7]})
     right = pl.DataFrame({"right": [8]})
-    if empty:
+    if empty_left:
+        left = left.clear()
+    if empty_right:
         right = right.clear()
     if lazy:
         left, right = left.lazy(), right.lazy()
     result = engine.PolarsBackend().join(left, right, [])
     if lazy:
         result = result.collect()
-    assert result.to_dicts() == [{"__uptimely_global_key": 7, "right": None if empty else 8}]
+    expected = (
+        []
+        if empty_left and empty_right
+        else [
+            {
+                "__uptimely_global_key": None if empty_left else 7,
+                "right": None if empty_right else 8,
+            }
+        ]
+    )
+    assert result.to_dicts() == expected
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_dimensionless_alignment_rejects_multiple_global_rows(lazy):
+    left = pl.DataFrame({"left": [1, 2]})
+    right = pl.DataFrame({"right": [3]})
+    if lazy:
+        left, right = left.lazy(), right.lazy()
+
+    with pytest.raises(ValueError, match="at most one global row"):
+        engine.PolarsBackend().join(left, right, [])

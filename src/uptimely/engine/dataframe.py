@@ -62,74 +62,136 @@ class DataFrameExecution:
             raise ValueError(
                 f"Mapping {invocation.mapping_id} is missing output columns: " + ", ".join(missing)
             )
+        dataset = self._dataset(invocation.dataset_id)
+        self.backend.validate_types(
+            result,
+            self._declared_types(dataset, [*dimensions, *invocation.output_features]),
+        )
+        if invocation.operation == operations.VECTORIZE:
+            validate_coverage = (
+                input_frame is not None
+                and self.backend.should_validate_values(input_frame)
+                and self.backend.should_validate_values(result)
+            )
+            if input_frame is None or (
+                validate_coverage and not self.backend.same_keys(input_frame, result, dimensions)
+            ):
+                raise ValueError(
+                    f"Vectorize mapping {invocation.mapping_id} must preserve "
+                    "the dataset dimension keys"
+                )
+
+    def assemble_fragment(
+        self,
+        invocation: execution_plan.Invocation,
+        result: object,
+        existing: object | None,
+        input_frame: object | None,
+        dimensions: list[str],
+    ) -> tuple[object, object]:
+        """Validate a mapping result and assemble its declared fragment."""
+        self.validate_result(invocation, result, input_frame, dimensions)
+        fragment = self.backend.select(
+            result, list(dict.fromkeys([*dimensions, *invocation.output_features]))
+        )
+        if existing is not None:
+            dataset = self._dataset(invocation.dataset_id)
+            self._validate_frame_keys(existing, dimensions, "Accumulated dataset")
+            existing_columns = set(self.backend.column_names(existing))
+            self.backend.validate_types(
+                existing,
+                self._declared_types(
+                    dataset,
+                    [
+                        *dimensions,
+                        *(name for name in dataset.features if name in existing_columns),
+                    ],
+                ),
+            )
+            self._validate_feature_collisions(existing, fragment, dimensions)
+            merged = self._join_fragments(existing, fragment, dimensions)
+        else:
+            merged = fragment
+        return fragment, merged
+
+    def merge_fragment(
+        self, existing: object | None, fragment: object, dimensions: list[str]
+    ) -> object:
+        """Join unique fragments on complete keys without replacing feature columns."""
+        self._validate_frame_keys(fragment, dimensions, "Fragment")
+        if existing is None:
+            return fragment
+        self._validate_frame_keys(existing, dimensions, "Accumulated dataset")
+        self._validate_feature_collisions(existing, fragment, dimensions)
+        return self._join_fragments(existing, fragment, dimensions)
+
+    def _validate_feature_collisions(
+        self, existing: object, fragment: object, dimensions: list[str]
+    ) -> None:
+        """Reject output feature names already present in the accumulated dataset."""
+        existing_columns = set(self.backend.column_names(existing))
+        fragment_columns = set(self.backend.column_names(fragment))
+        collisions = sorted((fragment_columns - set(dimensions)) & existing_columns)
+        if collisions:
+            raise ValueError(
+                "Fragment feature columns overlap the accumulated dataset: " + ", ".join(collisions)
+            )
+
+    def _join_fragments(self, existing: object, fragment: object, dimensions: list[str]) -> object:
+        """Join validated frames, retaining the native eager/lazy behavior."""
+        left = existing
+        right = fragment
+        if type(existing) is not type(fragment):
+            left = self.backend.lazy(existing)
+            right = self.backend.lazy(right)
+        return self.backend.join(left, right, dimensions)
+
+    def _dataset(self, dataset_id: str | None) -> spec_model.Dataset:
+        """Return the spec definition for a project-wide dataset ID."""
         dataset = next(
             (
                 dataset
                 for entity in self.spec_definition.entities.values()
-                if (dataset := entity.datasets.get(invocation.dataset_id)) is not None
+                if (dataset := entity.datasets.get(dataset_id)) is not None
             ),
             None,
         )
         if dataset is None:
-            raise ValueError(f"Unknown dataset: {invocation.dataset_id}")
-        types: dict[str, str] = {}
-        for name in dict.fromkeys([*dimensions, *invocation.output_features]):
-            definition = (
-                self.spec_definition.dimensions.get(name)
-                if name in dimensions
-                else dataset.features.get(name)
-            )
-            column_type = definition.type if definition is not None else None
-            if column_type is not None:
-                types[name] = column_type
-        self.backend.validate_types(result, types)
-        if invocation.operation == operations.VECTORIZE and (
-            input_frame is None or not self.backend.same_keys(input_frame, result, dimensions)
-        ):
-            raise ValueError(
-                f"Vectorize mapping {invocation.mapping_id} must preserve the dataset dimension "
-                "keys"
-            )
+            raise ValueError(f"Unknown dataset: {dataset_id}")
+        return dataset
 
-    def merge_fragment(self, existing: object, fragment: object, dimensions: list[str]) -> object:
-        """Join a validated fragment without replacing existing feature columns."""
-        if existing is None:
-            return fragment
-        existing_columns = set(self.backend.column_names(existing))
-        new_columns = [
-            column
-            for column in self.backend.column_names(fragment)
-            if column not in existing_columns and column not in dimensions
-        ]
-        if not new_columns:
-            return existing
-        right = self.backend.select(fragment, [*dimensions, *new_columns])
-        left = existing
-        if type(existing) is not type(right):
-            left = self.backend.lazy(existing)
-            right = self.backend.lazy(right)
-        return self.backend.join(left, right, dimensions)
+    def _declared_types(self, dataset: spec_model.Dataset, columns: list[str]) -> dict[str, str]:
+        """Return logical types declared for the selected dataset columns."""
+        types: dict[str, str] = {}
+        for name in dict.fromkeys(columns):
+            definition = self.spec_definition.dimensions.get(name) or dataset.features.get(name)
+            if definition is not None and definition.type is not None:
+                types[name] = definition.type
+        return types
+
+    def _validate_frame_keys(self, frame: object, dimensions: list[str], description: str) -> None:
+        """Require complete unique keys, or at most one dimensionless row."""
+        if not self.backend.is_frame(frame):
+            raise ValueError(f"{description} must be a Polars DataFrame or LazyFrame")
+        columns = set(self.backend.column_names(frame))
+        missing = sorted(set(dimensions) - columns)
+        if missing:
+            raise ValueError(f"{description} is missing dimension columns: " + ", ".join(missing))
+        if not self.backend.should_validate_values(frame):
+            return
+        if not dimensions:
+            if self.backend.row_count(frame) > 1:
+                raise ValueError(
+                    f"{description} contains duplicate dimension keys "
+                    "(dimensionless datasets allow at most one row)"
+                )
+            return
+        keys = self.backend.select(frame, dimensions)
+        if self.backend.is_duplicated(keys):
+            raise ValueError(f"{description} contains duplicate dimension keys")
 
     def validate_fragment_keys(
         self, invocation: execution_plan.Invocation, fragment: object, dimensions: list[str]
     ) -> None:
         """Validate the dimension-key contract of one dataframe fragment."""
-        columns = set(self.backend.column_names(fragment))
-        missing = sorted(set(dimensions) - columns)
-        if missing:
-            raise ValueError(
-                f"Fragment {invocation.function_id} is missing dimension columns: "
-                + ", ".join(missing)
-            )
-        if not dimensions:
-            if self.backend.row_count(fragment) > 1:
-                raise ValueError(
-                    f"Fragment {invocation.function_id} contains duplicate dimension keys "
-                    "(dimensionless datasets allow at most one row)"
-                )
-            return
-        keys = self.backend.select(fragment, dimensions)
-        if not isinstance(keys, type(fragment)):
-            keys = self.backend.collect(keys)
-        if self.backend.is_duplicated(keys):
-            raise ValueError(f"Fragment {invocation.function_id} contains duplicate dimension keys")
+        self._validate_frame_keys(fragment, dimensions, f"Fragment {invocation.function_id}")

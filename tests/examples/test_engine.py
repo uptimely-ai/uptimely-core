@@ -246,6 +246,143 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
     ]
 
 
+@pytest.mark.parametrize(("existing_lazy", "fragment_lazy"), [(True, False), (False, True)])
+def test_engine_assembly_accepts_mixed_eager_and_lazy_frames(
+    existing_lazy: bool, fragment_lazy: bool
+) -> None:
+    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    dataframe = dataframe_module.DataFrameExecution(
+        engine.backend, engine.spec_definition, state_module.RuntimeState()
+    )
+    existing: pl.DataFrame | pl.LazyFrame = pl.DataFrame({"key": ["A"], "old": [1]})
+    fragment: pl.DataFrame | pl.LazyFrame = pl.DataFrame({"key": ["B"], "new": [2]})
+    if existing_lazy:
+        existing = existing.lazy()
+    if fragment_lazy:
+        fragment = fragment.lazy()
+
+    merged = dataframe.merge_fragment(existing, fragment, ["key"])
+
+    assert isinstance(merged, pl.LazyFrame)
+    assert merged.collect().sort("key").select("key", "old", "new").rows() == [
+        ("A", 1, None),
+        ("B", None, 2),
+    ]
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize(
+    ("existing_keys", "fragment_keys", "expected_keys"),
+    [
+        ([None, "A"], [None, "B"], [None, "A", "B"]),
+        (["A"], ["B"], ["A", "B"]),
+    ],
+)
+def test_engine_assembly_preserves_partial_and_disjoint_keys(
+    lazy: bool,
+    existing_keys: list[str | None],
+    fragment_keys: list[str | None],
+    expected_keys: list[str | None],
+) -> None:
+    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    dataframe = dataframe_module.DataFrameExecution(
+        engine.backend, engine.spec_definition, state_module.RuntimeState()
+    )
+    existing = pl.DataFrame({"key": existing_keys, "old": list(range(len(existing_keys)))})
+    fragment = pl.DataFrame({"key": fragment_keys, "new": list(range(10, 10 + len(fragment_keys)))})
+    if lazy:
+        existing, fragment = existing.lazy(), fragment.lazy()
+
+    merged = dataframe.merge_fragment(existing, fragment, ["key"])
+    if isinstance(merged, pl.LazyFrame):
+        merged = merged.collect()
+
+    assert sorted(merged["key"].to_list(), key=lambda value: value or "") == sorted(
+        expected_keys, key=lambda value: value or ""
+    )
+    if None in existing_keys:
+        assert merged.filter(pl.col("key").is_null()).select("old", "new").row(0) == (0, 10)
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("duplicate_side", ["existing", "fragment"])
+def test_engine_assembly_rejects_duplicate_keys_on_either_side(
+    lazy: bool, duplicate_side: str
+) -> None:
+    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    dataframe = dataframe_module.DataFrameExecution(
+        engine.backend, engine.spec_definition, state_module.RuntimeState()
+    )
+    existing = pl.DataFrame({"key": ["A", "A"], "old": [1, 2]})
+    fragment = pl.DataFrame({"key": ["A"], "new": [3]})
+    if duplicate_side == "fragment":
+        existing = pl.DataFrame({"key": ["A"], "old": [1]})
+        fragment = pl.DataFrame({"key": ["A", "A"], "new": [3, 4]})
+    if lazy:
+        existing, fragment = existing.lazy(), fragment.lazy()
+
+    with pytest.raises(ValueError, match="duplicate dimension keys"):
+        dataframe.merge_fragment(existing, fragment, ["key"])
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("invalid_column", ["key", "output", "missing"])
+def test_engine_validates_required_fragment_columns_and_types(
+    lazy: bool, invalid_column: str
+) -> None:
+    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    dataframe = dataframe_module.DataFrameExecution(
+        engine.backend, engine.spec_definition, state_module.RuntimeState()
+    )
+    invocation = next(
+        item
+        for item in engine.plan.invocations
+        if item.dataset_id == "pump_dataset" and item.operation == "collapse"
+    )
+    dimensions = engine.spec_definition.entities[invocation.entity_id].dimension_ids
+    output = next(name for name in invocation.output_features if name not in dimensions)
+    columns: dict[str, list[object]] = {name: [f"{name}-1"] for name in dimensions}
+    columns[output] = ["wrong type" if invalid_column == "output" else 1.5]
+    if invalid_column == "key":
+        columns[dimensions[0]] = [1]
+    if invalid_column == "missing":
+        columns.pop(output)
+    result: pl.DataFrame | pl.LazyFrame = pl.DataFrame(columns)
+    if lazy:
+        result = result.lazy()
+
+    expected = {
+        "key": f"Output column {dimensions[0]} has type",
+        "output": f"Output column {output} has type",
+        "missing": f"missing output columns: {output}",
+    }[invalid_column]
+    with pytest.raises(ValueError, match=expected):
+        dataframe.validate_result(invocation, result, None, dimensions)
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_engine_assembly_rejects_feature_collisions(lazy: bool) -> None:
+    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    dataframe = dataframe_module.DataFrameExecution(
+        engine.backend, engine.spec_definition, state_module.RuntimeState()
+    )
+    invocation = next(
+        item
+        for item in engine.plan.invocations
+        if item.dataset_id == "pump_dataset" and item.operation == "collapse"
+    )
+    dimensions = engine.spec_definition.entities[invocation.entity_id].dimension_ids
+    output = next(name for name in invocation.output_features if name not in dimensions)
+    keys = {name: [f"{name}-1"] for name in dimensions}
+    result = pl.DataFrame({**keys, output: [1.5]})
+    existing = pl.DataFrame({**keys, output: [2.5]})
+    if lazy:
+        result, existing = result.lazy(), existing.lazy()
+
+    with pytest.raises(ValueError, match=f"overlap.*{output}"):
+        dataframe.assemble_fragment(invocation, result, existing, None, dimensions)
+
+
 @pytest.mark.parametrize(
     ("fragment", "message"),
     [

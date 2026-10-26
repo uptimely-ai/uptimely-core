@@ -30,7 +30,7 @@ class Engine:
         self.plan = bundle.execution_plan
         self.spec_definition = bundle.spec_definition
         self.config = config
-        self.backend = backend_module.create_backend(config.backend.dataframe)
+        self.backend = backend_module.create_backend(config.backend)
         self.bind = config.bind
         self._validate_engine()
 
