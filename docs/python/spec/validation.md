@@ -24,7 +24,8 @@ invocations. Its ordered phases are:
 1. Vectorize output declarations, dataset IDs, feature ownership, and local
    calculation/write dependencies.
 2. Dimension parents, entity dimensions, and dataset ordering.
-3. Mapping outputs and producer uniqueness/completeness.
+3. Mapping outputs and producer uniqueness, with warnings for declared features
+   that have no producer.
 4. Collapse source scope, mapping inputs, row context, and mapping cycles.
 5. Binding arguments, function contracts, and mapping contracts.
 
@@ -53,7 +54,7 @@ modules separate orchestration from domain checks:
 | `dataset` | Dataset IDs and ordering dimensions |
 | `dimensions` | Dimension declarations and parent relationships |
 | `functions` | Binding arguments, nested selector types, and function contracts |
-| `mapping_outputs` | Early calculation outputs, ownership, and producer invariants |
+| `mapping_outputs` | Early calculation outputs, ownership, and unique producers |
 | `mapping_inputs` | Input references, collapse source scope, and row context |
 | `mapping_contracts` | Dataframe reference validity and operation-specific contracts |
 | `dependencies` | Local calculation/write scope and mapping-cycle checks |
@@ -88,9 +89,10 @@ consume dependency and row-context facts through iterators instead of building
 temporary tuples that validation would immediately traverse once.
 
 Each phase checks one declaration's invariants before advancing to the next.
-Output coverage follows all mappings in its dataset; dataframe arguments
-precede operation-specific relationships. Vectorize and write share local
-dataset checks; conform and expand share join-input checks.
+Output coverage is checked after all mappings in a dataset, and declared
+features without producers generate warnings rather than errors. Dataframe
+arguments precede operation-specific relationships. Vectorize and write share
+local dataset checks; conform and expand share join-input checks.
 
 Escape mappings require explicit, nonempty feature input and output lists.
 Their references participate in normal ownership, producer, unknown-reference,

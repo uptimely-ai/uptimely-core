@@ -203,6 +203,30 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         spec.load_spec(bad_transform_path)
 
 
+def test_unproduced_declared_features_warn_instead_of_failing(
+    tmp_path: pathlib.Path,
+) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
+    dataset["features"]["unproduced_feature"] = {"type": "float"}
+    path = tmp_path / "unproduced_feature.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+
+    with pytest.warns(
+        UserWarning,
+        match=(
+            "entities.pump_telemetry.datasets.pump_telemetry_dataset.features: "
+            "Features have no producer mapping: unproduced_feature"
+        ),
+    ):
+        parsed_spec = spec.load_spec(path)
+
+    assert (
+        "unproduced_feature"
+        in parsed_spec.entities["pump_telemetry"].datasets["pump_telemetry_dataset"].features
+    )
+
+
 def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_chains(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -220,6 +244,12 @@ def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_ch
     assert mappings["escape_first"].output_features == ["external_first", "external_second"]
     assert mappings["escape_second"].input_features == ["external_first"]
     assert mappings["escape_second"].output_features == ["external_third"]
+    health_signal_producer = next(
+        item
+        for item in context.SpecValidationContext.build(parsed_spec).mappings
+        if "health_signal_normalized" in item.outputs
+    )
+    assert health_signal_producer.operation == "vectorize"
 
 
 @pytest.mark.parametrize(

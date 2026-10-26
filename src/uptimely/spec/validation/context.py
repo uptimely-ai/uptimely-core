@@ -20,7 +20,7 @@ type MappingKey = tuple[str, str]
 type ValidationResult = ValueError | None
 type OutputDeclaration = tuple[str, str | None]
 type MappingOutputFacts = tuple[MappingFacts, tuple[OutputDeclaration, ...]]
-type DatasetOutputFacts = tuple[tuple[MappingOutputFacts, ...], tuple[str, ...]]
+type DatasetOutputFacts = tuple[DatasetLocation, tuple[MappingOutputFacts, ...], tuple[str, ...]]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -381,7 +381,7 @@ class SpecValidationContext:
             missing = tuple(
                 sorted(set(location.dataset.features) - producers.keys() - location.dimensions)
             )
-            yield tuple(mappings), missing
+            yield location, tuple(mappings), missing
 
     @functools.cached_property
     def feature_producers(self) -> dict[str, MappingKey]:
