@@ -102,6 +102,10 @@ def _spec() -> spec.Spec:
 
 def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     spec_definition = _spec()
+    dataset_model = spec_definition.entities["entity"].datasets["observations"]
+    assert dataset_model.mappings["metadata"].input_features == []
+    assert dataset_model.mappings["result"].input_features == ["value"]
+
     computed = compiler.Compiler().compile(spec_definition, features=["result"])
     assert len(computed.invocations) == 2
     assert next(

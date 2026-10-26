@@ -76,9 +76,13 @@ checks callable parameter names and required arguments.
 The implementation module's package must be installed in the build and runtime
 environments; install a local project package in editable mode for development.
 
-Feature references in `arguments` determine dependencies; use `inputs` when they
-can't be inferred. Writes use `outputs=[]`. For generated declarations, use
-`Dataset(id=..., mappings={...})`.
+In Python authoring, declare `inputs` explicitly whenever practical. If
+`inputs` is omitted, feature references in `arguments` are used to infer them;
+if `inputs` is supplied, it defines the dependencies instead. References such
+as `ref.feature("result").id` pass an identifier, not feature data. In the
+resulting spec document, dependencies are always recorded explicitly in
+`features.inputs`; argument bindings do not declare dependencies. Writes use
+`outputs=[]`. For generated declarations, use `Dataset(id=..., mappings={...})`.
 
 ### Migrating from list-based declarations
 
