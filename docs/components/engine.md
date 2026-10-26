@@ -167,11 +167,13 @@ source to the target dataset's row scope before returning a fragment.
 
 ## Runtime validation
 
-Before invoking a plan invocation, the engine checks that its declared feature inputs
-are materialized and resolves its arguments, including runtime placeholders.
-Missing inputs or bindings fail that invocation. For data-producing mappings,
-the built-in Polars backend accepts `DataFrame` and `LazyFrame` results. The
-engine then validates the returned fragment before merging it:
+Before invoking a plan invocation, the engine checks that its declared feature
+inputs are materialized. Structural references have already been resolved by
+the compiler; the engine binds compiled dataframe identifiers to their runtime
+frames and substitutes `?`-prefixed placeholders from runtime configuration.
+Missing inputs or runtime bindings fail that invocation. For data-producing
+mappings, the built-in Polars backend accepts `DataFrame` and `LazyFrame`
+results. The engine then validates the returned fragment before merging it:
 
 | Check | Runtime requirement |
 | --- | --- |
@@ -204,3 +206,9 @@ After validation, only dimension and declared output columns are merged.
 Additional columns returned by a function are ignored, so they cannot replace
 other dataset features. Other data-producing operations may change coverage to
 create their target row scope.
+
+These runtime checks enforce the declared data contract; they do not verify
+that a calculation is analytically correct or prove that arbitrary Python
+code is pure. Test calculations directly and add domain-specific assertions
+for correctness. The engine does not currently support declared data-quality
+rules. Feature types and null values do not imply automatic quality checks.

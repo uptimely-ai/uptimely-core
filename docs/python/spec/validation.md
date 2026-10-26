@@ -3,7 +3,9 @@
 `uptimely.spec.validation` exports semantic validation functions and the
 structured `SpecError` exception. For normal loading and authoring, use
 [load_spec or from_python](api.md), which perform the
-required validation for you.
+required validation for you. Pydantic model validation checks the document
+shape and field types. `validate_spec(document)` checks semantic relationships
+between those declarations.
 
 The sections below document the exported interfaces in their defining modules,
 not the internal rule helpers. Call `validate_spec(document)` after editing a
@@ -11,7 +13,10 @@ document directly. Each invocation builds fresh lookup indexes, reads the
 document's mappings, and leaves the document unchanged. Validation does not
 import executable function implementations.
 
-## Responsibilities and phase order
+For the validation responsibilities of the document model, Spec, compiler, and
+engine, see [Spec validation](../../components/spec.md#validation).
+
+## Phase order
 
 Document validation checks declared relationships and dataflow, not generated
 invocations. Its ordered phases are:
@@ -31,11 +36,10 @@ than by validating a second collection of generated calls.
 The coordinator in `validation.spec` delegates to five named phase generators,
 making the validation sequence visible at the top level while retaining lazy
 first-error behavior. Each phase passes the same fresh `SpecValidationContext`
-facts to the explicit domain rules. Add
-declaration rules to the appropriate domain phase, keeping
-declaration order and testing the first error when faults overlap. The compiler
-separately checks executable signatures, invocation dependencies, and plan
-schedulability.
+facts to the explicit domain rules. Add declaration rules to the appropriate
+domain phase, keeping declaration order and testing the first error when
+faults overlap. The compiler separately checks implementation signatures,
+selected-plan feasibility, and dependency ordering.
 
 ## Internal organization
 

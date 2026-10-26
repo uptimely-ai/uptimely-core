@@ -24,7 +24,7 @@ A plan is one JSON object. Its root fields are:
 | `stages` | array of arrays of strings | Invocation identifiers grouped by dependency order. |
 
 All root fields are required. Unknown fields and unsupported versions are
-rejected. Version 1 plans are not converted; rebuild generated bundles from
+rejected. Version 1 plans are not converted. Rebuild generated bundles from
 their source Specs to create version 2 plans.
 
 ## Resources
@@ -36,16 +36,17 @@ annotations keyed by invocation identifier and the installed distribution name
 and version associated with each entrypoint. Signature-disabled functions have
 no return-annotation entry, but their package provenance is read from installed
 metadata without importing their implementation. Missing distribution metadata
-is recorded as unavailable; ambiguous namespace ownership is an error. Package
-versions are informational and are not enforced by the engine. A plan is
-consumed as part of its build bundle, not as a replacement for `spec.json`.
+is recorded as unavailable, while ambiguous namespace ownership is an error.
+Package versions are informational and are not enforced by the engine. A plan
+is consumed as part of its build bundle, not as a replacement for `spec.json`.
 
 ## Invocations
 
 Each invocation represents one function-to-mapping application. Its inputs
-declare the features used by that operation; dependencies identify invocations
-that must finish first. Invocation IDs are opaque references: consumers must
-not infer operation or identity metadata by parsing their spelling.
+declare the features used by that operation, while dependencies identify
+invocations that must finish first. Invocation IDs are opaque references.
+Consumers must not infer operation or identity metadata by parsing their
+spelling.
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
@@ -70,9 +71,9 @@ state.
 ## Stages
 
 Each stage is a list of invocation identifiers. Every invocation appears exactly
-once, and each dependency must appear in an earlier stage. Invocations in the same
-stage are independent according to the declared dependency graph; an engine may
-run them in parallel while preserving stage order.
+once, and each dependency must appear in an earlier stage. Invocations in the
+same stage are independent according to the declared dependency graph. An
+engine may run them in parallel while preserving stage order.
 
 ## Dependencies
 
@@ -82,30 +83,27 @@ themselves. A plan limited to selected features also includes the features they
 depend on, along with configured writes for the selected datasets. Those writes
 may use features outside the selection.
 
-The dependency graph must be acyclic. Plan loading checks invocation identifiers,
-dependency references, and stage ordering. These structural checks do not prove
-that dependencies inside function implementations are declared or that
-calculations are correct. The engine must support the plan version and declared
-backend.
+The dependency graph must be acyclic. Plan loading checks invocation
+identifiers, dependency references, and stage ordering. These structural
+checks do not prove that dependencies inside function implementations are
+declared or that calculations are correct. The engine must support the plan
+version and declared backend.
 
-## Validation
+## Compilation and plan validation
 
 The compiler accepts a loaded Spec and validates its current declarations
-before compiling it into a valid, schedulable plan:
+before compiling it into a valid, schedulable plan. Declaration rules are
+defined in [Spec validation](spec.md#validation). Compilation checks
+selected-feature feasibility, dependency ordering, plan schedulability, and
+implementation entrypoints. Unless a function sets `validate_signature` to
+`false`, it also inspects the Python signature and checks its return annotation
+against the declared return contract. Disabling signature validation does not
+disable Spec checks. Execution still requires a loadable function.
 
-- Spec declarations are semantically validated directly, without creating a
-  separate resolved spec. The compiler builds one invocation node per mapping
-  and resolves structural arguments when producing plan invocations.
-- Selected output features exist, and the dependency graph is acyclic.
-- Function entrypoints use `module.path:qualname` and resolve through Python's
-  import system. Package provenance is read from installed metadata. Unless a
-  function sets `validate_signature` to `false`, its implementation is loaded,
-  its Python signature is inspected, and its return annotation is checked
-  against the declared return contract. Disabling signature validation does
-  not import the implementation or disable spec-level contract or dependency
-  validation; execution still requires a loadable function.
-- Loaded plans use a supported version and valid root fields, invocation IDs,
-  dependency references, and stage ordering.
+Plan loading checks supported versions and valid root fields, invocation IDs,
+dependency references, and stage ordering. The compiler's generated stages
+follow the dependency order. Loading a portable plan checks that its declared
+stages preserve that order.
 
 ## API migration and rebuilding plans
 
