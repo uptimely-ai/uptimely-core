@@ -475,11 +475,16 @@ Declarations must describe actual reach, not merely the window parameter.
 
 ## Validation
 
-Spec validation checks document structure and semantic consistency:
+Document-model validation checks the Spec version, field types, required
+values, and rejects unknown fields. Semantic Spec validation checks that
+declarations fit together: references and dependencies are valid and
+unambiguous, function bindings match their argument contracts, operations obey
+their input/output contracts, feature producers are unique, row-context
+requirements match their dimensions and ordering, and feature dependencies
+are acyclic. It does not import implementations or inspect calculated data.
 
-- Supported version, field types, required values, and no unknown fields.
-- Valid and unambiguous identifiers and references for dimensions, datasets,
-  and feature producers.
-- Mapping and function operation, input, output, and argument contracts.
-- Row-context requirements against input dimensions and dataset order.
-- Valid, acyclic feature dependencies.
+Compilation checks whether a Spec can produce a selected, schedulable plan.
+The engine checks runtime values and returned data, including whether declared
+feature types match actual columns. For the `validate_spec()` API and its
+ordered semantic checks, see the
+[Python validation reference](../python/spec/validation.md).
