@@ -8,34 +8,54 @@ Version numbers are assigned when releases are published. The *breaking*
 column marks changes that require users to update their specifications,
 projects, functions or commands.
 
-## Planned release: Specification parameters and binding semantics
+## Planned release: Parameters and read-only variable fragments
 
-Settle user-controlled values, bulk feature selection and external side-effect
-ordering before expanding execution planning.
+Replace the previous constants concept with two forms of user-controlled
+values: scalar parameters and dimension-keyed variable fragments. Neither is
+a calculated feature. Keep their values unchanged during execution.
 
-**Prerequisites:** Function contracts.
+**Prerequisites:** Function contracts; Dimensional operations and fragment
+foundation for keyed variable-fragment assembly.
+
+### Agreed semantics
+
+- Define a parameter at the most detailed scope where it is needed:
+  mapping-local values bind directly to a function; dataset-level values are
+  passed to a fragment-generating function and assigned to literal columns;
+  global values are shared when multiple datasets need the same variable.
+- Mark variable references with the `?` prefix. Scalar parameter values live in
+  the project's `config/params.json`, where each key identifies a parameter and
+  its attributes. A present `default` attribute supplies the engine's value.
+  An explicit `"default": null` is a supplied null value, not a missing value.
+- Replace the `bind` section of `config/engine.json` with parameter definitions
+  in `config/params.json`; retain engine backend settings in `engine.json`.
+  Literal values remain supported in `spec.json`, but parameter definitions
+  combined with `?` references are recommended.
+- Use variable fragments, not scalar parameters, when values differ by
+  dimension key, for example limits or rules for individual assets. Read these
+  fragments like other datasets; the engine joins their values to the consuming
+  dataframe when needed.
+- Variable data is read-only and must not be persisted. Compilation must reject
+  attempts to persist it, including variable columns joined into a dataset.
 
 | title | breaking | description |
 |---|---|---|
-| Define constants in relation to parameters | No | Resolve whether constants are a special case of parameters before implementing the public model. Document ownership, scope and binding semantics for values such as `gravity_m2s: 9.81`, without mixing user-controlled values with calculated features. |
-| Add parameters to the specification | No | Add parameters as a column type alongside dimensions and features, following the agreed constant model. A parameter is a control variable: it takes part in calculations and allows configuration per dimension, but is not modified during the process. |
-| Pass all dataset features in one argument | No | Add `$datasets.@.features.ids` for feature names and `$datasets.@.features.dict` for names with metadata, optionally filtered by tags. Resolve the selected feature set deterministically from the specification, not incidental execution order. Include selected features in dependency analysis and reject self-dependencies and cycles rather than silently omitting unavailable features. |
-| Declare external side-effect ordering | No | Add explicit execution-order dependencies when a step consumes external results created by another step, such as an `escape` reading persisted output from a `write`. Validate referenced steps and cycles, and preserve this ordering in sequential execution. Keep these edges distinct from feature dependencies and define required predecessor retention for later scoped execution and optimization. |
-| Print a concise spec summary | No | Add a public `Spec.print_summary()` method that prints a readable overview of a specification, and demonstrate it in the project README's Python example. This item can ship independently of parameters. |
+| Define scoped scalar parameter references | No | Add mapping, dataset and global parameter scopes to JSON and Python authoring with equivalent `?` reference semantics. Bind mapping parameters directly to function arguments; pass dataset parameters into fragment-generating functions for literal-column assignment; reuse global parameters across datasets. Keep literal argument values supported and document the distinction from calculated features. |
+| Load project parameter values | Yes | Load `config/params.json` as parameter identifiers mapped to attribute objects. Use a present `default` as the runtime value, preserving explicit null values. Migrate existing runtime placeholders and `engine.json` bind values, keeping backend settings separate. Update engine and public API configuration, CLI loading, scaffolding, examples and documentation together; report invalid or unresolved parameters explicitly. |
+| Assemble dimension-keyed variable fragments | No | Declare and read variable fragments through dataset-style sources, track their consumers and assemble values by dimension keys when required. Reuse the fragment foundation's key validation rather than row-position matching. Keep variable inputs separate from calculated outputs and preserve their identity after joins. |
+| Enforce read-only variable data | No | Reject writes targeting variable datasets or persisting variable columns, including columns joined into analytical datasets. Track variable provenance through assembly so omission from a write declaration cannot bypass the check. Add compiler tests for direct and joined-variable persistence, and execution tests for scalar binding, explicit null defaults and dimension-keyed limits or rules. |
 
-## Planned release: Dimensional operations and fragment foundation
+### Questions to settle before implementation
 
-Introduce fragment-producing operations together with the minimum safe Polars
-assembly needed to execute them.
-
-**Prerequisites:** Function contracts.
-
-| title | breaking | description |
-|---|---|---|
-| Define operations by dimensional relationship | Yes | `read` ingests from an external source and takes no frames. `conform` brings in a dataset with the same dimensions but a different grain, for example different sampling. `collapse` brings in information from higher dimensionality, and `expand` from lower dimensionality. `conform` takes the foreign frame and the dataset's rows; `collapse` and `expand` take the foreign frame and, optionally, the dataset's rows. The compiler validates each relationship from declared dimensions. |
-| Add dimension key selectors | No | Add `$datasets.@.dimensions.ids` for a dataset's key columns. Validate explicitly declared matching keys against the dimensions of the participating datasets; dimension references used for grouping or ordering are not automatically join keys. |
-| Define and implement safe fragment assembly | No | Combine fragments of the same dataset by the owning entity's complete dimension key, never row position. Preserve full outer, one-to-one assembly with coalesced keys and null-key equality; retain keys present in only one fragment without claiming identical observation coverage. Define dimensionless assembly and feature collision rules. Ship native Polars assembly with mandatory required-column, key-uniqueness and collision checks, plus tests for partial coverage, null keys and dimensionless cases. No user-defined `paste` or per-dataset join function is required. Cross-dataset reconciliation remains an explicit dimensional operation. |
-| Stage fragments | Yes | `read`, `conform`, `collapse` and `expand` return a fragment: the dataset's dimension keys plus the features they produce. They never join onto the dataset's frame. Ship the return-contract change together with working engine assembly using the current scheduler, without requiring the later function-level planner. |
+- What is the exact `?` reference grammar for each scope, how do scoped names
+  map to keys in `params.json`, and how are name collisions handled?
+- What does a parameter declaration without `default` mean, and how can its
+  value be supplied? Define missing-value errors, value types and validation,
+  including dataframe null versus NaN representation.
+- How are variable fragments and their `?` references declared, which dimension
+  keys must match a consumer, and what happens when a consumer key has no
+  variable value? Define how writes select persistable analytical columns
+  without including joined variable columns.
 
 ## Planned release: Function-level planning and incremental assembly
 
@@ -43,12 +63,12 @@ Build dataset frames incrementally with explicit producer and frame-version
 dependencies, keeping assembly in the engine.
 
 **Prerequisites:** Dimensional operations and fragment foundation;
-Specification parameters and binding semantics.
+Parameters and read-only variable fragments.
 
 | title | breaking | description |
 |---|---|---|
-| Validate dataset assembly dependencies | No | Resolve unambiguous output producers, prerequisites and cycles in the function-level graph, including bulk feature selections and explicit execution-order edges. Retain all existing plan-safety checks throughout the transition; do not defer safety needed by the earlier fragment release. Physical key uniqueness and returned schemas remain runtime checks. |
-| Build dataset frames function by function | Yes | Engine state is one frame per dataset. The plan is a graph of functions, with each function pinned to the foreign frame version it reads. Datasets in the same stage are independent only when no feature or execution-order dependency connects them. Start with a sequential scheduler and preserve the fragment assembly contract. |
+| Validate dataset assembly dependencies | No | Resolve unambiguous output producers, prerequisites and cycles in the function-level graph strictly from declared inputs and outputs. Retain all existing plan-safety checks throughout the transition; do not defer safety needed by the earlier fragment release. Physical key uniqueness and returned schemas remain runtime checks. |
+| Build dataset frames function by function | Yes | Engine state is one frame per dataset. The plan is a graph of functions, with each function pinned to the foreign frame version it reads. Datasets in the same stage are independent only when no declared input/output dependency connects them. Start with a sequential scheduler that waits for each step to finish successfully before starting the next, and preserve the fragment assembly contract. |
 
 ## Planned release: Reproducible builds and diagnostics
 
@@ -67,7 +87,10 @@ with changes to specification and plan formats.
 ## Planned release: Frame adapter contracts
 
 Keep Polars as the built-in native implementation. Separate dataframe conversion
-from native assembly and validate both before advertising support.
+from native assembly and validate both before advertising support. This release
+introduces the adapter contracts and implementation path for dataframe
+representations beyond Polars, which are not supported by the fragment
+foundation release.
 
 **Prerequisites:** Function-level planning and incremental assembly;
 execution-requirement checks from Reproducible builds and diagnostics.
@@ -105,8 +128,8 @@ Reproducible builds and diagnostics; Runtime contract validation.
 
 | title | breaking | description |
 |---|---|---|
-| Extend `uptimely run` | No | Add `--output`, `--head`, `--to` and `--bind`, with equivalent public `uptimely.run(...)` options and the established validation modes. Define output-scope pruning once: retain required feature and execution-order predecessors and normally skip `write` unless requested. Explicitly report and require authorization when a selected step needs a write predecessor, rather than silently running it or dropping the edge. Optimization later reuses these semantics. |
-| Add environment-aware builds and configuration overrides | No | Support named environments, deterministic layered configuration and clear errors for missing values. Record environment and non-sensitive provenance, exclude secrets from artifacts, and reuse plans when only runtime bindings change. Apply overrides without mutating the published build. |
+| Extend `uptimely run` | No | Add `--output`, `--head`, `--to` and `--bind`, with equivalent public `uptimely.run(...)` options and the established validation modes. Define output-scope pruning once using declared inputs and outputs and retain required producers. Do not exclude writes merely because validation is enabled or introduce a separate write-authorization policy. Writes within the requested scope execute like other steps. Optimization later reuses these semantics. |
+| Add environment-aware builds and configuration overrides | No | Support named environments, deterministic layered configuration and clear errors for missing values. Use environment-specific parameters to configure write destinations, including non-production destinations for validation runs; validation does not automatically skip writes. Record environment and non-sensitive provenance, exclude secrets from artifacts, and reuse plans when only runtime bindings change. Apply overrides without mutating the published build. |
 | Extend preflight validation | No | Extend mandatory capability preflight to saved-plan identity, output scope, runtime bindings, callable entrypoints and backend compatibility before execution. Reuse target-aware diagnostics without running analytical functions or performing workflow data I/O. This does not verify external source availability or input data. |
 | Add secret-aware runtime bindings | No | Resolve secrets from environment variables or a provider at runtime, report missing values, redact secrets and keep them out of build artifacts. |
 
@@ -116,11 +139,11 @@ Check real data with explicit rules that produce no features and do not change
 data. Quality checks complement contracts; they do not prove formula correctness.
 
 **Prerequisites:** Runtime contract validation; Runtime configuration and scoped
-execution for shared invocation and write-gating semantics.
+execution for shared invocation and environment configuration.
 
 | title | breaking | description |
 |---|---|---|
-| Add data quality validations | No | Add a `validations` section with calculation-style binding, organizing code under `calculations/` and `validations/`. Dataset validation functions return `bool` or failing rows, where an empty frame means passed. Severity `error` fails the run and skips every affected dataset write, including a write required by an execution-order edge; block dependent steps rather than bypassing the failure. Severity `warn` reports and continues. Extend existing modes with `--validate quality` and `--validate all`, the latter including contract checks. Show validations as feature status badges in Explorer, not calculation steps. |
+| Add data quality validations | No | Add a `validations` section with calculation-style binding, organizing code under `calculations/` and `validations/`. Dataset validation functions return `bool` or failing rows, where an empty frame means passed. Severity `error` fails the run and stops further execution under the normal failure policy, without special write-only gating. Severity `warn` reports and continues. Validation runs include writes like other steps, using environment-configured destinations. Extend existing modes with `--validate quality` and `--validate all`, the latter including contract checks. Show validations as feature status badges in Explorer, not calculation steps. |
 | Add reusable null-quality checks | No | Provide distinct any-null and all-null-column checks with explicit empty-dataset behavior and configurable severity. Apply only declared checks; nulls in a nullable column are not automatically invalid. Keep quality rules separate from mandatory assembly safety and reuse validation reporting. |
 | Add validation reports | No | Use a consistent record containing validation, dataset, severity, pass/fail, failing row count, bounded sample and message. Include run and build identity for later correlation with execution reports. Export with `--report <path>`, print a CLI summary and show the latest report in Explorer. Each run replaces the previous report; shared history is out of scope. Make sample capture explicit and redact sensitive data. |
 
@@ -134,7 +157,7 @@ validations. Existing repository tests continue to accompany every release.
 | title | breaking | description |
 |---|---|---|
 | Reuse specification validation functions | No | Expose and reuse specification validators in user tests instead of duplicating validation logic. |
-| Add the `uptimely.testing` pytest plugin | No | Provide a project fixture, workflow execution on fixture data with all validations and assertions showing failing rows. Allow each data-quality validation to be collected as a separate pytest item in CI/CD. |
+| Add the `uptimely.testing` pytest plugin | No | Provide a project fixture, workflow execution on fixture data with all validations and assertions showing failing rows. Include writes using test-environment destinations rather than automatically skipping them. Allow each data-quality validation to be collected as a separate pytest item in CI/CD. |
 | Add worked examples | No | Store small input/output tables per function in the specification. Explorer shows before-and-after tables and the pytest plugin executes them as tests. |
 | Document testing levels | No | Explain unit tests, worked examples, workflow tests on fixtures and real-data validations in the project structure guide, with `tests/unit/`, `tests/workflow/`, `tests/fixtures/` and `validations/` folders. |
 | Document an analytics CI/CD workflow | No | Provide a runnable pipeline that validates the spec, builds the plan, runs unit and fixture workflow tests with contract and quality checks, and publishes the build and available validation reports. Promote the same immutable build with runtime configuration supplied separately. Keep production-data checks and credentials outside fixture-based CI. |
@@ -145,12 +168,12 @@ Optimize a correct, scoped plan and execute genuinely independent work.
 
 **Prerequisites:** Function-level planning and incremental assembly;
 Frame adapter contracts; Runtime configuration and scoped execution;
-Data quality validations for validation-gating semantics.
+Data quality validations for shared validation and failure semantics.
 
 | title | breaking | description |
 |---|---|---|
-| Add compiler optimization | No | Offer configurable optimization that reuses scoped-execution pruning and avoids redundant assembly, conversion and materialization. Preserve feature and execution-order edges, validation semantics and authorized side effects. Keep the logical plan backend-independent, with backend-specific choices in target-aware planning. Retain safety checks with optimization disabled and test optimized/unoptimized equivalence. |
-| Add a parallel scheduler | No | Run independent dataset work concurrently with configurable global and per-adapter limits and grouped lazy collection, such as `pl.collect_all`. Account for library threading, memory, process startup and serialization; do not allocate one process per callable or size workers solely from the widest stage. Preserve ordering, write gating and failure propagation. Optimization and concurrency can ship separately if needed. |
+| Add compiler optimization | No | Offer configurable optimization that reuses scoped-execution pruning and avoids redundant assembly, conversion and materialization. Preserve dependencies derived from declared inputs and outputs, validation semantics and all writes within the requested scope. Keep the logical plan backend-independent, with backend-specific choices in target-aware planning. Retain safety checks with optimization disabled and test optimized/unoptimized equivalence. |
+| Add a parallel scheduler | No | Run independent dataset work concurrently with configurable global and per-adapter limits and grouped lazy collection, such as `pl.collect_all`. Account for library threading, memory, process startup and serialization; do not allocate one process per callable or size workers solely from the widest stage. Wait for declared input producers to finish successfully before starting consumers, and preserve validation and failure propagation without special write skipping. Optimization and concurrency can ship separately if needed. |
 
 ## Planned release: Additional dataframe adapters
 
@@ -211,13 +234,12 @@ integration. Report export can ship before its Explorer view.
 Derive schedules from declared result freshness without changing the meaning
 of analytical dependencies.
 
-**Prerequisites:** Specification parameters and binding semantics;
-Function-level planning and incremental assembly; Runtime configuration and
+**Prerequisites:** Function-level planning and incremental assembly; Runtime configuration and
 scoped execution. Parallel execution is not required.
 
 | title | breaking | description |
 |---|---|---|
-| Add freshness to the specification | No | Define freshness requirements for mappings or features, their propagation through dependencies and how external source availability constrains achievable schedules. Specify schedule-multiple and compatibility rules, including explicit side-effect edges. Reject incompatible requirements with actionable diagnostics. Add derived schedules only after these semantics are defined; earlier releases validate existing schedule declarations only. |
+| Add freshness to the specification | No | Define freshness requirements for mappings or features, their propagation through declared input/output dependencies and how external source availability constrains achievable schedules. Specify schedule-multiple and compatibility rules without introducing separate side-effect dependencies. Reject incompatible requirements with actionable diagnostics. Add derived schedules only after these semantics are defined; earlier releases validate existing schedule declarations only. |
 
 ## Planned release: Example extensions
 
@@ -249,6 +271,14 @@ Execution reports and inspection for report export, not its Explorer view.
 
 These are not blocked by the full preferred sequence above. Ship when their
 specific prerequisites and user needs justify them.
+
+### Specification summary
+
+**Prerequisites:** Existing specification model.
+
+| title | breaking | description |
+|---|---|---|
+| Print a concise spec summary | No | Add a public `Spec.print_summary()` method that prints a readable overview of a specification, and demonstrate it in the project README's Python example. |
 
 ### Polars 2.0 upgrade
 
