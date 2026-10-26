@@ -131,7 +131,7 @@ def _input_results(
         yield collapse_inputs.validate_source_target(item)
         yield collapse_inputs.validate_grouping_dimensions(item)
         yield collapse_inputs.validate_source_features(item)
-        yield collapse_inputs.validate_source_dimensions(item)
+        yield collapse_inputs.validate_source_dimensions(item, context.dimension_ids)
     for item, prepared_context in context.iter_input_contexts():
         yield mapping_inputs.validate_escape_inputs(item)
         for feature in item.inputs:
@@ -141,9 +141,9 @@ def _input_results(
             yield mapping_inputs.validate_feature_reference(item, feature, context.feature_names)
         for reference in item.dataset_references:
             yield mapping_inputs.validate_dataset_reference(item, reference, context.datasets_by_id)
-        for dimension in item.dimension_references:
+        for dimension, path in item.dimension_reference_paths:
             yield mapping_inputs.validate_dimension_reference(
-                item, dimension, context.dimension_ids
+                item, dimension, context.dimension_ids, path
             )
         if prepared_context is not None:
             yield row_context.validate_dataset_order(prepared_context)
@@ -174,6 +174,7 @@ def _binding_and_contract_results(
             yield mapping_contracts.validate_dataframe_selector(argument)
             yield mapping_contracts.validate_dataframe_source(argument)
         yield mapping_contracts.validate_dataset_count(item)
+        yield mapping_contracts.validate_matching_keys(item)
         yield mapping_contracts.validate_input_feature_source_count(item)
         yield mapping_contracts.validate_foreign_dataframe(item)
         yield mapping_contracts.validate_dataframe_feature_source(item)

@@ -76,12 +76,26 @@ class InvocationGraph:
             for dataset in entity.datasets.values():
                 for mapping in dataset.mappings.values():
                     operation = bindings.mapping_operation(mapping, self.spec.functions)
+                    feature_id = (
+                        next(
+                            (
+                                feature
+                                for feature in mapping.output_features
+                                if feature not in entity.dimension_ids
+                            ),
+                            None,
+                        )
+                        if operation == operations.COLLAPSE
+                        else mapping.output_features[0]
+                        if mapping.output_features
+                        else None
+                    )
                     invocation = InvocationNode(
                         function_id=mapping.binding.function,
                         entity_id=entity_id,
                         dataset_id=dataset.id,
                         mapping_id=mapping.id,
-                        feature_id=mapping.output_features[0] if mapping.output_features else None,
+                        feature_id=feature_id,
                         operation=operation,
                         output_features=tuple(mapping.output_features),
                         arguments=mapping.binding.args,

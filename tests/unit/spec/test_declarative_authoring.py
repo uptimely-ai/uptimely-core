@@ -291,6 +291,46 @@ def test_dataset_keys_can_be_shared_by_read_mappings() -> None:
     assert model.mappings["second"].output_features == ["asset", "second_value"]
 
 
+def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> None:
+    identifier = dimension.Dimension(id="asset", type="string")
+    declaration = authoring.Dataset(
+        id="example",
+        keys=(identifier,),
+        mappings={
+            "read": authoring.FunctionMapping(
+                function=ref.function("reader:read", operation="read"),
+                arguments={
+                    "keys": ref.current_dataset().dimensions.ids,
+                    "source_keys": ref.dataset("source").dimensions.ids,
+                },
+                outputs=[authoring.Feature(name="value", type="float")],
+            )
+        },
+    )
+
+    model = declaration.to_model()
+    catalog = declaration.function_catalog()
+    assert model.mappings["read"].binding.args["keys"] == "$datasets.@.dimensions.ids"
+    assert model.mappings["read"].binding.args["source_keys"] == "$datasets.source.dimensions.ids"
+    assert catalog["read"].args["keys"].type == "array[string]"
+    assert catalog["read"].args["source_keys"].type == "array[string]"
+
+    owner = entity.Entity(
+        id="entity",
+        name="Entity",
+        dimensions=[identifier],
+        datasets=[declaration],
+    )
+    payload = conversion.to_dict(entities=[owner])
+    assert (
+        payload["entities"]["entity"]["datasets"]["example"]["mappings"]["read"]["binding"]["args"][
+            "keys"
+        ]
+        == "$datasets.@.dimensions.ids"
+    )
+    assert payload["functions"]["read"]["args"]["keys"]["type"] == "array[string]"
+
+
 @pytest.mark.parametrize("required", ["function", "arguments", "outputs"])
 def test_mapping_constructor_requires_explicit_fields(required: str) -> None:
     arguments = {

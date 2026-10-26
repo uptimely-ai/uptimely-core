@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from uptimely import execution_plan, spec
-from uptimely.spec import operations
 from uptimely.spec import references as bindings
 
 from . import graph as invocation_graph
@@ -31,7 +30,8 @@ def emit_invocation(
     arguments = bindings.resolve_binding_args(
         node.arguments,
         node.dataset_id,
-        _output_feature_for_binding(spec_definition, node),
+        node.feature_id,
+        spec_definition.dimension_ids_by_dataset,
     )
     return execution_plan.Invocation(
         id=node.node_id,
@@ -47,19 +47,3 @@ def emit_invocation(
         dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
         row_context=node.row_context,
     )
-
-
-def _output_feature_for_binding(
-    spec_definition: spec.Spec,
-    node: invocation_graph.InvocationNode,
-) -> str | None:
-    """Select the feature used to resolve operation-specific structural arguments."""
-    if node.operation == operations.COLLAPSE:
-        entity = spec_definition.entities[node.entity_id]
-        return next(
-            (feature for feature in node.output_features if feature not in entity.dimension_ids),
-            None,
-        )
-    if node.operation == operations.VECTORIZE:
-        return node.feature_id
-    return None

@@ -28,7 +28,10 @@ def validate_dataframe_selector(
     item: context_module.DataframeInput,
 ) -> context_module.ValidationResult:
     """Reject a dataset ID selector where a dataframe is required."""
-    if isinstance(item.value, str) and item.value.endswith(selectors.ID_SELECTOR):
+    if isinstance(item.value, str) and (
+        item.value.endswith(selectors.ID_SELECTOR)
+        or item.value.endswith(selectors.DIMENSION_IDS_SELECTOR)
+    ):
         return errors.SpecError(
             f"Dataframe argument {item.argument_id} must reference a dataframe",
             code="invalid_mapping_dataset_input",
@@ -65,6 +68,28 @@ def validate_dataset_count(item: context_module.MappingContract) -> context_modu
             path=(*item.mapping.location.path, "binding", "args"),
         )
     return None
+
+
+def validate_matching_keys(
+    item: context_module.MappingContract,
+) -> context_module.ValidationResult:
+    """Require explicitly selected matching keys to exist on every participating dataset."""
+    invalid = next(
+        (
+            (key, dataset_id)
+            for key, dataset_id, dimensions in item.matching_key_checks
+            if key.dimension_id not in dimensions
+        ),
+        None,
+    )
+    if invalid is None:
+        return None
+    key, dataset_id = invalid
+    return errors.SpecError(
+        f"Matching key {key.dimension_id} is not a dimension of dataset {dataset_id}",
+        code="invalid_mapping_matching_key",
+        path=key.path,
+    )
 
 
 def validate_input_feature_source_count(

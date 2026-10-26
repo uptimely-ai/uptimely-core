@@ -14,6 +14,12 @@ from uptimely.spec.validation import errors as validation_errors
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
+def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str) -> pathlib.Path:
+    path = tmp_path / name
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+    return path
+
+
 def _escape_configuration() -> dict:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["external_action"] = {
@@ -425,6 +431,131 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
 
     with pytest.raises(ValueError, match="must preserve target dimensionality"):
         spec.load_spec(path)
+
+
+def _matching_key_configuration(key_selector: object, *, key_type: str = "array[string]") -> dict:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration["functions"]["conform_with_keys"] = {
+        "operation": "conform",
+        "returns": "dataframe",
+        "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
+        "validate_signature": False,
+        "args": {
+            "source": {"type": "dataframe"},
+            "on": {"type": key_type},
+        },
+    }
+    target = configuration["entities"]["pump"]["datasets"]
+    target["conformed_dataset"] = {
+        "features": {"conformed_value": {"type": "float"}},
+        "mappings": {
+            "conform_values": {
+                "binding": {
+                    "function": "conform_with_keys",
+                    "args": {
+                        "source": "$datasets.pump_dataset.dataframe",
+                        "on": key_selector,
+                    },
+                },
+                "features": {
+                    "inputs": ["$features.bearing_temperature_max"],
+                    "outputs": ["$features.conformed_value"],
+                },
+            }
+        },
+    }
+    configuration["entities"]["other_entity"] = {
+        "name": "Other entity",
+        "dimensions": ["plant", "timestamp"],
+        "datasets": {"other_keys": {}},
+    }
+    return configuration
+
+
+@pytest.mark.parametrize(
+    ("key_selector", "expected_keys"),
+    [
+        ("$datasets.@.dimensions.ids", ["plant", "production_line", "pump"]),
+        ("$datasets.pump_dataset.dimensions.ids", ["plant", "production_line", "pump"]),
+        (["$dimensions.plant.id", "$dimensions.pump.id"], []),
+    ],
+)
+def test_matching_key_selectors_validate_on_target_and_source(
+    tmp_path: pathlib.Path, key_selector: object, expected_keys: list[str]
+) -> None:
+    configuration = _matching_key_configuration(key_selector)
+    path = _write_configuration(tmp_path, configuration, "matching_keys.json")
+
+    spec_definition = spec.load_spec(path)
+    contract = next(
+        item
+        for item in context.SpecValidationContext.build(spec_definition).mapping_contracts
+        if item.mapping.location.mapping_id == "conform_values"
+    )
+
+    assert [key.dimension_id for key in contract.matching_keys] == expected_keys
+
+
+def test_grouping_dimension_references_are_not_matching_key_declarations() -> None:
+    spec_definition = spec.load_spec(SPEC_PATH)
+    contract = next(
+        item
+        for item in context.SpecValidationContext.build(spec_definition).mapping_contracts
+        if item.mapping.location.mapping_id == "bearing_temperature_by_pump"
+    )
+
+    assert contract.mapping.dimension_references == ("plant", "production_line", "pump")
+    assert contract.matching_keys == ()
+
+
+@pytest.mark.parametrize(
+    ("key_selector", "expected_code", "expected_dimension", "expected_index"),
+    [
+        (
+            "$datasets.other_keys.dimensions.ids",
+            "invalid_mapping_matching_key",
+            "timestamp",
+            None,
+        ),
+        (["$dimensions.missing.id"], "unknown_dimension_reference", "missing", 0),
+    ],
+)
+def test_matching_key_errors_point_to_the_declared_key(
+    tmp_path: pathlib.Path,
+    key_selector: object,
+    expected_code: str,
+    expected_dimension: str,
+    expected_index: int | None,
+) -> None:
+    configuration = _matching_key_configuration(key_selector)
+    path = _write_configuration(tmp_path, configuration, "invalid_matching_key.json")
+
+    with pytest.raises(validation_errors.SpecError) as error:
+        spec.load_spec(path)
+
+    assert error.value.code == expected_code
+    assert error.value.path == (
+        "entities",
+        "pump",
+        "datasets",
+        "conformed_dataset",
+        "mappings",
+        "conform_values",
+        "binding",
+        "args",
+        "on",
+    ) + (() if expected_index is None else (expected_index,))
+    assert expected_dimension in str(error.value)
+
+
+def test_dimension_key_selector_is_not_a_dataframe_value(tmp_path: pathlib.Path) -> None:
+    configuration = _matching_key_configuration("$datasets.@.dimensions.ids", key_type="dataframe")
+    path = _write_configuration(tmp_path, configuration, "dimension_key_dataframe.json")
+
+    with pytest.raises(validation_errors.SpecError) as error:
+        spec.load_spec(path)
+
+    assert error.value.code == "invalid_binding_reference_type"
 
 
 def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.Path) -> None:

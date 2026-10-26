@@ -70,10 +70,12 @@ def validate_source_features(
 
 
 def validate_source_dimensions(
-    item: context_module.CollapseInputs,
+    item: context_module.CollapseInputs, dimension_ids: frozenset[str]
 ) -> context_module.ValidationResult:
     """Require structural dimension references to belong to the source."""
-    unknown = sorted(set(item.mapping.dimension_references) - item.source_dimensions)
+    unknown = sorted(
+        (set(item.mapping.dimension_references) & dimension_ids) - item.source_dimensions
+    )
     if unknown:
         return ValueError(
             f"Collapse {item.mapping.location.mapping.id} references unknown source dimensions: "

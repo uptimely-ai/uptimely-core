@@ -82,7 +82,11 @@ def _argument_definition(value: typing.Any) -> dict[str, str]:
     if isinstance(value, row_context.RowContextBinding):
         return _argument_definition(value.value)
     if isinstance(value, ref.Reference):
-        return {"type": arg_types.DATAFRAME if value.type == "dataset" else arg_types.STRING}
+        if value.type == "dataset":
+            return {"type": arg_types.DATAFRAME}
+        if value.type == arg_types.array_of(arg_types.STRING):
+            return {"type": value.type}
+        return {"type": arg_types.STRING}
     if isinstance(value, (list, tuple)):
         item_definitions = [_argument_definition(item) for item in value]
         if item_definitions and all(item == item_definitions[0] for item in item_definitions[1:]):
