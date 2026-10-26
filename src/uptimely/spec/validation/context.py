@@ -104,13 +104,13 @@ class DimensionParents:
 
 @dataclasses.dataclass(frozen=True)
 class MappingFacts:
-    """Shared normalized mapping declarations and extracted structural references."""
+    """Shared mapping declarations, explicit dependencies, and validated selectors."""
 
     location: MappingLocation
     function: spec_model.FunctionTemplate | None
     inputs: tuple[str, ...]
     outputs: tuple[str, ...]
-    feature_references: tuple[str, ...]
+    feature_selectors: tuple[str, ...]
     dataset_references: tuple[str, ...]
     dimension_references: tuple[str, ...]
     dimension_reference_paths: tuple[tuple[str, SpecPath], ...]
@@ -251,7 +251,7 @@ class SpecValidationContext:
                             function=model.functions.get(mapping.binding.function),
                             inputs=tuple(mapping.input_features),
                             outputs=tuple(mapping.output_features),
-                            feature_references=tuple(
+                            feature_selectors=tuple(
                                 references.structural_references(
                                     mapping.binding.args, selectors.FEATURE_PREFIX
                                 )

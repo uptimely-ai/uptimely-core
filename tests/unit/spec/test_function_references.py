@@ -9,7 +9,7 @@ import pytest
 
 from uptimely.spec import model as spec_model
 from uptimely.spec import operations
-from uptimely.spec.python import bind, conversion, dataset, mapping, ref
+from uptimely.spec.python import bind, binding_conversion, conversion, dataset, mapping, ref
 
 MODULE_LOCATIONS = [
     "math",
@@ -264,7 +264,9 @@ def test_nested_bindings_use_reference_names_and_overrides() -> None:
         x=bind.bind(ref.function(math.floor), function_id="rounded", x=1.2),
     )
 
-    assert bind._binding_args(binding) == {"x": {"function": "rounded", "args": {"x": 1.2}}}
+    assert binding_conversion.to_value(binding.args) == {
+        "x": {"function": "rounded", "args": {"x": 1.2}}
+    }
 
 
 @pytest.mark.parametrize("entrypoint", ["", "ceil", "math.ceil", "path/to/module.py"])

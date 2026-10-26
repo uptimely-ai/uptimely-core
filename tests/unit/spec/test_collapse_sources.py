@@ -5,7 +5,7 @@ import pytest
 from conftest import EXAMPLES_ROOT
 
 from uptimely import row_context, spec
-from uptimely.spec import references, validation
+from uptimely.spec import references, selectors, validation
 from uptimely.spec.validation import collapse_inputs, context
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -22,7 +22,7 @@ SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
     ],
 )
 @pytest.mark.parametrize("ambiguous", [False, True])
-def test_indexed_source_resolution_matches_document_scan(
+def test_collapse_source_is_prepared_from_indexed_feature_owners(
     inputs: list[str], ambiguous: bool
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
@@ -37,10 +37,6 @@ def test_indexed_source_resolution_matches_document_scan(
         document.entities["pump"].datasets["pump_dataset"].mappings["bearing_temperature_by_pump"]
     )
     index = context.SpecValidationContext.build(document)
-    owners = {
-        feature_id: [(owner.entity, owner.dataset) for owner in candidates]
-        for feature_id, candidates in index.feature_owners.items()
-    }
     prepared = next(
         item for item in index.collapse_inputs if item.mapping.location.mapping is mapping
     )
@@ -54,23 +50,16 @@ def test_indexed_source_resolution_matches_document_scan(
     ]
     prepared_error = next((error for error in results if error is not None), None)
 
-    try:
-        expected = references.collapse_input_dataset(document, mapping)
-    except ValueError as expected_error:
-        with pytest.raises(type(expected_error)) as actual:
-            references.collapse_input_dataset(document, mapping, feature_owners=owners)
-        assert str(actual.value) == str(expected_error)
-        assert type(prepared_error) is type(expected_error)
-        assert str(prepared_error) == str(expected_error)
+    if prepared_error is not None:
+        assert prepared.source is None
     else:
-        actual_source = references.collapse_input_dataset(document, mapping, feature_owners=owners)
-        assert actual_source[0] is expected[0]
-        assert actual_source[1] is expected[1]
-        assert prepared_error is None
-        dataset_id = document.entities["pump"].datasets["pump_dataset"].id
-        source = index.collapse_sources[("pump", dataset_id, mapping.id)]
-        assert source.entity is expected[0]
-        assert source.dataset is expected[1]
+        assert prepared.source is not None
+        assert any(
+            prepared.source in index.feature_owners.get(feature, ())
+            for feature in mapping.input_features
+            if feature != selectors.CURRENT_ID and feature not in document.dimensions
+        )
+        assert index.collapse_sources[prepared.mapping.location.key] is prepared.source
 
 
 @pytest.mark.parametrize("with_row_context", [False, True])

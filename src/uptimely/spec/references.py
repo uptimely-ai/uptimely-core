@@ -1,8 +1,7 @@
-"""Traversal and resolution helpers for spec document bindings."""
+"""Traversal and structural reference discovery for spec document bindings."""
 
 from __future__ import annotations
 
-import collections.abc
 import typing
 
 import pydantic
@@ -44,29 +43,20 @@ def mapping_operation(mapping: spec_model.Mapping, catalog: spec_model.FunctionC
 
 def structural_references(value: typing.Any, prefix: str) -> list[str]:
     """Collect reference identifiers from nested bindings, retaining their order."""
-    if isinstance(value, pydantic.BaseModel):
-        value = value.model_dump()
-    if isinstance(value, str):
-        if value.startswith(prefix):
-            return [_structural_identifier(value, prefix)]
-        return []
-    if isinstance(value, dict):
-        return [
-            identifier
-            for nested in value.values()
-            for identifier in structural_references(nested, prefix)
-        ]
-    if isinstance(value, list):
-        return [
-            identifier for nested in value for identifier in structural_references(nested, prefix)
-        ]
-    return []
+    return [identifier for identifier, _ in _structural_reference_paths(value, prefix, ())]
 
 
 def structural_reference_paths(
     value: typing.Any, prefix: str, path: tuple[str | int, ...]
 ) -> list[tuple[str, tuple[str | int, ...]]]:
     """Collect structural references with their binding paths."""
+    return _structural_reference_paths(value, prefix, path)
+
+
+def _structural_reference_paths(
+    value: typing.Any, prefix: str, path: tuple[str | int, ...]
+) -> list[tuple[str, tuple[str | int, ...]]]:
+    """Walk nested binding values once, retaining each matching reference path."""
     if isinstance(value, pydantic.BaseModel):
         value = value.model_dump()
     if isinstance(value, str):
@@ -75,166 +65,15 @@ def structural_reference_paths(
         return [
             reference
             for key, nested in value.items()
-            for reference in structural_reference_paths(nested, prefix, (*path, key))
+            for reference in _structural_reference_paths(nested, prefix, (*path, key))
         ]
     if isinstance(value, list):
         return [
             reference
             for index, nested in enumerate(value)
-            for reference in structural_reference_paths(nested, prefix, (*path, index))
+            for reference in _structural_reference_paths(nested, prefix, (*path, index))
         ]
     return []
-
-
-def collapse_input_dataset(
-    spec_definition: spec_model.Spec,
-    mapping: spec_model.Mapping,
-    *,
-    feature_owners: collections.abc.Mapping[
-        str, collections.abc.Sequence[tuple[spec_model.Entity, spec_model.Dataset]]
-    ]
-    | None = None,
-) -> tuple[spec_model.Entity, spec_model.Dataset]:
-    """Infer one input dataset from a collapse's bound non-dimension features.
-
-    Args:
-        spec_definition: Spec model containing feature ownership.
-        mapping: Collapse binding whose inputs determine the dataset.
-        feature_owners: Optional declaration index retaining all candidate owners.
-            When omitted, discover owners from the document.
-
-    Returns:
-        The owning entity and the single inferred input dataset.
-
-    Raises:
-        ValueError: Inputs are missing, unknown, ambiguous, or span datasets.
-    """
-    inputs = [
-        feature
-        for feature in mapping.input_features
-        if feature != selectors.CURRENT_ID and feature not in spec_definition.dimensions
-    ]
-    if not inputs:
-        raise ValueError(f"Collapse {mapping.id} must reference a source feature")
-    owners: dict[str, tuple[spec_model.Entity, spec_model.Dataset]] = {}
-    for feature in inputs:
-        matches = (
-            feature_owners.get(feature, ())
-            if feature_owners is not None
-            else [
-                (entity, dataset)
-                for entity in spec_definition.entities.values()
-                for dataset in entity.datasets.values()
-                if feature in dataset.features
-            ]
-        )
-        if not matches:
-            raise ValueError(f"Collapse {mapping.id} references unknown input feature: {feature}")
-        if len(matches) != 1:
-            raise ValueError(f"Collapse {mapping.id} has ambiguous input feature: {feature}")
-        entity, dataset = matches[0]
-        owners[dataset.id] = (entity, dataset)
-    if len(owners) != 1:
-        raise ValueError(
-            f"Collapse {mapping.id} input features must belong to one dataset; "
-            "use expand to combine inputs from different datasets"
-        )
-    return next(iter(owners.values()))
-
-
-def dataset_dependencies(args: dict[str, typing.Any], current_dataset: str) -> list[str]:
-    """Return datasets required as dataframe arguments, excluding identifier selectors."""
-    references: list[str] = []
-
-    def collect(value: object) -> None:
-        if (
-            isinstance(value, str)
-            and value.startswith(selectors.DATASET_PREFIX)
-            and not value.endswith(selectors.ID_SELECTOR)
-            and not value.endswith(selectors.DIMENSION_IDS_SELECTOR)
-        ):
-            identifier = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
-                selectors.DATAFRAME_SELECTOR
-            )
-            references.append(current_dataset if identifier == selectors.CURRENT_ID else identifier)
-        elif isinstance(value, dict):
-            for item in value.values():
-                collect(item)
-        elif isinstance(value, list):
-            for item in value:
-                collect(item)
-
-    collect(args)
-    return list(dict.fromkeys(references))
-
-
-def resolve_binding_args(
-    args: dict[str, typing.Any] | None,
-    dataset_id: str,
-    feature_id: str | None = None,
-    dimension_ids_by_dataset: collections.abc.Mapping[str, collections.abc.Sequence[str]]
-    | None = None,
-) -> dict[str, typing.Any]:
-    """Resolve structural references to identifiers used by the execution plan."""
-    if args is None:
-        return {}
-    if not isinstance(args, dict):
-        raise TypeError("Binding arguments must be a dictionary or None")
-
-    def resolve_value(value: object) -> object:
-        value = _as_plain(value)
-        if isinstance(value, str):
-            return resolve_structural_reference(
-                value, dataset_id, feature_id, dimension_ids_by_dataset
-            )
-        if isinstance(value, dict):
-            return {key: resolve_value(item) for key, item in value.items()}
-        if isinstance(value, list):
-            return [resolve_value(item) for item in value]
-        return value
-
-    return {key: resolve_value(value) for key, value in args.items()}
-
-
-def resolve_structural_reference(
-    value: str,
-    current_dataset_id: str,
-    feature_id: str | None = None,
-    dimension_ids_by_dataset: collections.abc.Mapping[str, collections.abc.Sequence[str]]
-    | None = None,
-) -> str | list[str]:
-    """Return the identifier represented by a structural binding reference."""
-    if value in {
-        f"{selectors.FEATURE_PREFIX}{selectors.CURRENT_ID}",
-        f"{selectors.FEATURE_PREFIX}{selectors.CURRENT_ID}{selectors.ID_SELECTOR}",
-    }:
-        return feature_id if feature_id is not None else value
-    for prefix in selectors.STRUCTURAL_PREFIXES:
-        if value.startswith(prefix):
-            identifier = value.removeprefix(prefix)
-            if prefix == selectors.DATASET_PREFIX:
-                if identifier.endswith(selectors.DIMENSION_IDS_SELECTOR):
-                    identifier = identifier.removesuffix(selectors.DIMENSION_IDS_SELECTOR)
-                    dataset_id = (
-                        current_dataset_id if identifier == selectors.CURRENT_ID else identifier
-                    )
-                    if (
-                        dimension_ids_by_dataset is None
-                        or dataset_id not in dimension_ids_by_dataset
-                    ):
-                        raise ValueError(f"Cannot resolve dimension IDs for dataset {dataset_id}")
-                    return list(dimension_ids_by_dataset[dataset_id])
-                identifier = identifier.removesuffix(selectors.DATAFRAME_SELECTOR).removesuffix(
-                    selectors.ID_SELECTOR
-                )
-            else:
-                identifier = identifier.removesuffix(selectors.ID_SELECTOR)
-            return (
-                current_dataset_id
-                if prefix == selectors.DATASET_PREFIX and identifier == selectors.CURRENT_ID
-                else identifier
-            )
-    return value
 
 
 def _structural_identifier(value: str, prefix: str) -> str:
@@ -247,8 +86,3 @@ def _structural_identifier(value: str, prefix: str) -> str:
             .removesuffix(selectors.ID_SELECTOR)
         )
     return identifier.removesuffix(selectors.ID_SELECTOR)
-
-
-def _as_plain(value: object) -> object:
-    """Convert Pydantic binding models before recursively inspecting them."""
-    return value.model_dump() if isinstance(value, pydantic.BaseModel) else value
