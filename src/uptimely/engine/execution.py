@@ -49,17 +49,17 @@ class InvocationExecutor:
 
     def _execute_dataframe_mapping(self, invocation: execution_plan.Invocation) -> None:
         """Invoke a data-producing mapping, validate its result, and update the dataset."""
-        frame = self.state.datasets.get(invocation.dataset_id)
-        result = self._invoke(invocation)
+        dataframe = self.state.datasets.get(invocation.dataset_id)
+        fragment = self._invoke(invocation)
         entity = self.spec_definition.entities.get(invocation.entity_id)
         if entity is None:
             raise ValueError(f"Unknown entity: {invocation.entity_id}")
         dimensions = entity.dimension_ids
-        fragment, merged = self.dataframe.assemble_fragment(
-            invocation, result, frame, frame, dimensions
+        fragment, dataframe = self.dataframe.assemble_fragment(
+            invocation, fragment, dataframe, dimensions
         )
 
-        self.state.datasets[invocation.dataset_id] = merged
+        self.state.datasets[invocation.dataset_id] = dataframe
         self.state.fragments[(invocation.dataset_id, invocation.mapping_id)] = fragment
         if invocation.operation == operations.VECTORIZE:
             for output in invocation.output_features:

@@ -357,7 +357,7 @@ def test_engine_validates_required_fragment_columns_and_types(
         "missing": f"missing output columns: {output}",
     }[invalid_column]
     with pytest.raises(ValueError, match=expected):
-        dataframe.validate_result(invocation, result, None, dimensions)
+        dataframe.assemble_fragment(invocation, result, None, dimensions)
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -380,7 +380,7 @@ def test_engine_assembly_rejects_feature_collisions(lazy: bool) -> None:
         result, existing = result.lazy(), existing.lazy()
 
     with pytest.raises(ValueError, match=f"overlap.*{output}"):
-        dataframe.assemble_fragment(invocation, result, existing, None, dimensions)
+        dataframe.assemble_fragment(invocation, result, existing, dimensions)
 
 
 @pytest.mark.parametrize(
@@ -412,7 +412,7 @@ def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> Non
     )
 
     with pytest.raises(ValueError, match=message):
-        dataframe.validate_result(
+        dataframe.assemble_fragment(
             operation,
             fragment,
             None,
