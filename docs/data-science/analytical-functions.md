@@ -36,11 +36,22 @@ As a starting heuristic, prefer windows containing hundreds to a few thousand ob
 
 This also makes the workflow easier to run on streaming engines: manageable windows can fit in the engine's buffer without special handling for an oversized history. Estimate total buffered state as active entities multiplied by observations per window multiplied by retained bytes per observation, with additional capacity for late-arriving data, calculation state and engine overhead. Validate this at the expected number of concurrent entities; the observation counts above are design guidance, not a guarantee that a particular engine can keep the windows in memory.
 
-## i/o only in read and write functions
+## Keep analytical calculations pure
 
-For analytical functions, data should be passed only as input argument and the processed data should come through Python return. This gurantees function purity, takes benefit of automatic validation and makes code structure understandable for others.
+Analytical calculations should compute their declared outputs from their
+declared inputs and return the result. They should not perform I/O, log,
+mutate their input data or shared state, or do unrelated work. This keeps
+calculations predictable and makes them easier to test and reuse.
 
-Make clear separation between functions that perform spec and those that communicate with data sources.
+Keep source and sink communication in `read` and `write` operations. Use an
+explicitly declared operational function when work requires side effects
+outside a calculation, and leave execution concerns to the engine.
+
+Test calculation functions directly: check the returned values and schema,
+verify that inputs remain unchanged, and cover domain-specific invariants.
+Spec validation, signature checks, and static analysis can check declared
+contracts but cannot prove arbitrary Python code is pure or analytically
+correct.
 
 ## Do the heavy lifting in the source
 
