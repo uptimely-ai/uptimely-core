@@ -24,6 +24,10 @@ def test_maximum_executes_independently() -> None:
 
     assert isinstance(result, pl.LazyFrame)
     assert result.collect().to_dicts() == [{"pump": "a", "maximum": 20.0}]
+    assert frame.collect().to_dicts() == [
+        {"pump": "a", "temperature": 10.0},
+        {"pump": "a", "temperature": 20.0},
+    ]
 
 
 def test_pump_dimensions_are_declared_in_spec_order() -> None:
