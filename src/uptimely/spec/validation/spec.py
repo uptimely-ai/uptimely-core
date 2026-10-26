@@ -137,7 +137,7 @@ def _input_results(
         for feature in item.inputs:
             yield mapping_inputs.validate_input_feature(item, feature, context.feature_names)
             yield mapping_inputs.validate_input_scope(item, feature)
-        for feature in item.feature_references:
+        for feature in item.feature_selectors:
             yield mapping_inputs.validate_feature_reference(item, feature, context.feature_names)
         for reference in item.dataset_references:
             yield mapping_inputs.validate_dataset_reference(item, reference, context.datasets_by_id)

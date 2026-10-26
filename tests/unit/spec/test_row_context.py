@@ -9,7 +9,15 @@ from conftest import engine_for_plan, render_explorer
 
 from uptimely import compiler, row_context, spec
 from uptimely import execution_plan as uptimely_plan
-from uptimely.spec.python import bind, dataset, dimension, entity, feature, mapping, ref
+from uptimely.spec.python import (
+    binding_conversion,
+    dataset,
+    dimension,
+    entity,
+    feature,
+    mapping,
+    ref,
+)
 from uptimely.spec.python import row_context as authoring
 
 
@@ -141,9 +149,9 @@ def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
     assert declaration.to_model("calculate").binding.args == {
         "configuration": {"windows": ["8h", "24h"]}
     }
-    assert bind._argument_definition(declaration.bound_arguments()["configuration"]) == {
-        "type": "object{str: array[string]}"
-    }
+    assert binding_conversion.argument_definition(
+        declaration.bound_arguments()["configuration"]
+    ) == {"type": "object{str: array[string]}"}
 
 
 def test_consolidation_rejects_different_dimensions_and_measurements():

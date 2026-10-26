@@ -9,6 +9,7 @@ import graphable as graphable_
 from uptimely import row_context, spec
 from uptimely.spec import operations
 
+from ..spec import binding_resolution
 from ..spec import references as bindings
 
 type GraphNode = graphable_.graphable.Graphable
@@ -148,7 +149,7 @@ class InvocationGraph:
     ) -> None:
         """Connect mapping dataframe and feature references to their producers."""
         for invocation in (node.reference for node in nodes.values()):
-            dataset_references = bindings.dataset_dependencies(
+            dataset_references = binding_resolution.dataset_dependencies(
                 invocation.arguments, invocation.dataset_id
             )
             for referenced_id in dataset_references:
@@ -158,16 +159,6 @@ class InvocationGraph:
                         or source.operation == operations.READ
                     ):
                         graph.add_edge(nodes[source.node_id], nodes[invocation.node_id])
-
-            if invocation.operation == operations.COLLAPSE:
-                source_id = self.collapse_input_dataset_id(invocation)
-                for source in dataset_sources.get(source_id, []):
-                    graph.add_edge(nodes[source.node_id], nodes[invocation.node_id])
-                referenced_features = set(invocation.input_features)
-                for source in calculations.get(source_id, []):
-                    if referenced_features.intersection(source.output_features):
-                        graph.add_edge(nodes[source.node_id], nodes[invocation.node_id])
-                continue
 
             for feature in invocation.input_features:
                 producer = feature_producers.get(feature)
@@ -216,13 +207,6 @@ class InvocationGraph:
                 )
                 for invocation in dependencies:
                     graph.add_edge(nodes[invocation.node_id], sink_node)
-
-    def collapse_input_dataset_id(self, node: InvocationNode) -> str:
-        """Infer the input dataset from a collapse node's Spec binding."""
-        if node.operation != operations.COLLAPSE:
-            raise ValueError(f"Expected a collapse mapping node: {node.node_id}")
-        mapping = self.mapping_for(node)
-        return bindings.collapse_input_dataset(self.spec, mapping)[1].id
 
     def dataset_for(self, node: InvocationNode) -> spec.Dataset:
         """Return a node's dataset directly from its declaring entity."""

@@ -26,6 +26,26 @@ def test_document_validation_accepts_valid_document_without_mutation() -> None:
     assert document == original
 
 
+def test_binding_feature_selectors_do_not_become_input_dependencies() -> None:
+    document = spec.Spec.model_validate(_configuration())
+    mapping = (
+        document.entities["pump_telemetry"]
+        .datasets["pump_telemetry_dataset"]
+        .mappings["pressure_flow_efficiency"]
+    )
+    mapping.features.inputs = []
+    mapping.binding.args["dependency_hint"] = "$features.bearing_temperature"
+
+    facts = next(
+        item
+        for item in context_module.SpecValidationContext.build(document).mappings
+        if item.location.mapping is mapping
+    )
+
+    assert facts.inputs == ()
+    assert "bearing_temperature" in facts.feature_selectors
+
+
 @pytest.mark.parametrize("load_from_file", [False, True])
 @pytest.mark.parametrize(
     ("inputs", "message"),

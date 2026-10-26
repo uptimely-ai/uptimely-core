@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from uptimely import execution_plan, spec
-from uptimely.spec import references as bindings
+from uptimely.spec import binding_resolution
 
 from . import graph as invocation_graph
 
@@ -27,7 +27,7 @@ def emit_invocation(
         raise ValueError(
             f"Missing entrypoint for function {node.function_id} used by mapping {node.mapping_id}"
         )
-    arguments = bindings.resolve_binding_args(
+    arguments = binding_resolution.resolve_binding_args(
         node.arguments,
         node.dataset_id,
         node.feature_id,

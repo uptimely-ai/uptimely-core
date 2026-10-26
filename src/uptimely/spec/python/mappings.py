@@ -10,7 +10,7 @@ from collections import abc
 from uptimely.spec import catalog, operations, selectors
 from uptimely.spec import model as spec_model
 
-from . import bind, ref
+from . import bind, binding_conversion, ref
 from . import feature as feature_module
 from . import row_context as row_context_module
 
@@ -19,6 +19,7 @@ __all__ = ["FunctionMapping", "operation"]
 _OPERATION_ATTRIBUTE = "__uptimely_operation__"
 _Parameters = typing.ParamSpec("_Parameters")
 _Result = typing.TypeVar("_Result")
+_Function = abc.Callable[..., object] | str | ref.FunctionReference
 
 
 def operation(
@@ -27,17 +28,17 @@ def operation(
     [abc.Callable[_Parameters, _Result]],
     abc.Callable[_Parameters, _Result],
 ]:
-    """Annotate an analytical function with its spec operation."""
+    """Mark a callable with the operation used by its mapping."""
     if value not in operations.FUNCTION_OPERATIONS:
         raise ValueError(f"Unsupported function operation: {value}")
 
-    def annotate(
+    def decorate(
         function: abc.Callable[_Parameters, _Result],
     ) -> abc.Callable[_Parameters, _Result]:
         setattr(function, _OPERATION_ATTRIBUTE, value)
         return function
 
-    return annotate
+    return decorate
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -56,7 +57,7 @@ class FunctionMapping:
             argument annotations.
     """
 
-    function: abc.Callable[..., object] | str | ref.FunctionReference
+    function: _Function
     arguments: dict[str, typing.Any]
     outputs: list[feature_module.Feature]
     function_id: str | None = None
@@ -66,10 +67,10 @@ class FunctionMapping:
     ) = None
 
     def __post_init__(self) -> None:
-        """Validate operation metadata and consolidate observation requirements."""
+        """Validate the declaration and merge argument-level row-context annotations."""
         _ = self.operation
-        names = [output.name for output in self.outputs]
-        if len(names) != len(set(names)):
+        output_names = [output.name for output in self.outputs]
+        if len(output_names) != len(set(output_names)):
             raise ValueError("Function-call output feature names must not repeat")
         object.__setattr__(
             self, "row_context", row_context_module._context(self.arguments, self.row_context)
@@ -77,13 +78,12 @@ class FunctionMapping:
 
     @property
     def operation(self) -> operations.FunctionOperation:
-        """Return the operation declared on the callable or function reference."""
-        if isinstance(self.function, ref.FunctionReference):
-            value = self.function.operation
-        elif callable(self.function):
-            value = getattr(self.function, _OPERATION_ATTRIBUTE, None)
-        else:
-            value = None
+        """Return the operation declared on the function or its reference."""
+        value = (
+            self.function.operation
+            if isinstance(self.function, ref.FunctionReference)
+            else getattr(self.function, _OPERATION_ATTRIBUTE, None)
+        )
         if value not in operations.FUNCTION_OPERATIONS:
             raise ValueError(
                 "Function must be annotated with @operation(...) or supplied as a "
@@ -93,7 +93,7 @@ class FunctionMapping:
 
     @property
     def reference(self) -> ref.FunctionReference:
-        """Return the function location without importing entrypoint strings."""
+        """Return the normalized entrypoint without importing string references."""
         if isinstance(self.function, ref.FunctionReference):
             return self.function
         return ref.function(self.function, operation=self.operation)
@@ -104,18 +104,17 @@ class FunctionMapping:
         return self.function_id or self.reference.name
 
     def bound_arguments(self) -> dict[str, typing.Any]:
-        """Return declared arguments and validate real callable argument names.
+        """Return a copy of arguments, validating names for in-process callables.
 
-        Entrypoint strings remain import-free during authoring; their signature
-        validation happens during compilation unless explicitly disabled.
+        Entrypoint strings are not imported during authoring; signature validation
+        for those functions is deferred until compilation.
         """
-        arguments = self.arguments.copy()
         if callable(self.function):
-            inspect.signature(self.function).bind(**arguments)
-        return arguments
+            inspect.signature(self.function).bind(**self.arguments)
+        return self.arguments.copy()
 
     def to_model(self, identifier: str) -> spec_model.Mapping:
-        """Convert a named declaration to a canonical mapping."""
+        """Convert this declaration to its canonical document model."""
         arguments = self.bound_arguments()
         inputs = (
             [_feature_id(value) for value in self.inputs]
@@ -126,36 +125,36 @@ class FunctionMapping:
             id=identifier,
             binding=spec_model.Binding(
                 function=self.catalog_id,
-                args={name: bind._binding_value(value) for name, value in arguments.items()},
+                args={
+                    name: binding_conversion.to_value(value) for name, value in arguments.items()
+                },
             ),
-            features={
-                "inputs": [f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
-                "outputs": [f"{selectors.FEATURE_PREFIX}{output.name}" for output in self.outputs],
-            },
+            features=_mapping_features(inputs, self.outputs),
             row_context=self.row_context,
         )
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
-        """Build the reusable function contract for this binding."""
-        arguments = {
-            name: spec_model.Argument(id=name, **bind._argument_definition(value))
+        """Build the reusable function contract declared by this mapping."""
+        function_arguments = {
+            name: spec_model.Argument(id=name, **binding_conversion.argument_definition(value))
             for name, value in self.bound_arguments().items()
         }
+        reference = self.reference
         return spec_model.FunctionCatalog(
             root={
                 self.catalog_id: catalog.function_template(
                     function_id=self.catalog_id,
                     operation=self.operation,
-                    entrypoint=self.reference.entrypoint,
-                    args=arguments,
-                    validate_signature=self.reference.validate_signature,
+                    entrypoint=reference.entrypoint,
+                    args=function_arguments,
+                    validate_signature=reference.validate_signature,
                 )
             }
         )
 
 
 def _feature_id(value: ref.Reference | str) -> str:
-    """Normalize an explicit dependency, rejecting non-feature references."""
+    """Return a feature identifier or reject a reference to another resource."""
     if isinstance(value, ref.Reference):
         prefix, _, identifier = value.value.rpartition(".")
         if prefix != selectors.FEATURE_PREFIX.removesuffix("."):
@@ -164,25 +163,34 @@ def _feature_id(value: ref.Reference | str) -> str:
     return value.removeprefix(selectors.FEATURE_PREFIX)
 
 
+def _mapping_features(
+    inputs: abc.Iterable[str],
+    outputs: abc.Iterable[feature_module.Feature],
+) -> spec_model.MappingFeatures:
+    """Build canonical input and output feature selectors."""
+    return spec_model.MappingFeatures(
+        inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
+        outputs=[f"{selectors.FEATURE_PREFIX}{feature.name}" for feature in outputs],
+    )
+
+
 def _inputs(value: object) -> list[str]:
-    """Collect feature dependencies recursively without treating IDs as data."""
+    """Collect unique feature-valued arguments in declaration order."""
+    return list(dict.fromkeys(_feature_references(value)))
+
+
+def _feature_references(value: object) -> typing.Iterator[str]:
+    """Yield feature references nested in a binding value."""
     if isinstance(value, row_context_module.RowContextBinding):
-        return _inputs(value.value)
-    if isinstance(value, ref.Reference):
+        yield from _feature_references(value.value)
+    elif isinstance(value, ref.Reference):
         if value.type == "feature":
-            return [value.value.removeprefix(selectors.FEATURE_PREFIX)]
-        return []
-    if isinstance(value, bind.Bind):
-        return _inputs(value.args)
-    if isinstance(value, abc.Mapping):
-        children = value.values()
+            yield value.value.removeprefix(selectors.FEATURE_PREFIX)
+    elif isinstance(value, bind.Bind):
+        yield from _feature_references(value.args)
+    elif isinstance(value, abc.Mapping):
+        for child in value.values():
+            yield from _feature_references(child)
     elif isinstance(value, (list, tuple)):
-        children = value
-    else:
-        return []
-    result: list[str] = []
-    for child in children:
-        for name in _inputs(child):
-            if name not in result:
-                result.append(name)
-    return result
+        for child in value:
+            yield from _feature_references(child)

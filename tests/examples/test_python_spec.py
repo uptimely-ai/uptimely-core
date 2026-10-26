@@ -12,7 +12,7 @@ from examples.simple_analytics.spec import spec as simple_analytics_module
 
 from uptimely import spec
 from uptimely.spec import python as python_spec
-from uptimely.spec.python import bind
+from uptimely.spec.python import binding_conversion
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
@@ -66,14 +66,16 @@ def test_pump_entities_are_declared_in_spec_order() -> None:
 
 
 def test_argument_definition_supports_recursive_compact_types() -> None:
-    assert bind._argument_definition({"value": 1.0}) == {"type": "object{str: float}"}
-    assert bind._argument_definition({"value": {"nested": 1.0}}) == {
+    assert binding_conversion.argument_definition({"value": 1.0}) == {"type": "object{str: float}"}
+    assert binding_conversion.argument_definition({"value": {"nested": 1.0}}) == {
         "type": "object{str: object{str: float}}"
     }
-    assert bind._argument_definition({"dimensions": [python_spec.ref.dimension("plant")]}) == {
-        "type": "object{str: array[string]}"
+    assert binding_conversion.argument_definition(
+        {"dimensions": [python_spec.ref.dimension("plant")]}
+    ) == {"type": "object{str: array[string]}"}
+    assert binding_conversion.argument_definition({"value": 1.0, "other": "text"}) == {
+        "type": "object"
     }
-    assert bind._argument_definition({"value": 1.0, "other": "text"}) == {"type": "object"}
 
 
 def test_function_catalog_functions_declare_operations() -> None:

@@ -123,7 +123,7 @@ def validate_current_feature_selector(
         if item.operation == operations.COLLAPSE
         else len(item.outputs)
     )
-    if count > 1 and selectors.CURRENT_ID in item.feature_references:
+    if count > 1 and selectors.CURRENT_ID in item.feature_selectors:
         return ValueError(
             f"{item.operation.capitalize()} mapping {item.location.mapping_id} "
             "cannot use $features.@ when it produces multiple features"
