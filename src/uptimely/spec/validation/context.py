@@ -173,15 +173,15 @@ class MappingContract:
     """Prepared dataframe and dimensional relationships for an operation."""
 
     mapping: MappingFacts
-    arguments: tuple[DataframeInput, ...]
+    dataframe_arguments: tuple[DataframeInput, ...]
     dataset_ids: frozenset[str]
     source: DatasetLocation | None
     source_dimensions: frozenset[str]
     unavailable_features: tuple[str, ...]
     local_foreign_features: tuple[str, ...]
     input_dimensions: tuple[frozenset[str], ...]
+    feature_dataset_ids: frozenset[str]
     target_is_input: bool
-    same_entity: bool
     lower_dataset_ids: frozenset[str]
     has_lower_feature: bool
 
@@ -598,8 +598,10 @@ class SpecValidationContext:
 
     def _mapping_contract(self, item: MappingFacts) -> MappingContract:
         """Collect the dataframe relationships used by one mapping's contract rules."""
-        arguments = self._dataframe_inputs(item)
-        inputs = tuple(argument.source for argument in arguments if argument.source is not None)
+        dataframe_arguments = self._dataframe_inputs(item)
+        inputs = tuple(
+            argument.source for argument in dataframe_arguments if argument.source is not None
+        )
         dataset_ids = frozenset(source.dataset.id for source in inputs)
         input_dimensions = tuple(source.dimensions for source in inputs)
         available_dimensions = frozenset().union(*input_dimensions)
@@ -613,10 +615,17 @@ class SpecValidationContext:
         lower_dataset_ids = frozenset(
             source.dataset.id for source in inputs if source.dimensions < item.dimensions
         )
+        feature_dataset_ids = frozenset(
+            owner.dataset.id
+            for feature in item.inputs
+            if feature not in self.dimension_ids
+            and feature != selectors.CURRENT_ID
+            and (owner := self.last_feature_owner(feature)) is not None
+        )
         source = self.collapse_sources.get(item.location.key)
         return MappingContract(
             mapping=item,
-            arguments=arguments,
+            dataframe_arguments=dataframe_arguments,
             dataset_ids=dataset_ids,
             source=source,
             source_dimensions=source.dimensions if source is not None else frozenset(),
@@ -625,8 +634,8 @@ class SpecValidationContext:
                 sorted(feature for feature in item.inputs if feature not in item.local_features)
             ),
             input_dimensions=input_dimensions,
+            feature_dataset_ids=feature_dataset_ids,
             target_is_input=item.location.dataset.id in dataset_ids,
-            same_entity=all(source.entity_id == item.location.entity_id for source in inputs),
             lower_dataset_ids=lower_dataset_ids,
             has_lower_feature=self._has_lower_feature(item.inputs, lower_dataset_ids),
         )

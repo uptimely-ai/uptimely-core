@@ -43,21 +43,16 @@ def write_ids(dataset: pl.DataFrame, column: str) -> None:
     assert dataset.sort(column)[column].to_list() == [1, 2]
 
 
-def copy_values(dataset: pl.DataFrame, other_dataset: pl.DataFrame, output: str) -> pl.DataFrame:
-    return other_dataset.join(dataset.select("id", "value"), on="id").with_columns(
-        pl.col("value").alias(output)
-    )
+def copy_values(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
+    return dataset.with_columns(pl.col("value").alias(output))
 
 
 def dataset_identifier(
     dataset: pl.DataFrame,
-    other_dataset: pl.DataFrame,
     identifier: str,
     output: str,
 ) -> pl.DataFrame:
-    return other_dataset.join(dataset.select("id"), on="id").with_columns(
-        pl.lit(identifier).alias(output)
-    )
+    return dataset.with_columns(pl.lit(identifier).alias(output))
 
 
 def _spec() -> spec.Spec:
@@ -272,7 +267,9 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
 
 
 @pytest.mark.parametrize("dataframe", [False, True])
-def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: bool) -> None:
+def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
+    dataframe: bool,
+) -> None:
     source_reference = ref.dataset("source")
     spec_definition = spec.from_python(
         dimensions=[
@@ -328,7 +325,6 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
                                 ),
                                 arguments={
                                     "dataset": source_reference.dataframe,
-                                    "other_dataset": ref.current_dataset().dataframe,
                                     "output": ref.feature("copied").id,
                                     **({} if dataframe else {"identifier": source_reference.id}),
                                 },
@@ -341,8 +337,10 @@ def test_dataset_selectors_only_schedule_actual_data_dependencies(dataframe: boo
     )
     compiled = compiler.Compiler().compile(spec_definition, features=["copied"])
     assert len(compiled.invocations) == 3
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
-    assert not execution.failures
-    assert execution.datasets["target"].sort("id")["copied"].to_list() == (
-        [10, 20] if dataframe else ["source"]
+    expand = next(item for item in compiled.invocations if item.operation == "expand")
+    source_read = next(
+        item for item in compiled.invocations if item.mapping_id == "read_lower_grain"
     )
+    assert source_read.id in expand.dependency_ids
+    assert expand.input_features == ["value"]
+    assert expand.arguments["dataset"] == "source"

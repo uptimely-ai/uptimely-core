@@ -6,12 +6,8 @@ from .. import operations, selectors
 from . import context as context_module
 from . import errors
 
-CONFORM_INPUT_ERROR = (
-    "Conform mapping must combine its target dataset with a dataset from the same entity"
-)
 EXPAND_INPUT_ERROR = (
-    "Expand mapping must combine its target dataset with a "
-    "declared feature from a lower-dimensional dataset"
+    "Expand mapping must reference a declared feature from a lower-dimensional foreign dataset"
 )
 
 
@@ -55,13 +51,80 @@ def validate_dataframe_source(
 
 
 def validate_dataset_count(item: context_module.MappingContract) -> context_module.ValidationResult:
-    """Require conform and expand to consume two distinct datasets."""
+    """Require dimensional operations to consume one foreign dataframe."""
     operation = item.mapping.operation
-    if operation in {operations.CONFORM, operations.EXPAND} and len(item.dataset_ids) != 2:
+    if operation not in {operations.CONFORM, operations.COLLAPSE, operations.EXPAND}:
+        return None
+
+    expected_count = operations.DATAFRAME_INPUT_COUNTS[operation]
+    if len(item.dataframe_arguments) != expected_count or len(item.dataset_ids) != expected_count:
         return errors.SpecError(
-            f"{operation.capitalize()} mapping must consume two distinct datasets",
+            f"{operation.capitalize()} mapping must consume exactly "
+            f"{expected_count} foreign dataset(s)",
             code="invalid_mapping_dataset_input",
             path=(*item.mapping.location.path, "binding", "args"),
+        )
+    return None
+
+
+def validate_input_feature_source_count(
+    item: context_module.MappingContract,
+) -> context_module.ValidationResult:
+    """Require dimensional input features to belong to at most one dataset."""
+    operation = item.mapping.operation
+    if operation not in {operations.CONFORM, operations.COLLAPSE, operations.EXPAND}:
+        return None
+    if len(item.feature_dataset_ids) > 1:
+        return errors.SpecError(
+            f"{operation.capitalize()} mapping inputs must belong to one source dataset",
+            code="invalid_mapping_dataset_input",
+            path=(*item.mapping.location.path, "features", "inputs"),
+        )
+    return None
+
+
+def validate_foreign_dataframe(
+    item: context_module.MappingContract,
+) -> context_module.ValidationResult:
+    """Reject the target dataset as a dimensional operation's dataframe input."""
+    operation = item.mapping.operation
+    if operation not in {operations.CONFORM, operations.COLLAPSE, operations.EXPAND}:
+        return None
+    if len(item.dataframe_arguments) != operations.DATAFRAME_INPUT_COUNTS[operation]:
+        return None
+
+    dataframe = item.dataframe_arguments[0]
+    if dataframe.source_id == item.mapping.location.dataset.id:
+        return errors.SpecError(
+            f"{operation.capitalize()} mapping must reference a foreign source dataset",
+            code="invalid_mapping_dataset_input",
+            path=dataframe.path,
+        )
+    return None
+
+
+def validate_dataframe_feature_source(
+    item: context_module.MappingContract,
+) -> context_module.ValidationResult:
+    """Require a dimensional dataframe argument to match the input feature owner."""
+    operation = item.mapping.operation
+    if operation not in {operations.CONFORM, operations.COLLAPSE, operations.EXPAND}:
+        return None
+    if len(item.dataframe_arguments) != operations.DATAFRAME_INPUT_COUNTS[operation]:
+        return None
+    if len(item.feature_dataset_ids) != 1:
+        return None
+
+    dataframe = item.dataframe_arguments[0]
+    if dataframe.source is None:
+        return None
+    expected_source = next(iter(item.feature_dataset_ids))
+    if dataframe.source.dataset.id != expected_source:
+        return errors.SpecError(
+            f"{operation.capitalize()} mapping must reference its foreign source dataset "
+            f"{expected_source}",
+            code="invalid_mapping_dataset_input",
+            path=dataframe.path,
         )
     return None
 
@@ -143,10 +206,10 @@ def validate_collapse_dimensions(
     if (
         item.mapping.operation == operations.COLLAPSE
         and item.source is not None
-        and item.source_dimensions == item.mapping.dimensions
+        and not item.mapping.dimensions < item.source_dimensions
     ):
         return errors.SpecError(
-            "Collapse mapping must reduce dataset dimensionality",
+            "Collapse mapping source must have strictly higher dimensionality than its target",
             code="invalid_mapping_dimensions",
             path=(*item.mapping.location.path, "features", "inputs"),
         )
@@ -168,27 +231,12 @@ def validate_conform_dimensions(
     return None
 
 
-def validate_conform_entity(
-    item: context_module.MappingContract,
-) -> context_module.ValidationResult:
-    """Require conform to combine its target with an input from the same entity."""
-    if item.mapping.operation == operations.CONFORM and (
-        not item.target_is_input or not item.same_entity
-    ):
-        return errors.SpecError(
-            CONFORM_INPUT_ERROR,
-            code="invalid_mapping_entity",
-            path=(*item.mapping.location.path, "binding", "args"),
-        )
-    return None
-
-
 def validate_expand_dimensions(
     item: context_module.MappingContract,
 ) -> context_module.ValidationResult:
-    """Require expand to combine its target with a lower-dimensional feature."""
+    """Require expand to use a declared feature from a lower-dimensional source."""
     if item.mapping.operation == operations.EXPAND and (
-        not item.target_is_input or not item.lower_dataset_ids or not item.has_lower_feature
+        not item.lower_dataset_ids or not item.has_lower_feature
     ):
         return errors.SpecError(
             EXPAND_INPUT_ERROR,

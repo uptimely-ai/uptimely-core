@@ -26,10 +26,9 @@ def sum_features(
 
 
 @operation("expand")
-def expand_data(df1: pl.DataFrame, df2: pl.DataFrame) -> pl.DataFrame:
-
-    # Start with the first dataset as the base
-    return df1.join(df2, on="id", how="inner")
+def expand_data(source: pl.DataFrame) -> pl.DataFrame:
+    """Return foreign values for reconciliation against the target dataset."""
+    return source.select("id", pl.col("input_1").alias("expanded"))
 
 
 def filter_data(df: pl.DataFrame, filter: str) -> pl.DataFrame:

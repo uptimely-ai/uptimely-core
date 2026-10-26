@@ -141,7 +141,6 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
-            "target": {"type": "dataframe"},
         },
     }
     dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
@@ -151,7 +150,6 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
             "function": "expand_telemetry",
             "args": {
                 "source": "$datasets.pump_dataset.dataframe",
-                "target": "$datasets.@.dataframe",
             },
         },
         "features": {
@@ -367,7 +365,7 @@ def test_python_conversion_and_json_loading_share_escape_input_validation(
     assert python_error.value.code == json_error.value.code == "invalid_mapping_feature_inputs"
 
 
-def test_expand_mapping_requires_lower_dimensional_feature_input(tmp_path: pathlib.Path) -> None:
+def test_expand_rejects_higher_dimensional_source(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
         "operation": "expand",
@@ -375,17 +373,15 @@ def test_expand_mapping_requires_lower_dimensional_feature_input(tmp_path: pathl
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
-            "target": {"type": "dataframe"},
         },
     }
-    target = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
+    target = configuration["entities"]["pump"]["datasets"]["pump_dataset"]
     target["features"]["expanded_feature"] = {"type": "float"}
     target["mappings"]["expand_op"] = {
         "binding": {
             "function": "expand_telemetry",
             "args": {
-                "source": "$datasets.pump_dataset.dataframe",
-                "target": "$datasets.@.dataframe",
+                "source": "$datasets.pump_telemetry_dataset.dataframe",
             },
         },
         "features": {
@@ -396,7 +392,7 @@ def test_expand_mapping_requires_lower_dimensional_feature_input(tmp_path: pathl
     path = tmp_path / "invalid_expand_input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="declared feature from a lower-dimensional dataset"):
+    with pytest.raises(ValueError, match="lower-dimensional"):
         spec.load_spec(path)
 
 
@@ -408,7 +404,6 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
-            "target": {"type": "dataframe"},
         },
     }
     target = configuration["entities"]["pump"]["datasets"]["pump_dataset"]
@@ -418,7 +413,6 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
             "function": "conform_telemetry",
             "args": {
                 "source": "$datasets.pump_telemetry_dataset.dataframe",
-                "target": "$datasets.@.dataframe",
             },
         },
         "features": {
@@ -430,6 +424,33 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(ValueError, match="must preserve target dimensionality"):
+        spec.load_spec(path)
+
+
+def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.Path) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration["functions"]["conform_telemetry"] = {
+        "operation": "conform",
+        "returns": "dataframe",
+        "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
+        "args": {"source": {"type": "dataframe"}},
+    }
+    target = configuration["entities"]["pump"]["datasets"]["pump_dataset"]
+    target["features"]["conformed_feature"] = {"type": "float"}
+    target["mappings"]["conform_op"] = {
+        "binding": {
+            "function": "conform_telemetry",
+            "args": {"source": "$datasets.@.dataframe"},
+        },
+        "features": {
+            "inputs": ["$features.bearing_temperature"],
+            "outputs": ["$features.conformed_feature"],
+        },
+    }
+    path = tmp_path / "conform_target_argument.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must reference a foreign source dataset"):
         spec.load_spec(path)
 
 

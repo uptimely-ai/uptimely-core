@@ -73,6 +73,9 @@ classes.
 implementations with `@operation(...)`; use `ref.function(..., operation=...)`
 for entrypoint strings. Implementations aren't called during authoring; assembly
 checks callable parameter names and required arguments.
+`read` functions take no dataframe arguments. `conform`, `collapse`, and
+`expand` each take only their foreign/source dataframe; the engine supplies and
+reconciles the target dataset separately.
 The implementation module's package must be installed in the build and runtime
 environments; install a local project package in editable mode for development.
 
