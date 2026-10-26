@@ -10,7 +10,7 @@ Definitions can be authored in Python and exported to JSON, or supplied directly
 
 > [!WARNING]
 > This project follows semantic versioning, but is still at `0.x`: minor
-> releases may include breaking changes. See the [changelog](https://github.com/uptimely-ai/uptimely-core/blob/main/CHANGELOG.md)
+> releases may include breaking changes. See the [changelog](CHANGELOG.md)
 > for details.
 
 ## Demo
@@ -79,13 +79,6 @@ from uptimely.spec.python import (
     ref,
 )
 
-identifier = Dimension(id="id", type="integer")
-measurements = Entity(
-    id="measurements",
-    name="Measurements",
-    dimensions=[identifier],
-)
-
 
 @operation("read")
 def read_values() -> pl.DataFrame:
@@ -102,9 +95,13 @@ def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(value) * 2).alias(output))
 
 
-class Measurements(Dataset):
-    id = "measurements"
-    entity = measurements
+class CalculatedData(Dataset):
+    id = "calculated_dataset"
+    entity = Entity(
+        id="measurements",
+        name="Measurements",
+        dimensions=[Dimension(id="id", type="integer")],
+    )
 
     read = FunctionMapping(
         function=read_values,
@@ -123,8 +120,8 @@ class Measurements(Dataset):
 
 
 definition = PythonSpec(
-    datasets=[Measurements],
-    name="Measurements",
+    datasets=[CalculatedData],
+    name="Analytics Specification",
 )
 specification = definition.to_model()
 ```
@@ -140,27 +137,27 @@ uptimely explore examples/pump_analytics
 Open <http://127.0.0.1:8001/> to view the Explorer.
 
 See the [documentation site](https://uptimely-ai.github.io/uptimely-core/) for
-the full guides, and the [Python API reference](python/index.md) for
+the full guides, and the [Python API reference](docs/python/index.md) for
 public classes, functions, and signatures.
 
 ## Repository guide
 
 | Path | Purpose |
 | --- | --- |
-| [`docs/`](index.md) | Architecture, specification, and development documentation. |
-| [`examples/`](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/README.md) | Runnable examples and generated artifacts. |
-| [`scripts/`](https://github.com/uptimely-ai/uptimely-core/tree/main/scripts) | Code snippets for repository management |
-| [`src/uptimely/`](https://github.com/uptimely-ai/uptimely-core/tree/main/src/uptimely) | Package implementation for analytics, compilation, dependencies, documentation, and execution. |
-| [`tests/`](https://github.com/uptimely-ai/uptimely-core/tree/main/tests) | Automated tests for the package and examples. |
+| [`docs/`](docs/index.md) | Architecture, specification, and development documentation. |
+| [`examples/`](examples/README.md) | Runnable examples and generated artifacts. |
+| [`scripts/`](scripts) | Code snippets for repository management |
+| [`src/uptimely/`](src/uptimely/) | Package implementation for analytics, compilation, dependencies, documentation, and execution. |
+| [`tests/`](tests/) | Automated tests for the package and examples. |
 
 ## Development
 
 See
-[CONTRIBUTING.md](https://github.com/uptimely-ai/uptimely-core/blob/main/CONTRIBUTING.md) for the full workflow.
+[CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
 ## License
 
-Released under the [MIT license](https://github.com/uptimely-ai/uptimely-core/blob/main/LICENSE). Contributions are welcome — see [CONTRIBUTING.md](https://github.com/uptimely-ai/uptimely-core/blob/main/CONTRIBUTING.md).
+Released under the [MIT license](LICENSE). Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Feedback
 
