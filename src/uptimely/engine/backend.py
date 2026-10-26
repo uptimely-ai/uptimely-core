@@ -7,13 +7,19 @@ from collections import abc
 
 import polars as pl
 
+from . import config as config_module
+
 
 class DataFrameBackend(typing.Protocol):
     """Operations required by the engine from a dataframe backend."""
 
     name: str
 
+    def __init__(self, *, validate_lazy_frames: bool = True) -> None: ...
+
     def is_frame(self, value: object) -> bool: ...
+
+    def should_validate_values(self, frame: object) -> bool: ...
 
     def column_names(self, frame: object) -> list[str]: ...
 
@@ -39,8 +45,30 @@ class PolarsBackend:
 
     name = "polars"
 
+    def __init__(self, *, validate_lazy_frames: bool = True) -> None:
+        """Configure whether value validation may execute lazy query plans.
+
+        Args:
+            validate_lazy_frames: Execute lazy plans for data-dependent checks.
+                When false, engine validation skips these checks for LazyFrames.
+                Explicit calls to collect remain available.
+        """
+        self.validate_lazy_frames = validate_lazy_frames
+
     def is_frame(self, value: object) -> bool:
         return isinstance(value, (pl.DataFrame, pl.LazyFrame))
+
+    def should_validate_values(self, frame: object) -> bool:
+        """Allow eager validation, and lazy validation only when enabled."""
+        return self.validate_lazy_frames or not isinstance(frame, pl.LazyFrame)
+
+    def _require_value_validation(self, frame: object) -> None:
+        """Prevent direct value queries from implicitly executing disabled lazy plans."""
+        if not self.should_validate_values(frame):
+            raise ValueError(
+                "Implicit lazy execution is disabled by validate_lazy_frames=False; "
+                "collect the frame explicitly before querying its values"
+            )
 
     def column_names(self, frame: object) -> list[str]:
         if isinstance(frame, pl.LazyFrame):
@@ -55,6 +83,9 @@ class PolarsBackend:
 
     def join(self, left: object, right: object, keys: abc.Sequence[str]) -> object:
         if not keys:
+            for frame in (left, right):
+                if self.should_validate_values(frame) and self.row_count(frame) > 1:
+                    raise ValueError("Dimensionless fragments must contain at most one global row")
             key = "__uptimely_global_key"
             columns = set(self.column_names(left)) | set(self.column_names(right))
             while key in columns:
@@ -78,12 +109,14 @@ class PolarsBackend:
         return frame.collect()
 
     def is_duplicated(self, frame: object) -> bool:
+        self._require_value_validation(frame)
         if isinstance(frame, pl.LazyFrame):
             frame = frame.collect()
         return bool(frame.is_duplicated().any())
 
     def row_count(self, frame: object) -> int:
         """Return the row count without materializing all columns of a lazy frame."""
+        self._require_value_validation(frame)
         count = frame.select(pl.len())
         if isinstance(count, pl.LazyFrame):
             count = count.collect()
@@ -91,6 +124,8 @@ class PolarsBackend:
 
     def same_keys(self, left: object, right: object, keys: abc.Sequence[str]) -> bool:
         """Compare observation identities without assuming physical row order."""
+        self._require_value_validation(left)
+        self._require_value_validation(right)
         if not keys:
             return self.row_count(left) == self.row_count(right)
         left_keys = left.select(list(keys))
@@ -126,10 +161,10 @@ class PolarsBackend:
 DATAFRAME_BACKENDS: dict[str, type[DataFrameBackend]] = {"polars": PolarsBackend}
 
 
-def create_backend(name: str) -> DataFrameBackend:
+def create_backend(config: config_module.EngineBackendConfig) -> DataFrameBackend:
     """Create the configured dataframe backend."""
     try:
-        backend_class = DATAFRAME_BACKENDS[name.lower()]
+        backend_class = DATAFRAME_BACKENDS[config.dataframe.lower()]
     except KeyError as error:
-        raise ValueError(f"Unsupported dataframe backend: {name}") from error
-    return backend_class()
+        raise ValueError(f"Unsupported dataframe backend: {config.dataframe}") from error
+    return backend_class(validate_lazy_frames=config.validate_lazy_frames)

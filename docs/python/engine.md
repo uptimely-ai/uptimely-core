@@ -68,6 +68,13 @@ The engine selects the dataframe backend using the configured `dataframe`
 string. The built-in backend is Polars; runtime resources come from the bundled
 Spec and function entrypoints come from the plan.
 
+`PolarsBackend(validate_lazy_frames=False)` disables implicit execution for
+data-dependent lazy-frame validation. The engine exposes the same option as
+`EngineBackendConfig(validate_lazy_frames=False)`. Schema checks and deferred
+Polars join validation remain enabled; explicit `collect()` calls are allowed.
+See [runtime validation](../components/engine.md#runtime-validation) for the
+checks skipped in this mode and its limitations.
+
 ::: uptimely.engine.backend
     options:
       heading_level: 4

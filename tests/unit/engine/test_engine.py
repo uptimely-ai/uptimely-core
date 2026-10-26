@@ -89,6 +89,83 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     assert written["dataset"].select("asset_id", "doubled").rows() == [("A", 4), ("B", 6)]
 
 
+@pytest.mark.parametrize("dimensionless", [False, True])
+def test_engine_can_skip_lazy_value_validation(
+    monkeypatch: pytest.MonkeyPatch, dimensionless: bool
+) -> None:
+    def read(source: str) -> pl.LazyFrame:
+        return pl.DataFrame({"asset_id": ["A"], "reading": [2]}).lazy()
+
+    def double(column: str, dataset: pl.LazyFrame) -> pl.LazyFrame:
+        return dataset.with_columns((pl.col(column) * 2).alias("doubled"))
+
+    def write(dataset: pl.LazyFrame, features: list[str]) -> None:
+        assert isinstance(dataset, pl.LazyFrame)
+
+    def unexpected_collect(*args: object, **kwargs: object) -> None:
+        pytest.fail("Engine executed a LazyFrame with lazy validation disabled")
+
+    _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
+    bundle = bundle_for_plan(_plan())
+    if dimensionless:
+        for entity_definition in bundle.spec_definition.entities.values():
+            entity_definition.dimensions = []
+    engine = uptimely_engine.Engine(
+        bundle,
+        uptimely_engine.EngineConfig(
+            backend=uptimely_engine.EngineBackendConfig(validate_lazy_frames=False),
+            bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
+        ),
+    )
+    monkeypatch.setattr(pl.LazyFrame, "collect", unexpected_collect)
+
+    result = engine.run()
+
+    assert not result.failures
+    assert set(result.invocation_statuses.values()) == {"succeeded"}
+    assert isinstance(result.datasets["telemetry"], pl.LazyFrame)
+
+
+@pytest.mark.parametrize(
+    ("invalid", "message"),
+    [
+        ("key", "missing dimension columns"),
+        ("output", "missing output columns"),
+        ("type", "expected string"),
+    ],
+)
+def test_disabled_lazy_validation_preserves_schema_checks(
+    monkeypatch: pytest.MonkeyPatch, invalid: str, message: str
+) -> None:
+    def read(source: str) -> pl.LazyFrame:
+        frame = pl.DataFrame({"asset_id": ["A"], "reading": [2]}).lazy()
+        if invalid == "key":
+            frame = frame.drop("asset_id")
+        elif invalid == "output":
+            frame = frame.drop("reading")
+        else:
+            frame = frame.with_columns(pl.lit(1).alias("asset_id"))
+        return frame
+
+    def unexpected_collect(*args: object, **kwargs: object) -> None:
+        pytest.fail("Schema validation executed a lazy query")
+
+    _patch_callables(monkeypatch, {"test:read": read})
+    engine = uptimely_engine.Engine(
+        bundle_for_plan(_plan()),
+        uptimely_engine.EngineConfig(
+            backend=uptimely_engine.EngineBackendConfig(validate_lazy_frames=False),
+            bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
+        ),
+    )
+    monkeypatch.setattr(pl.LazyFrame, "collect", unexpected_collect)
+
+    result = engine.run()
+
+    assert message in next(iter(result.failures.values()))
+    assert not result.datasets
+
+
 def test_saved_plan_executes_without_compiler(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

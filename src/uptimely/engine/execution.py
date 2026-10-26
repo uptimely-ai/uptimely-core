@@ -55,10 +55,9 @@ class InvocationExecutor:
         if entity is None:
             raise ValueError(f"Unknown entity: {invocation.entity_id}")
         dimensions = entity.dimension_ids
-        self.dataframe.validate_result(invocation, result, frame, dimensions)
-        columns = list(dict.fromkeys([*dimensions, *invocation.output_features]))
-        fragment = self.backend.select(result, columns)
-        merged = self.dataframe.merge_fragment(frame, fragment, dimensions)
+        fragment, merged = self.dataframe.assemble_fragment(
+            invocation, result, frame, frame, dimensions
+        )
 
         self.state.datasets[invocation.dataset_id] = merged
         self.state.fragments[(invocation.dataset_id, invocation.mapping_id)] = fragment
