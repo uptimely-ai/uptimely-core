@@ -302,7 +302,9 @@ target dataset is engine-owned and is not passed to these functions.
 `conform` requires the source and target to declare the same dimensions, but
 they may belong to different entities. `collapse` requires the source
 dimensions to be a strict superset of the target dimensions; `expand` requires
-them to be a strict subset.
+them to be a strict subset. These operations return fragments for their
+declaring (target) dataset; the engine does not pass its accumulated target
+frame to the function.
 
 ### Arguments
 
@@ -404,6 +406,14 @@ Data-producing mappings require at least one output. Vectorize outputs cannot
 redeclare entity dimensions. Collapse must produce at least one non-dimension
 feature. There is no binding-level `return` field.
 
+Each `read`, `conform`, `collapse`, or `expand` result is a fragment containing
+the target dataset's complete dimension keys and that mapping's declared
+outputs. The engine validates required columns, types, and unique keys, then
+assembles same-dataset fragments by key with a full outer join. Partial
+coverage is retained; duplicate keys and overlapping feature outputs are
+rejected. See the [engine fragment contract](engine.md#fragments) for runtime
+details.
+
 ### Binding syntax
 
 | Argument reference | Argument type | Value supplied to the implementation |
@@ -427,7 +437,9 @@ referenced dataframe dataset. Use only the reference forms above.
 In Python declarations, use `ref.current_dataset().dimensions.ids` or
 `ref.dataset("source").dimensions.ids` for the corresponding selector. Key
 selectors are explicit binding values; grouping, ordering, and other dimension
-references do not implicitly declare matching keys.
+references do not implicitly declare matching keys. For a dimensional
+operation, pass the selected target keys as its explicit matching-key argument;
+the operation's source dataframe remains its only dataframe argument.
 
 ### Row Context
 
@@ -512,3 +524,7 @@ The engine checks runtime values and returned data, including whether declared
 feature types match actual columns. For the `validate_spec()` API and its
 ordered semantic checks, see the
 [Python validation reference](../python/spec/validation.md).
+
+The built-in engine currently accepts Polars `DataFrame` and `LazyFrame`
+values only. Other dataframe representations and custom adapters are not part
+of this contract.

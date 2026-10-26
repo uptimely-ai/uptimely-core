@@ -75,7 +75,20 @@ for entrypoint strings. Implementations aren't called during authoring; assembly
 checks callable parameter names and required arguments.
 `read` functions take no dataframe arguments. `conform`, `collapse`, and
 `expand` each take only their foreign/source dataframe; the engine supplies and
-reconciles the target dataset separately.
+reconciles the target dataset separately. `conform` sources and targets have
+the same dimensions, `collapse` sources have a strict superset of the target
+dimensions, and `expand` sources have a strict subset.
+Declare dimensional matching keys explicitly with
+`ref.current_dataset().dimensions.ids` (or a dataset-specific
+`.dimensions.ids` selector where appropriate). Grouping and ordering
+references do not implicitly select matching keys. Data-producing functions
+return Polars `DataFrame` or `LazyFrame` fragments; other dataframe types and
+custom adapters are not currently supported. The engine assembles fragments
+for the same dataset by complete keys with a full outer join, preserving
+partial coverage while rejecting duplicate keys and feature collisions. See
+the runnable
+[dimensional operations example](https://github.com/uptimely-ai/uptimely-core/tree/main/examples/dimensional_operations)
+and [engine fragment contract](../components/engine.md#fragments).
 The implementation module's package must be installed in the build and runtime
 environments; install a local project package in editable mode for development.
 

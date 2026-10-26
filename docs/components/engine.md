@@ -17,6 +17,8 @@ specific placeholder values under `bind`.
 
 The engine uses the configured `dataframe` string to select a dataframe
 backend. The built-in Python engine currently supports `polars`.
+Data-producing functions must return a Polars `DataFrame` or `LazyFrame`;
+other dataframe representations and custom adapters are not supported.
 `evaluation` and `batch_size` are reserved settings: they are
 accepted and stored, but do not change evaluation strategy, data access, or
 persistence. Do not rely on them to enable lazy execution, batching, or
@@ -127,23 +129,30 @@ feature.
 
 Data-producing mappings are declared under `read`, `conform`, `expand`, and
 `collapse`. Each produces a fragment for the dataset that declares it.
-`conform` and `expand` can explicitly use another dataset through a
-`$datasets.<id>` binding reference; the operation must transform or reconcile
-that input before returning a fragment for its target dataset. Vectorize
-operations consume features from their own dataset. The engine never joins
-another dataset implicitly.
+`conform`, `expand`, and `collapse` take exactly one foreign/source dataframe
+through a `$datasets.<id>.dataframe` binding reference. The engine does not
+pass the accumulated target frame to these functions; each function transforms
+its foreign input into a fragment for the target dataset. `read` takes no
+dataframe argument. Vectorize operations consume features from their own
+dataset. The engine never joins another dataset implicitly.
 
 | Type | Meaning |
 | --- | --- |
 | `read` | Reads data from an external source and returns it as a fragment. |
 | `collapse` | Groups input data, usually at a coarser grain, and returns a fragment. |
 | `expand` | Uses another dataset to produce a fragment with expanded dimensional coverage. |
-| `conform` | Reconciles or narrows data from another dataset in the same entity to the target row scope. |
+| `conform` | Reconciles data from a same-dimension foreign dataset to the target row scope. |
 
-Collapse inputs must identify one source dataset, distinct from the target.
-Combining sources requires an explicit expand operation first. Functions are
-responsible for grouping, matching, output names, and constructing literal
-values.
+`conform` requires source and target datasets to declare the same dimensions,
+but they may belong to different entities. `collapse` requires the source to
+have a strict superset of the target dimensions; `expand` requires a strict
+subset. Each dimensional mapping explicitly supplies its target dimension IDs
+as matching keys, for example with
+`ref.current_dataset().dimensions.ids`. A dimension reference used for
+grouping or ordering does not implicitly select a join key. Combining sources
+requires an explicit dimensional operation; same-dataset fragment assembly is
+not a cross-dataset reconciliation. Functions are responsible for grouping,
+matching, output names, and constructing literal values.
 
 The compiled plan groups independent invocations into stages. The built-in engine
 processes stages and invocations sequentially. Dataset `order` metadata does not
@@ -156,7 +165,8 @@ Fragments in a dataset are combined by the owning entity's complete dimension
 key, never by row position. The built-in Polars backend uses a full join,
 coalesces key columns, treats null keys as equal, and requires a one-to-one
 key relationship. Keys present on only one side are retained, with nulls for
-the other fragment's absent values.
+the other fragment's absent values. This supports partial and disjoint
+coverage; equal row counts or identical key sets are not required.
 
 Only declared dimension keys may overlap between fragments; overlapping feature
 columns are rejected rather than silently discarded. A dimensionless fragment
