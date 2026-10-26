@@ -386,8 +386,11 @@ selectors. Inputs establish dependencies even when not passed as arguments.
 Conversely, passing a feature identifier is not a declaration that its data
 must exist. Declare every consumed feature in `inputs`.
 
-Outputs reference the owning dataset's feature registry. Entity dimension keys
-are required in every returned table, even when omitted from `outputs`.
+Outputs reference the owning dataset's feature registry and are the only
+declaration of features produced by a mapping. Binding arguments may use
+feature references to pass identifiers, including output names; those arguments
+do not infer inputs or outputs. Entity dimension keys are required in every
+returned table, even when omitted from `outputs`.
 A write mapping declares empty outputs and explicitly lists its required inputs.
 Data-producing mappings require at least one output. Vectorize outputs cannot
 redeclare entity dimensions. Collapse must produce at least one non-dimension
