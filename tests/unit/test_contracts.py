@@ -63,7 +63,9 @@ def test_operation_contracts_validate_every_function_operation(
     function_id, function, dataframe_inputs = next(
         context_module.SpecValidationContext.build(model).iter_functions()
     )
-    assert validation_functions.validate_return_kind(function_id, function) is None
+    assert (
+        validation_functions.validate_return_kind(function_id, function, dataframe_inputs) is None
+    )
     assert (
         validation_functions.validate_dataframe_count(function_id, function, dataframe_inputs)
         is None
@@ -93,7 +95,9 @@ def test_escape_contract_accepts_any_number_of_dataframe_arguments(
     function_id, function, dataframe_inputs = next(
         context_module.SpecValidationContext.build(model).iter_functions()
     )
-    assert validation_functions.validate_return_kind(function_id, function) is None
+    assert (
+        validation_functions.validate_return_kind(function_id, function, dataframe_inputs) is None
+    )
     assert (
         validation_functions.validate_dataframe_count(function_id, function, dataframe_inputs)
         is None
@@ -152,7 +156,10 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
                 is None
             )
     for function_id, function, dataframe_inputs in validation_context.iter_functions():
-        assert validation_functions.validate_return_kind(function_id, function) is None
+        assert (
+            validation_functions.validate_return_kind(function_id, function, dataframe_inputs)
+            is None
+        )
         assert (
             validation_functions.validate_dataframe_count(function_id, function, dataframe_inputs)
             is None
@@ -191,7 +198,7 @@ def test_fixed_operation_contracts_remain_enforced(
         context_module.SpecValidationContext.build(model).iter_functions()
     )
     error = validation_functions.validate_return_kind(
-        function_id, item
+        function_id, item, dataframe_inputs
     ) or validation_functions.validate_dataframe_count(function_id, item, dataframe_inputs)
     assert isinstance(error, ValueError)
     assert expected_error in str(error)

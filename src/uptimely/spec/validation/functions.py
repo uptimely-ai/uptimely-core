@@ -10,14 +10,17 @@ from . import errors
 
 
 def validate_return_kind(
-    function_id: str, function: spec_model.FunctionTemplate
+    function_id: str,
+    function: spec_model.FunctionTemplate,
+    dataframe_inputs: int,
 ) -> context_module.ValidationResult:
     """Require the return kind defined by the function's operation."""
     operation = function.operation
     expected = operations.OPERATION_RETURN_KINDS[operation]
     if function.returns != expected:
         return errors.SpecError(
-            f"Operation {operation} must declare returns={expected}",
+            f"Operation {operation} must declare returns={expected}."
+            + operations.operation_hint(function.returns, dataframe_inputs),
             code="invalid_function_return_contract",
             path=("functions", function_id, "returns"),
         )
@@ -35,7 +38,8 @@ def validate_dataframe_count(
     if expected is not None and dataframe_inputs != expected:
         return errors.SpecError(
             f"Operation {operation} requires {expected} dataframe "
-            f"argument(s), got {dataframe_inputs}",
+            f"argument(s), got {dataframe_inputs}."
+            + operations.operation_hint(function.returns, dataframe_inputs),
             code="invalid_function_input_contract",
             path=("functions", function_id, "args"),
         )

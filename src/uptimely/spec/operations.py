@@ -41,6 +41,30 @@ OPERATION_RETURN_KINDS: typing.Final[dict[FunctionOperation, FunctionReturns]] =
     CONFORM: arg_types.DATAFRAME,
 }
 
+
+def operation_hint(returns: FunctionReturns, dataframe_inputs: int) -> str:
+    """Suggest explicitly declared operations matching a function contract."""
+    matches = [
+        operation
+        for operation in FUNCTION_OPERATIONS
+        if operation != ESCAPE
+        and OPERATION_RETURN_KINDS[operation] == returns
+        and DATAFRAME_INPUT_COUNTS[operation] == dataframe_inputs
+    ]
+    if matches:
+        suggestions = ", ".join(matches)
+        return (
+            f" This function's declared return kind and {dataframe_inputs} dataframe "
+            f"argument(s) fit operation(s): {suggestions}. Declare the intended "
+            "operation explicitly."
+        )
+    return (
+        f" No controlled operation matches this function's declared return kind and "
+        f"{dataframe_inputs} dataframe argument(s). If it performs intentional "
+        "uncontrolled work, declare operation=escape explicitly."
+    )
+
+
 __all__ = [
     "COLLAPSE",
     "CONFORM",
@@ -52,6 +76,7 @@ __all__ = [
     "FunctionOperation",
     "FunctionReturns",
     "OPERATION_RETURN_KINDS",
+    "operation_hint",
     "READ",
     "VECTORIZE",
     "WRITE",

@@ -153,7 +153,7 @@ def _binding_and_contract_results(
                 (*item.location.declaration_path, "binding", "args"),
             )
     for function_id, function, dataframe_inputs in context.iter_functions():
-        yield functions.validate_return_kind(function_id, function)
+        yield functions.validate_return_kind(function_id, function, dataframe_inputs)
         yield functions.validate_dataframe_count(function_id, function, dataframe_inputs)
     for item in context.mapping_contracts:
         for argument in item.arguments:
