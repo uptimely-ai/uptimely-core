@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import pathlib
 
@@ -7,6 +8,9 @@ from conftest import engine_for_plan
 
 from uptimely import compiler, engine, spec
 from uptimely import execution_plan as plan_module
+from uptimely.engine import backend as backend_module
+from uptimely.engine import dataframe as dataframe_module
+from uptimely.engine import state as state_module
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import dataset, dimension, entity, feature, mapping, ref
 
@@ -77,6 +81,20 @@ def expanded_values(
 def read_expansion_input(lazy: bool) -> pl.DataFrame | pl.LazyFrame:
     frame = pl.DataFrame({"group": ["A", "B"], "expansion_value": [12, 18]})
     return frame.lazy() if lazy else frame
+
+
+def read_conform_target() -> pl.DataFrame:
+    return pl.DataFrame({"group": ["A", "B"], "base_value": [10, 20]})
+
+
+def read_conform_source() -> pl.DataFrame:
+    return pl.DataFrame({"group": ["B", "C"], "source_value": [2, 3]})
+
+
+def conform_source(source: pl.DataFrame, matching_keys: list[str]) -> pl.DataFrame:
+    assert source.columns == ["group", "source_value"]
+    assert matching_keys == ["group"]
+    return source.select(*matching_keys, pl.col("source_value").alias("conformed_value"))
 
 
 def nested_maximum(
@@ -183,6 +201,97 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
         {"group": "A", "maximum": 4, "average": 6.0, "values": [2, 4]},
         {"group": "B", "maximum": 6, "average": 12.0, "values": [6, None]},
     ]
+
+
+def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys() -> None:
+    group = dimension.Dimension(id="group", type="string")
+    target = dataset.Dataset(
+        id="target",
+        mappings={
+            "read_target": mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function(read_conform_target, operation="read"),
+                arguments={},
+                outputs=[feature.Feature(name="base_value")],
+            ),
+            "conform_source": mapping.FunctionMapping(
+                inputs=[ref.feature("source_value")],
+                function=ref.function(conform_source, operation="conform"),
+                arguments={
+                    "source": ref.dataset("foreign").dataframe,
+                    "matching_keys": ref.current_dataset().dimensions.ids,
+                },
+                outputs=[feature.Feature(name="conformed_value")],
+            ),
+        },
+    )
+    foreign = dataset.Dataset(
+        id="foreign",
+        mappings={
+            "read_source": mapping.FunctionMapping(
+                inputs=[],
+                function=ref.function(read_conform_source, operation="read"),
+                arguments={},
+                outputs=[feature.Feature(name="source_value")],
+            )
+        },
+    )
+    spec_definition = spec.from_python(
+        entities=[
+            entity.Entity(id="target_entity", name="Target", dimensions=[group], datasets=[target]),
+            entity.Entity(
+                id="foreign_entity", name="Foreign", dimensions=[group], datasets=[foreign]
+            ),
+        ],
+        dimensions=[group],
+    )
+    plan = compiler.Compiler().compile(spec_definition, features=["conformed_value"])
+    portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
+    conform_invocation = next(item for item in portable.invocations if item.operation == "conform")
+    source_read = next(item for item in portable.invocations if item.mapping_id == "read_source")
+    target_read = next(item for item in portable.invocations if item.mapping_id == "read_target")
+
+    assert conform_invocation.arguments == {
+        "source": "foreign",
+        "matching_keys": ["group"],
+    }
+    assert {source_read.id, target_read.id} <= set(conform_invocation.dependency_ids)
+    stage_by_id = {
+        invocation_id: stage_number
+        for stage_number, stage in enumerate(portable.stages)
+        for invocation_id in stage
+    }
+    assert stage_by_id[source_read.id] < stage_by_id[conform_invocation.id]
+    assert stage_by_id[target_read.id] < stage_by_id[conform_invocation.id]
+
+    result = engine_for_plan(portable, spec_definition=spec_definition).run()
+
+    assert result.failures == {}
+    assert set(result.invocation_statuses.values()) == {"succeeded"}
+    assert result.datasets["target"].sort("group").to_dicts() == [
+        {"group": "A", "base_value": 10, "conformed_value": None},
+        {"group": "B", "base_value": 20, "conformed_value": 2},
+        {"group": "C", "base_value": None, "conformed_value": 3},
+    ]
+
+
+def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> None:
+    spec_definition = _spec()
+    plan = compiler.Compiler().compile(spec_definition, features=["average"])
+    invocation = next(item for item in plan.invocations if item.operation == "collapse")
+    invocation = dataclasses.replace(invocation, input_features=["maximum"])
+    state = state_module.RuntimeState(
+        datasets={
+            "summary": pl.DataFrame({"group": ["A"], "maximum": [4]}),
+            "observations": pl.DataFrame({"group": ["A"], "id": [1], "value": [2], "doubled": [4]}),
+        }
+    )
+    dataframe = dataframe_module.DataFrameExecution(
+        backend_module.create_backend(engine.EngineConfig().backend), spec_definition, state
+    )
+
+    with pytest.raises(ValueError, match="input feature.*foreign source dataset: maximum"):
+        dataframe.validate_inputs(invocation)
 
 
 @pytest.mark.parametrize("lazy", [False, True])

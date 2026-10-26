@@ -1,8 +1,8 @@
 """Dataframe execution contracts for portable plan invocations."""
 
 from uptimely import execution_plan
+from uptimely.spec import arg_types, operations
 from uptimely.spec import model as spec_model
-from uptimely.spec import operations
 
 from . import backend as backend_module
 from . import state as state_module
@@ -24,6 +24,14 @@ class DataFrameExecution:
 
     def validate_inputs(self, invocation: execution_plan.Invocation) -> None:
         """Require declared input columns to be materialized before invocation."""
+        if invocation.operation in {
+            operations.CONFORM,
+            operations.COLLAPSE,
+            operations.EXPAND,
+        }:
+            self._validate_foreign_inputs(invocation)
+            return
+
         dataframe = self.state.datasets.get(invocation.dataset_id)
         dataframe_columns = (
             set(self.backend.column_names(dataframe)) if dataframe is not None else set()
@@ -43,6 +51,37 @@ class DataFrameExecution:
                 raise ValueError(
                     f"Mapping {invocation.mapping_id} input feature is unavailable or ambiguous: "
                     f"{feature}"
+                )
+
+    def _validate_foreign_inputs(self, invocation: execution_plan.Invocation) -> None:
+        """Check dimensional inputs against the operation's foreign dataframe."""
+        function = self.spec_definition.functions.get(invocation.function_id)
+        if function is None:
+            raise ValueError(f"Unknown function: {invocation.function_id}")
+        dataframe_arguments = [
+            name for name, argument in function.args.items() if argument.type == arg_types.DATAFRAME
+        ]
+        if len(dataframe_arguments) != 1:
+            raise ValueError(
+                f"Mapping {invocation.mapping_id} must declare exactly one foreign dataframe "
+                "argument"
+            )
+        argument_name = dataframe_arguments[0]
+        source_id = invocation.arguments.get(argument_name)
+        if not isinstance(source_id, str) or source_id == invocation.dataset_id:
+            raise ValueError(
+                f"Mapping {invocation.mapping_id} must reference a foreign source dataset"
+            )
+        source = self.state.datasets.get(source_id)
+        if source is None:
+            raise ValueError(f"Dataset dataframe is unavailable: {source_id}")
+
+        source_columns = set(self.backend.column_names(source))
+        for feature in invocation.input_features:
+            if feature not in source_columns:
+                raise ValueError(
+                    f"Mapping {invocation.mapping_id} input feature is unavailable in foreign "
+                    f"source dataset: {feature}"
                 )
 
     def _validate_fragment(
