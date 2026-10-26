@@ -35,6 +35,10 @@ def validate_selector_type(
         return None
     if value.startswith(selectors.DATASET_PREFIX) and value.endswith(selectors.DATAFRAME_SELECTOR):
         expected = arg_types.DATAFRAME
+    elif value.startswith(selectors.DATASET_PREFIX) and value.endswith(
+        selectors.DIMENSION_IDS_SELECTOR
+    ):
+        expected = arg_types.array_of(arg_types.STRING)
     elif value.endswith(selectors.ID_SELECTOR):
         expected = arg_types.STRING
     else:

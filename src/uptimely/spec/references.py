@@ -48,11 +48,7 @@ def structural_references(value: typing.Any, prefix: str) -> list[str]:
         value = value.model_dump()
     if isinstance(value, str):
         if value.startswith(prefix):
-            return [
-                value.removeprefix(prefix)
-                .removesuffix(selectors.ID_SELECTOR)
-                .removesuffix(selectors.DATAFRAME_SELECTOR)
-            ]
+            return [_structural_identifier(value, prefix)]
         return []
     if isinstance(value, dict):
         return [
@@ -63,6 +59,29 @@ def structural_references(value: typing.Any, prefix: str) -> list[str]:
     if isinstance(value, list):
         return [
             identifier for nested in value for identifier in structural_references(nested, prefix)
+        ]
+    return []
+
+
+def structural_reference_paths(
+    value: typing.Any, prefix: str, path: tuple[str | int, ...]
+) -> list[tuple[str, tuple[str | int, ...]]]:
+    """Collect structural references with their binding paths."""
+    if isinstance(value, pydantic.BaseModel):
+        value = value.model_dump()
+    if isinstance(value, str):
+        return [(_structural_identifier(value, prefix), path)] if value.startswith(prefix) else []
+    if isinstance(value, dict):
+        return [
+            reference
+            for key, nested in value.items()
+            for reference in structural_reference_paths(nested, prefix, (*path, key))
+        ]
+    if isinstance(value, list):
+        return [
+            reference
+            for index, nested in enumerate(value)
+            for reference in structural_reference_paths(nested, prefix, (*path, index))
         ]
     return []
 
@@ -132,6 +151,7 @@ def dataset_dependencies(args: dict[str, typing.Any], current_dataset: str) -> l
             isinstance(value, str)
             and value.startswith(selectors.DATASET_PREFIX)
             and not value.endswith(selectors.ID_SELECTOR)
+            and not value.endswith(selectors.DIMENSION_IDS_SELECTOR)
         ):
             identifier = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
                 selectors.DATAFRAME_SELECTOR
@@ -152,15 +172,21 @@ def resolve_binding_args(
     args: dict[str, typing.Any] | None,
     dataset_id: str,
     feature_id: str | None = None,
+    dimension_ids_by_dataset: collections.abc.Mapping[str, collections.abc.Sequence[str]]
+    | None = None,
 ) -> dict[str, typing.Any]:
     """Resolve structural references to identifiers used by the execution plan."""
+    if args is None:
+        return {}
     if not isinstance(args, dict):
-        return args or {}
+        raise TypeError("Binding arguments must be a dictionary or None")
 
     def resolve_value(value: object) -> object:
         value = _as_plain(value)
         if isinstance(value, str):
-            return resolve_structural_reference(value, dataset_id, feature_id)
+            return resolve_structural_reference(
+                value, dataset_id, feature_id, dimension_ids_by_dataset
+            )
         if isinstance(value, dict):
             return {key: resolve_value(item) for key, item in value.items()}
         if isinstance(value, list):
@@ -171,8 +197,12 @@ def resolve_binding_args(
 
 
 def resolve_structural_reference(
-    value: str, current_dataset_id: str, feature_id: str | None = None
-) -> str:
+    value: str,
+    current_dataset_id: str,
+    feature_id: str | None = None,
+    dimension_ids_by_dataset: collections.abc.Mapping[str, collections.abc.Sequence[str]]
+    | None = None,
+) -> str | list[str]:
     """Return the identifier represented by a structural binding reference."""
     if value in {
         f"{selectors.FEATURE_PREFIX}{selectors.CURRENT_ID}",
@@ -183,6 +213,17 @@ def resolve_structural_reference(
         if value.startswith(prefix):
             identifier = value.removeprefix(prefix)
             if prefix == selectors.DATASET_PREFIX:
+                if identifier.endswith(selectors.DIMENSION_IDS_SELECTOR):
+                    identifier = identifier.removesuffix(selectors.DIMENSION_IDS_SELECTOR)
+                    dataset_id = (
+                        current_dataset_id if identifier == selectors.CURRENT_ID else identifier
+                    )
+                    if (
+                        dimension_ids_by_dataset is None
+                        or dataset_id not in dimension_ids_by_dataset
+                    ):
+                        raise ValueError(f"Cannot resolve dimension IDs for dataset {dataset_id}")
+                    return list(dimension_ids_by_dataset[dataset_id])
                 identifier = identifier.removesuffix(selectors.DATAFRAME_SELECTOR).removesuffix(
                     selectors.ID_SELECTOR
                 )
@@ -194,6 +235,18 @@ def resolve_structural_reference(
                 else identifier
             )
     return value
+
+
+def _structural_identifier(value: str, prefix: str) -> str:
+    """Remove a structural selector suffix while retaining its resource ID."""
+    identifier = value.removeprefix(prefix)
+    if prefix == selectors.DATASET_PREFIX:
+        return (
+            identifier.removesuffix(selectors.DIMENSION_IDS_SELECTOR)
+            .removesuffix(selectors.DATAFRAME_SELECTOR)
+            .removesuffix(selectors.ID_SELECTOR)
+        )
+    return identifier.removesuffix(selectors.ID_SELECTOR)
 
 
 def _as_plain(value: object) -> object:

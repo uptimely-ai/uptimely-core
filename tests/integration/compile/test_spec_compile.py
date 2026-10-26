@@ -103,6 +103,65 @@ def test_compilation_preserves_the_saved_plan() -> None:
     ]
 
 
+def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
+    tmp_path: pathlib.Path,
+) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    function = configuration["functions"]["read_pump_telemetry"]
+    function["validate_signature"] = False
+    function["args"]["keys"] = {"type": "array[string]"}
+    function["args"]["source_keys"] = {"type": "array[string]"}
+    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
+    dataset["mappings"]["read_pump_telemetry"]["binding"]["args"].update(
+        {
+            "keys": "$datasets.@.dimensions.ids",
+            "source_keys": "$datasets.pump_dataset.dimensions.ids",
+        }
+    )
+    path = tmp_path / "dimension_keys.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+
+    definition = spec.load_spec(path)
+    plan = compiler.Compiler().compile(definition)
+    invocation = next(
+        item for item in plan.invocations if item.function_id == "read_pump_telemetry"
+    )
+    expected = definition.dimension_ids_by_dataset["pump_telemetry_dataset"]
+    expected_source = definition.dimension_ids_by_dataset["pump_dataset"]
+
+    assert invocation.arguments["keys"] == expected
+    assert invocation.arguments["source_keys"] == expected_source
+    portable = compiler_plan.to_dict(plan)
+    portable_invocation = next(
+        item for item in portable["invocations"] if item["function_id"] == "read_pump_telemetry"
+    )
+    assert portable_invocation["arguments"]["keys"] == expected
+    assert portable_invocation["arguments"]["source_keys"] == expected_source
+
+
+def test_collapse_feature_placeholder_uses_invocation_feature_id(tmp_path: pathlib.Path) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    mapping = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
+        "bearing_temperature_by_pump"
+    ]
+    mapping["binding"]["args"]["output"] = "$features.@.id"
+    path = tmp_path / "collapse_feature_placeholder.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+
+    definition = spec.load_spec(path)
+    graph = compiler.InvocationGraph(definition)
+    node = next(
+        item for item in graph.invocations if item.mapping_id == "bearing_temperature_by_pump"
+    )
+    plan = compiler.Compiler().compile(definition)
+    invocation = next(
+        item for item in plan.invocations if item.mapping_id == "bearing_temperature_by_pump"
+    )
+
+    assert node.feature_id == "bearing_temperature_max"
+    assert invocation.arguments["output"] == node.feature_id
+
+
 def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> None:
     plan = compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
     invocations = [

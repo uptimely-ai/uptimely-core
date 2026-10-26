@@ -11,6 +11,7 @@ from .. import arg_types, operations, selectors
 
 __all__ = [
     "Reference",
+    "DatasetDimensionsReference",
     "FunctionReference",
     "function",
     "current_dataset",
@@ -116,6 +117,28 @@ class Reference:
         if self.type != "dataset":
             raise ValueError("Only dataset references have a dataframe selector")
         return Reference(type="dataset", value=f"{self.value}{selectors.DATAFRAME_SELECTOR}")
+
+    @property
+    def dimensions(self) -> DatasetDimensionsReference:
+        """Select dimension metadata from a dataset reference."""
+        if self.type != "dataset":
+            raise ValueError("Only dataset references have dimension selectors")
+        return DatasetDimensionsReference(value=f"{self.value}.dimensions")
+
+
+@dataclasses.dataclass(frozen=True)
+class DatasetDimensionsReference:
+    """Dimension selectors available on a dataset reference."""
+
+    value: str
+
+    @property
+    def ids(self) -> Reference:
+        """Pass the dataset's dimension identifiers as an array of strings."""
+        return Reference(
+            type=arg_types.array_of(arg_types.STRING),
+            value=f"{self.value}.ids",
+        )
 
 
 def current_dataset() -> Reference:

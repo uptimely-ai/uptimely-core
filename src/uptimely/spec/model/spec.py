@@ -49,6 +49,15 @@ class Spec(common.StrictModel):
     )
     entities: dict[str, dataset_module.Entity] = pydantic.Field(default_factory=dict)
 
+    @property
+    def dimension_ids_by_dataset(self) -> dict[str, list[str]]:
+        """Return each dataset's owning entity dimension identifiers."""
+        return {
+            dataset.id: entity.dimension_ids
+            for entity in self.entities.values()
+            for dataset in entity.datasets.values()
+        }
+
     @pydantic.field_validator("spec_version", mode="before")
     @classmethod
     def validate_spec_version_type(cls, value: object) -> object:

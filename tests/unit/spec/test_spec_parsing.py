@@ -210,6 +210,41 @@ def test_nested_selectors_resolve_without_changing_literal_values() -> None:
     }
 
 
+def test_resolve_binding_args_defaults_none_to_empty_dictionary() -> None:
+    assert references.resolve_binding_args(None, "telemetry") == {}
+
+
+@pytest.mark.parametrize("args", [[], "", 0, False, ()])
+def test_resolve_binding_args_rejects_non_dictionary_arguments(args: object) -> None:
+    with pytest.raises(TypeError, match="Binding arguments must be a dictionary or None"):
+        references.resolve_binding_args(args, "telemetry")  # type: ignore[arg-type]
+
+
+def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> None:
+    args = {
+        "host_keys": "$datasets.@.dimensions.ids",
+        "source_keys": "$datasets.source.dimensions.ids",
+        "source": "$datasets.source.dataframe",
+    }
+    dimension_ids = {"telemetry": ["pump", "timestamp"], "source": ["pump"]}
+
+    assert references.structural_references(args, "$datasets.") == [
+        "@",
+        "source",
+        "source",
+    ]
+    assert references.resolve_binding_args(
+        args,
+        "telemetry",
+        dimension_ids_by_dataset=dimension_ids,
+    ) == {
+        "host_keys": ["pump", "timestamp"],
+        "source_keys": ["pump"],
+        "source": "source",
+    }
+    assert references.dataset_dependencies(args, "telemetry") == ["source"]
+
+
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     assert len(spec_definition.functions.by_operation("vectorize")) == 7

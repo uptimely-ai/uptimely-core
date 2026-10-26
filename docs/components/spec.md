@@ -410,6 +410,8 @@ feature. There is no binding-level `return` field.
 | --- | --- | --- |
 | `$features.<id>.id` | `string` | Feature identifier string. |
 | `$dimensions.<id>.id` | `string` | Dimension identifier string. |
+| `$datasets.<id>.dimensions.ids` | `array[string]` | Dimension identifiers declared by that dataset's entity. |
+| `$datasets.@.dimensions.ids` | `array[string]` | Dimension identifiers declared by the mapping's target entity. |
 | `$datasets.<id>.dataframe` | `dataframe` | Materialized table for that dataset. |
 | `$datasets.@.dataframe` | `dataframe` | Current dataset's input-ready table. |
 | `$datasets.<id>.id` | `string` | Dataset identifier string. |
@@ -418,7 +420,14 @@ feature. There is no binding-level `return` field.
 Unsuffixed references remain supported; their template argument type determines
 whether a dataset identifier is resolved to data. Prefer explicit selectors
 when writing new declarations. `.id` arguments require `string`, and
-`.dataframe` arguments require `dataframe`. Use only the reference forms above.
+`.dataframe` arguments require `dataframe`. Dimension-key selectors require
+`array[string]`; their keys must be dimensions of the target and every
+referenced dataframe dataset. Use only the reference forms above.
+
+In Python declarations, use `ref.current_dataset().dimensions.ids` or
+`ref.dataset("source").dimensions.ids` for the corresponding selector. Key
+selectors are explicit binding values; grouping, ordering, and other dimension
+references do not implicitly declare matching keys.
 
 ### Row Context
 

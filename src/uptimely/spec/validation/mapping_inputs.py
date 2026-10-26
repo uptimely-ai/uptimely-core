@@ -67,11 +67,16 @@ def validate_dataset_reference(
 
 
 def validate_dimension_reference(
-    item: context_module.MappingFacts, dimension: str, dimension_ids: frozenset[str]
+    item: context_module.MappingFacts,
+    dimension: str,
+    dimension_ids: frozenset[str],
+    path: context_module.SpecPath,
 ) -> context_module.ValidationResult:
     """Require a structural dimension reference to be declared."""
     if dimension not in dimension_ids:
-        return ValueError(
-            f"Mapping {item.location.mapping.id} references unknown dimension: {dimension}"
+        return errors.SpecError(
+            f"Mapping {item.location.mapping.id} references unknown dimension: {dimension}",
+            code="unknown_dimension_reference",
+            path=path,
         )
     return None

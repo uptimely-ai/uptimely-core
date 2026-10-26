@@ -113,6 +113,7 @@ class MappingFacts:
     feature_references: tuple[str, ...]
     dataset_references: tuple[str, ...]
     dimension_references: tuple[str, ...]
+    dimension_reference_paths: tuple[tuple[str, SpecPath], ...]
 
     @property
     def dimensions(self) -> frozenset[str]:
@@ -169,6 +170,14 @@ class DataframeInput:
 
 
 @dataclasses.dataclass(frozen=True)
+class MatchingKey:
+    """One explicitly declared dimension key and its binding location."""
+
+    dimension_id: str
+    path: SpecPath
+
+
+@dataclasses.dataclass(frozen=True)
 class MappingContract:
     """Prepared dataframe and dimensional relationships for an operation."""
 
@@ -184,6 +193,8 @@ class MappingContract:
     target_is_input: bool
     lower_dataset_ids: frozenset[str]
     has_lower_feature: bool
+    matching_keys: tuple[MatchingKey, ...]
+    matching_key_checks: tuple[tuple[MatchingKey, str, frozenset[str]], ...]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -233,9 +244,10 @@ class SpecValidationContext:
                             duplicate_feature = feature_id
                         feature_candidates.append(location)
                 for mapping_id, mapping in dataset.mappings.items():
+                    mapping_location = MappingLocation(location, mapping_id, mapping)
                     mappings.append(
                         MappingFacts(
-                            location=MappingLocation(location, mapping_id, mapping),
+                            location=mapping_location,
                             function=model.functions.get(mapping.binding.function),
                             inputs=tuple(mapping.input_features),
                             outputs=tuple(mapping.output_features),
@@ -252,6 +264,17 @@ class SpecValidationContext:
                             dimension_references=tuple(
                                 references.structural_references(
                                     mapping.binding.args, selectors.DIMENSION_PREFIX
+                                )
+                            ),
+                            dimension_reference_paths=tuple(
+                                references.structural_reference_paths(
+                                    mapping.binding.args,
+                                    selectors.DIMENSION_PREFIX,
+                                    (
+                                        *mapping_location.declaration_path,
+                                        "binding",
+                                        "args",
+                                    ),
                                 )
                             ),
                         )
@@ -623,6 +646,15 @@ class SpecValidationContext:
             and (owner := self.last_feature_owner(feature)) is not None
         )
         source = self.collapse_sources.get(item.location.key)
+        matching_keys = self._matching_keys(item)
+        key_participants = (
+            (item.location.dataset.id, item.dimensions),
+            *(
+                (argument.source.dataset.id, argument.source.dimensions)
+                for argument in dataframe_arguments
+                if argument.source is not None
+            ),
+        )
         return MappingContract(
             mapping=item,
             dataframe_arguments=dataframe_arguments,
@@ -638,7 +670,48 @@ class SpecValidationContext:
             target_is_input=item.location.dataset.id in dataset_ids,
             lower_dataset_ids=lower_dataset_ids,
             has_lower_feature=self._has_lower_feature(item.inputs, lower_dataset_ids),
+            matching_keys=matching_keys,
+            matching_key_checks=tuple(
+                (key, dataset_id, dimensions)
+                for key in matching_keys
+                for dataset_id, dimensions in key_participants
+            ),
         )
+
+    def _matching_keys(self, item: MappingFacts) -> tuple[MatchingKey, ...]:
+        """Collect key selectors explicitly present in binding arguments."""
+        keys: list[MatchingKey] = []
+        base_path = (*item.location.declaration_path, "binding", "args")
+
+        def collect(value: object, path: SpecPath) -> None:
+            if (
+                isinstance(value, str)
+                and value.startswith(selectors.DATASET_PREFIX)
+                and value.endswith(selectors.DIMENSION_IDS_SELECTOR)
+            ):
+                dataset_id = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
+                    selectors.DIMENSION_IDS_SELECTOR
+                )
+                location = (
+                    item.location.dataset_location
+                    if dataset_id == selectors.CURRENT_ID
+                    else self.dataset(dataset_id)
+                )
+                if location is not None:
+                    keys.extend(
+                        MatchingKey(dimension_id, path)
+                        for dimension_id in location.entity.dimension_ids
+                    )
+            elif isinstance(value, dict):
+                for name, nested in value.items():
+                    collect(nested, (*path, name))
+            elif isinstance(value, list):
+                for index, nested in enumerate(value):
+                    collect(nested, (*path, index))
+
+        for name, value in item.location.mapping.binding.args.items():
+            collect(value, (*base_path, name))
+        return tuple(keys)
 
     def _feature_unavailable(
         self,

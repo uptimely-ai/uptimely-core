@@ -10,6 +10,7 @@ DIMENSION_PREFIX: typing.Final[str] = "$dimensions."
 CURRENT_ID: typing.Final[str] = "@"
 ID_SELECTOR: typing.Final[str] = ".id"
 DATAFRAME_SELECTOR: typing.Final[str] = ".dataframe"
+DIMENSION_IDS_SELECTOR: typing.Final[str] = ".dimensions.ids"
 STRUCTURAL_PREFIXES: typing.Final[tuple[str, ...]] = (
     FEATURE_PREFIX,
     DATASET_PREFIX,
@@ -20,6 +21,7 @@ __all__ = [
     "CURRENT_ID",
     "DATAFRAME_SELECTOR",
     "DATASET_PREFIX",
+    "DIMENSION_IDS_SELECTOR",
     "DIMENSION_PREFIX",
     "FEATURE_PREFIX",
     "ID_SELECTOR",
