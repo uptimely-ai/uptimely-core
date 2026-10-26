@@ -7,6 +7,10 @@ import typing
 
 type InvocationStatus = typing.Literal["succeeded", "failed", "skipped"]
 
+INVOCATION_STATUS_SUCCEEDED: typing.Literal["succeeded"] = "succeeded"
+INVOCATION_STATUS_FAILED: typing.Literal["failed"] = "failed"
+INVOCATION_STATUS_SKIPPED: typing.Literal["skipped"] = "skipped"
+
 
 @dataclasses.dataclass(frozen=True)
 class ExecutionResult:
