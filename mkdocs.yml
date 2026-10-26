@@ -73,6 +73,7 @@ nav:
       - AI agents: tools/ai.md
   - Data science:
       - Platform comparison: data-science/platform-comparison.md
+      - Difference to dimensional modeling: data-science/dimensional-modeling.md
       - Data science work: data-science/way-of-work.md
       - Analytical functions: data-science/analytical-functions.md
   - Project layout:
