@@ -13,6 +13,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Spec validation now suggests a matching operation when a function's declared
   return kind or dataframe argument count conflicts with its operation. It
   never changes the operation automatically.
+- Spec validation warns about declared features with no producing mapping
+  instead of rejecting the Spec, and allows escape dependencies on features
+  produced by any operation.
 - Documented the purity contract for analytical calculations and added an
   example test that verifies a calculation leaves its input unchanged.
 - **Breaking:** Execution plans now use `invocations` with explicit `function_id`

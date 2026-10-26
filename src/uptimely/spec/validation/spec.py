@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import collections.abc
+import warnings
 
 from uptimely.spec import model as spec_model
 
@@ -35,6 +36,19 @@ def validate_spec(model: spec_model.Spec) -> None:
     for error in _validation_results(context):
         if error is not None:
             raise error
+    _warn_unproduced_features(context)
+
+
+def _warn_unproduced_features(context: context_module.SpecValidationContext) -> None:
+    """Warn when declared dataset features have no mapping producer."""
+    for location, _, missing in context.iter_output_datasets():
+        if missing:
+            feature_path = ".".join((*location.path, "features"))
+            warnings.warn(
+                f"{feature_path}: Features have no producer mapping: {', '.join(missing)}",
+                UserWarning,
+                stacklevel=2,
+            )
 
 
 def _validation_results(
@@ -88,7 +102,7 @@ def _output_results(
     context: context_module.SpecValidationContext,
 ) -> collections.abc.Iterator[context_module.ValidationResult]:
     """Validate mapping outputs and dataset producer coverage."""
-    for output_mappings, missing in context.iter_output_datasets():
+    for _, output_mappings, _ in context.iter_output_datasets():
         for item, declarations in output_mappings:
             yield mapping_outputs.validate_function_reference(item)
             if item.operation == operations.WRITE:
@@ -101,7 +115,6 @@ def _output_results(
                 yield mapping_outputs.validate_unique_producer(item, feature, previous)
             yield mapping_outputs.validate_collapse_output(item)
             yield mapping_outputs.validate_current_feature_selector(item)
-        yield mapping_outputs.validate_producer_coverage(missing)
 
 
 def _input_results(

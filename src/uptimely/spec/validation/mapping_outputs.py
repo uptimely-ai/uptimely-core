@@ -129,10 +129,3 @@ def validate_current_feature_selector(
             "cannot use $features.@ when it produces multiple features"
         )
     return None
-
-
-def validate_producer_coverage(missing: tuple[str, ...]) -> context_module.ValidationResult:
-    """Require a producer mapping for every non-dimension dataset feature."""
-    if missing:
-        return ValueError("Features have no producer mapping: " + ", ".join(missing))
-    return None

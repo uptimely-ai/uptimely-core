@@ -485,7 +485,10 @@ are acyclic. When a function's declared return kind and dataframe arguments
 conflict with its operation, validation suggests a matching operation where
 possible. It never changes the operation automatically; `escape` must be
 declared explicitly for intentional uncontrolled work. Spec validation does
-not import implementations or inspect calculated data.
+not require escape inputs to be produced by a `read` mapping. A declared
+feature without a producing mapping triggers a warning rather than preventing
+the Spec from loading. Validation does not import implementations or inspect
+calculated data.
 
 Compilation checks whether a Spec can produce a selected, schedulable plan.
 The engine checks runtime values and returned data, including whether declared
