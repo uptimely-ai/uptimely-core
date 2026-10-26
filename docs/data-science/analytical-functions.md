@@ -28,6 +28,14 @@ for t in timesteps:
 
 For tabular data, prefer vectorized functions and SQL window capabilities where they fit the problem. In Spec, this feature category is named `vectorize`; each vectorize function should transform its declared feature inputs into one output feature without performing I/O.
 
+## Keep analytical windows manageable
+
+Use moderate-sized windows for analytical calculations such as row lags and time windows. When raw data would make a window unnecessarily large, first aggregate it to a meaningful level for the use case, then calculate over that aggregated data. Choose the aggregation level to preserve the analytical meaning the calculation needs.
+
+As a starting heuristic, prefer windows containing hundreds to a few thousand observations per entity. Treat windows above roughly 10,000 observations as a prompt to review aggregation and memory requirements, not as a prohibited size. Choose the smallest window and coarsest resolution that preserve the analytical meaning. For example, a 24-hour window contains 1,440 one-minute observations, compared with 86,400 one-second observations.
+
+This also makes the workflow easier to run on streaming engines: manageable windows can fit in the engine's buffer without special handling for an oversized history. Estimate total buffered state as active entities multiplied by observations per window multiplied by retained bytes per observation, with additional capacity for late-arriving data, calculation state and engine overhead. Validate this at the expected number of concurrent entities; the observation counts above are design guidance, not a guarantee that a particular engine can keep the windows in memory.
+
 ## i/o only in read and write functions
 
 For analytical functions, data should be passed only as input argument and the processed data should come through Python return. This gurantees function purity, takes benefit of automatic validation and makes code structure understandable for others.
