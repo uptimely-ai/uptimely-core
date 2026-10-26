@@ -481,7 +481,11 @@ declarations fit together: references and dependencies are valid and
 unambiguous, function bindings match their argument contracts, operations obey
 their input/output contracts, feature producers are unique, row-context
 requirements match their dimensions and ordering, and feature dependencies
-are acyclic. It does not import implementations or inspect calculated data.
+are acyclic. When a function's declared return kind and dataframe arguments
+conflict with its operation, validation suggests a matching operation where
+possible. It never changes the operation automatically; `escape` must be
+declared explicitly for intentional uncontrolled work. Spec validation does
+not import implementations or inspect calculated data.
 
 Compilation checks whether a Spec can produce a selected, schedulable plan.
 The engine checks runtime values and returned data, including whether declared

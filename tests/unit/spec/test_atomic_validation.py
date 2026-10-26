@@ -213,10 +213,11 @@ def test_function_rules_are_independent(
         item for item in prepared.iter_functions() if item[1].operation == "vectorize"
     )
     invalid_function = function.model_copy(update={"returns": "none"})
-    return_error = functions.validate_return_kind(function_id, invalid_function)
+    return_error = functions.validate_return_kind(function_id, invalid_function, dataframe_inputs)
     count_error = functions.validate_dataframe_count(function_id, function, 100)
 
     assert isinstance(return_error, errors.SpecError)
     assert return_error.code == "invalid_function_return_contract"
+    assert "fit operation(s): write" in str(return_error)
     assert isinstance(count_error, errors.SpecError)
     assert count_error.code == "invalid_function_input_contract"

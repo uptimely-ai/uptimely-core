@@ -10,6 +10,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Spec validation now suggests a matching operation when a function's declared
+  return kind or dataframe argument count conflicts with its operation. It
+  never changes the operation automatically.
 - Documented the purity contract for analytical calculations and added an
   example test that verifies a calculation leaves its input unchanged.
 - **Breaking:** Execution plans now use `invocations` with explicit `function_id`

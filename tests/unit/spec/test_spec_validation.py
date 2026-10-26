@@ -509,8 +509,8 @@ def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
-        ("returns", "none", "must declare returns=dataframe"),
-        ("args", {}, "requires 1 dataframe argument"),
+        ("returns", "none", "must declare returns=dataframe.*fit operation.*write"),
+        ("args", {}, "requires 1 dataframe argument.*fit operation.*read"),
     ],
 )
 def test_function_contract_validates_operation_inputs_and_return(
@@ -529,6 +529,23 @@ def test_function_contract_validates_operation_inputs_and_return(
     path = tmp_path / "invalid_function_contract.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
+        spec.load_spec(path)
+
+
+def test_function_contract_hint_never_selects_escape_implicitly(
+    tmp_path: pathlib.Path,
+) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration["functions"]["unmapped_vectorize"] = {
+        "operation": "vectorize",
+        "returns": "any",
+        "entrypoint": "examples.pump_analytics.functions.analytics:maximum",
+        "args": {"dataset": {"type": "dataframe"}},
+    }
+    path = tmp_path / "unmatched_function_contract.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="declare operation=escape explicitly"):
         spec.load_spec(path)
 
 
