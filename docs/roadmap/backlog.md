@@ -8,23 +8,6 @@ Version numbers are assigned when releases are published. The *breaking*
 column marks changes that require users to update their specifications,
 projects, functions or commands.
 
-## Planned release: Function contracts
-
-Clarify how calculations declare their inputs and outputs, and keep their
-behavior focused on the intended calculation.
-
-**Prerequisites:** None within this backlog.
-
-| title | breaking | description |
-|---|---|---|
-| Analytical functions take only dependencies | Yes | Every feature reference in an analytical function's arguments represents an input dependency, not an output name or a feature label. Inputs are derived from structural binding arguments where possible. Keep explicit `inputs` for dependencies hidden inside procedures, including internal I/O in `escape` functions, independently of `validate_signature`. |
-| Bind output features explicitly | Yes | Declare produced features through explicit `outputs` bindings; never infer outputs by parsing function arguments. Pass output-naming data in arguments as ordinary literal values, not `$features` references or Python `ref(...)` expressions, so output names do not create input dependencies. Update validation, documentation and examples together. |
-| Keep analytical calculations pure | Yes | Calculation functions only compute and return their declared outputs from their declared inputs. They do not log, perform I/O, mutate inputs or shared state, or do unrelated work; operational side effects belong in explicit I/O operations or the engine. Document and test this coding contract without promising that signature checks or static analysis can prove arbitrary Python code pure. |
-| Clarify validation ownership | No | Specification validation checks structure, references, dependencies, argument bindings, declared feature types and input/output contracts. Compilation checks plan feasibility, dependency ordering and existing schedule declarations; target-aware checks and freshness-derived schedules are added with their respective capabilities. The engine checks actual returned data and executes declared quality rules when supported. Reuse shared validators; runtime checks do not prove analytical correctness, which requires tests and domain-specific assertions. |
-| Reject non-conforming functions with a hint | No | When a function does not fit its operation's contract, fail with a hint about which operation fits. Never relabel a function as `escape` automatically; `escape` is always an explicit choice. |
-| Drop dependency requirements for `escape` operation | No | Remove the restriction that `escape` input features must be produced by `read`. Allow declared feature dependencies regardless of the producing operation, subject to normal producer and cycle checks. A `write` produces no features; ordering after an external write is a separate execution dependency. |
-| Warn when unused features are declared | No | Change spec validation so unused declared features produce a warning instead of stopping the build. |
-
 ## Planned release: Specification parameters and binding semantics
 
 Settle user-controlled values, bulk feature selection and external side-effect
