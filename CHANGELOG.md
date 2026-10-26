@@ -10,6 +10,14 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** `read` functions take no dataframe arguments; `conform`,
+  `collapse`, and `expand` take only their foreign/source dataframe and return
+  target-dataset fragments. Dimensional operations declare matching dimension
+  keys explicitly. Same-dataset fragments are validated and assembled by
+  complete keys with a full outer join, preserving partial coverage and
+  rejecting duplicate keys and feature collisions. The built-in runtime
+  supports Polars `DataFrame` and `LazyFrame` only.
+
 - Spec validation now suggests a matching operation when a function's declared
   return kind or dataframe argument count conflicts with its operation. It
   never changes the operation automatically.
