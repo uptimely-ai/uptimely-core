@@ -1,16 +1,14 @@
 """Public package namespace for uptimely."""
 
-# Load spec first because its public API initializes RowContext for the compiler.
+# Load spec before the compiler to initialize the declaration and document models.
 from .spec import (  # noqa: I001
     FeatureGraph,
-    PythonSpec,
     SubGraph,
     from_python,
     load_spec,
     write_document,
 )
-from .spec.python import Action, Dataset, Dimension, Entity, Feature, function, ref
-from .spec.python import PythonSpec as Spec
+from .spec.python import Action, Dataset, Dimension, Entity, Feature, Spec, function, ref
 from .compiler import Compiler, InvocationGraph, InvocationNode
 from .execution_plan.models import ExecutionPlan
 from .engine import Engine
@@ -26,7 +24,6 @@ __all__ = [
     "Dimension",
     "Entity",
     "ExecutionPlan",
-    "PythonSpec",
     "from_python",
     "load_spec",
     "write_document",

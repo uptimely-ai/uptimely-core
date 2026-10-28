@@ -164,14 +164,12 @@ class Dataset:
         features: dict[str, spec_model.Feature] = {}
         producers: dict[str, str] = {}
         if isinstance(self.entity, str):
-            raise ValueError("Resolve entity IDs through PythonSpec before converting a dataset")
+            raise ValueError("Resolve entity IDs through Spec before converting a dataset")
         keys = self.entity.dimensions if self.entity is not None else self.keys
         resolved_keys: list[dimension_module.Dimension] = []
         for key in keys:
             if isinstance(key, str):
-                raise ValueError(
-                    "Resolve dimension IDs through PythonSpec before converting a dataset"
-                )
+                raise ValueError("Resolve dimension IDs through Spec before converting a dataset")
             if not isinstance(key, dimension_module.Dimension):
                 raise TypeError("dataset dimensions must contain Dimension declarations")
             resolved_keys.append(key)

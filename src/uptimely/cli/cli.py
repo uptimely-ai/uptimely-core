@@ -6,9 +6,6 @@ import sys
 
 from uptimely.cli import engine, examples, explorer, project, spec
 
-download_examples = examples.download_examples
-serve_explorer = explorer.serve_explorer
-
 
 def main() -> None:
     """Run the Uptimely command-line interface."""

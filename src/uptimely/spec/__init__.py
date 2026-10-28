@@ -1,6 +1,4 @@
-"""Public package namespace for OpenAnalytics spec."""
-
-from uptimely.row_context import RowContext
+"""Spec document models and operations."""
 
 from .api import from_python, load_spec
 from .feature_graph import FeatureGraph, SubGraph
@@ -18,17 +16,6 @@ from .model import (
     RowScope,
     Spec,
 )
-from .python import (
-    PythonSpec,
-    actions,
-    bind,
-    dataset,
-    dimension,
-    entity,
-    feature,
-    ref,
-    row_context,
-)
 
 __all__ = [
     "Argument",
@@ -41,20 +28,10 @@ __all__ = [
     "FunctionCatalog",
     "Action",
     "Order",
-    "PythonSpec",
-    "RowContext",
     "RowScope",
     "Spec",
     "from_python",
     "load_spec",
     "write_document",
     "SubGraph",
-    "actions",
-    "bind",
-    "dataset",
-    "dimension",
-    "entity",
-    "feature",
-    "ref",
-    "row_context",
 ]

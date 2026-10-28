@@ -17,17 +17,10 @@ from .dataset import (
     Order,
     RowScope,
 )
-from .functions import (
-    FUNCTION_KINDS,
-    FUNCTION_TYPES,
-    FunctionCatalog,
-    FunctionTemplate,
-)
+from .functions import FunctionCatalog, FunctionTemplate
 from .spec import SPEC_VERSION, Spec
 
 __all__ = [
-    "FUNCTION_KINDS",
-    "FUNCTION_TYPES",
     "SPEC_VERSION",
     "Spec",
     "SpecSource",

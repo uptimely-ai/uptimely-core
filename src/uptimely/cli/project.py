@@ -29,7 +29,7 @@ def configure_build_parser(parser: argparse.ArgumentParser) -> None:
     source.add_argument(
         "--python-spec",
         metavar="MODULE:ATTRIBUTE",
-        help="Importable module and attribute containing a PythonSpec instance",
+        help="Importable module and attribute containing a Spec instance",
     )
     source.add_argument(
         "--json-spec",

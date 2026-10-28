@@ -1,20 +1,6 @@
 """Standard project paths and active build bundle validation."""
 
-from .build import (
-    BUILD_VERSION,
-    BuildArtifactPaths,
-    BuildBundle,
-    BuildError,
-    BuildLockError,
-    BuildManifest,
-    ProjectBuildError,
-    build_lock,
-    build_project,
-    load_build_bundle,
-    load_spec_source,
-    read_build_bundle,
-)
-from .paths import (
+from uptimely.project_paths import (
     BUILD_EXECUTION_PLAN_FILE,
     BUILD_EXPLORER_DIR,
     BUILD_MANIFEST_FILE,
@@ -33,6 +19,21 @@ from .paths import (
     SPEC_PYTHON_ENTRY_FILE,
     SPEC_SOURCE_DIR,
     resolve_path,
+)
+
+from .build import (
+    BUILD_VERSION,
+    BuildArtifactPaths,
+    BuildBundle,
+    BuildError,
+    BuildLockError,
+    BuildManifest,
+    ProjectBuildError,
+    build_lock,
+    build_project,
+    load_build_bundle,
+    load_spec_source,
+    read_build_bundle,
 )
 
 __all__ = [

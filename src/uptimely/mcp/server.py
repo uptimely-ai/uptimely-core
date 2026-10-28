@@ -26,8 +26,6 @@ from uptimely.spec import model as spec_model
 
 logger = logging.getLogger(__name__)
 
-FUNCTION_KINDS = spec_model.FUNCTION_KINDS
-
 
 @dataclasses.dataclass(frozen=True)
 class BuildSnapshot:
@@ -353,7 +351,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                         function.kind == kind
                         for function in spec_definition.functions.root.values()
                     )
-                    for kind in FUNCTION_KINDS
+                    for kind in functions.FUNCTION_KINDS
                 },
             }
         )

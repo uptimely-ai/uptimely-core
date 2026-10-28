@@ -10,18 +10,13 @@ from uptimely.spec import functions
 
 from . import common
 
-FUNCTION_TYPES = ["sql_query", "python_function"]
-FUNCTION_KINDS = functions.FUNCTION_KINDS
-FunctionKind = functions.FunctionKind
-FunctionReturns = functions.FunctionReturns
-
 
 class FunctionTemplate(common.StrictModel):
     """One logical function definition in the spec catalog."""
 
     id: str = pydantic.Field(exclude=True)
-    kind: FunctionKind
-    returns: FunctionReturns
+    kind: functions.FunctionKind
+    returns: functions.FunctionReturns
     entrypoint: str
     validate_signature: bool = pydantic.Field(
         default=True,
@@ -36,7 +31,7 @@ class FunctionCatalog(pydantic.RootModel[dict[str, FunctionTemplate]]):
 
     root: dict[str, FunctionTemplate] = pydantic.Field(default_factory=dict)
 
-    def by_kind(self, kind: FunctionKind) -> dict[str, FunctionTemplate]:
+    def by_kind(self, kind: functions.FunctionKind) -> dict[str, FunctionTemplate]:
         """Return function definitions for one kind."""
         return {
             function_id: function

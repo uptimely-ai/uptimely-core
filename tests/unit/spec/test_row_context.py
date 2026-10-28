@@ -223,7 +223,7 @@ def test_unknown_current_and_whole_dataset_context_are_distinct():
 
 def test_unbounded_dominates_bounded_directional_requirements():
     left = authoring.time(
-        "native", dimension=ref.dimension("timestamp"), before=authoring.UNBOUNDED
+        "native", dimension=ref.dimension("timestamp"), before=row_context.UNBOUNDED
     ).row_context
     right = authoring.time(
         "8h", dimension=ref.dimension("timestamp"), before="8h", after="2h"

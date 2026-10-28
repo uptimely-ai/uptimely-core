@@ -64,8 +64,9 @@ Root-level `Spec`, `Dataset`, `Action`, `Dimension`, `Entity`, and `Feature` are
 authoring classes. Document-model classes remain under `uptimely.spec.model`
 and the existing `uptimely.spec` exports. In particular, root-level `Spec`,
 `Dimension`, and `Entity` now refer to authoring declarations rather than document
-models. `up.PythonSpec` remains available as an alias of `up.Spec`; the defining
-class is still `uptimely.spec.python.PythonSpec`.
+models. The authoring class is defined as `uptimely.spec.python.spec.Spec` and
+exported as `up.Spec` and `uptimely.spec.python.Spec`. The former `PythonSpec`
+name is removed.
 
 `up.Spec` requires explicit `dimensions`, `entities`, and `datasets` sequences,
 including empty sequences when appropriate. It instantiates dataset classes and
@@ -189,7 +190,7 @@ dataset. This breaking document change is spec version 3.
 ## spec
 
 `uptimely.spec.python.spec` groups declarations into a
-`PythonSpec` definition.
+`up.Spec` definition.
 
 ::: uptimely.spec.python.spec
     options:

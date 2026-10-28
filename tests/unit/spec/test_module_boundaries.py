@@ -42,7 +42,7 @@ def test_removed_json_module_paths_are_unavailable(module: str) -> None:
 
 def test_public_models_are_canonical_objects() -> None:
     assert spec.Spec is model.Spec
-    assert uptimely.Spec is spec.PythonSpec
+    assert uptimely.Spec is not model.Spec
 
 
 @pytest.mark.parametrize("name", ["Function", "Call", "PreparedSpec", "prepare_spec"])
@@ -288,7 +288,7 @@ def test_python_dictionary_and_json_export_share_the_same_encoding(
         id = "readings"
         entity = assets
 
-    declaration = spec.PythonSpec(dimensions=[pump], entities=[assets], datasets=[Readings])
+    declaration = uptimely.Spec(dimensions=[pump], entities=[assets], datasets=[Readings])
     document = declaration.to_model()
     path = tmp_path / "spec.json"
     codec.write_document(document, path)

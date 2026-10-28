@@ -16,12 +16,12 @@ from . import dataset as dataset_module
 from . import entity as entity_module
 
 __all__ = [
-    "PythonSpec",
+    "Spec",
 ]
 
 
 @dataclasses.dataclass(frozen=True)
-class PythonSpec:
+class Spec:
     """Build a spec from explicitly registered dimensions, entities, and datasets.
 
     Args:

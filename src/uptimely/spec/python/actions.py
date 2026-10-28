@@ -7,6 +7,7 @@ import inspect
 import typing
 from collections import abc
 
+from uptimely import row_context as row_context_values
 from uptimely.spec import catalog, functions, selectors
 from uptimely.spec import model as spec_model
 
@@ -44,7 +45,7 @@ class Action:
     function_id: str | None = None
     inputs: list[ref.Reference | str] | None = None
     row_context: (
-        row_context_module.RowContext | row_context_module.RowContextBinding[typing.Any] | None
+        row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
 
     def __post_init__(self) -> None:

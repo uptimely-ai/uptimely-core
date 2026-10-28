@@ -13,7 +13,7 @@ from urllib import error as urllib_error
 
 import pytest
 
-from uptimely.cli import cli, examples, explorer
+from uptimely.cli import cli, examples
 
 
 def _archive(files: dict[str, str]) -> bytes:
@@ -470,9 +470,9 @@ def test_console_script_registration() -> None:
     assert config["project"]["scripts"]["uptimely-mcp"] == "uptimely.mcp.server:main"
 
 
-def test_cli_preserves_helper_imports() -> None:
-    assert cli.download_examples is examples.download_examples
-    assert cli.serve_explorer is explorer.serve_explorer
+def test_cli_does_not_reexport_command_helpers() -> None:
+    assert not hasattr(cli, "download_examples")
+    assert not hasattr(cli, "serve_explorer")
 
 
 @pytest.mark.parametrize(

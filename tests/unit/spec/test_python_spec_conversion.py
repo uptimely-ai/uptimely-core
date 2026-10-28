@@ -5,7 +5,7 @@ import pytest
 
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import (
-    PythonSpec,
+    Spec,
     actions,
     conversion,
     dataset,
@@ -82,13 +82,13 @@ def _entity(identifier: str, datasets: list[dataset.Dataset]) -> entity.Entity:
     )
 
 
-def _python_spec(entities: list[entity.Entity], name: str | None = None) -> PythonSpec:
+def _python_spec(entities: list[entity.Entity], name: str | None = None) -> Spec:
     declarations: list[dataset.Dataset] = []
     for owner in entities:
         for declaration in owner.datasets:
             declaration.entity = owner
             declarations.append(declaration)
-    return PythonSpec(
+    return Spec(
         dimensions=list(
             {item.id: item for owner in entities for item in owner.dimensions}.values()
         ),
@@ -136,7 +136,7 @@ def _conform_source(identifier: str) -> dataset.Dataset:
 
 
 def test_empty_spec_has_no_datasets_or_functions() -> None:
-    spec_definition = PythonSpec(dimensions=[], entities=[], datasets=[])
+    spec_definition = Spec(dimensions=[], entities=[], datasets=[])
 
     assert spec_definition.iter_datasets() == []
     assert spec_definition.function_catalog() == spec_model.FunctionCatalog()
@@ -146,13 +146,9 @@ def test_empty_spec_has_no_datasets_or_functions() -> None:
 
 def test_python_spec_requires_a_sequence_and_dataset_entities() -> None:
     with pytest.raises(TypeError, match="datasets must be a sequence"):
-        tuple(PythonSpec(dimensions=[], entities=[], datasets={}).datasets)
+        tuple(Spec(dimensions=[], entities=[], datasets={}).datasets)
     with pytest.raises(ValueError, match="Dataset 'readings' must declare an entity"):
-        tuple(
-            PythonSpec(
-                dimensions=[], entities=[], datasets=[dataset.Dataset(id="readings")]
-            ).datasets
-        )
+        tuple(Spec(dimensions=[], entities=[], datasets=[dataset.Dataset(id="readings")]).datasets)
 
 
 def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
@@ -183,7 +179,7 @@ def test_python_spec_associates_dataset_classes_with_registered_entity() -> None
         id = "summary"
         entity = owner
 
-    spec_definition = PythonSpec(dimensions=[pump], entities=[owner], datasets=[Readings, Summary])
+    spec_definition = Spec(dimensions=[pump], entities=[owner], datasets=[Readings, Summary])
 
     assert [item.id for item in spec_definition.entities] == ["assets"]
     assert [item.id for item in spec_definition.entities[0].datasets] == [
@@ -201,7 +197,7 @@ def test_python_spec_resolves_registered_ids_and_objects_without_mutation(
     owner = entity.Entity(id="assets", name="Assets", dimensions=["pump" if dimension_id else pump])
     readings = _declaration("readings", "read")
     readings.entity = "assets" if entity_id else owner
-    definition = PythonSpec(dimensions=[pump], entities=[owner], datasets=[readings])
+    definition = Spec(dimensions=[pump], entities=[owner], datasets=[readings])
 
     document = definition.to_model()
     payload = definition.to_dict()
@@ -222,7 +218,7 @@ def test_python_spec_requires_all_three_registries(omitted: str) -> None:
     arguments = {"dimensions": [], "entities": [], "datasets": []}
     del arguments[omitted]
     with pytest.raises(TypeError, match=omitted):
-        PythonSpec(**arguments)
+        Spec(**arguments)
 
 
 @pytest.mark.parametrize("object_reference", [False, True])
@@ -233,9 +229,9 @@ def test_python_spec_rejects_undeclared_references(object_reference: bool) -> No
     )
     readings = dataset.Dataset(id="readings", entity=owner if object_reference else "assets")
     with pytest.raises(ValueError, match="undeclared entity 'assets'"):
-        PythonSpec(dimensions=[pump], entities=[], datasets=[readings]).to_model()
+        Spec(dimensions=[pump], entities=[], datasets=[readings]).to_model()
     with pytest.raises(ValueError, match="undeclared dimension 'pump'"):
-        PythonSpec(dimensions=[], entities=[owner], datasets=[readings]).to_model()
+        Spec(dimensions=[], entities=[owner], datasets=[readings]).to_model()
 
 
 def test_python_spec_rejects_duplicate_registrations_and_conflicting_metadata() -> None:
@@ -243,20 +239,20 @@ def test_python_spec_rejects_duplicate_registrations_and_conflicting_metadata() 
     owner = entity.Entity(id="assets", name="Assets", dimensions=[pump])
     readings = dataset.Dataset(id="readings", entity=owner)
     with pytest.raises(ValueError, match="Duplicate dimension id pump"):
-        PythonSpec(dimensions=[pump, pump], entities=[owner], datasets=[readings]).to_model()
+        Spec(dimensions=[pump, pump], entities=[owner], datasets=[readings]).to_model()
     with pytest.raises(ValueError, match="Duplicate entity id assets"):
-        PythonSpec(dimensions=[pump], entities=[owner, owner], datasets=[readings]).to_model()
+        Spec(dimensions=[pump], entities=[owner, owner], datasets=[readings]).to_model()
     with pytest.raises(ValueError, match="Duplicate dataset id readings"):
-        PythonSpec(dimensions=[pump], entities=[owner], datasets=[readings, readings]).to_model()
+        Spec(dimensions=[pump], entities=[owner], datasets=[readings, readings]).to_model()
     with pytest.raises(ValueError, match="Conflicting metadata for dimension 'pump'"):
-        PythonSpec(
+        Spec(
             dimensions=[dimension.Dimension(id="pump", type="integer")],
             entities=[owner],
             datasets=[readings],
         ).to_model()
     readings.entity = entity.Entity(id="assets", name="Different", dimensions=[pump])
     with pytest.raises(ValueError, match="Conflicting metadata for entity 'assets'"):
-        PythonSpec(dimensions=[pump], entities=[owner], datasets=[readings]).to_model()
+        Spec(dimensions=[pump], entities=[owner], datasets=[readings]).to_model()
 
 
 def test_python_spec_preserves_unused_registrations_without_inferring_datasets() -> None:
@@ -264,7 +260,7 @@ def test_python_spec_preserves_unused_registrations_without_inferring_datasets()
     owner = entity.Entity(
         id="assets", name="Assets", dimensions=[], datasets=[dataset.Dataset(id="implicit")]
     )
-    definition = PythonSpec(dimensions=[pump], entities=[owner], datasets=[])
+    definition = Spec(dimensions=[pump], entities=[owner], datasets=[])
 
     payload = definition.to_dict()
 
@@ -278,7 +274,7 @@ def test_python_spec_resolves_mixed_dimension_references_in_declared_order() -> 
     timestamp = dimension.Dimension(id="timestamp", type="datetime")
     owner = entity.Entity(id="assets", name="Assets", dimensions=["timestamp", pump])
     readings = dataset.Dataset(id="readings", entity="assets")
-    definition = PythonSpec(dimensions=[pump, timestamp], entities=[owner], datasets=[readings])
+    definition = Spec(dimensions=[pump, timestamp], entities=[owner], datasets=[readings])
 
     assert definition.to_dict()["entities"]["assets"]["dimensions"] == ["timestamp", "pump"]
     assert [item.id for item in definition.dimensions] == ["pump", "timestamp"]
@@ -459,7 +455,7 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata() -> None:
         row_scope = dataset.RowScope(grain="One row per pump", coverage="All pumps")
         order = [dataset.Order(dimension=ref.dimension("pump"), direction="desc")]
 
-    spec_definition = PythonSpec(
+    spec_definition = Spec(
         dimensions=[pump],
         entities=[owner],
         datasets=[Telemetry],
