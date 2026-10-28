@@ -82,7 +82,7 @@ def test_graph_style_is_passed_as_json_without_changing_shared_script(
         render.WebsiteContext(),
         feature_lineage.build_context(spec.FeatureGraph(spec.Spec())),
     )
-    document = (tmp_path / "spec/feature_lineage.html").read_text(encoding="utf-8")
+    document = (tmp_path / "spec/feature-lineage.html").read_text(encoding="utf-8")
     match = re.search(
         r'<script id="graph-style" type="application/json">(.*?)</script>',
         document,

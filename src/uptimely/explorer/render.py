@@ -25,12 +25,13 @@ WEBSITE_PAGES = {
                 "functions",
             )
         },
-        "feature_lineage": "spec/feature_lineage.html",
+        "feature_lineage": "spec/feature-lineage.html",
     },
     "plan": {
-        section: f"plan/{section}.html" for section in ("overview", "invocation_lineage", "stages")
+        section: f"plan/{section.replace('_', '-')}.html"
+        for section in ("overview", "invocation_lineage", "stages")
     },
-    "execution": {"data_lineage": "execution/data_lineage.html"},
+    "execution": {"data_lineage": "execution/data-lineage.html"},
 }
 
 

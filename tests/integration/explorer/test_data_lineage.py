@@ -49,7 +49,7 @@ def test_data_lineage_layout_has_balanced_stage_and_card_containers(
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = plan_for_spec(spec_definition)
     render_explorer(spec_definition, tmp_path / "index.html")
-    document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     collector = DataLineageStructureCollector()
     collector.feed(document)
     assert not collector.stack
@@ -119,7 +119,7 @@ def test_data_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path)
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = plan_for_spec(spec_definition)
     render_explorer(spec_definition, tmp_path / "index.html")
-    document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     tables = re.findall(
         r'<article class="data-lineage-step" id="step-(\d+)" data-invocation-id="([^"]+)"'
         r'\s+data-dependencies="([^"]*)"',
@@ -149,15 +149,15 @@ def test_data_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path)
 
 def test_empty_data_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
     render_explorer(spec.Spec(), tmp_path / "index.html")
-    document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     assert "No processing steps." in document
     assert '<table class="data-lineage-table"' not in document
-    assert 'href="../execution/data_lineage.html" aria-current="page"' in document
+    assert 'href="../execution/data-lineage.html" aria-current="page"' in document
 
 
 def test_data_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
     render_explorer(spec.Spec(), tmp_path / "index.html")
-    document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     assert "data-lineage-legend" not in document
     assert "Data lineage color key" not in document
 
@@ -165,7 +165,7 @@ def test_data_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
 def test_data_lineage_has_focused_invocation_playback(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     render_explorer(spec_definition, tmp_path / "index.html")
-    document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     styles = (tmp_path / "css/data_lineage.css").read_text(encoding="utf-8")
     script = (tmp_path / "js/data_lineage.js").read_text(encoding="utf-8")
     assert 'aria-label="Lineage playback" hidden' in document
@@ -246,7 +246,7 @@ def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -
     execution_plan = plan_for_spec(spec_definition)
     stages = data_lineage._build_stages(spec_definition, execution_plan)
     render_explorer(spec_definition, tmp_path / "index.html")
-    document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     collector = DataLineageStructureCollector()
     collector.feed(document)
     assert collector.columns == [
@@ -261,6 +261,6 @@ def test_data_lineage_omits_declared_row_grain(tmp_path: pathlib.Path) -> None:
     dataset = next(iter(next(iter(spec_definition.entities.values())).datasets.values()))
     dataset.row_scope.grain = "<script>alert('grain')</script>"
     render_explorer(spec_definition, tmp_path / "index.html")
-    document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
+    document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     assert dataset.row_scope.grain not in document
     assert "&lt;script&gt;alert(&#39;grain&#39;)&lt;/script&gt;" not in document
