@@ -22,7 +22,7 @@ def _add_escape_mapping(
     *,
     dataframe_dataset: str | None = None,
 ) -> None:
-    """Add one escape mapping and its function and output declarations."""
+    """Add one escape action and its function and output declarations."""
     dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
     dataset["features"].update({feature_id: {"type": "float"} for feature_id in output_features})
     arguments = {"source": {"type": "dataframe"}} if dataframe_dataset is not None else {}
@@ -32,7 +32,7 @@ def _add_escape_mapping(
         "entrypoint": entrypoint,
         "args": arguments,
     }
-    configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]["mappings"][
+    configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]["actions"][
         mapping_id
     ] = {
         "binding": {
@@ -112,7 +112,7 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     function["args"]["keys"] = {"type": "array[string]"}
     function["args"]["source_keys"] = {"type": "array[string]"}
     dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
-    dataset["mappings"]["read_pump_telemetry"]["binding"]["args"].update(
+    dataset["actions"]["read_pump_telemetry"]["binding"]["args"].update(
         {
             "keys": "$datasets.@.dimensions.ids",
             "source_keys": "$datasets.pump_dataset.dimensions.ids",
@@ -141,10 +141,10 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
 
 def test_collapse_feature_placeholder_uses_invocation_feature_id(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    mapping = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
+    action = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
         "bearing_temperature_by_pump"
     ]
-    mapping["binding"]["args"]["output"] = "$features.@.id"
+    action["binding"]["args"]["output"] = "$features.@.id"
     path = tmp_path / "collapse_feature_placeholder.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -187,7 +187,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
     read_mapping = (
         definition.entities["pump_telemetry"]
         .datasets["pump_telemetry_dataset"]
-        .mappings["read_pump_telemetry"]
+        .actions["read_pump_telemetry"]
     )
 
     definition.entities["auxiliary_entity"] = spec_model.Entity(
@@ -198,21 +198,21 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
             "auxiliary_dataset": spec_model.Dataset(
                 id="auxiliary_dataset",
                 features={"auxiliary_value": spec_model.Feature(id="auxiliary_value")},
-                mappings={
-                    "read_auxiliary": spec_model.Mapping(
+                actions={
+                    "read_auxiliary": spec_model.Action(
                         id="read_auxiliary",
                         binding=spec_model.Binding(
                             function="read_pump_telemetry",
                             args=dict(read_mapping.binding.args),
                         ),
-                        features=spec_model.MappingFeatures(outputs=["$features.auxiliary_value"]),
+                        features=spec_model.ActionFeatures(outputs=["$features.auxiliary_value"]),
                     ),
                 },
             )
         },
     )
     pump_dataset.features["conformed_auxiliary"] = spec_model.Feature(id="conformed_auxiliary")
-    pump_dataset.mappings["conform_auxiliary"] = spec_model.Mapping(
+    pump_dataset.actions["conform_auxiliary"] = spec_model.Action(
         id="conform_auxiliary",
         binding=spec_model.Binding(
             function="conform_auxiliary",
@@ -220,7 +220,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
                 "source": "$datasets.auxiliary_dataset.dataframe",
             },
         ),
-        features=spec_model.MappingFeatures(
+        features=spec_model.ActionFeatures(
             inputs=["$features.auxiliary_value"],
             outputs=["$features.conformed_auxiliary"],
         ),
@@ -288,8 +288,8 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
 def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
     spec_definition = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     dataset = spec_definition["entities"]["pump"]["datasets"]["pump_dataset"]
-    mapping = dataset["mappings"]["health_signal_normalized"]
-    mapping["features"]["outputs"].append("$features.health_signal_secondary")
+    action = dataset["actions"]["health_signal_normalized"]
+    action["features"]["outputs"].append("$features.health_signal_secondary")
     dataset["features"]["health_signal_secondary"] = {"type": "float"}
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(spec_definition), encoding="utf-8")
@@ -517,11 +517,11 @@ def test_compiled_inputs_match_each_entity_dataset_mapping() -> None:
     assert len(datasets) > 1
     assert len({entity_id for entity_id, _ in datasets}) > 1
     for invocation in execution_plan.invocations:
-        mapping = datasets[invocation.entity_id, invocation.dataset_id].mappings[
+        action = datasets[invocation.entity_id, invocation.dataset_id].actions[
             invocation.mapping_id
         ]
-        assert invocation.input_features == mapping.input_features
-        assert invocation.output_features == mapping.output_features
+        assert invocation.input_features == action.input_features
+        assert invocation.output_features == action.output_features
 
 
 def test_graph_subset_retains_dataset_mapping_lookups() -> None:
@@ -534,7 +534,7 @@ def test_graph_subset_retains_dataset_mapping_lookups() -> None:
             graph.dataset_for(node) is document.entities[node.entity_id].datasets[node.dataset_id]
         )
         assert subset.dataset_for(node) is graph.dataset_for(node)
-        assert subset.mapping_for(node) is graph.mapping_for(node)
+        assert subset.action_for(node) is graph.action_for(node)
         assert {dependency.node_id for dependency in subset.dependencies(node)} == {
             dependency.node_id for dependency in graph.dependencies(node)
         }

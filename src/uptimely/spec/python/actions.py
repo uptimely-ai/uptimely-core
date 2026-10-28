@@ -97,7 +97,7 @@ class Action:
             inspect.signature(self.function).bind(**self.arguments)
         return self.arguments.copy()
 
-    def to_model(self) -> spec_model.Mapping:
+    def to_model(self) -> spec_model.Action:
         """Convert this declaration to its canonical document model."""
         arguments = self.bound_arguments()
         inputs = (
@@ -105,7 +105,7 @@ class Action:
             if self.inputs is not None
             else _inputs(self.arguments)
         )
-        return spec_model.Mapping(
+        return spec_model.Action(
             id=self.id,
             binding=spec_model.Binding(
                 function=self.catalog_id,
@@ -113,7 +113,7 @@ class Action:
                     name: binding_conversion.to_value(value) for name, value in arguments.items()
                 },
             ),
-            features=_mapping_features(inputs, self.outputs),
+            features=_action_features(inputs, self.outputs),
             row_context=self.row_context,
         )
 
@@ -147,12 +147,12 @@ def _feature_id(value: ref.Reference | str) -> str:
     return value.removeprefix(selectors.FEATURE_PREFIX)
 
 
-def _mapping_features(
+def _action_features(
     inputs: abc.Iterable[str],
     outputs: abc.Iterable[feature_module.Feature],
-) -> spec_model.MappingFeatures:
+) -> spec_model.ActionFeatures:
     """Build canonical input and output feature selectors."""
-    return spec_model.MappingFeatures(
+    return spec_model.ActionFeatures(
         inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
         outputs=[f"{selectors.FEATURE_PREFIX}{feature.name}" for feature in outputs],
     )

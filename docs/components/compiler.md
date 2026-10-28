@@ -1,14 +1,14 @@
 # Compiler
 
-The Spec declares functions and mappings. A mapping says how a function is
-used. The compiler records each mapping as an invocation, or planned step, and
+The Spec declares functions and actions. An action says how a function is
+used. The compiler records each action as an invocation, or planned step, and
 orders the steps by their input features. The engine later loads and calls the
 Python function named in the Spec. Compiling a plan does not run the analytics.
 
 The build bundle contains both the plan and the Spec. The engine uses the Spec
 for declarations and supplies runtime values when it runs each step.
 
-This page describes the generated plan. Dataset, feature, function, and mapping
+This page describes the generated plan. Dataset, feature, function, and action
 semantics are defined by the Spec document.
 
 ## Plan
@@ -42,7 +42,7 @@ is consumed as part of its build bundle, not as a replacement for `spec.json`.
 
 ## Invocations
 
-Each invocation represents one function-to-mapping application. Its inputs
+Each invocation represents one function-to-action application. Its inputs
 declare the features used by that operation, while dependencies identify
 invocations that must finish first. Invocation IDs are opaque references.
 Consumers must not infer operation or identity metadata by parsing their
@@ -54,7 +54,7 @@ spelling.
 | `function_kind` | string | Function category: `read`, `conform`, `expand`, `collapse`, `vectorize`, `write`, or `escape`. |
 | `entrypoint` | string | Implementation location for the function. |
 | `function_id` | string | Function declaration used by the invocation. |
-| `mapping_id` | string | Mapping declaration used by the invocation. |
+| `mapping_id` | string | Action declaration used by the invocation. |
 | `entity_id` | string | Entity that scopes the invocation. |
 | `dataset_id` | string or null | Dataset receiving or supplying dataframe state. |
 | `arguments` | object | Resolved arguments passed to the function. Runtime storage placeholders remain unresolved. |
@@ -77,7 +77,7 @@ engine may run them in parallel while preserving stage order.
 
 ## Dependencies
 
-Mapping inputs define the feature dependencies used to select and order
+Action inputs define the feature dependencies used to select and order
 invocations. Ordinary argument values do not establish dependencies by
 themselves. A plan limited to selected features also includes the features they
 depend on, along with configured writes for the selected datasets. Those writes

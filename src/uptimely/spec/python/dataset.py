@@ -160,7 +160,7 @@ class Dataset:
 
     def to_model(self) -> spec_model.Dataset:
         """Build the canonical dataset, rejecting duplicate feature producers."""
-        mappings: dict[str, spec_model.Mapping] = {}
+        actions: dict[str, spec_model.Action] = {}
         features: dict[str, spec_model.Feature] = {}
         producers: dict[str, str] = {}
         if isinstance(self.entity, str):
@@ -176,7 +176,7 @@ class Dataset:
                 raise TypeError("dataset dimensions must contain Dimension declarations")
             resolved_keys.append(key)
         for name, declaration in self._collect_actions().items():
-            model = self._mapping_model(name, declaration)
+            model = self._action_model(name, declaration)
             for metadata in declaration.outputs:
                 identifier = metadata.name
                 if identifier in producers:
@@ -198,17 +198,17 @@ class Dataset:
                     if f"{selectors.FEATURE_PREFIX}{key.id}" not in model.features.outputs
                 ]
                 model.features.outputs[:0] = key_outputs
-            mappings[name] = model
+            actions[name] = model
         return spec_model.Dataset(
             id=self.id,
             description=self.description,
             row_scope=self.row_scope.to_model(),
             order=[key.to_model() for key in self.order],
             features=features,
-            mappings=mappings,
+            actions=actions,
         )
 
-    def _mapping_model(self, name: str, declaration: actions.Action) -> spec_model.Mapping:
+    def _action_model(self, name: str, declaration: actions.Action) -> spec_model.Action:
         try:
             return declaration.to_model()
         except TypeError as error:
@@ -220,7 +220,7 @@ class Dataset:
         """Collect reusable function contracts without executing implementations."""
         catalogs: list[spec_model.FunctionCatalog] = []
         for name, declaration in self._collect_actions().items():
-            self._mapping_model(name, declaration)
+            self._action_model(name, declaration)
             catalogs.append(declaration.function_catalog())
         return spec_model.FunctionCatalog(root=function_catalog.merge_function_catalogs(catalogs))
 

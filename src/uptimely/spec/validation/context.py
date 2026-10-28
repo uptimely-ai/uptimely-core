@@ -16,11 +16,11 @@ from uptimely.spec import references
 from .. import arg_types, functions, selectors
 
 type SpecPath = tuple[str | int, ...]
-type MappingKey = tuple[str, str]
+type ActionKey = tuple[str, str]
 type ValidationResult = ValueError | None
 type OutputDeclaration = tuple[str, str | None]
-type MappingOutputFacts = tuple[MappingFacts, tuple[OutputDeclaration, ...]]
-type DatasetOutputFacts = tuple[DatasetLocation, tuple[MappingOutputFacts, ...], tuple[str, ...]]
+type ActionOutputFacts = tuple[ActionFacts, tuple[OutputDeclaration, ...]]
+type DatasetOutputFacts = tuple[DatasetLocation, tuple[ActionOutputFacts, ...], tuple[str, ...]]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -44,12 +44,12 @@ class DatasetLocation:
 
 
 @dataclasses.dataclass(frozen=True)
-class MappingLocation:
-    """A mapping location retaining dictionary-key and model-ID identities."""
+class ActionLocation:
+    """An action location retaining dictionary-key and model-ID identities."""
 
     dataset_location: DatasetLocation
-    mapping_id: str
-    mapping: spec_model.Mapping
+    action_id: str
+    action: spec_model.Action
 
     @property
     def entity_id(self) -> str:
@@ -69,17 +69,17 @@ class MappingLocation:
     @property
     def key(self) -> tuple[str, str, str]:
         """Return the declaration identity."""
-        return (*self.dataset_location.key, self.mapping_id)
+        return (*self.dataset_location.key, self.action_id)
 
     @property
     def path(self) -> SpecPath:
-        """Return the model-ID path used by mapping contracts."""
-        return (*self.dataset_location.path, "mappings", self.mapping.id)
+        """Return the model-ID path used by action contracts."""
+        return (*self.dataset_location.path, "actions", self.action.id)
 
     @property
     def declaration_path(self) -> SpecPath:
         """Return the dictionary-key path used by bindings."""
-        return (*self.path[:-1], self.mapping_id)
+        return (*self.path[:-1], self.action_id)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -103,10 +103,10 @@ class DimensionParents:
 
 
 @dataclasses.dataclass(frozen=True)
-class MappingFacts:
-    """Shared mapping declarations, explicit dependencies, and validated selectors."""
+class ActionFacts:
+    """Shared action declarations, explicit dependencies, and validated selectors."""
 
-    location: MappingLocation
+    location: ActionLocation
     function: spec_model.FunctionTemplate | None
     inputs: tuple[str, ...]
     outputs: tuple[str, ...]
@@ -117,7 +117,7 @@ class MappingFacts:
 
     @property
     def dimensions(self) -> frozenset[str]:
-        """Return the dimensions declared by this mapping's entity."""
+        """Return the dimensions declared by this action's entity."""
         return self.location.dataset_location.dimensions
 
     @property
@@ -135,7 +135,7 @@ class MappingFacts:
 class CollapseInputs:
     """Ordered source candidates, including unresolved or ambiguous inputs."""
 
-    mapping: MappingFacts
+    action: ActionFacts
     candidates: tuple[tuple[str, tuple[DatasetLocation, ...]], ...]
     sources: tuple[DatasetLocation, ...]
     source: DatasetLocation | None
@@ -147,7 +147,7 @@ class CollapseInputs:
 class RowContext:
     """Normalized row-context requirements against the selected input dataset."""
 
-    mapping_id: str
+    action_id: str
     requires_order: bool
     has_order: bool
     dimension_reference: str | None
@@ -178,10 +178,10 @@ class MatchingKey:
 
 
 @dataclasses.dataclass(frozen=True)
-class MappingContract:
+class ActionContract:
     """Prepared dataframe and dimensional relationships for a function kind."""
 
-    mapping: MappingFacts
+    action: ActionFacts
     dataframe_arguments: tuple[DataframeInput, ...]
     dataset_ids: frozenset[str]
     source: DatasetLocation | None
@@ -211,7 +211,7 @@ class SpecValidationContext:
     datasets_by_id: dict[str, tuple[DatasetLocation, ...]]
     feature_names: frozenset[str]
     feature_owners: dict[str, tuple[DatasetLocation, ...]]
-    mappings: tuple[MappingFacts, ...]
+    actions: tuple[ActionFacts, ...]
     duplicate_dataset: tuple[DatasetLocation, DatasetLocation] | None
     duplicate_feature: str | None
 
@@ -225,7 +225,7 @@ class SpecValidationContext:
         owners: dict[str, list[DatasetLocation]] = {}
         duplicate_dataset = None
         duplicate_feature = None
-        mappings: list[MappingFacts] = []
+        actions: list[ActionFacts] = []
         for entity_id, entity in model.entities.items():
             for dataset in entity.datasets.values():
                 location = DatasetLocation(
@@ -243,35 +243,35 @@ class SpecValidationContext:
                         if duplicate_feature is None and feature_candidates:
                             duplicate_feature = feature_id
                         feature_candidates.append(location)
-                for mapping_id, mapping in dataset.mappings.items():
-                    mapping_location = MappingLocation(location, mapping_id, mapping)
-                    mappings.append(
-                        MappingFacts(
-                            location=mapping_location,
-                            function=model.functions.get(mapping.binding.function),
-                            inputs=tuple(mapping.input_features),
-                            outputs=tuple(mapping.output_features),
+                for action_id, action in dataset.actions.items():
+                    action_location = ActionLocation(location, action_id, action)
+                    actions.append(
+                        ActionFacts(
+                            location=action_location,
+                            function=model.functions.get(action.binding.function),
+                            inputs=tuple(action.input_features),
+                            outputs=tuple(action.output_features),
                             feature_selectors=tuple(
                                 references.structural_references(
-                                    mapping.binding.args, selectors.FEATURE_PREFIX
+                                    action.binding.args, selectors.FEATURE_PREFIX
                                 )
                             ),
                             dataset_references=tuple(
                                 references.structural_references(
-                                    mapping.binding.args, selectors.DATASET_PREFIX
+                                    action.binding.args, selectors.DATASET_PREFIX
                                 )
                             ),
                             dimension_references=tuple(
                                 references.structural_references(
-                                    mapping.binding.args, selectors.DIMENSION_PREFIX
+                                    action.binding.args, selectors.DIMENSION_PREFIX
                                 )
                             ),
                             dimension_reference_paths=tuple(
                                 references.structural_reference_paths(
-                                    mapping.binding.args,
+                                    action.binding.args,
                                     selectors.DIMENSION_PREFIX,
                                     (
-                                        *mapping_location.declaration_path,
+                                        *action_location.declaration_path,
                                         "binding",
                                         "args",
                                     ),
@@ -286,14 +286,14 @@ class SpecValidationContext:
             datasets_by_id={key: tuple(value) for key, value in datasets_by_id.items()},
             feature_names=frozenset(feature_names) | dimension_ids,
             feature_owners={key: tuple(value) for key, value in owners.items()},
-            mappings=tuple(mappings),
+            actions=tuple(actions),
             duplicate_dataset=duplicate_dataset,
             duplicate_feature=duplicate_feature,
         )
 
-    def iter_mappings(self) -> typing.Iterator[MappingLocation]:
-        """Yield mapping locations in declaration order."""
-        return (item.location for item in self.mappings)
+    def iter_actions(self) -> typing.Iterator[ActionLocation]:
+        """Yield action locations in declaration order."""
+        return (item.location for item in self.actions)
 
     def dataset(self, dataset_id: str) -> DatasetLocation | None:
         """Return the last candidate, matching historical catalog indexing."""
@@ -306,7 +306,7 @@ class SpecValidationContext:
         return candidates[0] if candidates else None
 
     def last_feature_owner(self, feature_id: str) -> DatasetLocation | None:
-        """Return the last owner, matching mapping contract lookup."""
+        """Return the last owner, matching action contract lookup."""
         candidates = self.feature_owners.get(feature_id, ())
         return candidates[-1] if candidates else None
 
@@ -354,18 +354,18 @@ class SpecValidationContext:
 
     def iter_calculation_dependencies(
         self,
-    ) -> typing.Iterator[tuple[MappingFacts, str, DatasetLocation | None]]:
-        """Yield vectorize input owners in mapping and input declaration order."""
+    ) -> typing.Iterator[tuple[ActionFacts, str, DatasetLocation | None]]:
+        """Yield vectorize input owners in action and input declaration order."""
         return (
             (item, feature_id, self.first_feature_owner(feature_id))
-            for item in self.mappings
+            for item in self.actions
             if item.kind == functions.VECTORIZE
             for feature_id in item.inputs
         )
 
     def iter_write_dependencies(
         self,
-    ) -> typing.Iterator[tuple[MappingFacts, tuple[str, ...]]]:
+    ) -> typing.Iterator[tuple[ActionFacts, tuple[str, ...]]]:
         """Yield foreign write inputs using first-owner lookup."""
         return (
             (
@@ -379,39 +379,39 @@ class SpecValidationContext:
                     )
                 ),
             )
-            for item in self.mappings
+            for item in self.actions
             if item.kind == functions.WRITE
         )
 
     def iter_output_datasets(
         self,
     ) -> typing.Iterator[DatasetOutputFacts]:
-        """Yield each dataset's mapping outputs and uncovered features in declaration order."""
+        """Yield each dataset's action outputs and uncovered features in declaration order."""
         offset = 0
         for location in self.datasets:
             producers: dict[str, str] = {}
-            mappings: list[MappingOutputFacts] = []
-            count = len(location.dataset.mappings)
-            for item in self.mappings[offset : offset + count]:
+            actions: list[ActionOutputFacts] = []
+            count = len(location.dataset.actions)
+            for item in self.actions[offset : offset + count]:
                 declarations: list[tuple[str, str | None]] = []
                 if item.kind != functions.WRITE:
                     for feature_id in item.outputs:
                         declarations.append((feature_id, producers.get(feature_id)))
                         if feature_id not in item.dimensions:
-                            producers[feature_id] = item.location.mapping_id
-                mappings.append((item, tuple(declarations)))
+                            producers[feature_id] = item.location.action_id
+                actions.append((item, tuple(declarations)))
             offset += count
             missing = tuple(
                 sorted(set(location.dataset.features) - producers.keys() - location.dimensions)
             )
-            yield location, tuple(mappings), missing
+            yield location, tuple(actions), missing
 
     @functools.cached_property
-    def feature_producers(self) -> dict[str, MappingKey]:
+    def feature_producers(self) -> dict[str, ActionKey]:
         """Build the dependency producer index independently of output validity."""
         return {
-            feature_id: (item.location.dataset.id, item.location.mapping_id)
-            for item in self.mappings
+            feature_id: (item.location.dataset.id, item.location.action_id)
+            for item in self.actions
             if item.kind != functions.WRITE
             for feature_id in item.outputs
             if feature_id not in item.dimensions and feature_id not in self.dimension_ids
@@ -425,7 +425,7 @@ class SpecValidationContext:
     def _prepare_collapse_inputs(self) -> tuple[CollapseInputs, ...]:
         """Infer all collapse source candidates once for this invocation."""
         result: list[CollapseInputs] = []
-        for item in self.mappings:
+        for item in self.actions:
             if item.kind != functions.COLLAPSE:
                 continue
             candidates = tuple(
@@ -443,7 +443,7 @@ class SpecValidationContext:
             )
             result.append(
                 CollapseInputs(
-                    mapping=item,
+                    action=item,
                     candidates=candidates,
                     sources=tuple(sources.values()),
                     source=source,
@@ -457,16 +457,16 @@ class SpecValidationContext:
 
     @functools.cached_property
     def collapse_sources(self) -> dict[tuple[str, str, str], DatasetLocation]:
-        """Share inferred source locations across row context and mapping contracts."""
+        """Share inferred source locations across row context and action contracts."""
         return {
-            item.mapping.location.key: item.source
+            item.action.location.key: item.source
             for item in self.collapse_inputs
             if item.source is not None
         }
 
-    def row_context(self, item: MappingFacts) -> RowContext | None:
+    def row_context(self, item: ActionFacts) -> RowContext | None:
         """Prepare row-context facts against the collapse source or local dataset."""
-        declaration = item.location.mapping.row_context
+        declaration = item.location.action.row_context
         if declaration is None:
             return None
         source = (
@@ -487,7 +487,7 @@ class SpecValidationContext:
         }
         expected = ("datetime" if "time" in measures else "integer") if measures else None
         return RowContext(
-            mapping_id=item.location.mapping.id,
+            action_id=item.location.action.id,
             requires_order=declaration.requires_order,
             has_order=bool(source.dataset.order),
             dimension_reference=reference,
@@ -500,35 +500,35 @@ class SpecValidationContext:
 
     def iter_input_contexts(
         self,
-    ) -> typing.Iterator[tuple[MappingFacts, RowContext | None]]:
-        """Yield each mapping with its row-context requirements in declaration order."""
-        return ((item, self.row_context(item)) for item in self.mappings)
+    ) -> typing.Iterator[tuple[ActionFacts, RowContext | None]]:
+        """Yield each action with its row-context requirements in declaration order."""
+        return ((item, self.row_context(item)) for item in self.actions)
 
     @functools.cached_property
-    def mapping_dependencies(self) -> dict[MappingKey, set[MappingKey]]:
-        """Build mapping dependencies using model-ID consumers and declaration-key producers."""
+    def action_dependencies(self) -> dict[ActionKey, set[ActionKey]]:
+        """Build action dependencies using model-ID consumers and declaration-key producers."""
         return {
-            (item.location.dataset.id, item.location.mapping.id): {
+            (item.location.dataset.id, item.location.action.id): {
                 self.feature_producers[feature_id]
                 for feature_id in item.inputs
                 if feature_id in self.feature_producers
             }
-            for item in self.mappings
+            for item in self.actions
         }
 
     @functools.cached_property
-    def mapping_cycle(self) -> MappingKey | None:
+    def action_cycle(self) -> ActionKey | None:
         """Find the first active dependency reached by the established DFS order."""
-        visiting: set[MappingKey] = set()
-        visited: set[MappingKey] = set()
+        visiting: set[ActionKey] = set()
+        visited: set[ActionKey] = set()
 
-        def visit(key: MappingKey) -> MappingKey | None:
+        def visit(key: ActionKey) -> ActionKey | None:
             if key in visiting:
                 return key
             if key in visited:
                 return None
             visiting.add(key)
-            for dependency in self.mapping_dependencies[key]:
+            for dependency in self.action_dependencies[key]:
                 cycle = visit(dependency)
                 if cycle is not None:
                     return cycle
@@ -536,7 +536,7 @@ class SpecValidationContext:
             visited.add(key)
             return None
 
-        for key in self.mapping_dependencies:
+        for key in self.action_dependencies:
             cycle = visit(key)
             if cycle is not None:
                 return cycle
@@ -558,16 +558,16 @@ class SpecValidationContext:
         else:
             yield value, argument_type
 
-    def iter_bound_mappings(self) -> typing.Iterator[MappingFacts]:
-        """Yield mappings whose declared function is available for binding checks."""
-        return (item for item in self.mappings if item.function is not None)
+    def iter_bound_actions(self) -> typing.Iterator[ActionFacts]:
+        """Yield actions whose declared function is available for binding checks."""
+        return (item for item in self.actions if item.function is not None)
 
     @classmethod
-    def iter_binding_selectors(cls, item: MappingFacts) -> typing.Iterator[tuple[object, str]]:
+    def iter_binding_selectors(cls, item: ActionFacts) -> typing.Iterator[tuple[object, str]]:
         """Yield supplied selector values paired with their declared argument types."""
         if item.function is None:
             return
-        for name, value in item.location.mapping.binding.args.items():
+        for name, value in item.location.action.binding.args.items():
             argument = item.function.args.get(name)
             if argument is not None:
                 yield from cls._binding_selectors(value, argument.type)
@@ -585,7 +585,7 @@ class SpecValidationContext:
             for function_id, function in self.model.functions.root.items()
         )
 
-    def _dataframe_inputs(self, item: MappingFacts) -> tuple[DataframeInput, ...]:
+    def _dataframe_inputs(self, item: ActionFacts) -> tuple[DataframeInput, ...]:
         """Retain dataframe selector values and any matching dataset without rejecting them."""
         if item.function is None:
             return ()
@@ -593,7 +593,7 @@ class SpecValidationContext:
         for argument_id, argument in item.function.args.items():
             if argument.type != arg_types.DATAFRAME:
                 continue
-            value = item.location.mapping.binding.args.get(argument_id)
+            value = item.location.action.binding.args.get(argument_id)
             source_id = None
             if isinstance(value, str) and value.startswith(selectors.DATASET_PREFIX):
                 reference = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
@@ -615,12 +615,12 @@ class SpecValidationContext:
         return tuple(result)
 
     @functools.cached_property
-    def mapping_contracts(self) -> tuple[MappingContract, ...]:
+    def action_contracts(self) -> tuple[ActionContract, ...]:
         """Prepare dataframe relationships and ownership for kind-specific checks."""
-        return tuple(self._mapping_contract(item) for item in self.mappings)
+        return tuple(self._action_contract(item) for item in self.actions)
 
-    def _mapping_contract(self, item: MappingFacts) -> MappingContract:
-        """Collect the dataframe relationships used by one mapping's contract rules."""
+    def _action_contract(self, item: ActionFacts) -> ActionContract:
+        """Collect the dataframe relationships used by one action's contract rules."""
         dataframe_arguments = self._dataframe_inputs(item)
         inputs = tuple(
             argument.source for argument in dataframe_arguments if argument.source is not None
@@ -655,8 +655,8 @@ class SpecValidationContext:
                 if argument.source is not None
             ),
         )
-        return MappingContract(
-            mapping=item,
+        return ActionContract(
+            action=item,
             dataframe_arguments=dataframe_arguments,
             dataset_ids=dataset_ids,
             source=source,
@@ -678,7 +678,7 @@ class SpecValidationContext:
             ),
         )
 
-    def _matching_keys(self, item: MappingFacts) -> tuple[MatchingKey, ...]:
+    def _matching_keys(self, item: ActionFacts) -> tuple[MatchingKey, ...]:
         """Collect key selectors explicitly present in binding arguments."""
         keys: list[MatchingKey] = []
         base_path = (*item.location.declaration_path, "binding", "args")
@@ -709,7 +709,7 @@ class SpecValidationContext:
                 for index, nested in enumerate(value):
                     collect(nested, (*path, index))
 
-        for name, value in item.location.mapping.binding.args.items():
+        for name, value in item.location.action.binding.args.items():
             collect(value, (*base_path, name))
         return tuple(keys)
 

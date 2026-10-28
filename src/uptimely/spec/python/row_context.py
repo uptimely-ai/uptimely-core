@@ -133,7 +133,7 @@ def dataset() -> RowContext:
 def _context(
     value: typing.Any, explicit: RowContext | RowContextBinding[typing.Any] | None = None
 ) -> RowContext | None:
-    """Consolidate argument annotations and explicit mapping metadata."""
+    """Consolidate argument annotations and explicit action metadata."""
     annotated = _collect(value)
     if explicit is None:
         return annotated

@@ -42,9 +42,9 @@ live in `spec/`, runtime logic lives in functions, and generated resources stay
 clearly separate from source inputs.
 
 Python dataset modules subclass `uptimely.spec.python.Dataset` and declare
-named `Mapping` attributes. Each mapping points directly to an implementation
-in `functions/`, binds its arguments, and defines its output features.
-There is no separate function-template module or authoring adapter. See
+`Action` objects under `producers`, `publishers`, and `pipelines`. Each action
+points directly to an implementation in `functions/`, binds its arguments, and
+defines its output features. See
 [Python authoring](../python/python.md) for the declaration syntax.
 
 ## Building the project

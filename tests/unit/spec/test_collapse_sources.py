@@ -26,24 +26,22 @@ def test_collapse_source_is_prepared_from_indexed_feature_owners(
     inputs: list[str], ambiguous: bool
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
+    configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
         "bearing_temperature_by_pump"
     ]["features"]["inputs"] = inputs
     document = spec.Spec.model_validate(configuration)
     if ambiguous:
         dataset = document.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
         document.entities["pump"].datasets[dataset.id] = dataset.model_copy(deep=True)
-    mapping = (
-        document.entities["pump"].datasets["pump_dataset"].mappings["bearing_temperature_by_pump"]
+    action = (
+        document.entities["pump"].datasets["pump_dataset"].actions["bearing_temperature_by_pump"]
     )
     index = context.SpecValidationContext.build(document)
-    prepared = next(
-        item for item in index.collapse_inputs if item.mapping.location.mapping is mapping
-    )
+    prepared = next(item for item in index.collapse_inputs if item.action.location.action is action)
     results = [
         collapse_inputs.validate_source_feature(prepared),
         *(
-            collapse_inputs.validate_feature_owner(mapping.id, feature, candidates)
+            collapse_inputs.validate_feature_owner(action.id, feature, candidates)
             for feature, candidates in prepared.candidates
         ),
         collapse_inputs.validate_source_count(prepared),
@@ -56,10 +54,10 @@ def test_collapse_source_is_prepared_from_indexed_feature_owners(
         assert prepared.source is not None
         assert any(
             prepared.source in index.feature_owners.get(feature, ())
-            for feature in mapping.input_features
+            for feature in action.input_features
             if feature != selectors.CURRENT_ID and feature not in document.dimensions
         )
-        assert index.collapse_sources[prepared.mapping.location.key] is prepared.source
+        assert index.collapse_sources[prepared.action.location.key] is prepared.source
 
 
 @pytest.mark.parametrize("with_row_context", [False, True])
@@ -68,18 +66,18 @@ def test_validation_prepares_collapse_sources_once_per_invocation(
 ) -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     if with_row_context:
-        mapping = (
+        action = (
             document.entities["pump"]
             .datasets["pump_dataset"]
-            .mappings["bearing_temperature_by_pump"]
+            .actions["bearing_temperature_by_pump"]
         )
-        mapping.row_context = row_context.RowContext(
+        action.row_context = row_context.RowContext(
             dimension="$dimensions.timestamp",
             before=row_context.ContextExtent(time="1h"),
         )
     expected = sum(
-        document.functions[mapping.binding.function].kind == "collapse"
-        for _, _, mapping in references.iter_mappings(document)
+        document.functions[action.binding.function].kind == "collapse"
+        for _, _, action in references.iter_actions(document)
     )
     assert expected > 0
 

@@ -15,7 +15,8 @@ While the version is `0.x`, minor releases may include breaking changes.
   attributes or a `mappings` dictionary. Actions require an explicit dataset-unique
   `id`; collections validate function kinds and follow normal Python replacement
   inheritance. Import `Action` from `uptimely.spec.python` or its `actions` module.
-  Canonical mappings and exported JSON remain unchanged.
+  Spec version 3 uses an `actions` object in each dataset instead of `mappings`;
+  rename that key and set `spec_version` to `3` when migrating version 2 documents.
 
 - **Breaking:** Function definitions now use `kind` instead of `operation`.
   Python authoring uses the optional `@function(kind=...)` decorator from

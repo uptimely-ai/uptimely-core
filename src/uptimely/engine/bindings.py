@@ -31,7 +31,7 @@ class RuntimeBindings:
             raise ValueError(f"Unknown function: {invocation.function_id}")
         if function.kind != invocation.function_kind:
             raise ValueError(
-                f"Invocation {invocation.id} for mapping {invocation.mapping_id} "
+                f"Invocation {invocation.id} for action {invocation.mapping_id} "
                 f"function kind {invocation.function_kind} does not match function "
                 f"{invocation.function_id} kind {function.kind}"
             )

@@ -13,7 +13,7 @@ packages.
 For black-box procedures in other repositories or services, keep `escape`
 wrappers and their explicit feature dependencies in the central repository.
 Wrappers invoke the procedures, wait for required results and report failures.
-Use separate `read` mappings to load persisted outputs; side effects do not
+Use separate `read` actions to load persisted outputs; side effects do not
 automatically create dataframe columns or execution dependencies. See the
 [uncontrolled workflow in the pump analytics example](https://github.com/uptimely-ai/uptimely-core/tree/main/examples/pump_analytics).
 

@@ -1,6 +1,6 @@
 # Spec
 
-**Current spec version: 2**
+**Current spec version: 3**
 
 The spec definition is a single JSON document describing datasets, feature
 dependencies, and function bindings. JSON is the shared format used by
@@ -9,7 +9,7 @@ analytical declarations and the tools that validate, document, and compile them.
 ## Document Conventions
 
 The root is one JSON object. Dimensions, entities, datasets, function templates,
-features, arguments, and mappings use object keys as identifiers; do not repeat
+features, arguments, and actions use object keys as identifiers; do not repeat
 their `id` inside those entries. Identifiers should be stable, lowercase, and
 descriptive.
 
@@ -36,7 +36,7 @@ For example, dimensions and entities use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `spec_version` | integer | No | `2` | Spec format version; only `2` is supported. |
+| `spec_version` | integer | No | `3` | Spec format version; only `3` is supported. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
@@ -117,7 +117,7 @@ not accepted.
 | `row_scope` | object | No | Empty descriptions | Observation grain, filtering, and coverage. |
 | `order` | array of objects | No | `[]` | Logical ordering by entity dimensions. |
 | `features` | object | No | `{}` | Feature metadata keyed by identifier. |
-| `mappings` | object | No | `{}` | Function bindings keyed by identifier, unique within this dataset. |
+| `actions` | object | No | `{}` | Function bindings keyed by identifier, unique within this dataset. |
 
 ```json
 "datasets": {
@@ -125,22 +125,23 @@ not accepted.
     "row_scope": {"grain": "One row per pump and timestamp"},
     "order": [
       {"dimension": "$dimensions.timestamp", "direction": "asc"}
-    ]
+    ],
+    "actions": {}
   }
 }
 ```
 
-To migrate a version 1 document, replace each dataset array with an object,
-move each dataset's `id` to its object key, remove the `id` attribute, and set
-`spec_version` to `2`. Rebuild generated project artifacts. Version 1 documents
-and the old array format are not supported.
+To migrate a version 2 document, rename each dataset's `mappings` object to
+`actions` and set `spec_version` to `3`. A version 1 document must first be
+migrated to the keyed dataset format introduced in version 2. Rebuild generated
+project artifacts after migration. Versions 1 and 2 are not supported.
 
-### Feature and Mapping Identifiers
+### Feature and Action Identifiers
 
 Each key under `features` identifies a column's metadata. Each key under
-`mappings` identifies one function binding, unique within its dataset.
-A mapping identifier names a binding instance, not a reusable function or an
-output feature. Multiple mappings can invoke the same function with different
+`actions` identifies one function binding, unique within its dataset.
+An action identifier names a binding instance, not a reusable function or an
+output feature. Multiple actions can invoke the same function with different
 arguments.
 
 ### Row Scope
@@ -168,7 +169,7 @@ determines key precedence. Omission means no declared order. Null placement,
 collation, and ties are not specified.
 
 Order is a logical convention, not a physical sort or partition guarantee.
-Functions implement sorting and grouping themselves. Mapping context inherits
+Functions implement sorting and grouping themselves. Action context inherits
 dataset order to interpret preceding and following observations.
 
 ## Features
@@ -224,8 +225,8 @@ execution engine guide.
 
 A function is a logical analytical function definition bound to an implementation. Each
 function declares a kind and implementation entrypoint, plus the schema
-for its arguments. A mapping binds a function to concrete arguments and feature
-inputs and outputs. When you build the project, each mapping becomes a step in
+for its arguments. An action binds a function to concrete arguments and feature
+inputs and outputs. When you build the project, each action becomes a step in
 the execution plan. The engine runs those steps using the Python
 implementations.
 
@@ -275,8 +276,8 @@ Python spec declarations execute during source loading. If an analytical
 implementation is unavailable in that environment, declare its entrypoint as a
 string and do not import the implementation from the spec declaration itself.
 
-Use kind-oriented function names. Mapping identifiers and feature names
-can differ from the function identifier. Each mapping binds one function, whose
+Use kind-oriented function names. Action identifiers and feature names
+can differ from the function identifier. Each action binds one function, whose
 declared kind determines its analytical role.
 
 ### Function kinds
@@ -354,9 +355,9 @@ Use plain `array` or `object` for heterogeneous or unspecified contents.
 Argument types describe implementation values, not data dependencies.
 Nested expressions such as `object{str: array[string]}` are supported.
 
-## Feature Mappings
+## Action Features
 
-A mapping separates analytical requirements from the implementation binding:
+An action separates analytical requirements from the implementation binding:
 
 ```json
 "temperature_mean": {
@@ -397,17 +398,17 @@ Conversely, passing a feature identifier is not a declaration that its data
 must exist. Declare every consumed feature in `inputs`.
 
 Outputs reference the owning dataset's feature registry and are the only
-declaration of features produced by a mapping. Binding arguments may use
+declaration of features produced by an action. Binding arguments may use
 feature references to pass identifiers, including output names; those arguments
 do not infer inputs or outputs. Entity dimension keys are required in every
 returned table, even when omitted from `outputs`.
-A write mapping declares empty outputs and explicitly lists its required inputs.
-Data-producing mappings require at least one output. Vectorize outputs cannot
+A write action declares empty outputs and explicitly lists its required inputs.
+Data-producing actions require at least one output. Vectorize outputs cannot
 redeclare entity dimensions. Collapse must produce at least one non-dimension
 feature. There is no binding-level `return` field.
 
 Each `read`, `conform`, `collapse`, or `expand` result is a fragment containing
-the target dataset's complete dimension keys and that mapping's declared
+the target dataset's complete dimension keys and that action's declared
 outputs. The engine validates required columns, types, and unique keys, then
 assembles same-dataset fragments by key with a full outer join. Partial
 coverage is retained; duplicate keys and overlapping feature outputs are
@@ -421,7 +422,7 @@ details.
 | `$features.<id>.id` | `string` | Feature identifier string. |
 | `$dimensions.<id>.id` | `string` | Dimension identifier string. |
 | `$datasets.<id>.dimensions.ids` | `array[string]` | Dimension identifiers declared by that dataset's entity. |
-| `$datasets.@.dimensions.ids` | `array[string]` | Dimension identifiers declared by the mapping's target entity. |
+| `$datasets.@.dimensions.ids` | `array[string]` | Dimension identifiers declared by the action's target entity. |
 | `$datasets.<id>.dataframe` | `dataframe` | Materialized table for that dataset. |
 | `$datasets.@.dataframe` | `dataframe` | Current dataset's input-ready table. |
 | `$datasets.<id>.id` | `string` | Dataset identifier string. |
@@ -443,9 +444,9 @@ the operation's source dataframe remains its only dataframe argument.
 
 ### Row Context
 
-`row_context` belongs to the mapping, not its features or function template.
+`row_context` belongs to the action, not its features or function template.
 It describes the greatest required input reach across all calculations in that
-mapping. It does not describe returned rows or alter full-table execution.
+action. It does not describe returned rows or alter full-table execution.
 
 | Field | Required | Default | Meaning |
 | --- | --- | --- | --- |
@@ -514,8 +515,8 @@ are acyclic. When a function's declared return kind and dataframe arguments
 conflict with its kind, validation suggests a matching kind where
 possible. It never changes the kind automatically; `escape` must be
 declared explicitly for intentional uncontrolled work. Spec validation does
-not require escape inputs to be produced by a `read` mapping. A declared
-feature without a producing mapping triggers a warning rather than preventing
+not require escape inputs to be produced by a `read` action. A declared
+feature without a producing action triggers a warning rather than preventing
 the Spec from loading. Validation does not import implementations or inspect
 calculated data.
 

@@ -109,14 +109,14 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     dataset["features"]["audit_reference"] = {"type": "string"}
     dataset["features"]["audit_status"] = {"type": "string"}
     dataset["features"]["audit_followup"] = {"type": "string"}
-    dataset["mappings"]["external_audit"] = {
+    dataset["actions"]["external_audit"] = {
         "binding": {"function": "external_audit", "args": {}},
         "features": {
             "inputs": ["$features.bearing_temperature", "$features.vibration_rms"],
             "outputs": ["$features.audit_reference", "$features.audit_status"],
         },
     }
-    dataset["mappings"]["external_audit_followup"] = {
+    dataset["actions"]["external_audit_followup"] = {
         "binding": {"function": "external_audit", "args": {}},
         "features": {
             "inputs": ["$features.audit_reference"],
@@ -149,18 +149,18 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     } in context.feature_dependencies
     function = context.configuration["functions"]["external_audit"]
     assert function["declared_returns"] == "any"
-    assert function["escape_mappings"] == [
+    assert function["escape_actions"] == [
         {
             "entity": "pump_telemetry",
             "dataset": dataset.get("id", "pump_telemetry_dataset"),
-            "mapping": "external_audit",
+            "action": "external_audit",
             "inputs": ["bearing_temperature", "vibration_rms"],
             "outputs": ["audit_reference", "audit_status"],
         },
         {
             "entity": "pump_telemetry",
             "dataset": dataset.get("id", "pump_telemetry_dataset"),
-            "mapping": "external_audit_followup",
+            "action": "external_audit_followup",
             "inputs": ["audit_reference"],
             "outputs": ["audit_followup"],
         },
@@ -272,7 +272,7 @@ def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
         assert f'href="../{filename}"' in document
     assert ">Features<" in document
     assert "Datasets" in document
-    assert "Mappings" in document
+    assert "Actions" in document
     assert ">source<" in document
     assert "space-y-5" in document
     for filename, section in (

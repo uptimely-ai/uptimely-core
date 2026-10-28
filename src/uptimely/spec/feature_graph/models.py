@@ -11,7 +11,7 @@ class FunctionNode:
     name: str
     features: tuple[str, ...]
     entity: str | None
-    mapping_id: str | None = None
+    action_id: str | None = None
     function: model.FunctionTemplate | None = dataclasses.field(
         default=None, compare=False, hash=False
     )
@@ -26,8 +26,8 @@ class FunctionNode:
             if self.function is not None
             else "unknown"
         )
-        mapping = f":{self.mapping_id}" if self.mapping_id is not None else ""
-        return f"function:{function_kind}:{self.name}{mapping}"
+        action = f":{self.action_id}" if self.action_id is not None else ""
+        return f"function:{function_kind}:{self.name}{action}"
 
     def __str__(self) -> str:
         return self.name
@@ -40,8 +40,8 @@ class FunctionNode:
         return render.filled_fields(
             node_type=node_type,
             is_function=True,
-            label=f"{self.name} · {self.mapping_id}" if self.mapping_id is not None else self.name,
-            mapping_id=self.mapping_id,
+            label=f"{self.name} · {self.action_id}" if self.action_id is not None else self.name,
+            action_id=self.action_id,
             features=list(self.features),
             entity=self.entity,
             function_kind=(self.function.kind if self.function is not None else None),

@@ -125,7 +125,7 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
                     "name": "Entity",
                     "datasets": {
                         "dataset": {
-                            "mappings": {
+                            "actions": {
                                 "zero_argument": {
                                     "binding": {"function": "zero_argument", "args": {}}
                                 },
@@ -144,7 +144,7 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
     )
 
     validation_context = context_module.SpecValidationContext.build(model)
-    for item in validation_context.iter_bound_mappings():
+    for item in validation_context.iter_bound_actions():
         assert bindings.validate_arguments(item) is None
         for value, argument_type in validation_context.iter_binding_selectors(item):
             assert (

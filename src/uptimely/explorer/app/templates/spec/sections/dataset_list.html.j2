@@ -1,6 +1,6 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
-{% macro mapping_kind(mapping, functions) -%}
-  {{- functions.get(mapping.binding.function, {}).get("kind", "") -}}
+{% macro action_kind(action, functions) -%}
+  {{- functions.get(action.binding.function, {}).get("kind", "") -}}
 {%- endmacro %}
 {% set column_colors = {
   "dimension": "bg-[#172b46] text-[#b5d4f8]",
@@ -15,8 +15,8 @@
     {% for entity_id, entity in configuration.entities.items() %}
       {% for dataset_id, dataset in entity.datasets.items() %}
       {% set schema = namespace(columns=[], producers={}) %}
-      {% for mapping in dataset.mappings.values() %}
-        {% set kind = mapping_kind(mapping, configuration.functions) %}
+      {% for action in dataset.actions.values() %}
+        {% set kind = action_kind(action, configuration.functions) %}
         {% if kind == "escape" %}
           {% set color = "escape" %}
         {% elif kind in ["vectorize", "collapse"] %}
@@ -24,7 +24,7 @@
         {% else %}
           {% set color = "teal" %}
         {% endif %}
-        {% for feature_ref in mapping.features.outputs %}
+        {% for feature_ref in action.features.outputs %}
           {% set feature_id = feature_ref.removeprefix("$features.") %}
           {% if feature_id not in schema.producers %}
             {% set _ = schema.producers.update({feature_id: color}) %}
@@ -76,13 +76,13 @@
           </div>
         </div>
         {% endif %}
-        {% set ns = namespace(mapping_count=0) %}
-        {% for mapping in dataset.mappings.values() %}
-          {% if mapping_kind(mapping, configuration.functions) != "vectorize" %}
-            {% set ns.mapping_count = ns.mapping_count + 1 %}
+        {% set ns = namespace(action_count=0) %}
+        {% for action in dataset.actions.values() %}
+          {% if action_kind(action, configuration.functions) != "vectorize" %}
+            {% set ns.action_count = ns.action_count + 1 %}
           {% endif %}
         {% endfor %}
-        {% if dataset.description or dataset.row_scope.get("filtering") or dataset.row_scope.get("coverage") or dataset.order or ns.mapping_count %}
+        {% if dataset.description or dataset.row_scope.get("filtering") or dataset.row_scope.get("coverage") or dataset.order or ns.action_count %}
         <details class="mt-6 border-t border-slate-800 pt-4">
           <summary class="w-fit cursor-pointer text-xs text-slate-400 hover:text-slate-200">Dataset details</summary>
           <div class="mt-5 space-y-5">
@@ -104,19 +104,19 @@
               </ul>
             </div>
             {% endif %}
-            {% if ns.mapping_count %}
+            {% if ns.action_count %}
             <div>
-              <p class="mb-3 text-xs text-slate-500">Mappings</p>
+              <p class="mb-3 text-xs text-slate-500">Actions</p>
               <div class="flex flex-wrap gap-3">
-            {% for mapping_id, mapping in dataset.mappings.items() if mapping_kind(mapping, configuration.functions) != "vectorize" %}
-              <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ mapping_kind(mapping, configuration.functions) }} · {{ mapping_id }}</span>
-              {% if mapping_kind(mapping, configuration.functions) == "collapse" %}
+            {% for action_id, action in dataset.actions.items() if action_kind(action, configuration.functions) != "vectorize" %}
+              <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ action_kind(action, configuration.functions) }} · {{ action_id }}</span>
+              {% if action_kind(action, configuration.functions) == "collapse" %}
               <div class="w-full font-mono text-xs text-slate-400">
                 Input dataset inferred from bound features · Group by entity dimensions: {{ entity.dimensions | tojson }}
-                <p>{{ mapping.binding.function }}({{ mapping.binding.args | tojson }})</p>
+                <p>{{ action.binding.function }}({{ action.binding.args | tojson }})</p>
               </div>
               {% endif %}
-              {% if mapping_kind(mapping, configuration.functions) == "escape" %}
+              {% if action_kind(action, configuration.functions) == "escape" %}
               <p class="w-full text-xs leading-5 text-violet-300">External effects are uncontrolled. Declared outputs do not indicate dataframe columns or materialized results.</p>
               {% endif %}
             {% endfor %}

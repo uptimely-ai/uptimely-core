@@ -6,6 +6,7 @@ from .api import from_python, load_spec
 from .feature_graph import FeatureGraph, SubGraph
 from .json.codec import write_document
 from .model import (
+    Action,
     Argument,
     Binding,
     Dataset,
@@ -13,7 +14,6 @@ from .model import (
     Entity,
     Feature,
     FunctionCatalog,
-    Mapping,
     Order,
     RowScope,
     Spec,
@@ -39,7 +39,7 @@ __all__ = [
     "Feature",
     "FeatureGraph",
     "FunctionCatalog",
-    "Mapping",
+    "Action",
     "Order",
     "PythonSpec",
     "RowContext",

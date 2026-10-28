@@ -1,7 +1,7 @@
 # Spec
 
 The examples below use pump measurements to show how entities, datasets,
-features, mappings, and functions describe an analytical system.
+features, actions, and functions describe an analytical system.
 
 ## Entity
 
@@ -58,7 +58,7 @@ Data might be stored physically in different way.
     <div class="cv-table-scroll">
       <table class="cv-table cv-model-table">
         <thead>
-          <tr class="cv-bands"><th colspan="2" class="cv-key">DIMENSIONS / observation keys</th><th colspan="2" class="cv-teal">TELEMETRY / mapping A</th><th class="cv-violet">LIMITS / mapping B</th><th class="cv-amber">CALCULATED</th></tr>
+          <tr class="cv-bands"><th colspan="2" class="cv-key">DIMENSIONS / observation keys</th><th colspan="2" class="cv-teal">TELEMETRY / action A</th><th class="cv-violet">LIMITS / action B</th><th class="cv-amber">CALCULATED</th></tr>
           <tr><th class="cv-key">pump</th><th class="cv-key">timestamp</th><th class="cv-teal">pressure</th><th class="cv-teal">flow</th><th class="cv-violet">limit</th><th class="cv-amber">ratio</th></tr>
         </thead>
         <tbody>
@@ -71,8 +71,8 @@ Data might be stored physically in different way.
     <p class="cv-legend-title">Color key for all examples</p>
     <dl class="cv-legend">
       <div><dt><span class="cv-swatch cv-key" aria-hidden="true"></span>Blue</dt><dd><strong>Dimension keys</strong><span>pump + timestamp identify an observation, not a measured value.</span></dd></div>
-      <div><dt><span class="cv-swatch cv-teal" aria-hidden="true"></span>Teal</dt><dd><strong>Telemetry features</strong><span>pressure and flow are outputs of mapping A.</span></dd></div>
-      <div><dt><span class="cv-swatch cv-violet" aria-hidden="true"></span>Violet</dt><dd><strong>Limit features</strong><span>limit is an output of mapping B and keeps its color when aligned or expanded.</span></dd></div>
+      <div><dt><span class="cv-swatch cv-teal" aria-hidden="true"></span>Teal</dt><dd><strong>Telemetry features</strong><span>pressure and flow are outputs of action A.</span></dd></div>
+      <div><dt><span class="cv-swatch cv-violet" aria-hidden="true"></span>Violet</dt><dd><strong>Limit features</strong><span>limit is an output of action B and keeps its color when aligned or expanded.</span></dd></div>
       <div><dt><span class="cv-swatch cv-amber" aria-hidden="true"></span>Amber</dt><dd><strong>Calculated features</strong><span>ratio and max_pressure are produced by vectorize or collapse functions.</span></dd></div>
     </dl>
     <p class="cv-detail">Colors identify column roles throughout the page, not which cells changed. Headers and labels carry the same meaning without color. Neutral cells describe arguments or operations.</p>
@@ -204,16 +204,16 @@ explicit dataflow and runtime checks fit the work.
 </div>
 
 
-## Mapping
+## Action
 
 <p class="cv-function-subtitle">Connect feature dependencies and outputs to a function binding</p>
 
-A mapping declares which features a function needs and produces, then binds
+An action declares which features a function needs and produces, then binds
 that function to concrete arguments. In this example, `divide` receives the
 current dataset and feature identifiers, and returns `pressure_ratio`.
 
 <div class="concepts-visual">
-  <div class="cv-operation cv-mapping-flow" role="group" aria-label="Input dataframe, JSON mapping, and output dataframe">
+  <div class="cv-operation cv-mapping-flow" role="group" aria-label="Input dataframe, JSON action, and output dataframe">
     <div class="cv-mapping-stage cv-mapping-inputs">
       <span class="cv-tag">INPUT DATAFRAME / declared features</span>
       <table class="cv-table"><thead><tr><th class="cv-key">time</th><th class="cv-teal">pressure</th><th class="cv-violet">limit</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">09:01</td><td class="cv-teal">8</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">09:02</td><td class="cv-teal">4</td><td class="cv-violet">8</td></tr></tbody></table>

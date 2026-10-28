@@ -123,7 +123,7 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert len(spec_definition.functions.by_kind("vectorize")) == 7
 
     pump_dataset = spec_definition.entities["pump"].datasets["pump_dataset"]
-    collapse = pump_dataset.mappings["bearing_temperature_by_pump"]
+    collapse = pump_dataset.actions["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.binding.function == "maximum"
     assert "bearing_temperature_max" in collapse.output_features
@@ -241,15 +241,15 @@ def test_sources_and_transforms_python_spec() -> None:
     )
 
     ds_model = spec_definition.entities["transforms_test"].datasets["target"]
-    assert set(ds_model.mappings) == {"read", "expand_data"}
+    assert set(ds_model.actions) == {"read", "expand_data"}
     assert {"target_value", "input_2"} <= set(ds_model.all_features)
-    expand = ds_model.mappings["expand_data"]
+    expand = ds_model.actions["expand_data"]
     assert expand.binding.function == "expand_data"
     assert expand.binding.args == {
         "source": "$datasets.transformed_dataset.dataframe",
     }
     assert expand.input_features == ["input_1"]
-    collapse = spec_definition.entities["summary"].datasets["summary"].mappings["collapse_data"]
+    collapse = spec_definition.entities["summary"].datasets["summary"].actions["collapse_data"]
     assert collapse.binding.function == "maximum"
     assert collapse.binding.args == {
         "dataset": "$datasets.target.dataframe",

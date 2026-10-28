@@ -22,8 +22,8 @@ class Feature(common.StrictModel):
     unit: str | None = None
 
 
-class MappingFeatures(common.StrictModel):
-    """Explicit data prerequisites and produced features for one mapping."""
+class ActionFeatures(common.StrictModel):
+    """Explicit data prerequisites and produced features for one action."""
 
     inputs: list[str] = pydantic.Field(default_factory=list)
     outputs: list[str] = pydantic.Field(default_factory=list)
@@ -39,18 +39,18 @@ class MappingFeatures(common.StrictModel):
             or value[len(selectors.FEATURE_PREFIX) :] == selectors.CURRENT_ID
             for value in values
         ):
-            raise ValueError("Mapping features must use $features.<id> references")
+            raise ValueError("Action features must use $features.<id> references")
         if len(values) != len(set(values)):
-            raise ValueError("Mapping feature references must not repeat")
+            raise ValueError("Action feature references must not repeat")
         return values
 
 
-class Mapping(common.StrictModel):
+class Action(common.StrictModel):
     """A function binding with declared feature inputs, outputs, and row context."""
 
     id: str = pydantic.Field(exclude=True)
     binding: common.Binding
-    features: MappingFeatures = pydantic.Field(default_factory=MappingFeatures)
+    features: ActionFeatures = pydantic.Field(default_factory=ActionFeatures)
     row_context: uptimely_row_context.RowContext | None = None
 
     @property
@@ -86,7 +86,7 @@ class Dataset(common.StrictModel):
     description: str | None = None
     row_scope: RowScope = pydantic.Field(default_factory=RowScope)
     features: dict[str, Feature] = pydantic.Field(default_factory=dict)
-    mappings: dict[str, Mapping] = pydantic.Field(default_factory=dict)
+    actions: dict[str, Action] = pydantic.Field(default_factory=dict)
     order: list[Order] = pydantic.Field(default_factory=list)
 
     @property

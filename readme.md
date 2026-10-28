@@ -138,6 +138,7 @@ Datasets group actions into `producers` (feature-producing kinds), `publishers`
 (`write`), and `pipelines` (`escape`, for opaque custom workflows). Each action
 has an explicit ID unique within its dataset. These lists declare roles, not
 execution order; dependencies determine execution.
+In JSON specs, datasets declare their keyed action definitions under `actions`.
 
 ## Further exploration
 

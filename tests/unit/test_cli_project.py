@@ -146,7 +146,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     source.write_text(
         json.dumps(
             {
-                "spec_version": 2,
+                "spec_version": 3,
                 "name": "Build-only test",
                 "functions": {
                     "read": {
@@ -161,7 +161,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
                         "datasets": {
                             "values": {
                                 "features": {"value": {}},
-                                "mappings": {
+                                "actions": {
                                     "read": {
                                         "binding": {"function": "read"},
                                         "features": {"outputs": ["$features.value"]},

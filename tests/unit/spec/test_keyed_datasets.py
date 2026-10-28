@@ -43,7 +43,9 @@ def test_keyed_datasets_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
     assert datasets["first"]["description"] == "First dataset"
     assert datasets["first"]["row_scope"]["grain"] == "One row per asset"
     assert payload == model.model_dump(exclude_none=False)
-    assert payload["spec_version"] == 2
+    assert payload["spec_version"] == 3
+    assert "actions" in datasets["first"]
+    assert "mappings" not in datasets["first"]
 
     path = tmp_path / "spec.json"
     spec.write_document(model, path)
@@ -61,6 +63,11 @@ def test_dataset_registry_rejects_old_arrays_and_invalid_types(datasets: object)
 def test_dataset_attributes_reject_explicit_id(identifier: str) -> None:
     with pytest.raises(pydantic.ValidationError, match="not an 'id' attribute"):
         spec.Spec.model_validate(_document({"telemetry": {"id": identifier}}))
+
+
+def test_dataset_rejects_legacy_mappings_key() -> None:
+    with pytest.raises(pydantic.ValidationError, match="mappings"):
+        spec.Spec.model_validate(_document({"telemetry": {"mappings": {}}}))
 
 
 def test_dataset_defaults_are_empty_independent_dictionaries() -> None:

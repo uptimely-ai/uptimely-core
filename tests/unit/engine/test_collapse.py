@@ -332,8 +332,8 @@ def test_collapse_consumes_expanded_features(lazy):
     auxiliary = spec_model.Dataset(
         id="expansion_input",
         features={"expansion_value": spec_model.Feature(id="expansion_value")},
-        mappings={
-            "read_expansion": spec_model.Mapping(
+        actions={
+            "read_expansion": spec_model.Action(
                 id="read_expansion",
                 binding=spec_model.Binding(function="read_expansion_input", args={"lazy": lazy}),
                 features={"outputs": ["$features.expansion_value"]},
@@ -353,7 +353,7 @@ def test_collapse_consumes_expanded_features(lazy):
         entrypoint=f"{__name__}:read_expansion_input",
         args={"lazy": spec_model.Argument(id="lazy", type="boolean")},
     )
-    source.mappings["expanded"] = spec_model.Mapping(
+    source.actions["expanded"] = spec_model.Action(
         id="expanded",
         binding=spec_model.Binding(
             function="expanded_values",
@@ -381,8 +381,8 @@ def test_collapse_consumes_expanded_features(lazy):
     )
     summary = spec_definition.entities["group"].datasets["summary"]
     summary.features = {"combined_maximum": spec.Feature(id="combined_maximum")}
-    summary.mappings = {
-        "nested": spec_model.Mapping(
+    summary.actions = {
+        "nested": spec_model.Action(
             id="nested",
             binding=spec_model.Binding(
                 function="nested_maximum",

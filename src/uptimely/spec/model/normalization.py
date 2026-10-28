@@ -11,7 +11,7 @@ def normalize_spec_document(value: typing.Any) -> typing.Any:
         return value
 
     normalized = dict(value)
-    normalized["dimensions"] = _with_mapping_ids(normalized.get("dimensions", {}) or {})
+    normalized["dimensions"] = _with_resource_ids(normalized.get("dimensions", {}) or {})
     if "functions" in normalized:
         normalized["functions"] = _normalize_functions(normalized["functions"] or {})
     if "entities" in normalized:
@@ -23,17 +23,17 @@ def normalize_spec_document(value: typing.Any) -> typing.Any:
 
 def _normalize_functions(value: typing.Any) -> typing.Any:
     """Add function and argument IDs to the keyed function catalog."""
-    functions = _with_mapping_ids(value)
+    functions = _with_resource_ids(value)
     if isinstance(functions, dict):
         for function in functions.values():
             if isinstance(function, dict):
-                function["args"] = _with_mapping_ids(function.get("args", {}) or {})
+                function["args"] = _with_resource_ids(function.get("args", {}) or {})
     return functions
 
 
 def _normalize_entities(value: typing.Any, dimensions: typing.Any) -> typing.Any:
     """Add entity IDs and normalize each entity's dimensions and datasets."""
-    entities = _with_mapping_ids(value)
+    entities = _with_resource_ids(value)
     if isinstance(entities, dict):
         for entity in entities.values():
             if isinstance(entity, dict):
@@ -59,17 +59,17 @@ def _normalize_entity(entity: dict[str, typing.Any], dimensions: typing.Any) -> 
 
 
 def _normalize_datasets(value: dict[str, typing.Any]) -> dict[str, typing.Any]:
-    """Add dataset IDs and normalize each dataset's feature and mapping registries."""
-    datasets = _with_mapping_ids(value)
+    """Add dataset IDs and normalize each dataset's feature and action registries."""
+    datasets = _with_resource_ids(value)
     for dataset in datasets.values():
         if isinstance(dataset, dict):
-            dataset["features"] = _with_mapping_ids(dataset.get("features", {}) or {})
-            dataset["mappings"] = _with_mapping_ids(dataset.get("mappings", {}) or {})
+            dataset["features"] = _with_resource_ids(dataset.get("features", {}) or {})
+            dataset["actions"] = _with_resource_ids(dataset.get("actions", {}) or {})
     return datasets
 
 
-def _with_mapping_ids(value: typing.Any) -> typing.Any:
-    """Add mapping keys as IDs before Pydantic validates resources."""
+def _with_resource_ids(value: typing.Any) -> typing.Any:
+    """Add object keys as IDs before Pydantic validates keyed resources."""
     if not isinstance(value, dict):
         return value
     return {

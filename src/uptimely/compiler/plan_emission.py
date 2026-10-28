@@ -25,7 +25,7 @@ def emit_invocation(
     function = spec_definition.functions.get(node.function_id)
     if function is None or not function.entrypoint:
         raise ValueError(
-            f"Missing entrypoint for function {node.function_id} used by mapping {node.mapping_id}"
+            f"Missing entrypoint for function {node.function_id} used by action {node.mapping_id}"
         )
     arguments = binding_resolution.resolve_binding_args(
         node.arguments,

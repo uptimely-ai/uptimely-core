@@ -145,18 +145,18 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 "id": function_id,
                 "kind": template.kind,
                 "declared_returns": functions.KIND_RETURN_KINDS[template.kind],
-                "escape_mappings": [
+                "escape_actions": [
                     {
                         "entity": entity_id,
                         "dataset": dataset.id,
-                        "mapping": mapping_id,
-                        "inputs": mapping.input_features,
-                        "outputs": mapping.output_features,
+                        "action": action_id,
+                        "inputs": action.input_features,
+                        "outputs": action.output_features,
                     }
-                    for entity_id, dataset, mapping_id, mapping in references.iter_mapping_items(
+                    for entity_id, dataset, action_id, action in references.iter_action_items(
                         snapshot.spec
                     )
-                    if mapping.binding.function == function_id and template.kind == functions.ESCAPE
+                    if action.binding.function == function_id and template.kind == functions.ESCAPE
                 ],
                 "execution_semantics": (
                     "Uncontrolled external operation; its return value is ignored, and declared "
@@ -192,14 +192,14 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 feature_id
                 for entity in spec_definition.entities.values()
                 for dataset in entity.datasets.values()
-                for mapping in dataset.mappings.values()
-                if hasattr(mapping, "binding")
+                for action in dataset.actions.values()
+                if hasattr(action, "binding")
                 if (
-                    mapping.binding.function in spec_definition.functions
-                    and spec_definition.functions[mapping.binding.function].kind
+                    action.binding.function in spec_definition.functions
+                    and spec_definition.functions[action.binding.function].kind
                     == functions.VECTORIZE
                 )
-                for feature_id in mapping.output_features
+                for feature_id in action.output_features
             }
         )
         return _to_json(payload)
@@ -218,10 +218,10 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         """
         spec_definition = state.load_snapshot().spec
         by_feature = {
-            feature: (entity_id, mapping)
-            for entity_id, _dataset, mapping in references.iter_mappings(spec_definition)
-            if spec_definition.functions[mapping.binding.function].kind == functions.VECTORIZE
-            for feature in mapping.output_features
+            feature: (entity_id, action)
+            for entity_id, _dataset, action in references.iter_actions(spec_definition)
+            if spec_definition.functions[action.binding.function].kind == functions.VECTORIZE
+            for feature in action.output_features
         }
         producer = by_feature.get(feature_id)
         if producer is None:
@@ -230,9 +230,9 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 "Use list_calculated_features to see available features."
             )
 
-        entity_id, mapping = producer
+        entity_id, action = producer
         transitive: list[str] = []
-        queue = list(mapping.input_features)
+        queue = list(action.input_features)
         seen = set(queue)
         while queue:
             current = queue.pop(0)
@@ -248,8 +248,8 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             {
                 "feature": feature_id,
                 "entity": entity_id,
-                "function": mapping.binding.function,
-                "direct_dependencies": mapping.input_features,
+                "function": action.binding.function,
+                "direct_dependencies": action.input_features,
                 "transitive_dependencies": transitive,
                 "input_features": [name for name in transitive if name not in by_feature],
                 "calculated_dependencies": [name for name in transitive if name in by_feature],

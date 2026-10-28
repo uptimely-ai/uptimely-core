@@ -10,14 +10,14 @@ from . import common, normalization
 from . import dataset as dataset_module
 from . import functions as functions_module
 
-SPEC_VERSION = 2
+SPEC_VERSION = 3
 
 
 class Spec(common.StrictModel):
     """The complete JSON spec document."""
 
     name: str | None = None
-    spec_version: typing.Literal[2] = SPEC_VERSION
+    spec_version: typing.Literal[3] = SPEC_VERSION
     source: common.SpecSource = pydantic.Field(
         default_factory=lambda: common.SpecSource(name="manual", generated=False)
     )
