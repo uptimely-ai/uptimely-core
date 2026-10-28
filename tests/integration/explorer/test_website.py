@@ -25,11 +25,11 @@ REPORTS = {
     "spec/datasets.html": "datasets",
     "spec/dimensions.html": "dimensions",
     "spec/functions.html": "functions",
-    "spec/feature_lineage.html": "feature_lineage",
+    "spec/feature-lineage.html": "feature_lineage",
     "plan/overview.html": "plan",
-    "plan/invocation_lineage.html": "plan",
+    "plan/invocation-lineage.html": "plan",
     "plan/stages.html": "stages",
-    "execution/data_lineage.html": "data_lineage",
+    "execution/data-lineage.html": "data_lineage",
 }
 
 
@@ -123,15 +123,15 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         "spec/datasets.html": ("datasets", "table", "Datasets"),
         "spec/dimensions.html": ("dimensions", "layers-3", "Dimensions"),
         "spec/functions.html": ("functions", "braces", "Functions"),
-        "spec/feature_lineage.html": ("feature-lineage", "network", "Feature lineage"),
+        "spec/feature-lineage.html": ("feature-lineage", "network", "Feature lineage"),
         "plan/overview.html": ("overview", "layout-dashboard", "Overview"),
-        "plan/invocation_lineage.html": (
+        "plan/invocation-lineage.html": (
             "invocation-lineage",
             "workflow",
             "Invocation lineage",
         ),
         "plan/stages.html": ("stages", "list-ordered", "Stages"),
-        "execution/data_lineage.html": ("data-lineage", "database-zap", "Data lineage"),
+        "execution/data-lineage.html": ("data-lineage", "database-zap", "Data lineage"),
     }
     palette = {
         "home": "#93c5fd",
@@ -361,7 +361,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "scrollbar-color: #475569 #0f172a" in spec_styles
     assert ".dataset-table-scroll::-webkit-scrollbar" in spec_styles
     assert "Pump analytics" in (index.parent / "spec/overview.html").read_text(encoding="utf-8")
-    graph_2d = (index.parent / "spec/feature_lineage.html").read_text(encoding="utf-8")
+    graph_2d = (index.parent / "spec/feature-lineage.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_2d
     assert "force-graph@1.52.0/dist/force-graph.min.js" in graph_2d
     graph_script = (index.parent / "js/feature_lineage.js").read_text(encoding="utf-8")
@@ -369,7 +369,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "3d-force-graph" in graph_2d
     assert 'aria-label="Feature lineage views"' not in graph_2d
     assert re.search(
-        r'href="../spec/feature_lineage.html" aria-current="page">'
+        r'href="../spec/feature-lineage.html" aria-current="page">'
         r'<i class="site-icon icon--feature-lineage nav-icon" '
         r'data-lucide="network"',
         graph_2d,
@@ -378,7 +378,7 @@ def test_website_exports_all_reports_with_relative_navigation(
         "ExplorerGraph.createView(graph, graphContainer, DATASET_LAYOUT.fitPadding, "
         "'2d', layout.bounds)" in graph_script
     )
-    plan = (index.parent / "plan/invocation_lineage.html").read_text(encoding="utf-8")
+    plan = (index.parent / "plan/invocation-lineage.html").read_text(encoding="utf-8")
     assert 'id="invocation-lineage-graph"' in plan
     assert "normalize_health_signal" in plan
     assert not pathlib.Path("_generated/spec").exists()
@@ -437,7 +437,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
     for href, action in (
         ("spec/overview.html", "Explore spec"),
         ("plan/overview.html", "Inspect the plan"),
-        ("execution/data_lineage.html", "Explore execution"),
+        ("execution/data-lineage.html", "Explore execution"),
     ):
         assert f'<a href="{href}">{action}' in document
         assert (index.parent / href).is_file()
@@ -581,7 +581,7 @@ def test_relocated_website_navigation_works_under_url_prefix(
     ("filename", "title"),
     [
         ("plan/overview.html", "Overview"),
-        ("plan/invocation_lineage.html", "Invocation lineage"),
+        ("plan/invocation-lineage.html", "Invocation lineage"),
         ("plan/stages.html", "Stages"),
     ],
 )
@@ -658,7 +658,7 @@ def test_execution_plan_pages_render_only_their_section(
     assert ("force-graph@1.52.0" in document) == is_graph
 
 
-@pytest.mark.parametrize("filename", ["spec/feature_lineage.html", "plan/invocation_lineage.html"])
+@pytest.mark.parametrize("filename", ["spec/feature-lineage.html", "plan/invocation-lineage.html"])
 def test_graph_pages_have_one_selector_and_shared_data(
     tmp_path: pathlib.Path, filename: str
 ) -> None:
@@ -708,6 +708,9 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
         "graph/feature_graph.html",
         "graph/lineage.html",
         "spec/graph.html",
+        "spec/feature_lineage.html",
+        "plan/invocation_lineage.html",
+        "execution/data_lineage.html",
     )
     for filename in (*obsolete, "custom.html"):
         (tmp_path / filename).parent.mkdir(parents=True, exist_ok=True)
@@ -717,7 +720,7 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
     assert all(not (tmp_path / filename).exists() for filename in obsolete)
     assert (tmp_path / "custom.html").read_text(encoding="utf-8") == "old"
     assert (tmp_path / "graph/custom.html").read_text(encoding="utf-8") == "custom graph"
-    assert (tmp_path / "spec/feature_lineage.html").is_file()
+    assert (tmp_path / "spec/feature-lineage.html").is_file()
 
 
 def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> None:
@@ -830,7 +833,7 @@ def test_website_propagates_compilation_errors_without_writing_reports(
 
 @pytest.mark.parametrize(
     "filename",
-    ["spec/feature_lineage.html", "plan/invocation_lineage.html"],
+    ["spec/feature-lineage.html", "plan/invocation-lineage.html"],
 )
 def test_website_graph_links_reference_exported_nodes(
     tmp_path: pathlib.Path, filename: str
@@ -859,7 +862,7 @@ def test_invocation_lineage_matches_compiled_invocation_dependencies(
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = plan_for_spec(spec_definition)
     render_explorer(spec_definition, tmp_path / "index.html")
-    document = (tmp_path / "plan/invocation_lineage.html").read_text(encoding="utf-8")
+    document = (tmp_path / "plan/invocation-lineage.html").read_text(encoding="utf-8")
     match = re.search(
         r'<script id="graph-data" type="application/json">(.*?)</script>', document, re.DOTALL
     )

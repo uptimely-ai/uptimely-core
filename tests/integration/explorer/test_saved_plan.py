@@ -92,9 +92,9 @@ def test_render_saved_plan_without_compiling(
     index = explorer.Explorer(definition, plan=supplied).create_html(target)
 
     assert index.is_file()
-    for page in ("plan/invocation_lineage.html", "plan/stages.html"):
+    for page in ("plan/invocation-lineage.html", "plan/stages.html"):
         assert SAVED_PLAN_MARKER in (index.parent / page).read_text(encoding="utf-8")
-    assert (index.parent / "execution/data_lineage.html").is_file()
+    assert (index.parent / "execution/data-lineage.html").is_file()
     assert plan_module.to_dict(supplied) == original
 
 

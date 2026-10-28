@@ -184,10 +184,10 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     feature_page = (index.parent / "spec/features.html").read_text(encoding="utf-8")
     datasets_page = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     functions_page = (index.parent / "spec/functions.html").read_text(encoding="utf-8")
-    graph_page = (index.parent / "spec/feature_lineage.html").read_text(encoding="utf-8")
-    plan_page = (index.parent / "plan/invocation_lineage.html").read_text(encoding="utf-8")
+    graph_page = (index.parent / "spec/feature-lineage.html").read_text(encoding="utf-8")
+    plan_page = (index.parent / "plan/invocation-lineage.html").read_text(encoding="utf-8")
     stages_page = (index.parent / "plan/stages.html").read_text(encoding="utf-8")
-    data_lineage_page = (index.parent / "execution/data_lineage.html").read_text(encoding="utf-8")
+    data_lineage_page = (index.parent / "execution/data-lineage.html").read_text(encoding="utf-8")
 
     assert "Declared external output; not a verified dataframe column." in feature_page
     assert "Declared inputs: $features.bearing_temperature, $features.vibration_rms" in feature_page
