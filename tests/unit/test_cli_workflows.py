@@ -135,7 +135,7 @@ def test_engine_previews_final_datasets(
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=2,
+        plan_version=3,
     )
     monkeypatch.setattr(engine_module.Engine, "run", lambda self: result)
     collected_heights: list[int] = []
@@ -218,7 +218,7 @@ def test_engine_preview_errors_are_reported(
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=2,
+        plan_version=3,
     )
     monkeypatch.setattr(engine_module.Engine, "run", lambda self: result)
     with pytest.raises(SystemExit) as error:
@@ -411,7 +411,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
     (build_root / "execution_plan.json").write_text(
         json.dumps(
             {
-                "plan_version": 2,
+                "plan_version": 3,
                 "required_backend": "polars",
                 "resources": {},
                 "invocations": [],

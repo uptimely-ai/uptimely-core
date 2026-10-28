@@ -107,10 +107,10 @@ def _spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.S
         for dimension_id in entity.get("dimensions", []):
             dimensions.setdefault(dimension_id, {"type": "string"})
         function = functions.setdefault(invocation.function_id, {})
-        function.setdefault("kind", invocation.operation)
+        function.setdefault("kind", invocation.function_kind)
         function.setdefault(
             "returns",
-            {"escape": "any", "write": "none"}.get(invocation.operation, "dataframe"),
+            {"escape": "any", "write": "none"}.get(invocation.function_kind, "dataframe"),
         )
         function.setdefault("entrypoint", invocation.entrypoint)
         function.setdefault("args", {})

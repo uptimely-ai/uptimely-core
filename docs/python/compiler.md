@@ -17,7 +17,8 @@ execution_plan.export_json(plan, "execution_plan.json")
 
 Compilation checks the Spec before creating the plan. Use
 `execution_plan.export_json` to save it and `execution_plan.from_json` to load
-it. Version 1 plans are not supported; rebuild the bundle from its source Spec.
+it. Version 1 and 2 plans are not supported; rebuild the bundle from its source
+Spec.
 
 <div class="api-reference" markdown="1">
 

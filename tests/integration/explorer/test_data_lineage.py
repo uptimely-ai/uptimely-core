@@ -82,7 +82,7 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
         step = steps[invocation.id]
         dimensions = spec_definition.entities[invocation.entity_id].dimension_ids
         assert step.dataset == invocation.dataset_id
-        assert step.operation == invocation.operation
+        assert step.operation == invocation.function_kind
         assert step.dependencies == sorted(
             numbers[identifier] for identifier in invocation.dependency_ids
         )
@@ -91,7 +91,7 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
             ("Input", invocation.input_features),
             ("Output", invocation.output_features),
         ):
-            if invocation.operation == "escape":
+            if invocation.function_kind == "escape":
                 role = "Declared input" if role == "Input" else "Declared external output"
             assert [column.name for column in step.columns if column.role == role] == [
                 feature for feature in features if feature not in dimensions
@@ -107,9 +107,9 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
                 assert column.producer == producer.number
                 if column.role in {"Output", "Declared external output"}:
                     assert producer.number == step.number
-        if invocation.operation == "collapse":
+        if invocation.function_kind == "collapse":
             assert "timestamp" not in [column.name for column in step.columns]
-        if invocation.operation == "write":
+        if invocation.function_kind == "write":
             assert not any(column.role == "Output" for column in step.columns)
 
 

@@ -18,7 +18,7 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
         "invocations": [
             {
                 "id": invocation.id,
-                "operation": invocation.operation,
+                "function_kind": invocation.function_kind,
                 "entrypoint": invocation.entrypoint,
                 "function_id": invocation.function_id,
                 "mapping_id": invocation.mapping_id,

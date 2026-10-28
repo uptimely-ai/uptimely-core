@@ -284,7 +284,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         expected_outputs = {
             (invocation.dataset_id, feature)
             for invocation in plan.invocations
-            if invocation.operation == operations.VECTORIZE
+            if invocation.function_kind == operations.VECTORIZE
             for feature in invocation.output_features
         }
         actual_outputs = set(result.calculated_outputs)

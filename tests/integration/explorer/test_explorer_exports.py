@@ -166,7 +166,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
         },
     ]
     escape_invocations = [
-        invocation for invocation in plan.invocations if invocation.operation == "escape"
+        invocation for invocation in plan.invocations if invocation.function_kind == "escape"
     ]
     assert len(escape_invocations) == 3
     first_escape = next(

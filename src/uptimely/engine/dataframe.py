@@ -24,7 +24,7 @@ class DataFrameExecution:
 
     def validate_inputs(self, invocation: execution_plan.Invocation) -> None:
         """Require declared input columns to be materialized before invocation."""
-        if invocation.operation in {
+        if invocation.function_kind in {
             operations.CONFORM,
             operations.COLLAPSE,
             operations.EXPAND,
@@ -112,7 +112,7 @@ class DataFrameExecution:
             dataset,
             [*dimensions, *invocation.output_features],
         )
-        if invocation.operation == operations.VECTORIZE:
+        if invocation.function_kind == operations.VECTORIZE:
             validate_coverage = (
                 dataframe is not None
                 and self.backend.should_validate_values(dataframe)

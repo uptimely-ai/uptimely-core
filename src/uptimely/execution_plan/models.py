@@ -8,7 +8,7 @@ import typing
 from uptimely import row_context as uptimely_row_context
 from uptimely.spec import operations
 
-PLAN_VERSION = 2
+PLAN_VERSION = 3
 
 
 @dataclasses.dataclass(frozen=True)
@@ -16,7 +16,7 @@ class Invocation:
     """One executable function invocation in a portable plan."""
 
     id: str
-    operation: str
+    function_kind: str
     entrypoint: str
     function_id: str
     mapping_id: str
@@ -38,7 +38,7 @@ class Invocation:
             raise ValueError("Invocations must declare a function_id")
         if not self.mapping_id:
             raise ValueError("Invocations must declare a mapping_id")
-        if self.operation == operations.COLLAPSE and not self.output_features:
+        if self.function_kind == operations.COLLAPSE and not self.output_features:
             raise ValueError("Collapse must declare output_features")
         if self.row_context is not None:
             object.__setattr__(

@@ -314,7 +314,7 @@ def test_engine_validates_required_fragment_columns_and_types(
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.dataset_id == "pump_dataset" and item.operation == "collapse"
+        if item.dataset_id == "pump_dataset" and item.function_kind == "collapse"
     )
     dimensions = engine.spec_definition.entities[invocation.entity_id].dimension_ids
     output = next(name for name in invocation.output_features if name not in dimensions)
@@ -346,7 +346,7 @@ def test_engine_assembly_rejects_feature_collisions(lazy: bool) -> None:
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.dataset_id == "pump_dataset" and item.operation == "collapse"
+        if item.dataset_id == "pump_dataset" and item.function_kind == "collapse"
     )
     dimensions = engine.spec_definition.entities[invocation.entity_id].dimension_ids
     output = next(name for name in invocation.output_features if name not in dimensions)
@@ -454,13 +454,13 @@ def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathli
         feature
         for stage in engine.plan.execution_stages
         for operation in stage
-        if operation.operation == "vectorize"
+        if operation.function_kind == "vectorize"
         for feature in operation.output_features
     ] == [
         "health_signal_normalized",
     ]
     assert {
-        operation.operation for stage in engine.plan.execution_stages for operation in stage
+        operation.function_kind for stage in engine.plan.execution_stages for operation in stage
     } == {
         "read",
         "collapse",

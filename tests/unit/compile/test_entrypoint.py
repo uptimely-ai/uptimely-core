@@ -147,7 +147,7 @@ def test_compiler_instance_can_compile_independent_specs_and_selections() -> Non
     assert {
         feature
         for invocation in selected.invocations
-        if invocation.operation == "vectorize"
+        if invocation.function_kind == "vectorize"
         for feature in invocation.output_features
     } == {"health_signal_normalized"}
 
