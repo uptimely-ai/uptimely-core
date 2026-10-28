@@ -1,12 +1,11 @@
 import dataclasses
 
-from uptimely.explorer import render
 from uptimely.spec import functions, model
 
 
 @dataclasses.dataclass(frozen=True)
 class FunctionNode:
-    """Display metadata for one declared function template."""
+    """Graph metadata for one declared function template."""
 
     name: str
     features: tuple[str, ...]
@@ -35,25 +34,10 @@ class FunctionNode:
     def __repr__(self) -> str:
         return self.name
 
-    def to_render_data(self, node_type: str = "function") -> dict[str, object]:
-        """Return display metadata for rendering this function node."""
-        return render.filled_fields(
-            node_type=node_type,
-            is_function=True,
-            label=f"{self.name} · {self.action_id}" if self.action_id is not None else self.name,
-            action_id=self.action_id,
-            features=list(self.features),
-            entity=self.entity,
-            function_kind=(self.function.kind if self.function is not None else None),
-            type="python_function" if self.function is not None else None,
-            entrypoint=self.function.entrypoint if self.function is not None else None,
-            info={"description": self.function.description} if self.function is not None else None,
-        )
-
 
 @dataclasses.dataclass(frozen=True)
 class FeatureNode:
-    """Display metadata for a feature name and its logical metadata."""
+    """Graph metadata for a feature name and its logical metadata."""
 
     name: str
     data_type: str | None = None
@@ -77,13 +61,3 @@ class FeatureNode:
     def is_intermediate(self) -> bool:
         """Whether this feature is both produced and consumed by the graph."""
         return self.is_input and self.is_output
-
-    def to_render_data(self, node_type: str) -> dict[str, object]:
-        """Return display metadata for rendering this feature node."""
-        return render.filled_fields(
-            node_type=node_type,
-            is_function=False,
-            label=self.name,
-            entity=self.entity,
-            data_type=self.data_type,
-        )
