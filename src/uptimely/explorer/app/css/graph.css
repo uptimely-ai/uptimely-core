@@ -1,21 +1,21 @@
-html:has(.graph-page), .graph-page { height: 100%; overflow: hidden; }
-.graph-page .site-content { position: fixed;
+html:has(.lineage-page), .lineage-page { height: 100%; overflow: hidden; }
+.lineage-page .site-content { position: fixed;
 	inset: var(--site-topbar-height) 0 0 var(--site-nav-width); margin: 0; padding: 0; }
-.graph-workspace { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%;
-	background: var(--graph-background); color: var(--color-text); font: 14px var(--font-body); }
-.graph-stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-.graph-toolbar { position: relative; z-index: 2; min-height: 64px;
+.lineage-workspace { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%;
+	background: var(--lineage-background); color: var(--color-text); font: 14px var(--font-body); }
+.lineage-stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.lineage-toolbar { position: relative; z-index: 2; min-height: 64px;
 	box-sizing: border-box; display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
 	padding: 12px 16px; background: #101820; border-bottom: 1px solid #52616b; }
-.graph-title-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-.graph-toolbar h1 { font-size: 18px; margin: 0; }
-.graph-toolbar > [aria-label="Graph zoom"] { margin-left: auto; }
-.graph-buttons { display: flex; gap: 4px; }
-#graph { position: absolute; inset: 0; }
-.graph-view { position: absolute; inset: 0; }
-.graph-tooltip { white-space: pre-line; }
-.graph-view[hidden], #graph-error[hidden] { display: none; }
-#graph-error, .graph-error { position: absolute; top: 64px; left: 16px; right: 16px;
+.lineage-title-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.lineage-toolbar h1 { font-size: 18px; margin: 0; }
+.lineage-toolbar > [aria-label="Lineage zoom"] { margin-left: auto; }
+.lineage-buttons { display: flex; gap: 4px; }
+#lineage { position: absolute; inset: 0; }
+.lineage-view { position: absolute; inset: 0; }
+.lineage-tooltip { white-space: pre-line; }
+.lineage-view[hidden], #lineage-error[hidden] { display: none; }
+#lineage-error, .lineage-error { position: absolute; top: 64px; left: 16px; right: 16px;
 	z-index: 3; padding: 12px; border: 1px solid #fbbf24; border-radius: 8px;
 	background: #422006; color: #fef3c7; }
 .panel, .details { position: absolute; z-index: 1; padding: 14px 16px;
@@ -40,8 +40,8 @@ html:has(.graph-page), .graph-page { height: 100%; overflow: hidden; }
 	border-color: #3b8291; border-left: 3px solid #67e8f9; border-radius: 12px; }
 .details-2d h2, .details-2d h3 { color: #67e8f9; }
 @media (max-width: 800px) {
-	.graph-toolbar h1 { font-size: 14px; }
-	.graph-toolbar { min-height: 100px; padding: 12px; }
-	#graph-error, .graph-error { top: 106px; }
+	.lineage-toolbar h1 { font-size: 14px; }
+	.lineage-toolbar { min-height: 100px; padding: 12px; }
+	#lineage-error, .lineage-error { top: 106px; }
 	.panel { font-size: 11px; padding: 10px; }
 }

@@ -365,7 +365,8 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert '"label": "health_signal_normalized"' in graph_2d
     assert "force-graph@1.52.0/dist/force-graph.min.js" in graph_2d
     graph_script = (index.parent / "js/feature_lineage.js").read_text(encoding="utf-8")
-    assert ".height(graphContainer.clientHeight)" in graph_script
+    lineage_components = (index.parent / "js/lineage_components.js").read_text(encoding="utf-8")
+    assert ".height(container.clientHeight)" in lineage_components
     assert "3d-force-graph" in graph_2d
     assert 'aria-label="Feature lineage views"' not in graph_2d
     assert re.search(
@@ -374,10 +375,7 @@ def test_website_exports_all_reports_with_relative_navigation(
         r'data-lucide="network"',
         graph_2d,
     )
-    assert (
-        "ExplorerGraph.createView(graph, graphContainer, DATASET_LAYOUT.fitPadding, "
-        "'2d', layout.bounds)" in graph_script
-    )
+    assert "ExplorerLineage.createDatasetLineage2D(" in graph_script
     plan = (index.parent / "plan/invocation-lineage.html").read_text(encoding="utf-8")
     assert 'id="invocation-lineage-graph"' in plan
     assert "normalize_health_signal" in plan
@@ -597,23 +595,25 @@ def test_execution_plan_pages_render_only_their_section(
     assert heading_titles(document) == [title]
     if is_graph:
         script = (tmp_path / "js/invocation_lineage.js").read_text(encoding="utf-8")
+        lineage_components = (tmp_path / "js/lineage_components.js").read_text(encoding="utf-8")
+        lineage_layout = (tmp_path / "js/lineage_layout.js").read_text(encoding="utf-8")
         assert 'class="absolute inset-0"' in document
         assert document.count("<header") == 1
         assert '<header class="site-topbar"' in document
         assert ">Invocation graph</h2>" not in document
-        assert ".linkDirectionalParticles(LINK_ROUTE.particleCount)" in script
+        assert (
+            ".linkDirectionalParticles(LineageConfig.LINK_ROUTE.particleCount)"
+            in lineage_components
+        )
         assert ".linkDirectionalArrowLength(style.arrow_length)" in script
         assert ".linkDirectionalArrowRelPos(style.arrow_rel_pos)" in script
         assert 'class="details details-2d"' in document
         if is_graph:
-            assert (
-                "invocationGraph, invocationGraphContainer, DATASET_LAYOUT.fitPadding, "
-                "'2d', layout.bounds)" in script
-            )
+            assert "ExplorerLineage.createDatasetLineage2D(" in script
             assert '"label": "read_pump_telemetry"' in document
             assert '"label_lines": ["read_pump_telemetry"]' in document
             assert r"\ndataset: ${node.dataset_id}\nstage: ${node.stage}" in script
-            assert "ExplorerGraph.drawCard(" in script
+            assert "ExplorerLineage.drawCard(" in script
             assert "['Arguments', formatArguments(node.arguments)]" in script
             assert "node => node.stage - 1" in script
             graph_data_match = re.search(
@@ -642,12 +642,16 @@ def test_execution_plan_pages_render_only_their_section(
             assert normalize_node["stage"] == 3
             assert "['Dataset', node.dataset_id]" in script
             assert "['Stage', node.stage]" in script
-            assert "ExplorerGraph.prepareDatasetLayout(" in script
-            assert "ExplorerGraph.drawDatasetLanes(layout, ctx, scale)" in script
-            assert "ExplorerGraph.createDatasetLinkRenderer(" in script
+            assert "ExplorerLineage.prepareDatasetLayout(" in script
+            assert "LineageLayout.drawDatasetLanes(layout, ctx, scale)" in lineage_components
+            assert (
+                "LineageLayout.createDatasetLinkRenderer(graphData, style, highlight)"
+                in lineage_components
+            )
+            assert "function drawDatasetLanes(layout, ctx, globalScale)" in lineage_layout
     assert ('id="plan-overview"' in document) == (title == "Overview")
     assert ('id="invocation-lineage-graph"' in document) == is_graph
-    assert ('src="../js/invocation_lineage.js"' in document) == is_graph
+    assert ('type="module" src="../js/invocation_lineage.js"' in document) == is_graph
     assert ('id="invocations"' in document) == (title == "Stages")
     assert (">Argument</th>" in document) == (title == "Stages")
     if title == "Stages":
@@ -665,26 +669,25 @@ def test_graph_pages_have_one_selector_and_shared_data(
     render_explorer(spec.load_spec(SPEC_PATH), tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
-    assert document.count('aria-label="Graph view"') == 1
-    assert document.count('aria-label="Graph zoom"') == 1
+    assert document.count('aria-label="Lineage view"') == 1
+    assert document.count('aria-label="Lineage zoom"') == 1
     assert re.search(
-        r'<div class="graph-title-controls">\s*<h1\b.*?</h1>\s*'
-        r'<div class="graph-buttons" role="group" aria-label="Graph view">',
+        r'<div class="lineage-title-controls">\s*<h1\b.*?</h1>\s*'
+        r'<div class="lineage-buttons" role="group" aria-label="Lineage view">',
         document,
         re.DOTALL,
     )
     assert 'aria-label="Zoom in"' in document
     assert 'aria-label="Zoom out"' in document
     assert '<details class="panel" open>' in document
-    assert document.index('src="../js/graph_components.js"') < document.index(
-        'src="../js/view_controller.js"'
-    )
-    assert 'data-dimension="2d" aria-pressed="true" aria-controls="graph-2d"' in document
-    assert 'data-dimension="3d" aria-pressed="false" aria-controls="graph-3d"' in document
-    assert 'id="graph-3d" class="graph-view" hidden' in document
-    assert 'id="graph-error" role="alert" hidden' in document
-    controller = (tmp_path / "js/view_controller.js").read_text(encoding="utf-8")
-    assert 'src="../js/view_controller.js"' in document
+    assert 'data-dimension="2d" aria-pressed="true" aria-controls="lineage-2d"' in document
+    assert 'data-dimension="3d" aria-pressed="false" aria-controls="lineage-3d"' in document
+    assert 'id="lineage-3d" class="lineage-view" hidden' in document
+    assert 'id="lineage-error" role="alert" hidden' in document
+    entrypoint = "feature_lineage" if filename.startswith("spec/") else "invocation_lineage"
+    graph_script = (tmp_path / f"js/{entrypoint}.js").read_text(encoding="utf-8")
+    controller = (tmp_path / "js/lineage_view_controller.js").read_text(encoding="utf-8")
+    assert "import { mountLineageViews } from './lineage_view_controller.js';" in graph_script
     assert "showView('2d')" in controller
     assert "JSON.parse(JSON.stringify(sourceData))" in controller
     assert "pauseAnimation()" in controller

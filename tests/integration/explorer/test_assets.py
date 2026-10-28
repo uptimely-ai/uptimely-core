@@ -24,10 +24,12 @@ ASSETS = {
     "js/invocation_lineage.js",
     "js/data_lineage.js",
     "js/feature_lineage.js",
-    "js/graph_components.js",
+    "js/lineage_config.js",
+    "js/lineage_components.js",
+    "js/lineage_layout.js",
     "js/icons.js",
     "js/tailwind_config.js",
-    "js/view_controller.js",
+    "js/lineage_view_controller.js",
 }
 
 
@@ -41,6 +43,7 @@ def test_external_assets_resolve_after_moving_website(
     destination.parent.mkdir()
     shutil.move(original, destination)
     referenced_assets: set[str] = set()
+    pending_modules: list[pathlib.Path] = []
     for page in destination.rglob("*.html"):
         document = page.read_text(encoding="utf-8")
         assert "<style" not in document
@@ -58,6 +61,23 @@ def test_external_assets_resolve_after_moving_website(
             content = asset.read_text(encoding="utf-8")
             assert "{{" not in content
             assert "{%" not in content
+            if asset.suffix == ".js":
+                pending_modules.append(asset)
+    checked_modules: set[pathlib.Path] = set()
+    while pending_modules:
+        module = pending_modules.pop()
+        if module in checked_modules:
+            continue
+        checked_modules.add(module)
+        content = module.read_text(encoding="utf-8")
+        for import_path in re.findall(r'\bfrom\s+["\']([^"\']+)["\']', content):
+            asset = (module.parent / import_path).resolve()
+            assert asset.is_relative_to(destination.resolve())
+            assert asset.is_file()
+            referenced_assets.add(asset.relative_to(destination.resolve()).as_posix())
+            pending_modules.append(asset)
+        assert "{{" not in content
+        assert "{%" not in content
     assert referenced_assets == ASSETS
     assert {
         path.relative_to(destination).as_posix()
@@ -90,7 +110,7 @@ def test_graph_style_is_passed_as_json_without_changing_shared_script(
     )
     assert match is not None
     assert json.loads(match.group(1)) == dataclasses.asdict(style)
-    assert 'style="--graph-background: #123456"' in document
+    assert 'style="--lineage-background: #123456"' in document
     assert 'src="../js/feature_lineage.js"' in document
 
 

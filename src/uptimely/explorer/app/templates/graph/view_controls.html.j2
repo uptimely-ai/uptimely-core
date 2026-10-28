@@ -1,16 +1,16 @@
-	<div class="graph-toolbar">
-		<div class="graph-title-controls">
+	<div class="lineage-toolbar">
+		<div class="lineage-title-controls">
 		<h1 class="title-with-icon">{{ icon("invocation-lineage" if active_page == "plan" else "feature-lineage", "title-icon") }}<span>{{ "Invocation lineage" if active_page == "plan" else "Feature lineage" }}</span></h1>
-		<div class="graph-buttons" role="group" aria-label="Graph view">
-			<button class="ui-button" type="button" data-dimension="2d" aria-pressed="true" aria-controls="graph-2d">2D</button>
-			<button class="ui-button" type="button" data-dimension="3d" aria-pressed="false" aria-controls="graph-3d">3D</button>
+		<div class="lineage-buttons" role="group" aria-label="Lineage view">
+			<button class="ui-button" type="button" data-dimension="2d" aria-pressed="true" aria-controls="lineage-2d">2D</button>
+			<button class="ui-button" type="button" data-dimension="3d" aria-pressed="false" aria-controls="lineage-3d">3D</button>
 		</div>
 		</div>
-		<div class="graph-buttons" role="group" aria-label="Graph zoom">
+		<div class="lineage-buttons" role="group" aria-label="Lineage zoom">
 			<button class="ui-button" type="button" data-zoom="1.25" aria-label="Zoom in">+</button>
 			<button class="ui-button" type="button" data-zoom="0.8" aria-label="Zoom out">-</button>
-			<button class="ui-button" id="reset-graph" type="button">Reset graph</button>
+			<button class="ui-button" id="reset-lineage" type="button">Reset lineage</button>
 		</div>
 	</div>
-	<p id="graph-error" role="alert" hidden></p>
-	<noscript><p class="graph-error">JavaScript is required to display interactive graphs.</p></noscript>
+	<p id="lineage-error" role="alert" hidden></p>
+	<noscript><p class="lineage-error">JavaScript is required to display interactive lineage.</p></noscript>
