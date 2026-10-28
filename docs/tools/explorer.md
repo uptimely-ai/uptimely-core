@@ -56,13 +56,18 @@ dependents; the selection is preserved when switching dimensions. The
 Dependencies flow left to right across the whole graph, including between datasets;
 actions stay in their owning dataset's lane. Connected datasets are placed next
 to one another where possible, and long edges use lane gutters to avoid cards.
-Lane headers identify datasets, while feature cards retain their dataset colors
-and action cards retain their function color. Features without a dataset share an
+Dataset names appear in the legend and selected-node details, not on swimlane
+rows. Feature cards retain their dataset colors and action cards retain their
+function color. Features without a dataset share an
 unassigned lane. Selecting a node highlights its dependencies across lanes.
-In 3D,
-the invocation-lineage graph uses the same entity-colored spheres, node sizes, label
-spacing, and edge length settings as feature lineage. Its 2D view retains stage
-lanes and operation colors.
+The 2D invocation-lineage view uses the same dataset lanes and edge routing,
+with execution stages ordered left to right and invocation cards colored by
+operation. Labeled stage headers, subtle column shading, and vertical separators
+form a grid with the dataset rows. Invocations from different datasets in the
+same stage share a column. Graph fitting includes the dataset rows and stage headers.
+Hover over an invocation or select it to inspect its dataset and stage.
+In 3D, the invocation-lineage graph uses the same dataset-colored spheres,
+node sizes, label spacing, and edge length settings as feature lineage.
 **Reset graph** clears the selection and dependency highlights in both dimensions
 and fits the current view to show the whole graph.
 

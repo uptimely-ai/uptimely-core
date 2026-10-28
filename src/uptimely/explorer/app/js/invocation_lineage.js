@@ -1,12 +1,8 @@
 {
-	const STAGE_LAYOUT = Object.freeze({
-		nodeGap: 24, laneWidth: 360, minLaneHeight: 160, laneVerticalPadding: 96,
-		labelFontSize: 14, labelFontWeight: 600, labelFontFamily: '"DM Sans", sans-serif',
-		evenBackground: 'rgba(143, 163, 181, .07)', oddBackground: 'rgba(143, 163, 181, .03)',
-		borderColor: 'rgba(143, 163, 181, .4)', borderWidth: 1,
-		labelColor: '#9fb3c3', labelTop: 28, fitPadding: 140,
+	const STAGE_COLUMNS = Object.freeze({
+		headerHeight: 48, background: 'rgba(143, 163, 181, .035)',
 	});
-	const { LINK_STYLE, DIMMED_COLOR, MIN_RENDER_SCALE, STATIC_LAYOUT_COOLDOWN_TICKS } = ExplorerGraph;
+	const { DATASET_LAYOUT, LINK_ROUTE, LINK_STYLE, STATIC_LAYOUT_COOLDOWN_TICKS } = ExplorerGraph;
 	const invocationGraphData = ExplorerGraph.readPayload('graph-data');
 	const style = ExplorerGraph.readPayload('graph-style');
 	ExplorerGraph.prepareDatasetColors(invocationGraphData, document.getElementById('dataset-legend'));
@@ -22,6 +18,8 @@
 			return;
 		}
 		const rows = [
+			['Dataset', node.dataset_id],
+			['Stage', node.stage],
 			['Function kind', node.function_kind || 'n/a'],
 			['Function', node.function_id || 'n/a'],
 			['Arguments', formatArguments(node.arguments)],
@@ -50,56 +48,43 @@
 	}
 	function create2D(invocationGraphContainer, invocationGraphData, updateInvocationDetails) {
 		const highlight = ExplorerGraph.createDependencyHighlight(invocationGraphData);
-		const layers = new Map();
-		for (const node of invocationGraphData.nodes) {
-			const rank = node.stage - 1;
-			if (!layers.has(rank)) layers.set(rank, []);
-			layers.get(rank).push(node);
-			ExplorerGraph.sizeCard(node, node.function_id);
+		const layout = ExplorerGraph.prepareDatasetLayout(
+			invocationGraphData, node => node.stage - 1, node => node.function_id);
+		if (layout.columns.length) {
+			layout.bounds.y -= STAGE_COLUMNS.headerHeight / 2;
+			layout.bounds.height += STAGE_COLUMNS.headerHeight;
 		}
-		for (const [rank, nodes] of layers) {
-			const stackHeight = nodes.reduce((height, node) => height + node.cardHeight, 0)
-				+ (nodes.length - 1) * STAGE_LAYOUT.nodeGap;
-			let top = -stackHeight / 2;
-			nodes.forEach(node => {
-				node.fx = rank * STAGE_LAYOUT.laneWidth;
-				node.fy = top + node.cardHeight / 2;
-				node.x = node.fx;
-				node.y = node.fy;
-				top += node.cardHeight + STAGE_LAYOUT.nodeGap;
-			});
-		}
-		const stageCount = layers.size;
-		const laneHeight = Math.max(
-			STAGE_LAYOUT.minLaneHeight,
-			Math.max(0, ...[...layers.values()].map(nodes =>
-				nodes.reduce((height, node) => height + node.cardHeight, 0)
-					+ (nodes.length - 1) * STAGE_LAYOUT.nodeGap
-			)) + STAGE_LAYOUT.laneVerticalPadding
-		);
-		const drawStageLanes = (ctx, globalScale) => {
-			const scale = Math.max(globalScale, MIN_RENDER_SCALE);
+		const drawStageColumns = (ctx, scale) => {
+			const top = -layout.height / 2 - STAGE_COLUMNS.headerHeight;
+			const bottom = layout.height / 2;
+			const left = -layout.bounds.width / 2;
+			const right = layout.bounds.width / 2;
 			ctx.save();
-			ctx.font = `${STAGE_LAYOUT.labelFontWeight} ${STAGE_LAYOUT.labelFontSize / scale}px ${STAGE_LAYOUT.labelFontFamily}`;
+			ctx.font = DATASET_LAYOUT.labelFont;
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
-			for (let stage = 0; stage < stageCount; stage++) {
-				const left = stage * STAGE_LAYOUT.laneWidth - STAGE_LAYOUT.laneWidth / 2;
-				ctx.fillStyle = stage % 2 === 0
-					? STAGE_LAYOUT.evenBackground
-					: STAGE_LAYOUT.oddBackground;
-				ctx.fillRect(left, -laneHeight / 2, STAGE_LAYOUT.laneWidth, laneHeight);
-				ctx.strokeStyle = STAGE_LAYOUT.borderColor;
-				ctx.lineWidth = STAGE_LAYOUT.borderWidth / scale;
+			ctx.lineWidth = 1 / Math.max(scale, ExplorerGraph.MIN_RENDER_SCALE);
+			ctx.strokeStyle = DATASET_LAYOUT.borderColor;
+			layout.columns.forEach((column, index) => {
+				const columnLeft = index === 0 ? left : column.x - column.width / 2;
+				const columnRight = index === layout.columns.length - 1
+					? right : column.x + column.width / 2;
+				if (index % 2 === 0) {
+					ctx.fillStyle = STAGE_COLUMNS.background;
+					ctx.fillRect(columnLeft, top, columnRight - columnLeft, bottom - top);
+				}
 				ctx.beginPath();
-				ctx.moveTo(left, -laneHeight / 2);
-				ctx.lineTo(left + STAGE_LAYOUT.laneWidth, -laneHeight / 2);
-				ctx.moveTo(left, laneHeight / 2);
-				ctx.lineTo(left + STAGE_LAYOUT.laneWidth, laneHeight / 2);
+				ctx.moveTo(columnLeft, top);
+				ctx.lineTo(columnLeft, bottom);
+				if (index === layout.columns.length - 1) {
+					ctx.moveTo(columnRight, top);
+					ctx.lineTo(columnRight, bottom);
+				}
 				ctx.stroke();
-				ctx.fillStyle = STAGE_LAYOUT.labelColor;
-				ctx.fillText(`Stage ${stage + 1}`, stage * STAGE_LAYOUT.laneWidth, -laneHeight / 2 + STAGE_LAYOUT.labelTop);
-			}
+				ctx.fillStyle = DATASET_LAYOUT.labelColor;
+				ctx.fillText(`Stage ${column.rank + 1}`, column.x,
+					top + STAGE_COLUMNS.headerHeight / 2, columnRight - columnLeft);
+			});
 			ctx.restore();
 		};
 		const selectInvocationAtPointer = event => ExplorerGraph.selectCard(
@@ -108,8 +93,11 @@
 			.width(invocationGraphContainer.clientWidth)
 			.height(invocationGraphContainer.clientHeight)
 			.backgroundColor(style.background_color)
-			.nodeLabel(node => ExplorerGraph.tooltip(node.label))
-			.onRenderFramePre(drawStageLanes)
+			.nodeLabel(node => ExplorerGraph.tooltip(`${node.label}\ndataset: ${node.dataset_id}\nstage: ${node.stage}`))
+			.onRenderFramePre((ctx, scale) => {
+				ExplorerGraph.drawDatasetLanes(layout, ctx, scale);
+				drawStageColumns(ctx, scale);
+			})
 			.nodeCanvasObjectMode(() => 'replace')
 			.nodeCanvasObject((node, ctx) => ExplorerGraph.drawCard(
 				node, ctx, node.function_id, invocationColors[node.function_kind], highlight))
@@ -118,17 +106,18 @@
 				? LINK_STYLE.highlightColor
 				: highlight.hasSelection() ? LINK_STYLE.dimmedColor : style.link_color)
 			.linkWidth(link => highlight.isLinkHighlighted(link) ? LINK_STYLE.highlightWidth : style.link_width)
-			.linkDirectionalParticles(LINK_STYLE.particleCount)
-			.linkDirectionalParticleWidth(LINK_STYLE.particleWidth)
-			.linkDirectionalParticleSpeed(LINK_STYLE.particleSpeed)
-			.linkDirectionalParticleColor(link => highlight.isLinkHighlighted(link)
-				? LINK_STYLE.highlightParticleColor
-				: highlight.hasSelection() ? DIMMED_COLOR : style.link_color)
+			.linkCanvasObjectMode(() => 'replace')
+			.linkCanvasObject(ExplorerGraph.createDatasetLinkRenderer(invocationGraphData, style, highlight))
+			.linkDirectionalParticles(LINK_ROUTE.particleCount)
+			.linkDirectionalParticleWidth(LINK_ROUTE.particleWidth)
+			.linkDirectionalParticleColor(() => LINK_ROUTE.invisibleParticleColor)
+			.linkDirectionalArrowLength(0)
 			.onNodeClick((_node, event) => selectInvocationAtPointer(event))
 			.onLinkClick((_link, event) => selectInvocationAtPointer(event))
 			.onBackgroundClick(event => selectInvocationAtPointer(event))
 			.cooldownTicks(STATIC_LAYOUT_COOLDOWN_TICKS);
-		const view = ExplorerGraph.createView(invocationGraph, invocationGraphContainer, STAGE_LAYOUT.fitPadding, '2d');
+		const view = ExplorerGraph.createView(
+			invocationGraph, invocationGraphContainer, DATASET_LAYOUT.fitPadding, '2d', layout.bounds);
 		view.selectNode = id => {
 			highlight.select(invocationGraphData.nodes.find(node => node.id === id) || null);
 		};
