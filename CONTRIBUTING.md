@@ -94,6 +94,14 @@ version or date for an individual PR; release preparation moves these entries
 under a version heading. Internal refactors and chores that do not affect users
 do not normally need an entry.
 
+### Explorer JavaScript
+
+Node tests can be ran by:
+
+```sh
+node --test tests/integration/explorer/*.cjs
+```
+
 ## Branching and releases
 
 ### Branching strategy

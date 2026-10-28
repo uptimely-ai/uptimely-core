@@ -25,3 +25,14 @@ exercise validation. Keep direct compilation and build calls in tests that
 verify compiler or builder behavior, rather than using them as repeated setup.
 
 The pre-commit pytest hook runs at the pre-push stage with four workers.
+
+## Explorer JavaScript tests
+
+The devcontainer and CI provide Node.js 24 LTS. Run the JavaScript tests
+separately from pytest:
+
+```sh
+node --test tests/integration/explorer/*.cjs
+```
+
+These tests use Node's built-in test runner and need no npm dependencies.

@@ -27,6 +27,11 @@ jobs:
         python-version: ["3.13"]
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Run Explorer JavaScript tests
+        run: node --test tests/integration/explorer/*.cjs
       - run: pipx install poetry
       - uses: actions/setup-python@v6
         with:
