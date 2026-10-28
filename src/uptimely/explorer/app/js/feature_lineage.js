@@ -1,10 +1,23 @@
 {
+	const DETAIL_VALUE_MAX_LENGTH = 220;
+	const FEATURE_LAYOUT = Object.freeze({ rankGap: 100, nodeSpacing: 70, fitPadding: 80 });
+	const LINK_ROUTE = Object.freeze({
+		straightTolerance: 1, cornerRadius: 14, curveSteps: 8,
+		arrowLength: 8, arrowHalfAngle: Math.PI / 6,
+		flowDurationMs: 2200, particleRadius: 2.5, particleColor: '#e6f4ff',
+	});
+	const FORCE_GRAPH_2D = Object.freeze({
+		nodeRelativeSize: 6, functionValue: 7, featureValue: 5,
+		// Keep the renderer active while custom canvas particles animate.
+		particleCount: 1, particleWidth: 0.1, particleColor: 'rgba(0, 0, 0, 0)',
+	});
+	const { LINK_STYLE, MIN_RENDER_SCALE, STATIC_LAYOUT_COOLDOWN_TICKS } = ExplorerGraph;
 	const data = ExplorerGraph.readPayload('graph-data');
 	const style = ExplorerGraph.readPayload('graph-style');
 	const functionColor = style.function_color;
 	ExplorerGraph.prepareDatasetColors(data, document.getElementById('dataset-legend'));
 	const nodeDetails = document.getElementById('node-details');
-	const formatDetailValue = (value) => value == null ? 'n/a' : String(value).slice(0, 220);
+	const formatDetailValue = (value) => value == null ? 'n/a' : String(value).slice(0, DETAIL_VALUE_MAX_LENGTH);
 	const updateDetails = (node) => {
 		if (!node) {
 			ExplorerGraph.showDetails(nodeDetails, 'Selected item', [],
@@ -72,8 +85,7 @@
 			const rankGroups = new Map();
 			for (const node of graphData.nodes) {
 				node.rank = nodeRanks.get(node.id);
-				node.cardWidth = Math.min(280, Math.max(112, (node.label || node.id).length * 8 + 52));
-				node.cardHeight = 38;
+				ExplorerGraph.sizeCard(node, node.label || node.id);
 				if (!rankGroups.has(node.rank)) rankGroups.set(node.rank, []);
 				rankGroups.get(node.rank).push(node);
 			}
@@ -89,13 +101,13 @@
 			let graphWidth = 0;
 			for (const rank of ranksInOrder) {
 				rankOffsets.set(rank, graphWidth + rankWidths.get(rank) / 2);
-				graphWidth += rankWidths.get(rank) + 100;
+				graphWidth += rankWidths.get(rank) + FEATURE_LAYOUT.rankGap;
 			}
 			for (const rank of ranksInOrder) {
 				const nodes = rankGroups.get(rank);
 				nodes.forEach((node, index) => {
 					node.fx = rankOffsets.get(rank) - graphWidth / 2;
-					node.fy = (index - (nodes.length - 1) / 2) * 70;
+					node.fy = (index - (nodes.length - 1) / 2) * FEATURE_LAYOUT.nodeSpacing;
 					node.x = node.fx;
 					node.y = node.fy;
 				});
@@ -110,41 +122,7 @@
 			const label = node.label || node.id;
 			const isFunction = node.is_function === true;
 			const baseColor = isFunction ? functionColor : node.datasetColor;
-			const color = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
-				? '#46545f'
-				: baseColor;
-			const width = node.cardWidth;
-			const left = node.x - width / 2;
-			ctx.save();
-			ctx.shadowColor = 'rgba(0, 0, 0, .36)';
-			ctx.shadowBlur = 14;
-			ctx.shadowOffsetY = 4;
-			ctx.beginPath();
-			ctx.roundRect(left, node.y - node.cardHeight / 2, width, node.cardHeight, 12);
-			ctx.fillStyle = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
-				? '#121c24'
-				: isFunction ? '#1a2732' : '#172a35';
-			ctx.fill();
-			ctx.shadowColor = 'transparent';
-			ctx.lineWidth = highlight.isSelected(node) ? 3 : 1.5;
-			ctx.strokeStyle = color;
-			ctx.stroke();
-			ctx.beginPath();
-			if (isFunction) {
-				ctx.roundRect(left + 12, node.y - 6, 12, 12, 3);
-			} else {
-				ctx.roundRect(left + 13, node.y - 9, 4, 18, 2);
-			}
-			ctx.fillStyle = color;
-			ctx.fill();
-			ctx.fillStyle = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
-				? 'rgba(232, 237, 242, .3)'
-				: '#e8edf2';
-			ctx.font = '600 12px "DM Sans", sans-serif';
-			ctx.textAlign = 'left';
-			ctx.textBaseline = 'middle';
-			ctx.fillText(label, left + 34, node.y, width - 46);
-			ctx.restore();
+			ExplorerGraph.drawCard(node, ctx, label, baseColor, highlight, !isFunction);
 		}
 
 		function linkRoute(link) {
@@ -153,7 +131,7 @@
 			const direction = target.x >= source.x ? 1 : -1;
 			const start = [source.x + direction * source.cardWidth / 2, source.y];
 			const end = [target.x - direction * target.cardWidth / 2, target.y];
-			if (Math.abs(start[1] - end[1]) < 1) return [start, end];
+			if (Math.abs(start[1] - end[1]) < LINK_ROUTE.straightTolerance) return [start, end];
 			const bendX = (start[0] + end[0]) / 2;
 			const corners = [[bendX, start[1]], [bendX, end[1]]];
 			const points = [start];
@@ -163,7 +141,7 @@
 				const next = index === 0 ? corners[1] : end;
 				const incomingLength = Math.hypot(corner[0] - current[0], corner[1] - current[1]);
 				const outgoingLength = Math.hypot(next[0] - corner[0], next[1] - corner[1]);
-				const radius = Math.min(14, incomingLength / 2, outgoingLength / 2);
+				const radius = Math.min(LINK_ROUTE.cornerRadius, incomingLength / 2, outgoingLength / 2);
 				const incoming = [
 					(corner[0] - current[0]) / incomingLength,
 					(corner[1] - current[1]) / incomingLength,
@@ -175,8 +153,8 @@
 				const before = [corner[0] - incoming[0] * radius, corner[1] - incoming[1] * radius];
 				const after = [corner[0] + outgoing[0] * radius, corner[1] + outgoing[1] * radius];
 				points.push(before);
-				for (let step = 1; step <= 8; step++) {
-					const t = step / 8;
+				for (let step = 1; step <= LINK_ROUTE.curveSteps; step++) {
+					const t = step / LINK_ROUTE.curveSteps;
 					const inverse = 1 - t;
 					points.push([
 						inverse * inverse * before[0] + 2 * inverse * t * corner[0] + t * t * after[0],
@@ -191,12 +169,12 @@
 
 		function drawLink(link, ctx, globalScale) {
 			const points = linkRoute(link);
-			const scale = Math.max(globalScale, 0.01);
+			const scale = Math.max(globalScale, MIN_RENDER_SCALE);
 			ctx.save();
 			ctx.strokeStyle = highlight.isLinkHighlighted(link)
-				? '#67e8f9'
-				: highlight.hasSelection() ? 'rgba(70, 84, 95, .35)' : style.link_color;
-			ctx.lineWidth = (highlight.isLinkHighlighted(link) ? 3 : 1.5) / scale;
+				? LINK_STYLE.highlightColor
+				: highlight.hasSelection() ? LINK_STYLE.dimmedColor : style.link_color;
+			ctx.lineWidth = (highlight.isLinkHighlighted(link) ? LINK_STYLE.highlightWidth : LINK_STYLE.width2D) / scale;
 			ctx.lineCap = 'round';
 			ctx.lineJoin = 'round';
 			ctx.beginPath();
@@ -207,17 +185,17 @@
 			const end = points[points.length - 1];
 			const previous = points[points.length - 2];
 			const angle = Math.atan2(end[1] - previous[1], end[0] - previous[0]);
-			const arrowLength = 8 / scale;
+			const arrowLength = LINK_ROUTE.arrowLength / scale;
 			ctx.fillStyle = ctx.strokeStyle;
 			ctx.beginPath();
 			ctx.moveTo(end[0], end[1]);
 			ctx.lineTo(
-				end[0] - arrowLength * Math.cos(angle - Math.PI / 6),
-				end[1] - arrowLength * Math.sin(angle - Math.PI / 6),
+				end[0] - arrowLength * Math.cos(angle - LINK_ROUTE.arrowHalfAngle),
+				end[1] - arrowLength * Math.sin(angle - LINK_ROUTE.arrowHalfAngle),
 			);
 			ctx.lineTo(
-				end[0] - arrowLength * Math.cos(angle + Math.PI / 6),
-				end[1] - arrowLength * Math.sin(angle + Math.PI / 6),
+				end[0] - arrowLength * Math.cos(angle + LINK_ROUTE.arrowHalfAngle),
+				end[1] - arrowLength * Math.sin(angle + LINK_ROUTE.arrowHalfAngle),
 			);
 			ctx.closePath();
 			ctx.fill();
@@ -226,7 +204,7 @@
 				Math.hypot(point[0] - points[index][0], point[1] - points[index][1])
 			);
 			const totalLength = segmentLengths.reduce((sum, length) => sum + length, 0);
-			const phase = (performance.now() / 2200 + link.flowOffset) % 1;
+			const phase = (performance.now() / LINK_ROUTE.flowDurationMs + link.flowOffset) % 1;
 			let distance = phase * totalLength;
 			let segmentIndex = 0;
 			while (segmentIndex < segmentLengths.length - 1 && distance > segmentLengths[segmentIndex]) {
@@ -236,13 +214,13 @@
 			const segmentEnd = points[segmentIndex + 1];
 			const progress = distance / segmentLengths[segmentIndex];
 			ctx.fillStyle = highlight.isLinkHighlighted(link)
-				? '#f8d66d'
-				: highlight.hasSelection() ? 'rgba(70, 84, 95, .35)' : '#e6f4ff';
+				? LINK_STYLE.highlightParticleColor
+				: highlight.hasSelection() ? LINK_STYLE.dimmedColor : LINK_ROUTE.particleColor;
 			ctx.beginPath();
 			ctx.arc(
 				segmentStart[0] + (segmentEnd[0] - segmentStart[0]) * progress,
 				segmentStart[1] + (segmentEnd[1] - segmentStart[1]) * progress,
-				2.5 / scale,
+				LINK_ROUTE.particleRadius / scale,
 				0,
 				2 * Math.PI,
 			);
@@ -259,27 +237,27 @@
 			.height(graphContainer.clientHeight)
 			.backgroundColor(style.background_color)
 			.nodeLabel(node => ExplorerGraph.tooltip(`${node.is_function ? 'function' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`))
-			.nodeRelSize(6)
-			.nodeVal(node => node.is_function ? 7 : 5)
+			.nodeRelSize(FORCE_GRAPH_2D.nodeRelativeSize)
+			.nodeVal(node => node.is_function ? FORCE_GRAPH_2D.functionValue : FORCE_GRAPH_2D.featureValue)
 			.nodeColor(node => node.is_function ? functionColor : node.datasetColor)
 			.nodeCanvasObjectMode(() => 'replace')
 			.nodeCanvasObject(drawNode)
 			.nodePointerAreaPaint(ExplorerGraph.paintPointerArea)
 			.linkColor(link => highlight.isLinkHighlighted(link)
-				? '#67e8f9'
-				: highlight.hasSelection() ? 'rgba(70, 84, 95, .35)' : style.link_color)
-			.linkWidth(link => highlight.isLinkHighlighted(link) ? 3 : style.link_width)
+				? LINK_STYLE.highlightColor
+				: highlight.hasSelection() ? LINK_STYLE.dimmedColor : style.link_color)
+			.linkWidth(link => highlight.isLinkHighlighted(link) ? LINK_STYLE.highlightWidth : style.link_width)
 			.linkCanvasObjectMode(() => 'replace')
 			.linkCanvasObject(drawLink)
-			.linkDirectionalParticles(1)
-			.linkDirectionalParticleWidth(0.1)
-			.linkDirectionalParticleColor(() => 'rgba(0, 0, 0, 0)')
+			.linkDirectionalParticles(FORCE_GRAPH_2D.particleCount)
+			.linkDirectionalParticleWidth(FORCE_GRAPH_2D.particleWidth)
+			.linkDirectionalParticleColor(() => FORCE_GRAPH_2D.particleColor)
 			.linkDirectionalArrowLength(0)
 			.onNodeClick((_node, event) => selectAtPointer(event))
 			.onLinkClick((_link, event) => selectAtPointer(event))
 			.onBackgroundClick(event => selectAtPointer(event))
-			.cooldownTicks(1);
-		const view = ExplorerGraph.createView(graph, graphContainer, 80, '2d');
+			.cooldownTicks(STATIC_LAYOUT_COOLDOWN_TICKS);
+		const view = ExplorerGraph.createView(graph, graphContainer, FEATURE_LAYOUT.fitPadding, '2d');
 		view.selectNode = id => {
 			highlight.select(data.nodes.find(node => node.id === id) || null);
 		};

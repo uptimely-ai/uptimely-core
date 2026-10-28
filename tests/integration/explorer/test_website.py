@@ -374,7 +374,10 @@ def test_website_exports_all_reports_with_relative_navigation(
         r'data-lucide="network"',
         graph_2d,
     )
-    assert "ExplorerGraph.createView(graph, graphContainer, 80, '2d')" in graph_script
+    assert (
+        "ExplorerGraph.createView(graph, graphContainer, FEATURE_LAYOUT.fitPadding, '2d')"
+        in graph_script
+    )
     plan = (index.parent / "plan/invocation_lineage.html").read_text(encoding="utf-8")
     assert 'id="invocation-lineage-graph"' in plan
     assert "normalize_health_signal" in plan
@@ -598,22 +601,19 @@ def test_execution_plan_pages_render_only_their_section(
         assert document.count("<header") == 1
         assert '<header class="site-topbar"' in document
         assert ">Invocation graph</h2>" not in document
-        assert ".linkDirectionalParticles(2)" in script
+        assert ".linkDirectionalParticles(LINK_STYLE.particleCount)" in script
         assert ".linkDirectionalArrowLength(style.arrow_length)" in script
         assert ".linkDirectionalArrowRelPos(style.arrow_rel_pos)" in script
         assert 'class="details details-2d"' in document
         if is_graph:
             assert (
-                "ExplorerGraph.createView(invocationGraph, invocationGraphContainer, 140, '2d')"
-                in script
+                "ExplorerGraph.createView(invocationGraph, invocationGraphContainer, "
+                "STAGE_LAYOUT.fitPadding, '2d')" in script
             )
             assert '"label": "read_pump_telemetry"' in document
             assert '"label_lines": ["read_pump_telemetry"]' in document
             assert ".nodeLabel(node => ExplorerGraph.tooltip(node.label))" in script
-            assert "ctx.textBaseline = 'middle'" in script
-            assert "ctx.roundRect(left + 12, node.y - 6, 12, 12, 3)" in script
-            assert "ctx.shadowBlur = 14" in script
-            assert ": '#1a2732'" in script
+            assert "ExplorerGraph.drawCard(" in script
             assert "['Arguments', formatArguments(node.arguments)]" in script
             assert "const rank = node.stage - 1" in script
             graph_data_match = re.search(
@@ -642,7 +642,9 @@ def test_execution_plan_pages_render_only_their_section(
             assert normalize_node["stage"] == 3
             assert "Stage ${stage + 1}" in script
             assert ".onRenderFramePre(drawStageLanes)" in script
-            assert "ctx.fillRect(left, -laneHeight / 2, 360, laneHeight)" in script
+            assert (
+                "ctx.fillRect(left, -laneHeight / 2, STAGE_LAYOUT.laneWidth, laneHeight)" in script
+            )
     assert ('id="plan-overview"' in document) == (title == "Overview")
     assert ('id="invocation-lineage-graph"' in document) == is_graph
     assert ('src="../js/invocation_lineage.js"' in document) == is_graph
