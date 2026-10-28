@@ -22,6 +22,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Group Explorer's 2D feature lineage into labeled dataset swimlanes, preserving
+  global dependency ordering and cross-dataset highlighting, with connectivity-based
+  node ordering and gutter routing for long dependencies.
+
 - **Breaking:** Removed obsolete import aliases. Python authoring uses
   `uptimely.Spec` or `uptimely.spec.python.Spec`, not `PythonSpec`. Import
   authoring modules from `uptimely.spec.python`, row context from

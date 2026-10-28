@@ -52,7 +52,14 @@ visualizes dependencies between compiled invocations. Both use the same
 **Zoom in**, **Zoom out**, **Reset graph**, collapsible legend, and selected-node
 details panel. Click a node to highlight its upstream dependencies and downstream
 dependents; the selection is preserved when switching dimensions. The
-feature-lineage view retains its entity colors when no node is selected. In 3D,
+2D feature-lineage view groups features and actions into horizontal dataset lanes.
+Dependencies flow left to right across the whole graph, including between datasets;
+actions stay in their owning dataset's lane. Connected datasets are placed next
+to one another where possible, and long edges use lane gutters to avoid cards.
+Lane headers identify datasets, while feature cards retain their dataset colors
+and action cards retain their function color. Features without a dataset share an
+unassigned lane. Selecting a node highlights its dependencies across lanes.
+In 3D,
 the invocation-lineage graph uses the same entity-colored spheres, node sizes, label
 spacing, and edge length settings as feature lineage. Its 2D view retains stage
 lanes and operation colors.
