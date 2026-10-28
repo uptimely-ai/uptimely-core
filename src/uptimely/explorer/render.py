@@ -1,10 +1,14 @@
 """Shared render-data filtering and template loading for the Explorer website."""
 
+import dataclasses
 import functools
 import importlib.resources
 import pathlib
+from collections import abc
 
 import jinja2
+
+from uptimely import project_paths
 
 ASSET_DIRECTORIES = ("css", "js")
 
@@ -17,6 +21,67 @@ WEBSITE_PAGES = {
     "plan": {section: f"plan/{section}.html" for section in ("overview", "graph", "stages")},
     "execution": {"lineage": "execution/data_lineage.html"},
 }
+
+
+@dataclasses.dataclass(frozen=True)
+class WebsiteContext:
+    """Navigation and build information shared by website sections."""
+
+    project_name: str | None = None
+    index_filename: str = project_paths.EXPLORER_INDEX_FILE.name
+    execution_scope: str = "all features"
+    is_scoped: bool = False
+    root_path: str = "../"
+
+
+@dataclasses.dataclass(frozen=True)
+class WebsitePage:
+    """Template, destination, and navigation identity of a section page."""
+
+    template: str
+    filename: str
+    active_section: str | None = None
+    title: str | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class WebsiteSection:
+    """Render section data with shared website context and write its pages."""
+
+    active_page: str
+    pages: tuple[WebsitePage, ...]
+
+    def render_page(
+        self,
+        page: WebsitePage,
+        website: WebsiteContext,
+        data: abc.Mapping[str, object],
+    ) -> str:
+        """Render a page with consistent navigation and build-scope context."""
+        context = {
+            **data,
+            **dataclasses.asdict(website),
+            "include_navigation": True,
+            "active_page": self.active_page,
+        }
+        if page.active_section is not None:
+            context["active_section"] = page.active_section
+        if page.title is not None:
+            context["section_title"] = page.title
+        return html_environment().get_template(page.template).render(context)
+
+    def write_pages(
+        self,
+        output_directory: pathlib.Path,
+        website: WebsiteContext,
+        data: abc.Mapping[str, object],
+    ) -> None:
+        """Render and write each section page, propagating rendering and I/O errors."""
+        for page in self.pages:
+            document = self.render_page(page, website, data)
+            target = output_directory / page.filename
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(document, encoding="utf-8")
 
 
 def filled_fields(**fields: object) -> dict[str, object]:

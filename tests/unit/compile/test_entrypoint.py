@@ -11,7 +11,7 @@ from conftest import EXAMPLES_ROOT, example_bundle
 from uptimely import compiler, spec
 from uptimely import entrypoint as shared_entrypoint
 from uptimely import execution_plan as plan
-from uptimely.explorer import spec_render
+from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec.python import ref
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"

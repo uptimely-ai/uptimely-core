@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 import dataclasses
-import pathlib
 
-from uptimely import execution_plan, project_paths, spec
+from uptimely import execution_plan, spec
+from uptimely.explorer import render
 from uptimely.spec import functions
 
-from . import render
+SECTION = render.WebsiteSection(
+    active_page="execution",
+    pages=(
+        render.WebsitePage(
+            "execution/data_lineage.html.j2",
+            render.WEBSITE_PAGES["execution"]["lineage"],
+            active_section="lineage",
+        ),
+    ),
+)
+__all__ = ["SECTION", "DataLineageColumn", "DataLineageStep", "build_context"]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -140,40 +150,17 @@ def _build_stages(
     return stages
 
 
-def _create_website_page(
+def build_context(
     spec_definition: spec.Spec,
     execution_plan: execution_plan.ExecutionPlan,
-    output_directory: pathlib.Path,
-    *,
-    index_filename: str = project_paths.EXPLORER_INDEX_FILE.name,
-    execution_scope: str = "all features",
-    is_scoped: bool = False,
-) -> None:
-    """Write the linked data-lineage page from the already compiled plan.
+) -> dict[str, object]:
+    """Prepare data-lineage display data without rendering or writing pages.
 
     Args:
         spec_definition: Spec document model.
         execution_plan: Compiled plan; no analytical functions are called.
-        output_directory: Directory shared by the website pages.
-        index_filename: Filename of the website dashboard.
-        execution_scope: Feature coverage of the rendered build.
-        is_scoped: Whether the plan covers a selected feature subset.
+
+    Returns:
+        Declared processing tables grouped by dependency stage.
     """
-    document = (
-        render.html_environment()
-        .get_template("execution/data_lineage.html.j2")
-        .render(
-            stages=_build_stages(spec_definition, execution_plan),
-            project_name=spec_definition.name,
-            include_navigation=True,
-            active_page="execution",
-            active_section="lineage",
-            root_path="../",
-            index_filename=index_filename,
-            execution_scope=execution_scope,
-            is_scoped=is_scoped,
-        )
-    )
-    target = output_directory / render.WEBSITE_PAGES["execution"]["lineage"]
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(document, encoding="utf-8")
+    return {"stages": _build_stages(spec_definition, execution_plan)}

@@ -2,7 +2,7 @@
 
 `uptimely.spec.feature_graph` provides dependency analysis and subgraph
 selection. Graph rendering belongs to
-[uptimely.explorer.graph_render](explorer.md#graph_render), not this package.
+[uptimely.explorer.sections.feature_graph](explorer.md#graph_style), not this package.
 
 <div class="api-reference" markdown="1">
 

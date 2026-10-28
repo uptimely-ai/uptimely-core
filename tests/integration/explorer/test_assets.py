@@ -11,7 +11,8 @@ import pytest
 from conftest import EXAMPLES_ROOT, render_explorer
 
 from uptimely import project, spec
-from uptimely.explorer import graph_render
+from uptimely.explorer import graph_style, render
+from uptimely.explorer.sections import feature_graph
 
 ASSETS = {
     "css/base.css",
@@ -65,14 +66,23 @@ def test_external_assets_resolve_after_moving_website(
     } == ASSETS
 
 
-def test_graph_style_is_passed_as_json_without_changing_shared_script() -> None:
-    style = graph_render.GraphStyle(
+def test_graph_style_is_passed_as_json_without_changing_shared_script(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    style = graph_style.GraphStyle(
         background_color="#123456",
         function_color="#abcdef",
         link_width=2.5,
         charge_strength=-120,
     )
-    document = graph_render._render_graph_html([], [], style=style)
+    monkeypatch.setattr(graph_style, "GraphStyle", lambda: style)
+    feature_graph.SECTION.write_pages(
+        tmp_path,
+        render.WebsiteContext(),
+        feature_graph.build_context(spec.FeatureGraph(spec.Spec())),
+    )
+    document = (tmp_path / "spec/graph.html").read_text(encoding="utf-8")
     match = re.search(
         r'<script id="graph-style" type="application/json">(.*?)</script>',
         document,

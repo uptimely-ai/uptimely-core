@@ -28,18 +28,32 @@ their respective spec and compiler APIs; the explorer writes HTML only.
 The renderer reuses its Jinja environment and compiled templates between pages
 and website builds. Project-specific data is passed separately to each render.
 
+Section implementations are modules under `uptimely.explorer.sections`:
+`spec`, `plan`, `feature_graph`, `plan_graph`, and `data_lineage`. Each module
+prepares its own display data. Page-producing sections use the concrete
+`WebsiteSection` renderer in `uptimely.explorer.render`, with `WebsitePage`
+definitions for templates, destinations, and navigation identifiers.
+`WebsiteContext` supplies project identity and build scope without mixing them
+into section-specific data. `Explorer` creates one shared `WebsiteContext` and
+passes each section's `build_context` result to `SECTION.write_pages`; section
+modules do not write files themselves. The plan-graph module only builds
+payloads; its page is written through the plan section's page definition.
+
 ::: uptimely.explorer.explorer
     options:
       heading_level: 3
       show_root_heading: false
       members: [Explorer, create_html]
 
-## graph_render
+## graph_style
 
-`uptimely.explorer.graph_render` defines the visual style of rendered graphs.
-For dependency analysis, see [feature graphs](feature-graph.md).
+`uptimely.explorer.graph_style` defines the visual style shared by feature and
+execution-plan graph sections. Graph payload preparation belongs to
+`uptimely.explorer.sections.feature_graph` and
+`uptimely.explorer.sections.plan_graph`. For dependency analysis, see
+[feature graphs](feature-graph.md).
 
-::: uptimely.explorer.graph_render
+::: uptimely.explorer.graph_style
     options:
       heading_level: 3
       show_root_heading: false

@@ -4,51 +4,33 @@ from __future__ import annotations
 
 import collections
 import dataclasses
-import json
 import os
 import pathlib
 import typing
 
-from uptimely import execution_plan, project_paths
+from uptimely import execution_plan
+from uptimely.explorer import common, render
+from uptimely.explorer import graph_style as graph_style_module
 from uptimely.spec import functions
 
-from . import graph_render, render
+from . import plan_graph
 
 PLAN_PAGES = render.WEBSITE_PAGES["plan"]
+SECTION = render.WebsiteSection(
+    active_page="plan",
+    pages=tuple(
+        render.WebsitePage(
+            f"plan/{section}.html.j2", filename, active_section=section, title=section.title()
+        )
+        for section, filename in PLAN_PAGES.items()
+    ),
+)
 __all__ = [
     "PLAN_PAGES",
-    "_invocation_label",
-    "_invocation_label_lines",
-    "_create_website_pages",
+    "SECTION",
+    "build_context",
     "_render_step",
 ]
-
-
-def _invocation_label(invocation: execution_plan.Invocation) -> str:
-    """Format an invocation with its actual bound arguments."""
-    arguments = ", ".join(
-        f"{name}={json.dumps(value, ensure_ascii=False, separators=(',', ':'))}"
-        for name, value in invocation.arguments.items()
-    )
-    return f"{invocation.function_id}({arguments})"
-
-
-def _invocation_label_lines(invocation: execution_plan.Invocation) -> list[str]:
-    """Return a multiline invocation signature with indented bound arguments."""
-    if not invocation.arguments:
-        return [f"{invocation.function_id}()"]
-
-    arguments = list(invocation.arguments.items())
-    lines = [f"{invocation.function_id}("]
-    for index, (name, value) in enumerate(arguments):
-        value_lines = json.dumps(value, ensure_ascii=False, indent=2).splitlines()
-        argument_lines = [f"  {name}={value_lines[0]}"]
-        argument_lines.extend(f"  {line}" for line in value_lines[1:])
-        if index < len(arguments) - 1:
-            argument_lines[-1] += ","
-        lines.extend(argument_lines)
-    lines.append(")")
-    return lines
 
 
 def _render_step(
@@ -106,24 +88,18 @@ def _render_step(
     }
 
 
-def _create_website_pages(
+def build_context(
     plan: execution_plan.ExecutionPlan,
     output_directory: pathlib.Path,
-    *,
-    index_filename: str = project_paths.EXPLORER_INDEX_FILE.name,
-    project_name: str | None = None,
-    execution_scope: str = "all features",
-    is_scoped: bool = False,
-) -> None:
-    """Write linked overview, invocation graph, and stage pages for a plan.
+) -> dict[str, object]:
+    """Prepare overview, graph, and stage data without rendering or writing pages.
 
     Args:
         plan: The compiled execution plan to render.
-        output_directory: Directory shared by all website pages.
-        index_filename: Filename of the website dashboard.
-        project_name: Project title displayed in the shared top bar.
-        execution_scope: Feature coverage of the rendered build.
-        is_scoped: Whether the plan covers a selected feature subset.
+        output_directory: Website directory used to resolve relative source links.
+
+    Returns:
+        Display data shared by the plan pages.
     """
     invocations_by_stage = plan.execution_stages
     invocations_in_order = [invocation for stage in invocations_by_stage for invocation in stage]
@@ -147,45 +123,8 @@ def _create_website_pages(
         for stage_number, stage in enumerate(invocations_by_stage, start=1)
     ]
     steps = [step for stage in stages for step in stage["steps"]]
-    stage_by_invocation = {
-        invocation.id: stage_number
-        for stage_number, stage in enumerate(invocations_by_stage, start=1)
-        for invocation in stage
-    }
-    graph_nodes = [
-        {
-            "id": invocation.id,
-            "node_type": "invocation",
-            "function_kind": invocation.function_kind,
-            "stage": stage_by_invocation[invocation.id],
-            "label": _invocation_label(invocation),
-            "label_lines": _invocation_label_lines(invocation),
-            "function_id": invocation.function_id,
-            "mapping_id": invocation.mapping_id,
-            "entity": invocation.entity_id,
-            "dataset_id": invocation.dataset_id,
-            "feature": (
-                ", ".join(invocation.output_features)
-                if invocation.function_kind in {functions.ESCAPE, functions.VECTORIZE}
-                else None
-            ),
-            "input_features": invocation.input_features,
-            "output_features": invocation.output_features,
-            "dependency_ids": sorted(invocation.dependency_ids),
-        }
-        for invocation in sorted(plan.invocations, key=lambda item: item.id)
-    ]
-    graph_links = [
-        {"source": dependency_id, "target": invocation.id}
-        for invocation in plan.invocations
-        for dependency_id in invocation.dependency_ids
-    ]
-    invocation_graph_data = json.dumps(
-        {
-            "nodes": graph_nodes,
-            "links": sorted(graph_links, key=lambda link: (link["source"], link["target"])),
-        }
-    ).replace("</script>", r"<\/script>")
+    graph_nodes, graph_links = plan_graph.plan_graph_payload(plan)
+    invocation_graph_data = common.serialize_graph_payload(graph_nodes, graph_links)
 
     for stage in stages:
         stage["steps"].sort(
@@ -210,9 +149,8 @@ def _create_website_pages(
                 else None
             )
 
-    environment = render.html_environment()
-    graph_style = graph_render.GraphStyle()
-    context = {
+    graph_style = graph_style_module.GraphStyle()
+    return {
         "plan_version": plan.plan_version,
         "invocation_count": len(plan.invocations),
         "function_count": len({step["function"] for step in steps}),
@@ -235,22 +173,4 @@ def _create_website_pages(
         "invocation_graph_data": invocation_graph_data,
         "graph_style": graph_style,
         "graph_style_data": dataclasses.asdict(graph_style),
-        "include_navigation": True,
-        "active_page": "plan",
-        "index_filename": index_filename,
-        "project_name": project_name,
-        "root_path": "../",
-        "execution_scope": execution_scope,
-        "is_scoped": is_scoped,
     }
-
-    output_directory.mkdir(parents=True, exist_ok=True)
-    for section, filename in PLAN_PAGES.items():
-        document = environment.get_template(f"plan/{section}.html.j2").render(
-            **context,
-            active_section=section,
-            section_title=section.title(),
-        )
-        target = output_directory / filename
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(document, encoding="utf-8")

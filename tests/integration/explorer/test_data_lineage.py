@@ -7,7 +7,7 @@ from html import parser as html_parser
 from conftest import EXAMPLES_ROOT, plan_for_spec, render_explorer
 
 from uptimely import spec
-from uptimely.explorer import lineage
+from uptimely.explorer.sections import data_lineage as lineage
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 

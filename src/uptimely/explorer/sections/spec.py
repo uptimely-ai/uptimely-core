@@ -9,22 +9,27 @@ import typing
 from importlib import util
 
 from uptimely import entrypoint as entrypoint_module
-from uptimely import project_paths
+from uptimely.explorer import render
 from uptimely.spec import functions as function_kinds
 from uptimely.spec import model as spec_model
 from uptimely.spec import references, selectors
 
-from . import render
-
 SPEC_PAGES = render.WEBSITE_PAGES["spec"]
+SECTION = render.WebsiteSection(
+    active_page="spec",
+    pages=tuple(
+        render.WebsitePage(f"spec/{section}.html.j2", filename, active_section=section)
+        for section, filename in SPEC_PAGES.items()
+    ),
+)
 __all__ = [
     "SPEC_PAGES",
     "ExplorerContext",
     "ExplorerSummary",
     "_build_context",
-    "_create_website_pages",
+    "SECTION",
+    "build_context",
     "_feature_data",
-    "_render_document",
 ]
 
 
@@ -54,71 +59,27 @@ class ExplorerContext:
     generated_at: str | None = None
 
 
-def _render_document(
-    context: dict[str, typing.Any],
-    output_path: pathlib.Path,
-    section: str,
-    index_filename: str,
-    execution_scope: str,
-    is_scoped: bool,
-) -> pathlib.Path:
-    """Write one spec section within the explorer website."""
-    environment = render.html_environment()
-    template = f"spec/{section}.html.j2"
-    document = environment.get_template(template).render(
-        configuration=context["configuration"],
-        project_name=context["configuration"].get("name"),
-        function_groups={
-            kind: {
-                function_id: function
-                for function_id, function in context["configuration"]["functions"].items()
-                if function.get("kind") == kind
-            }
-            for kind in function_kinds.FUNCTION_KINDS
-        },
-        summary=context["summary"],
-        feature_dependencies=context["feature_dependencies"],
-        generated_at=context["generated_at"],
-        include_navigation=True,
-        active_page="spec",
-        active_section=section,
-        index_filename=index_filename,
-        root_path="../",
-        execution_scope=execution_scope,
-        is_scoped=is_scoped,
-    )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(document, encoding="utf-8")
-    return output_path
-
-
-def _create_website_pages(
+def build_context(
     context: ExplorerContext,
-    output_directory: pathlib.Path,
-    *,
-    index_filename: str = project_paths.EXPLORER_INDEX_FILE.name,
-    execution_scope: str = "all features",
-    is_scoped: bool = False,
-) -> None:
-    """Export separate spec sections with shared website navigation.
+) -> dict[str, object]:
+    """Prepare display data shared by the spec pages.
 
     Args:
         context: Reference data shared with the website dashboard.
-        output_directory: Directory shared by all website pages.
-        index_filename: Filename of the website dashboard.
-        execution_scope: Feature coverage of the rendered build.
-        is_scoped: Whether the plan covers a selected feature subset.
+
+    Returns:
+        Spec metadata and function groups for the section templates.
     """
     data = dataclasses.asdict(context)
-    for section, filename in SPEC_PAGES.items():
-        _render_document(
-            data,
-            output_directory / filename,
-            section,
-            index_filename,
-            execution_scope,
-            is_scoped,
-        )
+    data["function_groups"] = {
+        kind: {
+            function_id: function
+            for function_id, function in context.configuration["functions"].items()
+            if function.get("kind") == kind
+        }
+        for kind in function_kinds.FUNCTION_KINDS
+    }
+    return data
 
 
 def _feature_data(
@@ -275,7 +236,7 @@ def _build_context(
             "feature": feature,
             "dependencies": action.input_features,
         }
-        for _entity_id, _dataset, action in references.iter_actions(spec_definition)
+        for _, _, action in references.iter_actions(spec_definition)
         if spec_definition.functions[action.binding.function].kind
         in {function_kinds.ESCAPE, function_kinds.VECTORIZE}
         for feature in action.output_features

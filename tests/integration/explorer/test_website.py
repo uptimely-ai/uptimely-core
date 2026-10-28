@@ -14,7 +14,8 @@ from conftest import EXAMPLES_ROOT, plan_for_spec, render_explorer
 from examples.pump_analytics.functions import analytics
 
 from uptimely import compiler, spec
-from uptimely.explorer import graph_render, spec_render
+from uptimely.explorer.sections import feature_graph
+from uptimely.explorer.sections import spec as spec_render
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 REPORTS = {
@@ -377,11 +378,11 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert not pathlib.Path("_generated/compile").exists()
 
 
-def test_feature_graph_payload_uses_explorer_graph_renderer() -> None:
+def test_feature_graph_payload_contains_expected_nodes_and_links() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     graph = spec.FeatureGraph(spec_definition)
 
-    nodes, links = graph_render.graph_payload_from_cytoscape(graph)
+    nodes, links = feature_graph.feature_graph_payload(graph)
 
     node_ids = {node["id"] for node in nodes}
     assert "health_signal_normalized" in node_ids
@@ -821,8 +822,8 @@ def test_standalone_html_apis_are_removed() -> None:
     assert not hasattr(plan_for_spec(spec_definition), "export_html")
     assert not hasattr(spec_render, "create_html")
     assert not hasattr(spec_render, "create_website_pages")
-    assert not hasattr(graph_render, "render_graph_html")
-    assert not hasattr(graph_render, "export_graph_html")
+    assert not hasattr(feature_graph, "render_graph_html")
+    assert not hasattr(feature_graph, "export_graph_html")
 
 
 def test_website_propagates_compilation_errors_without_writing_reports(
