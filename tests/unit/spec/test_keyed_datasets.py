@@ -53,6 +53,27 @@ def test_keyed_datasets_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
     assert spec.load_spec(path) == model
 
 
+def test_action_id_is_included_in_serialized_document() -> None:
+    document = _document(
+        {
+            "telemetry": {
+                "actions": {
+                    "calculate": {
+                        "binding": {"function": "calculate"},
+                    }
+                }
+            }
+        }
+    )
+    model = spec.Spec.model_validate(document)
+
+    payload = codec.to_document(model)
+    action = payload["entities"]["asset"]["datasets"]["telemetry"]["actions"]["calculate"]
+
+    assert action["id"] == "calculate"
+    assert spec.Spec.model_validate(payload) == model
+
+
 @pytest.mark.parametrize("datasets", [[], [{"id": "old"}], None, "dataset", 1, True])
 def test_dataset_registry_rejects_old_arrays_and_invalid_types(datasets: object) -> None:
     with pytest.raises(pydantic.ValidationError, match="datasets"):

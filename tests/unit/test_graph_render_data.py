@@ -28,7 +28,7 @@ def test_feature_render_data_preserves_empty_strings() -> None:
 
     assert feature_lineage._node_render_data(node) == {
         "node_type": "feature",
-        "is_function": False,
+        "is_action": False,
         "label": "reading",
         "entity": "asset",
         "dataset_id": "telemetry",
@@ -36,7 +36,7 @@ def test_feature_render_data_preserves_empty_strings() -> None:
     }
 
 
-def test_function_render_data_includes_declared_metadata() -> None:
+def test_action_render_data_includes_declared_function_metadata() -> None:
     function = model.FunctionTemplate(
         id="double",
         kind="vectorize",
@@ -44,16 +44,23 @@ def test_function_render_data_includes_declared_metadata() -> None:
         description="Double a reading",
         entrypoint="example:double",
     )
-    node = models.FunctionNode(
-        name="double", features=("doubled",), entity="asset", function=function
+    node = models.ActionNode(
+        action_id="double_action",
+        features=("doubled",),
+        entity="asset",
+        dataset_id="telemetry",
+        function=function,
     )
 
     assert feature_lineage._node_render_data(node) == {
         "node_type": "feature",
-        "is_function": True,
+        "is_action": True,
         "label": "double",
+        "action_id": "double_action",
         "features": ["doubled"],
         "entity": "asset",
+        "dataset_id": "telemetry",
+        "function_id": "double",
         "function_kind": "vectorize",
         "type": "python_function",
         "entrypoint": "example:double",

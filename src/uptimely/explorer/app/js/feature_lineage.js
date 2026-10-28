@@ -25,16 +25,17 @@
 			return;
 		}
 		const label = node.label || node.id || 'Unknown';
-		const isFunction = node.is_function === true;
-		if (isFunction) {
+		const isAction = node.is_action === true;
+		if (isAction) {
 			const entrypoint = node.entrypoint || null;
 			const features = Array.isArray(node.features) ? node.features : [];
 			const outputLabel = node.function_kind === 'escape'
 				? 'Declares external outputs'
 				: 'Produces';
 			const rows = [
-				['Node type', 'Function'],
-				['Function', label],
+				['Node type', 'Action'],
+				['Action', node.action_id || label],
+				['Function', node.function_id || 'n/a'],
 				['Function kind', node.function_kind || 'n/a'],
 			];
 			if (features.length) rows.push([outputLabel, formatDetailValue(features.join(', '))]);
@@ -119,10 +120,9 @@
 			ExplorerGraph.selectCard(graph, graphContainer, data.nodes, event, updateDetails);
 
 		function drawNode(node, ctx) {
-			const label = node.label || node.id;
-			const isFunction = node.is_function === true;
-			const baseColor = isFunction ? functionColor : node.datasetColor;
-			ExplorerGraph.drawCard(node, ctx, label, baseColor, highlight, !isFunction);
+			const isAction = node.is_action === true;
+			const baseColor = isAction ? functionColor : node.datasetColor;
+			ExplorerGraph.drawCard(node, ctx, node.label || node.id, baseColor, highlight, !isAction);
 		}
 
 		function linkRoute(link) {
@@ -236,10 +236,10 @@
 			.width(graphContainer.clientWidth)
 			.height(graphContainer.clientHeight)
 			.backgroundColor(style.background_color)
-			.nodeLabel(node => ExplorerGraph.tooltip(`${node.is_function ? 'function' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`))
+			.nodeLabel(node => ExplorerGraph.tooltip(`${node.is_action ? 'action' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`))
 			.nodeRelSize(FORCE_GRAPH_2D.nodeRelativeSize)
-			.nodeVal(node => node.is_function ? FORCE_GRAPH_2D.functionValue : FORCE_GRAPH_2D.featureValue)
-			.nodeColor(node => node.is_function ? functionColor : node.datasetColor)
+			.nodeVal(node => node.is_action ? FORCE_GRAPH_2D.functionValue : FORCE_GRAPH_2D.featureValue)
+			.nodeColor(node => node.is_action ? functionColor : node.datasetColor)
 			.nodeCanvasObjectMode(() => 'replace')
 			.nodeCanvasObject(drawNode)
 			.nodePointerAreaPaint(ExplorerGraph.paintPointerArea)
@@ -268,20 +268,21 @@
 	function create3D(graphContainer, data, updateDetails) {
 		const highlight = ExplorerGraph.createDependencyHighlight(data);
 		return ExplorerGraph.create3D(graphContainer, data, style, {
-			label: node => `${node.is_function ? 'function' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`,
-			color: node => node.is_function ? functionColor : node.datasetColor,
+			label: node => `${node.is_action ? 'function' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`,
+			color: node => node.is_action ? functionColor : node.datasetColor,
 			onSelect: updateDetails,
 			highlight,
 			configure: graph => graph.linkDirectionalArrowLength(style.arrow_length)
 				.linkDirectionalArrowRelPos(style.arrow_rel_pos),
 			object: node => {
-				if (!node.is_function) {
+				if (!node.is_action) {
 					return ExplorerGraph.datasetNodeObject(node, node.label, style);
 				}
-				return new THREE.Mesh(
+				const mesh = new THREE.Mesh(
 					new THREE.OctahedronGeometry(style.function_node_size, 0),
 					new THREE.MeshLambertMaterial({ color: functionColor }),
 				);
+				return ExplorerGraph.labeledMesh(mesh, node.label, style, 14);
 			},
 		});
 	}

@@ -27,7 +27,7 @@ from uptimely.spec.feature_graph import (
     FeatureSubGraph,
 )
 from uptimely.spec.feature_graph import models as feature_graph_models
-from uptimely.spec.feature_graph.models import FeatureNode, FunctionNode
+from uptimely.spec.feature_graph.models import ActionNode, FeatureNode
 from uptimely.spec.model import Spec as SpecModel
 from uptimely.spec.python import row_context as authoring_context
 
@@ -99,7 +99,7 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert not hasattr(spec, "GraphStyle")
     assert not hasattr(feature_graph, "GraphStyle")
     assert feature_graph_models.FeatureNode is FeatureNode
-    assert feature_graph_models.FunctionNode is FunctionNode
+    assert feature_graph_models.ActionNode is ActionNode
     assert uptimely.FeatureSubGraph is spec.FeatureSubGraph is FeatureSubGraph
 
     assert uptimely.InvocationGraph is compiler.InvocationGraph is InvocationGraphImplementation

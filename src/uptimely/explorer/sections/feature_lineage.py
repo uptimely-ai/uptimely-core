@@ -54,22 +54,19 @@ def feature_lineage_payload(
 
 
 def _node_render_data(
-    reference: models.FeatureNode | models.FunctionNode,
+    reference: models.FeatureNode | models.ActionNode,
 ) -> dict[str, object]:
     """Build Explorer display metadata from a feature graph node."""
-    if isinstance(reference, models.FunctionNode):
+    if isinstance(reference, models.ActionNode):
         return render.filled_fields(
             node_type="feature",
-            is_function=True,
-            label=(
-                f"{reference.name} · {reference.action_id}"
-                if reference.action_id is not None
-                else reference.name
-            ),
+            is_action=True,
+            label=reference.function.id if reference.function is not None else reference.action_id,
             action_id=reference.action_id,
             features=list(reference.features),
             entity=reference.entity,
-            dataset_id=None,
+            dataset_id=reference.dataset_id,
+            function_id=reference.function.id if reference.function is not None else None,
             function_kind=(reference.function.kind if reference.function is not None else None),
             type="python_function" if reference.function is not None else None,
             entrypoint=(reference.function.entrypoint if reference.function is not None else None),
@@ -82,7 +79,7 @@ def _node_render_data(
 
     return render.filled_fields(
         node_type="feature",
-        is_function=False,
+        is_action=False,
         label=reference.name,
         entity=reference.entity,
         dataset_id=reference.dataset_id,

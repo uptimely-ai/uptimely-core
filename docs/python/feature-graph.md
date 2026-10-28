@@ -1,7 +1,7 @@
 # Feature graphs
 
 `uptimely.spec.feature_graph` represents dependencies between features and
-functions and supports subgraph selection. The Explorer visualizes those
+actions and supports subgraph selection. The Explorer visualizes those
 relationships as feature lineage, distinct from invocation lineage and data lineage.
 
 <div class="api-reference" markdown="1">
@@ -18,18 +18,17 @@ dependency graph and feature subgraphs.
       members: [FeatureGraphBase, FeatureGraph, FeatureSubGraph, FeatureGraphNodeMeta]
 
 `Node` is the graph library's node type, re-exported from
-`uptimely.spec.feature_graph`. `FeatureGraphNodeMeta` describes the feature or
-function metadata carried by a node.
+`uptimely.spec.feature_graph`. `FeatureGraphNodeMeta` describes the feature or action metadata carried by a node.
 
 ## models
 
 `uptimely.spec.feature_graph.models` defines the metadata attached to
-feature and function nodes.
+feature and action nodes.
 
 ::: uptimely.spec.feature_graph.models
     options:
       heading_level: 3
       show_root_heading: false
-      members: [FeatureNode, FunctionNode]
+      members: [FeatureNode, ActionNode]
 
 </div>

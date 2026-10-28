@@ -9,9 +9,9 @@ analytical declarations and the tools that validate, document, and compile them.
 ## Document Conventions
 
 The root is one JSON object. Dimensions, entities, datasets, function templates,
-features, arguments, and actions use object keys as identifiers; do not repeat
-their `id` inside those entries. Identifiers should be stable, lowercase, and
-descriptive.
+features, arguments, and actions use object keys as identifiers. Their IDs are
+derived from those keys; serialized action entries also include their `id`.
+Identifiers should be stable, lowercase, and descriptive.
 
 Tables describe the current parser contract. A default applies when a field is
 omitted; it does not generally make explicit `null` valid. Unknown fields are
@@ -142,7 +142,7 @@ Each key under `features` identifies a column's metadata. Each key under
 `actions` identifies one function binding, unique within its dataset.
 An action identifier names a binding instance, not a reusable function or an
 output feature. Multiple actions can invoke the same function with different
-arguments.
+arguments. Serialized action entries include an `id` matching their key.
 
 ### Row Scope
 
