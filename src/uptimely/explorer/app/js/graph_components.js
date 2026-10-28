@@ -12,7 +12,7 @@ const ExplorerGraph = (() => {
 		background: '#1a2732', featureBackground: '#172a35', dimmedBackground: '#121c24',
 		textColor: '#e8edf2', dimmedTextColor: 'rgba(232, 237, 242, .3)',
 		font: '600 12px "DM Sans", sans-serif',
-		borderWidth: 1.5, selectedBorderWidth: 3,
+		borderWidth: 1.5, selectedBorderWidth: 3, selectedBorderColor: '#f8d66d',
 		iconLeft: 12, iconSize: 12, iconRadius: 3,
 		featureIconLeft: 13, featureIconWidth: 4, featureIconHeight: 18, featureIconRadius: 2,
 		labelLeft: 34, labelHorizontalPadding: 46,
@@ -139,8 +139,9 @@ const ExplorerGraph = (() => {
 			: isFeature ? CARD_STYLE.featureBackground : CARD_STYLE.background;
 		ctx.fill();
 		ctx.shadowColor = 'transparent';
-		ctx.lineWidth = highlight.isSelected(node) ? CARD_STYLE.selectedBorderWidth : CARD_STYLE.borderWidth;
-		ctx.strokeStyle = dimmed ? DIMMED_COLOR : color;
+		const selected = highlight.isSelected(node);
+		ctx.lineWidth = selected ? CARD_STYLE.selectedBorderWidth : CARD_STYLE.borderWidth;
+		ctx.strokeStyle = selected ? CARD_STYLE.selectedBorderColor : dimmed ? DIMMED_COLOR : color;
 		ctx.stroke();
 		ctx.beginPath();
 		if (isFeature) {
