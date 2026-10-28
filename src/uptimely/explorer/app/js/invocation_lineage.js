@@ -4,15 +4,19 @@
 	ExplorerGraph.prepareEntityColors(invocationGraphData, document.getElementById('entity-legend'));
 	const invocationNodeDetails = document.getElementById('invocation-node-details');
 	const formatList = (values) => Array.isArray(values) && values.length ? values.join(', ') : 'none';
+	const formatArguments = (arguments_) => Object.entries(arguments_ || {})
+		.map(([name, value]) => `${name}=${JSON.stringify(value)}`)
+		.join(', ') || 'none';
 	const updateInvocationDetails = (node) => {
 		if (!node) {
 			ExplorerGraph.showDetails(invocationNodeDetails, 'invocation details', [],
-				'Select an invocation to inspect its function kind, entity, declared features, and invocation dependencies.');
+				'Select an invocation to inspect its function kind, arguments, entity, declared features, and invocation dependencies.');
 			return;
 		}
 		const rows = [
 			['Function kind', node.function_kind || 'n/a'],
 			['Function', node.function_id || 'n/a'],
+			['Arguments', formatArguments(node.arguments)],
 			['Entity', node.entity || 'n/a'],
 			[node.function_kind === 'escape' ? 'Declares external outputs' : 'Produces', node.feature || 'n/a'],
 		];
@@ -44,10 +48,10 @@
 			if (!layers.has(rank)) layers.set(rank, []);
 			layers.get(rank).push(node);
 			node.cardWidth = Math.min(
-				320,
-				Math.max(180, Math.max(...node.label_lines.map(line => line.length)) * 7 + 28)
+				280,
+				Math.max(112, node.function_id.length * 8 + 52)
 			);
-			node.cardHeight = Math.max(44, node.label_lines.length * 18 + 20);
+			node.cardHeight = 38;
 		}
 		for (const [rank, nodes] of layers) {
 			const stackHeight = nodes.reduce((height, node) => height + node.cardHeight, 0)
@@ -104,31 +108,36 @@
 			.onRenderFramePre(drawStageLanes)
 			.nodeCanvasObjectMode(() => 'replace')
 			.nodeCanvasObject((node, ctx) => {
-				const left = node.x - node.cardWidth / 2;
-				const top = node.y - node.cardHeight / 2;
-				ctx.save();
-				ctx.beginPath();
-				ctx.roundRect(left, top, node.cardWidth, node.cardHeight, 10);
-				ctx.fillStyle = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
-					? '#121c24'
-					: '#172a35';
-				ctx.fill();
-				ctx.strokeStyle = highlight.hasSelection()
+				const color = highlight.hasSelection()
 					? highlight.isSelected(node) ? '#f8d66d'
 						: highlight.isNodeHighlighted(node) ? '#67e8f9' : '#46545f'
 					: invocationColors[node.function_kind];
+				const left = node.x - node.cardWidth / 2;
+				ctx.save();
+				ctx.shadowColor = 'rgba(0, 0, 0, .36)';
+				ctx.shadowBlur = 14;
+				ctx.shadowOffsetY = 4;
+				ctx.beginPath();
+				ctx.roundRect(left, node.y - node.cardHeight / 2, node.cardWidth, node.cardHeight, 12);
+				ctx.fillStyle = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
+					? '#121c24'
+					: '#1a2732';
+				ctx.fill();
+				ctx.shadowColor = 'transparent';
 				ctx.lineWidth = highlight.isSelected(node) ? 3 : 1.5;
+				ctx.strokeStyle = color;
 				ctx.stroke();
+				ctx.beginPath();
+				ctx.roundRect(left + 12, node.y - 6, 12, 12, 3);
+				ctx.fillStyle = color;
+				ctx.fill();
 				ctx.fillStyle = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
 					? 'rgba(232, 237, 242, .3)'
-					: style.label_color;
-				ctx.textBaseline = 'top';
-				node.label_lines.forEach((line, index) => {
-					ctx.font = index === 0
-						? '600 12px "DM Sans", sans-serif'
-						: '11px "DM Sans", sans-serif';
-					ctx.fillText(line, left + 14, top + 10 + index * 18, node.cardWidth - 28);
-				});
+					: '#e8edf2';
+				ctx.font = '600 12px "DM Sans", sans-serif';
+				ctx.textAlign = 'left';
+				ctx.textBaseline = 'middle';
+				ctx.fillText(node.function_id, left + 34, node.y, node.cardWidth - 46);
 				ctx.restore();
 			})
 			.nodePointerAreaPaint(ExplorerGraph.paintPointerArea)
