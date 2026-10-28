@@ -1,20 +1,23 @@
-import json
-import pathlib
-
 import polars as pl
 from conftest import EXAMPLES_ROOT
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension as pump_dimensions
 from examples.pump_analytics.spec import entity as pump_entities
 from examples.pump_analytics.spec import spec as pump_telemetry_spec
-from examples.simple_analytics.functions import functions
-from examples.simple_analytics.spec import spec as simple_analytics_module
 
 from uptimely import spec
 from uptimely.spec import python as python_spec
 from uptimely.spec.python import binding_conversion
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+
+
+def _read_transform_data() -> pl.DataFrame:
+    return pl.DataFrame({"id": [1, 2], "input_1": [1, 3], "input_2": [2, 4]})
+
+
+def expand_data(source: pl.DataFrame) -> pl.DataFrame:
+    return source.select("id", pl.col("input_1").alias("expanded"))
 
 
 def test_maximum_executes_independently() -> None:
@@ -124,18 +127,15 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert "bearing_temperature_max" in collapse.output_features
 
 
-def test_spec_from_entities_python_api(tmp_path: pathlib.Path) -> None:
+def test_spec_from_entities_python_api() -> None:
     spec_definition = spec.from_python(
-        entities=simple_analytics_module.python_spec.entities,
-        dimensions=simple_analytics_module.python_spec.dimensions,
-        name=simple_analytics_module.python_spec.name,
+        entities=pump_telemetry_spec.python_spec.entities,
+        dimensions=pump_telemetry_spec.python_spec.dimensions,
+        name=pump_telemetry_spec.python_spec.name,
     )
 
-    assert (
-        spec_definition.entities["simple_analytics"].datasets["my_beautiful_dataset"].id
-        == "my_beautiful_dataset"
-    )
-    assert spec_definition.name == "Simple analytics"
+    assert set(spec_definition.entities) == {"pump_telemetry", "pump"}
+    assert spec_definition.name == pump_telemetry_spec.python_spec.name
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True
     assert spec_definition.functions.by_operation("read")
@@ -158,60 +158,6 @@ def test_example_timestamp_order_matches_python_declaration() -> None:
         assert spec_definition.entities["pump"].datasets["pump_dataset"].order == []
 
 
-def test_spec_from_python_models_and_json_export(tmp_path: pathlib.Path) -> None:
-    declaration = simple_analytics_module.SimpleAnalytics()
-    spec_definition = spec.from_python(
-        datasets=[declaration],
-        functions=declaration.function_catalog(),
-        name="simple_analytics",
-        dimensions=simple_analytics_module.python_spec.dimensions,
-    )
-    output_path = tmp_path / "spec.json"
-    spec.write_document(spec_definition, output_path)
-
-    payload = json.loads(output_path.read_text(encoding="utf-8"))
-    dataset_payload = payload["entities"]["simple_analytics"]["datasets"]["my_beautiful_dataset"]
-    assert {key: payload[key] for key in ("name", "spec_version", "source")} == {
-        "name": "simple_analytics",
-        "spec_version": 2,
-        "source": {"name": "python_api", "generated": True},
-    }
-    assert set(payload["functions"]) == {"read", "write", "sum_features", "column_4"}
-    assert {
-        name: payload["functions"][name]["entrypoint"].rsplit(":", 1)[-1]
-        for name in ("read", "write", "sum_features")
-    } == {
-        "read": "read_data",
-        "write": "write_data",
-        "sum_features": "sum_features",
-    }
-    assert set(dataset_payload) == {
-        "description",
-        "row_scope",
-        "order",
-        "features",
-        "mappings",
-    }
-    mappings = dataset_payload["mappings"]
-    assert mappings["read"]["binding"]["function"] == "read"
-    assert mappings["write"]["binding"]["args"]["df"] == "$datasets.@"
-    assert mappings["write"]["features"] == {
-        "inputs": ["$features.column_3", "$features.column_4"],
-        "outputs": [],
-    }
-    assert mappings["column_3"]["binding"]["args"] == {
-        "left_feature": "$features.input_1",
-        "right_feature": "$features.input_2",
-        "output": "$features.column_3.id",
-        "dataset": "$datasets.@.dataframe",
-    }
-    assert dataset_payload["features"]["column_3"] == {
-        "description": "Vectorized feature: column_3",
-        "type": None,
-        "unit": None,
-    }
-
-
 def test_sources_and_transforms_python_spec() -> None:
     id_dimension = python_spec.dimension.Dimension(id="id", type="integer")
     region_dimension = python_spec.dimension.Dimension(id="region", type="string")
@@ -225,7 +171,7 @@ def test_sources_and_transforms_python_spec() -> None:
                 mappings={
                     "read": python_spec.mapping.FunctionMapping(
                         inputs=[],
-                        function=python_spec.ref.function(functions.read_data, operation="read"),
+                        function=python_spec.ref.function(_read_transform_data, operation="read"),
                         arguments={},
                         outputs=[python_spec.feature.Feature(name="input_1")],
                     )
@@ -243,15 +189,13 @@ def test_sources_and_transforms_python_spec() -> None:
                 mappings={
                     "read": python_spec.mapping.FunctionMapping(
                         inputs=[],
-                        function=python_spec.ref.function(functions.read_data, operation="read"),
+                        function=python_spec.ref.function(_read_transform_data, operation="read"),
                         arguments={},
                         outputs=[python_spec.feature.Feature(name="target_value")],
                     ),
                     "expand_data": python_spec.mapping.FunctionMapping(
                         inputs=[python_spec.ref.feature("input_1")],
-                        function=python_spec.ref.function(
-                            functions.expand_data, operation="expand"
-                        ),
+                        function=python_spec.ref.function(expand_data, operation="expand"),
                         arguments={
                             "source": python_spec.ref.dataset("transformed_dataset").dataframe,
                         },

@@ -71,7 +71,7 @@ class InstalledImportsTest(unittest.TestCase):
         examples_root = pathlib.Path(examples.__file__).parent
         (self.root / "examples").mkdir()
         shutil.copyfile(examples_root / "__init__.py", self.root / "examples" / "__init__.py")
-        for name in ("pump_analytics", "simple_analytics", "escape_operation"):
+        for name in ("pump_analytics", "escape_operation"):
             with self.subTest(example=name):
                 project = self.root / "examples" / name
                 shutil.copytree(examples_root / name, project)

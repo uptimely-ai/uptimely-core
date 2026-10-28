@@ -44,14 +44,13 @@ def bundle_files(root: pathlib.Path) -> dict[str, bytes]:
 
 
 @pytest.mark.parametrize(
-    ("example", "verbose"),
-    [("pump_analytics", False), ("simple_analytics", False), ("pump_analytics", True)],
+    "verbose",
+    [False, True],
 )
 @pytest.mark.parametrize("explicit_root", [False, True])
 @pytest.mark.parametrize("empty_generated", [False, True])
 def test_project_build_examples(
     tmp_path: pathlib.Path,
-    example: str,
     verbose: bool,
     explicit_root: bool,
     empty_generated: bool,
@@ -59,9 +58,9 @@ def test_project_build_examples(
     examples = tmp_path / "examples"
     examples.mkdir()
     shutil.copyfile(REPOSITORY_ROOT / "examples/__init__.py", examples / "__init__.py")
-    root = examples / example
+    root = examples / "pump_analytics"
     shutil.copytree(
-        REPOSITORY_ROOT / "examples" / example,
+        REPOSITORY_ROOT / "examples" / "pump_analytics",
         root,
         ignore=shutil.ignore_patterns("_generated", "__pycache__"),
     )
@@ -85,7 +84,7 @@ def test_project_build_examples(
     if verbose:
         assert result.stdout.startswith("\n\nBuild\n")
         assert "  Build scope: all features\n" in result.stdout
-        source = REPOSITORY_ROOT / "examples" / example / project.SPEC_PYTHON_ENTRY_FILE
+        source = REPOSITORY_ROOT / "examples" / "pump_analytics" / project.SPEC_PYTHON_ENTRY_FILE
         assert f"  Spec source file: {source}\n" in result.stdout
         assert "Build files created to" not in result.stdout
     else:
@@ -97,13 +96,11 @@ def test_project_build_examples(
     assert (bundle.explorer_path / "index.html").is_file()
 
 
-@pytest.mark.parametrize("example", ["pump_analytics", "simple_analytics"])
 def test_project_rebuild_replaces_previous_bundle(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
-    example: str,
 ) -> None:
-    root = copy_example_project(tmp_path / "examples" / example, example=example)
+    root = copy_example_project(tmp_path / "examples" / "pump_analytics")
     (root.parent / "__init__.py").write_text("", encoding="utf-8")
     bundle = project.load_build_bundle(root)
     old_plan = bundle.execution_plan

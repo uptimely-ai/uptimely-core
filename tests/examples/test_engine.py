@@ -151,29 +151,6 @@ def test_engine_cli_reports_scoped_saved_build(
     assert "- Dataset: pump_dataset - 5 features" in output
 
 
-def test_simple_analytics_engine_cli_executes_saved_build(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    project_root = EXAMPLES_ROOT / "simple_analytics"
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["uptimely", "engine", "run", "--project-root", str(project_root), "--verbose"],
-    )
-
-    cli.main()
-
-    output = capsys.readouterr().out
-    assert "Scope: all features" in output
-    assert "- Dataset: my_beautiful_dataset - 5 features" in output
-    result_lines = [line for line in output.splitlines() if line.startswith("[")]
-    assert len(result_lines) == 1
-    assert json.loads(result_lines[0]) == [
-        {"column_3": 3, "column_4": True},
-        {"column_3": 7, "column_4": True},
-    ]
-
-
 def test_engine_rejects_unknown_runtime_namespace() -> None:
     engine = engine_for_plan(_execution_plan(), {}, spec_definition=_execution_spec())
 
