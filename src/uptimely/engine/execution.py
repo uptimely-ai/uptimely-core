@@ -21,7 +21,7 @@ class InvocationExecutor:
         backend: backend_module.DataFrameBackend,
         spec_definition: spec_model.Spec,
         entrypoints: typing.Mapping[str, entrypoint_module.Entrypoint],
-        bind: typing.Mapping[str, typing.Mapping[str, typing.Mapping[str, typing.Any]]],
+        parameters: typing.Mapping[str, typing.Any],
         state: state_module.RuntimeState,
     ) -> None:
         """Create an invocation executor for one plan execution."""
@@ -29,7 +29,7 @@ class InvocationExecutor:
         self.spec_definition = spec_definition
         self.entrypoints = entrypoints
         self.state = state
-        self.bindings = bindings_module.RuntimeBindings(spec_definition, state, bind)
+        self.bindings = bindings_module.RuntimeBindings(spec_definition, state, parameters)
         self.dataframe = dataframe_module.DataFrameExecution(backend, spec_definition, state)
 
     def execute(self, invocation: execution_plan.Invocation) -> None:
@@ -59,7 +59,8 @@ class InvocationExecutor:
             invocation, fragment, dataframe, dimensions
         )
 
-        self.state.datasets[invocation.dataset_id] = dataframe
+        if dataframe is not None:
+            self.state.datasets[invocation.dataset_id] = dataframe
         self.state.fragments[(invocation.dataset_id, invocation.mapping_id)] = fragment
         if invocation.function_kind == functions.VECTORIZE:
             for output in invocation.output_features:

@@ -80,6 +80,16 @@ def test_column_and_output_helpers_preserve_document_values() -> None:
     assert binding_conversion.argument_definition(output) == {"type": "string"}
 
 
+def test_global_parameter_and_feature_authoring() -> None:
+    parameter = up.ref.parameter("asset_limit")
+    feature = up.Feature("asset_limit").to_model()
+
+    assert parameter == "$params.asset_limit"
+    assert up.ref.source("telemetry_source") == "$params.telemetry_source"
+    assert up.ref.sink("results_path") == "$params.results_path"
+    assert feature.id == "asset_limit"
+
+
 @pytest.mark.parametrize("shape", ["direct", "list", "tuple", "dict", "bind", "context"])
 @pytest.mark.parametrize("declared", [False, True])
 def test_output_references_validate_nested_arguments(shape: str, declared: bool) -> None:

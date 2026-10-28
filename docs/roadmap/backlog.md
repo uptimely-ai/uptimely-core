@@ -8,54 +8,23 @@ Version numbers are assigned when releases are published. The *breaking*
 column marks changes that require users to update their specifications,
 projects, functions or commands.
 
-## Planned release: Parameters and read-only variable fragments
+## Planned release: Global parameters
 
-Replace the previous constants concept with two forms of user-controlled
-values: scalar parameters and dimension-keyed variable fragments. Neither is
-a calculated feature. Keep their values unchanged during execution.
-
-**Prerequisites:** Function contracts; Dimensional operations and fragment
-foundation for keyed variable-fragment assembly.
+**Prerequisites:** Function contracts.
 
 ### Agreed semantics
 
-- Define a parameter at the most detailed scope where it is needed:
-  mapping-local values bind directly to a function; dataset-level values are
-  passed to a fragment-generating function and assigned to literal columns;
-  global values are shared when multiple datasets need the same variable.
-- Mark variable references with the `?` prefix. Scalar parameter values live in
-  the project's `config/params.json`, where each key identifies a parameter and
-  its attributes. A present `default` attribute supplies the engine's value.
-  An explicit `"default": null` is a supplied null value, not a missing value.
-- Replace the `bind` section of `config/engine.json` with parameter definitions
-  in `config/params.json`; retain engine backend settings in `engine.json`.
-  Literal values remain supported in `spec.json`, but parameter definitions
-  combined with `?` references are recommended.
-- Use variable fragments, not scalar parameters, when values differ by
-  dimension key, for example limits or rules for individual assets. Read these
-  fragments like other datasets; the engine joins their values to the consuming
-  dataframe when needed.
-- Variable data is read-only and must not be persisted. Compilation must reject
-  attempts to persist it, including variable columns joined into a dataset.
+- Use global scalar parameters by referencing `$params.<name>` in JSON or
+  Python bindings. Store required scalar values in the flat
+  `config/params.json` map. Support JSON strings, finite numbers, booleans, and
+  null; references may appear within argument lists and dictionaries.
+- Keep backend settings in `config/engine.json`; move source and sink path
+  values into `config/params.json`. Literal values remain supported.
 
 | title | breaking | description |
 |---|---|---|
-| Define scoped scalar parameter references | No | Add mapping, dataset and global parameter scopes to JSON and Python authoring with equivalent `?` reference semantics. Bind mapping parameters directly to function arguments; pass dataset parameters into fragment-generating functions for literal-column assignment; reuse global parameters across datasets. Keep literal argument values supported and document the distinction from calculated features. |
-| Load project parameter values | Yes | Load `config/params.json` as parameter identifiers mapped to attribute objects. Use a present `default` as the runtime value, preserving explicit null values. Migrate existing runtime placeholders and `engine.json` bind values, keeping backend settings separate. Update engine and public API configuration, CLI loading, scaffolding, examples and documentation together; report invalid or unresolved parameters explicitly. |
-| Assemble dimension-keyed variable fragments | No | Declare and read variable fragments through dataset-style sources, track their consumers and assemble values by dimension keys when required. Reuse the fragment foundation's key validation rather than row-position matching. Keep variable inputs separate from calculated outputs and preserve their identity after joins. |
-| Enforce read-only variable data | No | Reject writes targeting variable datasets or persisting variable columns, including columns joined into analytical datasets. Track variable provenance through assembly so omission from a write declaration cannot bypass the check. Add compiler tests for direct and joined-variable persistence, and execution tests for scalar binding, explicit null defaults and dimension-keyed limits or rules. |
-
-### Questions to settle before implementation
-
-- What is the exact `?` reference grammar for each scope, how do scoped names
-  map to keys in `params.json`, and how are name collisions handled?
-- What does a parameter declaration without `default` mean, and how can its
-  value be supplied? Define missing-value errors, value types and validation,
-  including dataframe null versus NaN representation.
-- How are variable fragments and their `?` references declared, which dimension
-  keys must match a consumer, and what happens when a consumer key has no
-  variable value? Define how writes select persistable analytical columns
-  without including joined variable columns.
+| Define global scalar parameter references | No | Add `$params.<name>` references to JSON and Python authoring. Resolve them recursively in argument lists and dictionaries; preserve literal arguments. |
+| Load required project parameter values | Yes | Load the flat scalar map in `config/params.json`, preserve explicit null values, and report invalid or unresolved parameters. Move source and sink paths out of the `bind` section while retaining backend settings in `engine.json`. |
 
 ## Planned release: Function-level planning and incremental assembly
 
@@ -63,7 +32,7 @@ Build dataset frames incrementally with explicit producer and frame-version
 dependencies, keeping assembly in the engine.
 
 **Prerequisites:** Dimensional operations and fragment foundation;
-Parameters and read-only variable fragments.
+Global parameters.
 
 | title | breaking | description |
 |---|---|---|

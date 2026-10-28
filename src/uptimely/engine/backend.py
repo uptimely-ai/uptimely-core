@@ -27,7 +27,9 @@ class DataFrameBackend(typing.Protocol):
 
     def lazy(self, frame: object) -> object: ...
 
-    def join(self, left: object, right: object, keys: abc.Sequence[str]) -> object: ...
+    def join(
+        self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "1:1"
+    ) -> object: ...
 
     def collect(self, frame: object) -> object: ...
 
@@ -81,7 +83,9 @@ class PolarsBackend:
     def lazy(self, frame: object) -> object:
         return frame.lazy()
 
-    def join(self, left: object, right: object, keys: abc.Sequence[str]) -> object:
+    def join(
+        self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "1:1"
+    ) -> object:
         if not keys:
             for frame in (left, right):
                 if self.should_validate_values(frame) and self.row_count(frame) > 1:
@@ -97,12 +101,17 @@ class PolarsBackend:
                     on=key,
                     how="full",
                     coalesce=True,
-                    validate="1:1",
+                    validate=validate,
                 )
                 .drop(key)
             )
         return left.join(
-            right, on=list(keys), how="full", coalesce=True, validate="1:1", nulls_equal=True
+            right,
+            on=list(keys),
+            how="full",
+            coalesce=True,
+            validate=validate,
+            nulls_equal=True,
         )
 
     def collect(self, frame: object) -> object:

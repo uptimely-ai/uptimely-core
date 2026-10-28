@@ -375,6 +375,8 @@ def test_engine_operation_failures_are_reported(
 ) -> None:
     config = tmp_path / "engine.json"
     config.write_text("{}", encoding="utf-8")
+    params = tmp_path / "params.json"
+    params.write_text("{}", encoding="utf-8")
     project_root = _copy_pump_project(tmp_path, monkeypatch, features=("health_signal_normalized",))
     with pytest.raises(SystemExit) as error:
         invoke(
@@ -385,22 +387,23 @@ def test_engine_operation_failures_are_reported(
             str(project_root),
             "--config",
             str(config),
+            "--params",
+            str(params),
             "--preview",
         )
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "Engine flow failed:" in result.err
-    assert "Unknown runtime namespace: storage" in result.err
+    assert "Unresolved parameter:" in result.err
     assert "Engine completed" not in result.out
     assert "Dataset:" not in result.out
 
 
-def test_engine_config_loads_backend_and_bindings() -> None:
+def test_engine_config_loads_backend_only() -> None:
     settings = engine_module.EngineConfig.model_validate_json(
-        '{"backend": {"dataframe": "polars"}, "bind": {"storage": {"source": {"path": "x"}}}}'
+        '{"backend": {"dataframe": "polars"}}'
     )
     assert settings.backend.dataframe == "polars"
-    assert settings.bind == {"storage": {"source": {"path": "x"}}}
 
 
 def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:

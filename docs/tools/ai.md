@@ -76,7 +76,7 @@ The arguments:
 Argument | Purpose
 --- | ---
 `--project-root` | Analytics project root containing the last successful `_generated/build/`. Defaults to the working directory.
-`--config` | JSON file with engine settings and `bind` values. The example binding supplies local paths for source datasets.
+`--config` | JSON file with engine backend settings. Source and sink paths are resolved from the project's `config/params.json`.
 
 Build the project first, for example:
 
@@ -89,12 +89,11 @@ command. It does not fall back to source files or compile a replacement plan.
 Edits to the source spec do not change the saved MCP view until a successful
 project build is made and the server runs `reload_build`.
 
-For dev, test, or prod, pass the corresponding engine configuration file to
-`--config`. The CLI loads the complete configuration as `EngineConfig`,
-including backend settings and the `bind` object; it does not select an environment or merge files
-automatically. Only values referenced by runtime placeholders are substituted,
-not arbitrary spec fields. See the
-[runtime override guide](../components/engine.md#runtime-overrides) for the file
+The server loads backend settings from `--config` and required scalar values
+from `config/params.json` under the project root. It does not select an
+environment or merge configuration files. Only `$params.<name>` references are
+substituted, not arbitrary spec fields. See the
+[parameter guide](../components/engine.md#global-parameters) for the file
 structure and Python API usage.
 
 The server communicates over stdio and is normally launched by the MCP client,

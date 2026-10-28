@@ -90,8 +90,10 @@ class DataFrameExecution:
         fragment: object,
         dataframe: object | None,
         dimensions: list[str],
+        output_features: list[str] | None = None,
     ) -> None:
         """Check fragment keys, declared outputs, and logical types."""
+        output_features = output_features or invocation.output_features
         self._validate_dataframe(
             fragment,
             dimensions,
@@ -101,7 +103,7 @@ class DataFrameExecution:
             ),
         )
         columns = set(self.backend.column_names(fragment))
-        missing = sorted(set(invocation.output_features) - columns)
+        missing = sorted(set(output_features) - columns)
         if missing:
             raise ValueError(
                 f"Action {invocation.mapping_id} is missing output columns: " + ", ".join(missing)
@@ -110,7 +112,7 @@ class DataFrameExecution:
         self._validate_declared_types(
             fragment,
             dataset,
-            [*dimensions, *invocation.output_features],
+            [*dimensions, *output_features],
         )
         if invocation.function_kind == functions.VECTORIZE:
             validate_coverage = (
@@ -134,12 +136,20 @@ class DataFrameExecution:
         dimensions: list[str],
     ) -> tuple[object, object]:
         """Validate an action result and assemble its declared fragment."""
-        self._validate_fragment(invocation, fragment, dataframe, dimensions)
+        dataset = self._dataset(invocation.dataset_id)
+        output_features = [
+            feature for feature in invocation.output_features if feature not in dimensions
+        ]
+        if not output_features:
+            return fragment, dataframe
+
+        self._validate_fragment(
+            invocation, fragment, dataframe, dimensions, output_features=output_features
+        )
         fragment = self.backend.select(
-            fragment, list(dict.fromkeys([*dimensions, *invocation.output_features]))
+            fragment, list(dict.fromkeys([*dimensions, *output_features]))
         )
         if dataframe is not None:
-            dataset = self._dataset(invocation.dataset_id)
             self._validate_dataframe(dataframe, dimensions, "Accumulated dataset")
             dataframe_columns = set(self.backend.column_names(dataframe))
             self._validate_declared_types(

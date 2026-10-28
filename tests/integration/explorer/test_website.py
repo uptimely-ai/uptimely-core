@@ -604,13 +604,12 @@ def test_execution_plan_pages_render_only_their_section(
                 in script
             )
             expected_label = (
-                'read_pump_telemetry(source="?storage.telemetry_source.path", '
-                'environment="development")'
+                'read_pump_telemetry(source="$params.telemetry_source", environment="development")'
             )
             assert json.dumps(expected_label) in document
             expected_lines = [
                 "read_pump_telemetry(",
-                '  source="?storage.telemetry_source.path",',
+                '  source="$params.telemetry_source",',
                 '  environment="development"',
                 ")",
             ]

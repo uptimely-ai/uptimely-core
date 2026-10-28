@@ -362,7 +362,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
 def _load_engine_config(
     config_path: pathlib.Path | None,
 ) -> uptimely_engine.EngineConfig:
-    """Load engine settings and runtime bindings from a JSON file."""
+    """Load backend settings from a JSON file."""
     if config_path is None:
         return uptimely_engine.EngineConfig()
     return uptimely_engine.EngineConfig.model_validate_json(config_path.read_text(encoding="utf-8"))
@@ -381,7 +381,7 @@ def main() -> None:
         "--config",
         type=pathlib.Path,
         default=None,
-        help="JSON file with engine settings and bind values",
+        help="JSON file with engine backend settings",
     )
     args = parser.parse_args()
 

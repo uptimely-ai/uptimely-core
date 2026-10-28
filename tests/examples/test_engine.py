@@ -14,12 +14,11 @@ from uptimely.engine import dataframe as dataframe_module
 from uptimely.engine import state as state_module
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
-ENGINE_CONFIG_PATH = EXAMPLES_ROOT / "pump_analytics/config/engine.json"
 
 
-def _engine_bind() -> dict[str, object]:
-    engine_config = json.loads(ENGINE_CONFIG_PATH.read_text(encoding="utf-8"))
-    return engine_config["bind"]
+def _engine_parameters() -> dict[str, object]:
+    path = EXAMPLES_ROOT / "pump_analytics/config/params.json"
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _execution_plan() -> execution_plan.ExecutionPlan:
@@ -40,7 +39,9 @@ def _copy_pump_project(
 
 
 def test_engine_returns_calculated_features_without_writing_output() -> None:
-    engine = engine_for_plan(_execution_plan(), _engine_bind(), spec_definition=_execution_spec())
+    engine = engine_for_plan(
+        _execution_plan(), _engine_parameters(), spec_definition=_execution_spec()
+    )
 
     result = engine.run()
 
@@ -151,40 +152,35 @@ def test_engine_cli_reports_scoped_saved_build(
     assert "- Dataset: pump_dataset - 5 features" in output
 
 
-def test_engine_rejects_unknown_runtime_namespace() -> None:
+def test_engine_rejects_missing_parameter() -> None:
     engine = engine_for_plan(_execution_plan(), {}, spec_definition=_execution_spec())
 
     result = engine.run()
 
     assert any(
-        "Unknown runtime namespace: storage" in message for message in result.failures.values()
+        "Unresolved parameter: telemetry_source" in message for message in result.failures.values()
     )
 
 
-def test_engine_rejects_unknown_runtime_object() -> None:
-    engine = engine_for_plan(_execution_plan(), {"storage": {}}, spec_definition=_execution_spec())
-
-    result = engine.run()
-
-    assert any(
-        "Unknown storage object: telemetry_source" in message
-        for message in result.failures.values()
-    )
-
-
-def test_engine_rejects_unknown_runtime_attribute() -> None:
+def test_engine_rejects_unknown_parameter_name() -> None:
     engine = engine_for_plan(
-        _execution_plan(),
-        {"storage": {"telemetry_source": {}}},
-        spec_definition=_execution_spec(),
+        _execution_plan(), {"another_parameter": "value"}, spec_definition=_execution_spec()
     )
 
     result = engine.run()
 
     assert any(
-        "storage object telemetry_source has no attribute: path" in message
-        for message in result.failures.values()
+        "Unresolved parameter: telemetry_source" in message for message in result.failures.values()
     )
+
+
+def test_engine_rejects_non_scalar_parameter_value() -> None:
+    with pytest.raises(ValueError, match="must be a JSON scalar"):
+        engine_for_plan(
+            _execution_plan(),
+            {"telemetry_source": {"path": "input.json"}},
+            spec_definition=_execution_spec(),
+        )
 
 
 def test_engine_merges_fragments_by_entity_dimensions() -> None:
@@ -449,7 +445,7 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
 def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathlib.Path) -> None:
     spec_definition = _execution_spec()
     plan = example_bundle(features=("health_signal_normalized",)).execution_plan
-    engine = engine_for_plan(plan, _engine_bind(), spec_definition=spec_definition)
+    engine = engine_for_plan(plan, _engine_parameters(), spec_definition=spec_definition)
     assert [
         feature
         for stage in engine.plan.execution_stages

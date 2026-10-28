@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+import re
 import typing
 
 import pydantic
@@ -31,7 +33,7 @@ class EngineBackendConfig(pydantic.BaseModel):
 
 
 class EngineConfig(pydantic.BaseModel):
-    """Runtime backend configuration and environment-specific bindings.
+    """Runtime backend configuration.
 
     ``evaluation`` and ``batch_size`` are reserved and do not currently affect
     execution.
@@ -40,4 +42,26 @@ class EngineConfig(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True)
 
     backend: EngineBackendConfig = pydantic.Field(default_factory=EngineBackendConfig)
-    bind: dict[str, dict[str, dict[str, typing.Any]]] = pydantic.Field(default_factory=dict)
+
+
+class ParameterConfig(pydantic.RootModel[dict[str, typing.Any]]):
+    """Flat map of required global parameter values loaded from project config."""
+
+    model_config = pydantic.ConfigDict(strict=True, frozen=True)
+
+    @pydantic.model_validator(mode="before")
+    @classmethod
+    def validate_values(cls, value: object) -> object:
+        """Require Python-identifier keys and scalar JSON values."""
+        if not isinstance(value, dict):
+            raise ValueError("Parameter configuration must be a flat JSON object")
+        for name, parameter in value.items():
+            if not isinstance(name, str) or re.fullmatch(r"[A-Za-z_]\w*", name) is None:
+                raise ValueError(f"Invalid parameter name: {name!r}")
+            if parameter is not None and type(parameter) not in {str, int, float, bool}:
+                raise ValueError(
+                    f"Parameter {name} must be a JSON scalar (string, number, boolean, or null)"
+                )
+            if isinstance(parameter, float) and not math.isfinite(parameter):
+                raise ValueError(f"Parameter {name} must be a finite number")
+        return value

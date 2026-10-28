@@ -1,0 +1,5 @@
+{
+  "pump_reference_source": "examples/pump_analytics/data/pump_reference.json",
+  "telemetry_source": "examples/pump_analytics/data/pump_telemetry.json",
+  "telemetry_archive_source": "examples/pump_analytics/data/pump_telemetry_archive.json"
+}

@@ -11,9 +11,9 @@ Engine settings are supplied to `Engine`, not stored in the Spec
 document. The engine implementation decides which configuration values
 to use.
 
-Construct an engine with the validated build bundle and required runtime
-configuration. The configuration includes backend options and environment-
-specific placeholder values under `bind`.
+Construct an engine with the validated build bundle and backend settings.
+Required global parameter values are loaded from `config/params.json`, or can
+be supplied programmatically.
 
 The engine uses the configured `dataframe` string to select a dataframe
 backend. The built-in Python engine currently supports `polars`.
@@ -24,7 +24,7 @@ accepted and stored, but do not change evaluation strategy, data access, or
 persistence. Do not rely on them to enable lazy execution, batching, or
 persistence.
 
-The `engine.json` file has `backend` and `bind` top-level keys:
+The `engine.json` file contains backend settings:
 
 JSON key | Type | Purpose
 --- | --- | ---
@@ -35,7 +35,6 @@ JSON key | Type | Purpose
 `backend.validate_lazy_frames` | boolean | Defaults to `true`. Set to `false` to skip value checks that would execute a Polars lazy query during engine validation.
 `backend.evaluation` | string | Reserved. Values such as `eager`, `lazy`, and `persist` are stored but have no effect on execution.
 `backend.batch_size` | integer, `"*"`, or `null` | Reserved. Validates positive integers, `"*"`, or `null`, but does not change how many records are read at a time.
-`bind` | object | Runtime values keyed by namespace, object identifier, and attribute for resolving placeholders.
 
 A compiled plan records its backend
 claim as `required_backend`; the built-in engine rejects values other than
@@ -65,59 +64,29 @@ the declarations, but must distinguish unknown context from explicit zero
 context and account for grouping performed by functions and dependency chains.
 See the [row context contract](spec.md#row-context).
 
-## Runtime placeholders
+## Global parameters
 
-A binding argument can hold a literal string of the form
-`?<namespace>.<object>.<attribute>`, for example `?storage.telemetry_source.path`.
-Unlike `$`-prefixed structural references, the compiler leaves this form
-untouched — it carries no graph dependency and is resolved only by the engine,
-at execution time, against the engine's `bind` mapping.
-
-`bind` is keyed by namespace, then by object identifier, then by
-attribute name. Every operation referencing the same placeholder receives the
-configured value.
-
-If a placeholder's namespace, object, or attribute isn't found in
-`bind`, the engine raises a `ValueError` for that operation, which
-`execute()` records in the returned `ExecutionResult.failures` rather than
-raising directly.
-
-Explicit action inputs define feature dependencies. Feature identifier
-arguments alone do not require those feature values to be materialized.
-
-### Runtime overrides
-
-Runtime configuration substitution is already supported. Supply a different
-`bind` mapping when constructing the engine to run the same
-compiled plan against dev, test, or prod resources without recompilation.
-The plan must already contain placeholders for the values you want to vary.
-This does not modify Spec or replace literal arguments, functions,
-features, or dependencies.
-
-`EngineConfig` validates the complete engine JSON, including backend settings
-and runtime bindings:
+Binding arguments may contain `$params.<name>` references. Each reference
+resolves to one required scalar value from the flat `config/params.json` map;
+missing entries fail explicitly. References work recursively inside argument
+dictionaries and lists and do not create feature dependencies.
 
 ```json
 {
-  "backend": {
-    "dataframe": "polars"
-  },
-  "bind": {
-    "storage": {
-      "telemetry_source": {
-        "path": "/prod/telemetry.json"
-      }
-    }
-  }
+  "threshold": 10,
+  "telemetry_source": "data/telemetry.json"
 }
 ```
 
-The engine accepts an `EngineConfig` rather than a file path. The CLI and
-[MCP server](../tools/ai.md#running-the-server) load this JSON through
-`EngineConfig`. Neither interface automatically selects an
-environment or merges multiple configuration files. Each supplied mapping must
-provide all values required by the invocations being executed; missing values
-are errors, not fallbacks to another environment.
+In Python authoring, use `up.ref.parameter("threshold")`. The source and sink
+helpers refer to the same map: `up.ref.source("telemetry_source")` and
+`up.ref.sink("output_path")` both produce `$params.<name>`. Parameter values
+support JSON strings, finite numbers, booleans, and null; arrays and objects
+are rejected.
+
+`config/engine.json` contains backend settings only. The CLI loads parameter
+values from `config/params.json`; programmatic users can pass the same flat map
+as `parameters` to `Engine`.
 
 ## Fragments
 
@@ -186,14 +155,14 @@ source to the target dataset's row scope before returning a fragment.
 Before invoking a plan invocation, the engine checks that its declared feature
 inputs are materialized. Structural references have already been resolved by
 the compiler; the engine binds compiled dataframe identifiers to their runtime
-frames and substitutes `?`-prefixed placeholders from runtime configuration.
-Missing inputs or runtime bindings fail that invocation. For data-producing
+frames and substitutes `$params.<name>` references from project configuration.
+Missing inputs or parameters fail that invocation. For data-producing
 mappings, the built-in Polars backend accepts `DataFrame` and `LazyFrame`
 results. The engine then validates the returned fragment before merging it:
 
 | Check | Runtime requirement |
 | --- | --- |
-| Dimensions | Every dimension of the entity is present as a column. |
+| Dimensions | Every fragment contains all dimensions declared by its entity. |
 | Outputs | Every declared output feature is present as a column. |
 | Keys | Complete dimension keys are unique; dimensionless datasets contain at most one row. |
 | Types | Declared dimension and feature types match the returned schema. |

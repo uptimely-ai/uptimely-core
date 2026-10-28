@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import re
 from collections import abc
 
 from uptimely import entrypoint as entrypoint_module
@@ -25,7 +26,10 @@ __all__ = [
     "dataframe",
     "column",
     "output",
+    "parameter",
 ]
+
+_PARAMETER_NAME = re.compile(r"^[A-Za-z_]\w*$")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -202,13 +206,34 @@ def dataset(name: str) -> Reference:
 
 
 def source(name: str, attribute: str = "path") -> str:
-    """Reference a runtime-configured source attribute by name."""
-    return f"?storage.{name}.{attribute}"
+    """Reference a source path configured as a global project parameter."""
+    if attribute != "path":
+        raise ValueError("Source references support only the 'path' attribute")
+    return parameter(name)
 
 
 def sink(name: str, attribute: str = "path") -> str:
-    """Reference a runtime-configured sink attribute by name."""
-    return f"?storage.{name}.{attribute}"
+    """Reference a sink path configured as a global project parameter."""
+    if attribute != "path":
+        raise ValueError("Sink references support only the 'path' attribute")
+    return parameter(name)
+
+
+def parameter(name: str) -> str:
+    """Reference a required scalar value from ``config/params.json``.
+
+    Args:
+        name: A nonempty Python identifier used as the parameter key.
+
+    Returns:
+        The spec reference string ``$params.<name>``.
+
+    Raises:
+        ValueError: If the name is not a valid parameter identifier.
+    """
+    if not isinstance(name, str) or not _PARAMETER_NAME.fullmatch(name):
+        raise ValueError("Parameter names must be nonempty Python identifiers")
+    return f"{selectors.PARAMS_PREFIX}{name}"
 
 
 def feature(name: str) -> Reference:

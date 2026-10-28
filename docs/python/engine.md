@@ -2,8 +2,8 @@
 
 `uptimely.engine` executes the saved plan in a validated project build bundle.
 It reads runtime declarations from the bundled Spec and uses project context
-to resolve function entrypoints. Runtime configuration and environment-specific
-bindings are supplied separately.
+to resolve function entrypoints. Backend settings and global parameters are
+configured separately.
 
 <div class="api-reference" markdown="1">
 
@@ -25,7 +25,7 @@ bindings are supplied separately.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [EngineConfig, EngineBackendConfig]
+      members: [EngineConfig, EngineBackendConfig, ParameterConfig]
 
 ## result
 
