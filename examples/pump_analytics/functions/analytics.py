@@ -2,10 +2,10 @@
 
 import polars as pl
 
-from uptimely.spec.python import kind
+from uptimely.spec.python import function
 
 
-@kind("read")
+@function(kind="read")
 def read_pump_telemetry(
     source: str,
     production_line: str | None = None,
@@ -25,13 +25,13 @@ def read_pump_telemetry(
     return data_read
 
 
-@kind("write")
+@function(kind="write")
 def write_pump_telemetry(dataset: pl.LazyFrame, features: list[str]) -> None:
     """Write calculated telemetry features as JSON to standard output."""
     return
 
 
-@kind("collapse")
+@function(kind="collapse")
 def maximum(
     dataset: pl.LazyFrame, feature: str, dimensions: list[str], output: str
 ) -> pl.LazyFrame:
@@ -43,7 +43,7 @@ def maximum(
     return data_collapsed
 
 
-@kind("vectorize")
+@function(kind="vectorize")
 def bearing_temperature_delta(
     dataset: pl.LazyFrame,
     temperature: str,
@@ -58,7 +58,7 @@ def bearing_temperature_delta(
     return data_vectorized
 
 
-@kind("vectorize")
+@function(kind="vectorize")
 def extract_recommendation_value(
     dataset: pl.LazyFrame,
     optimization_attribute: str,
@@ -72,7 +72,7 @@ def extract_recommendation_value(
     return data_vectorized
 
 
-@kind("vectorize")
+@function(kind="vectorize")
 def normalize_health_signal(
     dataset: pl.LazyFrame,
     scale_feature: str,
@@ -95,7 +95,7 @@ def normalize_health_signal(
     return data_vectorized
 
 
-@kind("vectorize")
+@function(kind="vectorize")
 def optimize_pump_operating_point(
     dataset: pl.LazyFrame, optimization_features: list[str], output: str
 ) -> pl.LazyFrame:
@@ -111,7 +111,7 @@ def optimize_pump_operating_point(
     return data_vectorized
 
 
-@kind("vectorize")
+@function(kind="vectorize")
 def pressure_flow_efficiency(
     dataset: pl.LazyFrame, pressure_features: list[str], output: str
 ) -> pl.LazyFrame:
@@ -121,7 +121,7 @@ def pressure_flow_efficiency(
     return data_vectorized
 
 
-@kind("vectorize")
+@function(kind="vectorize")
 def pump_health_score(
     dataset: pl.LazyFrame, health_features: list[str], output: str
 ) -> pl.LazyFrame:
@@ -133,7 +133,7 @@ def pump_health_score(
     return data_vectorized
 
 
-@kind("vectorize")
+@function(kind="vectorize")
 def vibration_delta_from_previous(
     dataset: pl.LazyFrame,
     vibration: str,

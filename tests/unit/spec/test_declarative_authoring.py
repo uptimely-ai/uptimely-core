@@ -10,12 +10,12 @@ from uptimely.spec import python as authoring
 from uptimely.spec.python import conversion, dimension, entity, ref, row_context
 
 
-@authoring.kind("vectorize")
+@authoring.function(kind="vectorize")
 def must_not_execute(values: list[str], output: str) -> None:
     raise AssertionError("Assembly executed the implementation")
 
 
-@authoring.kind("vectorize")
+@authoring.function(kind="vectorize")
 def calculate(value: str) -> str:
     return value
 
@@ -113,7 +113,7 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
     ],
 )
 def test_assembly_reports_invalid_arguments(arguments: dict[str, object], message: str) -> None:
-    @authoring.kind("write")
+    @authoring.function(kind="write")
     def implementation(feature: str) -> None:
         pass
 
@@ -380,7 +380,7 @@ def test_mapping_constructor_requires_explicit_fields(required: str) -> None:
 
 
 def test_mapping_requires_function_kind_metadata() -> None:
-    with pytest.raises(ValueError, match="annotated with @kind"):
+    with pytest.raises(ValueError, match="Function kind is required"):
         authoring.Action(id="action", function="reader:read", arguments={}, outputs=[])
 
 

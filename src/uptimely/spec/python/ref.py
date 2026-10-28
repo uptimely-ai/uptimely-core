@@ -8,6 +8,7 @@ from collections import abc
 from uptimely import entrypoint as entrypoint_module
 
 from .. import arg_types, functions, selectors
+from . import functions as function_semantics
 
 __all__ = [
     "Reference",
@@ -64,7 +65,8 @@ def function(
         function: A named Python callable such as ``module.calculate``, or an
             importable module and qualified name separated by a colon. Creating
             a reference does not load code; compilation and execution do.
-        kind: Optional kind metadata for generic mapping declarations.
+        kind: Optional function contract for undecorated implementations. Must
+            agree with decorated semantics when supplied for a decorated callable.
         validate_signature: Whether compilation and documentation should inspect
             the Python signature and validate implementation contracts.
 
@@ -87,6 +89,13 @@ def function(
         callable_function = entrypoint_module.Function.from_callable(function)
         module = callable_function.module.location
         name = callable_function.name
+        declared = function_semantics.declared_kind(function)
+        if declared is not None:
+            if kind is not None and kind != declared:
+                raise ValueError(
+                    f"Function kind '{kind}' conflicts with decorated kind '{declared}'"
+                )
+            kind = declared
     return FunctionReference(
         module=module,
         name=name,
