@@ -8,92 +8,31 @@ Version numbers are assigned when releases are published. The *breaking*
 column marks changes that require users to update their specifications,
 projects, functions or commands.
 
-## Planned release: Global parameters
-
-**Prerequisites:** Function contracts.
-
-### Agreed semantics
-
-- Use global scalar parameters by referencing `$params.<name>` in JSON or
-  Python bindings. Store required scalar values in the flat `params` map in
-  `config/config.json`. Support JSON strings, finite numbers, booleans, and
-  null; references may appear within argument lists and dictionaries.
-- Keep backend settings in the `engine` section of `config/config.json`; move
-  source and sink path values into its `params` section. Literal values remain supported.
-
-| title | breaking | description |
-|---|---|---|
-| Define global scalar parameter references | No | Add `$params.<name>` references to JSON and Python authoring. Resolve them recursively in argument lists and dictionaries; preserve literal arguments. |
-| Load required project parameter values | Yes | Load the flat scalar map in `config/config.json` under `params`, preserve explicit null values, and report invalid or unresolved parameters. Move source and sink paths out of the `bind` section while retaining backend settings under `engine`. |
-
-## Planned release: Function-level planning and incremental assembly
-
-Build dataset frames incrementally with explicit producer and frame-version
-dependencies, keeping assembly in the engine.
-
-**Prerequisites:** Dimensional operations and fragment foundation;
-Global parameters.
-
-| title | breaking | description |
-|---|---|---|
-| Validate dataset assembly dependencies | No | Resolve unambiguous output producers, prerequisites and cycles in the function-level graph strictly from declared inputs and outputs. Retain all existing plan-safety checks throughout the transition; do not defer safety needed by the earlier fragment release. Physical key uniqueness and returned schemas remain runtime checks. |
-| Build dataset frames function by function | Yes | Engine state is one frame per dataset. The plan is a graph of functions, with each function pinned to the foreign frame version it reads. Datasets in the same stage are independent only when no declared input/output dependency connects them. Start with a sequential scheduler that waits for each step to finish successfully before starting the next, and preserve the fragment assembly contract. |
-
-## Planned release: Reproducible builds and diagnostics
-
-Make builds identifiable and immutable, and source-loading failures actionable.
-
-**Prerequisites:** No new execution capability; provenance records must evolve
-with changes to specification and plan formats.
-
-| title | breaking | description |
-|---|---|---|
-| Record execution requirements | No | Record callable module references, declared package requirements and available version provenance in the build manifest. Provide checks for requirement availability and compatibility without executing analytical functions, for reuse by strict target-aware compilation and engine preflight. Distinguish declared requirements from best-effort import analysis; dynamic imports cannot be exhaustively inferred. Do not install dependencies automatically. |
-| Preserve immutable build snapshots | No | Published artifacts retain fixed specification, mapping bindings and plan snapshots with stable build identity. Record implementation package versions or source fingerprints so changed code can be detected; an import path alone does not freeze implementation. Changed logic or bindings require a new build, not a new authoring identity for every function or mapping. Runtime overrides must not mutate published artifacts. |
-| Improve build-source diagnostics | No | Distinguish malformed `module:attribute` entrypoints, missing spec sources and import failures inside otherwise valid modules. Preserve the underlying exception cause and actionable message, and offer a verbose traceback option. Cover Python and JSON source selection, project-directory discovery and nested import failures in tests; document the current CLI syntax rather than introducing a duplicate project-directory option. |
-| Align examples with the documented project layout | Maybe | Link example READMEs to the project structure guide and keep specifications in `spec/`, separate from runtime configuration. Align examples and documentation around importable implementation packages, using a `src/` layout where packaging is needed and grouping I/O and calculations consistently. Add validation folders when quality validations ship. Keep deployment assets separate from analytical functions; automatic assembly needs no user-authored merge category. Update scaffolding, entrypoints, commands and tests together. Earlier breaking releases must still migrate affected examples immediately. |
 
 ## Planned release: Frame adapter contracts
 
-Keep Polars as the built-in native implementation. Separate dataframe conversion
-from native assembly and validate both before advertising support. This release
-introduces the adapter contracts and implementation path for dataframe
-representations beyond Polars, which are not supported by the fragment
-foundation release.
+Introduce a common adapter contract for converting and combining dataframe
+representations. Keep Polars as the built-in native implementation, and use
+adapters to support interoperability with other dataframe libraries.
 
-**Prerequisites:** Function-level planning and incremental assembly;
-execution-requirement checks from Reproducible builds and diagnostics.
+**Prerequisites:** Pinned dataset frame versions.
 
 | title | breaking | description |
 |---|---|---|
-| Add a public runtime adapter registry | No | Register operations by concrete frame representation and capability, such as `to_arrow`, `from_arrow` and `assemble_fragments`, with documented signatures. Keep adapters out of the analytical specification. Load trusted adapter modules explicitly through engine configuration; do not install packages or discover and execute arbitrary project modules automatically. |
-| Integrate native execution adapters | Maybe | Evolve `DataFrameBackend` around the registry, retaining shared assembly orchestration and built-in Polars support. Native execution requires inspection, selection and contract validation as well as assembly. Limit the interface to engine requirements instead of creating a general dataframe API or compatibility-layer dependency. |
-| Declare function representation requirements | No | Record input and output representations with implementation-binding metadata, not individual dataset or feature mappings. Resolve requirements without relying solely on annotations or importing implementations when signature validation is disabled. Treat unknown representations as unresolved requirements, not missing adapters. Keep the logical plan backend-independent and target-specific choices separate. |
+| Refactor `DataFrameBackend` and `PolarsBackend` | No | Define the public `DataFrameBackend` interoperability contract with `evaluation: str` (`lazy` or `eager`), `data_types: list` (supported dataframe classes, such as `pd.DataFrame`), and `to_arrow`, `from_arrow` and `merge` methods. Refactor the existing Polars implementation as `PolarsBackend(DataFrameBackend)`. Keep additional operations needed by the engine in `PolarsBackend` without requiring them in the shared contract. |
+| Add a public runtime adapter registry | No | Register adapters by the concrete dataframe types they support and the capabilities they provide. Keep adapters out of the analytical specification. Load trusted adapter modules explicitly through engine configuration; do not install packages or discover and execute arbitrary project modules automatically. |
+| Declare function representation requirements | No | Document the data formats each function implementation expects and returns. Store this information with the implementation binding, not separately for each dataset or feature. Determine formats without relying only on type annotations or importing implementation code when signature validation is disabled. If a format is unknown, leave it unresolved rather than claiming a conversion adapter is missing. Keep the logical plan independent of the runtime backend, and make backend-specific conversion choices separately. |
 | Define portable logical type compatibility | No | Define schema compatibility independently of physical dataframe types, using Arrow mappings at representable interchange boundaries. Document normalization such as string widths and equivalent time zones. Distinguish portable structured values from arbitrary Python objects and reject unsupported conversions explicitly. |
-| Add a missing-value policy | No | Declare `nullable` and `NaN` handling as a dataset default, overridable per feature. Define preservation or explicit rejection at conversion boundaries, including array representations that cannot retain null validity information. Do not silently conflate nulls and NaNs. |
-| Add Arrow boundary conversion | No | Use Arrow only across supported representation boundaries. Retain native frames on same-representation paths and preserve lazy plans where supported. Keep accumulated datasets in the selected assembly representation; convert incoming fragments once and outward only for consumers that require it. Document materialization, allocation and type limitations: Arrow transfers data, not lazy plans, and is not universally zero-copy. |
-| Select assembly independently of interchange | No | Configure assembly in engine settings, defaulting to Polars. Conversion-only adapters permit foreign fragments without native join support. Native assembly requires the full execution capability set; missing capabilities fail explicitly rather than falling back silently to Polars. |
+| Add Arrow boundary conversion | No | Use each adapter's `to_arrow` and `from_arrow` methods only across supported representation boundaries. Retain native frames on same-representation paths and preserve lazy plans where supported. Keep accumulated datasets in the selected assembly representation; convert incoming fragments once and outward only for consumers that require it. Document materialization, allocation and type limitations: Arrow transfers data, not lazy plans, and is not universally zero-copy. |
+| Remove the engine dataframe setting | No | Remove `backend.dataframe` from engine configuration. Determine required conversions and fragment merges from functions' declared dataframe representations and the available adapters; keep Polars as the built-in native implementation. Conversion-only adapters permit foreign fragments without native merge support. If merging is required but unavailable for the involved representation, fail explicitly rather than silently falling back to Polars. |
 | Validate adapter capabilities before execution | No | Record representation and capability requirements during portable compilation without requiring target adapters on the build machine. Offer strict target-aware compilation using engine configuration and the registry. Reuse its resolver in mandatory engine preflight to check conversions, native operations, execution requirements and permitted materialization or transfer boundaries. Errors identify the function or boundary, missing capability, expected registration signature and loading guidance. |
 | Add adapter and assembly conformance suites | No | Generalize the existing Polars safety tests into reusable suites for conversion and native assembly separately. Cover null and duplicate keys, dimensionless datasets, collisions, partial coverage, schema fidelity, missing values and eager/lazy behavior. Test missing-capability diagnostics and reject unsupported boundaries without silent local collection. Ship suites with the registry; every later adapter must pass its applicable tests. |
-
-## Planned release: Runtime contract validation
-
-Add extended runtime checks and consistent controls without weakening the
-mandatory safety already shipped with fragments and adapters.
-
-**Prerequisites:** Frame adapter contracts.
-
-| title | breaking | description |
-|---|---|---|
-| Separate mandatory and optional runtime checks | Yes | Keep preflight, actual returned-representation checks and assembly safety mandatory, including required columns, collisions and dimension-key uniqueness. Add `uptimely run --validate contracts` for extended actual-type and declared-data-contract checks, with the same named modes in the Python engine API rather than an ambiguous boolean. Use native capabilities, not unconditional Arrow copies; respect materialization policy. Unknown or not-yet-supported validation modes fail explicitly. |
-| Restrict functions to declared feature inputs | Yes | Pass only dimension keys and declared feature inputs, so hidden column reads fail. Warn about undeclared output columns. Preserve explicit output bindings and representation requirements across native and converted paths. |
 
 ## Planned release: Runtime configuration and scoped execution
 
 Run the requested scope in the right environment without changing saved builds.
 
-**Prerequisites:** Function-level planning and incremental assembly;
-Reproducible builds and diagnostics; Runtime contract validation.
+**Prerequisites:** Pinned dataset frame versions; Frame adapter contracts.
 
 | title | breaking | description |
 |---|---|---|
@@ -107,13 +46,15 @@ Reproducible builds and diagnostics; Runtime contract validation.
 Check real data with explicit rules that produce no features and do not change
 data. Quality checks complement contracts; they do not prove formula correctness.
 
-**Prerequisites:** Runtime contract validation; Runtime configuration and scoped
+**Prerequisites:** Frame adapter contracts; Runtime configuration and scoped
 execution for shared invocation and environment configuration.
 
 | title | breaking | description |
 |---|---|---|
+| Separate mandatory and optional runtime checks | Yes | Keep preflight, actual returned-representation checks and assembly safety mandatory, including required columns, collisions and dimension-key uniqueness. Add `uptimely run --validate contracts` for extended actual-type and declared-data-contract checks, with the same named modes in the Python engine API rather than an ambiguous boolean. Use native capabilities, not unconditional Arrow copies; respect materialization policy. Unknown or not-yet-supported validation modes fail explicitly. |
 | Add data quality validations | No | Add a `validations` section with calculation-style binding, organizing code under `calculations/` and `validations/`. Dataset validation functions return `bool` or failing rows, where an empty frame means passed. Severity `error` fails the run and stops further execution under the normal failure policy, without special write-only gating. Severity `warn` reports and continues. Validation runs include writes like other steps, using environment-configured destinations. Extend existing modes with `--validate quality` and `--validate all`, the latter including contract checks. Show validations as feature status badges in Explorer, not calculation steps. |
 | Add reusable null-quality checks | No | Provide distinct any-null and all-null-column checks with explicit empty-dataset behavior and configurable severity. Apply only declared checks; nulls in a nullable column are not automatically invalid. Keep quality rules separate from mandatory assembly safety and reuse validation reporting. |
+| Add a missing-value policy | No | Define whether datasets and features may contain nulls or NaNs, with feature-level settings overriding dataset defaults. Make the policy available to data-quality checks so allowed nulls are not treated as failures by default. Preserve nulls and NaNs distinctly across representation conversions, or reject conversions that cannot preserve them, such as arrays without null-validity information. |
 | Add validation reports | No | Use a consistent record containing validation, dataset, severity, pass/fail, failing row count, bounded sample and message. Include run and build identity for later correlation with execution reports. Export with `--report <path>`, print a CLI summary and show the latest report in Explorer. Each run replaces the previous report; shared history is out of scope. Make sample capture explicit and redact sensitive data. |
 
 ## Planned release: Testing and CI/CD
@@ -135,7 +76,7 @@ validations. Existing repository tests continue to accompany every release.
 
 Optimize a correct, scoped plan and execute genuinely independent work.
 
-**Prerequisites:** Function-level planning and incremental assembly;
+**Prerequisites:** Pinned dataset frame versions;
 Frame adapter contracts; Runtime configuration and scoped execution;
 Data quality validations for shared validation and failure semantics.
 
@@ -189,9 +130,9 @@ extension points for the explanation views. Metadata extraction can ship first.
 Make execution outcomes portable and inspectable without promising live
 monitoring or shared history.
 
-**Prerequisites:** Reproducible builds and diagnostics; Data quality validations
-for shared run/build identifiers; Explorer navigation extension points for UI
-integration. Report export can ship before its Explorer view.
+**Prerequisites:** Data quality validations for shared run/build identifiers;
+Explorer navigation extension points for UI integration. Report export can
+ship before its Explorer view.
 
 | title | breaking | description |
 |---|---|---|
@@ -203,7 +144,7 @@ integration. Report export can ship before its Explorer view.
 Derive schedules from declared result freshness without changing the meaning
 of analytical dependencies.
 
-**Prerequisites:** Function-level planning and incremental assembly; Runtime configuration and
+**Prerequisites:** Pinned dataset frame versions; Runtime configuration and
 scoped execution. Parallel execution is not required.
 
 | title | breaking | description |
@@ -215,8 +156,7 @@ scoped execution. Parallel execution is not required.
 Consolidate and extend runnable analytics examples, not migration work deferred
 from earlier releases.
 
-**Prerequisites:** The function-kind contracts used by each example; the documented
-layout from Reproducible builds and diagnostics.
+**Prerequisites:** The function-kind contracts used by each example.
 
 | title | breaking | description |
 |---|---|---|
@@ -274,3 +214,17 @@ missing-value rules.
 | title | breaking | description |
 |---|---|---|
 | Add a tensor feature type | No | Support fixed-shape tensor features using Arrow's `FixedShapeTensor` type, with explicit shape, dtype and conversion contracts tested through the applicable adapter conformance suites. |
+
+## Planned release: Reproducible builds and diagnostics
+
+Make builds identifiable and immutable, and source-loading failures actionable.
+
+**Prerequisites:** No new execution capability; provenance records must evolve
+with changes to specification and plan formats.
+
+| title | breaking | description |
+|---|---|---|
+| Record execution requirements | No | Record callable module references, declared package requirements and available version provenance in the build manifest. Provide checks for requirement availability and compatibility without executing analytical functions, for reuse by strict target-aware compilation and engine preflight. Distinguish declared requirements from best-effort import analysis; dynamic imports cannot be exhaustively inferred. Do not install dependencies automatically. |
+| Preserve immutable build snapshots | No | Published artifacts retain fixed specification, mapping bindings, plan and callable implementation source with stable build identity. Package callable code in the bundle as a wheel for packaged projects or a source archive for supported pure-Python projects; record its content hash and load implementations from that artifact at runtime rather than mutable project files. An import path or source fingerprint alone does not freeze implementation. Record dependency requirements and provenance separately; bundling project source does not bundle third-party dependencies. Changed logic or bindings require a new build, not a new authoring identity for every function or mapping. Runtime overrides must not mutate published artifacts. |
+| Improve build-source diagnostics | No | Distinguish malformed `module:attribute` entrypoints, missing spec sources and import failures inside otherwise valid modules. Preserve the underlying exception cause and actionable message, and offer a verbose traceback option. Cover Python and JSON source selection, project-directory discovery and nested import failures in tests; document the current CLI syntax rather than introducing a duplicate project-directory option. |
+| Align examples with the documented project layout | Maybe | Link example READMEs to the project structure guide and keep specifications in `spec/`, separate from runtime configuration. Align examples and documentation around importable implementation packages, using a `src/` layout where packaging is needed and grouping I/O and calculations consistently. Add validation folders when quality validations ship. Keep deployment assets separate from analytical functions; automatic assembly needs no user-authored merge category. Update scaffolding, entrypoints, commands and tests together. Earlier breaking releases must still migrate affected examples immediately. |
