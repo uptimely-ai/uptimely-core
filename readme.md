@@ -1,10 +1,10 @@
 # Uptimely Core
 
-Uptimely Core helps industrial teams build and run batch analytics with complex
-feature dependencies.
+Uptimely Core helps data science teams build, validate and run analytical pipelines with complex
+input/output dependencies.
 
 Use it for machine telemetry, process analytics, failure prediction, and
-factory optimization. Streaming abstractions are on the roadmap.
+factory optimization. Currently works on batch, streaming abstractions are on the roadmap.
 
 Definitions can be authored in Python and exported to JSON, or supplied directly as JSON. The built-in execution backend uses Polars, and the engine supports configurable runtime adapters.
 
@@ -15,7 +15,7 @@ Definitions can be authored in Python and exported to JSON, or supplied directly
 
 ## Demo
 
-![Uptimely Core Demo](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-demo.gif)
+![Uptimely Core Demo](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-feature-lineage.png)
 
 Read more at [uptimely.ai website](https://uptimely.ai).
 
