@@ -58,7 +58,7 @@
         "reading"
       ],
       "arguments": {
-        "source": "?storage.source.path"
+        "source": "$params.source"
       },
       "dependency_ids": []
     },

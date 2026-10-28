@@ -23,6 +23,7 @@ def test_default_spec_attribute() -> None:
         (project.SPEC_JSON_ENTRY_FILE, "spec/spec.json"),
         (project.COMPILER_CONFIG_FILE, "config/compiler.json"),
         (project.ENGINE_CONFIG_FILE, "config/engine.json"),
+        (project.PARAMS_CONFIG_FILE, "config/params.json"),
         (project.DATA_DIR, "data"),
         (project.FUNCTIONS_DIR, "functions"),
         (project.GENERATED_DIR, "_generated"),

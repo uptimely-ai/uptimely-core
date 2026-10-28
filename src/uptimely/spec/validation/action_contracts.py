@@ -188,6 +188,14 @@ def validate_target_input(item: context_module.ActionContract) -> context_module
             code="invalid_mapping_dataset_input",
             path=(*item.action.location.path, "binding", "args"),
         )
+    if kind == functions.WRITE:
+        foreign = sorted(item.dataset_ids - {item.action.location.dataset.id})
+        if foreign:
+            return errors.SpecError(
+                "Write action cannot publish a foreign dataset dataframe: " + ", ".join(foreign),
+                code="invalid_mapping_dataset_input",
+                path=(*item.action.location.path, "binding", "args"),
+            )
     return None
 
 

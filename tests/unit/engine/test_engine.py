@@ -28,11 +28,11 @@ def _plan() -> uptimely_plan.ExecutionPlan:
 
 def _engine(
     plan: uptimely_plan.ExecutionPlan,
-    bind_values: dict[str, dict[str, dict[str, object]]] | None = None,
+    parameters: dict[str, object] | None = None,
     project_root: pathlib.Path | None = None,
 ) -> uptimely_engine.Engine:
     return uptimely_engine.Engine(
-        bundle_for_plan(plan, project_root), uptimely_engine.EngineConfig(bind=bind_values or {})
+        bundle_for_plan(plan, project_root), uptimely_engine.EngineConfig(), parameters
     )
 
 
@@ -72,7 +72,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
         written["features"] = features
 
     _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
-    engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
+    engine = _engine(_plan(), {"source": "/tmp/telemetry.parquet"})
 
     result = engine.run()
 
@@ -114,8 +114,8 @@ def test_engine_can_skip_lazy_value_validation(
         bundle,
         uptimely_engine.EngineConfig(
             backend=uptimely_engine.EngineBackendConfig(validate_lazy_frames=False),
-            bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
         ),
+        {"source": "/tmp/telemetry.parquet"},
     )
     monkeypatch.setattr(pl.LazyFrame, "collect", unexpected_collect)
 
@@ -155,8 +155,8 @@ def test_disabled_lazy_validation_preserves_schema_checks(
         bundle_for_plan(_plan()),
         uptimely_engine.EngineConfig(
             backend=uptimely_engine.EngineBackendConfig(validate_lazy_frames=False),
-            bind={"storage": {"source": {"path": "/tmp/telemetry.parquet"}}},
         ),
+        {"source": "/tmp/telemetry.parquet"},
     )
     monkeypatch.setattr(pl.LazyFrame, "collect", unexpected_collect)
 
@@ -186,7 +186,7 @@ def test_saved_plan_executes_without_compiler(
 
     monkeypatch.setattr(uptimely_compiler.Compiler, "compile", fail_compile)
     _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
-    engine = _engine(saved_plan, {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
+    engine = _engine(saved_plan, {"source": "/tmp/telemetry.parquet"})
 
     result = engine.run()
 
@@ -214,7 +214,7 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
             )
             for location in ("uptimely.entrypoint:PackageProvenance", "math:pi")
         },
-        engine.bind,
+        engine.parameters,
         state_module.RuntimeState(),
     )
 
@@ -242,7 +242,7 @@ def test_engine_entrypoints_include_saved_package_provenance() -> None:
     saved_plan.resources["entrypoint_packages"] = {
         location: {"distribution": "recorded-package", "version": "1.0"}
     }
-    engine = _engine(saved_plan, {"storage": {"source": {"path": "/tmp/input.parquet"}}})
+    engine = _engine(saved_plan, {"source": "/tmp/input.parquet"})
 
     result = engine.run()
 
@@ -272,7 +272,7 @@ def test_repeated_execution_does_not_leak_runtime_state(
         assert dataset["doubled"].to_list() in ([2, 4], [4, 6])
 
     _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
-    engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
+    engine = _engine(_plan(), {"source": "/tmp/telemetry.parquet"})
 
     first_result = engine.run()
     second_result = engine.run()
@@ -297,7 +297,7 @@ def test_execute_stops_after_a_failed_operation(monkeypatch: pytest.MonkeyPatch)
         called = True
 
     _patch_callables(monkeypatch, {"test:read": read, "test:write": write})
-    engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
+    engine = _engine(_plan(), {"source": "/tmp/telemetry.parquet"})
 
     result = engine.run()
 
@@ -440,7 +440,7 @@ def test_escape_resolves_literal_and_runtime_arguments(monkeypatch: pytest.Monke
         dataset_id="external",
         output_features=["external_result"],
         input_features=["external_input"],
-        arguments={"path": "?storage.output.path", "mode": "replace"},
+        arguments={"path": "$params.output", "mode": "replace"},
     )
     plan = uptimely_plan.ExecutionPlan(
         plan_version=3,
@@ -467,7 +467,7 @@ def test_escape_resolves_literal_and_runtime_arguments(monkeypatch: pytest.Monke
         received.append((path, mode))
 
     _patch_callables(monkeypatch, {"test:escape": external_action})
-    result = _engine(plan, {"storage": {"output": {"path": "/tmp/external-output.csv"}}}).run()
+    result = _engine(plan, {"output": "/tmp/external-output.csv"}).run()
 
     assert received == [("/tmp/external-output.csv", "replace")]
     assert result.invocation_statuses == {invocation_id: "succeeded"}
@@ -720,15 +720,15 @@ def test_engine_rejects_execution_plan_instead_of_bundle() -> None:
         )
 
 
-@pytest.mark.parametrize("reference", ["?", "?storage.source", "?storage.source.path.extra"])
-def test_engine_rejects_malformed_runtime_references(reference: str) -> None:
+@pytest.mark.parametrize("reference", ["$params.", "$params.source.path"])
+def test_engine_rejects_malformed_parameter_references(reference: str) -> None:
     engine = _engine(_plan())
     bindings = bindings_module.RuntimeBindings(
-        engine.spec_definition, state_module.RuntimeState(), engine.bind
+        engine.spec_definition, state_module.RuntimeState(), engine.parameters
     )
 
-    with pytest.raises(ValueError, match="Malformed runtime reference"):
-        bindings.resolve_runtime_reference(reference)
+    with pytest.raises(ValueError, match="Malformed parameter reference"):
+        bindings.resolve_parameter_reference(reference)
 
 
 def test_engine_rejects_ambiguous_fragment_references() -> None:
@@ -750,7 +750,7 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
         return pl.DataFrame({"asset_id": [source], "reading": [1]})
 
     _patch_callables(monkeypatch, {"test:read": read})
-    engine = _engine(_plan(), {"storage": {"source": {"path": "source"}}})
+    engine = _engine(_plan(), {"source": "source"})
     entity = engine.spec_definition.entities["asset"]
     for dataset_id in ("first", "second"):
         entity.datasets[dataset_id] = spec_model.Dataset(id=dataset_id)
@@ -759,7 +759,7 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
         engine.backend,
         engine.spec_definition,
         {},
-        engine.bind,
+        engine.parameters,
         state,
     )
     for dataset_id in ("first", "second"):
@@ -867,7 +867,7 @@ def test_execute_rejects_scalar_calculations(monkeypatch: pytest.MonkeyPatch) ->
         monkeypatch,
         {"test:read": read, "test:double": constant, "test:write": lambda **_: None},
     )
-    engine = _engine(_plan(), {"storage": {"source": {"path": "/tmp/telemetry.parquet"}}})
+    engine = _engine(_plan(), {"source": "/tmp/telemetry.parquet"})
 
     result = engine.run()
 

@@ -90,7 +90,6 @@ class Dataset:
     id: str
     description: str | None = None
     entity: str | Entity | None = None
-    keys: tuple[dimension_module.Dimension, ...] = ()
     row_scope = RowScope()
     order: abc.Sequence[Order] = ()
     producers: abc.Sequence[actions.Action] = ()
@@ -106,7 +105,6 @@ class Dataset:
         pipelines: abc.Sequence[actions.Action] | None = None,
         description: str | None = None,
         entity: str | Entity | None = None,
-        keys: tuple[dimension_module.Dimension, ...] | None = None,
         row_scope: RowScope | None = None,
         order: abc.Sequence[Order] | None = None,
     ) -> None:
@@ -118,8 +116,6 @@ class Dataset:
             self.description = description
         if entity is not None:
             self.entity = entity
-        if keys is not None:
-            self.keys = keys
         if row_scope is not None:
             self.row_scope = row_scope
         if order is not None:
@@ -165,14 +161,14 @@ class Dataset:
         producers: dict[str, str] = {}
         if isinstance(self.entity, str):
             raise ValueError("Resolve entity IDs through Spec before converting a dataset")
-        keys = self.entity.dimensions if self.entity is not None else self.keys
-        resolved_keys: list[dimension_module.Dimension] = []
-        for key in keys:
+        entity_keys = self.entity.dimensions if self.entity is not None else ()
+        resolved_entity_keys: list[dimension_module.Dimension] = []
+        for key in entity_keys:
             if isinstance(key, str):
                 raise ValueError("Resolve dimension IDs through Spec before converting a dataset")
             if not isinstance(key, dimension_module.Dimension):
                 raise TypeError("dataset dimensions must contain Dimension declarations")
-            resolved_keys.append(key)
+            resolved_entity_keys.append(key)
         for name, declaration in self._collect_actions().items():
             model = self._action_model(name, declaration)
             for metadata in declaration.outputs:
@@ -185,14 +181,14 @@ class Dataset:
                 producers[identifier] = name
                 features[identifier] = metadata.to_model()
             if declaration.kind in {functions.READ, functions.COLLAPSE}:
-                for key in resolved_keys:
+                for key in resolved_entity_keys:
                     if key.id not in features:
                         features[key.id] = spec_model.Feature(
                             id=key.id, type=key.type, description=key.description
                         )
                 key_outputs = [
                     f"{selectors.FEATURE_PREFIX}{key.id}"
-                    for key in resolved_keys
+                    for key in resolved_entity_keys
                     if f"{selectors.FEATURE_PREFIX}{key.id}" not in model.features.outputs
                 ]
                 model.features.outputs[:0] = key_outputs

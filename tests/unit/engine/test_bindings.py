@@ -6,6 +6,7 @@ from conftest import _spec_for_plan
 
 from uptimely import execution_plan as plan_module
 from uptimely.engine import bindings as bindings_module
+from uptimely.engine import config as config_module
 from uptimely.engine import state as state_module
 from uptimely.spec import model as spec_model
 
@@ -15,12 +16,12 @@ PLAN = plan_module.from_json("tests/fixtures/plans/simple_engine.json")
 def _bindings(
     spec_definition: spec_model.Spec | None = None,
     state: state_module.RuntimeState | None = None,
-    bind: dict[str, dict[str, dict[str, object]]] | None = None,
+    parameters: dict[str, object] | None = None,
 ) -> bindings_module.RuntimeBindings:
     return bindings_module.RuntimeBindings(
         spec_definition or _spec_for_plan(PLAN),
         state or state_module.RuntimeState(),
-        bind or {},
+        parameters or {},
     )
 
 
@@ -33,14 +34,15 @@ def test_runtime_bindings_resolve_nested_runtime_values_and_dataframe_ids() -> N
     )
     bindings = _bindings(
         state=state,
-        bind={"storage": {"source": {"path": "/data/telemetry.parquet"}}},
+        parameters={"telemetry_source": "/data/telemetry.parquet", "null_value": None},
     )
 
     assert bindings.resolve_value(
         {
             "dataset": ["telemetry"],
             "fragment": ["reading"],
-            "paths": ["?storage.source.path"],
+            "paths": ["$params.telemetry_source"],
+            "nested": {"nullable": "$params.null_value"},
             "literal": [None, 1],
         },
         "object{str: array[string]}",
@@ -48,6 +50,7 @@ def test_runtime_bindings_resolve_nested_runtime_values_and_dataframe_ids() -> N
         "dataset": ["telemetry"],
         "fragment": ["reading"],
         "paths": ["/data/telemetry.parquet"],
+        "nested": {"nullable": None},
         "literal": [None, 1],
     }
     assert bindings.resolve_value(
@@ -59,18 +62,16 @@ def test_runtime_bindings_resolve_nested_runtime_values_and_dataframe_ids() -> N
 @pytest.mark.parametrize(
     ("reference", "message"),
     [
-        ("?", "Malformed runtime reference"),
-        ("?storage.source", "Malformed runtime reference"),
-        ("?unknown.source.path", "Unknown runtime namespace"),
-        ("?storage.unknown.path", "Unknown storage object"),
-        ("?storage.source.missing", "has no attribute"),
+        ("$params.", "Malformed parameter reference"),
+        ("$params.source.path", "Malformed parameter reference"),
+        ("$params.unknown", "Unresolved parameter"),
     ],
 )
 def test_runtime_bindings_reject_invalid_runtime_references(reference: str, message: str) -> None:
-    bindings = _bindings(bind={"storage": {"source": {"path": "/data/input.parquet"}}})
+    bindings = _bindings(parameters={"source": "/data/input.parquet"})
 
     with pytest.raises(ValueError, match=message):
-        bindings.resolve_runtime_reference(reference)
+        bindings.resolve_parameter_reference(reference)
 
 
 def test_runtime_bindings_reject_unavailable_dataframe_reference() -> None:
@@ -80,15 +81,32 @@ def test_runtime_bindings_reject_unavailable_dataframe_reference() -> None:
         bindings.resolve_value("missing", "dataframe")
 
 
-def test_runtime_bindings_apply_spec_and_runtime_binding_overrides() -> None:
+def test_parameter_config_accepts_only_flat_scalar_values() -> None:
+    config = config_module.ParameterConfig.model_validate(
+        {"limit": 1.5, "enabled": True, "empty": None, "path": "data/input.json"}
+    )
+
+    assert config.root == {
+        "limit": 1.5,
+        "enabled": True,
+        "empty": None,
+        "path": "data/input.json",
+    }
+    with pytest.raises(ValueError, match="must be a JSON scalar"):
+        config_module.ParameterConfig.model_validate({"limit": {"value": 1}})
+    with pytest.raises(ValueError, match="finite number"):
+        config_module.ParameterConfig.model_validate({"limit": float("nan")})
+
+
+def test_runtime_bindings_resolve_nested_parameter_references() -> None:
     spec_definition = _spec_for_plan(PLAN)
     spec_definition.functions["load"].args["source"].type = "array[string]"
     read_invocation = dataclasses.replace(
-        PLAN.invocations[0], arguments={"source": ["?storage.source.path"]}
+        PLAN.invocations[0], arguments={"source": ["$params.source"]}
     )
     bindings = _bindings(
         spec_definition=spec_definition,
-        bind={"storage": {"source": {"path": "/override/input.parquet"}}},
+        parameters={"source": "/override/input.parquet"},
     )
 
     assert bindings.resolve_args(read_invocation) == {"source": ["/override/input.parquet"]}

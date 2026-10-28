@@ -11,9 +11,10 @@ def validate_calculation_dependency(
     owner: context_module.DatasetLocation | None,
 ) -> context_module.ValidationResult:
     """Require a vectorize input owner to match the target dataset."""
+    action_name = item.outputs[0] if item.outputs else item.location.action_id
     if owner is not None and owner.key != item.location.key[:2]:
         return ValueError(
-            f"Calculation {item.outputs[0]} cannot read feature {feature} "
+            f"Calculation {action_name} cannot read feature {feature} "
             "from another dataset; use a source resource "
             "operation to transfer features between datasets"
         )

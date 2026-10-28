@@ -3,18 +3,5 @@
     "type": "python_venv",
     "dataframe": "polars",
     "evaluation": "eager"
-  },
-  "bind": {
-    "storage": {
-      "pump_reference_source": {
-        "path": "examples/pump_analytics/data/pump_reference.json"
-      },
-      "telemetry_source": {
-        "path": "examples/pump_analytics/data/pump_telemetry.json"
-      },
-      "telemetry_archive_source": {
-        "path": "examples/pump_analytics/data/pump_telemetry_archive.json"
-      }
-    }
   }
 }

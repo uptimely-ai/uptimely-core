@@ -234,6 +234,7 @@ class InvocationGraph:
             raise ValueError("Unknown output feature(s): " + ", ".join(missing))
 
         requested_nodes = [feature_producers[feature] for feature in features]
+
         selected_nodes = {self._node_by_key(node.node_id) for node in requested_nodes}
         for node in list(selected_nodes):
             selected_nodes.update(self.graph.ancestors(node))

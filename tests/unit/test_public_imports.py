@@ -14,7 +14,7 @@ from uptimely.compiler.graph import (
 from uptimely.compiler.graph import (
     InvocationNode as InvocationNodeImplementation,
 )
-from uptimely.engine.config import EngineConfig
+from uptimely.engine.config import EngineConfig, ParameterConfig
 from uptimely.engine.engine import Engine as EngineImplementation
 from uptimely.execution_plan.models import ExecutionPlan, Invocation
 from uptimely.explorer import graph_style
@@ -100,6 +100,7 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert not hasattr(execution_plan, "Callable")
     assert uptimely.Engine is engine.Engine is EngineImplementation
     assert engine.EngineConfig is EngineConfig
+    assert engine.ParameterConfig is ParameterConfig
 
     assert execution_plan.ExecutionPlan is ExecutionPlan
 

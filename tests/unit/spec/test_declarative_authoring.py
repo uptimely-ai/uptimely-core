@@ -200,29 +200,6 @@ def test_dataset_requires_identifier() -> None:
         authoring.Dataset().to_model()
 
 
-@pytest.mark.parametrize("kind", ["read", "collapse"])
-def test_dataset_keys_supply_dimension_metadata(kind: str) -> None:
-    identifier = dimension.Dimension(id="asset", type="string", description="Asset key")
-
-    class Example(authoring.Dataset):
-        id = "example"
-        keys = (identifier,)
-        producers = [
-            authoring.Action(
-                id="values",
-                function=ref.function("reader:values", kind=kind),
-                arguments={},
-                outputs=[authoring.Feature(name="value", type="float")],
-            )
-        ]
-
-    model = Example().to_model()
-    assert model.features["asset"].type == "string"
-    assert model.features["asset"].description == "Asset key"
-    assert model.actions["values"].output_features == ["asset", "value"]
-    assert Example().keys == (identifier,)
-
-
 def test_dataset_entity_supplies_dimension_metadata() -> None:
     identifier = dimension.Dimension(id="asset", type="string", description="Asset key")
     owner = entity.Entity(
@@ -297,39 +274,10 @@ def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -
     assert set(declaration.function_catalog()) == {"custom"}
 
 
-def test_dataset_keys_can_be_shared_by_read_mappings() -> None:
-    identifier = dimension.Dimension(id="asset", type="string")
-
-    class Example(authoring.Dataset):
-        id = "example"
-        keys = (identifier,)
-
-        producers = [
-            authoring.Action(
-                id="first",
-                function=ref.function("reader:first", kind="read"),
-                arguments={},
-                outputs=[authoring.Feature(name="first_value", type="float")],
-            ),
-            authoring.Action(
-                id="second",
-                function=ref.function("reader:second", kind="read"),
-                arguments={},
-                outputs=[authoring.Feature(name="second_value", type="float")],
-            ),
-        ]
-
-    model = Example().to_model()
-    assert set(model.features) == {"asset", "first_value", "second_value"}
-    assert model.actions["first"].output_features == ["asset", "first_value"]
-    assert model.actions["second"].output_features == ["asset", "second_value"]
-
-
 def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> None:
     identifier = dimension.Dimension(id="asset", type="string")
     declaration = authoring.Dataset(
         id="example",
-        keys=(identifier,),
         producers=[
             authoring.Action(
                 id="read",

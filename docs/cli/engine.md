@@ -9,7 +9,8 @@ Execute the plan in the project's last successful active build:
 
 ```console
 uptimely run \
-  [PROJECT_ROOT] [--project-root PATH] [--config PATH] [--verbose] [--preview [ROWS]]
+  [PROJECT_ROOT] [--project-root PATH] [--config PATH] [--params PATH] \
+  [--verbose] [--preview [ROWS]]
 ```
 
 Give the project directory positionally after `run`, or use
@@ -20,7 +21,8 @@ directory is used. The grouped form is `uptimely engine run [PROJECT_ROOT]`.
 | --- | --- | --- | --- |
 | `PROJECT_ROOT` | No | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
-| `--config PATH` | No | `config/engine.json` under the project root or current working directory | Engine settings and runtime bindings in JSON. |
+| `--config PATH` | No | `config/engine.json` under the project root or current working directory | Backend settings in JSON. |
+| `--params PATH` | No | `config/params.json` under the project root or current working directory | Required global scalar parameter values in JSON. |
 | `--verbose` | No | `false` | Add saved-resource statistics, execution counts, calculated features, stages, and dataset registry details. |
 | `--preview [ROWS]` | No | Disabled; 5 rows when supplied without a count | Log the first positive number of rows from each final dataset after successful execution, independently of `--verbose`. |
 
@@ -44,15 +46,24 @@ build without compiling or generating artifacts. This runs the plan's
 configured functions, including write sinks, and may have external side
 effects. Missing or invalid builds report a recovery command.
 
-The engine configuration is validated as `EngineConfig`. It contains a
-`backend` object for backend settings and a `bind` object for runtime values:
+The engine configuration is validated as `EngineConfig` and contains backend
+settings only:
 
 ```json
 {
-  "backend": {},
-  "bind": {}
+  "backend": {}
 }
 ```
 
-See the [execution engine specification](../components/engine.md) for
-backend settings and runtime overrides.
+Global scalar values are stored separately as a flat parameter map. A parameter
+referenced by `$params.<name>` must have an entry:
+
+```json
+{
+  "threshold": 10,
+  "source_path": "data/input.parquet"
+}
+```
+
+See the [execution engine specification](../components/engine.md) for parameter
+references and backend settings.

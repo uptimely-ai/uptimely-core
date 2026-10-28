@@ -7,6 +7,7 @@ import typing
 FEATURE_PREFIX: typing.Final[str] = "$features."
 DATASET_PREFIX: typing.Final[str] = "$datasets."
 DIMENSION_PREFIX: typing.Final[str] = "$dimensions."
+PARAMS_PREFIX: typing.Final[str] = "$params."
 CURRENT_ID: typing.Final[str] = "@"
 ID_SELECTOR: typing.Final[str] = ".id"
 DATAFRAME_SELECTOR: typing.Final[str] = ".dataframe"
@@ -23,6 +24,7 @@ __all__ = [
     "DATASET_PREFIX",
     "DIMENSION_IDS_SELECTOR",
     "DIMENSION_PREFIX",
+    "PARAMS_PREFIX",
     "FEATURE_PREFIX",
     "ID_SELECTOR",
     "STRUCTURAL_PREFIXES",

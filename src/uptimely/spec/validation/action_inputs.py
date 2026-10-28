@@ -30,10 +30,11 @@ def validate_input_feature(
 
 
 def validate_input_scope(
-    item: context_module.ActionFacts, feature: str
+    item: context_module.ActionFacts,
+    feature: str,
 ) -> context_module.ValidationResult:
     """Require vectorize and write inputs to belong to the target dataset."""
-    if item.kind in {functions.VECTORIZE, functions.WRITE} and feature not in (item.local_features):
+    if item.kind in {functions.VECTORIZE, functions.WRITE} and feature not in item.local_features:
         return ValueError(
             f"Action {item.location.action.id} cannot read feature {feature} from another dataset"
         )

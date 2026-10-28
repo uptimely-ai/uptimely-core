@@ -4,25 +4,25 @@ import typing
 from collections import abc
 
 from uptimely import execution_plan
-from uptimely.spec import arg_types
+from uptimely.spec import arg_types, selectors
 from uptimely.spec import model as spec_model
 
 from . import state as state_module
 
 
 class RuntimeBindings:
-    """Resolve typed invocation arguments, runtime placeholders, and dataframe IDs."""
+    """Resolve typed invocation arguments, global parameters, and dataframe IDs."""
 
     def __init__(
         self,
         spec_definition: spec_model.Spec,
         state: state_module.RuntimeState,
-        bind: abc.Mapping[str, abc.Mapping[str, abc.Mapping[str, typing.Any]]],
+        parameters: abc.Mapping[str, typing.Any],
     ) -> None:
-        """Create a resolver for one execution's resources, bindings, and runtime state."""
+        """Create a resolver for one execution's parameters and runtime state."""
         self.spec_definition = spec_definition
         self.state = state
-        self.bind = bind
+        self.parameters = parameters
 
     def resolve_args(self, invocation: execution_plan.Invocation) -> dict[str, object]:
         """Bind compiled argument values to runtime values using declared argument types."""
@@ -51,8 +51,14 @@ class RuntimeBindings:
             if frame is None:
                 raise ValueError(f"Dataset dataframe is unavailable: {value}")
             return frame
+        if isinstance(value, str) and value.startswith(selectors.PARAMS_PREFIX):
+            return self.resolve_parameter_reference(value)
+        if isinstance(value, str) and value == "$params":
+            raise ValueError(f"Malformed parameter reference: {value}")
         if isinstance(value, str) and value.startswith("?"):
-            return self.resolve_runtime_reference(value)
+            raise ValueError(
+                f"Legacy runtime reference {value!r} is unsupported; use a $params.<name> reference"
+            )
         if isinstance(value, list):
             element_type = (
                 arg_types.array_item_type(argument_type) if argument_type is not None else None
@@ -65,18 +71,11 @@ class RuntimeBindings:
             return {name: self.resolve_value(item, value_type) for name, item in value.items()}
         return value
 
-    def resolve_runtime_reference(self, value: str) -> object:
-        """Resolve a `?<namespace>.<object>.<attribute>` runtime placeholder."""
-        parts = value.removeprefix("?").split(".")
-        if len(parts) != 3:
-            raise ValueError(f"Malformed runtime reference: {value}")
-        namespace, object_id, attribute = parts
-        namespace_bindings = self.bind.get(namespace)
-        if namespace_bindings is None:
-            raise ValueError(f"Unknown runtime namespace: {namespace}")
-        object_bindings = namespace_bindings.get(object_id)
-        if object_bindings is None:
-            raise ValueError(f"Unknown {namespace} object: {object_id}")
-        if attribute not in object_bindings:
-            raise ValueError(f"{namespace} object {object_id} has no attribute: {attribute}")
-        return object_bindings[attribute]
+    def resolve_parameter_reference(self, value: str) -> object:
+        """Resolve a required ``$params.<name>`` project parameter."""
+        name = value.removeprefix(selectors.PARAMS_PREFIX)
+        if not name or "." in name or not name.isidentifier():
+            raise ValueError(f"Malformed parameter reference: {value}")
+        if name not in self.parameters:
+            raise ValueError(f"Unresolved parameter: {name}")
+        return self.parameters[name]

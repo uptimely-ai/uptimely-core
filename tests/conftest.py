@@ -161,14 +161,15 @@ def bundle_for_plan(
 
 def engine_for_plan(
     execution_plan: execution_plan.ExecutionPlan,
-    bind: dict[str, dict[str, dict[str, object]]] | None = None,
+    parameters: dict[str, object] | None = None,
     project_root: pathlib.Path | None = None,
     spec_definition: spec.Spec | None = None,
 ) -> engine_module.Engine:
     """Create an engine for a plan using test runtime defaults."""
     return engine_module.Engine(
         bundle_for_plan(execution_plan, project_root, spec_definition),
-        engine_module.EngineConfig(bind=bind or {}),
+        engine_module.EngineConfig(),
+        parameters,
     )
 
 
