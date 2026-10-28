@@ -10,7 +10,6 @@ from uptimely import row_context, spec
 from uptimely.spec import operations
 
 from ..spec import binding_resolution
-from ..spec import references as bindings
 
 type GraphNode = graphable_.graphable.Graphable
 
@@ -24,7 +23,6 @@ class InvocationNode:
     dataset_id: str
     mapping_id: str
     feature_id: str | None = None
-    operation: operations.FunctionKind = operations.VECTORIZE
     output_features: tuple[str, ...] = ()
     arguments: dict[str, object] = dataclasses.field(
         default_factory=dict, compare=False, hash=False
@@ -37,10 +35,7 @@ class InvocationNode:
     @property
     def node_id(self) -> str:
         """Stable graph identifier for this invocation."""
-        return (
-            f"invocation:{self.operation}:{self.function_id}:"
-            f"{self.entity_id}:{self.dataset_id}:{self.mapping_id}"
-        )
+        return f"invocation:{self.function_id}:{self.entity_id}:{self.dataset_id}:{self.mapping_id}"
 
     def __str__(self) -> str:
         return f"{self.function_id}({self.entity_id})"
@@ -76,7 +71,7 @@ class InvocationGraph:
         for entity_id, entity in self.spec.entities.items():
             for dataset in entity.datasets.values():
                 for mapping in dataset.mappings.values():
-                    operation = bindings.mapping_kind(mapping, self.spec.functions)
+                    operation = self.spec.functions[mapping.binding.function].kind
                     feature_id = (
                         next(
                             (
@@ -97,7 +92,6 @@ class InvocationGraph:
                         dataset_id=dataset.id,
                         mapping_id=mapping.id,
                         feature_id=feature_id,
-                        operation=operation,
                         output_features=tuple(mapping.output_features),
                         arguments=mapping.binding.args,
                         input_features=tuple(mapping.input_features),
@@ -123,17 +117,23 @@ class InvocationGraph:
         self._add_write_dependencies(graph, nodes, dataset_sources, dataset_sinks, calculations)
         return graph
 
-    @staticmethod
     def _add_source_dependencies(
+        self,
         graph: graphable_.graph.Graph,
         nodes: dict[str, GraphNode],
         dataset_sources: dict[str, list[InvocationNode]],
     ) -> None:
         """Make source transforms depend on reads in their dataset."""
         for fragments in dataset_sources.values():
-            reads = [fragment for fragment in fragments if fragment.operation == operations.READ]
+            reads = [
+                fragment
+                for fragment in fragments
+                if self.spec.functions[fragment.function_id].kind == operations.READ
+            ]
             downstream = [
-                fragment for fragment in fragments if fragment.operation != operations.READ
+                fragment
+                for fragment in fragments
+                if self.spec.functions[fragment.function_id].kind != operations.READ
             ]
             for fragment in downstream:
                 for read in reads:
@@ -156,7 +156,7 @@ class InvocationGraph:
                 for source in dataset_sources.get(referenced_id, []):
                     if source != invocation and (
                         referenced_id != invocation.dataset_id
-                        or source.operation == operations.READ
+                        or self.spec.functions[source.function_id].kind == operations.READ
                     ):
                         graph.add_edge(nodes[source.node_id], nodes[invocation.node_id])
 
@@ -240,7 +240,7 @@ class InvocationGraph:
 
         selected_dataset_ids = {node.dataset_id for node in requested_nodes}
         for invocation in self.invocations:
-            if invocation.operation != operations.WRITE:
+            if self.spec.functions[invocation.function_id].kind != operations.WRITE:
                 continue
             if invocation.dataset_id not in selected_dataset_ids:
                 continue

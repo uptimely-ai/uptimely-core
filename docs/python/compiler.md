@@ -34,7 +34,8 @@ it. Version 1 plans are not supported; rebuild the bundle from its source Spec.
 ## graph
 
 `uptimely.compiler.graph` defines invocation nodes and organizes their
-dependencies.
+dependencies. A node's operation kind comes from its function declaration in
+the Spec rather than being stored on the node.
 
 ::: uptimely.compiler.graph
     options:
