@@ -62,7 +62,8 @@ function color. Features without a dataset share an
 unassigned lane. Selecting a node highlights its dependencies across lanes.
 The 2D invocation-lineage view uses the same dataset lanes and edge routing,
 with execution stages ordered left to right and invocation cards colored by
-operation. Labeled stage headers, subtle column shading, and vertical separators
+dataset, matching feature colors and the dataset legend. Labeled stage headers,
+subtle column shading, and vertical separators
 form a grid with the dataset rows. Invocations from different datasets in the
 same stage share a column. Graph fitting includes the dataset rows and stage headers.
 Hover over an invocation or select it to inspect its dataset and stage.
