@@ -83,8 +83,8 @@ def test_build_spec_context() -> None:
         context.configuration["dimensions"]["plant"]["description"]
         == "Manufacturing plant identifier"
     )
-    assert context.summary.entity_count == 2
-    assert context.summary.dataset_count == 3
+    assert context.summary.entity_count == 3
+    assert context.summary.dataset_count == 4
     assert sorted(context.summary.function_buckets) == sorted(functions.FUNCTION_KINDS)
     assert context.summary.function_buckets == {
         function_kind: sum(

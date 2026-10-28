@@ -94,7 +94,7 @@ def test_engine_default_logs_only_duration_and_processed_datasets(
 
     result = capsys.readouterr()
     assert not result.err
-    dataset_count = 2 if scoped else 3
+    dataset_count = 2 if scoped else 4
     assert result.out.splitlines() == [
         "",
         f"Engine completed in 1.234 s: {dataset_count} datasets processed",

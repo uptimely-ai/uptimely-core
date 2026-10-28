@@ -286,7 +286,7 @@ async def test_reload_build(state: server.ServerState) -> None:
     assert payload["scope"] == "all features"
     assert payload["features"] is None
     assert payload["spec"].endswith("_generated/build/spec.json")
-    assert payload["entities"] == ["pump", "pump_telemetry"]
+    assert payload["entities"] == ["constants", "pump", "pump_telemetry"]
 
 
 @pytest.mark.anyio

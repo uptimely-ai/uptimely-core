@@ -73,6 +73,17 @@ def test_engine_returns_calculated_features_without_writing_output() -> None:
     assert "health_signal_normalized" not in telemetry_frame.columns
     telemetry_frame = telemetry_frame.sort("pump", "timestamp")
     assert telemetry_frame["pump"].to_list() == ["PUMP-101", "PUMP-101", "PUMP-201"]
+    assert telemetry_frame["operation_mode"].to_list() == [
+        "low_speed",
+        "high_speed",
+        "low_speed",
+    ]
+    assert result.datasets["constants_dataset"].collect().to_dicts() == [
+        {"gravity": 9.81, "room_temperature": 20.0}
+    ]
+    assert analytics.read_constants(
+        str(EXAMPLES_ROOT / "pump_analytics/data/constants_dev.json")
+    ).collect().to_dicts() == [{"gravity": 9.81, "room_temperature": 22.0}]
     efficiency = [5.3 * 118.0 / (36 * 17.9), 5.4 * 119.5 / (36 * 18.1), 4.1 * 83.0 / (36 * 11.7)]
     assert telemetry_frame["pressure_flow_efficiency"].to_list() == pytest.approx(efficiency)
     assert telemetry_frame["bearing_temperature_delta"].to_list() == [None, 0.5, None]

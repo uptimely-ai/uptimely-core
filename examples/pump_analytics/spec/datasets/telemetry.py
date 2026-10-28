@@ -24,7 +24,9 @@ class Telemetry(Dataset):
             id="read_pump_telemetry",
             function=analytics.read_pump_telemetry,
             arguments=dict(  # noqa: C408
-                source=ref.source("telemetry_source"), environment="development"
+                source=ref.source("telemetry_source"),
+                pump_assets_source=ref.source("pump_assets_source"),
+                environment="development",
             ),
             outputs=[
                 Feature(
@@ -56,6 +58,13 @@ class Telemetry(Dataset):
                     type="float",
                     unit="kW",
                     description="Electric motor active power consumption",
+                ),
+                Feature(
+                    name="operation_mode",
+                    type="string",
+                    description=(
+                        "Pump speed mode: low_speed below rated flow, otherwise high_speed."
+                    ),
                 ),
             ],
         ),

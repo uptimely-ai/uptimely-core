@@ -8,6 +8,7 @@ from uptimely import function
 @function(kind="read")
 def read_pump_telemetry(
     source: str,
+    pump_assets_source: str,
     production_line: str | None = None,
     environment: str = "development",
 ) -> pl.LazyFrame:
@@ -15,14 +16,40 @@ def read_pump_telemetry(
     if environment not in {"development", "qa", "production"}:
         raise ValueError(f"Unsupported environment: {environment}")
 
-    data_read = (
+    telemetry = (
         pl.read_json(source)
         .lazy()
         .with_columns(pl.col("timestamp").str.to_datetime(time_zone="UTC"))
     )
+    pump_assets = (
+        pl.read_json(pump_assets_source)
+        .lazy()
+        .select("plant", "production_line", "pump", "rated_flow_rate")
+    )
+    data_read = (
+        telemetry.join(
+            pump_assets,
+            on=["plant", "production_line", "pump"],
+            how="left",
+            validate="m:1",
+        )
+        .with_columns(
+            pl.when(pl.col("flow_rate") < pl.col("rated_flow_rate"))
+            .then(pl.lit("low_speed"))
+            .otherwise(pl.lit("high_speed"))
+            .alias("operation_mode")
+        )
+        .drop("rated_flow_rate")
+    )
     if production_line:
         data_read = data_read.filter(pl.col("production_line") == production_line)
     return data_read
+
+
+@function(kind="read")
+def read_constants(source: str) -> pl.LazyFrame:
+    """Load project-wide physical constants."""
+    return pl.read_json(source).lazy()
 
 
 @function(kind="write")
