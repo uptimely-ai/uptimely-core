@@ -42,6 +42,7 @@ class FeatureNode:
     name: str
     data_type: str | None = None
     entity: str | None = None
+    dataset_id: str | None = None
     is_input: bool = False
     is_output: bool = False
     is_source_input: bool = False

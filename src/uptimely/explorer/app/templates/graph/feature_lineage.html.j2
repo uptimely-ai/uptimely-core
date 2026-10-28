@@ -2,10 +2,10 @@
 {% from "graph/components.html.j2" import node_details_panel, graph_canvas, graph_legend %}
 {% block title %}Feature lineage{% endblock %}
 {% block body %}
-	{% call graph_legend("Feature lineage legend") %}
+	{% call graph_legend("Legend") %}
 			<span class="function" style="--color:{{ style.function_color }}">Function</span>
-			<span class="legend-heading">Entities</span>
-			<div class="entity-legend" id="entity-legend"></div>
+			<span class="legend-heading">Datasets</span>
+			<div class="dataset-legend" id="dataset-legend"></div>
 	{% endcall %}
 	{{ node_details_panel("details details-2d", "Selected item") }}
 	{{ graph_canvas() }}

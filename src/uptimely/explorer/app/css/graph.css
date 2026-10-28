@@ -30,8 +30,8 @@ html:has(.graph-page), .graph-page { height: 100%; overflow: hidden; }
 .legend .function::before { border-radius: 2px; }
 .legend-heading { margin-top: 4px; color: #9fb3c3; font-size: 11px; text-transform: uppercase;
 	letter-spacing: .06em; }
-.entity-legend { display: grid; gap: 5px; max-height: 30vh; overflow-y: auto; }
-.entity-legend span { overflow-wrap: anywhere; }
+.dataset-legend { display: grid; gap: 5px; max-height: 30vh; overflow-y: auto; }
+.dataset-legend span { overflow-wrap: anywhere; }
 .details { right: 16px; bottom: 16px; width: 260px; color: var(--color-text); }
 .details h2 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: #b7c5cf; }
 .details .meta { font-size: 12px; color: #cfe0ea; margin-bottom: 6px; white-space: normal; word-break: break-word; }

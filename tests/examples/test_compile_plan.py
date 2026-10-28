@@ -128,7 +128,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert '"function_kind": "collapse"' in report
     assert '"function_kind": "vectorize"' in report
     assert '"function_kind": "write"' in report
-    assert "Invocation lineage legend" in report
+    assert "<summary>Legend</summary>" in report
     assert 'class="function"' not in report
     assert '"source": "invocation:maximum:pump:pump_dataset:bearing_temperature_by_pump"' in report
     assert (
@@ -137,7 +137,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     )
     invocation_script = (tmp_path / "js/invocation_lineage.js").read_text(encoding="utf-8")
     shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
-    assert "ExplorerGraph.entityNodeObject(node, node.function_id, style)" in invocation_script
+    assert "ExplorerGraph.datasetNodeObject(node, node.function_id, style)" in invocation_script
     assert "SphereGeometry" in shared_script
 
 
