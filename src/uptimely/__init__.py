@@ -8,7 +8,18 @@ from .spec import (  # noqa: I001
     load_spec,
     write_document,
 )
-from .spec.python import Action, Dataset, Dimension, Entity, Feature, Spec, function, ref
+from .spec.python import (
+    Action,
+    Dataset,
+    Dimension,
+    Entity,
+    Feature,
+    Order,
+    RowScope,
+    Spec,
+    function,
+    ref,
+)
 from .compiler import Compiler, InvocationGraph, InvocationNode
 from .execution_plan.models import ExecutionPlan
 from .engine import Engine
@@ -18,6 +29,8 @@ __all__ = [
     "Action",
     "Dataset",
     "Feature",
+    "Order",
+    "RowScope",
     "function",
     "ref",
     "Compiler",

@@ -1,6 +1,6 @@
 """Combined spec declarations for the pump analytics project."""
 
-from uptimely.spec.python import Spec
+from uptimely import Spec
 
 from . import dimension, entity
 from .datasets.external_workflow import PumpExternalWorkflow

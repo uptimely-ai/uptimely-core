@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import external_workflow
 from examples.pump_analytics.spec import entity
 
-from uptimely.spec.python import Action, Dataset, Feature, RowScope, ref
+from uptimely import Action, Dataset, Feature, RowScope, ref
 
 
 class PumpExternalWorkflow(Dataset):
@@ -30,7 +30,7 @@ class PumpExternalWorkflow(Dataset):
             id="process_pump_external_workflow",
             function=external_workflow.process_pump_external_workflow,
             arguments={},
-            inputs=[ref.feature("measurement"), ref.feature("reference_value")],
+            inputs=[ref.column("measurement"), ref.column("reference_value")],
             outputs=[
                 Feature(
                     name="ratio",

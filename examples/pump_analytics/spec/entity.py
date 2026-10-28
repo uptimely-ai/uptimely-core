@@ -1,6 +1,6 @@
 """Entity declarations for the pump analytics project."""
 
-from uptimely.spec.python import Entity
+from uptimely import Entity
 
 from . import dimension
 

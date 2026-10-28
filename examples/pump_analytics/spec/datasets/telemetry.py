@@ -3,15 +3,8 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension, entity
 
-from uptimely.spec.python import (
-    Action,
-    Dataset,
-    Feature,
-    Order,
-    RowScope,
-    ref,
-    row_context,
-)
+from uptimely import Action, Dataset, Feature, Order, RowScope, ref
+from uptimely.spec.python import row_context
 
 
 class Telemetry(Dataset):
@@ -70,10 +63,10 @@ class Telemetry(Dataset):
             id="recommended_flow_rate",
             function=analytics.extract_recommendation_value,
             arguments=dict(  # noqa: C408
-                dataset=ref.current_dataset().dataframe,
-                column=ref.feature("operating_point_recommendation"),
+                dataset=ref.dataframe(),
+                column=ref.column("operating_point_recommendation"),
                 optimization_attribute="recommended_flow_rate",
-                output=ref.feature("recommended_flow_rate").id,
+                output=ref.output("recommended_flow_rate"),
             ),
             outputs=[
                 Feature(
@@ -88,10 +81,10 @@ class Telemetry(Dataset):
             id="recommended_discharge_pressure",
             function=analytics.extract_recommendation_value,
             arguments=dict(  # noqa: C408
-                dataset=ref.current_dataset().dataframe,
-                column=ref.feature("operating_point_recommendation"),
+                dataset=ref.dataframe(),
+                column=ref.column("operating_point_recommendation"),
                 optimization_attribute="recommended_discharge_pressure",
-                output=ref.feature("recommended_discharge_pressure").id,
+                output=ref.output("recommended_discharge_pressure"),
             ),
             outputs=[
                 Feature(
@@ -106,10 +99,10 @@ class Telemetry(Dataset):
             id="energy_cost_score",
             function=analytics.extract_recommendation_value,
             arguments=dict(  # noqa: C408
-                dataset=ref.current_dataset().dataframe,
-                column=ref.feature("operating_point_recommendation"),
+                dataset=ref.dataframe(),
+                column=ref.column("operating_point_recommendation"),
                 optimization_attribute="energy_cost_score",
-                output=ref.feature("energy_cost_score").id,
+                output=ref.output("energy_cost_score"),
             ),
             outputs=[
                 Feature(
@@ -123,10 +116,10 @@ class Telemetry(Dataset):
             id="converged",
             function=analytics.extract_recommendation_value,
             arguments=dict(  # noqa: C408
-                dataset=ref.current_dataset().dataframe,
-                column=ref.feature("operating_point_recommendation"),
+                dataset=ref.dataframe(),
+                column=ref.column("operating_point_recommendation"),
                 optimization_attribute="converged",
-                output=ref.feature("converged").id,
+                output=ref.output("converged"),
             ),
             outputs=[
                 Feature(
@@ -140,13 +133,13 @@ class Telemetry(Dataset):
             id="pressure_flow_efficiency",
             function=analytics.pressure_flow_efficiency,
             arguments=dict(  # noqa: C408
-                dataset=ref.current_dataset().dataframe,
+                dataset=ref.dataframe(),
                 pressure_features=[
-                    ref.feature("discharge_pressure"),
-                    ref.feature("flow_rate"),
-                    ref.feature("motor_power"),
+                    ref.column("discharge_pressure"),
+                    ref.column("flow_rate"),
+                    ref.column("motor_power"),
                 ],
-                output=ref.feature("pressure_flow_efficiency").id,
+                output=ref.output("pressure_flow_efficiency"),
             ),
             outputs=[
                 Feature(
@@ -160,11 +153,11 @@ class Telemetry(Dataset):
             id="bearing_temperature_delta",
             function=analytics.bearing_temperature_delta,
             arguments=dict(  # noqa: C408
-                dataset=ref.current_dataset().dataframe,
-                temperature=ref.feature("bearing_temperature"),
+                dataset=ref.dataframe(),
+                temperature=ref.column("bearing_temperature"),
                 partition_by=[ref.dimension(key.id) for key in entity.dimensions[:-1]],
                 order_by=ref.dimension(dimension.TIMESTAMP.id),
-                output=ref.feature("bearing_temperature_delta").id,
+                output=ref.output("bearing_temperature_delta"),
             ),
             outputs=[
                 Feature(
@@ -180,11 +173,11 @@ class Telemetry(Dataset):
             id="vibration_delta",
             function=analytics.vibration_delta_from_previous,
             arguments=dict(  # noqa: C408
-                dataset=ref.current_dataset().dataframe,
-                vibration=ref.feature("vibration_rms"),
+                dataset=ref.dataframe(),
+                vibration=ref.column("vibration_rms"),
                 partition_by=[ref.dimension(key.id) for key in entity.dimensions[:-1]],
                 order_by=ref.dimension(dimension.TIMESTAMP.id),
-                output=ref.feature("vibration_delta").id,
+                output=ref.output("vibration_delta"),
             ),
             outputs=[
                 Feature(
@@ -200,13 +193,13 @@ class Telemetry(Dataset):
             id="pump_health_score",
             function=analytics.pump_health_score,
             arguments=dict(  # noqa: C408
-                dataset=ref.current_dataset().dataframe,
+                dataset=ref.dataframe(),
                 health_features=[
-                    ref.feature("bearing_temperature_delta"),
-                    ref.feature("vibration_delta"),
-                    ref.feature("pressure_flow_efficiency"),
+                    ref.column("bearing_temperature_delta"),
+                    ref.column("vibration_delta"),
+                    ref.column("pressure_flow_efficiency"),
                 ],
-                output=ref.feature("pump_health_score").id,
+                output=ref.output("pump_health_score"),
             ),
             outputs=[
                 Feature(
@@ -221,15 +214,15 @@ class Telemetry(Dataset):
             id="operating_point_recommendation",
             function=analytics.optimize_pump_operating_point,
             arguments=dict(  # noqa: C408
-                dataset=ref.current_dataset().dataframe,
+                dataset=ref.dataframe(),
                 optimization_features=[
-                    ref.feature("discharge_pressure"),
-                    ref.feature("flow_rate"),
-                    ref.feature("motor_power"),
-                    ref.feature("bearing_temperature"),
-                    ref.feature("vibration_rms"),
+                    ref.column("discharge_pressure"),
+                    ref.column("flow_rate"),
+                    ref.column("motor_power"),
+                    ref.column("bearing_temperature"),
+                    ref.column("vibration_rms"),
                 ],
-                output=ref.feature("operating_point_recommendation").id,
+                output=ref.output("operating_point_recommendation"),
             ),
             outputs=[
                 Feature(
@@ -249,15 +242,15 @@ class Telemetry(Dataset):
             arguments=dict(  # noqa: C408
                 dataset=ref.current_dataset(),
                 features=[
-                    ref.feature("recommended_flow_rate"),
-                    ref.feature("recommended_discharge_pressure"),
-                    ref.feature("energy_cost_score"),
-                    ref.feature("converged"),
-                    ref.feature("pressure_flow_efficiency"),
-                    ref.feature("bearing_temperature_delta"),
-                    ref.feature("vibration_delta"),
-                    ref.feature("pump_health_score"),
-                    ref.feature("operating_point_recommendation"),
+                    ref.column("recommended_flow_rate"),
+                    ref.column("recommended_discharge_pressure"),
+                    ref.column("energy_cost_score"),
+                    ref.column("converged"),
+                    ref.column("pressure_flow_efficiency"),
+                    ref.column("bearing_temperature_delta"),
+                    ref.column("vibration_delta"),
+                    ref.column("pump_health_score"),
+                    ref.column("operating_point_recommendation"),
                 ],
             ),
             outputs=[],

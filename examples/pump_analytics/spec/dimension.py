@@ -1,6 +1,6 @@
 """Dimension declarations for the pump analytics project."""
 
-from uptimely.spec.python import Dimension
+from uptimely import Dimension
 
 PLANT = Dimension(
     id="plant",
