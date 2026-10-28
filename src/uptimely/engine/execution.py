@@ -41,14 +41,14 @@ class InvocationExecutor:
         self.dataframe.validate_inputs(invocation)
         return_kind = functions.KIND_RETURN_KINDS.get(invocation.function_kind)
         if return_kind == arg_types.DATAFRAME:
-            self._execute_dataframe_mapping(invocation)
+            self._execute_dataframe_action(invocation)
         elif return_kind == "none":
             self._execute_sink(invocation)
         else:
             raise ValueError(f"Unsupported invocation function kind: {invocation.function_kind}")
 
-    def _execute_dataframe_mapping(self, invocation: execution_plan.Invocation) -> None:
-        """Invoke a data-producing mapping, validate its result, and update the dataset."""
+    def _execute_dataframe_action(self, invocation: execution_plan.Invocation) -> None:
+        """Invoke a data-producing action, validate its result, and update the dataset."""
         dataframe = self.state.datasets.get(invocation.dataset_id)
         fragment = self._invoke(invocation)
         entity = self.spec_definition.entities.get(invocation.entity_id)
@@ -68,7 +68,7 @@ class InvocationExecutor:
                 )
 
     def _execute_escape(self, invocation: execution_plan.Invocation) -> None:
-        """Invoke an uncontrolled mapping and discard its return value."""
+        """Invoke an uncontrolled action and discard its return value."""
         self._invoke(invocation)
 
     def _execute_sink(self, invocation: execution_plan.Invocation) -> None:

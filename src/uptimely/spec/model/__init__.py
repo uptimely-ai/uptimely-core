@@ -9,11 +9,11 @@ from .common import (
     StrictModel,
 )
 from .dataset import (
+    Action,
+    ActionFeatures,
     Dataset,
     Entity,
     Feature,
-    Mapping,
-    MappingFeatures,
     Order,
     RowScope,
 )
@@ -40,8 +40,8 @@ __all__ = [
     "Feature",
     "FunctionCatalog",
     "FunctionTemplate",
-    "Mapping",
-    "MappingFeatures",
+    "Action",
+    "ActionFeatures",
     "Order",
     "RowScope",
     "StrictModel",

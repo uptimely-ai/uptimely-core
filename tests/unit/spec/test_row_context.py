@@ -281,7 +281,7 @@ def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Pat
     payload = json.loads(path.read_text())
     authored_dataset = payload["entities"]["entity"]["datasets"]["observations"]
     assert "row_context" not in authored_dataset["features"]["result"]
-    assert authored_dataset["mappings"]["result"]["row_context"] == context.to_dict()
+    assert authored_dataset["actions"]["result"]["row_context"] == context.to_dict()
     restored = spec.load_spec(path)
     compiled = compiler.Compiler().compile(restored)
     operation = next(item for item in compiled.invocations if item.function_kind == "vectorize")
@@ -318,27 +318,25 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     spec_path = tmp_path / "spec.json"
     spec.write_document(spec_definition, spec_path)
     restored_spec = spec.load_spec(spec_path)
-    original_mapping = (
-        spec_definition.entities["entity"].datasets["observations"].mappings["result"]
-    )
-    restored_mapping = restored_spec.entities["entity"].datasets["observations"].mappings["result"]
+    original_mapping = spec_definition.entities["entity"].datasets["observations"].actions["result"]
+    restored_mapping = restored_spec.entities["entity"].datasets["observations"].actions["result"]
     assert restored_mapping.row_context == original_mapping.row_context == context
     assert (
         "row_context"
         not in spec_definition.entities["entity"]
         .datasets["observations"]
-        .mappings["result"]
+        .actions["result"]
         .binding.model_dump()
     )
     exported = json.loads(spec_path.read_text())
     exported_dataset = exported["entities"]["entity"]["datasets"]["observations"]
     exported_feature = exported_dataset["features"]["result"]
     assert "row_context" not in exported_feature
-    assert exported_dataset["mappings"]["result"]["row_context"] == context.to_dict()
+    assert exported_dataset["actions"]["result"]["row_context"] == context.to_dict()
     assert "binding" not in exported_feature
     assert (
         "row_context"
-        not in exported["entities"]["entity"]["datasets"]["observations"]["mappings"]["result"][
+        not in exported["entities"]["entity"]["datasets"]["observations"]["actions"]["result"][
             "binding"
         ]
     )
@@ -437,7 +435,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         "output": "temperature_max",
     }
     output_dataset = spec_definition.entities["summary"].datasets["summary"]
-    output = output_dataset.mappings["summary"]
+    output = output_dataset.actions["summary"]
     assert output.row_context is None
     payload = output.model_dump()
     assert "group_by" not in payload

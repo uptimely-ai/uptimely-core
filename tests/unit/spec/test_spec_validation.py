@@ -36,7 +36,7 @@ def _escape_configuration() -> dict:
             "external_third": {"type": "float"},
         }
     )
-    target["mappings"]["escape_first"] = {
+    target["actions"]["escape_first"] = {
         "binding": {
             "function": "external_action",
             "args": {"source": "$datasets.pump_dataset.dataframe"},
@@ -50,7 +50,7 @@ def _escape_configuration() -> dict:
             "outputs": ["$features.external_first", "$features.external_second"],
         },
     }
-    target["mappings"]["escape_second"] = {
+    target["actions"]["escape_second"] = {
         "binding": {
             "function": "external_action",
             "args": {"source": "$datasets.pump_dataset.dataframe"},
@@ -68,34 +68,34 @@ def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -
     entity_id = next(iter(model.entities))
     entity = model.entities[entity_id]
     dataset = next(iter(entity.datasets.values()))
-    mapping = next(iter(dataset.mappings.values()))
-    dataset.mappings["alias"] = mapping
-    mapping.binding.function = "missing"
+    action = next(iter(dataset.actions.values()))
+    dataset.actions["alias"] = action
+    action.binding.function = "missing"
     model.entities["duplicate"] = entity.model_copy(update={"id": "duplicate"}, deep=True)
 
-    locations = list(context.SpecValidationContext.build(model).iter_mappings())
-    declarations = list(references.iter_mapping_items(model))
-    actual = [(item.entity_id, item.dataset, item.mapping_id, item.mapping) for item in locations]
+    locations = list(context.SpecValidationContext.build(model).iter_actions())
+    declarations = list(references.iter_action_items(model))
+    actual = [(item.entity_id, item.dataset, item.action_id, item.action) for item in locations]
     assert actual == declarations
-    aliases = [item for item in locations if item.mapping_id == "alias"]
+    aliases = [item for item in locations if item.action_id == "alias"]
     assert len(aliases) == 2
-    assert aliases[0].mapping is mapping
+    assert aliases[0].action is action
     assert aliases[0].key == (entity_id, dataset.id, "alias")
-    assert aliases[0].path[-1] == mapping.id
-    assert aliases[0].mapping_id != mapping.id
+    assert aliases[0].path[-1] == action.id
+    assert aliases[0].action_id != action.id
     same_dataset_locations = [item for item in locations if item.dataset is dataset]
     assert len(same_dataset_locations) > 1
     assert all(
         item.dataset_location is same_dataset_locations[0].dataset_location
         for item in same_dataset_locations
     )
-    assert list(references.iter_mappings(model)) == [
-        (item.entity_id, item.dataset, item.mapping) for item in locations
+    assert list(references.iter_actions(model)) == [
+        (item.entity_id, item.dataset, item.action) for item in locations
     ]
 
     facts = [
         item
-        for item in context.SpecValidationContext.build(model).mappings
+        for item in context.SpecValidationContext.build(model).actions
         if item.location.dataset is dataset
     ]
     dimensions = frozenset(entity.dimension_ids)
@@ -125,7 +125,7 @@ def test_validation_context_retains_duplicate_index_candidates() -> None:
     [
         {"spec_version": 0},
         {
-            "spec_version": 2,
+            "spec_version": 3,
             "functions": {"read": {"legacy_reader": {"entrypoint": "reader:load"}}},
         },
     ],
@@ -151,7 +151,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     }
     dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
     dataset["features"]["expanded_feature"] = {"type": "float", "description": "Expanded feature"}
-    dataset["mappings"]["expand_op"] = {
+    dataset["actions"]["expand_op"] = {
         "binding": {
             "function": "expand_telemetry",
             "args": {
@@ -169,8 +169,8 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     parsed_spec = spec.load_spec(spec_path)
     ds = parsed_spec.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
 
-    assert "read_pump_telemetry" in ds.mappings
-    assert "expand_op" in ds.mappings
+    assert "read_pump_telemetry" in ds.actions
+    assert "expand_op" in ds.actions
     assert "expanded_feature" in ds.all_features
 
     bad_source_config = json.loads(json.dumps(configuration))
@@ -178,14 +178,14 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         "features"
     ]["bad_source_feature"] = {"type": "float"}
     bad_source_config["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "mappings"
+        "actions"
     ]["bad_source"] = {
         "binding": {"function": "missing_read", "args": {}},
         "features": {"inputs": [], "outputs": ["$features.bad_source_feature"]},
     }
     bad_source_path = tmp_path / "bad_source.json"
     bad_source_path.write_text(json.dumps(bad_source_config), encoding="utf-8")
-    with pytest.raises(ValueError, match="mappings reference unknown functions"):
+    with pytest.raises(ValueError, match="actions reference unknown functions"):
         spec.load_spec(bad_source_path)
 
     bad_transform_config = json.loads(json.dumps(configuration))
@@ -193,7 +193,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         "features"
     ]["bad_transform_feature"] = {"type": "float"}
     bad_transform_config["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "mappings"
+        "actions"
     ]["bad_transform"] = {
         "binding": {"function": "missing_expand", "args": {}},
         "features": {
@@ -203,7 +203,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     }
     bad_transform_path = tmp_path / "bad_transform.json"
     bad_transform_path.write_text(json.dumps(bad_transform_config), encoding="utf-8")
-    with pytest.raises(ValueError, match="mappings reference unknown functions"):
+    with pytest.raises(ValueError, match="actions reference unknown functions"):
         spec.load_spec(bad_transform_path)
 
 
@@ -220,7 +220,7 @@ def test_unproduced_declared_features_warn_instead_of_failing(
         UserWarning,
         match=(
             "entities.pump_telemetry.datasets.pump_telemetry_dataset.features: "
-            "Features have no producer mapping: unproduced_feature"
+            "Features have no producer action: unproduced_feature"
         ),
     ):
         parsed_spec = spec.load_spec(path)
@@ -238,19 +238,19 @@ def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_ch
     path.write_text(json.dumps(_escape_configuration()), encoding="utf-8")
 
     parsed_spec = spec.load_spec(path)
-    mappings = parsed_spec.entities["pump_telemetry"].datasets["pump_telemetry_dataset"].mappings
+    actions = parsed_spec.entities["pump_telemetry"].datasets["pump_telemetry_dataset"].actions
 
-    assert mappings["escape_first"].input_features == [
+    assert actions["escape_first"].input_features == [
         "bearing_temperature",
         "health_signal_normalized",
         "pump",
     ]
-    assert mappings["escape_first"].output_features == ["external_first", "external_second"]
-    assert mappings["escape_second"].input_features == ["external_first"]
-    assert mappings["escape_second"].output_features == ["external_third"]
+    assert actions["escape_first"].output_features == ["external_first", "external_second"]
+    assert actions["escape_second"].input_features == ["external_first"]
+    assert actions["escape_second"].output_features == ["external_third"]
     health_signal_producer = next(
         item
-        for item in context.SpecValidationContext.build(parsed_spec).mappings
+        for item in context.SpecValidationContext.build(parsed_spec).actions
         if "health_signal_normalized" in item.outputs
     )
     assert health_signal_producer.kind == "vectorize"
@@ -262,21 +262,21 @@ def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_ch
         (
             "inputs",
             [],
-            "Escape mappings must declare one or more input features",
+            "Escape actions must declare one or more input features",
             "invalid_mapping_feature_inputs",
             ("features", "inputs"),
         ),
         (
             "outputs",
             [],
-            "Mapping escape_first must declare one or more features",
+            "Action escape_first must declare one or more features",
             None,
             None,
         ),
         (
             "inputs",
             ["$features.unknown_feature"],
-            "Mapping escape_first references unknown input feature: unknown_feature",
+            "Action escape_first references unknown input feature: unknown_feature",
             None,
             None,
         ),
@@ -293,7 +293,7 @@ def test_escape_mappings_require_declared_inputs_and_outputs(
     configuration = _escape_configuration()
     mapping_definition = configuration["entities"]["pump_telemetry"]["datasets"][
         "pump_telemetry_dataset"
-    ]["mappings"]["escape_first"]
+    ]["actions"]["escape_first"]
     mapping_definition["features"][field] = value
     path = tmp_path / "invalid_escape.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -309,29 +309,29 @@ def test_escape_mappings_require_declared_inputs_and_outputs(
 
 def test_escape_mappings_reject_duplicate_feature_producers(tmp_path: pathlib.Path) -> None:
     configuration = _escape_configuration()
-    mappings = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "mappings"
+    actions = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "actions"
     ]
-    duplicate = json.loads(json.dumps(mappings["escape_first"]))
+    duplicate = json.loads(json.dumps(actions["escape_first"]))
     duplicate["features"]["outputs"] = ["$features.external_first"]
-    mappings["escape_duplicate"] = duplicate
+    actions["escape_duplicate"] = duplicate
     path = tmp_path / "duplicate_escape.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="Feature external_first is produced by multiple mappings"):
+    with pytest.raises(ValueError, match="Feature external_first is produced by multiple actions"):
         spec.load_spec(path)
 
 
 def test_escape_dependencies_reject_cycles(tmp_path: pathlib.Path) -> None:
     configuration = _escape_configuration()
     first = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "mappings"
+        "actions"
     ]["escape_first"]
     first["features"]["inputs"] = ["$features.external_third"]
     path = tmp_path / "escape_cycle.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="Mapping feature dependency cycle"):
+    with pytest.raises(ValueError, match="Action feature dependency cycle"):
         spec.load_spec(path)
 
 
@@ -351,19 +351,19 @@ def test_python_conversion_and_json_loading_share_escape_input_validation(
         ],
     )
     expected_message = (
-        "entities.entity.datasets.observations.mappings.escape.features.inputs: "
-        "Escape mappings must declare one or more input features"
+        "entities.entity.datasets.observations.actions.escape.features.inputs: "
+        "Escape actions must declare one or more input features"
     )
 
     with pytest.raises(
-        validation_errors.SpecError, match="Escape mappings must declare"
+        validation_errors.SpecError, match="Escape actions must declare"
     ) as python_error:
         spec.from_python(datasets=[declaration])
 
     path = tmp_path / "python_escape.json"
     path.write_text(json.dumps(conversion.to_dict(datasets=[declaration])), encoding="utf-8")
     with pytest.raises(
-        validation_errors.SpecError, match="Escape mappings must declare"
+        validation_errors.SpecError, match="Escape actions must declare"
     ) as json_error:
         spec.load_spec(path)
 
@@ -384,7 +384,7 @@ def test_expand_rejects_higher_dimensional_source(tmp_path: pathlib.Path) -> Non
     }
     target = configuration["entities"]["pump"]["datasets"]["pump_dataset"]
     target["features"]["expanded_feature"] = {"type": "float"}
-    target["mappings"]["expand_op"] = {
+    target["actions"]["expand_op"] = {
         "binding": {
             "function": "expand_telemetry",
             "args": {
@@ -415,7 +415,7 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
     }
     target = configuration["entities"]["pump"]["datasets"]["pump_dataset"]
     target["features"]["conformed_feature"] = {"type": "float"}
-    target["mappings"]["conform_op"] = {
+    target["actions"]["conform_op"] = {
         "binding": {
             "function": "conform_telemetry",
             "args": {
@@ -449,7 +449,7 @@ def _matching_key_configuration(key_selector: object, *, key_type: str = "array[
     target = configuration["entities"]["pump"]["datasets"]
     target["conformed_dataset"] = {
         "features": {"conformed_value": {"type": "float"}},
-        "mappings": {
+        "actions": {
             "conform_values": {
                 "binding": {
                     "function": "conform_with_keys",
@@ -490,8 +490,8 @@ def test_matching_key_selectors_validate_on_target_and_source(
     spec_definition = spec.load_spec(path)
     contract = next(
         item
-        for item in context.SpecValidationContext.build(spec_definition).mapping_contracts
-        if item.mapping.location.mapping_id == "conform_values"
+        for item in context.SpecValidationContext.build(spec_definition).action_contracts
+        if item.action.location.action_id == "conform_values"
     )
 
     assert [key.dimension_id for key in contract.matching_keys] == expected_keys
@@ -501,11 +501,11 @@ def test_grouping_dimension_references_are_not_matching_key_declarations() -> No
     spec_definition = spec.load_spec(SPEC_PATH)
     contract = next(
         item
-        for item in context.SpecValidationContext.build(spec_definition).mapping_contracts
-        if item.mapping.location.mapping_id == "bearing_temperature_by_pump"
+        for item in context.SpecValidationContext.build(spec_definition).action_contracts
+        if item.action.location.action_id == "bearing_temperature_by_pump"
     )
 
-    assert contract.mapping.dimension_references == ("plant", "production_line", "pump")
+    assert contract.action.dimension_references == ("plant", "production_line", "pump")
     assert contract.matching_keys == ()
 
 
@@ -540,7 +540,7 @@ def test_matching_key_errors_point_to_the_declared_key(
         "pump",
         "datasets",
         "conformed_dataset",
-        "mappings",
+        "actions",
         "conform_values",
         "binding",
         "args",
@@ -569,7 +569,7 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
     }
     target = configuration["entities"]["pump"]["datasets"]["pump_dataset"]
     target["features"]["conformed_feature"] = {"type": "float"}
-    target["mappings"]["conform_op"] = {
+    target["actions"]["conform_op"] = {
         "binding": {
             "function": "conform_telemetry",
             "args": {"source": "$datasets.@.dataframe"},
@@ -586,10 +586,10 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
         spec.load_spec(path)
 
 
-@pytest.mark.parametrize("mapping_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
-def test_mapping_rejects_explicit_source(tmp_path: pathlib.Path, mapping_id: str) -> None:
+@pytest.mark.parametrize("action_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
+def test_action_rejects_explicit_source(tmp_path: pathlib.Path, action_id: str) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][mapping_id][
+    configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][action_id][
         "source"
     ] = "$datasets.pump_telemetry_dataset"
     invalid_operation_path = tmp_path / "invalid_aggregation_operation.json"
@@ -619,7 +619,7 @@ def test_collapse_validates_source_grouping_and_output_contract(
     tmp_path: pathlib.Path, field: str, value: object, message: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
+    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
         "bearing_temperature_by_pump"
     ]
     collapse[field] = value
@@ -636,14 +636,14 @@ def test_collapse_validates_source_grouping_and_output_contract(
         (["$features.health_signal_normalized"], "target dataset"),
         (["$features.bearing_temperature_max"], "target dataset"),
         (["$features.missing"], "unknown input feature"),
-        (["$datasets.pump_telemetry_dataset"], "Mapping features must use"),
+        (["$datasets.pump_telemetry_dataset"], "Action features must use"),
     ],
 )
 def test_collapse_validates_explicit_inputs(
     tmp_path: pathlib.Path, inputs: list, message: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
+    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
         "bearing_temperature_by_pump"
     ]
     collapse["features"]["inputs"] = inputs
@@ -658,7 +658,7 @@ def test_removed_aggregation_and_wrapper_schemas_are_rejected(
     tmp_path: pathlib.Path, legacy: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
+    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
         "bearing_temperature_by_pump"
     ]
     if legacy == "catalog":
@@ -737,7 +737,7 @@ def test_collapse_rejects_inputs_from_multiple_datasets(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     references = ["$features.bearing_temperature", "$features.health_signal_normalized"]
-    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
+    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
         "bearing_temperature_by_pump"
     ]
     collapse["features"]["inputs"] = references
@@ -751,7 +751,7 @@ def test_collapse_dimensions_alone_do_not_identify_input_dataset(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
+    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
         "bearing_temperature_by_pump"
     ]
     collapse["features"]["inputs"] = ["$features.pump"]

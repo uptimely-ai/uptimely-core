@@ -53,7 +53,7 @@ class InvocationGraph:
         """Build a dependency graph from a validated Spec.
 
         Args:
-            spec_definition: The validated Spec containing mappings and functions.
+            spec_definition: The validated Spec containing actions and functions.
             graph: An existing graph to index, used when constructing a subset.
         """
         self.spec = spec_definition
@@ -61,7 +61,7 @@ class InvocationGraph:
         self._nodes = {node.reference.node_id: node for node in self.graph}
 
     def _create_graph(self) -> graphable_.graph.Graph:
-        """Build graph nodes and connect their mapping, feature, and write dependencies."""
+        """Build graph nodes and connect their action, feature, and write dependencies."""
         nodes: dict[str, GraphNode] = {}
         feature_producers: dict[str, InvocationNode] = {}
         dataset_sources: dict[str, list[InvocationNode]] = {}
@@ -70,32 +70,32 @@ class InvocationGraph:
 
         for entity_id, entity in self.spec.entities.items():
             for dataset in entity.datasets.values():
-                for mapping in dataset.mappings.values():
-                    function_kind = self.spec.functions[mapping.binding.function].kind
+                for action in dataset.actions.values():
+                    function_kind = self.spec.functions[action.binding.function].kind
                     feature_id = (
                         next(
                             (
                                 feature
-                                for feature in mapping.output_features
+                                for feature in action.output_features
                                 if feature not in entity.dimension_ids
                             ),
                             None,
                         )
                         if function_kind == functions.COLLAPSE
-                        else mapping.output_features[0]
-                        if mapping.output_features
+                        else action.output_features[0]
+                        if action.output_features
                         else None
                     )
                     invocation = InvocationNode(
-                        function_id=mapping.binding.function,
+                        function_id=action.binding.function,
                         entity_id=entity_id,
                         dataset_id=dataset.id,
-                        mapping_id=mapping.id,
+                        mapping_id=action.id,
                         feature_id=feature_id,
-                        output_features=tuple(mapping.output_features),
-                        arguments=mapping.binding.args,
-                        input_features=tuple(mapping.input_features),
-                        row_context=mapping.row_context,
+                        output_features=tuple(action.output_features),
+                        arguments=action.binding.args,
+                        input_features=tuple(action.input_features),
+                        row_context=action.row_context,
                     )
                     nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
                     if function_kind == functions.WRITE:
@@ -104,13 +104,13 @@ class InvocationGraph:
                         dataset_sources.setdefault(dataset.id, []).append(invocation)
                     elif function_kind == functions.VECTORIZE:
                         calculations.setdefault(dataset.id, []).append(invocation)
-                    for feature in mapping.output_features:
+                    for feature in action.output_features:
                         if feature not in self.spec.dimensions:
                             feature_producers[feature] = invocation
 
         graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
         self._add_source_dependencies(graph, nodes, dataset_sources)
-        self._add_mapping_dependencies(
+        self._add_action_dependencies(
             graph, nodes, feature_producers, dataset_sources, calculations
         )
         self._add_calculation_dependencies(graph, nodes, dataset_sources, calculations)
@@ -139,7 +139,7 @@ class InvocationGraph:
                 for read in reads:
                     graph.add_edge(nodes[read.node_id], nodes[fragment.node_id])
 
-    def _add_mapping_dependencies(
+    def _add_action_dependencies(
         self,
         graph: graphable_.graph.Graph,
         nodes: dict[str, GraphNode],
@@ -147,7 +147,7 @@ class InvocationGraph:
         dataset_sources: dict[str, list[InvocationNode]],
         calculations: dict[str, list[InvocationNode]],
     ) -> None:
-        """Connect mapping dataframe and feature references to their producers."""
+        """Connect action dataframe and feature references to their producers."""
         for invocation in (node.reference for node in nodes.values()):
             dataset_references = binding_resolution.dataset_dependencies(
                 invocation.arguments, invocation.dataset_id
@@ -212,9 +212,9 @@ class InvocationGraph:
         """Return a node's dataset directly from its declaring entity."""
         return self.spec.entities[node.entity_id].datasets[node.dataset_id]
 
-    def mapping_for(self, node: InvocationNode) -> spec.Mapping:
+    def action_for(self, node: InvocationNode) -> spec.Action:
         """Return the declaration that produced an invocation node."""
-        return self.dataset_for(node).mappings[node.mapping_id]
+        return self.dataset_for(node).actions[node.mapping_id]
 
     def topology(self) -> list[list[InvocationNode]]:
         """Return invocations grouped by dependency level (topological order)."""

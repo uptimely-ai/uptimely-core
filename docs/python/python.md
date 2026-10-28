@@ -174,19 +174,18 @@ pipeline function's internal steps.
 
 - Replace `FunctionMapping(...)` with `Action(id=..., ...)`. Move named dataset
   attributes or entries in `mappings={...}` into the appropriate action list.
-  Use the former attribute name or dictionary key as the action ID to preserve
-  canonical mapping IDs.
+  Use the former attribute name or dictionary key as the action ID.
 - Replace imports from `uptimely.spec.python.mapping` or
   `uptimely.spec.python.mappings` with `uptimely.spec.python.actions`, or import
   `Action` directly from `uptimely.spec.python`.
 - Access declarations through their collection rather than `Dataset.mappings`.
 - Convert an action with `Action.to_model()`; its own ID supplies the canonical
-  mapping identifier. Feature metadata remains in `outputs`, and
+  action identifier. Feature metadata remains in `outputs`, and
   `Feature.to_model()` is unchanged.
 
 The old Python authoring names and `mappings` constructor argument are removed.
-The canonical document model, exported JSON format, and execution kinds are
-unchanged: all three collections become mappings internally.
+The canonical document model and exported JSON now use `actions` in each
+dataset. This breaking document change is spec version 3.
 
 <div class="api-reference" markdown="1">
 
@@ -236,7 +235,7 @@ class registries.
 
 ## feature
 
-`uptimely.spec.python.feature` declares metadata for mapping outputs.
+`uptimely.spec.python.feature` declares metadata for action outputs.
 
 ::: uptimely.spec.python.feature
     options:

@@ -25,7 +25,7 @@ def test_action_is_the_only_public_work_declaration_name() -> None:
     assert not hasattr(authoring, "FunctionCall")
     assert not hasattr(authoring, "Mapping")
     assert not hasattr(authoring, "FunctionMapping")
-    assert not hasattr(authoring, "mapping")
+    assert not hasattr(authoring, "action")
 
 
 def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
@@ -47,7 +47,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     canonical = declaration.to_model()
     assert list(canonical.features) == ["temperature", "pump"]
     assert canonical.features["temperature"].id == "temperature"
-    assert canonical.mappings["read"].output_features == ["temperature", "pump"]
+    assert canonical.actions["read"].output_features == ["temperature", "pump"]
     payload = conversion.to_dict(datasets=[declaration])
     exported = payload["entities"]["entity"]["datasets"]["example"]
     assert exported["features"]["temperature"] == {
@@ -55,7 +55,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
         "unit": "C",
         "description": None,
     }
-    assert exported["mappings"]["read"]["features"]["outputs"] == [
+    assert exported["actions"]["read"]["features"]["outputs"] == [
         "$features.temperature",
         "$features.pump",
     ]
@@ -90,19 +90,19 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
         ]
 
     declaration = Example()
-    mapping = declaration.producers[0]
-    model = declaration.to_model().mappings["result"]
+    action = declaration.producers[0]
+    model = declaration.to_model().actions["result"]
 
     assert model.id == "result"
     assert model.input_features == ["temperature"]
-    assert mapping.arguments == {
+    assert action.arguments == {
         "values": [ref.feature("temperature"), ref.feature("temperature")],
         "output": ref.feature("result").id,
     }
-    assert mapping.bound_arguments() == mapping.arguments
+    assert action.bound_arguments() == action.arguments
     assert model.binding.args["output"] == "$features.result.id"
-    assert mapping.outputs[0].name == "result"
-    assert mapping.outputs[0].type == "float"
+    assert action.outputs[0].name == "result"
+    assert action.outputs[0].type == "float"
 
 
 @pytest.mark.parametrize(
@@ -189,7 +189,7 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
     assert base.producers == [first]
     assert derived.producers == [replacement]
     assert derived.publishers == [sink]
-    assert list(derived.to_model().mappings) == ["read", "write"]
+    assert list(derived.to_model().actions) == ["read", "write"]
     assert derived.to_model().description == "Inherited metadata"
     assert derived.to_model().features["value"].type == "integer"
     assert set(derived.function_catalog()) == {"replacement", "write"}
@@ -219,7 +219,7 @@ def test_dataset_keys_supply_dimension_metadata(kind: str) -> None:
     model = Example().to_model()
     assert model.features["asset"].type == "string"
     assert model.features["asset"].description == "Asset key"
-    assert model.mappings["values"].output_features == ["asset", "value"]
+    assert model.actions["values"].output_features == ["asset", "value"]
     assert Example().keys == (identifier,)
 
 
@@ -247,11 +247,11 @@ def test_dataset_entity_supplies_dimension_metadata() -> None:
 
     assert model.features["asset"].type == "string"
     assert model.features["asset"].description == "Asset key"
-    assert model.mappings["values"].output_features == ["asset", "value"]
+    assert model.actions["values"].output_features == ["asset", "value"]
 
 
 def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
-    mapping = authoring.Action(
+    action = authoring.Action(
         id="result",
         function=ref.function("calculation:calculate", kind="vectorize"),
         arguments={
@@ -267,8 +267,8 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
         },
         outputs=[authoring.Feature(name="result", type="float")],
     )
-    model = mapping.to_model()
-    assert mapping.inputs is None
+    model = action.to_model()
+    assert action.inputs is None
     assert model.input_features == ["first", "second"]
     assert model.row_context.before.rows == 2
     assert model.binding.args["configuration"] == {
@@ -279,7 +279,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
 
 
 def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -> None:
-    mapping = authoring.Action(
+    action = authoring.Action(
         id="named",
         function=ref.function("calculation:calculate", kind="vectorize"),
         function_id="custom",
@@ -287,13 +287,13 @@ def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -
         inputs=[ref.feature("explicit")],
         outputs=[authoring.Feature(name="result", type="float")],
     )
-    declaration = authoring.Dataset(id="example", producers=[mapping])
+    declaration = authoring.Dataset(id="example", producers=[action])
 
-    assert declaration.producers == [mapping]
-    assert mapping.reference.entrypoint == "calculation:calculate"
-    assert mapping.catalog_id == "custom"
-    assert declaration.to_model().mappings["named"].input_features == ["explicit"]
-    assert declaration.to_model().mappings["named"].binding.function == "custom"
+    assert declaration.producers == [action]
+    assert action.reference.entrypoint == "calculation:calculate"
+    assert action.catalog_id == "custom"
+    assert declaration.to_model().actions["named"].input_features == ["explicit"]
+    assert declaration.to_model().actions["named"].binding.function == "custom"
     assert set(declaration.function_catalog()) == {"custom"}
 
 
@@ -321,8 +321,8 @@ def test_dataset_keys_can_be_shared_by_read_mappings() -> None:
 
     model = Example().to_model()
     assert set(model.features) == {"asset", "first_value", "second_value"}
-    assert model.mappings["first"].output_features == ["asset", "first_value"]
-    assert model.mappings["second"].output_features == ["asset", "second_value"]
+    assert model.actions["first"].output_features == ["asset", "first_value"]
+    assert model.actions["second"].output_features == ["asset", "second_value"]
 
 
 def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> None:
@@ -345,8 +345,8 @@ def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> 
 
     model = declaration.to_model()
     catalog = declaration.function_catalog()
-    assert model.mappings["read"].binding.args["keys"] == "$datasets.@.dimensions.ids"
-    assert model.mappings["read"].binding.args["source_keys"] == "$datasets.source.dimensions.ids"
+    assert model.actions["read"].binding.args["keys"] == "$datasets.@.dimensions.ids"
+    assert model.actions["read"].binding.args["source_keys"] == "$datasets.source.dimensions.ids"
     assert catalog["read"].args["keys"].type == "array[string]"
     assert catalog["read"].args["source_keys"].type == "array[string]"
 
@@ -358,7 +358,7 @@ def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> 
     )
     payload = conversion.to_dict(entities=[owner])
     assert (
-        payload["entities"]["entity"]["datasets"]["example"]["mappings"]["read"]["binding"]["args"][
+        payload["entities"]["entity"]["datasets"]["example"]["actions"]["read"]["binding"]["args"][
             "keys"
         ]
         == "$datasets.@.dimensions.ids"
@@ -398,10 +398,10 @@ def test_kind_annotation_is_inferred_without_wrapping_function() -> None:
 
 
 def test_action_export_uses_its_identifier() -> None:
-    mapping = authoring.Action(
-        id="mapping", function=ref.function("reader:read", kind="read"), arguments={}, outputs=[]
+    action = authoring.Action(
+        id="action", function=ref.function("reader:read", kind="read"), arguments={}, outputs=[]
     )
-    assert mapping.to_model().id == "mapping"
+    assert action.to_model().id == "action"
 
 
 @pytest.mark.parametrize("identifier", ["", " ", None, 1])
@@ -438,7 +438,7 @@ def test_action_collection_enforces_function_kind(
         return
 
     declaration = authoring.Dataset(id="example", **declarations)
-    assert declaration.to_model().mappings["work"] == action.to_model()
+    assert declaration.to_model().actions["work"] == action.to_model()
     assert declaration.function_catalog()["work"].kind == kind
 
 
@@ -516,8 +516,8 @@ def test_subclasses_can_explicitly_extend_or_clear_inherited_collections() -> No
     class Empty(Base):
         producers = []
 
-    assert list(Extended().to_model().mappings) == ["read", "another_read"]
-    assert Empty().to_model().mappings == {}
+    assert list(Extended().to_model().actions) == ["read", "another_read"]
+    assert Empty().to_model().actions == {}
     assert Base.producers == [read]
 
 
@@ -568,16 +568,16 @@ def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> No
 
     declaration = Example()
     model = declaration.to_model()
-    assert list(model.mappings) == ["calculate", "publish", "custom_work"]
-    assert model.mappings["calculate"].input_features == ["pipeline_result"]
-    assert model.mappings["publish"].input_features == ["result"]
-    assert model.mappings["custom_work"].input_features == ["external_input"]
+    assert list(model.actions) == ["calculate", "publish", "custom_work"]
+    assert model.actions["calculate"].input_features == ["pipeline_result"]
+    assert model.actions["publish"].input_features == ["result"]
+    assert model.actions["custom_work"].input_features == ["external_input"]
     payload = conversion.to_dict(datasets=[declaration])
     exported = payload["entities"]["entity"]["datasets"]["example"]
     assert "producers" not in exported
     assert "publishers" not in exported
     assert "pipelines" not in exported
-    assert set(exported["mappings"]) == {"calculate", "publish", "custom_work"}
+    assert set(exported["actions"]) == {"calculate", "publish", "custom_work"}
     assert set(exported["features"]) == {"result", "pipeline_result"}
 
 

@@ -12,32 +12,32 @@ if typing.TYPE_CHECKING:
     from . import model as spec_model
 
 
-def iter_mappings(
+def iter_actions(
     document: spec_model.Spec,
-) -> typing.Iterator[tuple[str, spec_model.Dataset, spec_model.Mapping]]:
-    """Yield entity identifiers, datasets, and mappings in declaration order."""
-    for entity_id, dataset, _mapping_id, mapping in iter_mapping_items(document):
-        yield entity_id, dataset, mapping
+) -> typing.Iterator[tuple[str, spec_model.Dataset, spec_model.Action]]:
+    """Yield entity identifiers, datasets, and actions in declaration order."""
+    for entity_id, dataset, _action_id, action in iter_action_items(document):
+        yield entity_id, dataset, action
 
 
-def iter_mapping_items(
+def iter_action_items(
     document: spec_model.Spec,
-) -> typing.Iterator[tuple[str, spec_model.Dataset, str, spec_model.Mapping]]:
-    """Yield mapping declarations with their dictionary keys in declaration order."""
+) -> typing.Iterator[tuple[str, spec_model.Dataset, str, spec_model.Action]]:
+    """Yield action declarations with their dictionary keys in declaration order."""
     for entity_id, entity in document.entities.items():
         for dataset in entity.datasets.values():
-            for mapping_id, mapping in dataset.mappings.items():
-                yield entity_id, dataset, mapping_id, mapping
+            for action_id, action in dataset.actions.items():
+                yield entity_id, dataset, action_id, action
 
 
-def mapping_kind(
-    mapping: spec_model.Mapping, catalog: spec_model.FunctionCatalog
+def action_kind(
+    action: spec_model.Action, catalog: spec_model.FunctionCatalog
 ) -> functions.FunctionKind:
-    """Return the declared kind of a mapping's function."""
-    function = catalog.get(mapping.binding.function)
+    """Return the declared kind of a action's function."""
+    function = catalog.get(action.binding.function)
     if function is None:
         raise ValueError(
-            f"Mapping {mapping.id} function {mapping.binding.function} must resolve "
+            f"Action {action.id} function {action.binding.function} must resolve "
             "to a declared function"
         )
     return function.kind

@@ -1,12 +1,12 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
-{% macro mapping_kind(mapping, functions) -%}
-  {{- functions.get(mapping.binding.function, {}).get("kind", "") -}}
+{% macro action_kind(action, functions) -%}
+  {{- functions.get(action.binding.function, {}).get("kind", "") -}}
 {%- endmacro %}
 {% set total = namespace(feature_count=0) %}
 {% for entity in configuration.entities.values() %}
   {% for dataset_id, dataset in entity.datasets.items() %}
-    {% for mapping in dataset.mappings.values() %}
-      {% for reference in mapping.features.outputs %}
+    {% for action in dataset.actions.values() %}
+      {% for reference in action.features.outputs %}
         {% set feature_id = reference.removeprefix("$features.") %}
         {% if feature_id not in entity.dimensions %}{% set total.feature_count = total.feature_count + 1 %}{% endif %}
       {% endfor %}
@@ -28,8 +28,8 @@
             </{{ dataset_heading }}>
           </div>
           {% set ns = namespace(feature_count=0) %}
-          {% for mapping in dataset.mappings.values() %}
-            {% for reference in mapping.features.outputs %}
+          {% for action in dataset.actions.values() %}
+            {% for reference in action.features.outputs %}
               {% set feature_id = reference.removeprefix("$features.") %}
               {% if feature_id not in entity.dimensions %}{% set ns.feature_count = ns.feature_count + 1 %}{% endif %}
             {% endfor %}
@@ -38,9 +38,9 @@
         <article class="rounded-xl border border-slate-800 border-l-4 border-l-cyan-500 bg-slate-900/70 px-5">
           <p class="border-b border-slate-800 py-3 font-mono text-xs text-slate-400">{{ ns.feature_count }} features</p>
           <div class="divide-y divide-slate-800">
-          {% for mapping_id, mapping in dataset.mappings.items() %}
-            {% set function_kind = mapping_kind(mapping, configuration.functions) %}
-            {% for reference in mapping.features.outputs if function_kind != "vectorize" %}
+          {% for action_id, action in dataset.actions.items() %}
+            {% set function_kind = action_kind(action, configuration.functions) %}
+            {% for reference in action.features.outputs if function_kind != "vectorize" %}
               {% set feature_id = reference.removeprefix("$features.") %}
               {% set feature = dataset.features[feature_id] %}
               <div class="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,1fr)] sm:gap-4">
@@ -49,18 +49,18 @@
                   {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
                   {% if function_kind == "escape" %}
                   <p class="mt-1 text-xs text-violet-300">Declared external output; not a verified dataframe column.</p>
-                  <p class="mt-1 font-mono text-[10px] text-slate-500">Declared inputs: {{ mapping.features.inputs|join(", ") }}</p>
+                  <p class="mt-1 font-mono text-[10px] text-slate-500">Declared inputs: {{ action.features.inputs|join(", ") }}</p>
                   {% endif %}
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-                  <span class="font-mono text-xs {{ 'text-violet-300' if function_kind == 'escape' else 'text-slate-400' }}">{{ function_kind }} · {{ mapping_id }}</span>
+                  <span class="font-mono text-xs {{ 'text-violet-300' if function_kind == 'escape' else 'text-slate-400' }}">{{ function_kind }} · {{ action_id }}</span>
                   <span class="text-xs text-slate-500">{{ feature.type or "unspecified" }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>
                 </div>
               </div>
             {% endfor %}
           {% endfor %}
-          {% for mapping_id, mapping in dataset.mappings.items() if mapping_kind(mapping, configuration.functions) == "vectorize" %}
-          {% for reference in mapping.features.outputs %}
+          {% for action_id, action in dataset.actions.items() if action_kind(action, configuration.functions) == "vectorize" %}
+          {% for reference in action.features.outputs %}
           {% set feature_id = reference.removeprefix("$features.") %}
           {% set feature = dataset.features[feature_id] %}
           <div class="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,1fr)] sm:gap-4">
@@ -69,7 +69,7 @@
               {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
             </div>
             <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-              <span class="font-mono text-xs text-slate-400">vectorize · {{ mapping_id }}</span>
+              <span class="font-mono text-xs text-slate-400">vectorize · {{ action_id }}</span>
               <span class="text-xs text-slate-500">{{ feature.type or "calculated" }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>
             </div>
           </div>

@@ -152,7 +152,7 @@ def test_string_locations_are_preserved_without_importing(
     payload = conversion.to_dict(datasets=[declaration])
 
     assert payload["functions"]["ceil"]["entrypoint"] == f"{location}:ceil"
-    assert payload["entities"]["entity"]["datasets"]["observations"]["mappings"]["ceil"][
+    assert payload["entities"]["entity"]["datasets"]["observations"]["actions"]["ceil"][
         "binding"
     ] == {
         "function": "ceil",

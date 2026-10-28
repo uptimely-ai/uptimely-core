@@ -27,7 +27,7 @@
     </div>
   </div>
   <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-    {% for label, value in [("Entities", summary.entity_count), ("Datasets", summary.dataset_count), ("Mappings", summary.mapping_count), ("Dimensions", summary.dimension_count)] %}
+    {% for label, value in [("Entities", summary.entity_count), ("Datasets", summary.dataset_count), ("Actions", summary.action_count), ("Dimensions", summary.dimension_count)] %}
     <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5"><span class="font-mono text-[10px] uppercase tracking-[.15em] text-slate-500">{{ label }}</span><p class="mt-4 font-display text-3xl font-semibold text-white">{{ value }}</p></div>
     {% endfor %}
   </div>

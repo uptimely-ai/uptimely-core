@@ -79,12 +79,12 @@ directly.
 ## Spec
 
 Spec JSON is the portable, authoritative definition of the spec. It
-describes subjects, datasets, features, functions, and mappings without
+describes subjects, datasets, features, functions, and actions without
 depending on a particular authoring language. The other tools consume this
 shared contract.
 
-The Spec declares functions and mappings. A mapping says what data a function
-reads and writes. The compiler records each mapping as a planned step; the
+The Spec declares functions and actions. An action says what data a function
+reads and writes. The compiler records each action as a planned step; the
 engine runs those steps using the Python functions. Building a plan does not
 run the analytics.
 

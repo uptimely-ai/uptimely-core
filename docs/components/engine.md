@@ -1,7 +1,7 @@
 # Execution engine
 
 The built-in engine runs the plan in a validated build bundle. It uses the
-bundled Spec to find each function and its mapping, calls the Python
+bundled Spec to find each function and its action, calls the Python
 implementation, and collects the results. Runtime configuration is supplied
 separately.
 
@@ -82,7 +82,7 @@ If a placeholder's namespace, object, or attribute isn't found in
 `execute()` records in the returned `ExecutionResult.failures` rather than
 raising directly.
 
-Explicit mapping inputs define feature dependencies. Feature identifier
+Explicit action inputs define feature dependencies. Feature identifier
 arguments alone do not require those feature values to be materialized.
 
 ### Runtime overrides
@@ -123,11 +123,11 @@ are errors, not fallbacks to another environment.
 
 A fragment is a subset of a dataset's columns, keyed by the owning entity's
 dimensions. It contains those dimension columns and the feature columns declared
-as outputs by one data-producing mapping. The engine adds validated fragments
+as outputs by one data-producing action. The engine adds validated fragments
 to an accumulated dataset; it does not keep a separate dataset for each
 feature.
 
-Data-producing mappings are declared under `read`, `conform`, `expand`, and
+Data-producing actions are declared under `read`, `conform`, `expand`, and
 `collapse`. Each produces a fragment for the dataset that declares it.
 `conform`, `expand`, and `collapse` take exactly one foreign/source dataframe
 through a `$datasets.<id>.dataframe` binding reference. The engine does not
@@ -146,7 +146,7 @@ dataset. The engine never joins another dataset implicitly.
 `conform` requires source and target datasets to declare the same dimensions,
 but they may belong to different entities. `collapse` requires the source to
 have a strict superset of the target dimensions; `expand` requires a strict
-subset. Each dimensional mapping explicitly supplies its target dimension IDs
+subset. Each dimensional action explicitly supplies its target dimension IDs
 as matching keys, for example with
 `ref.current_dataset().dimensions.ids`. A dimension reference used for
 grouping or ordering does not implicitly select a join key. Combining sources

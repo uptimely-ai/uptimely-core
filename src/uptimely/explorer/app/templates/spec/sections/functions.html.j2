@@ -12,14 +12,14 @@
   <p class="mt-4 text-sm leading-6 text-slate-400">{{ function.description or "No description provided." }}</p>
   {% if function.kind == "escape" %}
   <p class="mt-3 rounded-lg border border-violet-900/60 bg-violet-950/30 p-3 text-xs leading-5 text-violet-200">Uncontrolled external operation. Its Python return value is ignored; declared outputs are not verified or materialized as dataframe columns.</p>
-  {% if function.escape_mappings %}
+  {% if function.escape_actions %}
   <div class="mt-4 space-y-3">
     <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Declared feature boundaries</p>
-    {% for mapping in function.escape_mappings %}
+    {% for action in function.escape_actions %}
     <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3 font-mono text-xs text-slate-300">
-      <p>{{ mapping.entity }} / {{ mapping.dataset }} · {{ mapping.mapping }}</p>
-      <p class="mt-1">Inputs: {{ mapping.inputs|join(", ") or "none" }}</p>
-      <p>External outputs: {{ mapping.outputs|join(", ") or "none" }}</p>
+      <p>{{ action.entity }} / {{ action.dataset }} · {{ action.action }}</p>
+      <p class="mt-1">Inputs: {{ action.inputs|join(", ") or "none" }}</p>
+      <p>External outputs: {{ action.outputs|join(", ") or "none" }}</p>
     </div>
     {% endfor %}
   </div>

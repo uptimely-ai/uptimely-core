@@ -137,10 +137,10 @@ async def test_escape_function_description_reports_external_feature_boundary(
     dataset = definition.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
     dataset.features["audit_reference"] = spec_model.Feature(id="audit_reference", type="string")
     dataset.features["audit_status"] = spec_model.Feature(id="audit_status", type="string")
-    dataset.mappings["external_audit"] = spec_model.Mapping(
+    dataset.actions["external_audit"] = spec_model.Action(
         id="external_audit",
         binding=spec_model.Binding(function="external_audit"),
-        features=spec_model.MappingFeatures(
+        features=spec_model.ActionFeatures(
             inputs=["$features.bearing_temperature", "$features.vibration_rms"],
             outputs=["$features.audit_reference", "$features.audit_status"],
         ),
@@ -156,11 +156,11 @@ async def test_escape_function_description_reports_external_feature_boundary(
         "returns": "any",
     } in listing
     assert described["declared_returns"] == "any"
-    assert described["escape_mappings"] == [
+    assert described["escape_actions"] == [
         {
             "entity": "pump_telemetry",
             "dataset": dataset.id,
-            "mapping": "external_audit",
+            "action": "external_audit",
             "inputs": ["bearing_temperature", "vibration_rms"],
             "outputs": ["audit_reference", "audit_status"],
         }

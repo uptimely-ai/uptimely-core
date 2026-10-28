@@ -7,34 +7,34 @@ from . import context as context_module
 
 
 def validate_output_presence(
-    item: context_module.MappingFacts, mapping_id: str
+    item: context_module.ActionFacts, action_id: str
 ) -> context_module.ValidationResult:
-    """Require a producing mapping to declare at least one output."""
+    """Require a producing action to declare at least one output."""
     if not item.outputs:
-        return ValueError(f"Mapping {mapping_id} must declare one or more features")
+        return ValueError(f"Action {action_id} must declare one or more features")
     return None
 
 
 def validate_calculation_features(
-    item: context_module.MappingFacts,
+    item: context_module.ActionFacts,
 ) -> context_module.ValidationResult:
     """Require calculated outputs to be declared in the target dataset."""
     unknown = sorted(set(item.outputs) - item.location.dataset.features.keys())
     if unknown:
         return ValueError(
-            f"Mapping {item.location.mapping.id} references unknown feature: " + ", ".join(unknown)
+            f"Action {item.location.action.id} references unknown feature: " + ", ".join(unknown)
         )
     return None
 
 
-def validate_function_id(item: context_module.MappingFacts) -> context_module.ValidationResult:
+def validate_function_id(item: context_module.ActionFacts) -> context_module.ValidationResult:
     """Require a calculation function ID to be nonempty."""
     if item.function is not None and not item.function.id.strip():
         return ValueError("Every function must define a non-empty string id")
     return None
 
 
-def validate_output_names(item: context_module.MappingFacts) -> context_module.ValidationResult:
+def validate_output_names(item: context_module.ActionFacts) -> context_module.ValidationResult:
     """Require calculated output names to be nonempty."""
     if any(not feature.strip() for feature in item.outputs):
         return ValueError("Every calculation must define a non-empty output feature name")
@@ -49,7 +49,7 @@ def validate_feature_ownership(duplicate: str | None) -> context_module.Validati
 
 
 def validate_dimension_collision(
-    item: context_module.MappingFacts, dimension_ids: frozenset[str]
+    item: context_module.ActionFacts, dimension_ids: frozenset[str]
 ) -> context_module.ValidationResult:
     """Reject calculated feature names that collide with dimensions."""
     collisions = set(item.outputs) & dimension_ids
@@ -62,58 +62,56 @@ def validate_dimension_collision(
 
 
 def validate_function_reference(
-    item: context_module.MappingFacts,
+    item: context_module.ActionFacts,
 ) -> context_module.ValidationResult:
-    """Require a mapping's function to be declared."""
+    """Require a action's function to be declared."""
     if item.function is None:
         return ValueError(
-            f"Dataset {item.location.dataset.id} mappings reference unknown functions: "
-            f"{item.location.mapping.binding.function}"
+            f"Dataset {item.location.dataset.id} actions reference unknown functions: "
+            f"{item.location.action.binding.function}"
         )
     return None
 
 
-def validate_write_outputs(item: context_module.MappingFacts) -> context_module.ValidationResult:
-    """Reject output features on a write mapping."""
+def validate_write_outputs(item: context_module.ActionFacts) -> context_module.ValidationResult:
+    """Reject output features on a write action."""
     if item.outputs:
-        return ValueError(f"Write mapping {item.location.mapping_id} cannot produce features")
+        return ValueError(f"Write action {item.location.action_id} cannot produce features")
     return None
 
 
 def validate_output_feature(
-    item: context_module.MappingFacts, feature: str
+    item: context_module.ActionFacts, feature: str
 ) -> context_module.ValidationResult:
     """Require an output feature to be declared in the target dataset."""
     if feature not in item.location.dataset.features:
-        return ValueError(
-            f"Mapping {item.location.mapping_id} references unknown feature: {feature}"
-        )
+        return ValueError(f"Action {item.location.action_id} references unknown feature: {feature}")
     return None
 
 
 def validate_unique_producer(
-    item: context_module.MappingFacts, feature: str, previous: str | None
+    item: context_module.ActionFacts, feature: str, previous: str | None
 ) -> context_module.ValidationResult:
     """Reject multiple producers for a non-dimension feature."""
     if feature not in item.dimensions and previous is not None:
         return ValueError(
-            f"Feature {feature} is produced by multiple mappings: "
-            f"{previous}, {item.location.mapping_id}"
+            f"Feature {feature} is produced by multiple actions: "
+            f"{previous}, {item.location.action_id}"
         )
     return None
 
 
-def validate_collapse_output(item: context_module.MappingFacts) -> context_module.ValidationResult:
+def validate_collapse_output(item: context_module.ActionFacts) -> context_module.ValidationResult:
     """Require collapse to produce a non-dimension feature."""
     if item.kind == functions.COLLAPSE and not set(item.outputs) - item.dimensions:
         return ValueError(
-            f"Collapse mapping {item.location.mapping_id} must produce a non-dimension feature"
+            f"Collapse action {item.location.action_id} must produce a non-dimension feature"
         )
     return None
 
 
 def validate_current_feature_selector(
-    item: context_module.MappingFacts,
+    item: context_module.ActionFacts,
 ) -> context_module.ValidationResult:
     """Reject ambiguous current-feature selectors on multi-output calculations."""
     if item.kind not in {functions.VECTORIZE, functions.COLLAPSE}:
@@ -125,7 +123,7 @@ def validate_current_feature_selector(
     )
     if count > 1 and selectors.CURRENT_ID in item.feature_selectors:
         return ValueError(
-            f"{item.kind.capitalize()} mapping {item.location.mapping_id} "
+            f"{item.kind.capitalize()} action {item.location.action_id} "
             "cannot use $features.@ when it produces multiple features"
         )
     return None

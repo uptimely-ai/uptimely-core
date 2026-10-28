@@ -7,9 +7,9 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import validation
+from uptimely.spec.validation import action_contracts as contracts_validation
 from uptimely.spec.validation import bindings
 from uptimely.spec.validation import context as context_module
-from uptimely.spec.validation import mapping_contracts as contracts_validation
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
@@ -28,18 +28,18 @@ def test_document_validation_accepts_valid_document_without_mutation() -> None:
 
 def test_binding_feature_selectors_do_not_become_input_dependencies() -> None:
     document = spec.Spec.model_validate(_configuration())
-    mapping = (
+    action = (
         document.entities["pump_telemetry"]
         .datasets["pump_telemetry_dataset"]
-        .mappings["pressure_flow_efficiency"]
+        .actions["pressure_flow_efficiency"]
     )
-    mapping.features.inputs = []
-    mapping.binding.args["dependency_hint"] = "$features.bearing_temperature"
+    action.features.inputs = []
+    action.binding.args["dependency_hint"] = "$features.bearing_temperature"
 
     facts = next(
         item
-        for item in context_module.SpecValidationContext.build(document).mappings
-        if item.location.mapping is mapping
+        for item in context_module.SpecValidationContext.build(document).actions
+        if item.location.action is action
     )
 
     assert facts.inputs == ()
@@ -70,11 +70,11 @@ def test_collapse_errors_precede_later_mapping_and_binding_faults(
     tmp_path: pathlib.Path, load_from_file: bool, inputs: list[str], message: str
 ) -> None:
     configuration = _configuration()
-    mappings = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"]
-    mappings["bearing_temperature_by_pump"]["features"]["inputs"] = inputs
-    mappings["bearing_temperature_by_pump"]["binding"]["args"]["unexpected"] = None
+    actions = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"]
+    actions["bearing_temperature_by_pump"]["features"]["inputs"] = inputs
+    actions["bearing_temperature_by_pump"]["binding"]["args"]["unexpected"] = None
     telemetry = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "mappings"
+        "actions"
     ]
     telemetry["pressure_flow_efficiency"]["binding"]["args"]["unexpected"] = None
 
@@ -93,10 +93,10 @@ def test_collapse_errors_precede_later_mapping_and_binding_faults(
 def test_collapse_grouping_error_precedes_source_dimension_selector_error() -> None:
     configuration = _configuration()
     configuration["entities"]["pump_telemetry"]["dimensions"].remove("pump")
-    mapping = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["mappings"][
+    action = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
         "bearing_temperature_by_pump"
     ]
-    mapping["binding"]["args"]["unexpected"] = "$dimensions.missing"
+    action["binding"]["args"]["unexpected"] = "$dimensions.missing"
 
     with pytest.raises(ValueError) as error:
         validation.validate_spec(spec.Spec.model_validate(configuration))
@@ -108,33 +108,33 @@ def test_collapse_grouping_error_precedes_source_dimension_selector_error() -> N
 
 
 @pytest.mark.parametrize("invalid_binding", [False, True])
-def test_binding_and_contract_paths_keep_their_existing_mapping_identifiers(
+def test_binding_and_contract_paths_keep_their_existing_action_identifiers(
     invalid_binding: bool,
 ) -> None:
     document = spec.Spec.model_validate(_configuration())
     dataset = document.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
-    mapping = dataset.mappings.pop("pressure_flow_efficiency")
-    dataset.mappings["alias"] = mapping
+    action = dataset.actions.pop("pressure_flow_efficiency")
+    dataset.actions["alias"] = action
     if invalid_binding:
-        mapping.binding.args["unexpected"] = None
+        action.binding.args["unexpected"] = None
         expected_id = "alias"
         expected_code = "invalid_binding_arguments"
     else:
-        function = document.functions[mapping.binding.function]
+        function = document.functions[action.binding.function]
         dataframe_arg = next(name for name, arg in function.args.items() if arg.type == "dataframe")
-        mapping.binding.args[dataframe_arg] = "$datasets.pump_dataset.dataframe"
-        expected_id = mapping.id
+        action.binding.args[dataframe_arg] = "$datasets.pump_dataset.dataframe"
+        expected_id = action.id
         expected_code = "invalid_mapping_dataset_input"
 
     context = context_module.SpecValidationContext.build(document)
     if invalid_binding:
         binding = next(
-            item for item in context.iter_bound_mappings() if item.location.mapping is mapping
+            item for item in context.iter_bound_actions() if item.location.action is action
         )
         error = bindings.validate_arguments(binding)
     else:
         contract = next(
-            item for item in context.mapping_contracts if item.mapping.location.mapping is mapping
+            item for item in context.action_contracts if item.action.location.action is action
         )
         error = contracts_validation.validate_target_input(contract)
 
@@ -145,7 +145,7 @@ def test_binding_and_contract_paths_keep_their_existing_mapping_identifiers(
         "pump_telemetry",
         "datasets",
         dataset.id,
-        "mappings",
+        "actions",
         expected_id,
         "binding",
         "args",
@@ -199,13 +199,13 @@ def test_document_validation_preserves_loading_phase_precedence() -> None:
 
 def test_document_validation_rejects_duplicate_output_producers() -> None:
     configuration = _configuration()
-    mappings = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "mappings"
+    actions = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "actions"
     ]
-    mappings["duplicate"] = copy.deepcopy(mappings["pressure_flow_efficiency"])
+    actions["duplicate"] = copy.deepcopy(actions["pressure_flow_efficiency"])
     document = spec.Spec.model_validate(configuration)
 
-    with pytest.raises(ValueError, match="produced by multiple mappings"):
+    with pytest.raises(ValueError, match="produced by multiple actions"):
         validation.validate_spec(document)
 
 
@@ -226,7 +226,7 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
     function = configuration["functions"]["pressure_flow_efficiency"]
     function["args"]["pressure_features"]["type"] = argument_type
     binding = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "mappings"
+        "actions"
     ]["pressure_flow_efficiency"]["binding"]
     binding["args"]["pressure_features"] = argument_value
     model = spec.Spec.model_validate(configuration)
@@ -235,7 +235,7 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
         validation.validate_spec(model)
 
     assert str(error.value) == (
-        "entities.pump_telemetry.datasets.pump_telemetry_dataset.mappings."
+        "entities.pump_telemetry.datasets.pump_telemetry_dataset.actions."
         "pressure_flow_efficiency.binding.args: Reference $datasets.@.dataframe "
         "requires argument type dataframe, got string"
     )
@@ -245,7 +245,7 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
         "pump_telemetry",
         "datasets",
         "pump_telemetry_dataset",
-        "mappings",
+        "actions",
         "pressure_flow_efficiency",
         "binding",
         "args",
@@ -254,10 +254,10 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
 
 def test_binding_argument_name_contract_keeps_structured_error() -> None:
     configuration = _configuration()
-    mapping = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "mappings"
+    action = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "actions"
     ]["pressure_flow_efficiency"]
-    mapping["binding"]["args"] = {"unexpected": None}
+    action["binding"]["args"] = {"unexpected": None}
     model = spec.Spec.model_validate(configuration)
 
     with pytest.raises(validation.SpecError) as error:
@@ -269,7 +269,7 @@ def test_binding_argument_name_contract_keeps_structured_error() -> None:
         "pump_telemetry",
         "datasets",
         "pump_telemetry_dataset",
-        "mappings",
+        "actions",
         "pressure_flow_efficiency",
         "binding",
         "args",
@@ -280,45 +280,45 @@ def test_binding_argument_name_contract_keeps_structured_error() -> None:
 
 def test_mapping_dependency_cycle_keeps_its_message() -> None:
     configuration = _configuration()
-    mapping = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "mappings"
+    action = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "actions"
     ]["recommended_flow_rate"]
-    mapping["features"]["inputs"].append("$features.recommended_flow_rate")
+    action["features"]["inputs"].append("$features.recommended_flow_rate")
     model = spec.Spec.model_validate(configuration)
 
     with pytest.raises(ValueError) as error:
         validation.validate_spec(model)
 
     assert str(error.value) == (
-        "Mapping feature dependency cycle: pump_telemetry_dataset.recommended_flow_rate"
+        "Action feature dependency cycle: pump_telemetry_dataset.recommended_flow_rate"
     )
 
 
 def test_mapping_dependency_rejects_unknown_feature() -> None:
     configuration = _configuration()
-    mapping = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "mappings"
+    action = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "actions"
     ]["pressure_flow_efficiency"]
-    mapping["features"]["inputs"].append("$features.missing_feature")
+    action["features"]["inputs"].append("$features.missing_feature")
     model = spec.Spec.model_validate(configuration)
 
     with pytest.raises(ValueError) as error:
         validation.validate_spec(model)
 
     assert str(error.value) == (
-        "Mapping pressure_flow_efficiency references unknown input feature: missing_feature"
+        "Action pressure_flow_efficiency references unknown input feature: missing_feature"
     )
 
 
 def test_document_validation_rebuilds_indexes_after_an_edit() -> None:
     document = spec.Spec.model_validate(_configuration())
     validation.validate_spec(document)
-    mapping = (
+    action = (
         document.entities["pump_telemetry"]
         .datasets["pump_telemetry_dataset"]
-        .mappings["pressure_flow_efficiency"]
+        .actions["pressure_flow_efficiency"]
     )
-    mapping.features.inputs.append("$features.health_signal_normalized")
+    action.features.inputs.append("$features.health_signal_normalized")
 
     with pytest.raises(ValueError, match="cannot read feature .* from another dataset"):
         validation.validate_spec(document)
@@ -327,10 +327,10 @@ def test_document_validation_rebuilds_indexes_after_an_edit() -> None:
 def test_document_validation_rejects_blank_calculation_function_id() -> None:
     configuration = _configuration()
     configuration["functions"][" "] = configuration["functions"].pop("pressure_flow_efficiency")
-    mapping = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "mappings"
+    action = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
+        "actions"
     ]["pressure_flow_efficiency"]
-    mapping["binding"]["function"] = " "
+    action["binding"]["function"] = " "
     document = spec.Spec.model_validate(configuration)
 
     with pytest.raises(ValueError, match="Every function must define a non-empty string id"):
@@ -341,7 +341,7 @@ def test_document_validation_rejects_blank_calculated_output() -> None:
     configuration = _configuration()
     dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
     dataset["features"][" "] = dataset["features"].pop("pressure_flow_efficiency")
-    dataset["mappings"]["pressure_flow_efficiency"]["features"]["outputs"] = ["$features. "]
+    dataset["actions"]["pressure_flow_efficiency"]["features"]["outputs"] = ["$features. "]
     document = spec.Spec.model_validate(configuration)
 
     with pytest.raises(ValueError, match="Every calculation must define a non-empty output"):
@@ -352,10 +352,10 @@ def test_context_prepares_invalid_declarations_without_raising_or_mutating() -> 
     document = spec.Spec.model_validate(_configuration())
     document.dimensions["plant"].parent = "plant"
     dataset = document.entities["pump"].datasets["pump_dataset"]
-    dataset.mappings["bearing_temperature_by_pump"].features.inputs = ["$features.missing"]
+    dataset.actions["bearing_temperature_by_pump"].features.inputs = ["$features.missing"]
     other = document.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
-    other.mappings["pressure_flow_efficiency"].binding.function = "missing"
-    other.mappings["recommended_flow_rate"].binding.args = {"unexpected": None}
+    other.actions["pressure_flow_efficiency"].binding.function = "missing"
+    other.actions["recommended_flow_rate"].binding.args = {"unexpected": None}
     document.entities["pump_telemetry"].datasets[dataset.id] = dataset.model_copy(deep=True)
     original = document.model_copy(deep=True)
 
@@ -371,10 +371,10 @@ def test_context_prepares_invalid_declarations_without_raising_or_mutating() -> 
     assert context.feature_producers
     assert any(item.source is None for item in context.collapse_inputs)
     assert next(context.iter_input_contexts(), None) is not None
-    assert context.mapping_dependencies
-    assert next(context.iter_bound_mappings(), None) is not None
+    assert context.action_dependencies
+    assert next(context.iter_bound_actions(), None) is not None
     assert next(context.iter_functions(), None) is not None
-    assert context.mapping_contracts
+    assert context.action_contracts
     assert document == original
 
 

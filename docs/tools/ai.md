@@ -22,7 +22,7 @@ By looking at the mcp example in source code, it is almost trivial to define you
 ## What the server exposes
 
 Vectorize and collapse functions return dimension-keyed dataframes. Their
-mappings declare required and produced features, so execution includes the
+actions declare required and produced features, so execution includes the
 prerequisites for a function **bound to features**, not just the raw function.
 The server therefore offers two layers:
 

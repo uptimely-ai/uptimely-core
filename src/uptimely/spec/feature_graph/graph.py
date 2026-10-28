@@ -139,7 +139,7 @@ class GraphBase:
 
 
 class FeatureGraph(GraphBase):
-    """Global dependency graph built from all feature mappings."""
+    """Global dependency graph built from all feature actions."""
 
     def __init__(self, spec: spec_model.Spec) -> None:
         """Build the complete dependency graph from spec declarations."""
@@ -151,19 +151,19 @@ class FeatureGraph(GraphBase):
 
         for entity_id, entity in spec.entities.items():
             for dataset in entity.datasets.values():
-                for operation_id, mapping in dataset.mappings.items():
-                    function = spec.functions[mapping.binding.function]
-                    dependencies = mapping.input_features
+                for action_id, action in dataset.actions.items():
+                    function = spec.functions[action.binding.function]
+                    dependencies = action.input_features
                     if all(existing.id != function.id for existing in self.functions):
                         self.functions.append(function)
                     self._graph_operations.append(
                         (
                             function,
                             entity_id,
-                            operation_id,
+                            action_id,
                             [
                                 feature_id
-                                for feature_id in mapping.output_features
+                                for feature_id in action.output_features
                                 if feature_id not in spec.dimensions
                             ],
                             list(dict.fromkeys(dependencies)),
@@ -181,24 +181,24 @@ class FeatureGraph(GraphBase):
         nodes: dict[str, Node] = {}
         function_entities: dict[tuple[str, str, str | None], set[str]] = {}
         function_outputs: dict[tuple[str, str, str | None], set[str]] = {}
-        for function, entity, operation_id, outputs, _dependencies in self._graph_operations:
+        for function, entity, action_id, outputs, _dependencies in self._graph_operations:
             function_key = (
                 function.kind,
                 function.id,
-                operation_id if function.kind == functions.ESCAPE else None,
+                action_id if function.kind == functions.ESCAPE else None,
             )
             function_entities.setdefault(function_key, set()).add(entity)
             function_outputs.setdefault(function_key, set()).update(outputs)
 
         output_names = {
             output
-            for _function, _entity, _operation_id, outputs, _dependencies in self._graph_operations
+            for _function, _entity, _action_id, outputs, _dependencies in self._graph_operations
             for output in outputs
             if output not in self.spec.dimensions
         }
         dependency_names = {
             parent
-            for function, _entity, _operation_id, _outputs, dependencies in self._graph_operations
+            for function, _entity, _action_id, _outputs, dependencies in self._graph_operations
             for parent in dependencies
         }
         feature_metadata: dict[str, models.FeatureNode] = {}
@@ -224,9 +224,9 @@ class FeatureGraph(GraphBase):
 
         for entity_id, entity in self.spec.entities.items():
             for dataset in entity.datasets.values():
-                for mapping in dataset.mappings.values():
-                    function_kind = bindings.mapping_kind(mapping, self.spec.functions)
-                    for name in mapping.output_features:
+                for action in dataset.actions.values():
+                    function_kind = bindings.action_kind(action, self.spec.functions)
+                    for name in action.output_features:
                         feature = dataset.features[name]
                         register_feature_metadata(
                             name,
@@ -235,7 +235,7 @@ class FeatureGraph(GraphBase):
                             is_source_input=function_kind
                             not in {functions.COLLAPSE, functions.ESCAPE, functions.VECTORIZE},
                         )
-        for function, entity, _operation_id, outputs, _dependencies in self._graph_operations:
+        for function, entity, _action_id, outputs, _dependencies in self._graph_operations:
             for output in outputs:
                 register_feature_metadata(
                     output,
@@ -282,7 +282,7 @@ class FeatureGraph(GraphBase):
                     name=function.id,
                     features=tuple(sorted(function_outputs[function_key])),
                     entity=next(iter(entities)) if len(entities) == 1 else None,
-                    mapping_id=operation_id if function.kind == functions.ESCAPE else None,
+                    action_id=operation_id if function.kind == functions.ESCAPE else None,
                     function=function,
                 )
             )

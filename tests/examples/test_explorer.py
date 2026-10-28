@@ -73,7 +73,7 @@ def test_explorer_context_has_expected_fields() -> None:
     assert set(document["summary"]) == {
         "entity_count",
         "dataset_count",
-        "mapping_count",
+        "action_count",
         "dimension_count",
         "feature_count",
         "bound_feature_count",
@@ -101,16 +101,16 @@ def test_explorer_context_counts_match_spec() -> None:
     assert document["summary"] | expected_counts == document["summary"]
     assert document["feature_dependencies"] == [
         {
-            "function": mapping.binding.function,
-            "kind": spec_definition.functions[mapping.binding.function].kind,
+            "function": action.binding.function,
+            "kind": spec_definition.functions[action.binding.function].kind,
             "feature": feature,
-            "dependencies": mapping.input_features,
+            "dependencies": action.input_features,
         }
         for entity in spec_definition.entities.values()
         for dataset in entity.datasets.values()
-        for mapping in dataset.mappings.values()
-        if spec_definition.functions[mapping.binding.function].kind in {"escape", "vectorize"}
-        for feature in mapping.output_features
+        for action in dataset.actions.values()
+        if spec_definition.functions[action.binding.function].kind in {"escape", "vectorize"}
+        for feature in action.output_features
     ]
 
 

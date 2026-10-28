@@ -34,7 +34,7 @@ class ExplorerSummary:
 
     entity_count: int
     dataset_count: int
-    mapping_count: int
+    action_count: int
     dimension_count: int
     feature_count: int
     bound_feature_count: int
@@ -124,7 +124,7 @@ def _create_website_pages(
 def _feature_data(
     configuration: dict[str, typing.Any],
 ) -> tuple[list[dict], list[dict], set[str], list[dict]]:
-    """Collect mapped feature metadata and calculated feature references."""
+    """Collect action-produced feature metadata and calculated feature references."""
     entities = configuration.get("entities", {})
     functions = configuration.get("functions", {})
     fragment_features: list[dict] = []
@@ -133,11 +133,11 @@ def _feature_data(
     seen_inputs: set[tuple[str, str]] = set()
     for entity in entities.values():
         for dataset_id, dataset in entity.get("datasets", {}).items():
-            for mapping in dataset.get("mappings", {}).values():
-                function_id = mapping.get("binding", {}).get("function")
+            for action in dataset.get("actions", {}).values():
+                function_id = action.get("binding", {}).get("function")
                 function = functions.get(function_id, {})
                 kind = function.get("kind")
-                for reference in mapping.get("features", {}).get("outputs", []):
+                for reference in action.get("features", {}).get("outputs", []):
                     feature_id = reference.removeprefix(selectors.FEATURE_PREFIX)
                     feature = dict(dataset.get("features", {}).get(feature_id, {}))
                     feature["id"] = feature_id
@@ -145,8 +145,8 @@ def _feature_data(
                         calculated_features.append(
                             {
                                 **feature,
-                                "binding": mapping.get("binding", {}),
-                                "inputs": mapping.get("features", {}).get("inputs", []),
+                                "binding": action.get("binding", {}),
+                                "inputs": action.get("features", {}).get("inputs", []),
                             }
                         )
                     elif kind == function_kinds.ESCAPE:
@@ -184,17 +184,17 @@ def _build_context(
         if isinstance(kind, str):
             function_groups.setdefault(kind, {})[function_id] = function
             function["declared_returns"] = function_kinds.KIND_RETURN_KINDS[kind]
-            function["escape_mappings"] = []
-    for entity_id, dataset, mapping in references.iter_mappings(spec_definition):
-        function = function_definitions[mapping.binding.function]
+            function["escape_actions"] = []
+    for entity_id, dataset, action in references.iter_actions(spec_definition):
+        function = function_definitions[action.binding.function]
         if function.get("kind") == function_kinds.ESCAPE:
-            function["escape_mappings"].append(
+            function["escape_actions"].append(
                 {
                     "entity": entity_id,
                     "dataset": dataset.id,
-                    "mapping": mapping.id,
-                    "inputs": mapping.input_features,
-                    "outputs": mapping.output_features,
+                    "action": action.id,
+                    "inputs": action.input_features,
+                    "outputs": action.output_features,
                 }
             )
     for function in function_definitions.values():
@@ -244,20 +244,20 @@ def _build_context(
         kind: len(function_groups.get(kind, {})) for kind in function_kinds.FUNCTION_KINDS
     }
     dataset_count = sum(len(entity.get("datasets", {})) for entity in entities.values())
-    mapping_count = sum(
+    action_count = sum(
         1
         for entity in entities.values()
         for dataset in entity.get("datasets", {}).values()
-        for mapping in dataset.get("mappings", {}).values()
+        for action in dataset.get("actions", {}).values()
         if any(
-            mapping.get("binding", {}).get("function") in function_groups.get(kind, {})
+            action.get("binding", {}).get("function") in function_groups.get(kind, {})
             for kind in function_kinds.FRAGMENT_KINDS
         )
     )
     summary = ExplorerSummary(
         entity_count=len(entities),
         dataset_count=dataset_count,
-        mapping_count=mapping_count,
+        action_count=action_count,
         dimension_count=len(dimensions),
         feature_count=len([*fragment_features, *calculated_features, *escape_features]),
         bound_feature_count=len(calculated_features),
@@ -270,15 +270,15 @@ def _build_context(
     )
     dependencies = [
         {
-            "function": mapping.binding.function,
-            "kind": spec_definition.functions[mapping.binding.function].kind,
+            "function": action.binding.function,
+            "kind": spec_definition.functions[action.binding.function].kind,
             "feature": feature,
-            "dependencies": mapping.input_features,
+            "dependencies": action.input_features,
         }
-        for _entity_id, _dataset, mapping in references.iter_mappings(spec_definition)
-        if spec_definition.functions[mapping.binding.function].kind
+        for _entity_id, _dataset, action in references.iter_actions(spec_definition)
+        if spec_definition.functions[action.binding.function].kind
         in {function_kinds.ESCAPE, function_kinds.VECTORIZE}
-        for feature in mapping.output_features
+        for feature in action.output_features
     ]
     generated_at = (
         datetime.datetime.now().astimezone().isoformat(timespec="seconds")

@@ -10,7 +10,7 @@ between those declarations.
 The sections below document the exported interfaces in their defining modules,
 not the internal rule helpers. Call `validate_spec(document)` after editing a
 document directly. Each invocation builds fresh lookup indexes, reads the
-document's mappings, and leaves the document unchanged. Validation does not
+document's actions, and leaves the document unchanged. Validation does not
 import executable function implementations.
 
 For the validation responsibilities of the document model, Spec, compiler, and
@@ -24,14 +24,14 @@ invocations. Its ordered phases are:
 1. Vectorize output declarations, dataset IDs, feature ownership, and local
    calculation/write dependencies.
 2. Dimension parents, entity dimensions, and dataset ordering.
-3. Mapping outputs and producer uniqueness, with warnings for declared features
+3. Action outputs and producer uniqueness, with warnings for declared features
    that have no producer.
-4. Collapse source scope, mapping inputs, row context, and mapping cycles.
-5. Binding arguments, function contracts, and mapping contracts.
+4. Collapse source scope, action inputs, row context, and action cycles.
+5. Binding arguments, function contracts, and action contracts.
 
 The preliminary checks preserve loading's established error precedence.
 Direct validation now uses the same sequence as loading and Python conversion.
-Duplicate vectorize outputs are reported by mapping producer validation rather
+Duplicate vectorize outputs are reported by action producer validation rather
 than by validating a second collection of generated calls.
 
 The coordinator in `validation.spec` delegates to five named phase generators,
@@ -54,10 +54,10 @@ modules separate orchestration from domain checks:
 | `dataset` | Dataset IDs and ordering dimensions |
 | `dimensions` | Dimension declarations and parent relationships |
 | `functions` | Binding arguments, nested selector types, and function contracts |
-| `mapping_outputs` | Early calculation outputs, ownership, and unique producers |
-| `mapping_inputs` | Input references, collapse source scope, and row context |
-| `mapping_contracts` | Dataframe reference validity and kind-specific contracts |
-| `dependencies` | Local calculation/write scope and mapping-cycle checks |
+| `action_outputs` | Early calculation outputs, ownership, and unique producers |
+| `action_inputs` | Input references, collapse source scope, and row context |
+| `action_contracts` | Dataframe reference validity and kind-specific contracts |
+| `dependencies` | Local calculation/write scope and action-cycle checks |
 | `errors` | Structured validation errors |
 
 The context retains duplicate candidates, missing references, and ancestry
@@ -69,10 +69,10 @@ current context. Revalidating an edited document builds a new context.
 `DatasetLocation` represents dataset declarations, feature owners, and inferred
 collapse sources; separate `FeatureOwner` and `CollapseSource` wrappers are not
 needed. Feature occurrence order is retained independently of dataset order.
-`MappingLocation` composes a `DatasetLocation`, retaining both dictionary-key
+`ActionLocation` composes a `DatasetLocation`, retaining both dictionary-key
 binding paths and model-ID contract paths without copying its entity and dataset.
-`MappingFacts` derives entity dimensions and local features from that shared
-location instead of storing repeated copies for every mapping. Other frozen
+`ActionFacts` derives entity dimensions and local features from that shared
+location instead of storing repeated copies for every action. Other frozen
 dataclasses are retained for facts shared by multiple atomic checks, such as
 collapse-source and dataframe relationships. Binding names, selector types, and
 function contracts are read from their declarations as the coordinator reaches
@@ -82,19 +82,19 @@ invariant. Specification models remain Pydantic models.
 
 The context prepares producer occurrences and coverage, collapse source
 candidates, row-context requirements, flattened binding selectors, dataframe
-inputs, and the mapping dependency graph. Source inference is shared by the
-collapse, row-context, and mapping-contract phases. No validator constructs
+inputs, and the action dependency graph. Source inference is shared by the
+collapse, row-context, and action-contract phases. No validator constructs
 indexes or returns intermediate artifacts to the coordinator. One-pass phases
 consume dependency and row-context facts through iterators instead of building
 temporary tuples that validation would immediately traverse once.
 
 Each phase checks one declaration's invariants before advancing to the next.
-Output coverage is checked after all mappings in a dataset, and declared
+Output coverage is checked after all actions in a dataset, and declared
 features without producers generate warnings rather than errors. Dataframe
 arguments precede kind-specific relationships. Vectorize and write share
 local dataset checks; conform and expand share join-input checks.
 
-Escape mappings require explicit, nonempty feature input and output lists.
+Escape actions require explicit, nonempty feature input and output lists.
 Their references participate in normal ownership, producer, unknown-reference,
 and cycle checks, and may connect features across datasets. Binding arguments
 are still validated, including any explicitly bound dataframe references, but
@@ -121,8 +121,8 @@ and ignores its return value without materializing declared outputs.
    Cohesive `_..._error` helpers may describe the first violation as an exception
    or `None`; the entry point raises the first described error immediately.
    They do not cache exceptions, return success booleans, or change exceptions.
-5. Preserve mapping-first order within a phase. Checking one rule across all
-   mappings before applying the next rule changes which error is reported.
+5. Preserve action-first order within a phase. Checking one rule across all
+   actions before applying the next rule changes which error is reported.
 6. Add focused tests for valid inputs and overlapping faults. Preserve exception
    classes, messages, structured codes, paths, and the public exports. For
    changes to reference resolution, test both indexed validation and existing

@@ -324,16 +324,16 @@ def test_website_exports_all_reports_with_relative_navigation(
             assert len(re.findall(r"<td\b", type_row)) == len(columns)
             raw_columns = {
                 name
-                for mapping in dataset.mappings.values()
-                if spec_definition.functions[mapping.binding.function].kind
+                for action in dataset.actions.values()
+                if spec_definition.functions[action.binding.function].kind
                 in {"read", "conform", "expand"}
-                for name in mapping.output_features
+                for name in action.output_features
             }
             external_columns = {
                 name
-                for mapping in dataset.mappings.values()
-                if spec_definition.functions[mapping.binding.function].kind == "escape"
-                for name in mapping.output_features
+                for action in dataset.actions.values()
+                if spec_definition.functions[action.binding.function].kind == "escape"
+                for name in action.output_features
             }
             for name, column in zip(expected_names, columns, strict=True):
                 if name in entity_dimensions:
@@ -418,7 +418,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
         "Invocations": str(len(expected_plan.invocations)),
         "Stages": str(len(expected_plan.execution_stages)),
     }
-    assert "Spec 2" in document
+    assert "Spec 3" in document
     assert 'aria-label="Project counts"' in document
     assert 'aria-label="Spec journey"' in document
     assert re.findall(r'<li class="journey-step (\S+) icon--\1">', document) == [

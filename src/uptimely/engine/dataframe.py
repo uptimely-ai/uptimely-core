@@ -49,7 +49,7 @@ class DataFrameExecution:
                 continue
             if sum(feature in columns for columns in available) != 1:
                 raise ValueError(
-                    f"Mapping {invocation.mapping_id} input feature is unavailable or ambiguous: "
+                    f"Action {invocation.mapping_id} input feature is unavailable or ambiguous: "
                     f"{feature}"
                 )
 
@@ -63,14 +63,14 @@ class DataFrameExecution:
         ]
         if len(dataframe_arguments) != 1:
             raise ValueError(
-                f"Mapping {invocation.mapping_id} must declare exactly one foreign dataframe "
+                f"Action {invocation.mapping_id} must declare exactly one foreign dataframe "
                 "argument"
             )
         argument_name = dataframe_arguments[0]
         source_id = invocation.arguments.get(argument_name)
         if not isinstance(source_id, str) or source_id == invocation.dataset_id:
             raise ValueError(
-                f"Mapping {invocation.mapping_id} must reference a foreign source dataset"
+                f"Action {invocation.mapping_id} must reference a foreign source dataset"
             )
         source = self.state.datasets.get(source_id)
         if source is None:
@@ -80,7 +80,7 @@ class DataFrameExecution:
         for feature in invocation.input_features:
             if feature not in source_columns:
                 raise ValueError(
-                    f"Mapping {invocation.mapping_id} input feature is unavailable in foreign "
+                    f"Action {invocation.mapping_id} input feature is unavailable in foreign "
                     f"source dataset: {feature}"
                 )
 
@@ -104,7 +104,7 @@ class DataFrameExecution:
         missing = sorted(set(invocation.output_features) - columns)
         if missing:
             raise ValueError(
-                f"Mapping {invocation.mapping_id} is missing output columns: " + ", ".join(missing)
+                f"Action {invocation.mapping_id} is missing output columns: " + ", ".join(missing)
             )
         dataset = self._dataset(invocation.dataset_id)
         self._validate_declared_types(
@@ -122,7 +122,7 @@ class DataFrameExecution:
                 validate_coverage and not self.backend.same_keys(dataframe, fragment, dimensions)
             ):
                 raise ValueError(
-                    f"Vectorize mapping {invocation.mapping_id} must preserve "
+                    f"Vectorize action {invocation.mapping_id} must preserve "
                     "the dataset dimension keys"
                 )
 
@@ -133,7 +133,7 @@ class DataFrameExecution:
         dataframe: object | None,
         dimensions: list[str],
     ) -> tuple[object, object]:
-        """Validate a mapping result and assemble its declared fragment."""
+        """Validate an action result and assemble its declared fragment."""
         self._validate_fragment(invocation, fragment, dataframe, dimensions)
         fragment = self.backend.select(
             fragment, list(dict.fromkeys([*dimensions, *invocation.output_features]))

@@ -211,7 +211,7 @@ def test_python_spec_resolves_registered_ids_and_objects_without_mutation(
     assert payload["dimensions"]["pump"]["description"] == "Pump identifier"
     canonical = document.entities["assets"].datasets["readings"]
     assert canonical.features["pump"].type == "string"
-    assert canonical.mappings["readings_mapping"].features.outputs == ["$features.pump"]
+    assert canonical.actions["readings_mapping"].features.outputs == ["$features.pump"]
     assert readings.entity == ("assets" if entity_id else owner)
     assert owner.dimensions == (["pump"] if dimension_id else [pump])
     assert owner.datasets == []
@@ -371,7 +371,7 @@ def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> No
             else "@"
         )
         expected_args["dataset"] = f"$datasets.{source_id}.dataframe"
-    assert payload["entities"]["one"]["datasets"]["first"]["mappings"]["first_mapping"][
+    assert payload["entities"]["one"]["datasets"]["first"]["actions"]["first_mapping"][
         "binding"
     ] == {
         "function": function_id,
@@ -469,7 +469,7 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata() -> None:
     payload = spec_definition.to_dict()
 
     assert payload["name"] == "Pump analytics"
-    assert payload["spec_version"] == 2
+    assert payload["spec_version"] == 3
     assert payload["source"] == {"name": "python_api", "generated": True}
     assert payload["dimensions"] == {
         "pump": {"type": "string", "description": "Asset ID", "parent": None}
@@ -489,7 +489,7 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata() -> None:
                     },
                     "order": [{"dimension": "$dimensions.pump", "direction": "desc"}],
                     "features": {},
-                    "mappings": {},
+                    "actions": {},
                 }
             },
         }

@@ -23,7 +23,7 @@ def read_entrypoints(
         except ValueError as error:
             raise ValueError(
                 f"Invalid entrypoint for function {function.id} "
-                f"used by mapping {node.mapping_id}: {error}"
+                f"used by action {node.mapping_id}: {error}"
             ) from error
     return entrypoints
 
@@ -65,7 +65,7 @@ def read_signatures(
             except (ImportError, AttributeError, ValueError, TypeError) as error:
                 raise ValueError(
                     f"Could not read signature of function {function.id} "
-                    f"used by mapping {node.mapping_id} from entrypoint "
+                    f"used by action {node.mapping_id} from entrypoint "
                     f"{function.entrypoint}; available build package: "
                     f"{implementation.module.package}: {error}"
                 ) from error

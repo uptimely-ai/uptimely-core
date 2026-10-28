@@ -124,9 +124,9 @@ def test_execution_plan_does_not_import_outer_layers() -> None:
     [
         "uptimely.spec.model.spec",
         "uptimely.spec.validation",
-        "uptimely.spec.validation.mapping_outputs",
-        "uptimely.spec.validation.mapping_inputs",
-        "uptimely.spec.validation.mapping_contracts",
+        "uptimely.spec.validation.action_outputs",
+        "uptimely.spec.validation.action_inputs",
+        "uptimely.spec.validation.action_contracts",
         "uptimely.spec.validation.dependencies",
         "uptimely.spec.python.conversion",
         "uptimely.spec.json.codec",

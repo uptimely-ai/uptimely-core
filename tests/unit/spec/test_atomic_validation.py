@@ -11,9 +11,9 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import functions as function_kinds
-from uptimely.spec.validation import context, errors, functions, mapping_contracts, row_context
+from uptimely.spec.validation import action_contracts, context, errors, functions, row_context
 
-type ContractRule = collections.abc.Callable[[context.MappingContract], ValueError | None]
+type ContractRule = collections.abc.Callable[[context.ActionContract], ValueError | None]
 type RowRule = collections.abc.Callable[[context.RowContext], ValueError | None]
 
 
@@ -33,56 +33,56 @@ def prepared() -> context.SpecValidationContext:
     ("rule", "kind", "changes", "code", "path_suffix"),
     [
         (
-            mapping_contracts.validate_dataset_count,
+            action_contracts.validate_dataset_count,
             "conform",
             {"dataset_ids": frozenset()},
             "invalid_mapping_dataset_input",
             ("binding", "args"),
         ),
         (
-            mapping_contracts.validate_dataframe_features,
+            action_contracts.validate_dataframe_features,
             "expand",
             {"unavailable_features": ("missing",)},
             "invalid_mapping_feature_inputs",
             ("features", "inputs"),
         ),
         (
-            mapping_contracts.validate_target_input,
+            action_contracts.validate_target_input,
             "vectorize",
             {"target_is_input": False},
             "invalid_mapping_dataset_input",
             ("binding", "args"),
         ),
         (
-            mapping_contracts.validate_local_features,
+            action_contracts.validate_local_features,
             "write",
             {"local_foreign_features": ("foreign",)},
             "invalid_mapping_feature_inputs",
             ("features", "inputs"),
         ),
         (
-            mapping_contracts.validate_collapse_source,
+            action_contracts.validate_collapse_source,
             "collapse",
             {"dataset_ids": frozenset()},
             "invalid_mapping_dataset_input",
             ("binding", "args"),
         ),
         (
-            mapping_contracts.validate_collapse_dimensions,
+            action_contracts.validate_collapse_dimensions,
             "collapse",
             {"source_dimensions": None},
             "invalid_mapping_dimensions",
             ("features", "inputs"),
         ),
         (
-            mapping_contracts.validate_conform_dimensions,
+            action_contracts.validate_conform_dimensions,
             "conform",
             {"input_dimensions": (frozenset({"unknown"}),)},
             "invalid_mapping_dimensions",
             ("binding", "args"),
         ),
         (
-            mapping_contracts.validate_expand_dimensions,
+            action_contracts.validate_expand_dimensions,
             "expand",
             {"has_lower_feature": False},
             "invalid_mapping_dimensions",
@@ -98,39 +98,39 @@ def test_mapping_rules_return_structured_errors_without_raising(
     code: str,
     path_suffix: tuple[str, ...],
 ) -> None:
-    item = next(item for item in prepared.mapping_contracts if item.source is not None)
-    assert item.mapping.function is not None
-    mapping = dataclasses.replace(
-        item.mapping, function=item.mapping.function.model_copy(update={"kind": kind})
+    item = next(item for item in prepared.action_contracts if item.source is not None)
+    assert item.action.function is not None
+    action = dataclasses.replace(
+        item.action, function=item.action.function.model_copy(update={"kind": kind})
     )
-    if rule is mapping_contracts.validate_collapse_dimensions:
-        changes = {"source_dimensions": mapping.dimensions}
-    invalid = dataclasses.replace(item, mapping=mapping, **changes)
-    original = invalid.mapping.location.mapping.model_copy(deep=True)
+    if rule is action_contracts.validate_collapse_dimensions:
+        changes = {"source_dimensions": action.dimensions}
+    invalid = dataclasses.replace(item, action=action, **changes)
+    original = invalid.action.location.action.model_copy(deep=True)
 
     error = rule(invalid)
 
     assert isinstance(error, errors.SpecError)
     assert error.code == code
-    assert error.path == (*mapping.location.path, *path_suffix)
-    assert invalid.mapping.location.mapping == original
+    assert error.path == (*action.location.path, *path_suffix)
+    assert invalid.action.location.action == original
 
 
 @pytest.mark.parametrize(
     ("rule", "changes", "message"),
     [
         (
-            mapping_contracts.validate_dataframe_reference,
+            action_contracts.validate_dataframe_reference,
             {"value": 42},
             "must reference a dataset",
         ),
         (
-            mapping_contracts.validate_dataframe_selector,
+            action_contracts.validate_dataframe_selector,
             {"value": "$datasets.missing.id"},
             "must reference a dataframe",
         ),
         (
-            mapping_contracts.validate_dataframe_source,
+            action_contracts.validate_dataframe_source,
             {"source": None, "source_id": "missing"},
             "references unknown dataset missing",
         ),
@@ -144,7 +144,7 @@ def test_dataframe_rules_return_errors(
 ) -> None:
     argument = next(
         item.dataframe_arguments[0]
-        for item in prepared.mapping_contracts
+        for item in prepared.action_contracts
         if item.dataframe_arguments
     )
 
@@ -185,7 +185,7 @@ def test_row_context_rules_return_plain_errors(
     rule: RowRule, changes: dict[str, object], message: str
 ) -> None:
     item = context.RowContext(
-        mapping_id="mapping",
+        action_id="action",
         requires_order=True,
         has_order=True,
         dimension_reference="$dimensions.timestamp",
@@ -200,7 +200,7 @@ def test_row_context_rules_return_plain_errors(
     error = rule(dataclasses.replace(item, **changes))
 
     assert type(error) is ValueError
-    assert str(error) == f"Mapping mapping {message}"
+    assert str(error) == f"Action action {message}"
 
 
 def test_function_rules_are_independent(
@@ -227,20 +227,20 @@ def test_dimensional_source_uses_feature_owners_for_every_operation(
     kind: function_kinds.FunctionKind,
     source_ids: frozenset[str],
 ) -> None:
-    item = next(item for item in prepared.mapping_contracts if item.source is not None)
-    assert item.mapping.function is not None
-    mapping = dataclasses.replace(
-        item.mapping, function=item.mapping.function.model_copy(update={"kind": kind})
+    item = next(item for item in prepared.action_contracts if item.source is not None)
+    assert item.action.function is not None
+    action = dataclasses.replace(
+        item.action, function=item.action.function.model_copy(update={"kind": kind})
     )
-    contract = dataclasses.replace(item, mapping=mapping, feature_dataset_ids=source_ids)
+    contract = dataclasses.replace(item, action=action, feature_dataset_ids=source_ids)
 
-    count_error = mapping_contracts.validate_input_feature_source_count(contract)
-    source_error = mapping_contracts.validate_dataframe_feature_source(contract)
+    count_error = action_contracts.validate_input_feature_source_count(contract)
+    source_error = action_contracts.validate_dataframe_feature_source(contract)
 
     if len(source_ids) > 1:
         assert isinstance(count_error, errors.SpecError)
         assert count_error.code == "invalid_mapping_dataset_input"
-        assert count_error.path == (*mapping.location.path, "features", "inputs")
+        assert count_error.path == (*action.location.path, "features", "inputs")
         assert "inputs must belong to one source dataset" in str(count_error)
         assert source_error is None
     else:
@@ -256,28 +256,28 @@ def test_foreign_dataframe_rule_is_independent_of_feature_ownership(
     prepared: context.SpecValidationContext,
     kind: function_kinds.FunctionKind,
 ) -> None:
-    item = next(item for item in prepared.mapping_contracts if item.source is not None)
-    assert item.mapping.function is not None
-    mapping = dataclasses.replace(
-        item.mapping, function=item.mapping.function.model_copy(update={"kind": kind})
+    item = next(item for item in prepared.action_contracts if item.source is not None)
+    assert item.action.function is not None
+    action = dataclasses.replace(
+        item.action, function=item.action.function.model_copy(update={"kind": kind})
     )
-    contract = dataclasses.replace(item, mapping=mapping, feature_dataset_ids=frozenset())
-    assert mapping_contracts.validate_foreign_dataframe(contract) is None
+    contract = dataclasses.replace(item, action=action, feature_dataset_ids=frozenset())
+    assert action_contracts.validate_foreign_dataframe(contract) is None
 
     dataframe = dataclasses.replace(
         contract.dataframe_arguments[0],
-        source_id=mapping.location.dataset.id,
-        source=mapping.location.dataset_location,
+        source_id=action.location.dataset.id,
+        source=action.location.dataset_location,
     )
     invalid = dataclasses.replace(contract, dataframe_arguments=(dataframe,))
 
-    error = mapping_contracts.validate_foreign_dataframe(invalid)
+    error = action_contracts.validate_foreign_dataframe(invalid)
 
     assert isinstance(error, errors.SpecError)
     assert error.code == "invalid_mapping_dataset_input"
     assert error.path == dataframe.path
-    assert mapping_contracts.validate_input_feature_source_count(invalid) is None
-    assert mapping_contracts.validate_dataframe_feature_source(invalid) is None
+    assert action_contracts.validate_input_feature_source_count(invalid) is None
+    assert action_contracts.validate_dataframe_feature_source(invalid) is None
 
 
 @pytest.mark.parametrize("kind", ["conform", "collapse", "expand"])
@@ -286,38 +286,38 @@ def test_mapping_rules_use_operation_dataframe_counts(
     monkeypatch: pytest.MonkeyPatch,
     kind: function_kinds.FunctionKind,
 ) -> None:
-    item = next(item for item in prepared.mapping_contracts if item.source is not None)
-    assert item.mapping.function is not None
-    mapping = dataclasses.replace(
-        item.mapping, function=item.mapping.function.model_copy(update={"kind": kind})
+    item = next(item for item in prepared.action_contracts if item.source is not None)
+    assert item.action.function is not None
+    action = dataclasses.replace(
+        item.action, function=item.action.function.model_copy(update={"kind": kind})
     )
-    contract = dataclasses.replace(item, mapping=mapping)
+    contract = dataclasses.replace(item, action=action)
     assert len(contract.dataframe_arguments) == 1
 
     monkeypatch.setitem(function_kinds.KIND_DATAFRAME_INPUT_COUNTS, kind, 2)
 
-    error = mapping_contracts.validate_dataset_count(contract)
+    error = action_contracts.validate_dataset_count(contract)
     assert isinstance(error, errors.SpecError)
     assert "exactly 2 foreign dataset(s)" in str(error)
-    assert mapping_contracts.validate_dataframe_feature_source(contract) is None
+    assert action_contracts.validate_dataframe_feature_source(contract) is None
 
 
 def test_collapse_rejects_a_source_with_fewer_dimensions(
     prepared: context.SpecValidationContext,
 ) -> None:
-    item = next(item for item in prepared.mapping_contracts if item.source is not None)
-    assert item.mapping.function is not None
-    mapping = dataclasses.replace(
-        item.mapping, function=item.mapping.function.model_copy(update={"kind": "collapse"})
+    item = next(item for item in prepared.action_contracts if item.source is not None)
+    assert item.action.function is not None
+    action = dataclasses.replace(
+        item.action, function=item.action.function.model_copy(update={"kind": "collapse"})
     )
     invalid = dataclasses.replace(
         item,
-        mapping=mapping,
+        action=action,
         source_dimensions=frozenset(),
     )
 
-    error = mapping_contracts.validate_collapse_dimensions(invalid)
+    error = action_contracts.validate_collapse_dimensions(invalid)
 
     assert isinstance(error, errors.SpecError)
     assert error.code == "invalid_mapping_dimensions"
-    assert error.path == (*mapping.location.path, "features", "inputs")
+    assert error.path == (*action.location.path, "features", "inputs")

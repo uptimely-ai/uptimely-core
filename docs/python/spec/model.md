@@ -43,7 +43,7 @@ object key and excluded from serialized dataset attributes.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Entity, Dataset, Feature, Order, RowScope, Mapping, MappingFeatures]
+      members: [Entity, Dataset, Feature, Order, RowScope, Action, ActionFeatures]
 
 ## functions
 

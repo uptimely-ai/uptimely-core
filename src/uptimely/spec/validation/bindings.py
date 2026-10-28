@@ -7,11 +7,11 @@ from . import context as context_module
 from . import errors
 
 
-def validate_arguments(item: context_module.MappingFacts) -> context_module.ValidationResult:
+def validate_arguments(item: context_module.ActionFacts) -> context_module.ValidationResult:
     """Require the supplied argument names to match the function signature."""
     if item.function is None:
         return None
-    supplied = item.location.mapping.binding.args
+    supplied = item.location.action.binding.args
     missing = item.function.args.keys() - supplied.keys()
     unknown = supplied.keys() - item.function.args.keys()
     if missing or unknown:
@@ -19,7 +19,7 @@ def validate_arguments(item: context_module.MappingFacts) -> context_module.Vali
             ["unknown arguments: " + ", ".join(sorted(unknown))] if unknown else []
         )
         return errors.SpecError(
-            f"Binding for function {item.location.mapping.binding.function} has "
+            f"Binding for function {item.location.action.binding.function} has "
             + "; ".join(details),
             code="invalid_binding_arguments",
             path=(*item.location.declaration_path, "binding", "args"),

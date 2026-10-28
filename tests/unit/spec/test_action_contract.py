@@ -101,10 +101,10 @@ def _spec() -> spec.Spec:
 def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     spec_definition = _spec()
     dataset_model = spec_definition.entities["entity"].datasets["observations"]
-    assert dataset_model.mappings["metadata"].input_features == []
-    assert dataset_model.mappings["metadata"].output_features == ["metadata"]
-    assert dataset_model.mappings["metadata"].binding.args["identifier"] == "$features.result.id"
-    assert dataset_model.mappings["result"].input_features == ["value"]
+    assert dataset_model.actions["metadata"].input_features == []
+    assert dataset_model.actions["metadata"].output_features == ["metadata"]
+    assert dataset_model.actions["metadata"].binding.args["identifier"] == "$features.result.id"
+    assert dataset_model.actions["result"].input_features == ["value"]
 
     computed = compiler.Compiler().compile(spec_definition, features=["result"])
     assert len(computed.invocations) == 2
@@ -184,7 +184,7 @@ def test_invalid_input_contracts_are_rejected(
     path = tmp_path / "spec.json"
     spec.write_document(_spec(), path)
     configuration = json.loads(path.read_text())
-    configuration["entities"]["entity"]["datasets"]["observations"]["mappings"]["result"][
+    configuration["entities"]["entity"]["datasets"]["observations"]["actions"]["result"][
         "features"
     ]["inputs"] = inputs
     path.write_text(json.dumps(configuration))
@@ -219,7 +219,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
 ) -> None:
     spec_definition = _spec()
     source = next(
-        iter(spec_definition.entities["entity"].datasets["observations"].mappings.values())
+        iter(spec_definition.entities["entity"].datasets["observations"].actions.values())
     )
     source.features.outputs = ["$features.value"]
     compiled = compiler.Compiler().compile(spec_definition, features=["result"])
@@ -245,8 +245,8 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     configuration = json.loads(path.read_text())
     dataset = configuration["entities"]["entity"]["datasets"]["observations"]
     del dataset["features"]["id"]
-    dataset["mappings"]["read_values"]["features"]["outputs"] = ["$features.value"]
-    dataset["mappings"]["result"]["features"]["inputs"].append("$features.id")
+    dataset["actions"]["read_values"]["features"]["outputs"] = ["$features.value"]
+    dataset["actions"]["result"]["features"]["inputs"].append("$features.id")
     if with_sink:
         configuration["functions"]["write_ids"] = {
             "kind": "write",
@@ -254,7 +254,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
             "entrypoint": f"{__name__}:write_ids",
             "args": {"dataset": {"type": "dataframe"}, "column": {"type": "string"}},
         }
-        dataset["mappings"]["write_ids"] = {
+        dataset["actions"]["write_ids"] = {
             "features": {"inputs": ["$features.id"], "outputs": []},
             "binding": {
                 "function": "write_ids",

@@ -1,7 +1,7 @@
 # Compiler and plans
 
 `uptimely.compiler` creates an execution plan from a loaded Spec.
-`uptimely.execution_plan` reads and writes plans. A mapping describes how a
+`uptimely.execution_plan` reads and writes plans. An action describes how a
 function is used; the plan records that work for the engine to run.
 
 Load a Spec with `uptimely.spec.load_spec` (or create one with

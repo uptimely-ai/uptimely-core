@@ -1,6 +1,6 @@
 {
   "name": "Observation totals",
-  "spec_version": 2,
+  "spec_version": 3,
   "dimensions": {
     "id": {
       "type": "integer"
@@ -36,7 +36,7 @@
             "input_2": {"type": "integer"},
             "total": {"type": "integer"}
           },
-          "mappings": {
+          "actions": {
             "read_observations": {
               "binding": {
                 "function": "read_observations"
