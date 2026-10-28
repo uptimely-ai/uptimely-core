@@ -71,7 +71,7 @@ class Engine:
         for stage in self.plan.execution_stages:
             for invocation in stage:
                 started = time.perf_counter()
-                logger.debug("Running %s invocation %s", invocation.operation, invocation.id)
+                logger.debug("Running %s invocation %s", invocation.function_kind, invocation.id)
                 try:
                     invocation_executor.execute(invocation)
                 except Exception as error:

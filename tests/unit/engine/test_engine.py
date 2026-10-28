@@ -78,7 +78,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
 
     assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert result.failures == {}
-    assert result.plan_version == 2
+    assert result.plan_version == 3
     assert isinstance(result.calculated_outputs["telemetry", "doubled"], pl.DataFrame)
     assert set(result.datasets) == {"telemetry"}
     assert result.datasets["telemetry"].select("doubled").to_series().to_list() == [
@@ -330,7 +330,7 @@ def test_escape_ignores_any_return_without_materializing_features(
     invocation_id = "invocation:escape:external_action:asset:external:action"
     escape = uptimely_plan.Invocation(
         id=invocation_id,
-        operation="escape",
+        function_kind="escape",
         entrypoint="test:escape",
         function_id="external_action",
         mapping_id="action",
@@ -340,7 +340,7 @@ def test_escape_ignores_any_return_without_materializing_features(
         input_features=["external_input"],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=2,
+        plan_version=3,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -383,7 +383,7 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs(
 
     first_invocation = uptimely_plan.Invocation(
         id=first_id,
-        operation="escape",
+        function_kind="escape",
         entrypoint="test:first",
         function_id="first",
         mapping_id="first",
@@ -394,7 +394,7 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs(
     )
     second_invocation = uptimely_plan.Invocation(
         id=second_id,
-        operation="escape",
+        function_kind="escape",
         entrypoint="test:second",
         function_id="second",
         mapping_id="second",
@@ -405,7 +405,7 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=2,
+        plan_version=3,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -432,7 +432,7 @@ def test_escape_resolves_literal_and_runtime_arguments(monkeypatch: pytest.Monke
     invocation_id = "invocation:escape:external_action:asset:external:action"
     escape = uptimely_plan.Invocation(
         id=invocation_id,
-        operation="escape",
+        function_kind="escape",
         entrypoint="test:escape",
         function_id="external_action",
         mapping_id="action",
@@ -443,7 +443,7 @@ def test_escape_resolves_literal_and_runtime_arguments(monkeypatch: pytest.Monke
         arguments={"path": "?storage.output.path", "mode": "replace"},
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=2,
+        plan_version=3,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -481,7 +481,7 @@ def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
     second_id = "invocation:escape:second:asset:external:second"
     first_invocation = uptimely_plan.Invocation(
         id=first_id,
-        operation="escape",
+        function_kind="escape",
         entrypoint="test:first",
         function_id="first",
         mapping_id="first",
@@ -501,7 +501,7 @@ def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=2,
+        plan_version=3,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -541,7 +541,7 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
 
     read_invocation = uptimely_plan.Invocation(
         id=read_id,
-        operation="read",
+        function_kind="read",
         entrypoint="test:read",
         function_id="load",
         mapping_id="load",
@@ -551,7 +551,7 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
     )
     escape_invocation = uptimely_plan.Invocation(
         id=escape_id,
-        operation="escape",
+        function_kind="escape",
         entrypoint="test:escape",
         function_id="external_action",
         mapping_id="external_result",
@@ -563,7 +563,7 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
         dependency_ids=[read_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=2,
+        plan_version=3,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": ["asset_id"]}},
@@ -595,7 +595,7 @@ def test_escape_exception_fails_and_skips_downstream(monkeypatch: pytest.MonkeyP
     second_id = "invocation:escape:second:asset:external:second"
     first_invocation = uptimely_plan.Invocation(
         id=first_id,
-        operation="escape",
+        function_kind="escape",
         entrypoint="test:first",
         function_id="first",
         mapping_id="first",
@@ -614,7 +614,7 @@ def test_escape_exception_fails_and_skips_downstream(monkeypatch: pytest.MonkeyP
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=2,
+        plan_version=3,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -837,9 +837,9 @@ def test_runtime_state_is_not_shared_between_instances() -> None:
     assert second.datasets == {}
 
 
-def test_execute_reports_unsupported_operation_types() -> None:
+def test_execute_reports_unsupported_function_kinds() -> None:
     plan = _plan()
-    invalid_invocation = dataclasses.replace(plan.invocations[0], operation="unsupported")
+    invalid_invocation = dataclasses.replace(plan.invocations[0], function_kind="unsupported")
     engine = _engine(
         uptimely_plan.ExecutionPlan(
             **{**plan.__dict__, "invocations": [invalid_invocation, *plan.invocations[1:]]}
@@ -849,7 +849,10 @@ def test_execute_reports_unsupported_operation_types() -> None:
     result = engine.run()
 
     assert result.invocation_statuses[invalid_invocation.id] == "failed"
-    assert result.failures[invalid_invocation.id] == "Unsupported invocation operation: unsupported"
+    assert (
+        result.failures[invalid_invocation.id]
+        == "Unsupported invocation function kind: unsupported"
+    )
 
 
 def test_execute_rejects_scalar_calculations(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -891,7 +894,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
 
     read_invocation = uptimely_plan.Invocation(
         id="invocation:read:load:asset:telemetry:load",
-        operation="read",
+        function_kind="read",
         entrypoint="test:read",
         function_id="load",
         mapping_id="load",
@@ -901,7 +904,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
     )
     vectorize_invocation = uptimely_plan.Invocation(
         id="invocation:vectorize:calculate:asset:telemetry:reading_plus_one",
-        operation="vectorize",
+        function_kind="vectorize",
         entrypoint="test:calculate",
         function_id="calculate",
         mapping_id="reading_plus_one",
@@ -911,7 +914,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         dependency_ids=[read_invocation.id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=2,
+        plan_version=3,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": ["asset_id"]}},

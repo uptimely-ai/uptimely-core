@@ -8,7 +8,7 @@ from uptimely import execution_plan as uptimely_plan
 
 def _sample_plan() -> uptimely_plan.ExecutionPlan:
     return uptimely_plan.ExecutionPlan(
-        plan_version=2,
+        plan_version=3,
         required_backend="polars",
         resources={
             "signatures": {
@@ -19,7 +19,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
         invocations=[
             uptimely_plan.Invocation(
                 id="opaque-read",
-                operation="read",
+                function_kind="read",
                 entrypoint="example.functions:load",
                 function_id="load",
                 mapping_id="read_pressure",
@@ -30,7 +30,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
             ),
             uptimely_plan.Invocation(
                 id="opaque-collapse",
-                operation="collapse",
+                function_kind="collapse",
                 entrypoint="example.functions:maximum",
                 function_id="maximum",
                 mapping_id="pressure_by_pump",
@@ -42,7 +42,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
             ),
             uptimely_plan.Invocation(
                 id="opaque-write",
-                operation="write",
+                function_kind="write",
                 entrypoint="example.functions:save",
                 function_id="save",
                 mapping_id="save_pressure_by_pump",
@@ -60,7 +60,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
     )
 
 
-def test_plan_round_trip_preserves_operation_metadata() -> None:
+def test_plan_round_trip_preserves_function_kind_metadata() -> None:
     plan = _sample_plan()
 
     payload = uptimely_plan.to_dict(plan)
@@ -106,8 +106,10 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
         "invocations",
         "stages",
     }
-    assert payload["plan_version"] == 2
+    assert payload["plan_version"] == 3
     assert {"function_id", "mapping_id"} <= set(payload["invocations"][0])
+    assert "function_kind" in payload["invocations"][0]
+    assert "operation" not in payload["invocations"][0]
     assert "output" not in payload["invocations"][0]
 
 
@@ -119,7 +121,7 @@ def test_plan_json_helpers_round_trip(tmp_path) -> None:
     payload = json.loads(destination.read_text(encoding="utf-8"))
     recreated = uptimely_plan.from_json(destination)
 
-    assert payload["invocations"][0]["operation"] == "read"
+    assert payload["invocations"][0]["function_kind"] == "read"
     assert recreated == plan
     assert recreated.invocations[0].id == "opaque-read"
 
@@ -148,11 +150,11 @@ def test_plan_rejects_version_one_with_supported_version_error() -> None:
     payload["plan_version"] = 1
     payload["callables"] = payload.pop("invocations")
 
-    with pytest.raises(ValueError, match=r"Unsupported plan version: 1\. Supported version is 2\."):
+    with pytest.raises(ValueError, match=r"Unsupported plan version: 1\. Supported version is 3\."):
         uptimely_plan.from_dict(payload)
 
 
-@pytest.mark.parametrize("version", [0, 1, 3, "2", "unsupported", None, True])
+@pytest.mark.parametrize("version", [0, 1, 2, 4, "3", "unsupported", None, True])
 def test_plan_rejects_unsupported_versions(version: object) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     payload["plan_version"] = version

@@ -238,7 +238,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
 
     plan = compiler.Compiler().compile(definition, features=["conformed_auxiliary"])
     conform = next(
-        invocation for invocation in plan.invocations if invocation.operation == "conform"
+        invocation for invocation in plan.invocations if invocation.function_kind == "conform"
     )
     source = next(
         invocation for invocation in plan.invocations if invocation.mapping_id == "read_auxiliary"
@@ -262,12 +262,12 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
         feature
         for stage in plan.execution_stages
         for invocation in stage
-        if invocation.operation == "vectorize"
+        if invocation.function_kind == "vectorize"
         for feature in invocation.output_features
     ] == [
         "health_signal_normalized",
     ]
-    assert {invocation.operation for invocation in plan.invocations} == {
+    assert {invocation.function_kind for invocation in plan.invocations} == {
         "read",
         "collapse",
         "vectorize",
@@ -275,7 +275,7 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
     assert {
         feature
         for invocation in plan.invocations
-        if invocation.operation == "vectorize"
+        if invocation.function_kind == "vectorize"
         for feature in invocation.output_features
     } == {
         "health_signal_normalized",
@@ -298,7 +298,7 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
         spec.load_spec(spec_path), features=["health_signal_normalized"]
     )
     vectorize_invocations = [
-        invocation for invocation in plan.invocations if invocation.operation == "vectorize"
+        invocation for invocation in plan.invocations if invocation.function_kind == "vectorize"
     ]
 
     assert len(vectorize_invocations) == 1
@@ -363,7 +363,7 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
     selected_escape_mappings = {
         invocation.mapping_id
         for invocation in selected.invocations
-        if invocation.operation == "escape"
+        if invocation.function_kind == "escape"
     }
     assert selected_escape_mappings == {"escape_start", "escape_chain"}
     selected_start = next(
@@ -383,7 +383,7 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
         invocation.mapping_id: stage_index
         for stage_index, stage in enumerate(stages)
         for invocation in stage
-        if invocation.operation == "escape"
+        if invocation.function_kind == "escape"
     }
     assert stage_by_mapping["escape_start"] < stage_by_mapping["escape_chain"]
     stage_by_id = {
@@ -460,7 +460,7 @@ def test_escape_return_annotations_do_not_constrain_compilation(
     assert {
         invocation.output_features[0]
         for invocation in compiled.invocations
-        if invocation.operation == "escape"
+        if invocation.function_kind == "escape"
     } == {
         "output_returns_none",
         "output_returns_scalar",

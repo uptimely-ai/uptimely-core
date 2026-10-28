@@ -764,7 +764,7 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -
                 {
                     feature
                     for invocation in plan.invocations
-                    if invocation.operation == "vectorize"
+                    if invocation.function_kind == "vectorize"
                     for feature in invocation.output_features
                 }
             )
@@ -775,7 +775,9 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -
     }
     assert dict(re.findall(r'data-operation="([^"]+)" data-count="(\d+)"', document)) == {
         kind: str(count)
-        for kind, count in collections.Counter(item.operation for item in plan.invocations).items()
+        for kind, count in collections.Counter(
+            item.function_kind for item in plan.invocations
+        ).items()
     }
     assert re.findall(r'data-stage="(\d+)" data-count="(\d+)"', document) == [
         (str(index), str(len(stage))) for index, stage in enumerate(plan.execution_stages, start=1)

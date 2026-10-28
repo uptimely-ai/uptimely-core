@@ -106,7 +106,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     computed = compiler.Compiler().compile(spec_definition, features=["result"])
     assert len(computed.invocations) == 2
     assert next(
-        item for item in computed.invocations if item.operation == "vectorize"
+        item for item in computed.invocations if item.function_kind == "vectorize"
     ).input_features == [
         "value",
     ]
@@ -337,7 +337,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
     )
     compiled = compiler.Compiler().compile(spec_definition, features=["copied"])
     assert len(compiled.invocations) == 3
-    expand = next(item for item in compiled.invocations if item.operation == "expand")
+    expand = next(item for item in compiled.invocations if item.function_kind == "expand")
     source_read = next(
         item for item in compiled.invocations if item.mapping_id == "read_lower_grain"
     )

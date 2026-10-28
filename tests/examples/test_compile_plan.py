@@ -65,8 +65,8 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
         "invocations",
         "stages",
     }
-    assert metadata["plan_version"] == 2
-    assert {invocation["operation"] for invocation in metadata["invocations"]} == {
+    assert metadata["plan_version"] == 3
+    assert {invocation["function_kind"] for invocation in metadata["invocations"]} == {
         "read",
         "collapse",
         "vectorize",
@@ -76,7 +76,7 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
     collapse_invocation = next(
         invocation
         for invocation in metadata["invocations"]
-        if invocation["operation"] == "collapse"
+        if invocation["function_kind"] == "collapse"
     )
     assert collapse_invocation["entity_id"] == "pump"
     assert collapse_invocation["entrypoint"].endswith(":maximum")

@@ -73,17 +73,18 @@ def _render_step(
     return {
         "position": position,
         "function": invocation.function_id,
-        "operation": invocation.operation,
+        "operation": invocation.function_kind,
         "title": invocation.function_id.replace("_", " ").capitalize(),
         "entrypoint": invocation.entrypoint,
         "entity": invocation.entity_id,
         "dataset": invocation.dataset_id,
         "feature": ", ".join(invocation.output_features)
-        if invocation.operation in {operations.COLLAPSE, operations.ESCAPE, operations.VECTORIZE}
+        if invocation.function_kind
+        in {operations.COLLAPSE, operations.ESCAPE, operations.VECTORIZE}
         else None,
         "input_features": invocation.input_features,
         "output_features": invocation.output_features,
-        "uncontrolled": invocation.operation == operations.ESCAPE,
+        "uncontrolled": invocation.function_kind == operations.ESCAPE,
         "row_context": invocation.row_context.to_dict() if invocation.row_context else None,
         "depends_on_invocations": [
             {"function": invocations_by_id[dependency_id].function_id}
@@ -156,7 +157,7 @@ def _create_website_pages(
         {
             "id": invocation.id,
             "node_type": "invocation",
-            "operation": invocation.operation,
+            "operation": invocation.function_kind,
             "stage": stage_by_invocation[invocation.id],
             "label": _invocation_label(invocation),
             "label_lines": _invocation_label_lines(invocation),
@@ -166,7 +167,7 @@ def _create_website_pages(
             "dataset_id": invocation.dataset_id,
             "feature": (
                 ", ".join(invocation.output_features)
-                if invocation.operation in {operations.ESCAPE, operations.VECTORIZE}
+                if invocation.function_kind in {operations.ESCAPE, operations.VECTORIZE}
                 else None
             ),
             "input_features": invocation.input_features,
@@ -221,7 +222,7 @@ def _create_website_pages(
             {
                 feature
                 for invocation in plan.invocations
-                if invocation.operation == operations.VECTORIZE
+                if invocation.function_kind == operations.VECTORIZE
                 for feature in invocation.output_features
             }
         ),
@@ -229,7 +230,7 @@ def _create_website_pages(
         "dependency_count": len(graph_links),
         "max_parallel_invocations": max((len(stage["steps"]) for stage in stages), default=0),
         "operation_counts": sorted(
-            collections.Counter(invocation.operation for invocation in plan.invocations).items()
+            collections.Counter(invocation.function_kind for invocation in plan.invocations).items()
         ),
         "stages": stages,
         "invocation_graph_data": invocation_graph_data,

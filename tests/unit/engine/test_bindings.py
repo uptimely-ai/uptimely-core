@@ -95,7 +95,7 @@ def test_runtime_bindings_apply_spec_and_runtime_binding_overrides() -> None:
 
 
 def test_runtime_bindings_reject_function_operation_mismatch() -> None:
-    read_invocation = dataclasses.replace(PLAN.invocations[0], operation="write")
+    read_invocation = dataclasses.replace(PLAN.invocations[0], function_kind="write")
     bindings = _bindings()
 
     with pytest.raises(ValueError, match="does not match function load kind read"):

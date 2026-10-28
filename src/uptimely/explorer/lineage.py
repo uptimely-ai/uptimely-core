@@ -91,12 +91,12 @@ def _build_stages(
             ]
             for role, features in (
                 (
-                    "Declared input" if invocation.operation == operations.ESCAPE else "Input",
+                    "Declared input" if invocation.function_kind == operations.ESCAPE else "Input",
                     invocation.input_features,
                 ),
                 (
                     "Declared external output"
-                    if invocation.operation == operations.ESCAPE
+                    if invocation.function_kind == operations.ESCAPE
                     else "Output",
                     invocation.output_features,
                 ),
@@ -116,7 +116,7 @@ def _build_stages(
                             if feature in spec_definition.dimensions
                             else "#cbd5e1",
                             numbers[producer.id] if producer else None,
-                            producer is not None and producer.operation == operations.ESCAPE,
+                            producer is not None and producer.function_kind == operations.ESCAPE,
                         )
                     )
             dataset = entity.datasets.get(invocation.dataset_id)
@@ -125,7 +125,7 @@ def _build_stages(
                     number=numbers[invocation.id],
                     invocation_id=invocation.id,
                     function=invocation.function_id,
-                    operation=invocation.operation,
+                    operation=invocation.function_kind,
                     entity=invocation.entity_id,
                     dataset=invocation.dataset_id,
                     grain=dataset.row_scope.grain if dataset else "",

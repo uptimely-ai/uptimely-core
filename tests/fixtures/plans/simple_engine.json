@@ -1,5 +1,5 @@
 {
-  "plan_version": 2,
+  "plan_version": 3,
   "required_backend": "polars",
   "resources": {
     "entities": {
@@ -48,7 +48,7 @@
   "invocations": [
     {
       "id": "invocation:read:load:asset:telemetry:reading",
-      "operation": "read",
+      "function_kind": "read",
       "entrypoint": "test:read",
       "function_id": "load",
       "mapping_id": "reading",
@@ -64,7 +64,7 @@
     },
     {
       "id": "invocation:vectorize:double:asset:telemetry:doubled",
-      "operation": "vectorize",
+      "function_kind": "vectorize",
       "entrypoint": "test:double",
       "function_id": "double",
       "mapping_id": "doubled",
@@ -86,7 +86,7 @@
     },
     {
       "id": "invocation:write:save:asset:telemetry:doubled",
-      "operation": "write",
+      "function_kind": "write",
       "entrypoint": "test:write",
       "function_id": "save",
       "mapping_id": "save_doubled",

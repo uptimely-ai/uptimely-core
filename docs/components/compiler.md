@@ -17,15 +17,15 @@ A plan is one JSON object. Its root fields are:
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
-| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `2`. |
+| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `3`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
 | `resources` | object | Compiler-generated metadata not represented by the Spec, including inspected function return annotations and entrypoint package provenance. |
 | `invocations` | array of objects | Operations to execute and their declared inputs and dependencies. |
 | `stages` | array of arrays of strings | Invocation identifiers grouped by dependency order. |
 
 All root fields are required. Unknown fields and unsupported versions are
-rejected. Version 1 plans are not converted. Rebuild generated bundles from
-their source Specs to create version 2 plans.
+rejected. Version 1 and 2 plans are not converted. Rebuild generated bundles
+from their source Specs to create version 3 plans.
 
 ## Resources
 
@@ -51,7 +51,7 @@ spelling.
 | Field | JSON type | Meaning |
 | --- | --- | --- |
 | `id` | string | Unique identifier for this invocation. |
-| `operation` | string | Operation category: `read`, `conform`, `expand`, `collapse`, `vectorize`, or `write`. |
+| `function_kind` | string | Function category: `read`, `conform`, `expand`, `collapse`, `vectorize`, `write`, or `escape`. |
 | `entrypoint` | string | Implementation location for the function. |
 | `function_id` | string | Function declaration used by the invocation. |
 | `mapping_id` | string | Mapping declaration used by the invocation. |
@@ -129,8 +129,8 @@ Use `uptimely.execution_plan` to read and write plans, and use
 `ExecutionPlan.invocations` to access the planned steps. Do not rely on the
 format of their IDs.
 
-Version 1 plans and bundles are not supported. Rebuild from the source Spec
-with `uptimely build PROJECT_ROOT`.
+Version 1 and 2 plans and bundles are not supported. Rebuild from the source
+Spec with `uptimely build PROJECT_ROOT`.
 
 The engine returns results: `result.datasets` contains final datasets,
 `result.calculated_outputs` contains calculated features, and

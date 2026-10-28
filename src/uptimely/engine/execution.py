@@ -34,18 +34,18 @@ class InvocationExecutor:
 
     def execute(self, invocation: execution_plan.Invocation) -> None:
         """Dispatch and execute one invocation."""
-        if invocation.operation == operations.ESCAPE:
+        if invocation.function_kind == operations.ESCAPE:
             self._execute_escape(invocation)
             return
 
         self.dataframe.validate_inputs(invocation)
-        return_kind = operations.KIND_RETURN_KINDS.get(invocation.operation)
+        return_kind = operations.KIND_RETURN_KINDS.get(invocation.function_kind)
         if return_kind == arg_types.DATAFRAME:
             self._execute_dataframe_mapping(invocation)
         elif return_kind == "none":
             self._execute_sink(invocation)
         else:
-            raise ValueError(f"Unsupported invocation operation: {invocation.operation}")
+            raise ValueError(f"Unsupported invocation function kind: {invocation.function_kind}")
 
     def _execute_dataframe_mapping(self, invocation: execution_plan.Invocation) -> None:
         """Invoke a data-producing mapping, validate its result, and update the dataset."""
@@ -61,7 +61,7 @@ class InvocationExecutor:
 
         self.state.datasets[invocation.dataset_id] = dataframe
         self.state.fragments[(invocation.dataset_id, invocation.mapping_id)] = fragment
-        if invocation.operation == operations.VECTORIZE:
+        if invocation.function_kind == operations.VECTORIZE:
             for output in invocation.output_features:
                 self.state.calculated_outputs[(invocation.dataset_id, output)] = (
                     self.backend.select(fragment, [*dimensions, output])

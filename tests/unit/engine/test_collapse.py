@@ -189,7 +189,7 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
     spec_definition = _spec(lazy=lazy)
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
     assert not any("unneeded" in item.output_features for item in plan.invocations)
-    collapse = next(item for item in plan.invocations if item.operation == "collapse")
+    collapse = next(item for item in plan.invocations if item.function_kind == "collapse")
     assert collapse.input_features == ["value", "doubled"]
     assert len(collapse.dependency_ids) == 2
     result = engine_for_plan(plan, spec_definition=spec_definition).run()
@@ -247,7 +247,9 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys()
     )
     plan = compiler.Compiler().compile(spec_definition, features=["conformed_value"])
     portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
-    conform_invocation = next(item for item in portable.invocations if item.operation == "conform")
+    conform_invocation = next(
+        item for item in portable.invocations if item.function_kind == "conform"
+    )
     source_read = next(item for item in portable.invocations if item.mapping_id == "read_source")
     target_read = next(item for item in portable.invocations if item.mapping_id == "read_target")
 
@@ -278,7 +280,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys()
 def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> None:
     spec_definition = _spec()
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
-    invocation = next(item for item in plan.invocations if item.operation == "collapse")
+    invocation = next(item for item in plan.invocations if item.function_kind == "collapse")
     invocation = dataclasses.replace(invocation, input_features=["maximum"])
     state = state_module.RuntimeState(
         datasets={

@@ -36,9 +36,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Documented the purity contract for analytical calculations and added an
   example test that verifies a calculation leaves its input unchanged.
 - **Breaking:** Execution plans now use `invocations` with explicit `function_id`
-  and `mapping_id` fields, opaque invocation IDs, and version 2. Execution
-  results expose `invocation_statuses`. Version 1 plans are rejected; rebuild
-  generated bundles from their source Specs.
+  and `mapping_id` fields, opaque invocation IDs, and version 3. Invocation
+  function categories are named `function_kind`. Execution results expose
+  `invocation_statuses`. Version 1 and 2 plans are rejected; rebuild generated
+  bundles from their source Specs.
 - **Breaking:** Removed the unused `CallableNode.to_render_data()`,
   `CallableGraph._node_data()`, `CallableGraph._node_key()`,
   `CallableGraph.print_graph()`, and `CallableGraph.print()` presentation
