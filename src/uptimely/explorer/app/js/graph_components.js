@@ -166,20 +166,16 @@ const ExplorerGraph = (() => {
 	function create3D(container, data, style, {
 		label, color, object, onSelect, configure, highlight,
 	}) {
-		const graphColor = node => highlight && highlight.hasSelection()
-			? highlight.isSelected(node)
-				? '#f8d66d'
-				: highlight.isNodeHighlighted(node)
-					? '#67e8f9'
-					: '#46545f'
+		const nodeColor = node => highlight?.hasSelection() && !highlight.isNodeHighlighted(node)
+			? '#46545f'
 			: color(node);
 		const createNodeObject = node => {
 			const nodeObject = object(node);
 			if (highlight?.hasSelection()) {
-				const nodeColor = graphColor(node);
+				const colorValue = nodeColor(node);
 				nodeObject.traverse(object3d => {
 					if (!object3d.isMesh) return;
-					if (object3d.material?.color) object3d.material.color.set(nodeColor);
+					if (object3d.material?.color) object3d.material.color.set(colorValue);
 					object3d.scale.setScalar(
 						highlight.isSelected(node)
 							? 1.4
@@ -194,7 +190,7 @@ const ExplorerGraph = (() => {
 			.height(container.clientHeight)
 			.backgroundColor(style.background_color)
 			.nodeLabel(node => tooltip(label(node)))
-			.nodeColor(graphColor)
+			.nodeColor(nodeColor)
 			.nodeRelSize(style.node_rel_size)
 			.nodeResolution(style.node_resolution)
 			.linkWidth(link => highlight?.isLinkHighlighted(link)

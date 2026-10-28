@@ -80,7 +80,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		element('graph-data').textContent = JSON.stringify({
 			nodes: ['before', 'selected', 'after', 'unrelated'].map((id, index) => ({
 				id, label: id, label_lines: [id], stage: index + 1,
-				function_id: id, function_kind: 'read', entity: 'test', dataset_id: 'test',
+				function_id: id, function_kind: 'read', entity: 'test', dataset_id: id,
 			})),
 			links: [
 				{ source: 'before', target: 'selected' },
@@ -178,7 +178,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			assert.equal(object.children[1].text, id);
 			assert.equal(object.children[1].position.y, 14);
 		}
-		assert.equal(element('dataset-legend').children[0].textContent, 'test');
+		assert.equal(element('dataset-legend').children[0].textContent, 'After');
 		assert.equal(
 			vm.runInContext("ExplorerGraph.humanizeDatasetName('pump_telemetry_dataset')", context),
 			'Pump Telemetry Dataset',
@@ -186,8 +186,12 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		const node = graph.properties.get('graphData').nodes[1];
 		graph.properties.get('onNodeClick')(node);
 		assert.deepEqual(
+			[...graph.properties.get('graphData').nodes].map(graph.properties.get('nodeColor')),
+			['#ff9f43', '#2dd4bf', '#fb7185', '#46545f'],
+		);
+		assert.deepEqual(
 			[...graph.objects.values()].map(object => object.material.color.value),
-			['#67e8f9', '#f8d66d', '#67e8f9', '#46545f'],
+			['#ff9f43', '#2dd4bf', '#fb7185', '#46545f'],
 		);
 		for (const link of graph.properties.get('graphData').links) {
 			assert.equal(graph.properties.get('linkColor')(link), '#67e8f9');
@@ -200,11 +204,11 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		buttons[0].listeners.click();
 		assert.equal(buttons[0].attributes['aria-pressed'], 'true');
 		buttons[1].listeners.click();
-		assert.equal(graph.objects.get('selected').material.color.value, '#f8d66d');
+		assert.equal(graph.objects.get('selected').material.color.value, '#2dd4bf');
 		graph.properties.get('onNodeClick')(graph.properties.get('graphData').nodes[3]);
 		assert.deepEqual(
 			[...graph.objects.values()].map(object => object.material.color.value),
-			['#46545f', '#46545f', '#46545f', '#f8d66d'],
+			['#46545f', '#46545f', '#46545f', '#a78bfa'],
 		);
 		for (const link of graph.properties.get('graphData').links) {
 			assert.equal(graph.properties.get('linkColor')(link), '#46545f');
