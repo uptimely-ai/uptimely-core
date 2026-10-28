@@ -1,7 +1,7 @@
 """Dataframe execution contracts for portable plan invocations."""
 
 from uptimely import execution_plan
-from uptimely.spec import arg_types, operations
+from uptimely.spec import arg_types, functions
 from uptimely.spec import model as spec_model
 
 from . import backend as backend_module
@@ -25,9 +25,9 @@ class DataFrameExecution:
     def validate_inputs(self, invocation: execution_plan.Invocation) -> None:
         """Require declared input columns to be materialized before invocation."""
         if invocation.function_kind in {
-            operations.CONFORM,
-            operations.COLLAPSE,
-            operations.EXPAND,
+            functions.CONFORM,
+            functions.COLLAPSE,
+            functions.EXPAND,
         }:
             self._validate_foreign_inputs(invocation)
             return
@@ -112,7 +112,7 @@ class DataFrameExecution:
             dataset,
             [*dimensions, *invocation.output_features],
         )
-        if invocation.function_kind == operations.VECTORIZE:
+        if invocation.function_kind == functions.VECTORIZE:
             validate_coverage = (
                 dataframe is not None
                 and self.backend.should_validate_values(dataframe)

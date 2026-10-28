@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .. import operations, selectors
+from .. import functions, selectors
 from . import context as context_module
 
 
@@ -53,7 +53,7 @@ def validate_dimension_collision(
 ) -> context_module.ValidationResult:
     """Reject calculated feature names that collide with dimensions."""
     collisions = set(item.outputs) & dimension_ids
-    if item.kind == operations.VECTORIZE and collisions:
+    if item.kind == functions.VECTORIZE and collisions:
         return ValueError(
             "Calculated feature names cannot duplicate entity dimensions: "
             + ", ".join(sorted(collisions))
@@ -105,7 +105,7 @@ def validate_unique_producer(
 
 def validate_collapse_output(item: context_module.MappingFacts) -> context_module.ValidationResult:
     """Require collapse to produce a non-dimension feature."""
-    if item.kind == operations.COLLAPSE and not set(item.outputs) - item.dimensions:
+    if item.kind == functions.COLLAPSE and not set(item.outputs) - item.dimensions:
         return ValueError(
             f"Collapse mapping {item.location.mapping_id} must produce a non-dimension feature"
         )
@@ -116,11 +116,11 @@ def validate_current_feature_selector(
     item: context_module.MappingFacts,
 ) -> context_module.ValidationResult:
     """Reject ambiguous current-feature selectors on multi-output calculations."""
-    if item.kind not in {operations.VECTORIZE, operations.COLLAPSE}:
+    if item.kind not in {functions.VECTORIZE, functions.COLLAPSE}:
         return None
     count = (
         len(set(item.outputs) - item.dimensions)
-        if item.kind == operations.COLLAPSE
+        if item.kind == functions.COLLAPSE
         else len(item.outputs)
     )
     if count > 1 and selectors.CURRENT_ID in item.feature_selectors:

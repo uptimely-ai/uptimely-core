@@ -10,8 +10,9 @@ from importlib import util
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely import project_paths
+from uptimely.spec import functions as function_kinds
 from uptimely.spec import model as spec_model
-from uptimely.spec import operations, references, selectors
+from uptimely.spec import references, selectors
 
 from . import render
 
@@ -73,7 +74,7 @@ def _render_document(
                 for function_id, function in context["configuration"]["functions"].items()
                 if function.get("kind") == kind
             }
-            for kind in operations.FUNCTION_KINDS
+            for kind in function_kinds.FUNCTION_KINDS
         },
         summary=context["summary"],
         feature_dependencies=context["feature_dependencies"],
@@ -140,7 +141,7 @@ def _feature_data(
                     feature_id = reference.removeprefix(selectors.FEATURE_PREFIX)
                     feature = dict(dataset.get("features", {}).get(feature_id, {}))
                     feature["id"] = feature_id
-                    if kind == operations.VECTORIZE:
+                    if kind == function_kinds.VECTORIZE:
                         calculated_features.append(
                             {
                                 **feature,
@@ -148,7 +149,7 @@ def _feature_data(
                                 "inputs": mapping.get("features", {}).get("inputs", []),
                             }
                         )
-                    elif kind == operations.ESCAPE:
+                    elif kind == function_kinds.ESCAPE:
                         if (dataset_id, feature_id) not in seen_inputs:
                             escape_features.append(feature)
                             seen_inputs.add((dataset_id, feature_id))
@@ -182,11 +183,11 @@ def _build_context(
         kind = function.get("kind")
         if isinstance(kind, str):
             function_groups.setdefault(kind, {})[function_id] = function
-            function["declared_returns"] = operations.KIND_RETURN_KINDS[kind]
+            function["declared_returns"] = function_kinds.KIND_RETURN_KINDS[kind]
             function["escape_mappings"] = []
     for entity_id, dataset, mapping in references.iter_mappings(spec_definition):
         function = function_definitions[mapping.binding.function]
-        if function.get("kind") == operations.ESCAPE:
+        if function.get("kind") == function_kinds.ESCAPE:
             function["escape_mappings"].append(
                 {
                     "entity": entity_id,
@@ -240,7 +241,7 @@ def _build_context(
         "external": len(escape_features),
     }
     function_buckets = {
-        kind: len(function_groups.get(kind, {})) for kind in operations.FUNCTION_KINDS
+        kind: len(function_groups.get(kind, {})) for kind in function_kinds.FUNCTION_KINDS
     }
     dataset_count = sum(len(entity.get("datasets", {})) for entity in entities.values())
     mapping_count = sum(
@@ -250,7 +251,7 @@ def _build_context(
         for mapping in dataset.get("mappings", {}).values()
         if any(
             mapping.get("binding", {}).get("function") in function_groups.get(kind, {})
-            for kind in operations.FRAGMENT_KINDS
+            for kind in function_kinds.FRAGMENT_KINDS
         )
     )
     summary = ExplorerSummary(
@@ -276,7 +277,7 @@ def _build_context(
         }
         for _entity_id, _dataset, mapping in references.iter_mappings(spec_definition)
         if spec_definition.functions[mapping.binding.function].kind
-        in {operations.ESCAPE, operations.VECTORIZE}
+        in {function_kinds.ESCAPE, function_kinds.VECTORIZE}
         for feature in mapping.output_features
     ]
     generated_at = (

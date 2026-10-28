@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import collections.abc
 
+from . import functions
 from . import model as spec_model
-from . import operations
 
 
 def function_template(
     function_id: str,
-    kind: operations.FunctionKind,
+    kind: functions.FunctionKind,
     entrypoint: str,
     args: dict[str, spec_model.Argument],
     *,
@@ -20,7 +20,7 @@ def function_template(
     return spec_model.FunctionTemplate(
         id=function_id,
         kind=kind,
-        returns=operations.KIND_RETURN_KINDS[kind],
+        returns=functions.KIND_RETURN_KINDS[kind],
         entrypoint=entrypoint,
         validate_signature=validate_signature,
         args=args,

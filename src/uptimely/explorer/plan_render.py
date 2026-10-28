@@ -10,7 +10,7 @@ import pathlib
 import typing
 
 from uptimely import execution_plan, project_paths
-from uptimely.spec import operations
+from uptimely.spec import functions
 
 from . import graph_render, render
 
@@ -79,12 +79,11 @@ def _render_step(
         "entity": invocation.entity_id,
         "dataset": invocation.dataset_id,
         "feature": ", ".join(invocation.output_features)
-        if invocation.function_kind
-        in {operations.COLLAPSE, operations.ESCAPE, operations.VECTORIZE}
+        if invocation.function_kind in {functions.COLLAPSE, functions.ESCAPE, functions.VECTORIZE}
         else None,
         "input_features": invocation.input_features,
         "output_features": invocation.output_features,
-        "uncontrolled": invocation.function_kind == operations.ESCAPE,
+        "uncontrolled": invocation.function_kind == functions.ESCAPE,
         "row_context": invocation.row_context.to_dict() if invocation.row_context else None,
         "depends_on_invocations": [
             {"function": invocations_by_id[dependency_id].function_id}
@@ -167,7 +166,7 @@ def _create_website_pages(
             "dataset_id": invocation.dataset_id,
             "feature": (
                 ", ".join(invocation.output_features)
-                if invocation.function_kind in {operations.ESCAPE, operations.VECTORIZE}
+                if invocation.function_kind in {functions.ESCAPE, functions.VECTORIZE}
                 else None
             ),
             "input_features": invocation.input_features,
@@ -222,7 +221,7 @@ def _create_website_pages(
             {
                 feature
                 for invocation in plan.invocations
-                if invocation.function_kind == operations.VECTORIZE
+                if invocation.function_kind == functions.VECTORIZE
                 for feature in invocation.output_features
             }
         ),

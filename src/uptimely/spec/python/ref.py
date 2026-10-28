@@ -7,7 +7,7 @@ from collections import abc
 
 from uptimely import entrypoint as entrypoint_module
 
-from .. import arg_types, operations, selectors
+from .. import arg_types, functions, selectors
 
 __all__ = [
     "Reference",
@@ -29,7 +29,7 @@ class FunctionReference:
 
     module: str
     name: str
-    kind: operations.FunctionKind | None = None
+    kind: functions.FunctionKind | None = None
     validate_signature: bool = True
 
     def __post_init__(self) -> None:
@@ -41,7 +41,7 @@ class FunctionReference:
             raise TypeError("Function reference name must be a string")
         if not all(part.isidentifier() for part in self.name.split(".")):
             raise ValueError("Function reference name must be a Python qualified name")
-        if self.kind is not None and self.kind not in operations.FUNCTION_KINDS:
+        if self.kind is not None and self.kind not in functions.FUNCTION_KINDS:
             raise ValueError(f"Unsupported function kind: {self.kind}")
         if not isinstance(self.validate_signature, bool):
             raise TypeError("validate_signature must be a boolean")
@@ -55,7 +55,7 @@ class FunctionReference:
 def function(
     function: abc.Callable[..., object] | str,
     *,
-    kind: operations.FunctionKind | None = None,
+    kind: functions.FunctionKind | None = None,
     validate_signature: bool = True,
 ) -> FunctionReference:
     """Reference a callable or a ``module.path:qualname`` entrypoint string.

@@ -8,8 +8,8 @@ from collections import abc
 from typing import TYPE_CHECKING
 
 from uptimely.spec import catalog as function_catalog
+from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
-from uptimely.spec import operations, selectors
 
 from . import dimension as dimension_module
 from . import ref
@@ -152,7 +152,7 @@ class Dataset:
                     )
                 producers[identifier] = name
                 features[identifier] = metadata.to_model()
-            if declaration.kind in {operations.READ, operations.COLLAPSE}:
+            if declaration.kind in {functions.READ, functions.COLLAPSE}:
                 for key in resolved_keys:
                     if key.id not in features:
                         features[key.id] = spec_model.Feature(

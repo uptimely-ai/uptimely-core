@@ -6,7 +6,7 @@ import dataclasses
 import pathlib
 
 from uptimely import execution_plan, project_paths, spec
-from uptimely.spec import operations
+from uptimely.spec import functions
 
 from . import render
 
@@ -91,12 +91,12 @@ def _build_stages(
             ]
             for role, features in (
                 (
-                    "Declared input" if invocation.function_kind == operations.ESCAPE else "Input",
+                    "Declared input" if invocation.function_kind == functions.ESCAPE else "Input",
                     invocation.input_features,
                 ),
                 (
                     "Declared external output"
-                    if invocation.function_kind == operations.ESCAPE
+                    if invocation.function_kind == functions.ESCAPE
                     else "Output",
                     invocation.output_features,
                 ),
@@ -116,7 +116,7 @@ def _build_stages(
                             if feature in spec_definition.dimensions
                             else "#cbd5e1",
                             numbers[producer.id] if producer else None,
-                            producer is not None and producer.function_kind == operations.ESCAPE,
+                            producer is not None and producer.function_kind == functions.ESCAPE,
                         )
                     )
             dataset = entity.datasets.get(invocation.dataset_id)

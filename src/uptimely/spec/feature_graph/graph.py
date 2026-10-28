@@ -3,7 +3,7 @@
 import graphable as graphable_
 from graphable import views
 
-from uptimely.spec import arg_types, operations, validation
+from uptimely.spec import arg_types, functions, validation
 from uptimely.spec import model as spec_model
 from uptimely.spec import references as bindings
 
@@ -185,7 +185,7 @@ class FeatureGraph(GraphBase):
             function_key = (
                 function.kind,
                 function.id,
-                operation_id if function.kind == operations.ESCAPE else None,
+                operation_id if function.kind == functions.ESCAPE else None,
             )
             function_entities.setdefault(function_key, set()).add(entity)
             function_outputs.setdefault(function_key, set()).update(outputs)
@@ -233,14 +233,14 @@ class FeatureGraph(GraphBase):
                             feature.type,
                             entity_id,
                             is_source_input=operation
-                            not in {operations.COLLAPSE, operations.ESCAPE, operations.VECTORIZE},
+                            not in {functions.COLLAPSE, functions.ESCAPE, functions.VECTORIZE},
                         )
         for function, entity, _operation_id, outputs, _dependencies in self._graph_operations:
             for output in outputs:
                 register_feature_metadata(
                     output,
                     None
-                    if function.kind in {operations.ESCAPE, operations.VECTORIZE}
+                    if function.kind in {functions.ESCAPE, functions.VECTORIZE}
                     else arg_types.DATAFRAME,
                     entity,
                 )
@@ -261,7 +261,7 @@ class FeatureGraph(GraphBase):
                 name=name,
                 data_type=(
                     None
-                    if function is not None and function.kind == operations.VECTORIZE
+                    if function is not None and function.kind == functions.VECTORIZE
                     else data_type or (metadata.data_type if metadata else None)
                 ),
                 entity=entity or (metadata.entity if metadata else None),
@@ -274,7 +274,7 @@ class FeatureGraph(GraphBase):
             function_key = (
                 function.kind,
                 function.id,
-                operation_id if function.kind == operations.ESCAPE else None,
+                operation_id if function.kind == functions.ESCAPE else None,
             )
             entities = function_entities[function_key]
             function_node = node(
@@ -282,7 +282,7 @@ class FeatureGraph(GraphBase):
                     name=function.id,
                     features=tuple(sorted(function_outputs[function_key])),
                     entity=next(iter(entities)) if len(entities) == 1 else None,
-                    mapping_id=operation_id if function.kind == operations.ESCAPE else None,
+                    mapping_id=operation_id if function.kind == functions.ESCAPE else None,
                     function=function,
                 )
             )

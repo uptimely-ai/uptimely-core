@@ -7,7 +7,7 @@ import inspect
 import typing
 from collections import abc
 
-from uptimely.spec import catalog, operations, selectors
+from uptimely.spec import catalog, functions, selectors
 from uptimely.spec import model as spec_model
 
 from . import bind, binding_conversion, ref
@@ -23,13 +23,13 @@ _Function = abc.Callable[..., object] | str | ref.FunctionReference
 
 
 def kind(
-    value: operations.FunctionKind,
+    value: functions.FunctionKind,
 ) -> abc.Callable[
     [abc.Callable[_Parameters, _Result]],
     abc.Callable[_Parameters, _Result],
 ]:
     """Mark a callable with the kind used by its mapping."""
-    if value not in operations.FUNCTION_KINDS:
+    if value not in functions.FUNCTION_KINDS:
         raise ValueError(f"Unsupported function kind: {value}")
 
     def decorate(
@@ -77,19 +77,19 @@ class FunctionMapping:
         )
 
     @property
-    def kind(self) -> operations.FunctionKind:
+    def kind(self) -> functions.FunctionKind:
         """Return the kind declared on the function or its reference."""
         value = (
             self.function.kind
             if isinstance(self.function, ref.FunctionReference)
             else getattr(self.function, _KIND_ATTRIBUTE, None)
         )
-        if value not in operations.FUNCTION_KINDS:
+        if value not in functions.FUNCTION_KINDS:
             raise ValueError(
                 "Function must be annotated with @kind(...) or supplied as a "
                 "FunctionReference with kind metadata"
             )
-        return typing.cast(operations.FunctionKind, value)
+        return typing.cast(functions.FunctionKind, value)
 
     @property
     def reference(self) -> ref.FunctionReference:

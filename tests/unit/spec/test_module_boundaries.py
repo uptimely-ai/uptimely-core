@@ -66,7 +66,7 @@ def test_canonical_models_do_not_import_outer_layers() -> None:
                 if node.module == "uptimely":
                     assert {alias.name for alias in node.names} <= {"row_context"}
                 elif node.module == "uptimely.spec":
-                    assert {alias.name for alias in node.names} <= {"operations", "selectors"}
+                    assert {alias.name for alias in node.names} <= {"functions", "selectors"}
                 else:
                     assert not (node.module or "").startswith("uptimely"), path
             elif isinstance(node, ast.Import):
