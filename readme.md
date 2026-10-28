@@ -17,7 +17,9 @@ Definitions can be authored in Python and exported to JSON, or supplied directly
 
 ![Uptimely Core Demo](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-feature-lineage.png)
 
-Read more at [uptimely.ai website](https://uptimely.ai).
+Browset the [example project explorer](https://uptimely-ai.github.io/uptimely-core/examples/pump_analytics/).
+
+More business stuff at [uptimely.ai website](https://uptimely.ai).
 
 ## Install
 
