@@ -277,7 +277,7 @@ def test_python_spec_resolves_mixed_dimension_references_in_declared_order() -> 
     assert [item.id for item in definition.dimensions] == ["pump", "timestamp"]
 
 
-def test_function_catalog_keeps_distinct_functions_and_operations() -> None:
+def test_function_catalog_keeps_distinct_functions_and_kinds() -> None:
     additional = dataset.Dataset(
         id="additional",
         mappings={
@@ -307,7 +307,7 @@ def test_function_catalog_keeps_distinct_functions_and_operations() -> None:
 @pytest.mark.parametrize(
     "category", ["read", "write", "vectorize", "collapse", "expand", "conform"]
 )
-def test_function_catalog_merges_and_deduplicates_each_operation(category: str) -> None:
+def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> None:
     first = _declaration("first", category)
     second = _declaration("second", category)
     first_datasets = [first]

@@ -8,7 +8,7 @@
 				<span class="legend-heading">Entities (3D)</span>
 				<div class="entity-legend" id="entity-legend"></div>
 		{% endcall %}
-		{{ node_details_panel("details details-2d", "Invocation details", "invocation-node-details", "Select an invocation to inspect its operation, entity, declared features, and invocation dependencies.") }}
+		{{ node_details_panel("details details-2d", "Invocation details", "invocation-node-details", "Select an invocation to inspect its function kind, entity, declared features, and invocation dependencies.") }}
 		{{ graph_canvas() }}
 </section>
 <script id="graph-data" type="application/json">{{ invocation_graph_data|safe }}</script>

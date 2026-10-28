@@ -22,10 +22,10 @@
     const step = steps[index];
     const table = step.querySelector('table[data-side="output"]');
     const preparation = [{ type: "inputs" }];
-    if (step.dataset.operation === "collapse") preparation.push({ type: "group" });
+    if (step.dataset.functionKind === "collapse") preparation.push({ type: "group" });
     preparation.push({ type: "invocation" });
     if (!table) {
-      if (step.dataset.operation === "write") preparation.push({ type: "write" });
+      if (step.dataset.functionKind === "write") preparation.push({ type: "write" });
       return preparation;
     }
     const headers = Array.from(table.querySelectorAll('thead th[data-role="Output"]'));
@@ -46,11 +46,11 @@
     const completed = phase > sequence.length;
     const input = step.querySelector('table[data-side="input"]');
     if (input) {
-      input.classList.toggle("lineage-grouped", phase >= 2 && step.dataset.operation === "collapse" && !completed);
+      input.classList.toggle("lineage-grouped", phase >= 2 && step.dataset.functionKind === "collapse" && !completed);
       input.querySelectorAll("[data-role]").forEach(cell => {
         cell.classList.toggle("lineage-input-active", phase > 0 && !completed && cell.dataset.role === "Input");
         cell.classList.toggle("lineage-group-key", phase >= 2 && !completed
-          && step.dataset.operation === "collapse" && cell.dataset.role === "Dimension");
+          && step.dataset.functionKind === "collapse" && cell.dataset.role === "Dimension");
       });
     }
     const arrow = step.querySelector(".lineage-arrow");
@@ -89,9 +89,9 @@
       status.textContent = descriptions[index];
     } else {
       if (frame.type === "inputs") {
-        status.textContent = step.dataset.operation === "escape"
+        status.textContent = step.dataset.functionKind === "escape"
           ? "Showing declared feature references; dataframe column availability is not verified."
-          : step.dataset.operation === "read"
+          : step.dataset.functionKind === "read"
           ? "Reading from the declared source (illustration only)."
           : "Highlighting all declared input columns. Exact input-to-output mappings are not inferred.";
       } else if (frame.type === "group") {

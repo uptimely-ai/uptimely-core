@@ -94,7 +94,7 @@ def test_runtime_bindings_apply_spec_and_runtime_binding_overrides() -> None:
     assert bindings.resolve_args(read_invocation) == {"source": ["/override/input.parquet"]}
 
 
-def test_runtime_bindings_reject_function_operation_mismatch() -> None:
+def test_runtime_bindings_reject_function_kind_mismatch() -> None:
     read_invocation = dataclasses.replace(PLAN.invocations[0], function_kind="write")
     bindings = _bindings()
 

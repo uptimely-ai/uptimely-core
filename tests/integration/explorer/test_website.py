@@ -773,7 +773,7 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -
         "Dependencies": str(sum(len(invocation.dependency_ids) for invocation in plan.invocations)),
         "Max parallel invocations": str(max(map(len, plan.execution_stages), default=0)),
     }
-    assert dict(re.findall(r'data-operation="([^"]+)" data-count="(\d+)"', document)) == {
+    assert dict(re.findall(r'data-function-kind="([^"]+)" data-count="(\d+)"', document)) == {
         kind: str(count)
         for kind, count in collections.Counter(
             item.function_kind for item in plan.invocations

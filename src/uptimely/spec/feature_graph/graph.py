@@ -225,14 +225,14 @@ class FeatureGraph(GraphBase):
         for entity_id, entity in self.spec.entities.items():
             for dataset in entity.datasets.values():
                 for mapping in dataset.mappings.values():
-                    operation = bindings.mapping_kind(mapping, self.spec.functions)
+                    function_kind = bindings.mapping_kind(mapping, self.spec.functions)
                     for name in mapping.output_features:
                         feature = dataset.features[name]
                         register_feature_metadata(
                             name,
                             feature.type,
                             entity_id,
-                            is_source_input=operation
+                            is_source_input=function_kind
                             not in {functions.COLLAPSE, functions.ESCAPE, functions.VECTORIZE},
                         )
         for function, entity, _operation_id, outputs, _dependencies in self._graph_operations:

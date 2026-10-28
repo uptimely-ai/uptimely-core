@@ -7,27 +7,27 @@
 	const updateinvocationDetails = (node) => {
 		if (!node) {
 			ExplorerGraph.showDetails(invocationNodeDetails, 'invocation details', [],
-				'Select a invocation to inspect its operation, entity, declared features, and invocation dependencies.');
+				'Select an invocation to inspect its function kind, entity, declared features, and invocation dependencies.');
 			return;
 		}
 		const rows = [
-			['Operation', node.operation || 'n/a'],
+			['Function kind', node.function_kind || 'n/a'],
 			['Function', node.function_id || 'n/a'],
 			['Entity', node.entity || 'n/a'],
-			[node.operation === 'escape' ? 'Declares external outputs' : 'Produces', node.feature || 'n/a'],
+			[node.function_kind === 'escape' ? 'Declares external outputs' : 'Produces', node.feature || 'n/a'],
 		];
-		if (node.operation === 'escape' && node.input_features?.length) {
+		if (node.function_kind === 'escape' && node.input_features?.length) {
 			rows.push(['Declared inputs', formatList(node.input_features)]);
 		}
 		rows.push(['invocation dependencies', formatList(node.dependency_ids)]);
 		ExplorerGraph.showDetails(invocationNodeDetails, 'invocation details', rows,
-			node.operation === 'escape' ? 'Not verified or materialized as dataframe columns.' : '');
+			node.function_kind === 'escape' ? 'Not verified or materialized as dataframe columns.' : '');
 	};
 	const invocationColors = style.function_colors;
 	function create3D(invocationGraphContainer, invocationGraphData, updateinvocationDetails) {
 		const highlight = ExplorerGraph.createDependencyHighlight(invocationGraphData);
 		return ExplorerGraph.create3D(invocationGraphContainer, invocationGraphData, style, {
-			label: node => `${node.function_id}\n${node.operation === 'escape' ? 'declares external outputs' : 'produces'}: ${node.feature}`,
+			label: node => `${node.function_id}\n${node.function_kind === 'escape' ? 'declares external outputs' : 'produces'}: ${node.feature}`,
 			color: node => node.entityColor,
 			onSelect: updateinvocationDetails,
 			highlight,
@@ -116,7 +116,7 @@
 				ctx.strokeStyle = highlight.hasSelection()
 					? highlight.isSelected(node) ? '#f8d66d'
 						: highlight.isNodeHighlighted(node) ? '#67e8f9' : '#46545f'
-					: invocationColors[node.operation];
+					: invocationColors[node.function_kind];
 				ctx.lineWidth = highlight.isSelected(node) ? 3 : 1.5;
 				ctx.stroke();
 				ctx.fillStyle = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
