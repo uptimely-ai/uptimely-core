@@ -84,6 +84,10 @@ def _python_spec(entities: list[entity.Entity], name: str | None = None) -> Pyth
             declaration.entity = owner
             declarations.append(declaration)
     return PythonSpec(
+        dimensions=list(
+            {item.id: item for owner in entities for item in owner.dimensions}.values()
+        ),
+        entities=entities,
         datasets=declarations,
         name=name,
     )
@@ -125,7 +129,7 @@ def _conform_source(identifier: str) -> dataset.Dataset:
 
 
 def test_empty_spec_has_no_datasets_or_functions() -> None:
-    spec_definition = PythonSpec(datasets=[])
+    spec_definition = PythonSpec(dimensions=[], entities=[], datasets=[])
 
     assert spec_definition.iter_datasets() == []
     assert spec_definition.function_catalog() == spec_model.FunctionCatalog()
@@ -135,9 +139,13 @@ def test_empty_spec_has_no_datasets_or_functions() -> None:
 
 def test_python_spec_requires_a_sequence_and_dataset_entities() -> None:
     with pytest.raises(TypeError, match="datasets must be a sequence"):
-        tuple(PythonSpec(datasets={}).datasets)
+        tuple(PythonSpec(dimensions=[], entities=[], datasets={}).datasets)
     with pytest.raises(ValueError, match="Dataset 'readings' must declare an entity"):
-        tuple(PythonSpec(datasets=[dataset.Dataset(id="readings")]).datasets)
+        tuple(
+            PythonSpec(
+                dimensions=[], entities=[], datasets=[dataset.Dataset(id="readings")]
+            ).datasets
+        )
 
 
 def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
@@ -152,11 +160,12 @@ def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
     assert [item.id for item in spec_definition.dimensions] == ["pump"]
 
 
-def test_python_spec_derives_entity_from_dataset_class() -> None:
+def test_python_spec_associates_dataset_classes_with_registered_entity() -> None:
+    pump = dimension.Dimension(id="pump", type="string")
     owner = entity.Entity(
         id="assets",
         name="Assets",
-        dimensions=[dimension.Dimension(id="pump", type="string")],
+        dimensions=[pump],
     )
 
     class Readings(dataset.Dataset):
@@ -167,13 +176,105 @@ def test_python_spec_derives_entity_from_dataset_class() -> None:
         id = "summary"
         entity = owner
 
-    spec_definition = PythonSpec(datasets=[Readings, Summary])
+    spec_definition = PythonSpec(dimensions=[pump], entities=[owner], datasets=[Readings, Summary])
 
     assert [item.id for item in spec_definition.entities] == ["assets"]
     assert [item.id for item in spec_definition.entities[0].datasets] == [
         "readings",
         "summary",
     ]
+
+
+@pytest.mark.parametrize("entity_id", [False, True])
+@pytest.mark.parametrize("dimension_id", [False, True])
+def test_python_spec_resolves_registered_ids_and_objects_without_mutation(
+    entity_id: bool, dimension_id: bool
+) -> None:
+    pump = dimension.Dimension(id="pump", type="string", description="Pump identifier")
+    owner = entity.Entity(id="assets", name="Assets", dimensions=["pump" if dimension_id else pump])
+    readings = _declaration("readings", "read")
+    readings.entity = "assets" if entity_id else owner
+    definition = PythonSpec(dimensions=[pump], entities=[owner], datasets=[readings])
+
+    document = definition.to_model()
+    payload = definition.to_dict()
+
+    assert document.entities["assets"].dimensions[0].id == "pump"
+    assert payload["entities"]["assets"]["dimensions"] == ["pump"]
+    assert payload["dimensions"]["pump"]["description"] == "Pump identifier"
+    canonical = document.entities["assets"].datasets["readings"]
+    assert canonical.features["pump"].type == "string"
+    assert canonical.mappings["readings_mapping"].features.outputs == ["$features.pump"]
+    assert readings.entity == ("assets" if entity_id else owner)
+    assert owner.dimensions == (["pump"] if dimension_id else [pump])
+    assert owner.datasets == []
+
+
+@pytest.mark.parametrize("omitted", ["dimensions", "entities", "datasets"])
+def test_python_spec_requires_all_three_registries(omitted: str) -> None:
+    arguments = {"dimensions": [], "entities": [], "datasets": []}
+    del arguments[omitted]
+    with pytest.raises(TypeError, match=omitted):
+        PythonSpec(**arguments)
+
+
+@pytest.mark.parametrize("object_reference", [False, True])
+def test_python_spec_rejects_undeclared_references(object_reference: bool) -> None:
+    pump = dimension.Dimension(id="pump", type="string")
+    owner = entity.Entity(
+        id="assets", name="Assets", dimensions=[pump if object_reference else "pump"]
+    )
+    readings = dataset.Dataset(id="readings", entity=owner if object_reference else "assets")
+    with pytest.raises(ValueError, match="undeclared entity 'assets'"):
+        PythonSpec(dimensions=[pump], entities=[], datasets=[readings]).to_model()
+    with pytest.raises(ValueError, match="undeclared dimension 'pump'"):
+        PythonSpec(dimensions=[], entities=[owner], datasets=[readings]).to_model()
+
+
+def test_python_spec_rejects_duplicate_registrations_and_conflicting_metadata() -> None:
+    pump = dimension.Dimension(id="pump", type="string")
+    owner = entity.Entity(id="assets", name="Assets", dimensions=[pump])
+    readings = dataset.Dataset(id="readings", entity=owner)
+    with pytest.raises(ValueError, match="Duplicate dimension id pump"):
+        PythonSpec(dimensions=[pump, pump], entities=[owner], datasets=[readings]).to_model()
+    with pytest.raises(ValueError, match="Duplicate entity id assets"):
+        PythonSpec(dimensions=[pump], entities=[owner, owner], datasets=[readings]).to_model()
+    with pytest.raises(ValueError, match="Duplicate dataset id readings"):
+        PythonSpec(dimensions=[pump], entities=[owner], datasets=[readings, readings]).to_model()
+    with pytest.raises(ValueError, match="Conflicting metadata for dimension 'pump'"):
+        PythonSpec(
+            dimensions=[dimension.Dimension(id="pump", type="integer")],
+            entities=[owner],
+            datasets=[readings],
+        ).to_model()
+    readings.entity = entity.Entity(id="assets", name="Different", dimensions=[pump])
+    with pytest.raises(ValueError, match="Conflicting metadata for entity 'assets'"):
+        PythonSpec(dimensions=[pump], entities=[owner], datasets=[readings]).to_model()
+
+
+def test_python_spec_preserves_unused_registrations_without_inferring_datasets() -> None:
+    pump = dimension.Dimension(id="pump", type="string")
+    owner = entity.Entity(
+        id="assets", name="Assets", dimensions=[], datasets=[dataset.Dataset(id="implicit")]
+    )
+    definition = PythonSpec(dimensions=[pump], entities=[owner], datasets=[])
+
+    payload = definition.to_dict()
+
+    assert list(payload["dimensions"]) == ["pump"]
+    assert payload["entities"]["assets"]["datasets"] == {}
+    assert [item.id for item in owner.datasets] == ["implicit"]
+
+
+def test_python_spec_resolves_mixed_dimension_references_in_declared_order() -> None:
+    pump = dimension.Dimension(id="pump", type="string")
+    timestamp = dimension.Dimension(id="timestamp", type="datetime")
+    owner = entity.Entity(id="assets", name="Assets", dimensions=["timestamp", pump])
+    readings = dataset.Dataset(id="readings", entity="assets")
+    definition = PythonSpec(dimensions=[pump, timestamp], entities=[owner], datasets=[readings])
+
+    assert definition.to_dict()["entities"]["assets"]["dimensions"] == ["timestamp", "pump"]
+    assert [item.id for item in definition.dimensions] == ["pump", "timestamp"]
 
 
 def test_function_catalog_keeps_distinct_functions_and_operations() -> None:
@@ -352,6 +453,8 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata() -> None:
         order = [dataset.Order(dimension=ref.dimension("pump"), direction="desc")]
 
     spec_definition = PythonSpec(
+        dimensions=[pump],
+        entities=[owner],
         datasets=[Telemetry],
         name="Pump analytics",
     )

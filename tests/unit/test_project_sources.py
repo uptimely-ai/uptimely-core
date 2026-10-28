@@ -95,7 +95,8 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
         "class Values(Dataset):\n"
         "    id = 'values'\n"
         "    entity = assets\n"
-        f"python_spec = PythonSpec(name={dependency_name}.VALUE, datasets=[Values])\n",
+        f"python_spec = PythonSpec(dimensions=[], entities=[assets], "
+        f"name={dependency_name}.VALUE, datasets=[Values])\n",
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(tmp_path))
