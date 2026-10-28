@@ -294,9 +294,9 @@ def test_website_exports_all_reports_with_relative_navigation(
     datasets = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     assert "One row per pump and timestamp" in datasets
     assert "read · read_pump_telemetry" in datasets
-    assert datasets.count("data-dataset-schema=") == 2
+    assert datasets.count("data-dataset-schema=") == 3
     assert "schema only, no sample records" in datasets
-    assert datasets.count('<details class="mt-6 border-t border-slate-800 pt-4">') == 2
+    assert datasets.count('<details class="mt-6 border-t border-slate-800 pt-4">') == 3
     assert "<summary" in datasets
     assert "Dataset details</summary>" in datasets
     assert "Blue: dimensions" not in datasets
@@ -329,11 +329,19 @@ def test_website_exports_all_reports_with_relative_navigation(
                 in {"read", "conform", "expand"}
                 for name in mapping.output_features
             }
+            external_columns = {
+                name
+                for mapping in dataset.mappings.values()
+                if spec_definition.functions[mapping.binding.function].operation == "escape"
+                for name in mapping.output_features
+            }
             for name, column in zip(expected_names, columns, strict=True):
                 if name in entity_dimensions:
                     assert ">Dimension</span>" in column
                 elif name in raw_columns:
                     assert ">Raw</span>" in column
+                elif name in external_columns:
+                    assert ">External</span>" in column
                 else:
                     assert ">Feature</span>" in column
             assert table.count("health_signal_normalized") <= 1

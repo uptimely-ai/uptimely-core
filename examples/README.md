@@ -10,8 +10,7 @@ execute that plan.
 
 | Directory | What it demonstrates |
 | --- | --- |
-| [`pump_analytics/`](pump_analytics/) | An end-to-end pump analytics project authored in Python and exported to JSON. |
-| [`escape_operation/`](escape_operation/) | An uncontrolled workflow that reads, calculates, and writes internally. |
+| [`pump_analytics/`](pump_analytics/) | An end-to-end pump analytics project with an uncontrolled workflow that reads, calculates, and writes internally. |
 
 ## Project folder structure
 

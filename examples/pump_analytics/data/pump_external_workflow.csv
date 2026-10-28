@@ -1,0 +1,3 @@
+plant,production_line,pump,measurement,reference_value
+PLANT-01,LINE-A,PUMP-101,6.0,8.0
+PLANT-01,LINE-B,PUMP-201,8.0,8.0

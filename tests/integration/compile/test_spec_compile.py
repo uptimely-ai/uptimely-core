@@ -319,6 +319,7 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
         "escape_start",
         "escape_chain",
         "escape_unrelated",
+        "process_pump_external_workflow",
     }
     assert {
         dependency.mapping_id for dependency in graph.dependencies(by_mapping["escape_start"])
@@ -456,6 +457,7 @@ def test_escape_return_annotations_do_not_constrain_compilation(
         "output_returns_object",
         "output_returns_dataframe",
         "output_returns_unannotated",
+        "ratio",
     }
 
 
@@ -482,7 +484,7 @@ def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> No
     assert {(node.operation, node.function_id) for node in subset.dependencies(normalized)} == {
         ("collapse", "maximum"),
     }
-    assert len(graph.invocations) == 13
+    assert len(graph.invocations) == 15
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
         graph.subset(["missing"])

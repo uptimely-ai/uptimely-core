@@ -270,6 +270,7 @@ def test_system_and_subset_support_multiple_variables() -> None:
         "vibration_delta",
         "pump_health_score",
         "operating_point_recommendation",
+        "ratio",
     }
     assert system.graph is not None
     assert "bearing_temperature" in system.input_names

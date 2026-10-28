@@ -71,6 +71,7 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
         "collapse",
         "vectorize",
         "write",
+        "escape",
     }
     collapse_invocation = next(
         invocation

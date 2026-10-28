@@ -51,7 +51,7 @@ def test_feature_graph_summary_subset_and_tree(
         "--verbose",
     )
     text = capsys.readouterr().out
-    assert "Feature graph: 11 features" in text
+    assert "Feature graph: 12 features" in text
     assert "Selected feature subset: 2 features" in text
     assert "health_signal_normalized" in text
     assert "Selected feature subset\n" in text
@@ -94,7 +94,11 @@ def test_engine_default_logs_only_duration_and_processed_datasets(
 
     result = capsys.readouterr()
     assert not result.err
-    assert result.out.splitlines() == ["", "Engine completed in 1.234 s: 2 datasets processed"]
+    dataset_count = 2 if scoped else 3
+    assert result.out.splitlines() == [
+        "",
+        f"Engine completed in 1.234 s: {dataset_count} datasets processed",
+    ]
 
 
 @pytest.mark.parametrize("lazy", [False, True])
