@@ -1,4 +1,6 @@
-from uptimely.explorer import graph_render, render
+from uptimely.explorer import render
+from uptimely.explorer.common import serialize_graph_payload
+from uptimely.explorer.sections import feature_graph
 from uptimely.spec import model
 from uptimely.spec.feature_graph import models
 
@@ -9,10 +11,22 @@ def test_render_field_filter_preserves_falsy_values() -> None:
     ) == {"flag": False, "count": 0, "text": "", "items": [], "metadata": {}}
 
 
+def test_graph_payload_serialization_is_stable_and_script_safe() -> None:
+    payload = serialize_graph_payload(
+        nodes=[{"id": "z", "label": "</script>"}, {"id": "a", "label": "first"}],
+        links=[{"source": "z", "target": "z"}, {"source": "a", "target": "z"}],
+    )
+
+    assert payload == (
+        r'{"nodes": [{"id": "a", "label": "first"}, {"id": "z", "label": "<\/script>"}], '
+        '"links": [{"source": "a", "target": "z"}, {"source": "z", "target": "z"}]}'
+    )
+
+
 def test_feature_render_data_preserves_empty_strings() -> None:
     node = models.FeatureNode(name="reading", data_type="", entity="asset")
 
-    assert graph_render._node_render_data(node) == {
+    assert feature_graph._node_render_data(node) == {
         "node_type": "feature",
         "is_function": False,
         "label": "reading",
@@ -33,7 +47,7 @@ def test_function_render_data_includes_declared_metadata() -> None:
         name="double", features=("doubled",), entity="asset", function=function
     )
 
-    assert graph_render._node_render_data(node) == {
+    assert feature_graph._node_render_data(node) == {
         "node_type": "feature",
         "is_function": True,
         "label": "double",

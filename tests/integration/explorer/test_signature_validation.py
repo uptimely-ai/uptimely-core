@@ -7,7 +7,8 @@ import pytest
 from conftest import EXAMPLES_ROOT
 
 from uptimely import compiler, spec
-from uptimely.explorer import explorer, plan_render
+from uptimely.explorer import explorer
+from uptimely.explorer.sections import plan as plan_render
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 

@@ -9,7 +9,8 @@ import pytest
 from conftest import EXAMPLES_ROOT, engine_for_plan, render_explorer
 
 from uptimely import compiler, spec
-from uptimely.explorer import graph_render, spec_render
+from uptimely.explorer.sections import feature_graph
+from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec import functions
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -227,9 +228,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     )
     assert re.search(r'data-dependencies="[^"]+"', followup_step)
 
-    graph_nodes, graph_links = graph_render.graph_payload_from_cytoscape(
-        spec.FeatureGraph(definition)
-    )
+    graph_nodes, graph_links = feature_graph.feature_graph_payload(spec.FeatureGraph(definition))
     audit_feature_nodes = {
         node["label"]: node
         for node in graph_nodes

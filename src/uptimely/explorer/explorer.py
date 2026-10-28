@@ -4,7 +4,10 @@ import pathlib
 
 from uptimely import execution_plan, project_paths, spec
 
-from . import graph_render, lineage, plan_render, render, spec_render
+from . import render
+from .sections import data_lineage, feature_graph
+from .sections import plan as plan_section
+from .sections import spec as spec_section
 
 
 class Explorer:
@@ -60,38 +63,33 @@ class Explorer:
             else f"selected features: {', '.join(self.features)}"
         )
         graph = spec.FeatureGraph(self.spec)
-        context = spec_render._build_context(self.spec, include_generated_at)
+        context = spec_section._build_context(self.spec, include_generated_at)
+        website = render.WebsiteContext(
+            project_name=self.spec.name,
+            index_filename=target.name,
+            execution_scope=execution_scope,
+            is_scoped=self.features is not None,
+        )
         render.write_assets(target.parent)
-        spec_render._create_website_pages(
-            context,
+        spec_section.SECTION.write_pages(
             target.parent,
-            index_filename=target.name,
-            execution_scope=execution_scope,
-            is_scoped=self.features is not None,
+            website,
+            spec_section.build_context(context),
         )
-        graph_render._create_website_pages(
-            graph,
+        feature_graph.SECTION.write_pages(
             target.parent,
-            index_filename=target.name,
-            project_name=self.spec.name,
-            execution_scope=execution_scope,
-            is_scoped=self.features is not None,
+            website,
+            feature_graph.build_context(graph),
         )
-        plan_render._create_website_pages(
-            plan,
+        plan_section.SECTION.write_pages(
             target.parent,
-            index_filename=target.name,
-            project_name=self.spec.name,
-            execution_scope=execution_scope,
-            is_scoped=self.features is not None,
+            website,
+            plan_section.build_context(plan, target.parent),
         )
-        lineage._create_website_page(
-            self.spec,
-            plan,
+        data_lineage.SECTION.write_pages(
             target.parent,
-            index_filename=target.name,
-            execution_scope=execution_scope,
-            is_scoped=self.features is not None,
+            website,
+            data_lineage.build_context(self.spec, plan),
         )
         document = (
             render.html_environment()

@@ -16,7 +16,7 @@ from uptimely.compiler.graph import (
 from uptimely.engine.config import EngineConfig
 from uptimely.engine.engine import Engine as EngineImplementation
 from uptimely.execution_plan.models import ExecutionPlan, Invocation
-from uptimely.explorer import graph_render
+from uptimely.explorer import graph_style
 from uptimely.spec import feature_graph
 from uptimely.spec.feature_graph import FeatureGraph, SubGraph
 from uptimely.spec.feature_graph import models as feature_graph_models
@@ -42,6 +42,10 @@ def test_removed_compatibility_paths_are_unavailable_in_fresh_process() -> None:
         "uptimely.spec.explorer_render",
         "uptimely.spec.graph_render",
         "uptimely.spec.feature_graph.render",
+        "uptimely.explorer.graph_render",
+        "uptimely.explorer.lineage",
+        "uptimely.explorer.plan_render",
+        "uptimely.explorer.spec_render",
         "uptimely.spec.models",
         "uptimely.spec.storage",
         "uptimely.plan",
@@ -77,7 +81,7 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert uptimely.Dimension is spec.Dimension
     assert uptimely.Entity is spec.Entity
     assert uptimely.FeatureGraph is spec.FeatureGraph is FeatureGraph
-    assert graph_render.GraphStyle.__module__ == "uptimely.explorer.graph_render"
+    assert graph_style.GraphStyle.__module__ == "uptimely.explorer.graph_style"
     assert not hasattr(spec, "GraphStyle")
     assert not hasattr(feature_graph, "GraphStyle")
     assert feature_graph_models.FeatureNode is FeatureNode
