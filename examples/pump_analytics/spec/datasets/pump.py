@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import entity
 
-from uptimely.spec.python import Action, Dataset, Feature, RowScope, ref
+from uptimely import Action, Dataset, Feature, RowScope, ref
 
 
 class Pump(Dataset):
@@ -22,10 +22,10 @@ class Pump(Dataset):
             id="bearing_temperature_by_pump",
             function=analytics.maximum,
             arguments=dict(  # noqa: C408
-                dataset=ref.dataset("pump_telemetry_dataset").dataframe,
-                feature=ref.feature("bearing_temperature"),
+                dataset=ref.dataframe("pump_telemetry_dataset"),
+                feature=ref.column("bearing_temperature"),
                 dimensions=[ref.dimension(key.id).id for key in entity.dimensions],
-                output=ref.feature("bearing_temperature_max").id,
+                output=ref.output("bearing_temperature_max"),
             ),
             outputs=[
                 Feature(
@@ -40,12 +40,12 @@ class Pump(Dataset):
             id="health_signal_normalized",
             function=analytics.normalize_health_signal,
             arguments=dict(  # noqa: C408
-                dataset=ref.current_dataset().dataframe,
-                scale_feature=ref.feature("bearing_temperature_max"),
+                dataset=ref.dataframe(),
+                scale_feature=ref.column("bearing_temperature_max"),
                 lower_bound=-1.0,
                 upper_bound=1.0,
-                scaling_features=[ref.feature("bearing_temperature_max")],
-                output=ref.feature("health_signal_normalized").id,
+                scaling_features=[ref.column("bearing_temperature_max")],
+                output=ref.output("health_signal_normalized"),
             ),
             outputs=[
                 Feature(

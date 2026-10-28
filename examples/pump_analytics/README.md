@@ -11,6 +11,13 @@ data to calculate health and operational metrics. It also includes an
 uncontrolled workflow that reads pump measurements, calculates reference
 ratios, and writes the results internally.
 
+The Python modules import authoring classes and helpers directly from
+`uptimely`, for example `from uptimely import Action, Dataset, Feature, ref`.
+Functions use `from uptimely import function` and `@function` for analytical
+contracts. Argument wiring uses `ref.dataframe()`, `ref.column()`, and
+`ref.output()`. Row-window binding helpers are imported separately from
+`uptimely.spec.python.row_context`.
+
 ## Running the example
 
 For environment setup, commands to run each workflow, generated outputs, and

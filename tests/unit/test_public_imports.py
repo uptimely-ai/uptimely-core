@@ -109,6 +109,8 @@ def test_root_authoring_exports_preserve_object_identity() -> None:
     assert uptimely.Action is python_spec.Action
     assert uptimely.Dataset is python_spec.Dataset
     assert uptimely.Feature is python_spec.Feature
+    assert uptimely.Order is python_spec.Order
+    assert uptimely.RowScope is python_spec.RowScope
     assert uptimely.function is python_spec.function
     assert uptimely.ref is python_spec.ref
 

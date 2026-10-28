@@ -2,7 +2,7 @@
 
 import polars as pl
 
-from uptimely.spec.python import function
+from uptimely import function
 
 
 @function(kind="read")

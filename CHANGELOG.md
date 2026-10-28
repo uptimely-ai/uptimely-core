@@ -11,7 +11,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 ### Added
 
 - Author workflows with `import uptimely as up`: `up.Dataset`, `up.Action`,
-  `up.Feature`, `up.Spec`, and `@up.function`. Use `up.ref.dataframe()`
+  `up.Feature`, `up.Order`, `up.RowScope`, `up.Spec`, and `@up.function`.
+  The pump analytics example imports these classes and helpers directly from
+  `uptimely`, keeping reference wiring under `ref`.
+  Use `up.ref.dataframe()`
   (optionally with a dataset ID), `up.ref.column(name)`, and
   `up.ref.output(name)` for deferred argument wiring. Output references validate
   membership in the containing action's declared outputs without adding input

@@ -4,7 +4,7 @@ import pathlib
 
 import polars as pl
 
-from uptimely.spec.python import function
+from uptimely import function
 
 EXAMPLE_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE_PATH = EXAMPLE_ROOT / "data" / "pump_external_workflow.csv"
