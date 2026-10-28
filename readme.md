@@ -62,8 +62,8 @@ project source.
 
 ## Python API
 
-Author a spec in Python by describing its entity, dataset, and actions.
-This small example reads two rows and defines a derived feature:
+Author a spec in Python by describing its entity, dataset, and actions. Save
+this module as `spec/spec.py` in an Uptimely project:
 
 ```python
 import polars as pl
@@ -95,6 +95,11 @@ def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(value) * 2).alias(output))
 
 
+@function(kind="write")
+def print_results(dataset: pl.DataFrame) -> None:
+    print(dataset)
+
+
 class CalculatedData(Dataset):
     id = "calculated_dataset"
     entity = "measurements"
@@ -117,9 +122,17 @@ class CalculatedData(Dataset):
             outputs=[Feature(name="doubled")],
         ),
     ]
+    publishers = [
+        Action(
+            id="print",
+            function=print_results,
+            arguments={"dataset": ref.current_dataset().dataframe},
+            outputs=[],
+        )
+    ]
 
 
-definition = PythonSpec(
+python_spec = PythonSpec(
     dimensions=[Dimension(id="id", type="integer")],
     entities=[
         Entity(
@@ -131,7 +144,18 @@ definition = PythonSpec(
     datasets=[CalculatedData],
     name="Analytics Specification",
 )
-specification = definition.to_model()
+```
+
+Then create `run.py` in the project root and run it with `python run.py`.
+The engine takes the built bundle, which contains the plan and its runtime
+context:
+
+```python
+from uptimely import Engine, project
+from uptimely.engine import EngineConfig
+
+bundle = project.build_project(".")
+result = Engine(bundle, EngineConfig()).run()
 ```
 
 Datasets group actions into `producers` (feature-producing kinds), `publishers`
