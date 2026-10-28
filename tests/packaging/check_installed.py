@@ -108,7 +108,7 @@ class InstalledImportsTest(unittest.TestCase):
                 }
             },
         )
-        config = project / "config" / "engine.json"
+        config = project / "config" / "config.json"
         config.parent.mkdir()
         config.write_text("{}", encoding="utf-8")
         result = self.command("engine", "run", "--project-root", str(project), "--preview", "2")
@@ -158,7 +158,7 @@ class InstalledImportsTest(unittest.TestCase):
         source_path = self.root / "deferred.json"
         source_path.write_text(json.dumps(source), encoding="utf-8")
         self.command("build", str(project), "--json-spec", str(source_path))
-        config = self.root / "engine.json"
+        config = self.root / "config.json"
         config.write_text("{}", encoding="utf-8")
         result = self.command("run", str(project), "--config", str(config), succeeds=False)
         self.assertIn("uptimely_missing_runtime_dependency", result.stderr)

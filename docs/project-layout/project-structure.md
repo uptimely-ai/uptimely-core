@@ -13,8 +13,7 @@ project/
 ├── functions/
 │   └── analytics.py
 ├── config/
-│   ├── engine.json
-│   └── params.json
+│   └── config.json
 ├── spec/
 │   ├── spec.py <-- default spec entrypoint
 │   ├── dataset_<name>.py
@@ -36,8 +35,7 @@ project/
 | `functions/` | Reusable source, calculation, and write functions. |
 | `spec/` | The project specification: either Python declarations or a JSON document. |
 | `_generated/` | Generated project artifacts. The active build is stored in `_generated/build/`. |
-| `config/engine.json` | Engine backend settings. |
-| `config/params.json` | Required global scalar values referenced by `$params.<name>`. |
+| `config/config.json` | Engine backend settings under `engine` and required global scalar values under `params`, referenced by `$params.<name>`. |
 
 This separation keeps the project easy to reason about: specification declarations
 live in `spec/`, runtime logic lives in functions, and generated resources stay

@@ -22,8 +22,7 @@ def test_default_spec_attribute() -> None:
         (project.SPEC_PYTHON_ENTRY_FILE, "spec/spec.py"),
         (project.SPEC_JSON_ENTRY_FILE, "spec/spec.json"),
         (project.COMPILER_CONFIG_FILE, "config/compiler.json"),
-        (project.ENGINE_CONFIG_FILE, "config/engine.json"),
-        (project.PARAMS_CONFIG_FILE, "config/params.json"),
+        (project.CONFIG_FILE, "config/config.json"),
         (project.DATA_DIR, "data"),
         (project.FUNCTIONS_DIR, "functions"),
         (project.GENERATED_DIR, "_generated"),
@@ -45,20 +44,18 @@ def test_standard_paths(path: pathlib.Path, expected: str) -> None:
 def test_resolve_path_preserves_explicit_path(tmp_path: pathlib.Path) -> None:
     explicit_path = tmp_path / "custom.json"
 
-    resolved_path = project.resolve_path(explicit_path, tmp_path, project.ENGINE_CONFIG_FILE)
+    resolved_path = project.resolve_path(explicit_path, tmp_path, project.CONFIG_FILE)
     assert resolved_path is explicit_path
 
 
 def test_resolve_path_places_default_under_project_root(tmp_path: pathlib.Path) -> None:
-    assert project.resolve_path(None, tmp_path, project.ENGINE_CONFIG_FILE) == (
-        tmp_path / project.ENGINE_CONFIG_FILE
+    assert project.resolve_path(None, tmp_path, project.CONFIG_FILE) == (
+        tmp_path / project.CONFIG_FILE
     )
 
 
 def test_resolve_path_uses_working_directory_when_project_root_is_missing() -> None:
-    assert project.resolve_path(None, None, project.ENGINE_CONFIG_FILE) == (
-        project.ENGINE_CONFIG_FILE
-    )
+    assert project.resolve_path(None, None, project.CONFIG_FILE) == (project.CONFIG_FILE)
 
 
 def _manifest_data() -> dict[str, object]:

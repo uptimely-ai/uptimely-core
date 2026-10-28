@@ -220,7 +220,7 @@ def sink(name: str, attribute: str = "path") -> str:
 
 
 def parameter(name: str) -> str:
-    """Reference a required scalar value from ``config/params.json``.
+    """Reference a required scalar value from ``config/config.json``.
 
     Args:
         name: A nonempty Python identifier used as the parameter key.

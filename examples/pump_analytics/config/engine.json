@@ -1,7 +1,0 @@
-{
-  "backend": {
-    "type": "python_venv",
-    "dataframe": "polars",
-    "evaluation": "eager"
-  }
-}

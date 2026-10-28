@@ -11,9 +11,9 @@ Engine settings are supplied to `Engine`, not stored in the Spec
 document. The engine implementation decides which configuration values
 to use.
 
-Construct an engine with the validated build bundle and backend settings.
-Required global parameter values are loaded from `config/params.json`, or can
-be supplied programmatically.
+Construct an engine with the validated build bundle and runtime configuration.
+The project configuration is stored in `config/config.json`; programmatic users
+can pass a `Config` instance or provide parameter values directly.
 
 The engine uses the configured `dataframe` string to select a dataframe
 backend. The built-in Python engine currently supports `polars`.
@@ -24,7 +24,7 @@ accepted and stored, but do not change evaluation strategy, data access, or
 persistence. Do not rely on them to enable lazy execution, batching, or
 persistence.
 
-The `engine.json` file contains backend settings:
+The `engine` section of `config/config.json` contains backend settings:
 
 JSON key | Type | Purpose
 --- | --- | ---
@@ -67,14 +67,17 @@ See the [row context contract](spec.md#row-context).
 ## Global parameters
 
 Binding arguments may contain `$params.<name>` references. Each reference
-resolves to one required scalar value from the flat `config/params.json` map;
-missing entries fail explicitly. References work recursively inside argument
+resolves to one required scalar value from the flat `params` map in
+`config/config.json`; missing entries fail explicitly. References work recursively inside argument
 dictionaries and lists and do not create feature dependencies.
 
 ```json
 {
-  "threshold": 10,
-  "telemetry_source": "data/telemetry.json"
+  "engine": {"backend": {}},
+  "params": {
+    "threshold": 10,
+    "telemetry_source": "data/telemetry.json"
+  }
 }
 ```
 
@@ -84,9 +87,10 @@ helpers refer to the same map: `up.ref.source("telemetry_source")` and
 support JSON strings, finite numbers, booleans, and null; arrays and objects
 are rejected.
 
-`config/engine.json` contains backend settings only. The CLI loads parameter
-values from `config/params.json`; programmatic users can pass the same flat map
-as `parameters` to `Engine`.
+`config/config.json` keeps backend settings under `engine` and the flat
+parameter map under `params`. Programmatic users can construct
+`Config(engine=EngineConfig(...), params=Params(...))` or pass the flat map as
+`parameters` to `Engine`.
 
 ## Fragments
 

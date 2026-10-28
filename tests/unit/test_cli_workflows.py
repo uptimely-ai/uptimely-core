@@ -122,7 +122,7 @@ def test_engine_previews_final_datasets(
     row_limit: int | None,
 ) -> None:
     _write_empty_build(tmp_path)
-    config = tmp_path / "engine.json"
+    config = tmp_path / "config.json"
     config.write_text("{}", encoding="utf-8")
     frame = pl.DataFrame(
         {"value": [f"row_{index:02d}" for index in range(row_count)]},
@@ -210,7 +210,7 @@ def test_engine_preview_errors_are_reported(
     frame: object,
 ) -> None:
     _write_empty_build(tmp_path)
-    config = tmp_path / "engine.json"
+    config = tmp_path / "config.json"
     config.write_text("{}", encoding="utf-8")
     result = engine_module.ExecutionResult(
         datasets={"values": frame},
@@ -247,7 +247,7 @@ def test_engine_empty_plan_summary(
     verbose: bool,
 ) -> None:
     _write_empty_build(tmp_path)
-    config = tmp_path / "engine.json"
+    config = tmp_path / "config.json"
     config.write_text("{}", encoding="utf-8")
     times = iter([10.0, 10.0])
     monkeypatch.setattr(cli.engine, "time", types.SimpleNamespace(perf_counter=lambda: next(times)))
@@ -352,7 +352,7 @@ def test_engine_invalid_config_is_reported(
     content: str,
 ) -> None:
     _write_empty_build(tmp_path)
-    config = tmp_path / "engine.json"
+    config = tmp_path / "config.json"
     config.write_text(content, encoding="utf-8")
     with pytest.raises(SystemExit) as error:
         invoke(
@@ -373,10 +373,8 @@ def test_engine_invalid_config_is_reported(
 def test_engine_operation_failures_are_reported(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    config = tmp_path / "engine.json"
-    config.write_text("{}", encoding="utf-8")
-    params = tmp_path / "params.json"
-    params.write_text("{}", encoding="utf-8")
+    config = tmp_path / "config.json"
+    config.write_text('{"params": {}}', encoding="utf-8")
     project_root = _copy_pump_project(tmp_path, monkeypatch, features=("health_signal_normalized",))
     with pytest.raises(SystemExit) as error:
         invoke(
@@ -387,8 +385,6 @@ def test_engine_operation_failures_are_reported(
             str(project_root),
             "--config",
             str(config),
-            "--params",
-            str(params),
             "--preview",
         )
     assert error.value.code == 1
@@ -399,11 +395,12 @@ def test_engine_operation_failures_are_reported(
     assert "Dataset:" not in result.out
 
 
-def test_engine_config_loads_backend_only() -> None:
-    settings = engine_module.EngineConfig.model_validate_json(
-        '{"backend": {"dataframe": "polars"}}'
+def test_engine_config_loads_backend_and_params() -> None:
+    settings = engine_module.Config.model_validate_json(
+        '{"engine": {"backend": {"dataframe": "polars"}}, "params": {"threshold": 10}}'
     )
-    assert settings.backend.dataframe == "polars"
+    assert settings.engine.backend.dataframe == "polars"
+    assert settings.params.root == {"threshold": 10}
 
 
 def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:

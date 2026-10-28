@@ -8,7 +8,7 @@
         "--project-root",
         "${workspaceFolder}/examples/pump_analytics",
         "--config",
-        "${workspaceFolder}/examples/pump_analytics/config/engine.json"
+        "${workspaceFolder}/examples/pump_analytics/config/config.json"
       ]
     }
   }

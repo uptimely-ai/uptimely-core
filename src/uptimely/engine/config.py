@@ -44,8 +44,8 @@ class EngineConfig(pydantic.BaseModel):
     backend: EngineBackendConfig = pydantic.Field(default_factory=EngineBackendConfig)
 
 
-class ParameterConfig(pydantic.RootModel[dict[str, typing.Any]]):
-    """Flat map of required global parameter values loaded from project config."""
+class Params(pydantic.RootModel[dict[str, typing.Any]]):
+    """Flat map of required global parameter values."""
 
     model_config = pydantic.ConfigDict(strict=True, frozen=True)
 
@@ -65,3 +65,15 @@ class ParameterConfig(pydantic.RootModel[dict[str, typing.Any]]):
             if isinstance(parameter, float) and not math.isfinite(parameter):
                 raise ValueError(f"Parameter {name} must be a finite number")
         return value
+
+
+class Config(pydantic.BaseModel):
+    """Project runtime configuration for engine settings and parameter values."""
+
+    model_config = pydantic.ConfigDict(extra="forbid", frozen=True)
+
+    engine: EngineConfig = pydantic.Field(default_factory=EngineConfig)
+    params: Params = pydantic.Field(default_factory=lambda: Params(root={}))
+
+
+ParameterConfig = Params

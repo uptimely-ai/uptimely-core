@@ -48,16 +48,8 @@ def configure_run_parser(parser: argparse.ArgumentParser) -> None:
         "--config",
         type=pathlib.Path,
         help=(
-            "Backend settings "
-            f"(default: {project.ENGINE_CONFIG_FILE} under the project root or current directory)"
-        ),
-    )
-    parser.add_argument(
-        "--params",
-        type=pathlib.Path,
-        help=(
-            "Global parameter values "
-            f"(default: {project.PARAMS_CONFIG_FILE} under the project root or current directory)"
+            "Engine settings and global parameters "
+            f"(default: {project.CONFIG_FILE} under the project root or current directory)"
         ),
     )
 
@@ -67,23 +59,11 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     if args.preview is not None and args.preview <= 0:
         parser.error("--preview must be a positive integer")
     root = common.resolve_project_root(args, parser)
-    config = project.resolve_path(args.config, root, project.ENGINE_CONFIG_FILE)
-    params_option = getattr(args, "params", None)
-    params = project.resolve_path(params_option, root, project.PARAMS_CONFIG_FILE)
+    config = project.resolve_path(args.config, root, project.CONFIG_FILE)
     try:
         with project.read_build_bundle(root) as bundle:
-            settings = engine_module.EngineConfig.model_validate_json(
-                config.read_text(encoding="utf-8")
-            )
-            if params.is_file():
-                parameter_values = engine_module.ParameterConfig.model_validate_json(
-                    params.read_text(encoding="utf-8")
-                ).root
-            elif params_option is not None or params.exists():
-                raise FileNotFoundError(f"Parameter configuration is not a file: {params}")
-            else:
-                parameter_values = {}
-            engine = engine_module.Engine(bundle, settings, parameter_values)
+            settings = engine_module.Config.model_validate_json(config.read_text(encoding="utf-8"))
+            engine = engine_module.Engine(bundle, settings)
             started = time.perf_counter()
             result = engine.run()
             duration = time.perf_counter() - started
