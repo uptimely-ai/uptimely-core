@@ -33,7 +33,6 @@
 		ExplorerGraph.showDetails(invocationNodeDetails, 'invocation details', rows,
 			node.function_kind === 'escape' ? 'Not verified or materialized as dataframe columns.' : '');
 	};
-	const invocationColors = style.function_colors;
 	function create3D(invocationGraphContainer, invocationGraphData, updateInvocationDetails) {
 		const highlight = ExplorerGraph.createDependencyHighlight(invocationGraphData);
 		return ExplorerGraph.create3D(invocationGraphContainer, invocationGraphData, style, {
@@ -100,7 +99,7 @@
 			})
 			.nodeCanvasObjectMode(() => 'replace')
 			.nodeCanvasObject((node, ctx) => ExplorerGraph.drawCard(
-				node, ctx, node.function_id, invocationColors[node.function_kind], highlight))
+				node, ctx, node.function_id, node.datasetColor, highlight))
 			.nodePointerAreaPaint(ExplorerGraph.paintPointerArea)
 			.linkColor(link => highlight.isLinkHighlighted(link)
 				? LINK_STYLE.highlightColor

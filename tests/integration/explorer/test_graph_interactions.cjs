@@ -239,9 +239,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		assert.deepEqual(rectangles[1], filename === 'invocation_lineage.js'
 			? [left + 12, selected2D.y - 6, 12, 12, 3]
 			: [left + 13, selected2D.y - 9, 4, 18, 2]);
-		const selectedColor = filename === 'invocation_lineage.js'
-			? '#abcdef'
-			: '#fb7185';
+		const selectedColor = '#fb7185';
 		assert.deepEqual(strokes, [[selectedColor, 3]]);
 		assert.deepEqual(fills, [
 			filename === 'invocation_lineage.js' ? '#1a2732' : '#172a35', selectedColor,
@@ -297,6 +295,12 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			const details = element(filename === 'feature_lineage.js'
 				? 'node-details' : 'invocation-node-details');
 			assert.equal(details.rows.length, 0);
+			for (const node2D of nodes2D) {
+				strokes.length = 0;
+				graph2D.properties.get('nodeCanvasObject')(node2D, canvas);
+				assert.equal(strokes[0][0], node2D.datasetColor);
+				assert.equal(strokes[0][0], graph.objects.get(node2D.id).material.color.value);
+			}
 			buttons[1 - index].listeners.click();
 			assert.ok([...graph.objects.values()].every(object => object.scale.value === undefined));
 		}

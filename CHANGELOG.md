@@ -25,7 +25,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Group Explorer's 2D feature and invocation lineage into dataset
   swimlanes, preserving global dependency/stage ordering and cross-dataset
   highlighting, with connectivity-based node ordering and gutter routing for
-  long dependencies. Invocation cards retain operation colors and show their
+  long dependencies. Invocation cards use dataset colors matching feature
+  lineage and the dataset legend, and show their
   dataset and execution stage in the details panel. Invocation lineage combines
   dataset rows with labeled, shaded plan-stage columns. Dataset names remain in
   the legend and node details rather than on swimlane rows.
