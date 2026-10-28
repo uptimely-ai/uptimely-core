@@ -10,7 +10,7 @@ from conftest import EXAMPLES_ROOT, engine_for_plan, render_explorer
 
 from uptimely import compiler, spec
 from uptimely.explorer import graph_render, spec_render
-from uptimely.spec import operations
+from uptimely.spec import functions
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 REFERENCE_PATH = pathlib.Path("docs/components/spec.md")
@@ -84,12 +84,12 @@ def test_build_spec_context() -> None:
     )
     assert context.summary.entity_count == 2
     assert context.summary.dataset_count == 3
-    assert sorted(context.summary.function_buckets) == sorted(operations.FUNCTION_KINDS)
+    assert sorted(context.summary.function_buckets) == sorted(functions.FUNCTION_KINDS)
     assert context.summary.function_buckets == {
         operation: sum(
             function.kind == operation for function in spec_definition.functions.root.values()
         )
-        for operation in operations.FUNCTION_KINDS
+        for operation in functions.FUNCTION_KINDS
     }
     assert context.summary.function_buckets["escape"] == 1
     assert context.feature_dependencies

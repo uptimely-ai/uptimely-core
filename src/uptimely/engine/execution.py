@@ -4,7 +4,7 @@ import typing
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely import execution_plan
-from uptimely.spec import arg_types, operations
+from uptimely.spec import arg_types, functions
 from uptimely.spec import model as spec_model
 
 from . import backend as backend_module
@@ -34,12 +34,12 @@ class InvocationExecutor:
 
     def execute(self, invocation: execution_plan.Invocation) -> None:
         """Dispatch and execute one invocation."""
-        if invocation.function_kind == operations.ESCAPE:
+        if invocation.function_kind == functions.ESCAPE:
             self._execute_escape(invocation)
             return
 
         self.dataframe.validate_inputs(invocation)
-        return_kind = operations.KIND_RETURN_KINDS.get(invocation.function_kind)
+        return_kind = functions.KIND_RETURN_KINDS.get(invocation.function_kind)
         if return_kind == arg_types.DATAFRAME:
             self._execute_dataframe_mapping(invocation)
         elif return_kind == "none":
@@ -61,7 +61,7 @@ class InvocationExecutor:
 
         self.state.datasets[invocation.dataset_id] = dataframe
         self.state.fragments[(invocation.dataset_id, invocation.mapping_id)] = fragment
-        if invocation.function_kind == operations.VECTORIZE:
+        if invocation.function_kind == functions.VECTORIZE:
             for output in invocation.output_features:
                 self.state.calculated_outputs[(invocation.dataset_id, output)] = (
                     self.backend.select(fragment, [*dimensions, output])

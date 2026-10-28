@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from .. import operations, selectors
+from .. import functions, selectors
 from . import context as context_module
 from . import errors
 
 
 def validate_escape_inputs(item: context_module.MappingFacts) -> context_module.ValidationResult:
     """Require escape mappings to declare feature inputs."""
-    if item.kind == operations.ESCAPE and not item.inputs:
+    if item.kind == functions.ESCAPE and not item.inputs:
         return errors.SpecError(
             "Escape mappings must declare one or more input features",
             code="invalid_mapping_feature_inputs",
@@ -33,9 +33,7 @@ def validate_input_scope(
     item: context_module.MappingFacts, feature: str
 ) -> context_module.ValidationResult:
     """Require vectorize and write inputs to belong to the target dataset."""
-    if item.kind in {operations.VECTORIZE, operations.WRITE} and feature not in (
-        item.local_features
-    ):
+    if item.kind in {functions.VECTORIZE, functions.WRITE} and feature not in (item.local_features):
         return ValueError(
             f"Mapping {item.location.mapping.id} cannot read feature {feature} from another dataset"
         )

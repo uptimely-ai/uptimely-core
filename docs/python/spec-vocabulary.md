@@ -8,10 +8,10 @@ same definitions.
 
 ## Function kinds
 
-`uptimely.spec.operations` defines supported function kinds, return kinds, and
+`uptimely.spec.functions` defines supported function kinds, return kinds, and
 kind-level dataframe input rules.
 
-::: uptimely.spec.operations
+::: uptimely.spec.functions
     options:
       heading_level: 3
       show_root_heading: false

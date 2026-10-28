@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .. import operations, selectors
+from .. import functions, selectors
 from . import context as context_module
 from . import errors
 
@@ -56,10 +56,10 @@ def validate_dataframe_source(
 def validate_dataset_count(item: context_module.MappingContract) -> context_module.ValidationResult:
     """Require dimensional operations to consume one foreign dataframe."""
     kind = item.mapping.kind
-    if kind not in {operations.CONFORM, operations.COLLAPSE, operations.EXPAND}:
+    if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
         return None
 
-    expected_count = operations.KIND_DATAFRAME_INPUT_COUNTS[kind]
+    expected_count = functions.KIND_DATAFRAME_INPUT_COUNTS[kind]
     if len(item.dataframe_arguments) != expected_count or len(item.dataset_ids) != expected_count:
         return errors.SpecError(
             f"{kind.capitalize()} mapping must consume exactly {expected_count} foreign dataset(s)",
@@ -96,7 +96,7 @@ def validate_input_feature_source_count(
 ) -> context_module.ValidationResult:
     """Require dimensional input features to belong to at most one dataset."""
     kind = item.mapping.kind
-    if kind not in {operations.CONFORM, operations.COLLAPSE, operations.EXPAND}:
+    if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
         return None
     if len(item.feature_dataset_ids) > 1:
         return errors.SpecError(
@@ -112,9 +112,9 @@ def validate_foreign_dataframe(
 ) -> context_module.ValidationResult:
     """Reject the target dataset as a dimensional operation's dataframe input."""
     kind = item.mapping.kind
-    if kind not in {operations.CONFORM, operations.COLLAPSE, operations.EXPAND}:
+    if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
         return None
-    if len(item.dataframe_arguments) != operations.KIND_DATAFRAME_INPUT_COUNTS[kind]:
+    if len(item.dataframe_arguments) != functions.KIND_DATAFRAME_INPUT_COUNTS[kind]:
         return None
 
     dataframe = item.dataframe_arguments[0]
@@ -132,9 +132,9 @@ def validate_dataframe_feature_source(
 ) -> context_module.ValidationResult:
     """Require a dimensional dataframe argument to match the input feature owner."""
     kind = item.mapping.kind
-    if kind not in {operations.CONFORM, operations.COLLAPSE, operations.EXPAND}:
+    if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
         return None
-    if len(item.dataframe_arguments) != operations.KIND_DATAFRAME_INPUT_COUNTS[kind]:
+    if len(item.dataframe_arguments) != functions.KIND_DATAFRAME_INPUT_COUNTS[kind]:
         return None
     if len(item.feature_dataset_ids) != 1:
         return None
@@ -158,7 +158,7 @@ def validate_dataframe_features(
 ) -> context_module.ValidationResult:
     """Require conform and expand feature inputs to belong to dataframe inputs."""
     kind = item.mapping.kind
-    if kind in {operations.CONFORM, operations.EXPAND} and item.unavailable_features:
+    if kind in {functions.CONFORM, functions.EXPAND} and item.unavailable_features:
         return errors.SpecError(
             f"{kind.capitalize()} mapping inputs must belong to its dataframe inputs: "
             + ", ".join(item.unavailable_features),
@@ -170,7 +170,7 @@ def validate_dataframe_features(
 
 def validate_read_inputs(item: context_module.MappingFacts) -> context_module.ValidationResult:
     """Reject feature inputs on read mappings."""
-    if item.kind == operations.READ and item.inputs:
+    if item.kind == functions.READ and item.inputs:
         return errors.SpecError(
             "Read mappings cannot declare feature inputs",
             code="invalid_mapping_feature_inputs",
@@ -182,7 +182,7 @@ def validate_read_inputs(item: context_module.MappingFacts) -> context_module.Va
 def validate_target_input(item: context_module.MappingContract) -> context_module.ValidationResult:
     """Require vectorize and write to consume their target dataset."""
     kind = item.mapping.kind
-    if kind in {operations.VECTORIZE, operations.WRITE} and not item.target_is_input:
+    if kind in {functions.VECTORIZE, functions.WRITE} and not item.target_is_input:
         return errors.SpecError(
             f"{kind.capitalize()} mapping must consume its target dataset",
             code="invalid_mapping_dataset_input",
@@ -196,7 +196,7 @@ def validate_local_features(
 ) -> context_module.ValidationResult:
     """Require vectorize and write feature inputs to belong to their target."""
     kind = item.mapping.kind
-    if kind in {operations.VECTORIZE, operations.WRITE} and item.local_foreign_features:
+    if kind in {functions.VECTORIZE, functions.WRITE} and item.local_foreign_features:
         return errors.SpecError(
             f"{kind.capitalize()} mapping inputs must belong to its target dataset: "
             + ", ".join(item.local_foreign_features),
@@ -211,7 +211,7 @@ def validate_collapse_source(
 ) -> context_module.ValidationResult:
     """Require collapse to consume its inferred source dataset."""
     if (
-        item.mapping.kind == operations.COLLAPSE
+        item.mapping.kind == functions.COLLAPSE
         and item.source is not None
         and item.source.dataset.id not in item.dataset_ids
     ):
@@ -228,7 +228,7 @@ def validate_collapse_dimensions(
 ) -> context_module.ValidationResult:
     """Require collapse to reduce source dimensionality."""
     if (
-        item.mapping.kind == operations.COLLAPSE
+        item.mapping.kind == functions.COLLAPSE
         and item.source is not None
         and not item.mapping.dimensions < item.source_dimensions
     ):
@@ -244,7 +244,7 @@ def validate_conform_dimensions(
     item: context_module.MappingContract,
 ) -> context_module.ValidationResult:
     """Require conform inputs to preserve target dimensionality."""
-    if item.mapping.kind == operations.CONFORM and any(
+    if item.mapping.kind == functions.CONFORM and any(
         dimensions != item.mapping.dimensions for dimensions in item.input_dimensions
     ):
         return errors.SpecError(
@@ -259,7 +259,7 @@ def validate_expand_dimensions(
     item: context_module.MappingContract,
 ) -> context_module.ValidationResult:
     """Require expand to use a declared feature from a lower-dimensional source."""
-    if item.mapping.kind == operations.EXPAND and (
+    if item.mapping.kind == functions.EXPAND and (
         not item.lower_dataset_ids or not item.has_lower_feature
     ):
         return errors.SpecError(

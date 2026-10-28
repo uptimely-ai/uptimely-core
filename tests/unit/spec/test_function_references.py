@@ -7,15 +7,15 @@ from collections import abc
 
 import pytest
 
+from uptimely.spec import functions
 from uptimely.spec import model as spec_model
-from uptimely.spec import operations
 from uptimely.spec.python import bind, binding_conversion, conversion, dataset, mapping, ref
 
 MODULE_LOCATIONS = [
     "math",
     "unavailable_package.functions",
 ]
-MAPPING_OPERATIONS: tuple[operations.FunctionKind, ...] = (
+MAPPING_OPERATIONS: tuple[functions.FunctionKind, ...] = (
     "read",
     "write",
     "escape",
@@ -49,13 +49,13 @@ def test_function_reference_accepts_qualified_names() -> None:
 
 def test_function_reference_rejects_unsupported_operation() -> None:
     with pytest.raises(ValueError, match="Unsupported function kind"):
-        ref.function("math:ceil", kind=typing.cast(operations.FunctionKind, "unknown"))
+        ref.function("math:ceil", kind=typing.cast(functions.FunctionKind, "unknown"))
 
 
 @pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
 @pytest.mark.parametrize("validate_signature", [False, True])
 def test_signature_validation_setting_survives_conversion_without_importing(
-    kind: operations.FunctionKind,
+    kind: functions.FunctionKind,
     validate_signature: bool,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -157,7 +157,7 @@ def test_string_locations_are_preserved_without_importing(
 
 @pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
 def test_generic_mapping_exports_function_operation_without_importing(
-    kind: operations.FunctionKind, monkeypatch: pytest.MonkeyPatch
+    kind: functions.FunctionKind, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def unexpected_import(*_args: object, **_kwargs: object) -> typing.NoReturn:
         pytest.fail(f"Unexpected function import during authoring: {_args!r} {_kwargs!r}")
@@ -221,7 +221,7 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
 
 @pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
 def test_generic_mapping_accepts_operation_metadata(
-    kind: operations.FunctionKind,
+    kind: functions.FunctionKind,
 ) -> None:
     declaration = mapping.FunctionMapping(
         inputs=[],
@@ -236,7 +236,7 @@ def test_generic_mapping_accepts_operation_metadata(
 @pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
 @pytest.mark.parametrize("function_id", [None, "rounded"])
 def test_references_supply_catalog_ids_and_preserve_overrides(
-    kind: operations.FunctionKind, function_id: str | None
+    kind: functions.FunctionKind, function_id: str | None
 ) -> None:
     declaration = mapping.FunctionMapping(
         function=ref.function("math:ceil", kind=kind),

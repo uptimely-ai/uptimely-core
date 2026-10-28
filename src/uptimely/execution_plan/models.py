@@ -6,7 +6,7 @@ import dataclasses
 import typing
 
 from uptimely import row_context as uptimely_row_context
-from uptimely.spec import operations
+from uptimely.spec import functions
 
 PLAN_VERSION = 3
 
@@ -38,7 +38,7 @@ class Invocation:
             raise ValueError("Invocations must declare a function_id")
         if not self.mapping_id:
             raise ValueError("Invocations must declare a mapping_id")
-        if self.function_kind == operations.COLLAPSE and not self.output_features:
+        if self.function_kind == functions.COLLAPSE and not self.output_features:
             raise ValueError("Collapse must declare output_features")
         if self.row_context is not None:
             object.__setattr__(

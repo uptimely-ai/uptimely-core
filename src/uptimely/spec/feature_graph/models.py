@@ -1,7 +1,7 @@
 import dataclasses
 
 from uptimely.explorer import render
-from uptimely.spec import model, operations
+from uptimely.spec import functions, model
 
 
 @dataclasses.dataclass(frozen=True)
@@ -21,7 +21,7 @@ class FunctionNode:
         """Stable graph identifier for this function definition."""
         function_kind = (
             "spec"
-            if self.function is not None and self.function.kind == operations.VECTORIZE
+            if self.function is not None and self.function.kind == functions.VECTORIZE
             else self.function.kind
             if self.function is not None
             else "unknown"

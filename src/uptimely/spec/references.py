@@ -6,7 +6,7 @@ import typing
 
 import pydantic
 
-from . import operations, selectors
+from . import functions, selectors
 
 if typing.TYPE_CHECKING:
     from . import model as spec_model
@@ -32,7 +32,7 @@ def iter_mapping_items(
 
 def mapping_kind(
     mapping: spec_model.Mapping, catalog: spec_model.FunctionCatalog
-) -> operations.FunctionKind:
+) -> functions.FunctionKind:
     """Return the declared kind of a mapping's function."""
     function = catalog.get(mapping.binding.function)
     if function is None:

@@ -7,7 +7,7 @@ import dataclasses
 import graphable as graphable_
 
 from uptimely import row_context, spec
-from uptimely.spec import operations
+from uptimely.spec import functions
 
 from ..spec import binding_resolution
 
@@ -81,7 +81,7 @@ class InvocationGraph:
                             ),
                             None,
                         )
-                        if operation == operations.COLLAPSE
+                        if operation == functions.COLLAPSE
                         else mapping.output_features[0]
                         if mapping.output_features
                         else None
@@ -98,11 +98,11 @@ class InvocationGraph:
                         row_context=mapping.row_context,
                     )
                     nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
-                    if operation == operations.WRITE:
+                    if operation == functions.WRITE:
                         dataset_sinks.setdefault(dataset.id, []).append(invocation)
-                    elif operation in operations.FRAGMENT_KINDS:
+                    elif operation in functions.FRAGMENT_KINDS:
                         dataset_sources.setdefault(dataset.id, []).append(invocation)
-                    elif operation == operations.VECTORIZE:
+                    elif operation == functions.VECTORIZE:
                         calculations.setdefault(dataset.id, []).append(invocation)
                     for feature in mapping.output_features:
                         if feature not in self.spec.dimensions:
@@ -128,12 +128,12 @@ class InvocationGraph:
             reads = [
                 fragment
                 for fragment in fragments
-                if self.spec.functions[fragment.function_id].kind == operations.READ
+                if self.spec.functions[fragment.function_id].kind == functions.READ
             ]
             downstream = [
                 fragment
                 for fragment in fragments
-                if self.spec.functions[fragment.function_id].kind != operations.READ
+                if self.spec.functions[fragment.function_id].kind != functions.READ
             ]
             for fragment in downstream:
                 for read in reads:
@@ -156,7 +156,7 @@ class InvocationGraph:
                 for source in dataset_sources.get(referenced_id, []):
                     if source != invocation and (
                         referenced_id != invocation.dataset_id
-                        or self.spec.functions[source.function_id].kind == operations.READ
+                        or self.spec.functions[source.function_id].kind == functions.READ
                     ):
                         graph.add_edge(nodes[source.node_id], nodes[invocation.node_id])
 
@@ -240,7 +240,7 @@ class InvocationGraph:
 
         selected_dataset_ids = {node.dataset_id for node in requested_nodes}
         for invocation in self.invocations:
-            if self.spec.functions[invocation.function_id].kind != operations.WRITE:
+            if self.spec.functions[invocation.function_id].kind != functions.WRITE:
                 continue
             if invocation.dataset_id not in selected_dataset_ids:
                 continue

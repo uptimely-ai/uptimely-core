@@ -13,7 +13,7 @@ import typing
 from uptimely.spec import model as spec_model
 from uptimely.spec import references
 
-from .. import arg_types, operations, selectors
+from .. import arg_types, functions, selectors
 
 type SpecPath = tuple[str | int, ...]
 type MappingKey = tuple[str, str]
@@ -126,7 +126,7 @@ class MappingFacts:
         return frozenset(self.location.dataset.features) | self.dimensions
 
     @property
-    def kind(self) -> operations.FunctionKind | None:
+    def kind(self) -> functions.FunctionKind | None:
         """Return the declared kind without requiring function resolution."""
         return self.function.kind if self.function is not None else None
 
@@ -359,7 +359,7 @@ class SpecValidationContext:
         return (
             (item, feature_id, self.first_feature_owner(feature_id))
             for item in self.mappings
-            if item.kind == operations.VECTORIZE
+            if item.kind == functions.VECTORIZE
             for feature_id in item.inputs
         )
 
@@ -380,7 +380,7 @@ class SpecValidationContext:
                 ),
             )
             for item in self.mappings
-            if item.kind == operations.WRITE
+            if item.kind == functions.WRITE
         )
 
     def iter_output_datasets(
@@ -394,7 +394,7 @@ class SpecValidationContext:
             count = len(location.dataset.mappings)
             for item in self.mappings[offset : offset + count]:
                 declarations: list[tuple[str, str | None]] = []
-                if item.kind != operations.WRITE:
+                if item.kind != functions.WRITE:
                     for feature_id in item.outputs:
                         declarations.append((feature_id, producers.get(feature_id)))
                         if feature_id not in item.dimensions:
@@ -412,7 +412,7 @@ class SpecValidationContext:
         return {
             feature_id: (item.location.dataset.id, item.location.mapping_id)
             for item in self.mappings
-            if item.kind != operations.WRITE
+            if item.kind != functions.WRITE
             for feature_id in item.outputs
             if feature_id not in item.dimensions and feature_id not in self.dimension_ids
         }
@@ -426,7 +426,7 @@ class SpecValidationContext:
         """Infer all collapse source candidates once for this invocation."""
         result: list[CollapseInputs] = []
         for item in self.mappings:
-            if item.kind != operations.COLLAPSE:
+            if item.kind != functions.COLLAPSE:
                 continue
             candidates = tuple(
                 (feature_id, self.feature_owners.get(feature_id, ()))
@@ -471,7 +471,7 @@ class SpecValidationContext:
             return None
         source = (
             self.collapse_sources.get(item.location.key)
-            if item.kind == operations.COLLAPSE
+            if item.kind == functions.COLLAPSE
             else item.location.dataset_location
         )
         if source is None:

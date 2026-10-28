@@ -10,7 +10,7 @@ import pytest
 from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
-from uptimely.spec import operations
+from uptimely.spec import functions as function_kinds
 from uptimely.spec.validation import context, errors, functions, mapping_contracts, row_context
 
 type ContractRule = collections.abc.Callable[[context.MappingContract], ValueError | None]
@@ -93,7 +93,7 @@ def prepared() -> context.SpecValidationContext:
 def test_mapping_rules_return_structured_errors_without_raising(
     prepared: context.SpecValidationContext,
     rule: ContractRule,
-    kind: operations.FunctionKind,
+    kind: function_kinds.FunctionKind,
     changes: dict[str, object],
     code: str,
     path_suffix: tuple[str, ...],
@@ -224,7 +224,7 @@ def test_function_rules_are_independent(
 @pytest.mark.parametrize("source_ids", [frozenset({"foreign"}), frozenset({"one", "two"})])
 def test_dimensional_source_uses_feature_owners_for_every_operation(
     prepared: context.SpecValidationContext,
-    kind: operations.FunctionKind,
+    kind: function_kinds.FunctionKind,
     source_ids: frozenset[str],
 ) -> None:
     item = next(item for item in prepared.mapping_contracts if item.source is not None)
@@ -254,7 +254,7 @@ def test_dimensional_source_uses_feature_owners_for_every_operation(
 @pytest.mark.parametrize("kind", ["conform", "collapse", "expand"])
 def test_foreign_dataframe_rule_is_independent_of_feature_ownership(
     prepared: context.SpecValidationContext,
-    kind: operations.FunctionKind,
+    kind: function_kinds.FunctionKind,
 ) -> None:
     item = next(item for item in prepared.mapping_contracts if item.source is not None)
     assert item.mapping.function is not None
@@ -284,7 +284,7 @@ def test_foreign_dataframe_rule_is_independent_of_feature_ownership(
 def test_mapping_rules_use_operation_dataframe_counts(
     prepared: context.SpecValidationContext,
     monkeypatch: pytest.MonkeyPatch,
-    kind: operations.FunctionKind,
+    kind: function_kinds.FunctionKind,
 ) -> None:
     item = next(item for item in prepared.mapping_contracts if item.source is not None)
     assert item.mapping.function is not None
@@ -294,7 +294,7 @@ def test_mapping_rules_use_operation_dataframe_counts(
     contract = dataclasses.replace(item, mapping=mapping)
     assert len(contract.dataframe_arguments) == 1
 
-    monkeypatch.setitem(operations.KIND_DATAFRAME_INPUT_COUNTS, kind, 2)
+    monkeypatch.setitem(function_kinds.KIND_DATAFRAME_INPUT_COUNTS, kind, 2)
 
     error = mapping_contracts.validate_dataset_count(contract)
     assert isinstance(error, errors.SpecError)
