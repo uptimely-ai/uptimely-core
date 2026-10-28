@@ -51,21 +51,32 @@ Download the example project:
 uptimely examples
 ```
 
-Build and run it:
+Build the project:
 
 ```sh
-uptimely build examples/pump_analytics --verbose --preview 10
-uptimely run examples/pump_analytics
+uptimely build examples/pump_analytics --verbose
 ```
 
 The build creates files
 under `examples/pump_analytics/_generated/build/`. Rebuild after changing the
 project source.
 
+Execute the data pipeline:
+
+```sh
+uptimely run examples/pump_analytics --verbose --preview 10
+```
+
+Output will show the materialized datasets:
+
+![Uptimely run preview](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-run-preview.png)
+
+
 ## Python API
 
-Author a spec in Python by describing its entity, dataset, and actions. Save
-this module as `spec/spec.py` in an Uptimely project:
+The previous example was built by [Python authored example specification](examples/pump_analytics/). The specification describes entities, datasets and actions. The functions are pure Python - the decorator is just a label enabling automatic structural validation.
+
+Here even more simplified example.
 
 ```python
 import polars as pl
@@ -140,7 +151,7 @@ python_spec = up.Spec(
 
 Then create `run.py` in the project root and run it with `python run.py`.
 The engine takes the built bundle, which contains the plan and its runtime
-context:
+context. This is alternative to the previous CLI example:
 
 ```python
 from uptimely import Engine, project
@@ -149,12 +160,6 @@ from uptimely.engine import EngineConfig
 bundle = project.build_project(".")
 result = Engine(bundle, EngineConfig()).run()
 ```
-
-Datasets group actions into `producers` (feature-producing kinds), `publishers`
-(`write`), and `pipelines` (`escape`, for opaque custom workflows). Each action
-has an explicit ID unique within its dataset. These lists declare roles, not
-execution order; dependencies determine execution.
-In JSON specs, datasets declare their keyed action definitions under `actions`.
 
 ## Further exploration
 
