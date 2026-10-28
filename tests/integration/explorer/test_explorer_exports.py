@@ -83,7 +83,7 @@ def test_build_spec_context() -> None:
         == "Manufacturing plant identifier"
     )
     assert context.summary.entity_count == 2
-    assert context.summary.dataset_count == 2
+    assert context.summary.dataset_count == 3
     assert sorted(context.summary.function_buckets) == sorted(operations.FUNCTION_OPERATIONS)
     assert context.summary.function_buckets == {
         operation: sum(
@@ -91,7 +91,7 @@ def test_build_spec_context() -> None:
         )
         for operation in operations.FUNCTION_OPERATIONS
     }
-    assert context.summary.function_buckets["escape"] == 0
+    assert context.summary.function_buckets["escape"] == 1
     assert context.feature_dependencies
     assert context.generated_at is None
 
@@ -129,8 +129,8 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     plan = compiler.Compiler().compile(definition)
 
     context = spec_render._build_context(definition, False)
-    assert context.summary.function_buckets["escape"] == 1
-    assert context.summary.feature_buckets["external"] == 3
+    assert context.summary.function_buckets["escape"] == 2
+    assert context.summary.feature_buckets["external"] == 4
     assert all(
         {
             "function": "external_audit",
@@ -168,7 +168,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     escape_invocations = [
         invocation for invocation in plan.invocations if invocation.operation == "escape"
     ]
-    assert len(escape_invocations) == 2
+    assert len(escape_invocations) == 3
     first_escape = next(
         invocation for invocation in escape_invocations if invocation.mapping_id == "external_audit"
     )
@@ -215,16 +215,17 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
         lineage_page,
         re.DOTALL,
     )
-    assert len(escape_steps) == 2
-    escape_step = escape_steps[0]
+    assert len(escape_steps) == 3
+    escape_step = next(step for step in escape_steps if "audit_reference, audit_status" in step)
     assert "Declared feature inputs" in escape_step
     assert "Declared external outputs" in escape_step
-    assert "audit_reference, audit_status" in escape_step
     assert "not materialized as dataframe columns" in escape_step
     assert "External declaration; no materialized result" in escape_step
     assert 'data-side="output"' not in escape_step
-    assert "Declared feature inputs</strong>audit_reference" in escape_steps[1]
-    assert re.search(r'data-dependencies="[^"]+"', escape_steps[1])
+    followup_step = next(
+        step for step in escape_steps if "Declared feature inputs</strong>audit_reference" in step
+    )
+    assert re.search(r'data-dependencies="[^"]+"', followup_step)
 
     graph_nodes, graph_links = graph_render.graph_payload_from_cytoscape(
         spec.FeatureGraph(definition)

@@ -252,7 +252,6 @@ layout from Reproducible builds and diagnostics.
 | title | breaking | description |
 |---|---|---|
 | Add signal processing to `pump_analytics` | No | Add NumPy-based signal processing and sliding-window calculations with meaningful aggregation and bounded windows. |
-| Merge the escape example into `pump_analytics` | No | Incorporate the escape-operation demonstration into `pump_analytics` and remove the separate example project, updating links and tests. |
 
 ## Planned release: Distributed dataframe adapters
 

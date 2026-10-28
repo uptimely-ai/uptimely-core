@@ -63,12 +63,13 @@ def test_pump_entities_are_declared_in_spec_order() -> None:
     assert [declaration.id for declaration in pump_telemetry_spec.python_spec.datasets] == [
         "pump_telemetry_dataset",
         "pump_dataset",
+        "pump_external_workflow_dataset",
     ]
     assert [
         dataset.id
         for entity in pump_telemetry_spec.python_spec.entities
         for dataset in entity.datasets
-    ] == ["pump_telemetry_dataset", "pump_dataset"]
+    ] == ["pump_telemetry_dataset", "pump_dataset", "pump_external_workflow_dataset"]
 
 
 def test_argument_definition_supports_recursive_compact_types() -> None:
@@ -116,6 +117,7 @@ def test_example_manifest_parses_complete_spec() -> None:
         "write",
         "vectorize",
         "collapse",
+        "escape",
     }
     assert "maximum" not in spec_definition.functions.by_operation("vectorize")
     assert len(spec_definition.functions.by_operation("vectorize")) == 7

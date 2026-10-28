@@ -15,7 +15,7 @@ wrappers and their explicit feature dependencies in the central repository.
 Wrappers invoke the procedures, wait for required results and report failures.
 Use separate `read` mappings to load persisted outputs; side effects do not
 automatically create dataframe columns or execution dependencies. See the
-[escape example](https://github.com/uptimely-ai/uptimely-core/tree/main/examples/escape_operation).
+[uncontrolled workflow in the pump analytics example](https://github.com/uptimely-ai/uptimely-core/tree/main/examples/pump_analytics).
 
 ## Clustered
 
