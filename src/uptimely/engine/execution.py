@@ -39,7 +39,7 @@ class InvocationExecutor:
             return
 
         self.dataframe.validate_inputs(invocation)
-        return_kind = operations.OPERATION_RETURN_KINDS.get(invocation.operation)
+        return_kind = operations.KIND_RETURN_KINDS.get(invocation.operation)
         if return_kind == arg_types.DATAFRAME:
             self._execute_dataframe_mapping(invocation)
         elif return_kind == "none":

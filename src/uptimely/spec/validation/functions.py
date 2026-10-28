@@ -14,13 +14,13 @@ def validate_return_kind(
     function: spec_model.FunctionTemplate,
     dataframe_inputs: int,
 ) -> context_module.ValidationResult:
-    """Require the return kind defined by the function's operation."""
-    operation = function.operation
-    expected = operations.OPERATION_RETURN_KINDS[operation]
+    """Require the return kind defined by the function's kind."""
+    kind = function.kind
+    expected = operations.KIND_RETURN_KINDS[kind]
     if function.returns != expected:
         return errors.SpecError(
-            f"Operation {operation} must declare returns={expected}."
-            + operations.operation_hint(function.returns, dataframe_inputs),
+            f"Kind {kind} must declare returns={expected}."
+            + operations.kind_hint(function.returns, dataframe_inputs),
             code="invalid_function_return_contract",
             path=("functions", function_id, "returns"),
         )
@@ -32,14 +32,14 @@ def validate_dataframe_count(
     function: spec_model.FunctionTemplate,
     dataframe_inputs: int,
 ) -> context_module.ValidationResult:
-    """Require the dataframe argument count defined by the operation."""
-    operation = function.operation
-    expected = operations.DATAFRAME_INPUT_COUNTS[operation]
+    """Require the dataframe argument count defined by the function kind."""
+    kind = function.kind
+    expected = operations.KIND_DATAFRAME_INPUT_COUNTS[kind]
     if expected is not None and dataframe_inputs != expected:
         return errors.SpecError(
-            f"Operation {operation} requires {expected} dataframe "
+            f"Kind {kind} requires {expected} dataframe "
             f"argument(s), got {dataframe_inputs}."
-            + operations.operation_hint(function.returns, dataframe_inputs),
+            + operations.kind_hint(function.returns, dataframe_inputs),
             code="invalid_function_input_contract",
             path=("functions", function_id, "args"),
         )

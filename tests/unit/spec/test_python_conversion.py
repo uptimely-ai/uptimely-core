@@ -17,10 +17,10 @@ def _dataset(identifier: str, conflicting: bool = False) -> dataset.Dataset:
         id=identifier,
         mappings={
             ref.function(
-                _other_source if conflicting else _source, operation="read"
+                _other_source if conflicting else _source, kind="read"
             ).name: mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function(_other_source if conflicting else _source, operation="read"),
+                function=ref.function(_other_source if conflicting else _source, kind="read"),
                 arguments={"path": "readings.json", "columns": [ref.feature("temperature")]},
                 outputs=[],
                 function_id="source",
@@ -57,7 +57,7 @@ def test_auto_catalog_converts_declaration_lists_and_dicts(keyed: bool, as_entit
     assert payload["functions"] == {
         "source": {
             "description": None,
-            "operation": "read",
+            "kind": "read",
             "returns": "dataframe",
             "entrypoint": f"{__name__}:_source",
             "validate_signature": True,
@@ -101,7 +101,7 @@ def test_explicit_catalog_preserves_argument_metadata(
         root={
             "source": spec_model.FunctionTemplate(
                 id="source",
-                operation="read",
+                kind="read",
                 returns="dataframe",
                 entrypoint="custom.reader:load",
                 validate_signature=False,
@@ -128,7 +128,7 @@ def test_explicit_catalog_preserves_argument_metadata(
 
     assert payload["functions"]["source"] == {
         "description": None,
-        "operation": "read",
+        "kind": "read",
         "returns": "dataframe",
         "entrypoint": "custom.reader:load",
         "validate_signature": False,
@@ -148,7 +148,7 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
         datasets=[_dataset("readings").to_model()],
         functions={
             "configured": {
-                "operation": "read",
+                "kind": "read",
                 "returns": "dataframe",
                 "entrypoint": "reader:load",
                 "args": {"value": {"type": "object", "comment": None}},
@@ -158,7 +158,7 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
 
     assert payload["functions"]["configured"] == {
         "description": None,
-        "operation": "read",
+        "kind": "read",
         "returns": "dataframe",
         "entrypoint": "reader:load",
         "validate_signature": True,

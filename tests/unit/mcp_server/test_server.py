@@ -62,12 +62,12 @@ async def test_lists_all_tools(state: server.ServerState) -> None:
 
 
 @pytest.mark.anyio
-async def test_list_functions_returns_function_operations(state: server.ServerState) -> None:
-    """list_functions returns each function id and declared operation."""
+async def test_list_functions_returns_function_kinds(state: server.ServerState) -> None:
+    """list_functions returns each function id and declared kind."""
     payload = await _call(state, "list_functions")
     assert {
         "id": "pump_health_score",
-        "operation": "vectorize",
+        "kind": "vectorize",
         "returns": "dataframe",
     } in payload
 
@@ -76,7 +76,7 @@ async def test_list_functions_returns_function_operations(state: server.ServerSt
 async def test_describe_function_resolves_signature(state: server.ServerState) -> None:
     """describe_function returns declared args and the resolved Python signature."""
     payload = await _call(state, "describe_function", {"function_id": "pump_health_score"})
-    assert payload["operation"] == "vectorize"
+    assert payload["kind"] == "vectorize"
     assert payload["entrypoint"].endswith(":pump_health_score")
     assert payload["declared_args"]["health_features"]["type"] == "array[string]"
     assert payload["python_signature_validation"] == "enabled"
@@ -130,7 +130,7 @@ async def test_escape_function_description_reports_external_feature_boundary(
     definition = snapshot.spec.model_copy(deep=True)
     definition.functions.root["external_audit"] = spec_model.FunctionTemplate(
         id="external_audit",
-        operation="escape",
+        kind="escape",
         returns="any",
         entrypoint="examples.pump_analytics.functions.analytics:maximum",
     )
@@ -152,7 +152,7 @@ async def test_escape_function_description_reports_external_feature_boundary(
 
     assert {
         "id": "external_audit",
-        "operation": "escape",
+        "kind": "escape",
         "returns": "any",
     } in listing
     assert described["declared_returns"] == "any"

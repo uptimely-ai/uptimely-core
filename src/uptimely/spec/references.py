@@ -6,7 +6,7 @@ import typing
 
 import pydantic
 
-from . import selectors
+from . import operations, selectors
 
 if typing.TYPE_CHECKING:
     from . import model as spec_model
@@ -30,15 +30,17 @@ def iter_mapping_items(
                 yield entity_id, dataset, mapping_id, mapping
 
 
-def mapping_operation(mapping: spec_model.Mapping, catalog: spec_model.FunctionCatalog) -> str:
-    """Return the declared operation of a mapping's function."""
+def mapping_kind(
+    mapping: spec_model.Mapping, catalog: spec_model.FunctionCatalog
+) -> operations.FunctionKind:
+    """Return the declared kind of a mapping's function."""
     function = catalog.get(mapping.binding.function)
     if function is None:
         raise ValueError(
             f"Mapping {mapping.id} function {mapping.binding.function} must resolve "
             "to a declared function"
         )
-    return function.operation
+    return function.kind
 
 
 def structural_references(value: typing.Any, prefix: str) -> list[str]:

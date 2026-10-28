@@ -16,13 +16,13 @@
 		if (isFunction) {
 			const entrypoint = node.entrypoint || null;
 			const features = Array.isArray(node.features) ? node.features : [];
-			const outputLabel = node.function_type === 'escape'
+			const outputLabel = node.function_kind === 'escape'
 				? 'Declares external outputs'
 				: 'Produces';
 			const rows = [
 				['Node type', 'Function'],
 				['Function', label],
-				['Function type', node.function_type || 'n/a'],
+				['Function kind', node.function_kind || 'n/a'],
 			];
 			if (features.length) rows.push([outputLabel, formatDetailValue(features.join(', '))]);
 			if (entrypoint) rows.push(['Entrypoint', formatDetailValue(entrypoint)]);

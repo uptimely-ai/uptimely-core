@@ -325,14 +325,14 @@ def test_website_exports_all_reports_with_relative_navigation(
             raw_columns = {
                 name
                 for mapping in dataset.mappings.values()
-                if spec_definition.functions[mapping.binding.function].operation
+                if spec_definition.functions[mapping.binding.function].kind
                 in {"read", "conform", "expand"}
                 for name in mapping.output_features
             }
             external_columns = {
                 name
                 for mapping in dataset.mappings.values()
-                if spec_definition.functions[mapping.binding.function].operation == "escape"
+                if spec_definition.functions[mapping.binding.function].kind == "escape"
                 for name in mapping.output_features
             }
             for name, column in zip(expected_names, columns, strict=True):

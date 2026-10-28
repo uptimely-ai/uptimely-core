@@ -126,9 +126,9 @@ class MappingFacts:
         return frozenset(self.location.dataset.features) | self.dimensions
 
     @property
-    def operation(self) -> operations.FunctionOperation | None:
-        """Return the declared operation without requiring function resolution."""
-        return self.function.operation if self.function is not None else None
+    def kind(self) -> operations.FunctionKind | None:
+        """Return the declared kind without requiring function resolution."""
+        return self.function.kind if self.function is not None else None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -179,7 +179,7 @@ class MatchingKey:
 
 @dataclasses.dataclass(frozen=True)
 class MappingContract:
-    """Prepared dataframe and dimensional relationships for an operation."""
+    """Prepared dataframe and dimensional relationships for a function kind."""
 
     mapping: MappingFacts
     dataframe_arguments: tuple[DataframeInput, ...]
@@ -359,7 +359,7 @@ class SpecValidationContext:
         return (
             (item, feature_id, self.first_feature_owner(feature_id))
             for item in self.mappings
-            if item.operation == operations.VECTORIZE
+            if item.kind == operations.VECTORIZE
             for feature_id in item.inputs
         )
 
@@ -380,7 +380,7 @@ class SpecValidationContext:
                 ),
             )
             for item in self.mappings
-            if item.operation == operations.WRITE
+            if item.kind == operations.WRITE
         )
 
     def iter_output_datasets(
@@ -394,7 +394,7 @@ class SpecValidationContext:
             count = len(location.dataset.mappings)
             for item in self.mappings[offset : offset + count]:
                 declarations: list[tuple[str, str | None]] = []
-                if item.operation != operations.WRITE:
+                if item.kind != operations.WRITE:
                     for feature_id in item.outputs:
                         declarations.append((feature_id, producers.get(feature_id)))
                         if feature_id not in item.dimensions:
@@ -412,7 +412,7 @@ class SpecValidationContext:
         return {
             feature_id: (item.location.dataset.id, item.location.mapping_id)
             for item in self.mappings
-            if item.operation != operations.WRITE
+            if item.kind != operations.WRITE
             for feature_id in item.outputs
             if feature_id not in item.dimensions and feature_id not in self.dimension_ids
         }
@@ -426,7 +426,7 @@ class SpecValidationContext:
         """Infer all collapse source candidates once for this invocation."""
         result: list[CollapseInputs] = []
         for item in self.mappings:
-            if item.operation != operations.COLLAPSE:
+            if item.kind != operations.COLLAPSE:
                 continue
             candidates = tuple(
                 (feature_id, self.feature_owners.get(feature_id, ()))
@@ -471,7 +471,7 @@ class SpecValidationContext:
             return None
         source = (
             self.collapse_sources.get(item.location.key)
-            if item.operation == operations.COLLAPSE
+            if item.kind == operations.COLLAPSE
             else item.location.dataset_location
         )
         if source is None:
@@ -616,7 +616,7 @@ class SpecValidationContext:
 
     @functools.cached_property
     def mapping_contracts(self) -> tuple[MappingContract, ...]:
-        """Prepare dataframe relationships and ownership for operation-specific checks."""
+        """Prepare dataframe relationships and ownership for kind-specific checks."""
         return tuple(self._mapping_contract(item) for item in self.mappings)
 
     def _mapping_contract(self, item: MappingFacts) -> MappingContract:

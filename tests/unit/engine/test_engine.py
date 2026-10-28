@@ -346,7 +346,7 @@ def test_escape_ignores_any_return_without_materializing_features(
             "entities": {"asset": {"dimensions": []}},
             "functions": {
                 "external_action": {
-                    "operation": "escape",
+                    "kind": "escape",
                     "returns": "any",
                     "args": {},
                 }
@@ -410,7 +410,7 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs(
         resources={
             "entities": {"asset": {"dimensions": []}},
             "functions": {
-                function_id: {"operation": "escape", "returns": "any", "args": {}}
+                function_id: {"kind": "escape", "returns": "any", "args": {}}
                 for function_id in ("first", "second")
             },
         },
@@ -449,7 +449,7 @@ def test_escape_resolves_literal_and_runtime_arguments(monkeypatch: pytest.Monke
             "entities": {"asset": {"dimensions": []}},
             "functions": {
                 "external_action": {
-                    "operation": "escape",
+                    "kind": "escape",
                     "returns": "any",
                     "args": {
                         "path": {"type": "string"},
@@ -507,7 +507,7 @@ def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
             "entities": {"asset": {"dimensions": []}},
             "functions": {
                 function_id: {
-                    "operation": "escape",
+                    "kind": "escape",
                     "returns": "any",
                     "args": {"frame": {"type": "dataframe"}},
                 }
@@ -568,9 +568,9 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
         resources={
             "entities": {"asset": {"dimensions": ["asset_id"]}},
             "functions": {
-                "load": {"operation": "read", "returns": "dataframe", "args": {}},
+                "load": {"kind": "read", "returns": "dataframe", "args": {}},
                 "external_action": {
-                    "operation": "escape",
+                    "kind": "escape",
                     "returns": "any",
                     "args": {"dataset": {"type": "dataframe"}},
                 },
@@ -619,7 +619,7 @@ def test_escape_exception_fails_and_skips_downstream(monkeypatch: pytest.MonkeyP
         resources={
             "entities": {"asset": {"dimensions": []}},
             "functions": {
-                function_id: {"operation": "escape", "returns": "any", "args": {}}
+                function_id: {"kind": "escape", "returns": "any", "args": {}}
                 for function_id in ("first", "second")
             },
         },
@@ -664,9 +664,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
         mappings={
             "external_action": mapping.FunctionMapping(
                 inputs=[ref.feature("asset_id")],
-                function=ref.function(
-                    f"{package_name}.external_action:process", operation="escape"
-                ),
+                function=ref.function(f"{package_name}.external_action:process", kind="escape"),
                 arguments={},
                 outputs=[feature.Feature(name="external_result")],
             )
@@ -918,8 +916,8 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         resources={
             "entities": {"asset": {"dimensions": ["asset_id"]}},
             "functions": {
-                "load": {"operation": "read", "args": {}},
-                "calculate": {"operation": "vectorize", "args": {}},
+                "load": {"kind": "read", "args": {}},
+                "calculate": {"kind": "vectorize", "args": {}},
             },
         },
         invocations=[read_invocation, vectorize_invocation],

@@ -85,10 +85,10 @@ def test_argument_definition_supports_recursive_compact_types() -> None:
     }
 
 
-def test_function_catalog_functions_declare_operations() -> None:
+def test_function_catalog_functions_declare_kinds() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    operations = {function.operation for function in spec_definition.functions.root.values()}
+    operations = {function.kind for function in spec_definition.functions.root.values()}
     assert "vectorize" in operations
 
 
@@ -112,15 +112,15 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert isinstance(spec_definition, spec.Spec)
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True
-    assert {function.operation for function in spec_definition.functions.root.values()} == {
+    assert {function.kind for function in spec_definition.functions.root.values()} == {
         "read",
         "write",
         "vectorize",
         "collapse",
         "escape",
     }
-    assert "maximum" not in spec_definition.functions.by_operation("vectorize")
-    assert len(spec_definition.functions.by_operation("vectorize")) == 7
+    assert "maximum" not in spec_definition.functions.by_kind("vectorize")
+    assert len(spec_definition.functions.by_kind("vectorize")) == 7
 
     pump_dataset = spec_definition.entities["pump"].datasets["pump_dataset"]
     collapse = pump_dataset.mappings["bearing_temperature_by_pump"]
@@ -140,7 +140,7 @@ def test_spec_from_entities_python_api() -> None:
     assert spec_definition.name == pump_telemetry_spec.python_spec.name
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True
-    assert spec_definition.functions.by_operation("read")
+    assert spec_definition.functions.by_kind("read")
 
 
 def test_example_timestamp_order_matches_python_declaration() -> None:
@@ -173,7 +173,7 @@ def test_sources_and_transforms_python_spec() -> None:
                 mappings={
                     "read": python_spec.mapping.FunctionMapping(
                         inputs=[],
-                        function=python_spec.ref.function(_read_transform_data, operation="read"),
+                        function=python_spec.ref.function(_read_transform_data, kind="read"),
                         arguments={},
                         outputs=[python_spec.feature.Feature(name="input_1")],
                     )
@@ -191,13 +191,13 @@ def test_sources_and_transforms_python_spec() -> None:
                 mappings={
                     "read": python_spec.mapping.FunctionMapping(
                         inputs=[],
-                        function=python_spec.ref.function(_read_transform_data, operation="read"),
+                        function=python_spec.ref.function(_read_transform_data, kind="read"),
                         arguments={},
                         outputs=[python_spec.feature.Feature(name="target_value")],
                     ),
                     "expand_data": python_spec.mapping.FunctionMapping(
                         inputs=[python_spec.ref.feature("input_1")],
-                        function=python_spec.ref.function(expand_data, operation="expand"),
+                        function=python_spec.ref.function(expand_data, kind="expand"),
                         arguments={
                             "source": python_spec.ref.dataset("transformed_dataset").dataframe,
                         },
@@ -217,7 +217,7 @@ def test_sources_and_transforms_python_spec() -> None:
                 mappings={
                     "collapse_data": python_spec.mapping.FunctionMapping(
                         inputs=[python_spec.ref.feature("input_2")],
-                        function=python_spec.ref.function(analytics.maximum, operation="collapse"),
+                        function=python_spec.ref.function(analytics.maximum, kind="collapse"),
                         arguments={
                             "dataset": python_spec.ref.dataset("target").dataframe,
                             "feature": python_spec.ref.feature("input_2").id,
@@ -254,4 +254,4 @@ def test_sources_and_transforms_python_spec() -> None:
         "output": "$features.collapsed_feature.id",
     }
     assert collapse.output_features == ["collapsed_feature"]
-    assert spec_definition.functions["maximum"].operation == "collapse"
+    assert spec_definition.functions["maximum"].kind == "collapse"

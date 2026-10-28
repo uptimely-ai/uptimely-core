@@ -152,7 +152,7 @@ class Dataset:
                     )
                 producers[identifier] = name
                 features[identifier] = metadata.to_model()
-            if declaration.operation in {operations.READ, operations.COLLAPSE}:
+            if declaration.kind in {operations.READ, operations.COLLAPSE}:
                 for key in resolved_keys:
                     if key.id not in features:
                         features[key.id] = spec_model.Feature(

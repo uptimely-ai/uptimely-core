@@ -18,7 +18,7 @@ from uptimely.spec.python import (
     Entity,
     Feature,
     FunctionMapping,
-    operation,
+    kind,
     ref,
 )
 
@@ -26,7 +26,7 @@ pump_dimension = Dimension(id="pump", type="string")
 assets = Entity(id="assets", name="Assets", dimensions=[pump_dimension])
 
 
-@operation("collapse")
+@kind("collapse")
 def maximum(
     dataset: pl.LazyFrame, feature: str, dimensions: list[str], output: str
 ) -> pl.LazyFrame: ...
@@ -85,7 +85,7 @@ or `PythonSpec.to_dict()` so those references can be resolved.
 `Model([Pump]).to_declarations()` optionally registers dataset classes.
 
 `FunctionMapping` takes `function`, `arguments`, and `outputs`. Decorate callable
-implementations with `@operation(...)`; use `ref.function(..., operation=...)`
+implementations with `@kind(...)`; use `ref.function(..., kind=...)`
 for entrypoint strings. Implementations aren't called during authoring; assembly
 checks callable parameter names and required arguments.
 `read` functions take no dataframe arguments. `conform`, `collapse`, and
@@ -223,7 +223,7 @@ loading the Python spec:
 ```python
 ref.function(
     "other_project.functions:calculate",
-    operation="vectorize",
+    kind="vectorize",
     validate_signature=False,
 )
 ```

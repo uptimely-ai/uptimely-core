@@ -29,11 +29,11 @@ class RuntimeBindings:
         function = self.spec_definition.functions.get(invocation.function_id)
         if function is None:
             raise ValueError(f"Unknown function: {invocation.function_id}")
-        if function.operation != invocation.operation:
+        if function.kind != invocation.operation:
             raise ValueError(
                 f"Invocation {invocation.id} for mapping {invocation.mapping_id} "
                 f"operation {invocation.operation} does not match function "
-                f"{invocation.function_id} operation {function.operation}"
+                f"{invocation.function_id} kind {function.kind}"
             )
         return {
             name: self.resolve_value(

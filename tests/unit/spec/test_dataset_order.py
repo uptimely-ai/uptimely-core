@@ -237,7 +237,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
         mappings={
             "read": python_spec.mapping.FunctionMapping(
                 inputs=[],
-                function=python_spec.ref.function(_read_order_data, operation="read"),
+                function=python_spec.ref.function(_read_order_data, kind="read"),
                 arguments={},
                 outputs=[
                     python_spec.feature.Feature(name="input_1"),
@@ -247,7 +247,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
             ),
             "sum": python_spec.mapping.FunctionMapping(
                 inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
-                function=python_spec.ref.function(_sum_order_features, operation="vectorize"),
+                function=python_spec.ref.function(_sum_order_features, kind="vectorize"),
                 arguments={
                     "left_feature": python_spec.ref.feature("input_1"),
                     "right_feature": python_spec.ref.feature("input_2"),

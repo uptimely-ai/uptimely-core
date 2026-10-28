@@ -78,7 +78,7 @@ def test_validation_prepares_collapse_sources_once_per_invocation(
             before=row_context.ContextExtent(time="1h"),
         )
     expected = sum(
-        document.functions[mapping.binding.function].operation == "collapse"
+        document.functions[mapping.binding.function].kind == "collapse"
         for _, _, mapping in references.iter_mappings(document)
     )
     assert expected > 0

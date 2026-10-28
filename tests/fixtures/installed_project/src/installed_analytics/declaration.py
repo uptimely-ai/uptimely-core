@@ -25,7 +25,7 @@ class Values(Dataset):
     entity = sample
 
     read = FunctionMapping(
-        function=ref.function(functions.Readers.values, operation="read"),
+        function=ref.function(functions.Readers.values, kind="read"),
         arguments={},
         outputs=[Feature(name="value")],
     )

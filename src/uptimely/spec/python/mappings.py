@@ -14,28 +14,28 @@ from . import bind, binding_conversion, ref
 from . import feature as feature_module
 from . import row_context as row_context_module
 
-__all__ = ["FunctionMapping", "operation"]
+__all__ = ["FunctionMapping", "kind"]
 
-_OPERATION_ATTRIBUTE = "__uptimely_operation__"
+_KIND_ATTRIBUTE = "__uptimely_kind__"
 _Parameters = typing.ParamSpec("_Parameters")
 _Result = typing.TypeVar("_Result")
 _Function = abc.Callable[..., object] | str | ref.FunctionReference
 
 
-def operation(
-    value: operations.FunctionOperation,
+def kind(
+    value: operations.FunctionKind,
 ) -> abc.Callable[
     [abc.Callable[_Parameters, _Result]],
     abc.Callable[_Parameters, _Result],
 ]:
-    """Mark a callable with the operation used by its mapping."""
-    if value not in operations.FUNCTION_OPERATIONS:
-        raise ValueError(f"Unsupported function operation: {value}")
+    """Mark a callable with the kind used by its mapping."""
+    if value not in operations.FUNCTION_KINDS:
+        raise ValueError(f"Unsupported function kind: {value}")
 
     def decorate(
         function: abc.Callable[_Parameters, _Result],
     ) -> abc.Callable[_Parameters, _Result]:
-        setattr(function, _OPERATION_ATTRIBUTE, value)
+        setattr(function, _KIND_ATTRIBUTE, value)
         return function
 
     return decorate
@@ -68,7 +68,7 @@ class FunctionMapping:
 
     def __post_init__(self) -> None:
         """Validate the declaration and merge argument-level row-context annotations."""
-        _ = self.operation
+        _ = self.kind
         output_names = [output.name for output in self.outputs]
         if len(output_names) != len(set(output_names)):
             raise ValueError("Function-call output feature names must not repeat")
@@ -77,26 +77,26 @@ class FunctionMapping:
         )
 
     @property
-    def operation(self) -> operations.FunctionOperation:
-        """Return the operation declared on the function or its reference."""
+    def kind(self) -> operations.FunctionKind:
+        """Return the kind declared on the function or its reference."""
         value = (
-            self.function.operation
+            self.function.kind
             if isinstance(self.function, ref.FunctionReference)
-            else getattr(self.function, _OPERATION_ATTRIBUTE, None)
+            else getattr(self.function, _KIND_ATTRIBUTE, None)
         )
-        if value not in operations.FUNCTION_OPERATIONS:
+        if value not in operations.FUNCTION_KINDS:
             raise ValueError(
-                "Function must be annotated with @operation(...) or supplied as a "
-                "FunctionReference with operation metadata"
+                "Function must be annotated with @kind(...) or supplied as a "
+                "FunctionReference with kind metadata"
             )
-        return typing.cast(operations.FunctionOperation, value)
+        return typing.cast(operations.FunctionKind, value)
 
     @property
     def reference(self) -> ref.FunctionReference:
         """Return the normalized entrypoint without importing string references."""
         if isinstance(self.function, ref.FunctionReference):
             return self.function
-        return ref.function(self.function, operation=self.operation)
+        return ref.function(self.function, kind=self.kind)
 
     @property
     def catalog_id(self) -> str:
@@ -144,7 +144,7 @@ class FunctionMapping:
             root={
                 self.catalog_id: catalog.function_template(
                     function_id=self.catalog_id,
-                    operation=self.operation,
+                    kind=self.kind,
                     entrypoint=reference.entrypoint,
                     args=function_arguments,
                     validate_signature=reference.validate_signature,

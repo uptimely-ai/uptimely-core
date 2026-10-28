@@ -27,7 +27,7 @@ def _add_escape_mapping(
     dataset["features"].update({feature_id: {"type": "float"} for feature_id in output_features})
     arguments = {"source": {"type": "dataframe"}} if dataframe_dataset is not None else {}
     configuration["functions"][function_id] = {
-        "operation": "escape",
+        "kind": "escape",
         "returns": "any",
         "entrypoint": entrypoint,
         "args": arguments,
@@ -227,7 +227,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
     )
     definition.functions.root["conform_auxiliary"] = spec_model.FunctionTemplate(
         id="conform_auxiliary",
-        operation="conform",
+        kind="conform",
         returns="dataframe",
         entrypoint="examples.pump_analytics.functions.analytics:maximum",
         validate_signature=False,

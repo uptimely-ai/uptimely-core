@@ -43,7 +43,7 @@ def _declaration(
         mappings={
             f"{identifier}_mapping": mapping.FunctionMapping(
                 inputs=[ref.feature("temperature")] if is_dimensional else [],
-                function=ref.function(function, operation=category),
+                function=ref.function(function, kind=category),
                 arguments={
                     **(
                         {"dataset": ref.current_dataset().dataframe}
@@ -104,7 +104,7 @@ def _mapping_source(dimensions: list[dimension.Dimension]) -> entity.Entity:
                 mappings={
                     "_other_source": mapping.FunctionMapping(
                         inputs=[],
-                        function=ref.function(_other_source, operation="read"),
+                        function=ref.function(_other_source, kind="read"),
                         arguments={},
                         outputs=[feature.Feature(name="temperature")],
                     )
@@ -120,7 +120,7 @@ def _conform_source(identifier: str) -> dataset.Dataset:
         mappings={
             "_other_source": mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function(_other_source, operation="read"),
+                function=ref.function(_other_source, kind="read"),
                 arguments={},
                 outputs=[feature.Feature(name="temperature")],
             )
@@ -283,7 +283,7 @@ def test_function_catalog_keeps_distinct_functions_and_operations() -> None:
         mappings={
             "_other_source": mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function(_other_source, operation="read"),
+                function=ref.function(_other_source, kind="read"),
                 arguments={},
                 outputs=[],
             )
@@ -298,13 +298,10 @@ def test_function_catalog_keeps_distinct_functions_and_operations() -> None:
 
     catalog = spec_definition.function_catalog()
 
-    assert set(catalog.by_operation("read")) == {"read_shared", "_other_source"}
+    assert set(catalog.by_kind("read")) == {"read_shared", "_other_source"}
     assert catalog["_other_source"].entrypoint == f"{__name__}:_other_source"
-    assert set(catalog.by_operation("vectorize")) == {"vectorize_shared"}
-    assert all(
-        not catalog.by_operation(operation)
-        for operation in ("write", "collapse", "expand", "conform")
-    )
+    assert set(catalog.by_kind("vectorize")) == {"vectorize_shared"}
+    assert all(not catalog.by_kind(kind) for kind in ("write", "collapse", "expand", "conform"))
 
 
 @pytest.mark.parametrize(
@@ -343,7 +340,7 @@ def test_function_catalog_merges_and_deduplicates_each_operation(category: str) 
     payload = spec_definition.to_dict()
     assert payload["functions"][function_id] == {
         "description": None,
-        "operation": category,
+        "kind": category,
         "returns": "none" if category == "write" else "dataframe",
         "entrypoint": f"{__name__}:_source",
         "validate_signature": True,
@@ -400,7 +397,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
         mappings={
             "_source": mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function(_source, operation="read"),
+                function=ref.function(_source, kind="read"),
                 arguments={"path": "readings.json"},
                 outputs=[],
                 function_id="shared",
@@ -412,7 +409,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
         mappings={
             "_source": mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function(_source, operation="read"),
+                function=ref.function(_source, kind="read"),
                 arguments={"path": 42},
                 outputs=[],
                 function_id="shared",

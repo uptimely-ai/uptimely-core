@@ -24,7 +24,7 @@ class InvocationNode:
     dataset_id: str
     mapping_id: str
     feature_id: str | None = None
-    operation: operations.FunctionOperation = operations.VECTORIZE
+    operation: operations.FunctionKind = operations.VECTORIZE
     output_features: tuple[str, ...] = ()
     arguments: dict[str, object] = dataclasses.field(
         default_factory=dict, compare=False, hash=False
@@ -76,7 +76,7 @@ class InvocationGraph:
         for entity_id, entity in self.spec.entities.items():
             for dataset in entity.datasets.values():
                 for mapping in dataset.mappings.values():
-                    operation = bindings.mapping_operation(mapping, self.spec.functions)
+                    operation = bindings.mapping_kind(mapping, self.spec.functions)
                     feature_id = (
                         next(
                             (
@@ -106,7 +106,7 @@ class InvocationGraph:
                     nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
                     if operation == operations.WRITE:
                         dataset_sinks.setdefault(dataset.id, []).append(invocation)
-                    elif operation in operations.FRAGMENT_OPERATIONS:
+                    elif operation in operations.FRAGMENT_KINDS:
                         dataset_sources.setdefault(dataset.id, []).append(invocation)
                     elif operation == operations.VECTORIZE:
                         calculations.setdefault(dataset.id, []).append(invocation)

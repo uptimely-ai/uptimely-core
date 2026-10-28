@@ -41,7 +41,7 @@ BindingArgument = dict[str, typing.Any] | list[typing.Any] | str | int | float |
 
 
 class Binding(StrictModel):
-    """Wires an operation to a catalog function and its arguments."""
+    """Wires a catalog function to its arguments."""
 
     function: str
     args: dict[str, BindingArgument] = pydantic.Field(default_factory=dict)

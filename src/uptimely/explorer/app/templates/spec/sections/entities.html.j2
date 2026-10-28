@@ -1,6 +1,6 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
-{% macro mapping_operation(mapping, functions) -%}
-  {{- functions.get(mapping.binding.function, {}).get("operation", "") -}}
+{% macro mapping_kind(mapping, functions) -%}
+  {{- functions.get(mapping.binding.function, {}).get("kind", "") -}}
 {%- endmacro %}
 {% set total = namespace(feature_count=0) %}
 {% for entity in configuration.entities.values() %}
@@ -39,27 +39,27 @@
           <p class="border-b border-slate-800 py-3 font-mono text-xs text-slate-400">{{ ns.feature_count }} features</p>
           <div class="divide-y divide-slate-800">
           {% for mapping_id, mapping in dataset.mappings.items() %}
-            {% set operation_type = mapping_operation(mapping, configuration.functions) %}
-            {% for reference in mapping.features.outputs if operation_type != "vectorize" %}
+            {% set function_kind = mapping_kind(mapping, configuration.functions) %}
+            {% for reference in mapping.features.outputs if function_kind != "vectorize" %}
               {% set feature_id = reference.removeprefix("$features.") %}
               {% set feature = dataset.features[feature_id] %}
               <div class="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,1fr)] sm:gap-4">
                 <div>
                   <span class="font-mono text-sm text-cyan-200">{{ feature_id }}</span>
                   {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
-                  {% if operation_type == "escape" %}
+                  {% if function_kind == "escape" %}
                   <p class="mt-1 text-xs text-violet-300">Declared external output; not a verified dataframe column.</p>
                   <p class="mt-1 font-mono text-[10px] text-slate-500">Declared inputs: {{ mapping.features.inputs|join(", ") }}</p>
                   {% endif %}
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-                  <span class="font-mono text-xs {{ 'text-violet-300' if operation_type == 'escape' else 'text-slate-400' }}">{{ operation_type }} · {{ mapping_id }}</span>
+                  <span class="font-mono text-xs {{ 'text-violet-300' if function_kind == 'escape' else 'text-slate-400' }}">{{ function_kind }} · {{ mapping_id }}</span>
                   <span class="text-xs text-slate-500">{{ feature.type or "unspecified" }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>
                 </div>
               </div>
             {% endfor %}
           {% endfor %}
-          {% for mapping_id, mapping in dataset.mappings.items() if mapping_operation(mapping, configuration.functions) == "vectorize" %}
+          {% for mapping_id, mapping in dataset.mappings.items() if mapping_kind(mapping, configuration.functions) == "vectorize" %}
           {% for reference in mapping.features.outputs %}
           {% set feature_id = reference.removeprefix("$features.") %}
           {% set feature = dataset.features[feature_id] %}

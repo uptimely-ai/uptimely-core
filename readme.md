@@ -75,12 +75,12 @@ from uptimely.spec.python import (
     Feature,
     FunctionMapping,
     PythonSpec,
-    operation,
+    kind,
     ref,
 )
 
 
-@operation("read")
+@kind("read")
 def read_values() -> pl.DataFrame:
     return pl.DataFrame(
         {
@@ -90,7 +90,7 @@ def read_values() -> pl.DataFrame:
     )
 
 
-@operation("vectorize")
+@kind("vectorize")
 def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(value) * 2).alias(output))
 

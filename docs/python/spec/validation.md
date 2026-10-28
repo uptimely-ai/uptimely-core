@@ -56,7 +56,7 @@ modules separate orchestration from domain checks:
 | `functions` | Binding arguments, nested selector types, and function contracts |
 | `mapping_outputs` | Early calculation outputs, ownership, and unique producers |
 | `mapping_inputs` | Input references, collapse source scope, and row context |
-| `mapping_contracts` | Dataframe reference validity and operation-specific contracts |
+| `mapping_contracts` | Dataframe reference validity and kind-specific contracts |
 | `dependencies` | Local calculation/write scope and mapping-cycle checks |
 | `errors` | Structured validation errors |
 
@@ -91,7 +91,7 @@ temporary tuples that validation would immediately traverse once.
 Each phase checks one declaration's invariants before advancing to the next.
 Output coverage is checked after all mappings in a dataset, and declared
 features without producers generate warnings rather than errors. Dataframe
-arguments precede operation-specific relationships. Vectorize and write share
+arguments precede kind-specific relationships. Vectorize and write share
 local dataset checks; conform and expand share join-input checks.
 
 Escape mappings require explicit, nonempty feature input and output lists.

@@ -23,7 +23,7 @@ def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str)
 def _escape_configuration() -> dict:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["external_action"] = {
-        "operation": "escape",
+        "kind": "escape",
         "returns": "any",
         "entrypoint": "examples.pump_analytics.functions.analytics:maximum",
         "args": {"source": {"type": "dataframe"}},
@@ -142,7 +142,7 @@ def test_legacy_function_catalog_schemas_are_rejected(
 def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
-        "operation": "expand",
+        "kind": "expand",
         "returns": "dataframe",
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
@@ -253,7 +253,7 @@ def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_ch
         for item in context.SpecValidationContext.build(parsed_spec).mappings
         if "health_signal_normalized" in item.outputs
     )
-    assert health_signal_producer.operation == "vectorize"
+    assert health_signal_producer.kind == "vectorize"
 
 
 @pytest.mark.parametrize(
@@ -343,7 +343,7 @@ def test_python_conversion_and_json_loading_share_escape_input_validation(
         mappings={
             "escape": mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function("example:escape", operation="escape"),
+                function=ref.function("example:escape", kind="escape"),
                 arguments={},
                 outputs=[feature.Feature(name="external_result")],
             )
@@ -374,7 +374,7 @@ def test_python_conversion_and_json_loading_share_escape_input_validation(
 def test_expand_rejects_higher_dimensional_source(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
-        "operation": "expand",
+        "kind": "expand",
         "returns": "dataframe",
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
@@ -405,7 +405,7 @@ def test_expand_rejects_higher_dimensional_source(tmp_path: pathlib.Path) -> Non
 def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_telemetry"] = {
-        "operation": "conform",
+        "kind": "conform",
         "returns": "dataframe",
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
@@ -436,7 +436,7 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
 def _matching_key_configuration(key_selector: object, *, key_type: str = "array[string]") -> dict:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_with_keys"] = {
-        "operation": "conform",
+        "kind": "conform",
         "returns": "dataframe",
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "validate_signature": False,
@@ -561,7 +561,7 @@ def test_dimension_key_selector_is_not_a_dataframe_value(tmp_path: pathlib.Path)
 def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_telemetry"] = {
-        "operation": "conform",
+        "kind": "conform",
         "returns": "dataframe",
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {"source": {"type": "dataframe"}},
@@ -661,7 +661,7 @@ def test_removed_aggregation_and_wrapper_schemas_are_rejected(
         "bearing_temperature_by_pump"
     ]
     if legacy == "catalog":
-        configuration["functions"]["maximum"]["operation"] = "aggregate"
+        configuration["functions"]["maximum"]["kind"] = "aggregate"
     else:
         collapse[legacy] = {}
     path = tmp_path / "legacy.json"
@@ -691,8 +691,8 @@ def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
-        ("returns", "none", "must declare returns=dataframe.*fit operation.*write"),
-        ("args", {}, "requires 1 dataframe argument.*fit operation.*read"),
+        ("returns", "none", "must declare returns=dataframe.*fit kind.*write"),
+        ("args", {}, "requires 1 dataframe argument.*fit kind.*read"),
     ],
 )
 def test_function_contract_validates_operation_inputs_and_return(
@@ -703,7 +703,7 @@ def test_function_contract_validates_operation_inputs_and_return(
         configuration["functions"]["maximum"][field] = value
     else:
         configuration["functions"]["unmapped_vectorize"] = {
-            "operation": "vectorize",
+            "kind": "vectorize",
             "returns": "dataframe",
             "entrypoint": "examples.pump_analytics.functions.analytics:maximum",
             "args": value,
@@ -719,7 +719,7 @@ def test_function_contract_hint_never_selects_escape_implicitly(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["unmapped_vectorize"] = {
-        "operation": "vectorize",
+        "kind": "vectorize",
         "returns": "any",
         "entrypoint": "examples.pump_analytics.functions.analytics:maximum",
         "args": {"dataset": {"type": "dataframe"}},
@@ -727,7 +727,7 @@ def test_function_contract_hint_never_selects_escape_implicitly(
     path = tmp_path / "unmatched_function_contract.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="declare operation=escape explicitly"):
+    with pytest.raises(ValueError, match="declare kind=escape explicitly"):
         spec.load_spec(path)
 
 

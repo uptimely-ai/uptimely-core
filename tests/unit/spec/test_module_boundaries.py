@@ -206,7 +206,7 @@ def test_codec_preserves_function_descriptions_and_dataset_ids() -> None:
         {
             "functions": {
                 "collapse": {
-                    "operation": "collapse",
+                    "kind": "collapse",
                     "returns": "dataframe",
                     "entrypoint": "not_installed:collapse",
                     "args": {"dataset": {"type": "dataframe"}},

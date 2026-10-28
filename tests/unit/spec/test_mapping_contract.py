@@ -63,7 +63,7 @@ def _spec() -> spec.Spec:
                 mappings={
                     "read_values": mapping.FunctionMapping(
                         inputs=[],
-                        function=ref.function(read_values, operation="read"),
+                        function=ref.function(read_values, kind="read"),
                         arguments={},
                         outputs=[
                             feature.Feature(name="id", type="integer"),
@@ -72,7 +72,7 @@ def _spec() -> spec.Spec:
                     ),
                     "result": mapping.FunctionMapping(
                         inputs=[ref.feature("value")],
-                        function=ref.function(add_one, operation="vectorize"),
+                        function=ref.function(add_one, kind="vectorize"),
                         arguments={
                             "dataset": ref.current_dataset().dataframe,
                             "output": ref.feature("result").id,
@@ -81,7 +81,7 @@ def _spec() -> spec.Spec:
                     ),
                     "metadata": mapping.FunctionMapping(
                         inputs=[],
-                        function=ref.function(metadata_only, operation="vectorize"),
+                        function=ref.function(metadata_only, kind="vectorize"),
                         arguments={
                             "dataset": ref.current_dataset().dataframe,
                             "identifier": ref.feature("result").id,
@@ -246,7 +246,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     dataset["mappings"]["result"]["features"]["inputs"].append("$features.id")
     if with_sink:
         configuration["functions"]["write_ids"] = {
-            "operation": "write",
+            "kind": "write",
             "returns": "none",
             "entrypoint": f"{__name__}:write_ids",
             "args": {"dataset": {"type": "dataframe"}, "column": {"type": "string"}},
@@ -287,7 +287,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                         mappings={
                             "read_lower_grain": mapping.FunctionMapping(
                                 inputs=[],
-                                function=ref.function(read_lower_grain, operation="read"),
+                                function=ref.function(read_lower_grain, kind="read"),
                                 arguments={},
                                 outputs=[feature.Feature(name="value", type="integer")],
                             )
@@ -308,7 +308,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                         mappings={
                             "read_target_grain": mapping.FunctionMapping(
                                 inputs=[],
-                                function=ref.function(read_target_grain, operation="read"),
+                                function=ref.function(read_target_grain, kind="read"),
                                 arguments={"include_second": dataframe},
                                 outputs=[feature.Feature(name="target_value", type="integer")],
                             ),
@@ -321,7 +321,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                                 ],
                                 function=ref.function(
                                     copy_values if dataframe else dataset_identifier,
-                                    operation="expand",
+                                    kind="expand",
                                 ),
                                 arguments={
                                     "dataset": source_reference.dataframe,

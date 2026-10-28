@@ -223,7 +223,7 @@ execution engine guide.
 ## Functions
 
 A function is a logical analytical function definition bound to an implementation. Each
-function declares an operation and implementation entrypoint, plus the schema
+function declares a kind and implementation entrypoint, plus the schema
 for its arguments. A mapping binds a function to concrete arguments and feature
 inputs and outputs. When you build the project, each mapping becomes a step in
 the execution plan. The engine runs those steps using the Python
@@ -234,8 +234,8 @@ identifiers.
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
-| `operation` | string | Yes | N/A | Analytical operation performed by the function. |
-| `returns` | string | Yes | N/A | Return contract: `dataframe` for data-producing operations or `none` for `write`. |
+| `kind` | string | Yes | N/A | Function kind: `write`, `read`, `escape`, `conform`, `expand`, `collapse`, or `vectorize`. |
+| `returns` | string | Yes | N/A | Return contract: `dataframe` for data-producing kinds or `none` for `write`. |
 | `entrypoint` | string | Yes | N/A | Python import reference in `module.path:qualname` form. |
 | `validate_signature` | boolean | No | `true` | Whether compilation and documentation inspect the Python signature and check implementation return annotations. |
 | `args` | object | No | `{}` | Argument definitions keyed by argument name. |
@@ -258,7 +258,7 @@ imports the module and resolves the callable's qualified name.
 
 ```json
 "sum_features": {
-  "operation": "vectorize",
+  "kind": "vectorize",
   "returns": "dataframe",
   "entrypoint": "spec:sum_features",
   "validate_signature": false,
@@ -275,16 +275,16 @@ Python spec declarations execute during source loading. If an analytical
 implementation is unavailable in that environment, declare its entrypoint as a
 string and do not import the implementation from the spec declaration itself.
 
-Use operation-oriented function names. Mapping identifiers and feature names
+Use kind-oriented function names. Mapping identifiers and feature names
 can differ from the function identifier. Each mapping binds one function, whose
-declared operation determines its analytical role.
+declared kind determines its analytical role.
 
-### Operations
+### Function kinds
 
-Each function is labeled with exactly one operation. The function's dataframe arguments determine which datasets it consumes. The
-table defines the dataframe argument and result counts for each operation:
+Each function is labeled with exactly one kind. The function's dataframe arguments determine which datasets it consumes. The
+table defines the dataframe argument and result counts for each kind:
 
-| Operation | Dataframes in | Results out | Analytical | Dimension change | Purpose |
+| Kind | Dataframes in | Results out | Analytical | Dimension change | Purpose |
 | --- | ---: | ---: | --- | --- | --- |
 | `read` | 0 | 1 | No |  | Read external observations into a dataset. |
 | `collapse` | 1 | 1 | Yes | Down | Calculate features from a higher-dimensional foreign dataset. |
@@ -294,7 +294,7 @@ table defines the dataframe argument and result counts for each operation:
 | `write` | 1 | 0 | No |  | Persist or evaluate selected data. |
 
 Data-producing functions return tabular results. Their implementations follow
-the operation contract; analytical functions perform their calculations and
+the kind contract; analytical functions perform their calculations and
 grouping but should not perform external I/O.
 `read` takes no dataframe argument. Each of `conform`, `collapse`, and
 `expand` takes exactly one dataframe argument: its foreign/source dataset. The
@@ -302,14 +302,14 @@ target dataset is engine-owned and is not passed to these functions.
 `conform` requires the source and target to declare the same dimensions, but
 they may belong to different entities. `collapse` requires the source
 dimensions to be a strict superset of the target dimensions; `expand` requires
-them to be a strict subset. These operations return fragments for their
+them to be a strict subset. These kinds return fragments for their
 declaring (target) dataset; the engine does not pass its accumulated target
 frame to the function.
 
 ### Arguments
 
 The `args` schema must declare exactly the number of `dataframe` arguments
-listed for the function's operation. `vectorize` and `write` receive their
+listed for the function's kind. `vectorize` and `write` receive their
 target dataset as their dataframe argument. A dataframe argument represents a
 dataset input; other arguments may carry identifiers, features, or external
 resource settings. `escape` is uncontrolled and may declare any number of
@@ -507,12 +507,12 @@ Declarations must describe actual reach, not merely the window parameter.
 Document-model validation checks the Spec version, field types, required
 values, and rejects unknown fields. Semantic Spec validation checks that
 declarations fit together: references and dependencies are valid and
-unambiguous, function bindings match their argument contracts, operations obey
+unambiguous, function bindings match their argument contracts, kinds obey
 their input/output contracts, feature producers are unique, row-context
 requirements match their dimensions and ordering, and feature dependencies
 are acyclic. When a function's declared return kind and dataframe arguments
-conflict with its operation, validation suggests a matching operation where
-possible. It never changes the operation automatically; `escape` must be
+conflict with its kind, validation suggests a matching kind where
+possible. It never changes the kind automatically; `escape` must be
 declared explicitly for intentional uncontrolled work. Spec validation does
 not require escape inputs to be produced by a `read` mapping. A declared
 feature without a producing mapping triggers a warning rather than preventing
