@@ -375,8 +375,8 @@ def test_website_exports_all_reports_with_relative_navigation(
         graph_2d,
     )
     assert (
-        "ExplorerGraph.createView(graph, graphContainer, FEATURE_LAYOUT.fitPadding, '2d')"
-        in graph_script
+        "ExplorerGraph.createView(graph, graphContainer, DATASET_LAYOUT.fitPadding, "
+        "'2d', layout.bounds)" in graph_script
     )
     plan = (index.parent / "plan/invocation_lineage.html").read_text(encoding="utf-8")
     assert 'id="invocation-lineage-graph"' in plan
@@ -601,21 +601,21 @@ def test_execution_plan_pages_render_only_their_section(
         assert document.count("<header") == 1
         assert '<header class="site-topbar"' in document
         assert ">Invocation graph</h2>" not in document
-        assert ".linkDirectionalParticles(LINK_STYLE.particleCount)" in script
+        assert ".linkDirectionalParticles(LINK_ROUTE.particleCount)" in script
         assert ".linkDirectionalArrowLength(style.arrow_length)" in script
         assert ".linkDirectionalArrowRelPos(style.arrow_rel_pos)" in script
         assert 'class="details details-2d"' in document
         if is_graph:
             assert (
-                "ExplorerGraph.createView(invocationGraph, invocationGraphContainer, "
-                "STAGE_LAYOUT.fitPadding, '2d')" in script
+                "invocationGraph, invocationGraphContainer, DATASET_LAYOUT.fitPadding, "
+                "'2d', layout.bounds)" in script
             )
             assert '"label": "read_pump_telemetry"' in document
             assert '"label_lines": ["read_pump_telemetry"]' in document
-            assert ".nodeLabel(node => ExplorerGraph.tooltip(node.label))" in script
+            assert r"\ndataset: ${node.dataset_id}\nstage: ${node.stage}" in script
             assert "ExplorerGraph.drawCard(" in script
             assert "['Arguments', formatArguments(node.arguments)]" in script
-            assert "const rank = node.stage - 1" in script
+            assert "node => node.stage - 1" in script
             graph_data_match = re.search(
                 r'<script id="graph-data" type="application/json">(.*?)</script>',
                 document,
@@ -640,11 +640,11 @@ def test_execution_plan_pages_render_only_their_section(
                 node for node in graph_nodes if node["function_id"] == "normalize_health_signal"
             )
             assert normalize_node["stage"] == 3
-            assert "Stage ${stage + 1}" in script
-            assert ".onRenderFramePre(drawStageLanes)" in script
-            assert (
-                "ctx.fillRect(left, -laneHeight / 2, STAGE_LAYOUT.laneWidth, laneHeight)" in script
-            )
+            assert "['Dataset', node.dataset_id]" in script
+            assert "['Stage', node.stage]" in script
+            assert "ExplorerGraph.prepareDatasetLayout(" in script
+            assert "ExplorerGraph.drawDatasetLanes(layout, ctx, scale)" in script
+            assert "ExplorerGraph.createDatasetLinkRenderer(" in script
     assert ('id="plan-overview"' in document) == (title == "Overview")
     assert ('id="invocation-lineage-graph"' in document) == is_graph
     assert ('src="../js/invocation_lineage.js"' in document) == is_graph

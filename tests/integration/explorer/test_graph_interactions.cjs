@@ -50,6 +50,7 @@ function createGraph(dimension) {
 			return (...args) => {
 				if (!args.length) return properties.get(key);
 				properties.set(key, args[0]);
+				properties.set(`${key}Arguments`, args);
 				if (key === 'graphData') {
 					const data = args[0];
 					for (const link of data.links) {
@@ -187,6 +188,12 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		);
 		const node = graph.properties.get('graphData').nodes[1];
 		graph.properties.get('onNodeClick')(node);
+		if (filename === 'invocation_lineage.js') {
+			assert.deepEqual(
+				Array.from(element('invocation-node-details').rows.slice(0, 2), row => Array.from(row)),
+				[['Dataset', 'selected'], ['Stage', 2]],
+			);
+		}
 		assert.deepEqual(
 			[...graph.properties.get('graphData').nodes].map(graph.properties.get('nodeColor')),
 			['#2dd4bf', '#fb7185', '#ff9f43', '#46545f'],
@@ -203,13 +210,11 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		const nodes2D = graph2D.properties.get('graphData').nodes;
 		assert.deepEqual([...nodes2D].map(node => node.cardWidth), [112, 116, 112, 124]);
 		assert.ok(nodes2D.every(node => node.cardHeight === 38));
-		if (filename === 'invocation_lineage.js') {
-			assert.deepEqual([...nodes2D].map(node => node.x), [0, 360, 720, 1080]);
-			assert.ok(nodes2D.every(node => node.y === 0));
-			assert.equal(graph2D.fitCalls.at(-1)[1], 140);
-		} else {
-			assert.equal(graph2D.fitCalls.at(-1)[1], 80);
-		}
+		assert.ok(nodes2D[0].x < nodes2D[1].x && nodes2D[1].x < nodes2D[2].x);
+		assert.equal(new Set(nodes2D.map(node => node.y)).size, 4);
+		assert.deepEqual(graph2D.properties.get('centerAtArguments'),
+			[0, filename === 'invocation_lineage.js' ? -24 : 0, 600]);
+		assert.ok(graph2D.properties.get('zoom') > 0);
 		const rectangles = [];
 		const labels = [];
 		const fills = [];
@@ -272,8 +277,13 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			const activeGraph = graphs.get(dimension);
 			const fitCount = activeGraph.fitCalls.length;
 			element('reset-graph').listeners.click();
-			assert.equal(activeGraph.fitCalls.length, fitCount + 1);
-			assert.equal(activeGraph.fitCalls.at(-1)[0], 600);
+			if (dimension === '2d') {
+				assert.deepEqual(activeGraph.properties.get('centerAtArguments'),
+					[0, filename === 'invocation_lineage.js' ? -24 : 0, 600]);
+			} else {
+				assert.equal(activeGraph.fitCalls.length, fitCount + 1);
+				assert.equal(activeGraph.fitCalls.at(-1)[0], 600);
+			}
 			assert.equal(buttons[index].attributes['aria-pressed'], 'true');
 			for (const viewGraph of graphs.values()) {
 				for (const link of viewGraph.properties.get('graphData').links) {
@@ -306,4 +316,220 @@ test('shared card sizing preserves width bounds', () => {
 	assert.deepEqual(Array.from(dimensions, value => Array.from(value)), [
 		[112, 38], [116, 38], [280, 38],
 	]);
+});
+
+function datasetLayout(filename, nodes, links) {
+	const graph = createGraph('2d');
+	let view;
+	const container = createElement();
+	const elements = new Map();
+	const element = id => {
+		if (!elements.has(id)) elements.set(id, createElement());
+		return elements.get(id);
+	};
+	element('graph-data').textContent = JSON.stringify({ nodes, links });
+	element('graph-style').textContent = JSON.stringify({
+		link_color: '#8fa3b5', function_color: '#abcdef',
+		function_colors: { read: '#abcdef' },
+	});
+	const context = vm.createContext({
+		document: { getElementById: element, createElement },
+		ForceGraph: () => () => graph,
+		performance: { now: () => 1100 },
+		mountGraphViews(data, create2D) { view = create2D(container, data, () => {}); },
+	});
+	for (const script of ['graph_components.js', filename]) {
+		vm.runInContext(fs.readFileSync(path.join(scriptDirectory, script), 'utf8'), context);
+	}
+	const rectangles = [];
+	const labels = [];
+	const paths = [];
+	const canvas = {
+		save() {}, restore() {}, fill() {}, stroke() {}, closePath() {},
+		beginPath() { paths.push([]); },
+		moveTo(x, y) { paths.at(-1).push([x, y]); },
+		lineTo(x, y) { paths.at(-1).push([x, y]); },
+		arc(...values) { assert.ok(values.every(Number.isFinite)); },
+		fillRect(...values) { rectangles.push(values); },
+		fillText(...values) { labels.push(values); },
+	};
+	graph.properties.get('onRenderFramePre')(canvas, 1);
+	return {
+		graph, view, container, nodes: graph.properties.get('graphData').nodes,
+		rectangles, labels: labels.filter(label => !/^Stage \d+$/.test(label[0])),
+		stageLabels: labels.filter(label => /^Stage \d+$/.test(label[0])), paths, canvas,
+	};
+}
+
+for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
+	test(`${filename}: dataset lanes preserve global ranks and deterministic connectivity ordering`, () => {
+		const nodes = [
+			{ id: 'a', dataset_id: 'a_source', stage: 1 },
+			{ id: 'z', dataset_id: 'a_source', stage: 1 },
+			{ id: 'a_action', dataset_id: 'z_output', stage: 2 },
+			{ id: 'z_action', dataset_id: 'z_output', stage: 2 },
+			{ id: 'result', dataset_id: 'a_source', stage: 3 },
+			{ id: 'other', dataset_id: 'b_isolated', stage: 1 },
+			{ id: 'missing', stage: 1 },
+		].map(node => ({ ...node, label: node.id, function_id: node.id, function_kind: 'read' }));
+		const links = [
+			{ source: 'a', target: 'z_action' },
+			{ source: 'z', target: 'a_action' },
+			{ source: 'a_action', target: 'result' },
+			{ source: 'z_action', target: 'result' },
+		];
+		const layout = datasetLayout(filename, nodes, links);
+		assert.deepEqual(layout.labels, []);
+		const datasetOrder = ['a_source', 'z_output', 'b_isolated', 'Unassigned'];
+		const byId = new Map(layout.nodes.map(node => [node.id, node]));
+		assert.equal(byId.get('a').rank, 0);
+		assert.equal(byId.get('z_action').rank, 1);
+		assert.equal(byId.get('result').rank, 2);
+		assert.equal(byId.get('missing').x, byId.get('a').x);
+		assert.ok(byId.get('z_action').y < byId.get('a_action').y);
+		for (const link of layout.graph.properties.get('graphData').links) {
+			assert.ok(link.source.x + link.source.cardWidth / 2 < link.target.x - link.target.cardWidth / 2);
+			layout.paths.length = 0;
+			layout.graph.properties.get('linkCanvasObject')(link, layout.canvas, 1);
+			assert.ok(layout.paths[0].flat().every(Number.isFinite));
+		}
+		for (const node of layout.nodes) {
+			const laneIndex = datasetOrder.indexOf(node.dataset_id);
+			const [left, top, width, height] = layout.rectangles[laneIndex];
+			assert.ok(node.x - node.cardWidth / 2 >= left);
+			assert.ok(node.x + node.cardWidth / 2 <= left + width);
+			assert.ok(node.y - node.cardHeight / 2 > top + 36);
+			assert.ok(node.y + node.cardHeight / 2 < top + height);
+			assert.equal(node.x, node.fx);
+			assert.equal(node.y, node.fy);
+		}
+		const shuffled = datasetLayout(filename, [...nodes].reverse(), [...links].reverse());
+		assert.deepEqual(
+			[...layout.nodes].map(node => [node.id, node.x, node.y]).sort(),
+			[...shuffled.nodes].map(node => [node.id, node.x, node.y]).sort(),
+		);
+	});
+
+	test(`${filename}: long-edge routes avoid intervening cards`, () => {
+		const nodes = ['start', 'middle', 'end'].map((id, index) => ({
+			id, label: id, function_id: id, stage: index + 1, dataset_id: 'shared',
+		}));
+		const layout = datasetLayout(filename, nodes, [
+			{ source: 'start', target: 'middle' },
+			{ source: 'middle', target: 'end' },
+			{ source: 'start', target: 'end' },
+		]);
+		for (const link of layout.graph.properties.get('graphData').links) {
+			layout.paths.length = 0;
+			layout.graph.properties.get('linkCanvasObject')(link, layout.canvas, 1);
+			const route = layout.paths[0];
+			assert.ok(route.flat().every(Number.isFinite));
+			if (link.target.rank - link.source.rank === 1) {
+				assert.equal(route.length, 2);
+				continue;
+			}
+			assert.ok(route.length > 2);
+			const middle = layout.nodes.find(node => node.id === 'middle');
+			for (let index = 1; index < route.length; index++) {
+				for (let step = 0; step <= 100; step++) {
+					const t = step / 100;
+					const x = route[index - 1][0] * (1 - t) + route[index][0] * t;
+					const y = route[index - 1][1] * (1 - t) + route[index][1] * t;
+					assert.equal(
+						x > middle.x - middle.cardWidth / 2 && x < middle.x + middle.cardWidth / 2
+							&& y > middle.y - middle.cardHeight / 2 && y < middle.y + middle.cardHeight / 2,
+						false,
+					);
+				}
+			}
+		}
+	});
+
+	test(`${filename}: empty and unassigned graphs fit headers and gutters`, () => {
+		const empty = datasetLayout(filename, [], []);
+		assert.deepEqual(empty.rectangles, []);
+		empty.view.fit();
+		assert.ok(Number.isFinite(empty.graph.properties.get('zoom')));
+		const layout = datasetLayout(filename, [{
+			id: 'one', label: 'One', function_id: 'One', stage: 1,
+		}], []);
+		assert.deepEqual(layout.labels, []);
+		assert.equal(layout.nodes[0].dataset_id, 'Unassigned');
+		const [left, top, width, height] = layout.rectangles[0];
+		const assertFits = () => {
+			const zoom = layout.graph.properties.get('zoom');
+			const headerHeight = filename === 'invocation_lineage.js' ? 48 : 0;
+			assert.ok(zoom > 0);
+			assert.ok(width * zoom <= layout.container.clientWidth - 160);
+			assert.ok((height + headerHeight) * zoom <= layout.container.clientHeight - 160);
+			assert.equal(left + width / 2, 0);
+			assert.equal(top + height / 2, 0);
+		};
+		layout.graph.properties.get('onEngineStop')();
+		assertFits();
+		assert.equal(layout.graph.properties.get('centerAtArguments')[2], 0);
+		layout.view.fit();
+		assertFits();
+		assert.equal(layout.graph.properties.get('centerAtArguments')[2], 600);
+		layout.container.clientWidth = 640;
+		layout.container.clientHeight = 480;
+		layout.view.resize();
+		assertFits();
+	});
+}
+
+test('invocation lanes use execution stages, not inferred dependency depths', () => {
+	const layout = datasetLayout('invocation_lineage.js', [
+		{ id: 'first', function_id: 'same_function', dataset_id: 'a', stage: 1 },
+		{ id: 'later', function_id: 'same_function', dataset_id: 'b', stage: 4 },
+		{ id: 'last', function_id: 'last', dataset_id: 'a', stage: 7 },
+	], [
+		{ source: 'first', target: 'later' },
+		{ source: 'later', target: 'last' },
+	]);
+	assert.deepEqual([...layout.nodes].map(node => node.rank), [0, 3, 6]);
+	assert.deepEqual(layout.stageLabels.map(label => label[0]), ['Stage 1', 'Stage 4', 'Stage 7']);
+	layout.stageLabels.forEach((label, index) => {
+		assert.equal(label[1], layout.nodes[index].x);
+		assert.ok(label[2] < layout.rectangles[0][1]);
+	});
+	assert.ok(layout.nodes[0].x < layout.nodes[1].x && layout.nodes[1].x < layout.nodes[2].x);
+	for (const link of layout.graph.properties.get('graphData').links) {
+		layout.graph.properties.get('linkCanvasObject')(link, layout.canvas, 1);
+		assert.ok(layout.paths.every(route => route.flat().every(Number.isFinite)));
+	}
+});
+
+test('invocation stage columns span dataset rows and contain their cards', () => {
+	const layout = datasetLayout('invocation_lineage.js', [
+		{ id: 'a', function_id: 'a', dataset_id: 'first', stage: 1 },
+		{ id: 'b', function_id: 'long_function_name', dataset_id: 'second', stage: 1 },
+		{ id: 'c', function_id: 'c', dataset_id: 'second', stage: 2 },
+	], [{ source: 'a', target: 'c' }, { source: 'b', target: 'c' }]);
+	assert.deepEqual(layout.stageLabels.map(label => label[0]), ['Stage 1', 'Stage 2']);
+	assert.equal(layout.nodes[0].x, layout.nodes[1].x);
+	assert.notEqual(layout.nodes[0].y, layout.nodes[1].y);
+	const verticals = layout.paths.flatMap(route => {
+		const lines = [];
+		for (let index = 1; index < route.length; index += 2) {
+			if (route[index - 1][0] === route[index][0]) {
+				lines.push([route[index][0], route[index - 1][1], route[index][1]]);
+			}
+		}
+		return lines;
+	});
+	assert.equal(verticals.length, 3);
+	const boundaries = verticals.map(line => line[0]);
+	for (const node of layout.nodes) {
+		const stage = node.stage - 1;
+		assert.ok(node.x - node.cardWidth / 2 > boundaries[stage]);
+		assert.ok(node.x + node.cardWidth / 2 < boundaries[stage + 1]);
+	}
+	const [, firstTop] = layout.rectangles[0];
+	const [, lastTop, , lastHeight] = layout.rectangles[1];
+	for (const [, top, bottom] of verticals) {
+		assert.equal(top, firstTop - 48);
+		assert.equal(bottom, lastTop + lastHeight);
+	}
+	assert.equal(layout.rectangles.length, 3);
 });

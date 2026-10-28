@@ -224,7 +224,8 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "graph-hint" not in html
     assert 'id="reset-graph"' in html
     assert ">Reset graph</button>" in html
-    assert "function prepareGraphLayout(graphData)" in script
+    assert "ExplorerGraph.prepareDatasetLayout(" in script
+    assert "function prepareDatasetLayout(graphData, rankForNode, labelForNode)" in shared_script
     assert "function drawEntityLanes(ctx, globalScale)" not in script
     assert "function drawNode(node, ctx)" in script
     assert (
@@ -234,25 +235,27 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert ".nodeCanvasObject(drawNode)" in script
     assert "node.dataset_id || UNASSIGNED_DATASET" in shared_script
     assert "rankNodes" in script
-    assert "node.fx = rankOffsets.get(rank) - graphWidth / 2" in script
-    assert "(index - (nodes.length - 1) / 2) * FEATURE_LAYOUT.nodeSpacing" in script
+    assert "node.fx = rankOffsets.get(rank) - graphWidth / 2" in shared_script
+    assert "(index - (nodes.length - 1) / 2) * DATASET_LAYOUT.nodeSpacing" in shared_script
     assert "node.datasetColor = colors.get(node.dataset_id)" in shared_script
     assert "appendLegend(container, names.map(dataset =>" in shared_script
     assert "item.textContent = label" in shared_script
     assert "'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa'" in shared_script
     assert '"#b9c9d8"' in html
-    assert "function linkRoute(link)" in script
-    assert "const corners = [[bendX, start[1]], [bendX, end[1]]]" in script
-    assert "2 * inverse * t * corner[0] + t * t * after[0]" in script
+    assert "function datasetLinkRoute(link)" in shared_script
+    assert "source.routeY" in shared_script
+    assert "2 * inverse * t * corner[0] + t * t * after[0]" in shared_script
     assert ".linkCanvasObjectMode(() => 'replace')" in script
-    assert ".linkDirectionalParticles(FORCE_GRAPH_2D.particleCount)" in script
-    assert "link.flowOffset = index / Math.max(1, data.links.length)" in script
-    assert "performance.now() / LINK_ROUTE.flowDurationMs" in script
+    assert "ExplorerGraph.createDatasetLinkRenderer(data, style, highlight)" in script
+    assert ".linkDirectionalParticles(LINK_ROUTE.particleCount)" in script
+    assert "link.flowOffset = index / Math.max(1, data.links.length)" in shared_script
+    assert "performance.now() / LINK_ROUTE.flowDurationMs" in shared_script
     assert ".linkCurvature(0.18)" not in script
     assert ".linkDirectionalParticles(LINK_STYLE.particleCount)" in shared_script
     assert ".nodeColor(node => node.is_action ? functionColor : node.datasetColor)" in script
     assert (
-        "ExplorerGraph.createView(graph, graphContainer, FEATURE_LAYOUT.fitPadding, '2d')" in script
+        "ExplorerGraph.createView(graph, graphContainer, DATASET_LAYOUT.fitPadding, "
+        "'2d', layout.bounds)" in script
     )
     assert "graph.width(container.clientWidth).height(container.clientHeight)" in shared_script
     assert "health_signal_normalized" in html
