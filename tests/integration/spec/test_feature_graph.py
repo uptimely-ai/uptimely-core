@@ -167,7 +167,7 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert 'src="../js/feature_lineage.js"' in html
     assert "3d-force-graph" in html
     assert "SphereGeometry" in shared_script
-    assert "ExplorerGraph.entityNodeObject(node, node.label, style)" in script
+    assert "ExplorerGraph.datasetNodeObject(node, node.label, style)" in script
     assert "ConeGeometry" not in script
     assert "OctahedronGeometry" in script
     assert "CylinderGeometry" not in script
@@ -189,7 +189,9 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "Function</span>" in html
     for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
         assert f"{category} function</span>" not in html
-    assert "entity-legend" in html
+    assert "Datasets" in html
+    assert '<span class="legend-heading">Entities' not in html
+    assert "dataset-legend" in html
     assert "input_color" not in script
 
 
@@ -217,12 +219,12 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
         in script
     )
     assert ".nodeCanvasObject(drawNode)" in script
-    assert "data.nodes.map(node => node.entity || 'Unassigned')" in shared_script
+    assert "node.dataset_id || 'Unassigned'" in shared_script
     assert "rankNodes" in script
     assert "node.fx = rankOffsets.get(rank) - graphWidth / 2" in script
     assert "(index - (nodes.length - 1) / 2) * 70" in script
-    assert "node.entityColor = colors.get(node.entity)" in shared_script
-    assert "appendLegend(container, names.map(entity =>" in shared_script
+    assert "node.datasetColor = colors.get(node.dataset_id)" in shared_script
+    assert "appendLegend(container, names.map(dataset =>" in shared_script
     assert "item.textContent = label" in shared_script
     assert "'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa'" in shared_script
     assert '"#b9c9d8"' in html
@@ -235,15 +237,20 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "performance.now() / 2200" in script
     assert ".linkCurvature(0.18)" not in script
     assert ".linkDirectionalParticles(2)" in shared_script
-    assert ".nodeColor(node => node.is_function ? functionColor : node.entityColor)" in script
+    assert ".nodeColor(node => node.is_function ? functionColor : node.datasetColor)" in script
     assert "ExplorerGraph.createView(graph, graphContainer, 80, '2d')" in script
     assert "graph.width(container.clientWidth).height(container.clientHeight)" in shared_script
     assert "health_signal_normalized" in html
     assert '"label": "bearing_temperature_max", "tags": [], "node_type": "feature"' in html
-    assert '"is_function": false, "entity": "pump", "data_type": "float"' in html
+    assert (
+        '"is_function": false, "entity": "pump", "dataset_id": "pump_dataset", "data_type": "float"'
+    ) in html
     assert '"label": "operating_point_recommendation", "tags": [], "node_type": "feature"' in html
-    assert '"is_function": false, "entity": "pump_telemetry"' in html
-    assert 'aria-label="Feature lineage legend"' in html
+    assert (
+        '"is_function": false, "entity": "pump_telemetry", '
+        '"dataset_id": "pump_telemetry_dataset"' in html
+    )
+    assert 'aria-label="Legend"' in html
     assert "Function</span>" in html
     for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
         assert f"{category} function</span>" not in html

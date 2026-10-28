@@ -24,13 +24,14 @@ def test_graph_payload_serialization_is_stable_and_script_safe() -> None:
 
 
 def test_feature_render_data_preserves_empty_strings() -> None:
-    node = models.FeatureNode(name="reading", data_type="", entity="asset")
+    node = models.FeatureNode(name="reading", data_type="", entity="asset", dataset_id="telemetry")
 
     assert feature_lineage._node_render_data(node) == {
         "node_type": "feature",
         "is_function": False,
         "label": "reading",
         "entity": "asset",
+        "dataset_id": "telemetry",
         "data_type": "",
     }
 

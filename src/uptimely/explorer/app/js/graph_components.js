@@ -39,8 +39,15 @@ const ExplorerGraph = (() => {
 		}
 	}
 
-	function prepareEntityColors(data, container) {
-		const names = [...new Set(data.nodes.map(node => node.entity || 'Unassigned'))]
+	function humanizeDatasetName(dataset) {
+		return dataset.replaceAll('_', ' ')
+			.replace(/\b\w/g, character => character.toUpperCase());
+	}
+
+	function prepareDatasetColors(data, container) {
+		const names = [...new Set(data.nodes
+			.filter(node => !node.is_function)
+			.map(node => node.dataset_id || 'Unassigned'))]
 			.sort((a, b) => a.localeCompare(b));
 		const palette = [
 			'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa',
@@ -48,21 +55,21 @@ const ExplorerGraph = (() => {
 			'#22d3ee', '#c084fc', '#4ade80', '#f87171',
 		];
 		const colors = new Map(names.map(
-			(entity, index) => [entity, palette[index % palette.length]]
+			(dataset, index) => [dataset, palette[index % palette.length]]
 		));
-		appendLegend(container, names.map(entity => ({
-			label: entity, color: colors.get(entity),
+		appendLegend(container, names.map(dataset => ({
+			label: humanizeDatasetName(dataset), color: colors.get(dataset),
 		})));
 		for (const node of data.nodes) {
-			node.entity = node.entity || 'Unassigned';
-			node.entityColor = colors.get(node.entity);
+			node.dataset_id = node.dataset_id || 'Unassigned';
+			node.datasetColor = colors.get(node.dataset_id);
 		}
 	}
 
-	function entityNodeObject(node, text, style) {
+	function datasetNodeObject(node, text, style) {
 		const mesh = new THREE.Mesh(
 			new THREE.SphereGeometry(style.feature_node_size, 16, 12),
-			new THREE.MeshLambertMaterial({ color: node.entityColor }),
+			new THREE.MeshLambertMaterial({ color: node.datasetColor }),
 		);
 		return labeledMesh(mesh, text, style, 14);
 	}
@@ -233,7 +240,7 @@ const ExplorerGraph = (() => {
 
 	return {
 		readPayload, tooltip, showDetails, appendLegend, paintPointerArea, selectCard,
-		prepareEntityColors, entityNodeObject,
+		prepareDatasetColors, humanizeDatasetName, datasetNodeObject,
 		createDependencyHighlight, createView, create3D, labeledMesh,
 	};
 })();

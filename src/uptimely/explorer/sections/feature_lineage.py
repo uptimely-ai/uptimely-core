@@ -69,6 +69,7 @@ def _node_render_data(
             action_id=reference.action_id,
             features=list(reference.features),
             entity=reference.entity,
+            dataset_id=None,
             function_kind=(reference.function.kind if reference.function is not None else None),
             type="python_function" if reference.function is not None else None,
             entrypoint=(reference.function.entrypoint if reference.function is not None else None),
@@ -84,6 +85,7 @@ def _node_render_data(
         is_function=False,
         label=reference.name,
         entity=reference.entity,
+        dataset_id=reference.dataset_id,
         data_type=reference.data_type,
     )
 

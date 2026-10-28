@@ -1,7 +1,7 @@
 {
 	const invocationGraphData = ExplorerGraph.readPayload('graph-data');
 	const style = ExplorerGraph.readPayload('graph-style');
-	ExplorerGraph.prepareEntityColors(invocationGraphData, document.getElementById('entity-legend'));
+	ExplorerGraph.prepareDatasetColors(invocationGraphData, document.getElementById('dataset-legend'));
 	const invocationNodeDetails = document.getElementById('invocation-node-details');
 	const formatList = (values) => Array.isArray(values) && values.length ? values.join(', ') : 'none';
 	const formatArguments = (arguments_) => Object.entries(arguments_ || {})
@@ -32,12 +32,12 @@
 		const highlight = ExplorerGraph.createDependencyHighlight(invocationGraphData);
 		return ExplorerGraph.create3D(invocationGraphContainer, invocationGraphData, style, {
 			label: node => `${node.function_id}\n${node.function_kind === 'escape' ? 'declares external outputs' : 'produces'}: ${node.feature}`,
-			color: node => node.entityColor,
+			color: node => node.datasetColor,
 			onSelect: updateInvocationDetails,
 			highlight,
 			configure: graph => graph.linkDirectionalArrowLength(style.arrow_length)
 				.linkDirectionalArrowRelPos(style.arrow_rel_pos),
-			object: node => ExplorerGraph.entityNodeObject(node, node.function_id, style),
+			object: node => ExplorerGraph.datasetNodeObject(node, node.function_id, style),
 		});
 	}
 	function create2D(invocationGraphContainer, invocationGraphData, updateInvocationDetails) {

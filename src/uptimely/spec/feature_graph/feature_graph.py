@@ -199,6 +199,7 @@ class FeatureGraph(FeatureGraphBase):
             name: str,
             data_type: str | None,
             entity: str | None,
+            dataset_id: str | None = None,
             *,
             is_source_input: bool = False,
         ) -> None:
@@ -209,6 +210,11 @@ class FeatureGraph(FeatureGraphBase):
                     existing.data_type if existing and existing.data_type is not None else data_type
                 ),
                 entity=existing.entity if existing and existing.entity is not None else entity,
+                dataset_id=(
+                    existing.dataset_id
+                    if existing and existing.dataset_id is not None
+                    else dataset_id
+                ),
                 is_source_input=(
                     (existing.is_source_input if existing else False) or is_source_input
                 ),
@@ -224,6 +230,7 @@ class FeatureGraph(FeatureGraphBase):
                             name,
                             feature.type,
                             entity_id,
+                            dataset.id,
                             is_source_input=function_kind
                             not in {functions.COLLAPSE, functions.ESCAPE, functions.VECTORIZE},
                         )
@@ -257,6 +264,7 @@ class FeatureGraph(FeatureGraphBase):
                     else data_type or (metadata.data_type if metadata else None)
                 ),
                 entity=entity or (metadata.entity if metadata else None),
+                dataset_id=metadata.dataset_id if metadata else None,
                 is_input=name in dependency_names,
                 is_output=name in output_names,
                 is_source_input=metadata.is_source_input if metadata else False,

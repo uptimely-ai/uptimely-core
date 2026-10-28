@@ -80,7 +80,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		element('graph-data').textContent = JSON.stringify({
 			nodes: ['before', 'selected', 'after', 'unrelated'].map((id, index) => ({
 				id, label: id, label_lines: [id], stage: index + 1,
-				function_id: id, function_kind: 'read', entity: 'test',
+				function_id: id, function_kind: 'read', entity: 'test', dataset_id: 'test',
 			})),
 			links: [
 				{ source: 'before', target: 'selected' },
@@ -178,7 +178,11 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			assert.equal(object.children[1].text, id);
 			assert.equal(object.children[1].position.y, 14);
 		}
-		assert.equal(element('entity-legend').children[0].textContent, 'test');
+		assert.equal(element('dataset-legend').children[0].textContent, 'test');
+		assert.equal(
+			vm.runInContext("ExplorerGraph.humanizeDatasetName('pump_telemetry_dataset')", context),
+			'Pump Telemetry Dataset',
+		);
 		const node = graph.properties.get('graphData').nodes[1];
 		graph.properties.get('onNodeClick')(node);
 		assert.deepEqual(

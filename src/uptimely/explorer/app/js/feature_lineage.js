@@ -2,7 +2,7 @@
 	const data = ExplorerGraph.readPayload('graph-data');
 	const style = ExplorerGraph.readPayload('graph-style');
 	const functionColor = style.function_color;
-	ExplorerGraph.prepareEntityColors(data, document.getElementById('entity-legend'));
+	ExplorerGraph.prepareDatasetColors(data, document.getElementById('dataset-legend'));
 	const nodeDetails = document.getElementById('node-details');
 	const formatDetailValue = (value) => value == null ? 'n/a' : String(value).slice(0, 220);
 	const updateDetails = (node) => {
@@ -109,7 +109,7 @@
 		function drawNode(node, ctx) {
 			const label = node.label || node.id;
 			const isFunction = node.is_function === true;
-			const baseColor = isFunction ? functionColor : node.entityColor;
+			const baseColor = isFunction ? functionColor : node.datasetColor;
 			const color = highlight.hasSelection()
 				? highlight.isSelected(node) ? '#f8d66d'
 					: highlight.isNodeHighlighted(node) ? '#67e8f9' : '#46545f'
@@ -262,7 +262,7 @@
 			.nodeLabel(node => ExplorerGraph.tooltip(`${node.is_function ? 'function' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`))
 			.nodeRelSize(6)
 			.nodeVal(node => node.is_function ? 7 : 5)
-			.nodeColor(node => node.is_function ? functionColor : node.entityColor)
+			.nodeColor(node => node.is_function ? functionColor : node.datasetColor)
 			.nodeCanvasObjectMode(() => 'replace')
 			.nodeCanvasObject(drawNode)
 			.nodePointerAreaPaint(ExplorerGraph.paintPointerArea)
@@ -292,14 +292,14 @@
 		const highlight = ExplorerGraph.createDependencyHighlight(data);
 		return ExplorerGraph.create3D(graphContainer, data, style, {
 			label: node => `${node.is_function ? 'function' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`,
-			color: node => node.is_function ? functionColor : node.entityColor,
+			color: node => node.is_function ? functionColor : node.datasetColor,
 			onSelect: updateDetails,
 			highlight,
 			configure: graph => graph.linkDirectionalArrowLength(style.arrow_length)
 				.linkDirectionalArrowRelPos(style.arrow_rel_pos),
 			object: node => {
 				if (!node.is_function) {
-					return ExplorerGraph.entityNodeObject(node, node.label, style);
+					return ExplorerGraph.datasetNodeObject(node, node.label, style);
 				}
 				return new THREE.Mesh(
 					new THREE.OctahedronGeometry(style.function_node_size, 0),
