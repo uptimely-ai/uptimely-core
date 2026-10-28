@@ -29,14 +29,15 @@ starts the MkDocs development server.
 1. Create a branch from `main`.
 2. Make your change.
 3. Commit and push your changes. The installed pre-commit hooks run checks,
-   including the test suite when Python files are staged.
+   including pytest when Python files are staged and the Explorer JavaScript
+   tests when Explorer JavaScript or test files are staged.
 4. Open a pull request against `main`. Describe the motivation and link any
    related issue. CI must pass (lint, format, tests, coverage gate) before
    merge.
 
 The CI quality job skips the pytest hook to avoid running tests twice. The
-separate test job runs the suite with coverage; local commit hooks still run
-tests when Python files are staged.
+separate test job runs the Python suite with coverage and the Explorer
+JavaScript tests.
 
 ## Multi-agent coding
 
