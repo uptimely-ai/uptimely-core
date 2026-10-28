@@ -6,92 +6,68 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 While the version is `0.x`, minor releases may include breaking changes.
 
-## [Unreleased]
+## [0.8.0] - 2026-10-28
 
 ### Added
 
-- Author workflows with `import uptimely as up`: `up.Dataset`, `up.Action`,
-  `up.Feature`, `up.Order`, `up.RowScope`, `up.Spec`, and `@up.function`.
-  The pump analytics example imports these classes and helpers directly from
-  `uptimely`, keeping reference wiring under `ref`.
-  Use `up.ref.dataframe()`
-  (optionally with a dataset ID), `up.ref.column(name)`, and
-  `up.ref.output(name)` for deferred argument wiring. Output references validate
-  membership in the containing action's declared outputs without adding input
-  dependencies. Existing reference helpers remain supported.
+- Added a public Python authoring API through `import uptimely as up`, including
+  `Dataset`, `Action`, `Feature`, `Order`, `RowScope`, `Spec`, `@up.function`,
+  and deferred references such as `up.ref.column()` and `up.ref.output()`.
+- Added `conform`, `collapse`, and `expand` function kinds for dimensional
+  operations, with explicit dimension-key selectors and matching-key validation.
+- Added entrypoint package provenance to compiled plans, including installed
+  distribution names and versions, and improved support for resolving functions
+  from installed packages.
+- Added a pump analytics external-workflow example and expanded documentation
+  for dimensional modeling, execution architecture, and analytical function
+  contracts.
 
 ### Changed
 
-- Group Explorer's 2D feature and invocation lineage into dataset
-  swimlanes, preserving global dependency/stage ordering and cross-dataset
-  highlighting, with connectivity-based node ordering and gutter routing for
-  long dependencies. Invocation cards use dataset colors matching feature
-  lineage and the dataset legend, and show their
-  dataset and execution stage in the details panel. Invocation lineage combines
-  dataset rows with labeled, shaded plan-stage columns. Dataset names remain in
-  the legend and node details rather than on swimlane rows.
-
-- **Breaking:** Removed obsolete import aliases. Python authoring uses
-  `uptimely.Spec` or `uptimely.spec.python.Spec`, not `PythonSpec`. Import
-  authoring modules from `uptimely.spec.python`, row context from
-  `uptimely.row_context`, and execution-plan models from
-  `uptimely.execution_plan`, not `uptimely.compiler`. Project path conventions
-  live in `uptimely.project_paths`; the `uptimely.project.paths` forwarding
-  module is removed, while `uptimely.project` convenience exports remain.
-  CLI helpers live in their command modules, not `uptimely.cli.cli`.
-  Function-kind vocabulary lives in `uptimely.spec.functions`; removed its
-  duplicate model exports and the unused legacy `FUNCTION_TYPES` constant.
-
-- **Breaking:** Root-level `uptimely.Spec`, `uptimely.Dimension`, and
-  `uptimely.Entity` now expose Python authoring declarations.
-  Import document-model classes from `uptimely.spec` or `uptimely.spec.model`.
-
-- **Breaking:** Python datasets now declare `producers`, `publishers`, and
-  `pipelines` lists of `Action` objects instead of named `FunctionMapping`
-  attributes or a `mappings` dictionary. Actions require an explicit dataset-unique
-  `id`; collections validate function kinds and follow normal Python replacement
-  inheritance. Import `Action` from `uptimely.spec.python` or its `actions` module.
-  Spec version 3 uses an `actions` object in each dataset instead of `mappings`;
-  rename that key and set `spec_version` to `3` when migrating version 2 documents.
-
-- **Breaking:** Function definitions now use `kind` instead of `operation`.
-  Python authoring uses the optional `@function(kind=...)` decorator from
-  `uptimely.spec.python` (defined in its `functions` module), replacing `@kind(...)`.
-  Undecorated implementations use `ref.function(..., kind=...)`. Callable
-  references inherit decorated kinds and reject conflicting explicit kinds.
-
-- **Breaking:** Python authoring `Spec` requires explicit `dimensions`, `entities`, and
-  `datasets` sequences instead of inferring registrations. Dataset entities may
-  reference registered entities by ID or object, and entity dimensions may mix
-  registered dimension IDs and objects. Undeclared references and duplicate
-  registrations are rejected.
-
-- **Breaking:** `read` functions take no dataframe arguments; `conform`,
+- **Breaking:** Python authoring now requires explicit `dimensions`, `entities`,
+  and `datasets` registrations. Datasets declare `producers`, `publishers`, and
+  `pipelines` as lists of `Action` objects with dataset-unique IDs, replacing
+  `FunctionMapping` attributes and the `mappings` dictionary. Function
+  definitions use `kind` instead of `operation`; migrate decorators and
+  `ref.function(...)` calls to `@function(kind=...)` and `kind=...`.
+- **Breaking:** Spec version 3 replaces each dataset's `mappings` object with
+  `actions`. Version 1 and 2 Specs are rejected; migrate JSON Specs and rebuild
+  generated bundles.
+- **Breaking:** Function dataframe contracts now distinguish dimensional
+  operations: `read` functions take no dataframe arguments, while `conform`,
   `collapse`, and `expand` take only their foreign/source dataframe and return
-  target-dataset fragments. Dimensional operations declare matching dimension
-  keys explicitly. Same-dataset fragments are validated and assembled by
-  complete keys with a full outer join, preserving partial coverage and
-  rejecting duplicate keys and feature collisions. The built-in runtime
-  supports Polars `DataFrame` and `LazyFrame` only.
+  target-dataset fragments. Dimensional functions must satisfy their declared
+  dimension relationship and key selectors. Same-dataset fragments are
+  validated and assembled by complete keys; the built-in runtime supports
+  Polars `DataFrame` and `LazyFrame`.
+- **Breaking:** Portable plans now use version 3 and represent planned steps as
+  `invocations` with explicit function and action IDs and opaque invocation
+  identifiers. Version 1 and 2 plans are rejected; rebuild bundles from their
+  source Specs. Plan models and serialization are provided by
+  `uptimely.execution_plan`.
+- **Breaking:** Removed obsolete import aliases. Python authoring declarations
+  are exposed from `uptimely` or `uptimely.spec.python`; document-model classes
+  are imported from `uptimely.spec` or `uptimely.spec.model`. Row context,
+  execution-plan models, project paths, CLI helpers, and function-kind
+  vocabulary now live in their respective modules rather than the old forwarding
+  modules and compiler exports.
+- Explorer feature and invocation lineage now support dataset swimlanes in 2D,
+  with cross-dataset dependency routing, dataset-based colors, stage columns,
+  and selected-node dependency highlighting. Navigation is responsive on mobile,
+  and graph details and controls are consistent across views.
+- Execution plans no longer duplicate Spec-derived entities, functions, and
+  datasets in `resources`; the build bundle's Spec is their source. Execution
+  results expose invocation statuses.
 
-- Spec validation now suggests a matching function kind when a function's
-  declared return kind or dataframe argument count conflicts with its kind. It
-  never changes the function kind automatically.
-- Spec validation warns about declared features with no producing mapping
-  instead of rejecting the Spec, and allows escape dependencies on features
-  produced by any function kind.
-- Documented the purity contract for analytical calculations and added an
-  example test that verifies a calculation leaves its input unchanged.
-- **Breaking:** Execution plans now use `invocations` with explicit `function_id`
-  and `mapping_id` fields, opaque invocation IDs, and version 3. Invocation
-  function categories are named `function_kind`. Execution results expose
-  `invocation_statuses`. Version 1 and 2 plans are rejected; rebuild generated
-  bundles from their source Specs.
-- **Breaking:** Removed the unused `CallableNode.to_render_data()`,
-  `CallableGraph._node_data()`, `CallableGraph._node_key()`,
-  `CallableGraph.print_graph()`, and `CallableGraph.print()` presentation
-  helpers. For textual output from an existing callable graph, use
-  `graphable.views.texttree.create_topology_tree_txt(graph.graph)`.
+### Fixed
+
+- Spec validation now suggests a matching function kind for incompatible
+  function signatures, warns instead of failing when declared features have no
+  producer, and allows escape dependencies on features produced by any function
+  kind.
+- Engine execution validates foreign dataframe inputs and safely assembles
+  same-dataset fragments while rejecting duplicate keys and feature collisions.
+
 
 ## [0.7.0] - 2026-10-23
 
