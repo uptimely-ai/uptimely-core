@@ -174,7 +174,9 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			assert.deepEqual(object.geometry.parameters, {
 				radius: 5, widthSegments: 16, heightSegments: 12,
 			});
-			assert.equal(object.material.color.value, '#ff9f43');
+			assert.equal(object.material.color.value, {
+				before: '#2dd4bf', selected: '#fb7185', after: '#ff9f43', unrelated: '#a78bfa',
+			}[id]);
 			assert.equal(object.children[1].text, id);
 			assert.equal(object.children[1].position.y, 14);
 		}
@@ -187,24 +189,66 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		graph.properties.get('onNodeClick')(node);
 		assert.deepEqual(
 			[...graph.properties.get('graphData').nodes].map(graph.properties.get('nodeColor')),
-			['#ff9f43', '#2dd4bf', '#fb7185', '#46545f'],
+			['#2dd4bf', '#fb7185', '#ff9f43', '#46545f'],
 		);
 		assert.deepEqual(
 			[...graph.objects.values()].map(object => object.material.color.value),
-			['#ff9f43', '#2dd4bf', '#fb7185', '#46545f'],
+			['#2dd4bf', '#fb7185', '#ff9f43', '#46545f'],
 		);
 		for (const link of graph.properties.get('graphData').links) {
 			assert.equal(graph.properties.get('linkColor')(link), '#67e8f9');
 			assert.equal(graph.properties.get('linkWidth')(link), 1.5);
 		}
 		const graph2D = graphs.get('2d');
+		const nodes2D = graph2D.properties.get('graphData').nodes;
+		assert.deepEqual([...nodes2D].map(node => node.cardWidth), [112, 116, 112, 124]);
+		assert.ok(nodes2D.every(node => node.cardHeight === 38));
+		if (filename === 'invocation_lineage.js') {
+			assert.deepEqual([...nodes2D].map(node => node.x), [0, 360, 720, 1080]);
+			assert.ok(nodes2D.every(node => node.y === 0));
+			assert.equal(graph2D.fitCalls.at(-1)[1], 140);
+		} else {
+			assert.equal(graph2D.fitCalls.at(-1)[1], 80);
+		}
+		const rectangles = [];
+		const labels = [];
+		const fills = [];
+		const strokes = [];
+		const canvas = {
+			save() {}, restore() {}, beginPath() {},
+			roundRect(...args) { rectangles.push(args); },
+			fill() { fills.push(this.fillStyle); },
+			stroke() { strokes.push([this.strokeStyle, this.lineWidth]); },
+			fillText(...args) { labels.push([...args, this.fillStyle, this.font]); },
+		};
+		const selected2D = nodes2D[1];
+		graph2D.properties.get('nodeCanvasObject')(selected2D, canvas);
+		const left = selected2D.x - selected2D.cardWidth / 2;
+		assert.deepEqual(rectangles[0], [left, selected2D.y - 19, 116, 38, 12]);
+		assert.deepEqual(rectangles[1], filename === 'invocation_lineage.js'
+			? [left + 12, selected2D.y - 6, 12, 12, 3]
+			: [left + 13, selected2D.y - 9, 4, 18, 2]);
+		const selectedColor = filename === 'invocation_lineage.js' ? '#abcdef' : '#fb7185';
+		assert.deepEqual(strokes, [[selectedColor, 3]]);
+		assert.deepEqual(fills, [
+			filename === 'invocation_lineage.js' ? '#1a2732' : '#172a35', selectedColor,
+		]);
+		assert.deepEqual(labels, [[
+			'selected', left + 34, selected2D.y, 70, '#e8edf2', '600 12px "DM Sans", sans-serif',
+		]]);
+		rectangles.length = labels.length = fills.length = strokes.length = 0;
+		graph2D.properties.get('nodeCanvasObject')(nodes2D[3], canvas);
+		assert.deepEqual(strokes, [['#46545f', 1.5]]);
+		assert.deepEqual(fills, ['#121c24', '#46545f']);
+		assert.equal(labels[0][4], 'rgba(232, 237, 242, .3)');
 		for (const link of graph2D.properties.get('graphData').links) {
 			assert.equal(graph2D.properties.get('linkColor')(link), '#67e8f9');
 		}
+
 		buttons[0].listeners.click();
 		assert.equal(buttons[0].attributes['aria-pressed'], 'true');
 		buttons[1].listeners.click();
-		assert.equal(graph.objects.get('selected').material.color.value, '#2dd4bf');
+		assert.equal(graph.objects.get('selected').material.color.value, '#fb7185');
 		graph.properties.get('onNodeClick')(graph.properties.get('graphData').nodes[3]);
 		assert.deepEqual(
 			[...graph.objects.values()].map(object => object.material.color.value),
@@ -230,8 +274,8 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 				}
 			}
 			assert.ok([...graph.objects.values()].every(object => object.scale.value === undefined));
-			assert.ok([...graph.objects.values()].every(
-				object => object.material.color.value === '#ff9f43'));
+			assert.deepEqual([...graph.objects.values()].map(object => object.material.color.value),
+				['#2dd4bf', '#fb7185', '#ff9f43', '#a78bfa']);
 			const details = element(filename === 'feature_lineage.js'
 				? 'node-details' : 'invocation-node-details');
 			assert.equal(details.rows.length, 0);
@@ -240,3 +284,18 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		}
 	});
 }
+
+test('shared card sizing preserves width bounds', () => {
+	const context = vm.createContext({});
+	vm.runInContext(fs.readFileSync(path.join(scriptDirectory, 'graph_components.js'), 'utf8'), context);
+	const dimensions = vm.runInContext(`
+		['a', 'selected', 'x'.repeat(100)].map(label => {
+			const node = {};
+			ExplorerGraph.sizeCard(node, label);
+			return [node.cardWidth, node.cardHeight];
+		});
+	`, context);
+	assert.deepEqual(Array.from(dimensions, value => Array.from(value)), [
+		[112, 38], [116, 38], [280, 38],
+	]);
+});

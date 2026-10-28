@@ -1,4 +1,7 @@
 (() => {
+  const PLAYBACK_INTERVAL_MS = 1200;
+  const REDUCED_MOTION_PLAYBACK_INTERVAL_MS = 1800;
+  const GROUPING_PHASE = 2;
   const board = document.getElementById("data-lineage-board");
   if (!board) return;
   const steps = Array.from(board.querySelectorAll(".data-lineage-step"));
@@ -46,10 +49,10 @@
     const completed = phase > sequence.length;
     const input = step.querySelector('table[data-side="input"]');
     if (input) {
-      input.classList.toggle("data-lineage-grouped", phase >= 2 && step.dataset.functionKind === "collapse" && !completed);
+      input.classList.toggle("data-lineage-grouped", phase >= GROUPING_PHASE && step.dataset.functionKind === "collapse" && !completed);
       input.querySelectorAll("[data-role]").forEach(cell => {
         cell.classList.toggle("data-lineage-input-active", phase > 0 && !completed && cell.dataset.role === "Input");
-        cell.classList.toggle("data-lineage-group-key", phase >= 2 && !completed
+        cell.classList.toggle("data-lineage-group-key", phase >= GROUPING_PHASE && !completed
           && step.dataset.functionKind === "collapse" && cell.dataset.role === "Dimension");
       });
     }
@@ -150,7 +153,7 @@
       }
       render();
       schedule();
-    }, reducedMotion.matches ? 1800 : 1200);
+    }, reducedMotion.matches ? REDUCED_MOTION_PLAYBACK_INTERVAL_MS : PLAYBACK_INTERVAL_MS);
   }
   function show(number) {
     pause();

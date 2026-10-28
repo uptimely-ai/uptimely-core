@@ -219,10 +219,10 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
         in script
     )
     assert ".nodeCanvasObject(drawNode)" in script
-    assert "node.dataset_id || 'Unassigned'" in shared_script
+    assert "node.dataset_id || UNASSIGNED_DATASET" in shared_script
     assert "rankNodes" in script
     assert "node.fx = rankOffsets.get(rank) - graphWidth / 2" in script
-    assert "(index - (nodes.length - 1) / 2) * 70" in script
+    assert "(index - (nodes.length - 1) / 2) * FEATURE_LAYOUT.nodeSpacing" in script
     assert "node.datasetColor = colors.get(node.dataset_id)" in shared_script
     assert "appendLegend(container, names.map(dataset =>" in shared_script
     assert "item.textContent = label" in shared_script
@@ -232,13 +232,15 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "const corners = [[bendX, start[1]], [bendX, end[1]]]" in script
     assert "2 * inverse * t * corner[0] + t * t * after[0]" in script
     assert ".linkCanvasObjectMode(() => 'replace')" in script
-    assert ".linkDirectionalParticles(1)" in script
+    assert ".linkDirectionalParticles(FORCE_GRAPH_2D.particleCount)" in script
     assert "link.flowOffset = index / Math.max(1, data.links.length)" in script
-    assert "performance.now() / 2200" in script
+    assert "performance.now() / LINK_ROUTE.flowDurationMs" in script
     assert ".linkCurvature(0.18)" not in script
-    assert ".linkDirectionalParticles(2)" in shared_script
+    assert ".linkDirectionalParticles(LINK_STYLE.particleCount)" in shared_script
     assert ".nodeColor(node => node.is_function ? functionColor : node.datasetColor)" in script
-    assert "ExplorerGraph.createView(graph, graphContainer, 80, '2d')" in script
+    assert (
+        "ExplorerGraph.createView(graph, graphContainer, FEATURE_LAYOUT.fitPadding, '2d')" in script
+    )
     assert "graph.width(container.clientWidth).height(container.clientHeight)" in shared_script
     assert "health_signal_normalized" in html
     assert '"label": "bearing_temperature_max", "tags": [], "node_type": "feature"' in html
