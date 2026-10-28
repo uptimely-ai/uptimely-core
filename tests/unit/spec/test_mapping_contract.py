@@ -8,7 +8,7 @@ from conftest import engine_for_plan
 from uptimely import compiler, spec
 from uptimely.engine import bindings as bindings_module
 from uptimely.engine import state as state_module
-from uptimely.spec.python import dataset, dimension, entity, feature, mapping, ref
+from uptimely.spec.python import actions, dataset, dimension, entity, feature, ref
 
 
 def read_values() -> pl.DataFrame:
@@ -60,8 +60,9 @@ def _spec() -> spec.Spec:
         datasets=[
             dataset.Dataset(
                 id="observations",
-                mappings={
-                    "read_values": mapping.FunctionMapping(
+                producers=[
+                    actions.Action(
+                        id="read_values",
                         inputs=[],
                         function=ref.function(read_values, kind="read"),
                         arguments={},
@@ -70,7 +71,8 @@ def _spec() -> spec.Spec:
                             feature.Feature(name="value", type="integer"),
                         ],
                     ),
-                    "result": mapping.FunctionMapping(
+                    actions.Action(
+                        id="result",
                         inputs=[ref.feature("value")],
                         function=ref.function(add_one, kind="vectorize"),
                         arguments={
@@ -79,7 +81,8 @@ def _spec() -> spec.Spec:
                         },
                         outputs=[feature.Feature(name="result", type="integer")],
                     ),
-                    "metadata": mapping.FunctionMapping(
+                    actions.Action(
+                        id="metadata",
                         inputs=[],
                         function=ref.function(metadata_only, kind="vectorize"),
                         arguments={
@@ -88,7 +91,7 @@ def _spec() -> spec.Spec:
                         },
                         outputs=[feature.Feature(name="metadata", type="integer")],
                     ),
-                },
+                ],
             )
         ],
         dimensions=[dimension.Dimension(id="id", type="integer")],
@@ -284,14 +287,15 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                 datasets=[
                     dataset.Dataset(
                         id="source",
-                        mappings={
-                            "read_lower_grain": mapping.FunctionMapping(
+                        producers=[
+                            actions.Action(
+                                id="read_lower_grain",
                                 inputs=[],
                                 function=ref.function(read_lower_grain, kind="read"),
                                 arguments={},
                                 outputs=[feature.Feature(name="value", type="integer")],
                             )
-                        },
+                        ],
                     )
                 ],
             ),
@@ -305,14 +309,16 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                 datasets=[
                     dataset.Dataset(
                         id="target",
-                        mappings={
-                            "read_target_grain": mapping.FunctionMapping(
+                        producers=[
+                            actions.Action(
+                                id="read_target_grain",
                                 inputs=[],
                                 function=ref.function(read_target_grain, kind="read"),
                                 arguments={"include_second": dataframe},
                                 outputs=[feature.Feature(name="target_value", type="integer")],
                             ),
-                            "copied": mapping.FunctionMapping(
+                            actions.Action(
+                                id="copied",
                                 inputs=[ref.feature("value")],
                                 outputs=[
                                     feature.Feature(
@@ -329,7 +335,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                                     **({} if dataframe else {"identifier": source_reference.id}),
                                 },
                             ),
-                        },
+                        ],
                     )
                 ],
             ),

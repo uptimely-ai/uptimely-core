@@ -11,9 +11,8 @@ from uptimely.spec import catalog as function_catalog
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 
+from . import actions, ref
 from . import dimension as dimension_module
-from . import ref
-from .mappings import FunctionMapping
 
 if TYPE_CHECKING:
     from .entity import Entity
@@ -24,6 +23,18 @@ __all__ = [
     "Order",
     "RowScope",
 ]
+
+_ACTION_KINDS: typing.Final[dict[str, tuple[functions.FunctionKind, ...]]] = {
+    "producers": (
+        functions.READ,
+        functions.COLLAPSE,
+        functions.CONFORM,
+        functions.EXPAND,
+        functions.VECTORIZE,
+    ),
+    "publishers": (functions.WRITE,),
+    "pipelines": (functions.ESCAPE,),
+}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -69,11 +80,11 @@ class Order:
 
 
 class Dataset:
-    """Observation scope with named, declarative mapping attributes.
+    """Observation scope with declarative producers, publishers, and pipelines.
 
-    Subclass this declaration for hand-written models, or supply an ID-keyed
-    mapping dictionary to the constructor for programmatic construction.
-    Feature metadata belongs to each mapping's outputs, not a separate inventory.
+    Each collection contains Actions with IDs unique across the dataset.
+    Subclasses inherit collections normally; assigning a collection replaces it.
+    Feature metadata belongs to each action's outputs, not a separate inventory.
     """
 
     id: str
@@ -82,12 +93,17 @@ class Dataset:
     keys: tuple[dimension_module.Dimension, ...] = ()
     row_scope = RowScope()
     order: abc.Sequence[Order] = ()
+    producers: abc.Sequence[actions.Action] = ()
+    publishers: abc.Sequence[actions.Action] = ()
+    pipelines: abc.Sequence[actions.Action] = ()
 
     def __init__(
         self,
         *,
         id: str | None = None,
-        mappings: abc.Mapping[str, FunctionMapping] | None = None,
+        producers: abc.Sequence[actions.Action] | None = None,
+        publishers: abc.Sequence[actions.Action] | None = None,
+        pipelines: abc.Sequence[actions.Action] | None = None,
         description: str | None = None,
         entity: str | Entity | None = None,
         keys: tuple[dimension_module.Dimension, ...] | None = None,
@@ -108,21 +124,39 @@ class Dataset:
             self.row_scope = row_scope
         if order is not None:
             self.order = tuple(order)
-        self._mappings = dict(mappings) if mappings is not None else None
+        for collection, declarations in (
+            ("producers", producers),
+            ("publishers", publishers),
+            ("pipelines", pipelines),
+        ):
+            supplied = declarations if declarations is not None else getattr(self, collection)
+            if not isinstance(supplied, abc.Sequence) or isinstance(supplied, (str, bytes)):
+                raise TypeError(f"Dataset '{self.id}' {collection} must be a sequence of Actions")
+            setattr(self, collection, list(supplied))
+        self._collect_actions()
 
-    @property
-    def mappings(self) -> dict[str, FunctionMapping]:
-        """Collect named mappings, preserving inheritance and override order."""
-        if self._mappings is not None:
-            return self._mappings.copy()
-        attributes: dict[str, object] = {}
-        for base in reversed(type(self).__mro__):
-            attributes.update(vars(base))
-        return {
-            name: declaration
-            for name, declaration in attributes.items()
-            if isinstance(declaration, FunctionMapping)
-        }
+    def _collect_actions(self) -> dict[str, actions.Action]:
+        """Validate collection roles and collect actions without overwriting IDs."""
+        collected: dict[str, actions.Action] = {}
+        for collection, kinds in _ACTION_KINDS.items():
+            declarations = getattr(self, collection)
+            if not isinstance(declarations, abc.Sequence) or isinstance(declarations, (str, bytes)):
+                raise TypeError(f"Dataset '{self.id}' {collection} must be a sequence of Actions")
+            for declaration in declarations:
+                if not isinstance(declaration, actions.Action):
+                    raise TypeError(f"Dataset '{self.id}' {collection} must contain Actions")
+                if declaration.kind not in kinds:
+                    raise ValueError(
+                        f"Dataset '{self.id}', action '{declaration.id}': "
+                        f"kind '{declaration.kind}' is not allowed in {collection}; "
+                        f"expected {', '.join(kinds)}"
+                    )
+                if declaration.id in collected:
+                    raise ValueError(
+                        f"Dataset '{self.id}' has duplicate action ID '{declaration.id}'"
+                    )
+                collected[declaration.id] = declaration
+        return collected
 
     def to_model(self) -> spec_model.Dataset:
         """Build the canonical dataset, rejecting duplicate feature producers."""
@@ -141,7 +175,7 @@ class Dataset:
             if not isinstance(key, dimension_module.Dimension):
                 raise TypeError("dataset dimensions must contain Dimension declarations")
             resolved_keys.append(key)
-        for name, declaration in self.mappings.items():
+        for name, declaration in self._collect_actions().items():
             model = self._mapping_model(name, declaration)
             for metadata in declaration.outputs:
                 identifier = metadata.name
@@ -174,18 +208,18 @@ class Dataset:
             mappings=mappings,
         )
 
-    def _mapping_model(self, name: str, declaration: FunctionMapping) -> spec_model.Mapping:
+    def _mapping_model(self, name: str, declaration: actions.Action) -> spec_model.Mapping:
         try:
-            return declaration.to_model(name)
+            return declaration.to_model()
         except TypeError as error:
-            raise TypeError(f"Dataset '{self.id}', mapping '{name}': {error}") from error
+            raise TypeError(f"Dataset '{self.id}', action '{name}': {error}") from error
         except ValueError as error:
-            raise ValueError(f"Dataset '{self.id}', mapping '{name}': {error}") from error
+            raise ValueError(f"Dataset '{self.id}', action '{name}': {error}") from error
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Collect reusable function contracts without executing implementations."""
         catalogs: list[spec_model.FunctionCatalog] = []
-        for name, declaration in self.mappings.items():
+        for name, declaration in self._collect_actions().items():
             self._mapping_model(name, declaration)
             catalogs.append(declaration.function_catalog())
         return spec_model.FunctionCatalog(root=function_catalog.merge_function_catalogs(catalogs))

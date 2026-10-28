@@ -1,3 +1,4 @@
+import dataclasses
 from collections import abc
 
 import pytest
@@ -5,12 +6,12 @@ import pytest
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import (
     PythonSpec,
+    actions,
     conversion,
     dataset,
     dimension,
     entity,
     feature,
-    mapping,
     ref,
 )
 
@@ -38,33 +39,37 @@ def _declaration(
 ) -> dataset.Dataset:
     is_expand = category == "expand"
     is_dimensional = category in {"conform", "expand"}
+    declarations = [
+        actions.Action(
+            id=f"{identifier}_mapping",
+            inputs=[ref.feature("temperature")] if is_dimensional else [],
+            function=ref.function(function, kind=category),
+            arguments={
+                **(
+                    {"dataset": ref.current_dataset().dataframe}
+                    if category in {"write", "vectorize", "collapse"}
+                    else {}
+                ),
+                **(
+                    {
+                        "dataset": ref.dataset(
+                            "shared_source" if is_expand else f"{identifier}_source"
+                        ).dataframe,
+                    }
+                    if is_dimensional
+                    else {}
+                ),
+                "columns": [ref.feature("temperature")],
+            },
+            outputs=[],
+            function_id=f"{category}_shared",
+        )
+    ]
     return dataset.Dataset(
         id=identifier,
-        mappings={
-            f"{identifier}_mapping": mapping.FunctionMapping(
-                inputs=[ref.feature("temperature")] if is_dimensional else [],
-                function=ref.function(function, kind=category),
-                arguments={
-                    **(
-                        {"dataset": ref.current_dataset().dataframe}
-                        if category in {"write", "vectorize", "collapse"}
-                        else {}
-                    ),
-                    **(
-                        {
-                            "dataset": ref.dataset(
-                                "shared_source" if is_expand else f"{identifier}_source"
-                            ).dataframe,
-                        }
-                        if is_dimensional
-                        else {}
-                    ),
-                    "columns": [ref.feature("temperature")],
-                },
-                outputs=[],
-                function_id=f"{category}_shared",
-            )
-        },
+        producers=declarations if category not in {"write", "escape"} else [],
+        publishers=declarations if category == "write" else [],
+        pipelines=declarations if category == "escape" else [],
     )
 
 
@@ -101,14 +106,15 @@ def _mapping_source(dimensions: list[dimension.Dimension]) -> entity.Entity:
         datasets=[
             dataset.Dataset(
                 id="shared_source",
-                mappings={
-                    "_other_source": mapping.FunctionMapping(
+                producers=[
+                    actions.Action(
+                        id="_other_source",
                         inputs=[],
                         function=ref.function(_other_source, kind="read"),
                         arguments={},
                         outputs=[feature.Feature(name="temperature")],
                     )
-                },
+                ],
             )
         ],
     )
@@ -117,14 +123,15 @@ def _mapping_source(dimensions: list[dimension.Dimension]) -> entity.Entity:
 def _conform_source(identifier: str) -> dataset.Dataset:
     return dataset.Dataset(
         id=f"{identifier}_source",
-        mappings={
-            "_other_source": mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id="_other_source",
                 inputs=[],
                 function=ref.function(_other_source, kind="read"),
                 arguments={},
                 outputs=[feature.Feature(name="temperature")],
             )
-        },
+        ],
     )
 
 
@@ -280,14 +287,15 @@ def test_python_spec_resolves_mixed_dimension_references_in_declared_order() -> 
 def test_function_catalog_keeps_distinct_functions_and_kinds() -> None:
     additional = dataset.Dataset(
         id="additional",
-        mappings={
-            "_other_source": mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id="_other_source",
                 inputs=[],
                 function=ref.function(_other_source, kind="read"),
                 arguments={},
                 outputs=[],
             )
-        },
+        ],
     )
     spec_definition = _python_spec(
         [
@@ -394,27 +402,29 @@ def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None
 def test_catalog_conflicts_are_rejected_consistently() -> None:
     first = dataset.Dataset(
         id="first",
-        mappings={
-            "_source": mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id="_source",
                 inputs=[],
                 function=ref.function(_source, kind="read"),
                 arguments={"path": "readings.json"},
                 outputs=[],
                 function_id="shared",
             )
-        },
+        ],
     )
     second = dataset.Dataset(
         id="second",
-        mappings={
-            "_source": mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id="_source",
                 inputs=[],
                 function=ref.function(_source, kind="read"),
                 arguments={"path": 42},
                 outputs=[],
                 function_id="shared",
             )
-        },
+        ],
     )
     spec_definition = _python_spec([_entity("one", [first, second])])
 
@@ -425,10 +435,10 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
 
     combined = dataset.Dataset(
         id="combined",
-        mappings={
-            "first": next(iter(first.mappings.values())),
-            "second": next(iter(second.mappings.values())),
-        },
+        producers=[
+            dataclasses.replace(first.producers[0], id="first"),
+            dataclasses.replace(second.producers[0], id="second"),
+        ],
     )
     with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):
         combined.function_catalog()

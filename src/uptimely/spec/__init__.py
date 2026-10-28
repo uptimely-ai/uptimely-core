@@ -20,12 +20,12 @@ from .model import (
 )
 from .python import (
     PythonSpec,
+    actions,
     bind,
     dataset,
     dimension,
     entity,
     feature,
-    mapping,
     ref,
     row_context,
 )
@@ -49,12 +49,12 @@ __all__ = [
     "load_spec",
     "write_document",
     "SubGraph",
+    "actions",
     "bind",
     "dataset",
     "dimension",
     "entity",
     "feature",
-    "mapping",
     "ref",
     "row_context",
 ]

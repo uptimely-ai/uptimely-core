@@ -1,7 +1,11 @@
 """Checks for class-based and programmatic Python declarations."""
 
+import dataclasses
+import typing
+
 import pytest
 
+from uptimely.spec import functions
 from uptimely.spec import python as authoring
 from uptimely.spec.python import conversion, dimension, entity, ref, row_context
 
@@ -16,25 +20,28 @@ def calculate(value: str) -> str:
     return value
 
 
-def test_function_mapping_is_the_only_public_mapping_declaration_name() -> None:
-    assert authoring.FunctionMapping.__name__ == "FunctionMapping"
+def test_action_is_the_only_public_work_declaration_name() -> None:
+    assert authoring.Action.__name__ == "Action"
     assert not hasattr(authoring, "FunctionCall")
     assert not hasattr(authoring, "Mapping")
+    assert not hasattr(authoring, "FunctionMapping")
+    assert not hasattr(authoring, "mapping")
 
 
 def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     declaration = authoring.Dataset(
         id="example",
-        mappings={
-            "read": authoring.FunctionMapping(
+        producers=[
+            authoring.Action(
+                id="read",
                 function=ref.function("reader:read", kind="read"),
                 arguments={},
                 outputs=[
                     authoring.Feature(name="temperature", type="float", unit="C"),
                     authoring.Feature(name="pump", type="string"),
                 ],
-            ),
-        },
+            )
+        ],
     )
 
     canonical = declaration.to_model()
@@ -56,7 +63,8 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
 
 def test_mapping_rejects_duplicate_output_names() -> None:
     with pytest.raises(ValueError, match="output feature names must not repeat"):
-        authoring.FunctionMapping(
+        authoring.Action(
+            id="action",
             function=ref.function("reader:read", kind="read"),
             arguments={},
             outputs=[
@@ -69,17 +77,20 @@ def test_mapping_rejects_duplicate_output_names() -> None:
 def test_assembly_collects_inputs_without_executing_implementation() -> None:
     class Example(authoring.Dataset):
         id = "example"
-        result = authoring.FunctionMapping(
-            function=must_not_execute,
-            arguments={
-                "values": [ref.feature("temperature"), ref.feature("temperature")],
-                "output": ref.feature("result").id,
-            },
-            outputs=[authoring.Feature(name="result", type="float")],
-        )
+        producers = [
+            authoring.Action(
+                id="result",
+                function=must_not_execute,
+                arguments={
+                    "values": [ref.feature("temperature"), ref.feature("temperature")],
+                    "output": ref.feature("result").id,
+                },
+                outputs=[authoring.Feature(name="result", type="float")],
+            )
+        ]
 
     declaration = Example()
-    mapping = declaration.mappings["result"]
+    mapping = declaration.producers[0]
     model = declaration.to_model().mappings["result"]
 
     assert model.id == "result"
@@ -108,13 +119,16 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
 
     class Example(authoring.Dataset):
         id = "example"
-        invalid = authoring.FunctionMapping(
-            function=implementation,
-            arguments=arguments,
-            outputs=[],
-        )
+        publishers = [
+            authoring.Action(
+                id="invalid",
+                function=implementation,
+                arguments=arguments,
+                outputs=[],
+            )
+        ]
 
-    with pytest.raises(TypeError, match="Dataset 'example', mapping 'invalid'") as error:
+    with pytest.raises(TypeError, match="Dataset 'example', action 'invalid'") as error:
         Example().to_model()
     assert message in str(error.value)
 
@@ -124,29 +138,37 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
     class Example(authoring.Dataset):
         id = "example"
         keys = (dimension.Dimension(id="asset", type="string"),)
-        first = authoring.FunctionMapping(
-            function=ref.function("test_declarative_authoring:implementation", kind="vectorize"),
-            arguments={"output": ref.feature(identifier).id},
-            outputs=[authoring.Feature(name=identifier, type="float")],
-        )
-        second = first
+        producers = [
+            authoring.Action(
+                id="first",
+                function=ref.function(
+                    "test_declarative_authoring:implementation", kind="vectorize"
+                ),
+                arguments={"output": ref.feature(identifier).id},
+                outputs=[authoring.Feature(name=identifier, type="float")],
+            )
+        ]
+        producers = [*producers, dataclasses.replace(producers[0], id="second")]
 
     with pytest.raises(ValueError, match="'first' and 'second'"):
         Example().to_model()
 
 
-def test_dataset_subclasses_inherit_and_override_named_mappings() -> None:
-    first = authoring.FunctionMapping(
+def test_dataset_subclasses_inherit_and_replace_collections() -> None:
+    first = authoring.Action(
+        id="read",
         function=ref.function("reader:read", kind="read"),
         arguments={},
         outputs=[authoring.Feature(name="value", type="float")],
     )
-    replacement = authoring.FunctionMapping(
+    replacement = authoring.Action(
+        id="read",
         function=ref.function("reader:replacement", kind="read"),
         arguments={},
         outputs=[authoring.Feature(name="value", type="integer")],
     )
-    sink = authoring.FunctionMapping(
+    sink = authoring.Action(
+        id="write",
         function=ref.function("writer:write", kind="write"),
         arguments={"column": ref.feature("value")},
         outputs=[],
@@ -155,17 +177,18 @@ def test_dataset_subclasses_inherit_and_override_named_mappings() -> None:
     class Base(authoring.Dataset):
         id = "base"
         description = "Inherited metadata"
-        read = first
+        producers = [first]
+        publishers = [sink]
 
     class Derived(Base):
         id = "derived"
-        read = replacement
-        write = sink
+        producers = [replacement]
 
     base = Base()
     derived = Derived()
-    assert base.mappings == {"read": first}
-    assert derived.mappings == {"read": replacement, "write": sink}
+    assert base.producers == [first]
+    assert derived.producers == [replacement]
+    assert derived.publishers == [sink]
     assert list(derived.to_model().mappings) == ["read", "write"]
     assert derived.to_model().description == "Inherited metadata"
     assert derived.to_model().features["value"].type == "integer"
@@ -184,11 +207,14 @@ def test_dataset_keys_supply_dimension_metadata(kind: str) -> None:
     class Example(authoring.Dataset):
         id = "example"
         keys = (identifier,)
-        values = authoring.FunctionMapping(
-            function=ref.function("reader:values", kind=kind),
-            arguments={},
-            outputs=[authoring.Feature(name="value", type="float")],
-        )
+        producers = [
+            authoring.Action(
+                id="values",
+                function=ref.function("reader:values", kind=kind),
+                arguments={},
+                outputs=[authoring.Feature(name="value", type="float")],
+            )
+        ]
 
     model = Example().to_model()
     assert model.features["asset"].type == "string"
@@ -208,11 +234,14 @@ def test_dataset_entity_supplies_dimension_metadata() -> None:
     class Example(authoring.Dataset):
         id = "example"
         entity = owner
-        values = authoring.FunctionMapping(
-            function=ref.function("reader:values", kind="read"),
-            arguments={},
-            outputs=[authoring.Feature(name="value", type="float")],
-        )
+        producers = [
+            authoring.Action(
+                id="values",
+                function=ref.function("reader:values", kind="read"),
+                arguments={},
+                outputs=[authoring.Feature(name="value", type="float")],
+            )
+        ]
 
     model = Example().to_model()
 
@@ -222,7 +251,8 @@ def test_dataset_entity_supplies_dimension_metadata() -> None:
 
 
 def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
-    mapping = authoring.FunctionMapping(
+    mapping = authoring.Action(
+        id="result",
         function=ref.function("calculation:calculate", kind="vectorize"),
         arguments={
             "configuration": {
@@ -237,7 +267,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
         },
         outputs=[authoring.Feature(name="result", type="float")],
     )
-    model = mapping.to_model("result")
+    model = mapping.to_model()
     assert mapping.inputs is None
     assert model.input_features == ["first", "second"]
     assert model.row_context.before.rows == 2
@@ -249,16 +279,17 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
 
 
 def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -> None:
-    mapping = authoring.FunctionMapping(
+    mapping = authoring.Action(
+        id="named",
         function=ref.function("calculation:calculate", kind="vectorize"),
         function_id="custom",
         arguments={"column": ref.feature("inferred")},
         inputs=[ref.feature("explicit")],
         outputs=[authoring.Feature(name="result", type="float")],
     )
-    declaration = authoring.Dataset(id="example", mappings={"named": mapping})
+    declaration = authoring.Dataset(id="example", producers=[mapping])
 
-    assert declaration.mappings == {"named": mapping}
+    assert declaration.producers == [mapping]
     assert mapping.reference.entrypoint == "calculation:calculate"
     assert mapping.catalog_id == "custom"
     assert declaration.to_model().mappings["named"].input_features == ["explicit"]
@@ -272,16 +303,21 @@ def test_dataset_keys_can_be_shared_by_read_mappings() -> None:
     class Example(authoring.Dataset):
         id = "example"
         keys = (identifier,)
-        first = authoring.FunctionMapping(
-            function=ref.function("reader:first", kind="read"),
-            arguments={},
-            outputs=[authoring.Feature(name="first_value", type="float")],
-        )
-        second = authoring.FunctionMapping(
-            function=ref.function("reader:second", kind="read"),
-            arguments={},
-            outputs=[authoring.Feature(name="second_value", type="float")],
-        )
+
+        producers = [
+            authoring.Action(
+                id="first",
+                function=ref.function("reader:first", kind="read"),
+                arguments={},
+                outputs=[authoring.Feature(name="first_value", type="float")],
+            ),
+            authoring.Action(
+                id="second",
+                function=ref.function("reader:second", kind="read"),
+                arguments={},
+                outputs=[authoring.Feature(name="second_value", type="float")],
+            ),
+        ]
 
     model = Example().to_model()
     assert set(model.features) == {"asset", "first_value", "second_value"}
@@ -294,8 +330,9 @@ def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> 
     declaration = authoring.Dataset(
         id="example",
         keys=(identifier,),
-        mappings={
-            "read": authoring.FunctionMapping(
+        producers=[
+            authoring.Action(
+                id="read",
                 function=ref.function("reader:read", kind="read"),
                 arguments={
                     "keys": ref.current_dataset().dimensions.ids,
@@ -303,7 +340,7 @@ def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> 
                 },
                 outputs=[authoring.Feature(name="value", type="float")],
             )
-        },
+        ],
     )
 
     model = declaration.to_model()
@@ -329,25 +366,27 @@ def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> 
     assert payload["functions"]["read"]["args"]["keys"]["type"] == "array[string]"
 
 
-@pytest.mark.parametrize("required", ["function", "arguments", "outputs"])
+@pytest.mark.parametrize("required", ["id", "function", "arguments", "outputs"])
 def test_mapping_constructor_requires_explicit_fields(required: str) -> None:
     arguments = {
+        "id": "read",
         "function": ref.function("reader:read", kind="read"),
         "arguments": {},
         "outputs": [],
     }
     del arguments[required]
     with pytest.raises(TypeError, match=required):
-        authoring.FunctionMapping(**arguments)
+        authoring.Action(**arguments)
 
 
 def test_mapping_requires_function_kind_metadata() -> None:
     with pytest.raises(ValueError, match="annotated with @kind"):
-        authoring.FunctionMapping(function="reader:read", arguments={}, outputs=[])
+        authoring.Action(id="action", function="reader:read", arguments={}, outputs=[])
 
 
 def test_kind_annotation_is_inferred_without_wrapping_function() -> None:
-    declaration = authoring.FunctionMapping(
+    declaration = authoring.Action(
+        id="declaration",
         function=calculate,
         arguments={"value": "input"},
         outputs=[],
@@ -358,12 +397,188 @@ def test_kind_annotation_is_inferred_without_wrapping_function() -> None:
     assert declaration.function_catalog()["calculate"].kind == "vectorize"
 
 
-def test_mapping_export_requires_explicit_identifier() -> None:
-    mapping = authoring.FunctionMapping(
-        function=ref.function("reader:read", kind="read"), arguments={}, outputs=[]
+def test_action_export_uses_its_identifier() -> None:
+    mapping = authoring.Action(
+        id="mapping", function=ref.function("reader:read", kind="read"), arguments={}, outputs=[]
     )
-    with pytest.raises(TypeError, match="identifier"):
-        mapping.to_model()
+    assert mapping.to_model().id == "mapping"
+
+
+@pytest.mark.parametrize("identifier", ["", " ", None, 1])
+def test_action_rejects_invalid_identifiers(identifier: typing.Any) -> None:
+    with pytest.raises(ValueError, match="Action requires a non-empty id"):
+        authoring.Action(
+            id=identifier,
+            function=ref.function("reader:read", kind="read"),
+            arguments={},
+            outputs=[],
+        )
+
+
+@pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
+@pytest.mark.parametrize("collection", ["producers", "publishers", "pipelines"])
+def test_action_collection_enforces_function_kind(
+    kind: functions.FunctionKind, collection: str
+) -> None:
+    action = authoring.Action(
+        id="work",
+        function=ref.function("implementation:work", kind=kind),
+        arguments={},
+        outputs=[],
+    )
+    declarations = {
+        "producers": [action] if collection == "producers" else [],
+        "publishers": [action] if collection == "publishers" else [],
+        "pipelines": [action] if collection == "pipelines" else [],
+    }
+    expected_collection = {"write": "publishers", "escape": "pipelines"}.get(kind, "producers")
+    if collection != expected_collection:
+        with pytest.raises(ValueError, match=f"kind '{kind}' is not allowed in {collection}"):
+            authoring.Dataset(id="example", **declarations)
+        return
+
+    declaration = authoring.Dataset(id="example", **declarations)
+    assert declaration.to_model().mappings["work"] == action.to_model()
+    assert declaration.function_catalog()["work"].kind == kind
+
+
+@pytest.mark.parametrize("collection", ["producers", "publishers", "pipelines"])
+@pytest.mark.parametrize("invalid", [{}, "invalid", [object()], [None]])
+def test_action_collections_reject_invalid_values(collection: str, invalid: typing.Any) -> None:
+    with pytest.raises(TypeError, match=f"{collection} must (be a sequence of|contain) Actions"):
+        authoring.Dataset(id="example", **{collection: invalid})
+
+
+@pytest.mark.parametrize("second_kind", ["read", "write", "escape"])
+def test_action_ids_are_unique_across_collections(second_kind: functions.FunctionKind) -> None:
+    first = authoring.Action(
+        id="duplicate",
+        function=ref.function("reader:read", kind="read"),
+        arguments={},
+        outputs=[],
+    )
+    second = dataclasses.replace(
+        first, function=ref.function("implementation:work", kind=second_kind)
+    )
+    with pytest.raises(ValueError, match="Dataset 'example' has duplicate action ID 'duplicate'"):
+        authoring.Dataset(
+            id="example",
+            producers=[first, second] if second_kind == "read" else [first],
+            publishers=[second] if second_kind == "write" else [],
+            pipelines=[second] if second_kind == "escape" else [],
+        )
+
+
+def test_collection_defaults_and_inherited_lists_are_not_shared_between_instances() -> None:
+    read = authoring.Action(
+        id="read",
+        function=ref.function("reader:read", kind="read"),
+        arguments={},
+        outputs=[],
+    )
+
+    class Base(authoring.Dataset):
+        id = "base"
+        producers = [read]
+
+    first = Base()
+    second = Base()
+    assert isinstance(first.producers, list)
+    assert isinstance(first.publishers, list)
+    assert isinstance(first.pipelines, list)
+    first.producers.clear()
+    assert second.producers == Base.producers == [read]
+    assert first.publishers is not second.publishers
+    assert first.pipelines is not second.pipelines
+    assert Base(producers=[]).producers == []
+
+    supplied = [read]
+    constructed = authoring.Dataset(id="constructed", producers=supplied)
+    supplied.clear()
+    assert constructed.producers == [read]
+
+
+def test_subclasses_can_explicitly_extend_or_clear_inherited_collections() -> None:
+    read = authoring.Action(
+        id="read",
+        function=ref.function("reader:read", kind="read"),
+        arguments={},
+        outputs=[],
+    )
+
+    class Base(authoring.Dataset):
+        id = "base"
+        producers = [read]
+
+    class Extended(Base):
+        producers = [*Base.producers, dataclasses.replace(read, id="another_read")]
+
+    class Empty(Base):
+        producers = []
+
+    assert list(Extended().to_model().mappings) == ["read", "another_read"]
+    assert Empty().to_model().mappings == {}
+    assert Base.producers == [read]
+
+
+def test_conversion_revalidates_modified_action_collections() -> None:
+    declaration = authoring.Dataset(id="example")
+    declaration.producers = [
+        authoring.Action(
+            id="write",
+            function=ref.function("writer:write", kind="write"),
+            arguments={},
+            outputs=[],
+        )
+    ]
+    with pytest.raises(ValueError, match="not allowed in producers"):
+        declaration.to_model()
+    with pytest.raises(ValueError, match="not allowed in producers"):
+        declaration.function_catalog()
+
+
+def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> None:
+    class Example(authoring.Dataset):
+        id = "example"
+        producers = [
+            authoring.Action(
+                id="calculate",
+                function=ref.function("implementation:calculate", kind="vectorize"),
+                arguments={"column": ref.feature("pipeline_result")},
+                outputs=[authoring.Feature(name="result")],
+            )
+        ]
+        publishers = [
+            authoring.Action(
+                id="publish",
+                function=ref.function("implementation:publish", kind="write"),
+                arguments={"column": ref.feature("result")},
+                outputs=[],
+            )
+        ]
+        pipelines = [
+            authoring.Action(
+                id="custom_work",
+                function=ref.function("implementation:custom_work", kind="escape"),
+                arguments={},
+                inputs=[ref.feature("external_input")],
+                outputs=[authoring.Feature(name="pipeline_result")],
+            )
+        ]
+
+    declaration = Example()
+    model = declaration.to_model()
+    assert list(model.mappings) == ["calculate", "publish", "custom_work"]
+    assert model.mappings["calculate"].input_features == ["pipeline_result"]
+    assert model.mappings["publish"].input_features == ["result"]
+    assert model.mappings["custom_work"].input_features == ["external_input"]
+    payload = conversion.to_dict(datasets=[declaration])
+    exported = payload["entities"]["entity"]["datasets"]["example"]
+    assert "producers" not in exported
+    assert "publishers" not in exported
+    assert "pipelines" not in exported
+    assert set(exported["mappings"]) == {"calculate", "publish", "custom_work"}
+    assert set(exported["features"]) == {"result", "pipeline_result"}
 
 
 def test_model_collects_dataset_classes_in_registry_order() -> None:

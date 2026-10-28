@@ -1,7 +1,7 @@
 import pytest
 
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import conversion, dataset, dimension, entity, mapping, ref
+from uptimely.spec.python import actions, conversion, dataset, dimension, entity, ref
 
 
 def _source(path: str, columns: list[str]) -> None:
@@ -15,17 +15,16 @@ def _other_source(path: str, columns: list[str]) -> None:
 def _dataset(identifier: str, conflicting: bool = False) -> dataset.Dataset:
     return dataset.Dataset(
         id=identifier,
-        mappings={
-            ref.function(
-                _other_source if conflicting else _source, kind="read"
-            ).name: mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id=ref.function(_other_source if conflicting else _source, kind="read").name,
                 inputs=[],
                 function=ref.function(_other_source if conflicting else _source, kind="read"),
                 arguments={"path": "readings.json", "columns": [ref.feature("temperature")]},
                 outputs=[],
                 function_id="source",
             )
-        },
+        ],
     )
 
 

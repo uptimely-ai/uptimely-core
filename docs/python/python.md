@@ -13,11 +13,11 @@ For a runnable example, see the
 import polars as pl
 
 from uptimely.spec.python import (
+    Action,
     Dataset,
     Dimension,
     Entity,
     Feature,
-    FunctionMapping,
     kind,
     ref,
 )
@@ -37,23 +37,26 @@ class Pump(Dataset):
     description = "Maximum bearing temperature per pump."
     entity = assets
 
-    temperature_max = FunctionMapping(
-        function=maximum,
-        arguments=dict(
-            dataset=ref.dataset("telemetry").dataframe,
-            feature=ref.feature("bearing_temperature"),
-            dimensions=["pump"],
-            output=ref.feature("bearing_temperature_max").id,
-        ),
-        outputs=[
-            Feature(
-                name="bearing_temperature_max",
-                type="float",
-                unit="C",
-                description="Maximum observed bearing temperature.",
+    producers = [
+        Action(
+            id="temperature_max",
+            function=maximum,
+            arguments=dict(
+                dataset=ref.dataset("telemetry").dataframe,
+                feature=ref.feature("bearing_temperature"),
+                dimensions=["pump"],
+                output=ref.feature("bearing_temperature_max").id,
             ),
-        ],
-    )
+            outputs=[
+                Feature(
+                    name="bearing_temperature_max",
+                    type="float",
+                    unit="C",
+                    description="Maximum observed bearing temperature.",
+                ),
+            ],
+        ),
+    ]
 ```
 
 ```python
@@ -84,7 +87,9 @@ Convert declarations containing ID references through `PythonSpec.to_model()`
 or `PythonSpec.to_dict()` so those references can be resolved.
 `Model([Pump]).to_declarations()` optionally registers dataset classes.
 
-`FunctionMapping` takes `function`, `arguments`, and `outputs`. Decorate callable
+`Action` declares work without executing it. It takes `id`, `function`,
+`arguments`, and `outputs`, with optional `inputs`, `function_id`, and
+`row_context` requirements. Decorate callable
 implementations with `@kind(...)`; use `ref.function(..., kind=...)`
 for entrypoint strings. Implementations aren't called during authoring; assembly
 checks callable parameter names and required arguments.
@@ -114,21 +119,53 @@ as `ref.feature("result").id` pass an identifier, not feature data, and may be
 used for output-name arguments. Declare produced features in `outputs`; they
 are not inferred from arguments. In the resulting spec document, dependencies
 are recorded explicitly in `features.inputs`. Writes use `outputs=[]`. For
-generated declarations, use `Dataset(id=..., mappings={...})`.
+generated declarations, use `Dataset(id=..., producers=[...], publishers=[...],
+pipelines=[...])`.
 
-### Migrating from list-based declarations
+### Dataset action collections
 
-- Supply all three registries to `PythonSpec(dimensions=[...], entities=[...],
-  datasets=[...])`; entities and dimensions are no longer inferred from datasets.
-- Replace `features` and list-based `mappings` with named mappings. Put feature
-  metadata in each mapping's `outputs`; use `Feature.name` for feature IDs.
-- Replace `Mapping(bind=..., id=...)` with `FunctionMapping(function=...,
-  arguments=..., outputs=...)`. The mapping attribute or dictionary key supplies
-  its ID; `function_id` can override the catalog ID.
-- Convert individual declarations with `Feature.to_model()` and
-  `FunctionMapping.to_model(identifier)`.
+Each dataset exposes three lists of actions:
 
-The document model and exported JSON format are unchanged.
+| Collection | Allowed kinds | Purpose |
+| --- | --- | --- |
+| `producers` | `read`, `collapse`, `conform`, `expand`, `vectorize` | Produce dataset features. |
+| `publishers` | `write` | Write dataset results to external destinations. |
+| `pipelines` | `escape` | Invoke opaque custom processing with declared dependencies and outputs. |
+
+Kinds remain explicit on functions or function references. Putting an action in
+the wrong collection raises an error; placement never changes its kind.
+Action IDs must be non-empty and unique across all three collections. Reusing
+one function in multiple actions is allowed with distinct action IDs;
+`function_id` separately identifies its reusable catalog contract.
+
+Collections default to empty and are copied for each dataset instance.
+Constructor arguments replace the corresponding class collections, including
+when an empty list is passed. Subclasses inherit collections using normal Python
+attribute lookup: defining `producers` replaces the inherited list rather than
+merging it. To extend it, write `producers = [*Base.producers, another_action]`.
+
+List order does not impose execution order, nor do collections define execution
+phases. Declared feature dependencies determine scheduling, including
+dependencies between producers and pipelines. Uptimely does not inspect a
+pipeline function's internal steps.
+
+### Migrating from FunctionMapping
+
+- Replace `FunctionMapping(...)` with `Action(id=..., ...)`. Move named dataset
+  attributes or entries in `mappings={...}` into the appropriate action list.
+  Use the former attribute name or dictionary key as the action ID to preserve
+  canonical mapping IDs.
+- Replace imports from `uptimely.spec.python.mapping` or
+  `uptimely.spec.python.mappings` with `uptimely.spec.python.actions`, or import
+  `Action` directly from `uptimely.spec.python`.
+- Access declarations through their collection rather than `Dataset.mappings`.
+- Convert an action with `Action.to_model()`; its own ID supplies the canonical
+  mapping identifier. Feature metadata remains in `outputs`, and
+  `Feature.to_model()` is unchanged.
+
+The old Python authoring names and `mappings` constructor argument are removed.
+The canonical document model, exported JSON format, and execution kinds are
+unchanged: all three collections become mappings internally.
 
 <div class="api-reference" markdown="1">
 
@@ -159,7 +196,7 @@ IDs within an entity are rejected rather than overwritten.
 
 ## dataset
 
-`uptimely.spec.python.dataset` declares dataset scope, named mappings, and optional
+`uptimely.spec.python.dataset` declares dataset scope, action collections, and optional
 class registries.
 
 ::: uptimely.spec.python.dataset
@@ -185,12 +222,12 @@ class registries.
       heading_level: 3
       show_root_heading: false
 
-## mappings
+## actions
 
-`uptimely.spec.python.mappings` declares analytical function bindings and outputs.
-The module is also exposed as `uptimely.spec.python.mapping`.
+`uptimely.spec.python.actions` declares analytical work, function arguments,
+feature inputs and outputs, and execution requirements.
 
-::: uptimely.spec.python.mappings
+::: uptimely.spec.python.actions
     options:
       heading_level: 3
       show_root_heading: false
@@ -198,7 +235,7 @@ The module is also exposed as `uptimely.spec.python.mapping`.
 ## bind
 
 `uptimely.spec.python.bind` provides lower-level nested argument bindings and
-serialization helpers. Top-level mappings bind functions directly through their
+serialization helpers. Actions bind functions directly through their
 `function` and `arguments` attributes.
 
 ::: uptimely.spec.python.bind

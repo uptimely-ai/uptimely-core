@@ -9,7 +9,7 @@ import pytest
 
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import bind, binding_conversion, conversion, dataset, mapping, ref
+from uptimely.spec.python import actions, bind, binding_conversion, conversion, dataset, ref
 
 MODULE_LOCATIONS = [
     "math",
@@ -24,6 +24,15 @@ MAPPING_KINDS: tuple[functions.FunctionKind, ...] = (
     "expand",
     "conform",
 )
+
+
+def _dataset(action: actions.Action) -> dataset.Dataset:
+    return dataset.Dataset(
+        id="observations",
+        producers=[action] if action.kind not in {"write", "escape"} else [],
+        publishers=[action] if action.kind == "write" else [],
+        pipelines=[action] if action.kind == "escape" else [],
+    )
 
 
 @pytest.mark.parametrize("function", [math.ceil, "math:ceil"])
@@ -68,11 +77,8 @@ def test_signature_validation_setting_survives_conversion_without_importing(
         kind=kind,
         validate_signature=validate_signature,
     )
-    declaration = dataset.Dataset(
-        id="observations",
-        mappings={
-            "calculate": mapping.FunctionMapping(function=reference, arguments={}, outputs=[])
-        },
+    declaration = _dataset(
+        actions.Action(id="calculate", function=reference, arguments={}, outputs=[]),
     )
 
     payload = conversion.to_dict(datasets=[declaration])
@@ -110,8 +116,9 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
     declarations = [
         dataset.Dataset(
             id=identifier,
-            mappings={
-                "ceil": mapping.FunctionMapping(
+            producers=[
+                actions.Action(
+                    id="ceil",
                     inputs=[],
                     function=ref.function(
                         "math:ceil", kind="vectorize", validate_signature=validate_signature
@@ -119,7 +126,7 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
                     arguments={},
                     outputs=[],
                 )
-            },
+            ],
         )
         for identifier, validate_signature in [("first", True), ("second", False)]
     ]
@@ -139,9 +146,7 @@ def test_string_locations_are_preserved_without_importing(
     reference = ref.function(f"{location}:ceil", kind="vectorize")
     declaration = dataset.Dataset(
         id="observations",
-        mappings={
-            "ceil": mapping.FunctionMapping(function=reference, arguments={"x": 1.2}, outputs=[])
-        },
+        producers=[actions.Action(id="ceil", function=reference, arguments={"x": 1.2}, outputs=[])],
     )
 
     payload = conversion.to_dict(datasets=[declaration])
@@ -163,17 +168,15 @@ def test_generic_mapping_exports_function_kind_without_importing(
         pytest.fail(f"Unexpected function import during authoring: {_args!r} {_kwargs!r}")
 
     monkeypatch.setattr(importlib, "import_module", unexpected_import)
-    declaration = dataset.Dataset(
-        id="observations",
-        mappings={
-            "calculate": mapping.FunctionMapping(
-                inputs=[],
-                function=ref.function("unavailable_package.functions:calculate", kind=kind),
-                arguments={"dataset": ref.current_dataset().dataframe},
-                outputs=[],
-                function_id="calculate",
-            )
-        },
+    declaration = _dataset(
+        actions.Action(
+            id="calculate",
+            inputs=[],
+            function=ref.function("unavailable_package.functions:calculate", kind=kind),
+            arguments={"dataset": ref.current_dataset().dataframe},
+            outputs=[],
+            function_id="calculate",
+        ),
     )
 
     catalog = declaration.function_catalog()
@@ -189,7 +192,8 @@ def test_generic_mapping_exports_function_kind_without_importing(
 
 def test_generic_mapping_requires_operation_metadata() -> None:
     with pytest.raises(ValueError, match="kind"):
-        mapping.FunctionMapping(
+        actions.Action(
+            id="action",
             inputs=[],
             function=ref.function("math:ceil"),
             arguments={"x": 1.2},
@@ -200,14 +204,15 @@ def test_generic_mapping_requires_operation_metadata() -> None:
 def test_escape_catalog_metadata_survives_json_round_trip() -> None:
     declaration = dataset.Dataset(
         id="observations",
-        mappings={
-            "external_update": mapping.FunctionMapping(
+        pipelines=[
+            actions.Action(
+                id="external_update",
                 inputs=[],
                 function=ref.function("math:ceil", kind="escape"),
                 arguments={},
                 outputs=[],
             )
-        },
+        ],
     )
 
     payload = conversion.to_dict(datasets=[declaration])
@@ -223,7 +228,8 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
 def test_generic_mapping_accepts_function_kind_metadata(
     kind: functions.FunctionKind,
 ) -> None:
-    declaration = mapping.FunctionMapping(
+    declaration = actions.Action(
+        id="declaration",
         inputs=[],
         function=ref.function("math:ceil", kind=kind),
         arguments={"x": 1.2},
@@ -238,20 +244,21 @@ def test_generic_mapping_accepts_function_kind_metadata(
 def test_references_supply_catalog_ids_and_preserve_overrides(
     kind: functions.FunctionKind, function_id: str | None
 ) -> None:
-    declaration = mapping.FunctionMapping(
+    declaration = actions.Action(
+        id="declaration",
         function=ref.function("math:ceil", kind=kind),
         function_id=function_id,
         arguments={"x": 1.2},
         outputs=[],
     )
-    catalog = dataset.Dataset(id="values", mappings={"calculate": declaration}).function_catalog()
+    catalog = _dataset(declaration).function_catalog()
     identifier = function_id or "ceil"
 
     assert catalog[identifier].kind == kind
     assert catalog[identifier].entrypoint == "math:ceil"
     assert catalog[identifier].args["x"].type == "float"
-    model = declaration.to_model("calculate")
-    assert model.id == "calculate"
+    model = declaration.to_model()
+    assert model.id == declaration.id
     assert model.binding.function == identifier
     assert model.binding.args == {"x": 1.2}
 

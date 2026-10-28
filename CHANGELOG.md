@@ -10,6 +10,13 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Python datasets now declare `producers`, `publishers`, and
+  `pipelines` lists of `Action` objects instead of named `FunctionMapping`
+  attributes or a `mappings` dictionary. Actions require an explicit dataset-unique
+  `id`; collections validate function kinds and follow normal Python replacement
+  inheritance. Import `Action` from `uptimely.spec.python` or its `actions` module.
+  Canonical mappings and exported JSON remain unchanged.
+
 - **Breaking:** Function definitions now use `kind` instead of `operation`.
   Python authoring uses `@kind(...)` and `ref.function(..., kind=...)`.
 
