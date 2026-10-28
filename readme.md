@@ -67,20 +67,10 @@ this module as `spec/spec.py` in an Uptimely project:
 
 ```python
 import polars as pl
-
-from uptimely.spec.python import (
-    Action,
-    Dataset,
-    Dimension,
-    Entity,
-    Feature,
-    PythonSpec,
-    function,
-    ref,
-)
+import uptimely as up
 
 
-@function(kind="read")
+@up.function(kind="read")
 def read_values() -> pl.DataFrame:
     return pl.DataFrame(
         {
@@ -90,52 +80,52 @@ def read_values() -> pl.DataFrame:
     )
 
 
-@function(kind="vectorize")
+@up.function(kind="vectorize")
 def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(value) * 2).alias(output))
 
 
-@function(kind="write")
+@up.function(kind="write")
 def print_results(dataset: pl.DataFrame) -> None:
     print(dataset)
 
 
-class CalculatedData(Dataset):
+class CalculatedData(up.Dataset):
     id = "calculated_dataset"
     entity = "measurements"
 
     producers = [
-        Action(
+        up.Action(
             id="read",
             function=read_values,
             arguments={},
-            outputs=[Feature(name="value")],
+            outputs=[up.Feature(name="value")],
         ),
-        Action(
+        up.Action(
             id="double",
             function=double,
             arguments={
-                "dataset": ref.current_dataset().dataframe,
-                "value": ref.feature("value"),
-                "output": ref.feature("doubled").id,
+                "dataset": up.ref.dataframe(),
+                "value": up.ref.column("value"),
+                "output": up.ref.output("doubled"),
             },
-            outputs=[Feature(name="doubled")],
+            outputs=[up.Feature(name="doubled")],
         ),
     ]
     publishers = [
-        Action(
+        up.Action(
             id="print",
             function=print_results,
-            arguments={"dataset": ref.current_dataset().dataframe},
+            arguments={"dataset": up.ref.dataframe()},
             outputs=[],
         )
     ]
 
 
-python_spec = PythonSpec(
-    dimensions=[Dimension(id="id", type="integer")],
+python_spec = up.Spec(
+    dimensions=[up.Dimension(id="id", type="integer")],
     entities=[
-        Entity(
+        up.Entity(
             id="measurements",
             name="Measurements",
             dimensions=["id"],

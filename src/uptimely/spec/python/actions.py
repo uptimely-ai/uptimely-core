@@ -55,6 +55,7 @@ class Action:
         output_names = [output.name for output in self.outputs]
         if len(output_names) != len(set(output_names)):
             raise ValueError("Action output feature names must not repeat")
+        self._validate_output_references()
         object.__setattr__(
             self, "row_context", row_context_module._context(self.arguments, self.row_context)
         )
@@ -93,9 +94,18 @@ class Action:
         Entrypoint strings are not imported during authoring; signature validation
         for those functions is deferred until compilation.
         """
+        self._validate_output_references()
         if callable(self.function):
             inspect.signature(self.function).bind(**self.arguments)
         return self.arguments.copy()
+
+    def _validate_output_references(self) -> None:
+        output_names = {output.name for output in self.outputs}
+        for reference in _references(self.arguments):
+            if isinstance(reference, ref.OutputReference) and reference.name not in output_names:
+                raise ValueError(
+                    f"Action '{self.id}' references undeclared output '{reference.name}'"
+                )
 
     def to_model(self) -> spec_model.Action:
         """Convert this declaration to its canonical document model."""
@@ -165,16 +175,22 @@ def _inputs(value: object) -> list[str]:
 
 def _feature_references(value: object) -> typing.Iterator[str]:
     """Yield feature references nested in a binding value."""
+    for reference in _references(value):
+        if reference.type == "feature":
+            yield reference.value.removeprefix(selectors.FEATURE_PREFIX)
+
+
+def _references(value: object) -> typing.Iterator[ref.Reference]:
+    """Yield references nested in argument bindings."""
     if isinstance(value, row_context_module.RowContextBinding):
-        yield from _feature_references(value.value)
+        yield from _references(value.value)
     elif isinstance(value, ref.Reference):
-        if value.type == "feature":
-            yield value.value.removeprefix(selectors.FEATURE_PREFIX)
+        yield value
     elif isinstance(value, bind.Bind):
-        yield from _feature_references(value.args)
+        yield from _references(value.args)
     elif isinstance(value, abc.Mapping):
         for child in value.values():
-            yield from _feature_references(child)
+            yield from _references(child)
     elif isinstance(value, (list, tuple)):
         for child in value:
-            yield from _feature_references(child)
+            yield from _references(child)

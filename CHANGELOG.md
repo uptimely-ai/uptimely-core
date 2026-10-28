@@ -8,7 +8,21 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- Author workflows with `import uptimely as up`: `up.Dataset`, `up.Action`,
+  `up.Feature`, `up.Spec`, and `@up.function`. `up.PythonSpec` remains an alias
+  for `up.Spec`. Use `up.ref.dataframe()`
+  (optionally with a dataset ID), `up.ref.column(name)`, and
+  `up.ref.output(name)` for deferred argument wiring. Output references validate
+  membership in the containing action's declared outputs without adding input
+  dependencies. Existing reference helpers remain supported.
+
 ### Changed
+
+- **Breaking:** Root-level `uptimely.Spec`, `uptimely.Dimension`, and
+  `uptimely.Entity` now expose Python authoring declarations.
+  Import document-model classes from `uptimely.spec` or `uptimely.spec.model`.
 
 - **Breaking:** Python datasets now declare `producers`, `publishers`, and
   `pipelines` lists of `Action` objects instead of named `FunctionMapping`

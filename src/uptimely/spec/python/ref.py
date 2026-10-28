@@ -12,6 +12,7 @@ from . import functions as function_semantics
 
 __all__ = [
     "Reference",
+    "OutputReference",
     "DatasetDimensionsReference",
     "FunctionReference",
     "function",
@@ -21,6 +22,9 @@ __all__ = [
     "sink",
     "feature",
     "dimension",
+    "dataframe",
+    "column",
+    "output",
 ]
 
 
@@ -148,6 +152,43 @@ class DatasetDimensionsReference:
             type=arg_types.array_of(arg_types.STRING),
             value=f"{self.value}.ids",
         )
+
+
+@dataclasses.dataclass(frozen=True)
+class OutputReference(Reference):
+    """An output identifier that must belong to the containing action."""
+
+    name: str
+
+
+def dataframe(name: str | None = None) -> Reference:
+    """Reference a dataframe without loading or constructing it.
+
+    Args:
+        name: Dataset identifier, or None for the current dataset.
+
+    Returns:
+        A deferred reference to the dataset's materialized dataframe.
+    """
+    return (current_dataset() if name is None else dataset(name)).dataframe
+
+
+def column(name: str) -> Reference:
+    """Reference an input feature column, declaring a data dependency."""
+    return feature(name)
+
+
+def output(name: str) -> OutputReference:
+    """Reference a declared output's name without adding an input dependency.
+
+    Args:
+        name: Feature name declared in the containing action's outputs.
+
+    Returns:
+        A deferred string reference to the output identifier.
+    """
+    identifier = feature(name).id
+    return OutputReference(type=identifier.type, value=identifier.value, name=name)
 
 
 def current_dataset() -> Reference:
