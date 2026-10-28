@@ -672,11 +672,21 @@ def test_graph_pages_have_one_selector_and_shared_data(
     assert document.count('aria-label="Lineage view"') == 1
     assert document.count('aria-label="Lineage zoom"') == 1
     assert re.search(
-        r'<div class="lineage-title-controls">\s*<h1\b.*?</h1>\s*'
+        r'<div class="lineage-heading">\s*<h1\b.*?</h1>\s*'
+        r'<p class="lineage-description">.*?</p>\s*</div>\s*'
+        r'<div class="lineage-control-groups">\s*'
         r'<div class="lineage-buttons" role="group" aria-label="Lineage view">',
         document,
         re.DOTALL,
     )
+    expected_description = (
+        "Feature and action dependencies by dataset"
+        if filename.startswith("spec/")
+        else "Function invocation by compiled execution stage"
+    )
+    assert f'<p class="lineage-description">{expected_description}</p>' in document
+    assert 'role="group" aria-label="Lineage zoom"' in document
+    assert 'role="group" aria-label="Lineage reset"' in document
     assert 'aria-label="Zoom in"' in document
     assert 'aria-label="Zoom out"' in document
     assert '<details class="panel" open>' in document
