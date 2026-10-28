@@ -58,6 +58,27 @@ def test_pages_share_minimal_top_bar_and_build_badge(tmp_path: pathlib.Path, sco
         assert "icon--home" not in navigation.group()
 
 
+def test_mobile_navigation_uses_collapsible_menu(tmp_path: pathlib.Path) -> None:
+    definition = spec.Spec()
+    explorer.Explorer(definition, plan=compiler.Compiler().compile(definition)).create_html(
+        tmp_path / "index.html"
+    )
+    styles = (tmp_path / "css/base.css").read_text(encoding="utf-8")
+    graph_styles = (tmp_path / "css/graph.css").read_text(encoding="utf-8")
+    script = (tmp_path / "js/icons.js").read_text(encoding="utf-8")
+    document = (tmp_path / "index.html").read_text(encoding="utf-8")
+
+    assert 'class="mobile-nav-toggle"' in document
+    assert 'data-lucide="menu"' in document
+    assert 'aria-expanded="false" aria-controls="explorer-navigation"' in document
+    assert 'id="explorer-navigation"' in document
+    assert "display: none;" in styles
+    assert ".site-nav.is-open" in styles
+    assert "max-height: calc(100dvh - var(--site-topbar-height));" in styles
+    assert "navigationToggle.focus();" in script
+    assert "inset: var(--site-topbar-height) 0 0;" in graph_styles
+
+
 @pytest.mark.parametrize(
     ("name", "expected"),
     [
