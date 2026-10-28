@@ -1,12 +1,12 @@
 # Spec
 
 `uptimely.spec` owns declarative documents, loading, conversion, semantic
-validation, serialization, and feature dependency inspection. Executable
+validation, serialization, and feature dependency graph inspection. Executable
 invocations and execution plans belong to the compiler.
 
 The [spec format reference](../components/spec.md) describes the
 contract. See [Python authoring](python.md) for declarations that produce it, or
-[feature graphs](feature-graph.md) for dependency analysis.
+[feature graphs](feature-graph.md) for feature dependency analysis.
 
 <div class="api-reference" markdown="1">
 
@@ -26,8 +26,9 @@ contract. See [Python authoring](python.md) for declarations that produce it, or
 1. Load a JSON document or convert Python declarations using
    [api](spec/api.md).
 2. Work with the document types defined in [model](spec/model.md).
-3. Inspect dependencies using [feature graphs](feature-graph.md), or pass the
-   document to the [compiler](compiler.md) to create executable invocations.
+3. Inspect feature dependencies using [feature graphs](feature-graph.md), or
+   pass the document to the [compiler](compiler.md) to create executable
+   invocations.
 4. Write the spec document using [json](spec/json.md). After editing a document
    directly, call [validate_spec](spec/validation.md) to check its semantics again.
 

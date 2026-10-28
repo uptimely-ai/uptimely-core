@@ -1,4 +1,4 @@
-"""Describe the feature dependency graph and resolve dependencies for requested outputs."""
+"""Describe feature dependencies as a graph and resolve requested outputs."""
 
 import graphable as graphable_
 from graphable import views
@@ -10,18 +10,18 @@ from uptimely.spec import references as bindings
 from . import models
 
 Node = graphable_.graphable.Graphable
-NodeMeta = models.FunctionNode | models.FeatureNode
+FeatureGraphNodeMeta = models.FunctionNode | models.FeatureNode
 
 
-class GraphBase:
-    """Shared helpers for system and subset feature dependency graphs."""
+class FeatureGraphBase:
+    """Shared helpers for complete and subset feature graphs."""
 
     graph: graphable_.graph.Graph
     _node_index: dict[str, Node]
     _explicit_output_names: list[str] | None
 
     @staticmethod
-    def _node_key(reference: NodeMeta) -> str:
+    def _node_key(reference: FeatureGraphNodeMeta) -> str:
         """Return a stable node key from a feature name or function call."""
         return reference.node_id
 
@@ -29,7 +29,7 @@ class GraphBase:
         self,
         level: list[Node],
         item_type: str,
-    ) -> list[str | NodeMeta | Node]:
+    ) -> list[str | FeatureGraphNodeMeta | Node]:
         """Project one topology level into requested item representation."""
         if item_type == "feature_ref":
             return [
@@ -57,8 +57,8 @@ class GraphBase:
 
     def topology(
         self, item_type: str, skip_input: bool = False
-    ) -> list[list[str | NodeMeta | Node]]:
-        """Feature names grouped by dependency level."""
+    ) -> list[list[str | FeatureGraphNodeMeta | Node]]:
+        """Return graph items grouped by dependency level."""
         levels = self.graph.parallelized_topological_order()
 
         if skip_input:
@@ -67,13 +67,13 @@ class GraphBase:
         return [self._topology_items_for_level(level, item_type) for level in levels]
 
     def print_graph(self) -> str:
-        """Print the feature dependency graph and return its text representation."""
+        """Print the dependency graph and return its text representation."""
         graph_text = self.render_graph()
         print(graph_text)
         return graph_text
 
     def render_graph(self) -> str:
-        """Return a text representation of the feature dependency graph."""
+        """Return a text representation of the dependency graph."""
         return views.texttree.create_topology_tree_txt(self.graph)
 
     @property
@@ -130,7 +130,7 @@ class GraphBase:
         }
 
 
-class FeatureGraph(GraphBase):
+class FeatureGraph(FeatureGraphBase):
     """Global dependency graph built from all feature actions."""
 
     def __init__(self, spec: spec_model.Spec) -> None:
@@ -237,7 +237,7 @@ class FeatureGraph(GraphBase):
                     entity,
                 )
 
-        def node(reference: NodeMeta) -> Node:
+        def node(reference: FeatureGraphNodeMeta) -> Node:
             return nodes.setdefault(
                 self._node_key(reference), graphable_.graphable.Graphable(reference)
             )
@@ -301,8 +301,8 @@ class FeatureGraph(GraphBase):
 
         return subgraph_nodes
 
-    def subset(self, output_names: list[str] | None = None) -> "SubGraph":
-        """Create the minimal SubGraph needed to vectorize the requested outputs."""
+    def subset(self, output_names: list[str] | None = None) -> "FeatureSubGraph":
+        """Create the minimal feature subgraph needed for requested outputs."""
         if output_names is None:
             output_names = sorted(self.feature_names)
 
@@ -313,18 +313,18 @@ class FeatureGraph(GraphBase):
         # Requested output nodes, intermediate nodes and input nodes
         nodes = self._get_ancestor_nodes(output_names)
         g = graphable_.graph.Graph(nodes, discover=False).clone(include_edges=True)
-        return SubGraph(graph=g, output_names=output_names)
+        return FeatureSubGraph(graph=g, output_names=output_names)
 
 
-class SubGraph(GraphBase):
-    """Function call subset graph extracted from the global system graph."""
+class FeatureSubGraph(FeatureGraphBase):
+    """Feature dependency subset extracted from the complete feature graph."""
 
     def __init__(
         self,
         graph: graphable_.graph.Graph,
         output_names: list[str] | None,
     ) -> None:
-        """Initialize a function call subset graph and explicit output targets."""
+        """Initialize a feature dependency subset and its explicit output targets."""
         self.graph = graph
         self._node_index = {self._node_key(n.reference): n for n in self.graph}
         self._explicit_output_names = (

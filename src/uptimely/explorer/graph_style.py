@@ -7,7 +7,7 @@ from uptimely.spec import functions
 
 @dataclasses.dataclass
 class GraphStyle:
-    """Visual appearance settings shared by feature and plan graph views."""
+    """Visual appearance settings shared by feature and invocation lineage views."""
 
     function_color: str = "#b9c9d8"
     input_color: str = "#64c7a8"

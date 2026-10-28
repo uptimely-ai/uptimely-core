@@ -2,7 +2,7 @@
 
 The Explorer turns a spec definition into a visual, browsable website.
 Use it to understand what an analytics project contains, how features relate,
-and how the compiled plan connects its functions. `build` generates the
+and how the compiled plan connects its invocations. `build` generates the
 complete project bundle, including its website.
 
 ## Build and preview
@@ -36,8 +36,8 @@ Use the sidebar to explore:
 | Section | What it shows |
 | --- | --- |
 | **Spec** | An overview of the model, its features, entities, datasets, dimensions, functions, and feature relationships. |
-| **Plan** | The compiled functions, their dependencies, and the stages used to organize the plan. |
-| **Execution / Data lineage** | A visual walkthrough of how declared inputs and outputs connect across functions. |
+| **Plan** | The compiled invocations, their dependencies, and the stages used to organize the plan. |
+| **Execution / Data lineage** | A visual walkthrough of how data is assembled after each action. |
 
 Every page shares a top bar with the project name and a home icon linking to the
 project overview, plus a **Full build** or **Partial build** badge. Unnamed
@@ -46,23 +46,24 @@ only selected outputs and their dependencies in plan and execution pages;
 spec pages always show the complete model. Hover over the badge for coverage
 details, also available to screen readers.
 
-The feature graph focuses on relationships between spec features. Plan
-graphs focus on function dependencies. Both use the same **2D / 3D** switch next
-to the graph title,
+Feature lineage visualizes feature inputs and outputs. Invocation lineage
+visualizes dependencies between compiled invocations. Both use the same
+**2D / 3D** switch next to the graph title,
 **Zoom in**, **Zoom out**, **Reset graph**, collapsible legend, and selected-node
 details panel. Click a node to highlight its upstream dependencies and downstream
-dependents; the selection is preserved when switching dimensions. The feature
-graph retains its entity colors when no node is selected. In 3D, the execution
-graph uses the same entity-colored spheres, node sizes, label spacing, and edge
-length settings as the feature graph. Its 2D view retains stage lanes and
-operation colors.
+dependents; the selection is preserved when switching dimensions. The
+feature-lineage view retains its entity colors when no node is selected. In 3D,
+the invocation-lineage graph uses the same entity-colored spheres, node sizes, label
+spacing, and edge length settings as feature lineage. Its 2D view retains stage
+lanes and operation colors.
 **Reset graph** clears the selection and dependency highlights in both dimensions
 and fits the current view to show the whole graph.
 
-The graph views have distinct navigation and heading icons: Feature graph uses
-a teal network icon for feature relationships, while Execution graph uses an
-orange workflow icon for left-to-right processing dependencies. These accents
-identify the views; graph nodes retain their data-specific colors.
+Feature and invocation lineage views have distinct navigation and heading icons:
+Feature lineage uses a teal network icon for feature relationships, while
+Invocation lineage uses an orange workflow icon for dependencies between plan
+invocations. These accents identify the views; graph nodes retain their
+data-specific colors.
 
 The data-lineage walkthrough is an illustration of the declared plan, not a
 run of your functions. Its example table values and rows are placeholders; it

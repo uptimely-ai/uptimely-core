@@ -1,4 +1,4 @@
-"""Prepare graph payloads for compiled execution plans."""
+"""Prepare invocation-lineage payloads for compiled execution plans."""
 
 import json
 import typing
@@ -34,10 +34,10 @@ def invocation_label_lines(invocation: execution_plan.Invocation) -> list[str]:
     return lines
 
 
-def plan_graph_payload(
+def invocation_lineage_payload(
     plan: execution_plan.ExecutionPlan,
 ) -> tuple[list[dict[str, typing.Any]], list[dict[str, str]]]:
-    """Build node and link payloads for a compiled execution plan."""
+    """Build invocation and dependency link payloads for a compiled plan."""
     stage_by_invocation = {
         invocation.id: stage_number
         for stage_number, stage in enumerate(plan.execution_stages, start=1)

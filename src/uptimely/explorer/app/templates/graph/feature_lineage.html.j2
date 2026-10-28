@@ -2,7 +2,7 @@
 {% from "graph/components.html.j2" import node_details_panel, graph_canvas, graph_legend %}
 {% block title %}Feature lineage{% endblock %}
 {% block body %}
-	{% call graph_legend("Feature graph legend") %}
+	{% call graph_legend("Feature lineage legend") %}
 			<span class="function" style="--color:{{ style.function_color }}">Function</span>
 			<span class="legend-heading">Entities</span>
 			<div class="entity-legend" id="entity-legend"></div>
@@ -13,5 +13,5 @@
 	<script id="graph-style" type="application/json">{{ graph_style_data|tojson }}</script>
 {% endblock %}
 {% block graph_script %}
-<script src="{{ root_path or "" }}js/feature_graph.js"></script>
+<script src="{{ root_path or "" }}js/feature_lineage.js"></script>
 {% endblock %}

@@ -9,7 +9,7 @@ import pytest
 from conftest import EXAMPLES_ROOT, engine_for_plan, render_explorer
 
 from uptimely import compiler, spec
-from uptimely.explorer.sections import feature_graph
+from uptimely.explorer.sections import feature_lineage
 from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec import functions
 
@@ -184,10 +184,10 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     feature_page = (index.parent / "spec/features.html").read_text(encoding="utf-8")
     datasets_page = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     functions_page = (index.parent / "spec/functions.html").read_text(encoding="utf-8")
-    graph_page = (index.parent / "spec/graph.html").read_text(encoding="utf-8")
-    plan_page = (index.parent / "plan/graph.html").read_text(encoding="utf-8")
+    graph_page = (index.parent / "spec/feature_lineage.html").read_text(encoding="utf-8")
+    plan_page = (index.parent / "plan/invocation_lineage.html").read_text(encoding="utf-8")
     stages_page = (index.parent / "plan/stages.html").read_text(encoding="utf-8")
-    lineage_page = (index.parent / "execution/data_lineage.html").read_text(encoding="utf-8")
+    data_lineage_page = (index.parent / "execution/data_lineage.html").read_text(encoding="utf-8")
 
     assert "Declared external output; not a verified dataframe column." in feature_page
     assert "Declared inputs: $features.bearing_temperature, $features.vibration_rms" in feature_page
@@ -198,13 +198,13 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     assert "Uncontrolled external operation" in functions_page
     assert "Python return value is ignored" in functions_page
     assert "External outputs: audit_reference, audit_status" in functions_page
-    assert "Declares external outputs" in (index.parent / "js/feature_graph.js").read_text(
+    assert "Declares external outputs" in (index.parent / "js/feature_lineage.js").read_text(
         encoding="utf-8"
     )
     assert '"function_kind": "escape"' in graph_page
     assert '"features": ["audit_reference", "audit_status"]' in graph_page
     assert '"features": ["audit_followup"]' in graph_page
-    assert "Declares external outputs" in (index.parent / "js/invocation_graph.js").read_text(
+    assert "Declares external outputs" in (index.parent / "js/invocation_lineage.js").read_text(
         encoding="utf-8"
     )
     assert "audit_reference, audit_status" in plan_page
@@ -212,8 +212,8 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     assert "Declares external outputs" in stages_page
     assert "not verified or materialized as dataframe columns" in stages_page
     escape_steps = re.findall(
-        r'<article class="lineage-step"[^>]*data-function-kind="escape".*?</article>',
-        lineage_page,
+        r'<article class="data-lineage-step"[^>]*data-function-kind="escape".*?</article>',
+        data_lineage_page,
         re.DOTALL,
     )
     assert len(escape_steps) == 3
@@ -228,7 +228,9 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     )
     assert re.search(r'data-dependencies="[^"]+"', followup_step)
 
-    graph_nodes, graph_links = feature_graph.feature_graph_payload(spec.FeatureGraph(definition))
+    graph_nodes, graph_links = feature_lineage.feature_lineage_payload(
+        spec.FeatureGraph(definition)
+    )
     audit_feature_nodes = {
         node["label"]: node
         for node in graph_nodes

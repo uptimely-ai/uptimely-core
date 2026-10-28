@@ -1,6 +1,6 @@
 	<div class="graph-toolbar">
 		<div class="graph-title-controls">
-		<h1 class="title-with-icon">{{ icon("execution-graph" if active_page == "plan" else "feature-graph", "title-icon") }}<span>{{ "Execution graph" if active_page == "plan" else "Feature lineage" }}</span></h1>
+		<h1 class="title-with-icon">{{ icon("invocation-lineage" if active_page == "plan" else "feature-lineage", "title-icon") }}<span>{{ "Invocation lineage" if active_page == "plan" else "Feature lineage" }}</span></h1>
 		<div class="graph-buttons" role="group" aria-label="Graph view">
 			<button class="ui-button" type="button" data-dimension="2d" aria-pressed="true" aria-controls="graph-2d">2D</button>
 			<button class="ui-button" type="button" data-dimension="3d" aria-pressed="false" aria-controls="graph-3d">3D</button>

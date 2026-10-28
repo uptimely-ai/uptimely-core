@@ -13,8 +13,8 @@ SECTION = render.WebsiteSection(
     pages=(
         render.WebsitePage(
             "execution/data_lineage.html.j2",
-            render.WEBSITE_PAGES["execution"]["lineage"],
-            active_section="lineage",
+            render.WEBSITE_PAGES["execution"]["data_lineage"],
+            active_section="data_lineage",
         ),
     ),
 )

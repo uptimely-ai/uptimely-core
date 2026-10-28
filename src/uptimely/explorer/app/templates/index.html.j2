@@ -59,7 +59,7 @@
       {% for accent, number, title, description, href, action in [
         ("spec", "01", "Spec", "The source of truth. Browse entities, datasets, features, dimensions, and the functions bound to them.", website_pages["spec"]["overview"], "Explore spec"),
         ("plan", "02", "Plan", "The path to execution. Inspect compiled operations, argument bindings, and dependency-ordered stages with potential parallelism.", website_pages["plan"]["overview"], "Inspect the plan"),
-        ("execution", "03", "Execution", "Follow color-coded processing tables and the dependencies connecting them.", website_pages["execution"]["lineage"], "Explore execution")
+        ("execution", "03", "Execution", "Follow color-coded processing tables and the dependencies connecting them.", website_pages["execution"]["data_lineage"], "Explore execution")
       ] %}
       <li class="journey-step {{ accent }} icon--{{ accent }}">
         <div class="journey-step-header">

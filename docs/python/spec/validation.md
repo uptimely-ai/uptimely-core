@@ -22,7 +22,7 @@ Document validation checks declared relationships and dataflow, not generated
 invocations. Its ordered phases are:
 
 1. Vectorize output declarations, dataset IDs, feature ownership, and local
-   calculation/write dependencies.
+   feature dependencies for local calculation/write checks.
 2. Dimension parents, entity dimensions, and dataset ordering.
 3. Action outputs and producer uniqueness, with warnings for declared features
    that have no producer.
@@ -40,7 +40,7 @@ first-error behavior. Each phase passes the same fresh `SpecValidationContext`
 facts to the explicit domain rules. Add declaration rules to the appropriate
 domain phase, keeping declaration order and testing the first error when
 faults overlap. The compiler separately checks implementation signatures,
-selected-plan feasibility, and dependency ordering.
+selected-plan feasibility, and invocation dependency ordering.
 
 ## Internal organization
 
@@ -85,7 +85,8 @@ candidates, row-context requirements, flattened binding selectors, dataframe
 inputs, and the action dependency graph. Source inference is shared by the
 collapse, row-context, and action-contract phases. No validator constructs
 indexes or returns intermediate artifacts to the coordinator. One-pass phases
-consume dependency and row-context facts through iterators instead of building
+consume feature dependency and row-context facts through iterators instead of
+building
 temporary tuples that validation would immediately traverse once.
 
 Each phase checks one declaration's invariants before advancing to the next.
@@ -100,8 +101,8 @@ and cycle checks, and may connect features across datasets. Binding arguments
 are still validated, including any explicitly bound dataframe references, but
 escape does not receive the dataframe relationship checks used by controlled
 function kinds. Its declared features need not match Python parameters or return
-values. Compilation retains their dependencies; execution invokes the function
-and ignores its return value without materializing declared outputs.
+values. Compilation retains their feature dependencies; execution invokes the
+function and ignores its return value without materializing declared outputs.
 
 ### Adding or changing a rule
 

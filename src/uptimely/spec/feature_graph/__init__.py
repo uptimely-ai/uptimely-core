@@ -1,14 +1,20 @@
-"""Feature dependency graph models and visualization."""
+"""Dependency graph models."""
 
-from .graph import FeatureGraph, GraphBase, Node, NodeMeta, SubGraph
+from .feature_graph import (
+    FeatureGraph,
+    FeatureGraphBase,
+    FeatureGraphNodeMeta,
+    FeatureSubGraph,
+    Node,
+)
 from .models import FeatureNode, FunctionNode
 
 __all__ = [
     "FeatureGraph",
     "FeatureNode",
     "FunctionNode",
-    "GraphBase",
+    "FeatureGraphBase",
+    "FeatureGraphNodeMeta",
     "Node",
-    "NodeMeta",
-    "SubGraph",
+    "FeatureSubGraph",
 ]

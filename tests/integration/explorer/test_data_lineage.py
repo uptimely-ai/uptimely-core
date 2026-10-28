@@ -1,4 +1,4 @@
-"""Tests for lineage cards, declared schemas, and dependency metadata."""
+"""Tests for data-lineage cards, declared schemas, and dependency metadata."""
 
 import pathlib
 import re
@@ -7,13 +7,13 @@ from html import parser as html_parser
 from conftest import EXAMPLES_ROOT, plan_for_spec, render_explorer
 
 from uptimely import spec
-from uptimely.explorer.sections import data_lineage as lineage
+from uptimely.explorer.sections import data_lineage
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
-class LineageStructureCollector(html_parser.HTMLParser):
-    """Validate nesting and retain the parents of lineage layout elements."""
+class DataLineageStructureCollector(html_parser.HTMLParser):
+    """Validate nesting and retain the parents of data-lineage layout elements."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -26,9 +26,9 @@ class LineageStructureCollector(html_parser.HTMLParser):
         if tag == "tr" and "data-column" in attributes:
             self.columns.append((attributes["data-column"], attributes.get("data-role")))
         if attributes.get("class") in {
-            "lineage-stage",
-            "lineage-step",
-            "lineage-dependencies",
+            "data-lineage-stage",
+            "data-lineage-step",
+            "data-lineage-dependencies",
         }:
             parent = self.stack[-1][1]
             self.parents.append(
@@ -43,30 +43,32 @@ class LineageStructureCollector(html_parser.HTMLParser):
         self.stack.pop()
 
 
-def test_lineage_layout_has_balanced_stage_and_card_containers(tmp_path: pathlib.Path) -> None:
+def test_data_lineage_layout_has_balanced_stage_and_card_containers(
+    tmp_path: pathlib.Path,
+) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = plan_for_spec(spec_definition)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
-    collector = LineageStructureCollector()
+    collector = DataLineageStructureCollector()
     collector.feed(document)
     assert not collector.stack
-    assert [parent for name, parent in collector.parents if name == "lineage-stage"] == [
-        "lineage-board"
+    assert [parent for name, parent in collector.parents if name == "data-lineage-stage"] == [
+        "data-lineage-board"
     ] * len(plan.execution_stages)
-    assert [parent for name, parent in collector.parents if name == "lineage-step"] == [
-        "lineage-stage"
+    assert [parent for name, parent in collector.parents if name == "data-lineage-step"] == [
+        "data-lineage-stage"
     ] * len(plan.invocations)
-    assert [parent for name, parent in collector.parents if name == "lineage-dependencies"] == [
-        "lineage-details"
-    ] * len(plan.invocations)
+    assert [
+        parent for name, parent in collector.parents if name == "data-lineage-dependencies"
+    ] == ["data-lineage-details"] * len(plan.invocations)
 
 
-def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
+def test_data_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = plan_for_spec(spec_definition)
 
-    stages = lineage._build_stages(spec_definition, plan)
+    stages = data_lineage._build_stages(spec_definition, plan)
 
     assert [len(stage) for stage in stages] == [len(stage) for stage in plan.execution_stages]
     steps = {step.invocation_id: step for stage in stages for step in stage}
@@ -113,13 +115,13 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
             assert not any(column.role == "Output" for column in step.columns)
 
 
-def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> None:
+def test_data_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = plan_for_spec(spec_definition)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     tables = re.findall(
-        r'<article class="lineage-step" id="step-(\d+)" data-invocation-id="([^"]+)"'
+        r'<article class="data-lineage-step" id="step-(\d+)" data-invocation-id="([^"]+)"'
         r'\s+data-dependencies="([^"]*)"',
         document,
     )
@@ -131,11 +133,13 @@ def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> N
             sorted((numbers[identifier] for identifier in invocation.dependency_ids), key=int)
             or [""]
         )
-    assert document.count('<table class="lineage-table lineage-schema">') == len(plan.invocations)
+    assert document.count('<table class="data-lineage-table data-lineage-schema">') == len(
+        plan.invocations
+    )
     assert 'aria-label="Execution sections"' in document
     assert 'aria-label="Plan sections"' in document
     assert "Execution plan" not in document
-    assert 'id="lineage-edges"' not in document
+    assert 'id="data-lineage-edges"' not in document
     assert "Illustration only:" in document
     assert "not calculated data" in document
     assert "No spec are executed" in document
@@ -143,80 +147,82 @@ def test_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> N
     assert "No declared producer" not in document
 
 
-def test_empty_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
+def test_empty_data_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
     render_explorer(spec.Spec(), tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     assert "No processing steps." in document
-    assert '<table class="lineage-table"' not in document
+    assert '<table class="data-lineage-table"' not in document
     assert 'href="../execution/data_lineage.html" aria-current="page"' in document
 
 
-def test_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
+def test_data_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
     render_explorer(spec.Spec(), tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
-    assert "lineage-legend" not in document
+    assert "data-lineage-legend" not in document
     assert "Data lineage color key" not in document
 
 
-def test_lineage_has_focused_invocation_playback(tmp_path: pathlib.Path) -> None:
+def test_data_lineage_has_focused_invocation_playback(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
     styles = (tmp_path / "css/data_lineage.css").read_text(encoding="utf-8")
     script = (tmp_path / "js/data_lineage.js").read_text(encoding="utf-8")
     assert 'aria-label="Lineage playback" hidden' in document
-    assert 'id="lineage-previous">Previous</button>' in document
-    assert 'id="lineage-play" aria-pressed="false">Play</button>' in document
-    assert 'id="lineage-next">Next</button>' in document
-    assert 'id="lineage-step-track" role="list" aria-label="Execution steps"' in document
-    assert 'class="lineage-step-position" id="lineage-position"' in document
-    assert document.index('id="lineage-step-track"') < document.index('id="lineage-position"')
-    assert 'class="lineage-stage-position" id="lineage-stage-position"' in document
-    assert 'id="lineage-stage-track" role="list" aria-label="Execution stages"' in document
+    assert 'id="data-lineage-previous">Previous</button>' in document
+    assert 'id="data-lineage-play" aria-pressed="false">Play</button>' in document
+    assert 'id="data-lineage-next">Next</button>' in document
+    assert 'id="data-lineage-step-track" role="list" aria-label="Execution steps"' in document
+    assert 'class="data-lineage-step-position" id="data-lineage-position"' in document
+    assert document.index('id="data-lineage-step-track"') < document.index(
+        'id="data-lineage-position"'
+    )
+    assert 'class="data-lineage-stage-position" id="data-lineage-stage-position"' in document
+    assert 'id="data-lineage-stage-track" role="list" aria-label="Execution stages"' in document
     execution_plan = plan_for_spec(spec_definition)
     execution_stages = execution_plan.execution_stages
     assert document.count('data-stage-marker="') == len(execution_stages)
     assert document.count('data-step-marker="') == sum(map(len, execution_stages))
-    assert document.index('id="lineage-stage-track"') < document.index(
-        'id="lineage-stage-position"'
+    assert document.index('id="data-lineage-stage-track"') < document.index(
+        'id="data-lineage-stage-position"'
     )
-    assert "lineage-progress-track { display: flex; width: 100%;" in styles
-    assert 'class="lineage-kicker"' not in document
+    assert "data-lineage-progress-track { display: flex; width: 100%;" in styles
+    assert 'class="data-lineage-kicker"' not in document
     assert "Stage {{ stage_number }} / Step {{ step.number }}" not in document
     assert "Stage ${step.dataset.stage} of ${stages.length}" in script
-    assert ".lineage-scene { display: grid; grid-template-columns: minmax(0, 1fr);" in styles
-    assert 'class="lineage-arrow">' in document
-    assert ".lineage-table-scroll { overflow-x: auto; overflow-y: hidden;" in styles
-    assert ".lineage-step h3 {" in styles and "text-align: center;" in styles
-    assert '<span class="lineage-arrow-icon" aria-hidden="true">&darr;</span>' in document
+    assert ".data-lineage-scene { display: grid; grid-template-columns: minmax(0, 1fr);" in styles
+    assert 'class="data-lineage-arrow">' in document
+    assert ".data-lineage-table-scroll { overflow-x: auto; overflow-y: hidden;" in styles
+    assert ".data-lineage-step h3 {" in styles and "text-align: center;" in styles
+    assert '<span class="data-lineage-arrow-icon" aria-hidden="true">&darr;</span>' in document
     assert "<h3>Maximum</h3>" in document
     assert (
-        '<div class="lineage-arrow">\n'
-        '            <span class="lineage-arrow-icon" aria-hidden="true">&darr;</span>\n'
-        '            <small class="lineage-invocation-type">' in document
+        '<div class="data-lineage-arrow">\n'
+        '            <span class="data-lineage-arrow-icon" aria-hidden="true">&darr;</span>\n'
+        '            <small class="data-lineage-invocation-type">' in document
     )
     assert "<strong>maximum</strong>" not in document
-    assert 'class="lineage-invocation-type">Aggregate</small>' in document
-    assert "lineage-invocation-phase" not in document
+    assert 'class="data-lineage-invocation-type">Aggregate</small>' in document
+    assert "data-lineage-invocation-phase" not in document
     assert "<h3>Maximum</h3>" in document
     for function_kind in ("READ", "AGGREGATE", "VECTORIZE", "WRITE"):
-        assert f'<span class="lineage-function-kind-label">{function_kind}</span>' in document
-    assert '<span class="lineage-function-kind-label">FUNCTION_KIND</span>' not in document
-    assert "lineage-step h3 {" in styles
-    assert 'class="lineage-table-dataset">Dataset:' in document
-    assert 'class="lineage-dataset"' not in document
+        assert f'<span class="data-lineage-function-kind-label">{function_kind}</span>' in document
+    assert '<span class="data-lineage-function-kind-label">FUNCTION_KIND</span>' not in document
+    assert "data-lineage-step h3 {" in styles
+    assert 'class="data-lineage-table-dataset">Dataset:' in document
+    assert 'class="data-lineage-dataset"' not in document
     assert "transform: rotate(90deg)" not in document
     assert document.count("<summary>Declared schema and dependencies</summary>") == len(
         execution_plan.invocations
     )
     assert "<details open" not in document
-    assert "lineage-inspector" not in document
-    assert "lineage-direction" not in document
-    assert "lineage-zoom" not in document
-    assert "lineage-animate" not in document
+    assert "data-lineage-inspector" not in document
+    assert "data-lineage-direction" not in document
+    assert "data-lineage-zoom" not in document
+    assert "data-lineage-animate" not in document
     assert "<h3>Maximum</h3>" in document
-    assert '<table class="lineage-table" data-side="input">' in document
-    assert '<table class="lineage-table" data-side="output">' in document
+    assert '<table class="data-lineage-table" data-side="input">' in document
+    assert '<table class="data-lineage-table" data-side="output">' in document
     assert "prefers-reduced-motion: reduce" in script
     assert "reducedMotion.addEventListener" in script
     assert 'document.addEventListener("visibilitychange"' in script
@@ -232,16 +238,16 @@ def test_lineage_has_focused_invocation_playback(tmp_path: pathlib.Path) -> None
     assert "Exact input-to-output mappings are not inferred" in script
     assert "animation-play-state: paused" in styles
     assert 'step.classList.toggle("is-playing", playing)' in script
-    assert "lineage-grouped" in styles
+    assert "data-lineage-grouped" in styles
 
 
 def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     execution_plan = plan_for_spec(spec_definition)
-    stages = lineage._build_stages(spec_definition, execution_plan)
+    stages = data_lineage._build_stages(spec_definition, execution_plan)
     render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "execution/data_lineage.html").read_text(encoding="utf-8")
-    collector = LineageStructureCollector()
+    collector = DataLineageStructureCollector()
     collector.feed(document)
     assert collector.columns == [
         (column.name, column.role) for stage in stages for step in stage for column in step.columns
@@ -250,7 +256,7 @@ def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -
     assert "Observation key" in document
 
 
-def test_lineage_omits_declared_row_grain(tmp_path: pathlib.Path) -> None:
+def test_data_lineage_omits_declared_row_grain(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     dataset = next(iter(next(iter(spec_definition.entities.values())).datasets.values()))
     dataset.row_scope.grain = "<script>alert('grain')</script>"

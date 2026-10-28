@@ -100,7 +100,7 @@ Parallel scheduling is not required for an adapter to ship.
 
 ## Planned release: Explorer navigation and readability
 
-Improve lineage views and provide navigation for later inspection features.
+Improve feature-lineage views and provide navigation for later inspection features.
 
 **Prerequisites:** None within this backlog for standalone layout improvements.
 Graph views must support the plan format available when they ship.
@@ -108,9 +108,9 @@ Graph views must support the plan format available when they ship.
 | title | breaking | description |
 |---|---|---|
 | Add top nav bar | No | Standardize navigation and provide extension points for report and explanation views. Only those extension points, not unrelated visual improvements, gate later views. |
-| Add selectable specification lineage views | No | Switch between combined, functions-only and features-only lineage. |
+| Add selectable specification lineages | No | Switch between combined, functions-only and features-only views. |
 | Show dimension hierarchy in Explorer | No | Show dimension relationships instead of only a flat list. |
-| Remove full argument texts from the execution graph | No | Keep full argument text outside graph nodes, with details available separately. |
+| Remove full argument texts from the invocation-lineage graph | No | Keep full argument text outside graph nodes, with details available separately. |
 | Improve Explorer chart legends | No | Make legends clearer and easier to use across visualizations. |
 
 ## Planned release: Callable metadata and explanations

@@ -14,7 +14,7 @@ from conftest import EXAMPLES_ROOT, plan_for_spec, render_explorer
 from examples.pump_analytics.functions import analytics
 
 from uptimely import compiler, spec
-from uptimely.explorer.sections import feature_graph
+from uptimely.explorer.sections import feature_lineage
 from uptimely.explorer.sections import spec as spec_render
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -25,11 +25,11 @@ REPORTS = {
     "spec/datasets.html": "datasets",
     "spec/dimensions.html": "dimensions",
     "spec/functions.html": "functions",
-    "spec/graph.html": "graph",
+    "spec/feature_lineage.html": "feature_lineage",
     "plan/overview.html": "plan",
-    "plan/graph.html": "plan",
+    "plan/invocation_lineage.html": "plan",
     "plan/stages.html": "stages",
-    "execution/data_lineage.html": "lineage",
+    "execution/data_lineage.html": "data_lineage",
 }
 
 
@@ -123,11 +123,15 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         "spec/datasets.html": ("datasets", "table", "Datasets"),
         "spec/dimensions.html": ("dimensions", "layers-3", "Dimensions"),
         "spec/functions.html": ("functions", "braces", "Functions"),
-        "spec/graph.html": ("feature-graph", "network", "Feature lineage"),
+        "spec/feature_lineage.html": ("feature-lineage", "network", "Feature lineage"),
         "plan/overview.html": ("overview", "layout-dashboard", "Overview"),
-        "plan/graph.html": ("execution-graph", "workflow", "Execution graph"),
+        "plan/invocation_lineage.html": (
+            "invocation-lineage",
+            "workflow",
+            "Invocation lineage",
+        ),
         "plan/stages.html": ("stages", "list-ordered", "Stages"),
-        "execution/data_lineage.html": ("lineage", "database-zap", "Data lineage"),
+        "execution/data_lineage.html": ("data-lineage", "database-zap", "Data lineage"),
     }
     palette = {
         "home": "#93c5fd",
@@ -139,11 +143,11 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         "datasets": "#6ee7b7",
         "dimensions": "#818cf8",
         "functions": "#fcd34d",
-        "lineage": "#e879f9",
-        "feature-graph": "#2dd4bf",
+        "feature-lineage": "#2dd4bf",
+        "invocation-lineage": "#fb923c",
+        "data-lineage": "#e879f9",
         "invocations": "#fcd34d",
         "execution": "#e879f9",
-        "execution-graph": "#fb923c",
         "stages": "#818cf8",
     }
     icon_styles = (tmp_path / "css/icons.css").read_text(encoding="utf-8")
@@ -185,13 +189,13 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
             ("datasets", "Datasets"),
             ("dimensions", "Dimensions"),
             ("functions", "Functions"),
-            ("feature-graph", "Feature graph"),
+            ("feature-lineage", "Feature lineage"),
             ("plan", "Plan"),
             ("overview", "Overview"),
-            ("execution-graph", "Execution graph"),
+            ("invocation-lineage", "Invocation lineage"),
             ("stages", "Stages"),
             ("execution", "Execution"),
-            ("lineage", "Data lineage"),
+            ("data-lineage", "Data lineage"),
         ]
         navigation_symbols = {
             next(
@@ -203,9 +207,9 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         }
         assert navigation_symbols["plan"] == "list-tree"
         assert navigation_symbols["execution"] == "play"
-        assert navigation_symbols["feature-graph"] == "network"
-        assert navigation_symbols["execution-graph"] == "workflow"
-        assert navigation_symbols["lineage"] == "database-zap"
+        assert navigation_symbols["feature-lineage"] == "network"
+        assert navigation_symbols["invocation-lineage"] == "workflow"
+        assert navigation_symbols["data-lineage"] == "database-zap"
 
     plan_overview = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
     assert re.findall(
@@ -218,7 +222,7 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
         ("Entities", "entities"),
         ("Features", "features"),
         ("Stages", "stages"),
-        ("Dependencies", "execution-graph"),
+        ("Dependencies", "invocation-lineage"),
         ("Max parallel invocations", "stages"),
     ]
 
@@ -357,32 +361,32 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "scrollbar-color: #475569 #0f172a" in spec_styles
     assert ".dataset-table-scroll::-webkit-scrollbar" in spec_styles
     assert "Pump analytics" in (index.parent / "spec/overview.html").read_text(encoding="utf-8")
-    graph_2d = (index.parent / "spec/graph.html").read_text(encoding="utf-8")
+    graph_2d = (index.parent / "spec/feature_lineage.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_2d
     assert "force-graph@1.52.0/dist/force-graph.min.js" in graph_2d
-    graph_script = (index.parent / "js/feature_graph.js").read_text(encoding="utf-8")
+    graph_script = (index.parent / "js/feature_lineage.js").read_text(encoding="utf-8")
     assert ".height(graphContainer.clientHeight)" in graph_script
     assert "3d-force-graph" in graph_2d
-    assert 'aria-label="Feature graph views"' not in graph_2d
+    assert 'aria-label="Feature lineage views"' not in graph_2d
     assert re.search(
-        r'href="../spec/graph.html" aria-current="page">'
-        r'<i class="site-icon icon--feature-graph nav-icon" '
+        r'href="../spec/feature_lineage.html" aria-current="page">'
+        r'<i class="site-icon icon--feature-lineage nav-icon" '
         r'data-lucide="network"',
         graph_2d,
     )
     assert "ExplorerGraph.createView(graph, graphContainer, 80, '2d')" in graph_script
-    plan = (index.parent / "plan/graph.html").read_text(encoding="utf-8")
-    assert 'id="invocation-graph"' in plan
+    plan = (index.parent / "plan/invocation_lineage.html").read_text(encoding="utf-8")
+    assert 'id="invocation-lineage-graph"' in plan
     assert "normalize_health_signal" in plan
     assert not pathlib.Path("_generated/spec").exists()
     assert not pathlib.Path("_generated/compile").exists()
 
 
-def test_feature_graph_payload_contains_expected_nodes_and_links() -> None:
+def test_feature_lineage_payload_contains_expected_nodes_and_links() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    graph = spec.FeatureGraph(spec_definition)
+    feature_graph = spec.FeatureGraph(spec_definition)
 
-    nodes, links = feature_graph.feature_graph_payload(graph)
+    nodes, links = feature_lineage.feature_lineage_payload(feature_graph)
 
     node_ids = {node["id"] for node in nodes}
     assert "health_signal_normalized" in node_ids
@@ -574,7 +578,7 @@ def test_relocated_website_navigation_works_under_url_prefix(
     ("filename", "title"),
     [
         ("plan/overview.html", "Overview"),
-        ("plan/graph.html", "Execution graph"),
+        ("plan/invocation_lineage.html", "Invocation lineage"),
         ("plan/stages.html", "Stages"),
     ],
 )
@@ -586,10 +590,10 @@ def test_execution_plan_pages_render_only_their_section(
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert 'aria-label="Plan sections"' in document
-    is_graph = title == "Execution graph"
+    is_graph = title == "Invocation lineage"
     assert heading_titles(document) == [title]
     if is_graph:
-        script = (tmp_path / "js/invocation_graph.js").read_text(encoding="utf-8")
+        script = (tmp_path / "js/invocation_lineage.js").read_text(encoding="utf-8")
         assert 'class="absolute inset-0"' in document
         assert document.count("<header") == 1
         assert '<header class="site-topbar"' in document
@@ -661,8 +665,8 @@ def test_execution_plan_pages_render_only_their_section(
             assert ".onRenderFramePre(drawStageLanes)" in script
             assert "ctx.fillRect(left, -laneHeight / 2, 360, laneHeight)" in script
     assert ('id="plan-overview"' in document) == (title == "Overview")
-    assert ('id="invocation-graph"' in document) == is_graph
-    assert ('src="../js/invocation_graph.js"' in document) == is_graph
+    assert ('id="invocation-lineage-graph"' in document) == is_graph
+    assert ('src="../js/invocation_lineage.js"' in document) == is_graph
     assert ('id="invocations"' in document) == (title == "Stages")
     assert (">Argument</th>" in document) == (title == "Stages")
     if title == "Stages":
@@ -673,7 +677,7 @@ def test_execution_plan_pages_render_only_their_section(
     assert ("force-graph@1.52.0" in document) == is_graph
 
 
-@pytest.mark.parametrize("filename", ["spec/graph.html", "plan/graph.html"])
+@pytest.mark.parametrize("filename", ["spec/feature_lineage.html", "plan/invocation_lineage.html"])
 def test_graph_pages_have_one_selector_and_shared_data(
     tmp_path: pathlib.Path, filename: str
 ) -> None:
@@ -721,6 +725,8 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
         "execution_plan_graph_2d.html",
         "execution_plan_graph_3d.html",
         "graph/feature_graph.html",
+        "graph/lineage.html",
+        "spec/graph.html",
     )
     for filename in (*obsolete, "custom.html"):
         (tmp_path / filename).parent.mkdir(parents=True, exist_ok=True)
@@ -730,7 +736,7 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
     assert all(not (tmp_path / filename).exists() for filename in obsolete)
     assert (tmp_path / "custom.html").read_text(encoding="utf-8") == "old"
     assert (tmp_path / "graph/custom.html").read_text(encoding="utf-8") == "custom graph"
-    assert (tmp_path / "spec/graph.html").is_file()
+    assert (tmp_path / "spec/feature_lineage.html").is_file()
 
 
 def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> None:
@@ -816,15 +822,15 @@ def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filen
 
 def test_standalone_html_apis_are_removed() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    graph = spec.FeatureGraph(spec_definition)
+    feature_graph = spec.FeatureGraph(spec_definition)
     assert not hasattr(spec_definition, "create_html")
-    assert not hasattr(graph, "export_html")
-    assert not hasattr(graph.subset(["health_signal_normalized"]), "export_html")
+    assert not hasattr(feature_graph, "export_html")
+    assert not hasattr(feature_graph.subset(["health_signal_normalized"]), "export_html")
     assert not hasattr(plan_for_spec(spec_definition), "export_html")
     assert not hasattr(spec_render, "create_html")
     assert not hasattr(spec_render, "create_website_pages")
-    assert not hasattr(feature_graph, "render_graph_html")
-    assert not hasattr(feature_graph, "export_graph_html")
+    assert not hasattr(feature_lineage, "render_graph_html")
+    assert not hasattr(feature_lineage, "export_graph_html")
 
 
 def test_website_propagates_compilation_errors_without_writing_reports(
@@ -843,7 +849,7 @@ def test_website_propagates_compilation_errors_without_writing_reports(
 
 @pytest.mark.parametrize(
     "filename",
-    ["spec/graph.html", "plan/graph.html"],
+    ["spec/feature_lineage.html", "plan/invocation_lineage.html"],
 )
 def test_website_graph_links_reference_exported_nodes(
     tmp_path: pathlib.Path, filename: str
@@ -866,13 +872,13 @@ def test_website_graph_links_reference_exported_nodes(
         assert link["target"] in identifiers
 
 
-def test_execution_plan_graphs_match_compiled_invocation_dependencies(
+def test_invocation_lineage_matches_compiled_invocation_dependencies(
     tmp_path: pathlib.Path,
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     plan = plan_for_spec(spec_definition)
     render_explorer(spec_definition, tmp_path / "index.html")
-    document = (tmp_path / "plan/graph.html").read_text(encoding="utf-8")
+    document = (tmp_path / "plan/invocation_lineage.html").read_text(encoding="utf-8")
     match = re.search(
         r'<script id="graph-data" type="application/json">(.*?)</script>', document, re.DOTALL
     )

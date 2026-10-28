@@ -1,4 +1,4 @@
-"""Prepare and render feature dependency graphs for the Explorer website."""
+"""Prepare and render feature lineage for the Explorer website."""
 
 import dataclasses
 import json
@@ -10,26 +10,30 @@ from uptimely.explorer import common, graph_style, render
 from uptimely.spec.feature_graph import models
 
 if typing.TYPE_CHECKING:
-    from uptimely.spec.feature_graph.graph import GraphBase
+    from uptimely.spec.feature_graph.feature_graph import FeatureGraphBase
 
 SECTION = render.WebsiteSection(
-    active_page="graph",
+    active_page="spec",
     pages=(
-        render.WebsitePage("graph/feature_graph.html.j2", render.WEBSITE_PAGES["graph"]["lineage"]),
+        render.WebsitePage(
+            "graph/feature_lineage.html.j2",
+            render.WEBSITE_PAGES["spec"]["feature_lineage"],
+            active_section="feature_lineage",
+        ),
     ),
 )
-__all__ = ["SECTION", "build_context", "feature_graph_payload"]
+__all__ = ["SECTION", "build_context", "feature_lineage_payload"]
 
 
-def feature_graph_payload(
-    graph: "GraphBase",
+def feature_lineage_payload(
+    feature_graph: "FeatureGraphBase",
 ) -> tuple[list[dict[str, typing.Any]], list[dict[str, str]]]:
-    """Build node and link payloads for a feature dependency graph."""
+    """Build node and link payloads for feature lineage."""
     config = views.CytoscapeStylingConfig(
         node_data_fnc=lambda node: _node_render_data(node.reference),
         reference_fnc=lambda node: node.reference.node_id,
     )
-    elements = json.loads(views.create_topology_cytoscape(graph.graph, config))
+    elements = json.loads(views.create_topology_cytoscape(feature_graph.graph, config))
 
     nodes: list[dict[str, typing.Any]] = []
     links: list[dict[str, str]] = []
@@ -85,17 +89,17 @@ def _node_render_data(
 
 
 def build_context(
-    graph: "GraphBase",
+    feature_graph: "FeatureGraphBase",
 ) -> dict[str, object]:
-    """Prepare graph payload and style data without rendering or writing pages.
+    """Prepare feature-lineage payload and style data without rendering or writing pages.
 
     Args:
-        graph: The feature dependency graph to display.
+        feature_graph: The feature dependency graph to display.
 
     Returns:
-        Serialized feature graph and shared visual style.
+        Serialized feature lineage and shared visual style.
     """
-    nodes, links = feature_graph_payload(graph)
+    nodes, links = feature_lineage_payload(feature_graph)
     style = graph_style.GraphStyle()
     return {
         "style": style,
