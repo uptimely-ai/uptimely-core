@@ -84,12 +84,12 @@ def test_build_spec_context() -> None:
     )
     assert context.summary.entity_count == 2
     assert context.summary.dataset_count == 3
-    assert sorted(context.summary.function_buckets) == sorted(operations.FUNCTION_OPERATIONS)
+    assert sorted(context.summary.function_buckets) == sorted(operations.FUNCTION_KINDS)
     assert context.summary.function_buckets == {
         operation: sum(
-            function.operation == operation for function in spec_definition.functions.root.values()
+            function.kind == operation for function in spec_definition.functions.root.values()
         )
-        for operation in operations.FUNCTION_OPERATIONS
+        for operation in operations.FUNCTION_KINDS
     }
     assert context.summary.function_buckets["escape"] == 1
     assert context.feature_dependencies
@@ -99,7 +99,7 @@ def test_build_spec_context() -> None:
 def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["external_audit"] = {
-        "operation": "escape",
+        "kind": "escape",
         "returns": "any",
         "entrypoint": "examples.pump_analytics.functions.analytics:maximum",
         "args": {},
@@ -134,7 +134,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     assert all(
         {
             "function": "external_audit",
-            "operation": "escape",
+            "kind": "escape",
             "feature": output,
             "dependencies": ["bearing_temperature", "vibration_rms"],
         }
@@ -143,7 +143,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     )
     assert {
         "function": "external_audit",
-        "operation": "escape",
+        "kind": "escape",
         "feature": "audit_followup",
         "dependencies": ["audit_reference"],
     } in context.feature_dependencies
@@ -200,7 +200,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     assert "Declares external outputs" in (index.parent / "js/feature_graph.js").read_text(
         encoding="utf-8"
     )
-    assert '"function_type": "escape"' in graph_page
+    assert '"function_kind": "escape"' in graph_page
     assert '"features": ["audit_reference", "audit_status"]' in graph_page
     assert '"features": ["audit_followup"]' in graph_page
     assert "Declares external outputs" in (index.parent / "js/invocation_graph.js").read_text(

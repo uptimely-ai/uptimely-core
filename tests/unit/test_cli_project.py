@@ -150,7 +150,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
                 "name": "Build-only test",
                 "functions": {
                     "read": {
-                        "operation": "read",
+                        "kind": "read",
                         "entrypoint": "build_functions:read",
                         "returns": "dataframe",
                     }
@@ -185,7 +185,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             "    id = 'values'\n"
             "    entity = example\n"
             "    read = FunctionMapping(\n"
-            "        function=api.ref.function(build_functions.read, operation='read'),\n"
+            "        function=api.ref.function(build_functions.read, kind='read'),\n"
             "        arguments={},\n"
             "        outputs=[Feature(name='value')],\n"
             "    )\n"

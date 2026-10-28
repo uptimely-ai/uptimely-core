@@ -247,7 +247,7 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
 
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    assert len(spec_definition.functions.by_operation("vectorize")) == 7
+    assert len(spec_definition.functions.by_kind("vectorize")) == 7
     collapse = (
         spec_definition.entities["pump"]
         .datasets["pump_dataset"]

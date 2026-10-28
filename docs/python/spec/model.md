@@ -56,7 +56,7 @@ function catalog.
       show_root_heading: false
       members: [FunctionTemplate, FunctionCatalog, FUNCTION_TYPES]
 
-For supported operation types and values, see the
+For supported function kinds and values, see the
 [spec vocabulary](../spec-vocabulary.md).
 
 </div>

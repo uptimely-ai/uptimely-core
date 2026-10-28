@@ -1,4 +1,4 @@
-"""Function definitions and operation rules for spec documents."""
+"""Function definitions and kind rules for spec documents."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from uptimely.spec import operations
 from . import common
 
 FUNCTION_TYPES = ["sql_query", "python_function"]
-FUNCTION_OPERATIONS = operations.FUNCTION_OPERATIONS
-FunctionOperation = operations.FunctionOperation
+FUNCTION_KINDS = operations.FUNCTION_KINDS
+FunctionKind = operations.FunctionKind
 FunctionReturns = operations.FunctionReturns
 
 
@@ -20,7 +20,7 @@ class FunctionTemplate(common.StrictModel):
     """One logical function definition in the spec catalog."""
 
     id: str = pydantic.Field(exclude=True)
-    operation: FunctionOperation
+    kind: FunctionKind
     returns: FunctionReturns
     entrypoint: str
     validate_signature: bool = pydantic.Field(
@@ -36,12 +36,12 @@ class FunctionCatalog(pydantic.RootModel[dict[str, FunctionTemplate]]):
 
     root: dict[str, FunctionTemplate] = pydantic.Field(default_factory=dict)
 
-    def by_operation(self, operation: FunctionOperation) -> dict[str, FunctionTemplate]:
-        """Return function definitions for one operation."""
+    def by_kind(self, kind: FunctionKind) -> dict[str, FunctionTemplate]:
+        """Return function definitions for one kind."""
         return {
             function_id: function
             for function_id, function in self.root.items()
-            if function.operation == operation
+            if function.kind == kind
         }
 
     def __getitem__(self, function_id: str) -> FunctionTemplate:

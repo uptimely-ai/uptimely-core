@@ -1,6 +1,6 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
-{% macro mapping_operation(mapping, functions) -%}
-  {{- functions.get(mapping.binding.function, {}).get("operation", "") -}}
+{% macro mapping_kind(mapping, functions) -%}
+  {{- functions.get(mapping.binding.function, {}).get("kind", "") -}}
 {%- endmacro %}
 {% set column_colors = {
   "dimension": "bg-[#172b46] text-[#b5d4f8]",
@@ -16,10 +16,10 @@
       {% for dataset_id, dataset in entity.datasets.items() %}
       {% set schema = namespace(columns=[], producers={}) %}
       {% for mapping in dataset.mappings.values() %}
-        {% set operation = mapping_operation(mapping, configuration.functions) %}
-        {% if operation == "escape" %}
+        {% set kind = mapping_kind(mapping, configuration.functions) %}
+        {% if kind == "escape" %}
           {% set color = "escape" %}
-        {% elif operation in ["vectorize", "collapse"] %}
+        {% elif kind in ["vectorize", "collapse"] %}
           {% set color = "amber" %}
         {% else %}
           {% set color = "teal" %}
@@ -78,7 +78,7 @@
         {% endif %}
         {% set ns = namespace(mapping_count=0) %}
         {% for mapping in dataset.mappings.values() %}
-          {% if mapping_operation(mapping, configuration.functions) != "vectorize" %}
+          {% if mapping_kind(mapping, configuration.functions) != "vectorize" %}
             {% set ns.mapping_count = ns.mapping_count + 1 %}
           {% endif %}
         {% endfor %}
@@ -108,15 +108,15 @@
             <div>
               <p class="mb-3 text-xs text-slate-500">Mappings</p>
               <div class="flex flex-wrap gap-3">
-            {% for mapping_id, mapping in dataset.mappings.items() if mapping_operation(mapping, configuration.functions) != "vectorize" %}
-              <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ mapping_operation(mapping, configuration.functions) }} · {{ mapping_id }}</span>
-              {% if mapping_operation(mapping, configuration.functions) == "collapse" %}
+            {% for mapping_id, mapping in dataset.mappings.items() if mapping_kind(mapping, configuration.functions) != "vectorize" %}
+              <span class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ mapping_kind(mapping, configuration.functions) }} · {{ mapping_id }}</span>
+              {% if mapping_kind(mapping, configuration.functions) == "collapse" %}
               <div class="w-full font-mono text-xs text-slate-400">
                 Input dataset inferred from bound features · Group by entity dimensions: {{ entity.dimensions | tojson }}
                 <p>{{ mapping.binding.function }}({{ mapping.binding.args | tojson }})</p>
               </div>
               {% endif %}
-              {% if mapping_operation(mapping, configuration.functions) == "escape" %}
+              {% if mapping_kind(mapping, configuration.functions) == "escape" %}
               <p class="w-full text-xs leading-5 text-violet-300">External effects are uncontrolled. Declared outputs do not indicate dataframe columns or materialized results.</p>
               {% endif %}
             {% endfor %}

@@ -1,4 +1,4 @@
-"""Function operations and their spec-level execution rules."""
+"""Function kinds and their spec-level execution rules."""
 
 from __future__ import annotations
 
@@ -6,23 +6,21 @@ import typing
 
 from . import arg_types
 
-FunctionOperation = typing.Literal[
-    "read", "write", "escape", "vectorize", "collapse", "expand", "conform"
+FunctionKind = typing.Literal[
+    "write", "read", "escape", "conform", "expand", "collapse", "vectorize"
 ]
-FUNCTION_OPERATIONS: typing.Final[tuple[FunctionOperation, ...]] = typing.get_args(
-    FunctionOperation
-)
-READ, WRITE, ESCAPE, VECTORIZE, COLLAPSE, EXPAND, CONFORM = FUNCTION_OPERATIONS
+FUNCTION_KINDS: typing.Final[tuple[FunctionKind, ...]] = typing.get_args(FunctionKind)
+WRITE, READ, ESCAPE, CONFORM, EXPAND, COLLAPSE, VECTORIZE = FUNCTION_KINDS
 
 FunctionReturns = typing.Literal["dataframe", "none", "any"]
-FRAGMENT_OPERATIONS: typing.Final[tuple[FunctionOperation, ...]] = (
+FRAGMENT_KINDS: typing.Final[tuple[FunctionKind, ...]] = (
     READ,
     CONFORM,
     EXPAND,
     COLLAPSE,
 )
 
-DATAFRAME_INPUT_COUNTS: typing.Final[dict[FunctionOperation, int | None]] = {
+KIND_DATAFRAME_INPUT_COUNTS: typing.Final[dict[FunctionKind, int | None]] = {
     READ: 0,
     COLLAPSE: 1,
     CONFORM: 1,
@@ -31,7 +29,7 @@ DATAFRAME_INPUT_COUNTS: typing.Final[dict[FunctionOperation, int | None]] = {
     WRITE: 1,
     ESCAPE: None,
 }
-OPERATION_RETURN_KINDS: typing.Final[dict[FunctionOperation, FunctionReturns]] = {
+KIND_RETURN_KINDS: typing.Final[dict[FunctionKind, FunctionReturns]] = {
     READ: arg_types.DATAFRAME,
     WRITE: "none",
     ESCAPE: "any",
@@ -42,41 +40,41 @@ OPERATION_RETURN_KINDS: typing.Final[dict[FunctionOperation, FunctionReturns]] =
 }
 
 
-def operation_hint(returns: FunctionReturns, dataframe_inputs: int) -> str:
-    """Suggest explicitly declared operations matching a function contract."""
+def kind_hint(returns: FunctionReturns, dataframe_inputs: int) -> str:
+    """Suggest explicitly declared kinds matching a function contract."""
     matches = [
-        operation
-        for operation in FUNCTION_OPERATIONS
-        if operation != ESCAPE
-        and OPERATION_RETURN_KINDS[operation] == returns
-        and DATAFRAME_INPUT_COUNTS[operation] == dataframe_inputs
+        kind
+        for kind in FUNCTION_KINDS
+        if kind != ESCAPE
+        and KIND_RETURN_KINDS[kind] == returns
+        and KIND_DATAFRAME_INPUT_COUNTS[kind] == dataframe_inputs
     ]
     if matches:
         suggestions = ", ".join(matches)
         return (
             f" This function's declared return kind and {dataframe_inputs} dataframe "
-            f"argument(s) fit operation(s): {suggestions}. Declare the intended "
-            "operation explicitly."
+            f"argument(s) fit kind(s): {suggestions}. Declare the intended "
+            "kind explicitly."
         )
     return (
-        f" No controlled operation matches this function's declared return kind and "
+        f" No controlled kind matches this function's declared return kind and "
         f"{dataframe_inputs} dataframe argument(s). If it performs intentional "
-        "uncontrolled work, declare operation=escape explicitly."
+        "uncontrolled work, declare kind=escape explicitly."
     )
 
 
 __all__ = [
     "COLLAPSE",
     "CONFORM",
-    "DATAFRAME_INPUT_COUNTS",
+    "FUNCTION_KINDS",
+    "FRAGMENT_KINDS",
+    "FunctionKind",
+    "KIND_DATAFRAME_INPUT_COUNTS",
     "ESCAPE",
     "EXPAND",
-    "FRAGMENT_OPERATIONS",
-    "FUNCTION_OPERATIONS",
-    "FunctionOperation",
     "FunctionReturns",
-    "OPERATION_RETURN_KINDS",
-    "operation_hint",
+    "KIND_RETURN_KINDS",
+    "kind_hint",
     "READ",
     "VECTORIZE",
     "WRITE",

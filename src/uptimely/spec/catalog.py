@@ -10,7 +10,7 @@ from . import operations
 
 def function_template(
     function_id: str,
-    operation: operations.FunctionOperation,
+    kind: operations.FunctionKind,
     entrypoint: str,
     args: dict[str, spec_model.Argument],
     *,
@@ -19,8 +19,8 @@ def function_template(
     """Create a function template for the spec document from its declarations."""
     return spec_model.FunctionTemplate(
         id=function_id,
-        operation=operation,
-        returns=operations.OPERATION_RETURN_KINDS[operation],
+        kind=kind,
+        returns=operations.KIND_RETURN_KINDS[kind],
         entrypoint=entrypoint,
         validate_signature=validate_signature,
         args=args,

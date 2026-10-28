@@ -6,7 +6,7 @@ from .dataset import Dataset, Model, Order, RowScope
 from .dimension import Dimension
 from .entity import Entity
 from .feature import Feature
-from .mappings import FunctionMapping, operation
+from .mappings import FunctionMapping, kind
 from .spec import PythonSpec
 
 __all__ = [
@@ -21,5 +21,5 @@ __all__ = [
     "RowScope",
     "feature",
     "mapping",
-    "operation",
+    "kind",
 ]

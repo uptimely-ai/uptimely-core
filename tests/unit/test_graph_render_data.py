@@ -24,7 +24,7 @@ def test_feature_render_data_preserves_empty_strings() -> None:
 def test_function_render_data_includes_declared_metadata() -> None:
     function = model.FunctionTemplate(
         id="double",
-        operation="vectorize",
+        kind="vectorize",
         returns="dataframe",
         description="Double a reading",
         entrypoint="example:double",
@@ -39,7 +39,7 @@ def test_function_render_data_includes_declared_metadata() -> None:
         "label": "double",
         "features": ["doubled"],
         "entity": "asset",
-        "function_type": "vectorize",
+        "function_kind": "vectorize",
         "type": "python_function",
         "entrypoint": "example:double",
         "info": {"description": "Double a reading"},

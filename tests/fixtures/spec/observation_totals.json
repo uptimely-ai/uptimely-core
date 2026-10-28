@@ -8,12 +8,12 @@
   },
   "functions": {
     "read_observations": {
-      "operation": "read",
+      "kind": "read",
       "returns": "dataframe",
       "entrypoint": "conftest:read_observation_totals"
     },
     "sum_features": {
-      "operation": "vectorize",
+      "kind": "vectorize",
       "returns": "dataframe",
       "entrypoint": "conftest:sum_observation_features",
       "args": {

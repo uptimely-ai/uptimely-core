@@ -67,7 +67,7 @@ def _early_declaration_results(
 ) -> collections.abc.Iterator[context_module.ValidationResult]:
     """Check declarations whose errors precede dimension and output validation."""
     for item in context.mappings:
-        if item.operation == operations.VECTORIZE:
+        if item.kind == operations.VECTORIZE:
             yield mapping_outputs.validate_output_presence(item, item.location.mapping.id)
             yield mapping_outputs.validate_calculation_features(item)
             yield mapping_outputs.validate_function_id(item)
@@ -105,7 +105,7 @@ def _output_results(
     for _, output_mappings, _ in context.iter_output_datasets():
         for item, declarations in output_mappings:
             yield mapping_outputs.validate_function_reference(item)
-            if item.operation == operations.WRITE:
+            if item.kind == operations.WRITE:
                 yield mapping_outputs.validate_write_outputs(item)
                 continue
             yield mapping_outputs.validate_output_presence(item, item.location.mapping_id)
@@ -156,7 +156,7 @@ def _input_results(
 def _binding_and_contract_results(
     context: context_module.SpecValidationContext,
 ) -> collections.abc.Iterator[context_module.ValidationResult]:
-    """Validate function bindings and operation-specific mapping contracts."""
+    """Validate function bindings and kind-specific mapping contracts."""
     for item in context.iter_bound_mappings():
         yield bindings.validate_arguments(item)
         for value, argument_type in context.iter_binding_selectors(item):

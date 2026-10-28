@@ -68,12 +68,12 @@ def _render_document(
         configuration=context["configuration"],
         project_name=context["configuration"].get("name"),
         function_groups={
-            operation: {
+            kind: {
                 function_id: function
                 for function_id, function in context["configuration"]["functions"].items()
-                if function.get("operation") == operation
+                if function.get("kind") == kind
             }
-            for operation in operations.FUNCTION_OPERATIONS
+            for kind in operations.FUNCTION_KINDS
         },
         summary=context["summary"],
         feature_dependencies=context["feature_dependencies"],
@@ -135,12 +135,12 @@ def _feature_data(
             for mapping in dataset.get("mappings", {}).values():
                 function_id = mapping.get("binding", {}).get("function")
                 function = functions.get(function_id, {})
-                operation = function.get("operation")
+                kind = function.get("kind")
                 for reference in mapping.get("features", {}).get("outputs", []):
                     feature_id = reference.removeprefix(selectors.FEATURE_PREFIX)
                     feature = dict(dataset.get("features", {}).get(feature_id, {}))
                     feature["id"] = feature_id
-                    if operation == operations.VECTORIZE:
+                    if kind == operations.VECTORIZE:
                         calculated_features.append(
                             {
                                 **feature,
@@ -148,7 +148,7 @@ def _feature_data(
                                 "inputs": mapping.get("features", {}).get("inputs", []),
                             }
                         )
-                    elif operation == operations.ESCAPE:
+                    elif kind == operations.ESCAPE:
                         if (dataset_id, feature_id) not in seen_inputs:
                             escape_features.append(feature)
                             seen_inputs.add((dataset_id, feature_id))
@@ -179,14 +179,14 @@ def _build_context(
     for function_id, function in function_definitions.items():
         if not isinstance(function, dict):
             continue
-        operation = function.get("operation")
-        if isinstance(operation, str):
-            function_groups.setdefault(operation, {})[function_id] = function
-            function["declared_returns"] = operations.OPERATION_RETURN_KINDS[operation]
+        kind = function.get("kind")
+        if isinstance(kind, str):
+            function_groups.setdefault(kind, {})[function_id] = function
+            function["declared_returns"] = operations.KIND_RETURN_KINDS[kind]
             function["escape_mappings"] = []
     for entity_id, dataset, mapping in references.iter_mappings(spec_definition):
         function = function_definitions[mapping.binding.function]
-        if function.get("operation") == operations.ESCAPE:
+        if function.get("kind") == operations.ESCAPE:
             function["escape_mappings"].append(
                 {
                     "entity": entity_id,
@@ -240,8 +240,7 @@ def _build_context(
         "external": len(escape_features),
     }
     function_buckets = {
-        operation: len(function_groups.get(operation, {}))
-        for operation in operations.FUNCTION_OPERATIONS
+        kind: len(function_groups.get(kind, {})) for kind in operations.FUNCTION_KINDS
     }
     dataset_count = sum(len(entity.get("datasets", {})) for entity in entities.values())
     mapping_count = sum(
@@ -250,8 +249,8 @@ def _build_context(
         for dataset in entity.get("datasets", {}).values()
         for mapping in dataset.get("mappings", {}).values()
         if any(
-            mapping.get("binding", {}).get("function") in function_groups.get(operation, {})
-            for operation in operations.FRAGMENT_OPERATIONS
+            mapping.get("binding", {}).get("function") in function_groups.get(kind, {})
+            for kind in operations.FRAGMENT_KINDS
         )
     )
     summary = ExplorerSummary(
@@ -271,12 +270,12 @@ def _build_context(
     dependencies = [
         {
             "function": mapping.binding.function,
-            "operation": spec_definition.functions[mapping.binding.function].operation,
+            "kind": spec_definition.functions[mapping.binding.function].kind,
             "feature": feature,
             "dependencies": mapping.input_features,
         }
         for _entity_id, _dataset, mapping in references.iter_mappings(spec_definition)
-        if spec_definition.functions[mapping.binding.function].operation
+        if spec_definition.functions[mapping.binding.function].kind
         in {operations.ESCAPE, operations.VECTORIZE}
         for feature in mapping.output_features
     ]

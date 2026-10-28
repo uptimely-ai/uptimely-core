@@ -49,7 +49,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                 mappings={
                     "read_observations": mapping.FunctionMapping(
                         inputs=[],
-                        function=ref.function(read_observations, operation="read"),
+                        function=ref.function(read_observations, kind="read"),
                         arguments={},
                         outputs=[
                             feature.Feature(name="timestamp", type=dimension_type),
@@ -59,7 +59,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                     "result": mapping.FunctionMapping(
                         inputs=[ref.feature("temperature")],
                         row_context=context,
-                        function=ref.function(calculate, operation="vectorize"),
+                        function=ref.function(calculate, kind="vectorize"),
                         arguments={
                             "dataset": ref.current_dataset().dataframe,
                             "column": ref.feature("temperature").id,
@@ -128,7 +128,7 @@ def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
     declaration = mapping.FunctionMapping(
         row_context=authoring.time("explicit", dimension=ref.dimension("timestamp"), after="3h"),
         inputs=[],
-        function=ref.function(f"{__name__}:calculate", operation="vectorize"),
+        function=ref.function(f"{__name__}:calculate", kind="vectorize"),
         arguments={
             "configuration": {
                 "windows": [
@@ -160,14 +160,14 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
     with pytest.raises(ValueError, match="one dimension"):
         mapping.FunctionMapping(
             inputs=[],
-            function=ref.function(calculate, operation="vectorize"),
+            function=ref.function(calculate, kind="vectorize"),
             arguments={"configuration": [first, second]},
             outputs=[],
         )
     with pytest.raises(ValueError, match="one measurement"):
         mapping.FunctionMapping(
             inputs=[],
-            function=ref.function(calculate, operation="vectorize"),
+            function=ref.function(calculate, kind="vectorize"),
             arguments={"configuration": [first, authoring.rows(8, before=7)]},
             outputs=[],
         )
@@ -202,7 +202,7 @@ def test_unknown_current_and_whole_dataset_context_are_distinct():
     assert (
         mapping.FunctionMapping(
             inputs=[],
-            function=ref.function(calculate, operation="vectorize"),
+            function=ref.function(calculate, kind="vectorize"),
             arguments={},
             outputs=[],
         ).row_context
@@ -297,7 +297,7 @@ def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Pat
 def test_all_data_mappings_preserve_annotated_context(operation):
     declaration = mapping.FunctionMapping(
         inputs=[],
-        function=ref.function(f"{__name__}:calculate", operation=operation),
+        function=ref.function(f"{__name__}:calculate", kind=operation),
         arguments={"configuration": {"windows": [authoring.rows(8, before=7)]}},
         outputs=[],
     )
@@ -386,7 +386,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         mappings={
             "read_observations": mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function(read_observations, operation="read"),
+                function=ref.function(read_observations, kind="read"),
                 arguments={},
                 outputs=[
                     feature.Feature(name="timestamp", type="datetime"),
@@ -400,7 +400,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
         mappings={
             "summary": mapping.FunctionMapping(
                 inputs=[ref.feature("temperature")],
-                function=ref.function(maximum, operation="collapse"),
+                function=ref.function(maximum, kind="collapse"),
                 arguments={
                     "dataset": ref.dataset("observations").dataframe,
                     "column": ref.feature("temperature").id,

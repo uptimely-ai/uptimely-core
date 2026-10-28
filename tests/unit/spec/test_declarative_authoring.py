@@ -6,12 +6,12 @@ from uptimely.spec import python as authoring
 from uptimely.spec.python import conversion, dimension, entity, ref, row_context
 
 
-@authoring.operation("vectorize")
+@authoring.kind("vectorize")
 def must_not_execute(values: list[str], output: str) -> None:
     raise AssertionError("Assembly executed the implementation")
 
 
-@authoring.operation("vectorize")
+@authoring.kind("vectorize")
 def calculate(value: str) -> str:
     return value
 
@@ -27,7 +27,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
         id="example",
         mappings={
             "read": authoring.FunctionMapping(
-                function=ref.function("reader:read", operation="read"),
+                function=ref.function("reader:read", kind="read"),
                 arguments={},
                 outputs=[
                     authoring.Feature(name="temperature", type="float", unit="C"),
@@ -57,7 +57,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
 def test_mapping_rejects_duplicate_output_names() -> None:
     with pytest.raises(ValueError, match="output feature names must not repeat"):
         authoring.FunctionMapping(
-            function=ref.function("reader:read", operation="read"),
+            function=ref.function("reader:read", kind="read"),
             arguments={},
             outputs=[
                 authoring.Feature(name="temperature"),
@@ -102,7 +102,7 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
     ],
 )
 def test_assembly_reports_invalid_arguments(arguments: dict[str, object], message: str) -> None:
-    @authoring.operation("write")
+    @authoring.kind("write")
     def implementation(feature: str) -> None:
         pass
 
@@ -125,9 +125,7 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
         id = "example"
         keys = (dimension.Dimension(id="asset", type="string"),)
         first = authoring.FunctionMapping(
-            function=ref.function(
-                "test_declarative_authoring:implementation", operation="vectorize"
-            ),
+            function=ref.function("test_declarative_authoring:implementation", kind="vectorize"),
             arguments={"output": ref.feature(identifier).id},
             outputs=[authoring.Feature(name=identifier, type="float")],
         )
@@ -139,17 +137,17 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
 
 def test_dataset_subclasses_inherit_and_override_named_mappings() -> None:
     first = authoring.FunctionMapping(
-        function=ref.function("reader:read", operation="read"),
+        function=ref.function("reader:read", kind="read"),
         arguments={},
         outputs=[authoring.Feature(name="value", type="float")],
     )
     replacement = authoring.FunctionMapping(
-        function=ref.function("reader:replacement", operation="read"),
+        function=ref.function("reader:replacement", kind="read"),
         arguments={},
         outputs=[authoring.Feature(name="value", type="integer")],
     )
     sink = authoring.FunctionMapping(
-        function=ref.function("writer:write", operation="write"),
+        function=ref.function("writer:write", kind="write"),
         arguments={"column": ref.feature("value")},
         outputs=[],
     )
@@ -179,15 +177,15 @@ def test_dataset_requires_identifier() -> None:
         authoring.Dataset().to_model()
 
 
-@pytest.mark.parametrize("operation", ["read", "collapse"])
-def test_dataset_keys_supply_dimension_metadata(operation: str) -> None:
+@pytest.mark.parametrize("kind", ["read", "collapse"])
+def test_dataset_keys_supply_dimension_metadata(kind: str) -> None:
     identifier = dimension.Dimension(id="asset", type="string", description="Asset key")
 
     class Example(authoring.Dataset):
         id = "example"
         keys = (identifier,)
         values = authoring.FunctionMapping(
-            function=ref.function("reader:values", operation=operation),
+            function=ref.function("reader:values", kind=kind),
             arguments={},
             outputs=[authoring.Feature(name="value", type="float")],
         )
@@ -211,7 +209,7 @@ def test_dataset_entity_supplies_dimension_metadata() -> None:
         id = "example"
         entity = owner
         values = authoring.FunctionMapping(
-            function=ref.function("reader:values", operation="read"),
+            function=ref.function("reader:values", kind="read"),
             arguments={},
             outputs=[authoring.Feature(name="value", type="float")],
         )
@@ -225,7 +223,7 @@ def test_dataset_entity_supplies_dimension_metadata() -> None:
 
 def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
     mapping = authoring.FunctionMapping(
-        function=ref.function("calculation:calculate", operation="vectorize"),
+        function=ref.function("calculation:calculate", kind="vectorize"),
         arguments={
             "configuration": {
                 "columns": [
@@ -252,7 +250,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
 
 def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -> None:
     mapping = authoring.FunctionMapping(
-        function=ref.function("calculation:calculate", operation="vectorize"),
+        function=ref.function("calculation:calculate", kind="vectorize"),
         function_id="custom",
         arguments={"column": ref.feature("inferred")},
         inputs=[ref.feature("explicit")],
@@ -275,12 +273,12 @@ def test_dataset_keys_can_be_shared_by_read_mappings() -> None:
         id = "example"
         keys = (identifier,)
         first = authoring.FunctionMapping(
-            function=ref.function("reader:first", operation="read"),
+            function=ref.function("reader:first", kind="read"),
             arguments={},
             outputs=[authoring.Feature(name="first_value", type="float")],
         )
         second = authoring.FunctionMapping(
-            function=ref.function("reader:second", operation="read"),
+            function=ref.function("reader:second", kind="read"),
             arguments={},
             outputs=[authoring.Feature(name="second_value", type="float")],
         )
@@ -298,7 +296,7 @@ def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> 
         keys=(identifier,),
         mappings={
             "read": authoring.FunctionMapping(
-                function=ref.function("reader:read", operation="read"),
+                function=ref.function("reader:read", kind="read"),
                 arguments={
                     "keys": ref.current_dataset().dimensions.ids,
                     "source_keys": ref.dataset("source").dimensions.ids,
@@ -334,7 +332,7 @@ def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> 
 @pytest.mark.parametrize("required", ["function", "arguments", "outputs"])
 def test_mapping_constructor_requires_explicit_fields(required: str) -> None:
     arguments = {
-        "function": ref.function("reader:read", operation="read"),
+        "function": ref.function("reader:read", kind="read"),
         "arguments": {},
         "outputs": [],
     }
@@ -343,12 +341,12 @@ def test_mapping_constructor_requires_explicit_fields(required: str) -> None:
         authoring.FunctionMapping(**arguments)
 
 
-def test_mapping_requires_function_operation_metadata() -> None:
-    with pytest.raises(ValueError, match="annotated with @operation"):
+def test_mapping_requires_function_kind_metadata() -> None:
+    with pytest.raises(ValueError, match="annotated with @kind"):
         authoring.FunctionMapping(function="reader:read", arguments={}, outputs=[])
 
 
-def test_operation_annotation_is_inferred_without_wrapping_function() -> None:
+def test_kind_annotation_is_inferred_without_wrapping_function() -> None:
     declaration = authoring.FunctionMapping(
         function=calculate,
         arguments={"value": "input"},
@@ -356,13 +354,13 @@ def test_operation_annotation_is_inferred_without_wrapping_function() -> None:
     )
 
     assert declaration.function is calculate
-    assert declaration.operation == "vectorize"
-    assert declaration.function_catalog()["calculate"].operation == "vectorize"
+    assert declaration.kind == "vectorize"
+    assert declaration.function_catalog()["calculate"].kind == "vectorize"
 
 
 def test_mapping_export_requires_explicit_identifier() -> None:
     mapping = authoring.FunctionMapping(
-        function=ref.function("reader:read", operation="read"), arguments={}, outputs=[]
+        function=ref.function("reader:read", kind="read"), arguments={}, outputs=[]
     )
     with pytest.raises(TypeError, match="identifier"):
         mapping.to_model()

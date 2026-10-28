@@ -1,27 +1,27 @@
 # Spec vocabulary
 
-These modules define the spec's shared operation, argument-type, and reference
+These modules define the spec's shared function-kind, argument-type, and reference
 vocabulary. Components that author, validate, compile, or execute specs use the
 same definitions.
 
 <div class="api-reference" markdown="1">
 
-## Function operations
+## Function kinds
 
-`uptimely.spec.operations` defines supported operations, return kinds, and
-operation-level dataframe input rules.
+`uptimely.spec.operations` defines supported function kinds, return kinds, and
+kind-level dataframe input rules.
 
 ::: uptimely.spec.operations
     options:
       heading_level: 3
       show_root_heading: false
       members:
-        - FunctionOperation
+        - FunctionKind
         - FunctionReturns
-        - FUNCTION_OPERATIONS
-        - FRAGMENT_OPERATIONS
-        - DATAFRAME_INPUT_COUNTS
-        - OPERATION_RETURN_KINDS
+        - FUNCTION_KINDS
+        - FRAGMENT_KINDS
+        - KIND_DATAFRAME_INPUT_COUNTS
+        - KIND_RETURN_KINDS
 
 ## Argument types
 

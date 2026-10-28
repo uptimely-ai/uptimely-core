@@ -11,22 +11,22 @@ from uptimely.spec.validation import functions as validation_functions
 
 
 def test_named_operations_match_the_public_operation_contract() -> None:
-    assert operations.FUNCTION_OPERATIONS == (
-        operations.READ,
+    assert operations.FUNCTION_KINDS == (
         operations.WRITE,
+        operations.READ,
         operations.ESCAPE,
-        operations.VECTORIZE,
-        operations.COLLAPSE,
-        operations.EXPAND,
         operations.CONFORM,
+        operations.EXPAND,
+        operations.COLLAPSE,
+        operations.VECTORIZE,
     )
-    assert typing.get_args(operations.FunctionOperation) == operations.FUNCTION_OPERATIONS
-    assert set(operations.DATAFRAME_INPUT_COUNTS) == set(operations.FUNCTION_OPERATIONS)
-    assert set(operations.OPERATION_RETURN_KINDS) == set(operations.FUNCTION_OPERATIONS)
+    assert typing.get_args(operations.FunctionKind) == operations.FUNCTION_KINDS
+    assert set(operations.KIND_DATAFRAME_INPUT_COUNTS) == set(operations.FUNCTION_KINDS)
+    assert set(operations.KIND_RETURN_KINDS) == set(operations.FUNCTION_KINDS)
 
 
 @pytest.mark.parametrize(
-    ("operation", "dataframe_input_count", "return_kind"),
+    ("kind", "dataframe_input_count", "return_kind"),
     [
         ("read", 0, "dataframe"),
         ("write", 1, "none"),
@@ -38,20 +38,20 @@ def test_named_operations_match_the_public_operation_contract() -> None:
     ],
 )
 def test_operation_contracts_validate_every_function_operation(
-    operation: operations.FunctionOperation,
+    kind: operations.FunctionKind,
     dataframe_input_count: int | None,
     return_kind: operations.FunctionReturns,
 ) -> None:
-    assert operations.DATAFRAME_INPUT_COUNTS[operation] == dataframe_input_count
-    assert operations.OPERATION_RETURN_KINDS[operation] == return_kind
+    assert operations.KIND_DATAFRAME_INPUT_COUNTS[kind] == dataframe_input_count
+    assert operations.KIND_RETURN_KINDS[kind] == return_kind
 
     model = spec_model.Spec.model_validate(
         {
             "functions": {
-                operation: {
-                    "operation": operation,
+                kind: {
+                    "kind": kind,
                     "returns": return_kind,
-                    "entrypoint": f"example:{operation}",
+                    "entrypoint": f"example:{kind}",
                     "args": {
                         f"dataframe_{index}": {"type": "dataframe"}
                         for index in range(dataframe_input_count or 0)
@@ -83,7 +83,7 @@ def test_escape_contract_accepts_any_number_of_dataframe_arguments(
         {
             "functions": {
                 "escape": {
-                    "operation": "escape",
+                    "kind": "escape",
                     "returns": "any",
                     "entrypoint": "example:escape",
                     "args": function_args,
@@ -109,12 +109,12 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
         {
             "functions": {
                 "zero_argument": {
-                    "operation": "escape",
+                    "kind": "escape",
                     "returns": "any",
                     "entrypoint": "example:zero_argument",
                 },
                 "scalar_argument": {
-                    "operation": "escape",
+                    "kind": "escape",
                     "returns": "any",
                     "entrypoint": "example:scalar_argument",
                     "args": {"value": {"type": "float"}},
@@ -171,7 +171,7 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
     [
         (
             {
-                "operation": "vectorize",
+                "kind": "vectorize",
                 "returns": "any",
                 "entrypoint": "example:calculate",
                 "args": {"dataframe": {"type": "dataframe"}},
@@ -180,7 +180,7 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
         ),
         (
             {
-                "operation": "write",
+                "kind": "write",
                 "returns": "none",
                 "entrypoint": "example:write",
                 "args": {},
@@ -189,7 +189,7 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
         ),
         (
             {
-                "operation": "read",
+                "kind": "read",
                 "returns": "dataframe",
                 "entrypoint": "example:read",
                 "args": {"dataset": {"type": "dataframe"}},
@@ -198,7 +198,7 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
         ),
         (
             {
-                "operation": "conform",
+                "kind": "conform",
                 "returns": "dataframe",
                 "entrypoint": "example:conform",
                 "args": {
@@ -226,21 +226,21 @@ def test_fixed_operation_contracts_remain_enforced(
 
 
 def test_function_model_reexports_the_shared_operation_contract() -> None:
-    assert spec_model.FUNCTION_OPERATIONS is operations.FUNCTION_OPERATIONS
+    assert spec_model.FUNCTION_KINDS is operations.FUNCTION_KINDS
 
 
 def test_fragment_operations_exclude_calculations_and_sinks() -> None:
-    assert set(operations.FRAGMENT_OPERATIONS) == {"read", "conform", "expand", "collapse"}
-    assert set(operations.FRAGMENT_OPERATIONS) < set(operations.FUNCTION_OPERATIONS)
+    assert set(operations.FRAGMENT_KINDS) == {"read", "conform", "expand", "collapse"}
+    assert set(operations.FRAGMENT_KINDS) < set(operations.FUNCTION_KINDS)
 
 
-@pytest.mark.parametrize("operation", ["python_one_liner", "sql_select", "unknown", ""])
-def test_function_templates_reject_unsupported_operations(operation: str) -> None:
-    with pytest.raises(pydantic.ValidationError, match="operation"):
+@pytest.mark.parametrize("kind", ["python_one_liner", "sql_select", "unknown", ""])
+def test_function_templates_reject_unsupported_operations(kind: str) -> None:
+    with pytest.raises(pydantic.ValidationError, match="kind"):
         spec_model.FunctionTemplate.model_validate(
             {
                 "id": "calculate",
-                "operation": operation,
+                "kind": kind,
                 "returns": "dataframe",
                 "entrypoint": "example:calculate",
             }

@@ -19,15 +19,15 @@ class FunctionNode:
     @property
     def node_id(self) -> str:
         """Stable graph identifier for this function definition."""
-        function_type = (
+        function_kind = (
             "spec"
-            if self.function is not None and self.function.operation == operations.VECTORIZE
-            else self.function.operation
+            if self.function is not None and self.function.kind == operations.VECTORIZE
+            else self.function.kind
             if self.function is not None
             else "unknown"
         )
         mapping = f":{self.mapping_id}" if self.mapping_id is not None else ""
-        return f"function:{function_type}:{self.name}{mapping}"
+        return f"function:{function_kind}:{self.name}{mapping}"
 
     def __str__(self) -> str:
         return self.name
@@ -44,7 +44,7 @@ class FunctionNode:
             mapping_id=self.mapping_id,
             features=list(self.features),
             entity=self.entity,
-            function_type=(self.function.operation if self.function is not None else None),
+            function_kind=(self.function.kind if self.function is not None else None),
             type="python_function" if self.function is not None else None,
             entrypoint=self.function.entrypoint if self.function is not None else None,
             info={"description": self.function.description} if self.function is not None else None,

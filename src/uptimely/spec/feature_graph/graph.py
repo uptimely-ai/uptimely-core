@@ -183,9 +183,9 @@ class FeatureGraph(GraphBase):
         function_outputs: dict[tuple[str, str, str | None], set[str]] = {}
         for function, entity, operation_id, outputs, _dependencies in self._graph_operations:
             function_key = (
-                function.operation,
+                function.kind,
                 function.id,
-                operation_id if function.operation == operations.ESCAPE else None,
+                operation_id if function.kind == operations.ESCAPE else None,
             )
             function_entities.setdefault(function_key, set()).add(entity)
             function_outputs.setdefault(function_key, set()).update(outputs)
@@ -225,7 +225,7 @@ class FeatureGraph(GraphBase):
         for entity_id, entity in self.spec.entities.items():
             for dataset in entity.datasets.values():
                 for mapping in dataset.mappings.values():
-                    operation = bindings.mapping_operation(mapping, self.spec.functions)
+                    operation = bindings.mapping_kind(mapping, self.spec.functions)
                     for name in mapping.output_features:
                         feature = dataset.features[name]
                         register_feature_metadata(
@@ -240,7 +240,7 @@ class FeatureGraph(GraphBase):
                 register_feature_metadata(
                     output,
                     None
-                    if function.operation in {operations.ESCAPE, operations.VECTORIZE}
+                    if function.kind in {operations.ESCAPE, operations.VECTORIZE}
                     else arg_types.DATAFRAME,
                     entity,
                 )
@@ -261,7 +261,7 @@ class FeatureGraph(GraphBase):
                 name=name,
                 data_type=(
                     None
-                    if function is not None and function.operation == operations.VECTORIZE
+                    if function is not None and function.kind == operations.VECTORIZE
                     else data_type or (metadata.data_type if metadata else None)
                 ),
                 entity=entity or (metadata.entity if metadata else None),
@@ -272,9 +272,9 @@ class FeatureGraph(GraphBase):
 
         for function, entity, operation_id, outputs, dependencies in self._graph_operations:
             function_key = (
-                function.operation,
+                function.kind,
                 function.id,
-                operation_id if function.operation == operations.ESCAPE else None,
+                operation_id if function.kind == operations.ESCAPE else None,
             )
             entities = function_entities[function_key]
             function_node = node(
@@ -282,7 +282,7 @@ class FeatureGraph(GraphBase):
                     name=function.id,
                     features=tuple(sorted(function_outputs[function_key])),
                     entity=next(iter(entities)) if len(entities) == 1 else None,
-                    mapping_id=operation_id if function.operation == operations.ESCAPE else None,
+                    mapping_id=operation_id if function.kind == operations.ESCAPE else None,
                     function=function,
                 )
             )

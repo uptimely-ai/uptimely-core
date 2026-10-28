@@ -15,7 +15,7 @@ MODULE_LOCATIONS = [
     "math",
     "unavailable_package.functions",
 ]
-MAPPING_OPERATIONS: tuple[operations.FunctionOperation, ...] = (
+MAPPING_OPERATIONS: tuple[operations.FunctionKind, ...] = (
     "read",
     "write",
     "escape",
@@ -48,14 +48,14 @@ def test_function_reference_accepts_qualified_names() -> None:
 
 
 def test_function_reference_rejects_unsupported_operation() -> None:
-    with pytest.raises(ValueError, match="Unsupported function operation"):
-        ref.function("math:ceil", operation=typing.cast(operations.FunctionOperation, "unknown"))
+    with pytest.raises(ValueError, match="Unsupported function kind"):
+        ref.function("math:ceil", kind=typing.cast(operations.FunctionKind, "unknown"))
 
 
-@pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
+@pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
 @pytest.mark.parametrize("validate_signature", [False, True])
 def test_signature_validation_setting_survives_conversion_without_importing(
-    operation: operations.FunctionOperation,
+    kind: operations.FunctionKind,
     validate_signature: bool,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -65,7 +65,7 @@ def test_signature_validation_setting_survives_conversion_without_importing(
     monkeypatch.setattr(importlib, "import_module", unexpected_import)
     reference = ref.function(
         "unavailable_package.functions:calculate",
-        operation=operation,
+        kind=kind,
         validate_signature=validate_signature,
     )
     declaration = dataset.Dataset(
@@ -94,7 +94,7 @@ def test_function_reference_rejects_non_boolean_signature_validation(
 def test_function_model_defaults_signature_validation_and_exposes_schema() -> None:
     function = spec_model.FunctionTemplate(
         id="calculate",
-        operation="vectorize",
+        kind="vectorize",
         returns="dataframe",
         entrypoint="unavailable_package:calculate",
     )
@@ -114,7 +114,7 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
                 "ceil": mapping.FunctionMapping(
                     inputs=[],
                     function=ref.function(
-                        "math:ceil", operation="vectorize", validate_signature=validate_signature
+                        "math:ceil", kind="vectorize", validate_signature=validate_signature
                     ),
                     arguments={},
                     outputs=[],
@@ -136,7 +136,7 @@ def test_string_locations_are_preserved_without_importing(
         pytest.fail("Creating or exporting a function reference must not import its module")
 
     monkeypatch.setattr(importlib, "import_module", unexpected_import)
-    reference = ref.function(f"{location}:ceil", operation="vectorize")
+    reference = ref.function(f"{location}:ceil", kind="vectorize")
     declaration = dataset.Dataset(
         id="observations",
         mappings={
@@ -155,9 +155,9 @@ def test_string_locations_are_preserved_without_importing(
     }
 
 
-@pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
+@pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
 def test_generic_mapping_exports_function_operation_without_importing(
-    operation: operations.FunctionOperation, monkeypatch: pytest.MonkeyPatch
+    kind: operations.FunctionKind, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def unexpected_import(*_args: object, **_kwargs: object) -> typing.NoReturn:
         pytest.fail(f"Unexpected function import during authoring: {_args!r} {_kwargs!r}")
@@ -168,9 +168,7 @@ def test_generic_mapping_exports_function_operation_without_importing(
         mappings={
             "calculate": mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function(
-                    "unavailable_package.functions:calculate", operation=operation
-                ),
+                function=ref.function("unavailable_package.functions:calculate", kind=kind),
                 arguments={"dataset": ref.current_dataset().dataframe},
                 outputs=[],
                 function_id="calculate",
@@ -180,17 +178,17 @@ def test_generic_mapping_exports_function_operation_without_importing(
 
     catalog = declaration.function_catalog()
 
-    assert catalog["calculate"].operation == operation
+    assert catalog["calculate"].kind == kind
     expected_returns = {
         "write": "none",
         "escape": "any",
-    }.get(operation, "dataframe")
+    }.get(kind, "dataframe")
     assert catalog["calculate"].returns == expected_returns
     assert catalog["calculate"].entrypoint == "unavailable_package.functions:calculate"
 
 
 def test_generic_mapping_requires_operation_metadata() -> None:
-    with pytest.raises(ValueError, match="operation"):
+    with pytest.raises(ValueError, match="kind"):
         mapping.FunctionMapping(
             inputs=[],
             function=ref.function("math:ceil"),
@@ -205,7 +203,7 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
         mappings={
             "external_update": mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function("math:ceil", operation="escape"),
+                function=ref.function("math:ceil", kind="escape"),
                 arguments={},
                 outputs=[],
             )
@@ -215,33 +213,33 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
     payload = conversion.to_dict(datasets=[declaration])
     reloaded = spec_model.Spec.model_validate(json.loads(json.dumps(payload)))
 
-    assert payload["functions"]["ceil"]["operation"] == "escape"
+    assert payload["functions"]["ceil"]["kind"] == "escape"
     assert payload["functions"]["ceil"]["returns"] == "any"
-    assert reloaded.functions["ceil"].operation == "escape"
+    assert reloaded.functions["ceil"].kind == "escape"
     assert reloaded.functions["ceil"].returns == "any"
 
 
-@pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
+@pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
 def test_generic_mapping_accepts_operation_metadata(
-    operation: operations.FunctionOperation,
+    kind: operations.FunctionKind,
 ) -> None:
     declaration = mapping.FunctionMapping(
         inputs=[],
-        function=ref.function("math:ceil", operation=operation),
+        function=ref.function("math:ceil", kind=kind),
         arguments={"x": 1.2},
         outputs=[],
     )
 
-    assert declaration.operation == operation
+    assert declaration.kind == kind
 
 
-@pytest.mark.parametrize("operation", MAPPING_OPERATIONS)
+@pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
 @pytest.mark.parametrize("function_id", [None, "rounded"])
 def test_references_supply_catalog_ids_and_preserve_overrides(
-    operation: operations.FunctionOperation, function_id: str | None
+    kind: operations.FunctionKind, function_id: str | None
 ) -> None:
     declaration = mapping.FunctionMapping(
-        function=ref.function("math:ceil", operation=operation),
+        function=ref.function("math:ceil", kind=kind),
         function_id=function_id,
         arguments={"x": 1.2},
         outputs=[],
@@ -249,7 +247,7 @@ def test_references_supply_catalog_ids_and_preserve_overrides(
     catalog = dataset.Dataset(id="values", mappings={"calculate": declaration}).function_catalog()
     identifier = function_id or "ceil"
 
-    assert catalog[identifier].operation == operation
+    assert catalog[identifier].kind == kind
     assert catalog[identifier].entrypoint == "math:ceil"
     assert catalog[identifier].args["x"].type == "float"
     model = declaration.to_model("calculate")

@@ -18,7 +18,7 @@ from .dataset import (
     RowScope,
 )
 from .functions import (
-    FUNCTION_OPERATIONS,
+    FUNCTION_KINDS,
     FUNCTION_TYPES,
     FunctionCatalog,
     FunctionTemplate,
@@ -26,7 +26,7 @@ from .functions import (
 from .spec import SPEC_VERSION, Spec
 
 __all__ = [
-    "FUNCTION_OPERATIONS",
+    "FUNCTION_KINDS",
     "FUNCTION_TYPES",
     "SPEC_VERSION",
     "Spec",

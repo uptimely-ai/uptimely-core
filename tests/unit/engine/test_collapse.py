@@ -109,13 +109,13 @@ def _spec(*, lazy=False, empty=False):
         mappings={
             "read_values": mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function(read_values, operation="read"),
+                function=ref.function(read_values, kind="read"),
                 arguments={"lazy": lazy, "empty": empty},
                 outputs=[feature.Feature(name=name) for name in ("group", "id", "value")],
             ),
             "double": mapping.FunctionMapping(
                 inputs=[ref.feature("value")],
-                function=ref.function(double, operation="vectorize"),
+                function=ref.function(double, kind="vectorize"),
                 arguments={
                     "dataset": ref.current_dataset().dataframe,
                     "column": ref.feature("value").id,
@@ -125,7 +125,7 @@ def _spec(*, lazy=False, empty=False):
             ),
             "unneeded": mapping.FunctionMapping(
                 inputs=[ref.feature("value")],
-                function=ref.function(double, operation="vectorize"),
+                function=ref.function(double, kind="vectorize"),
                 arguments={
                     "dataset": ref.current_dataset().dataframe,
                     "column": ref.feature("value").id,
@@ -140,7 +140,7 @@ def _spec(*, lazy=False, empty=False):
         mappings={
             "group_summary": mapping.FunctionMapping(
                 inputs=[ref.feature("value"), ref.feature("doubled")],
-                function=ref.function(summarize, operation="collapse"),
+                function=ref.function(summarize, kind="collapse"),
                 arguments={
                     "dataset": ref.dataset("observations").dataframe,
                     "column": ref.feature("value").id,
@@ -155,13 +155,13 @@ def _spec(*, lazy=False, empty=False):
         mappings={
             "global_total": mapping.FunctionMapping(
                 inputs=[ref.feature("maximum")],
-                function=ref.function(total, operation="collapse"),
+                function=ref.function(total, kind="collapse"),
                 arguments={"dataset": ref.dataset("summary").dataframe},
                 outputs=[feature.Feature(name="total")],
             ),
             "global_maximum": mapping.FunctionMapping(
                 inputs=[ref.feature("maximum")],
-                function=ref.function(maximum, operation="collapse"),
+                function=ref.function(maximum, kind="collapse"),
                 arguments={"dataset": ref.dataset("summary").dataframe},
                 outputs=[feature.Feature(name="global_max")],
             ),
@@ -210,13 +210,13 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys()
         mappings={
             "read_target": mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function(read_conform_target, operation="read"),
+                function=ref.function(read_conform_target, kind="read"),
                 arguments={},
                 outputs=[feature.Feature(name="base_value")],
             ),
             "conform_source": mapping.FunctionMapping(
                 inputs=[ref.feature("source_value")],
-                function=ref.function(conform_source, operation="conform"),
+                function=ref.function(conform_source, kind="conform"),
                 arguments={
                     "source": ref.dataset("foreign").dataframe,
                     "matching_keys": ref.current_dataset().dimensions.ids,
@@ -230,7 +230,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys()
         mappings={
             "read_source": mapping.FunctionMapping(
                 inputs=[],
-                function=ref.function(read_conform_source, operation="read"),
+                function=ref.function(read_conform_source, kind="read"),
                 arguments={},
                 outputs=[feature.Feature(name="source_value")],
             )
@@ -337,7 +337,7 @@ def test_collapse_consumes_expanded_features(lazy):
     )
     spec_definition.functions.root["read_expansion_input"] = spec_model.FunctionTemplate(
         id="read_expansion_input",
-        operation="read",
+        kind="read",
         returns="dataframe",
         entrypoint=f"{__name__}:read_expansion_input",
         args={"lazy": spec_model.Argument(id="lazy", type="boolean")},
@@ -358,7 +358,7 @@ def test_collapse_consumes_expanded_features(lazy):
     )
     spec_definition.functions.root["expanded_values"] = spec_model.FunctionTemplate(
         id="expanded_values",
-        operation="expand",
+        kind="expand",
         returns="dataframe",
         entrypoint=f"{__name__}:expanded_values",
         args={
@@ -388,7 +388,7 @@ def test_collapse_consumes_expanded_features(lazy):
     }
     spec_definition.functions.root["nested_maximum"] = spec_model.FunctionTemplate(
         id="nested_maximum",
-        operation="collapse",
+        kind="collapse",
         returns="dataframe",
         entrypoint=f"{__name__}:nested_maximum",
         args={

@@ -10,6 +10,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Function definitions now use `kind` instead of `operation`.
+  Python authoring uses `@kind(...)` and `ref.function(..., kind=...)`.
+
 - **Breaking:** `PythonSpec` requires explicit `dimensions`, `entities`, and
   `datasets` sequences instead of inferring registrations. Dataset entities may
   reference registered entities by ID or object, and entity dimensions may mix

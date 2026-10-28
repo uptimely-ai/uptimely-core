@@ -29,7 +29,7 @@ class FunctionReference:
 
     module: str
     name: str
-    operation: operations.FunctionOperation | None = None
+    kind: operations.FunctionKind | None = None
     validate_signature: bool = True
 
     def __post_init__(self) -> None:
@@ -41,8 +41,8 @@ class FunctionReference:
             raise TypeError("Function reference name must be a string")
         if not all(part.isidentifier() for part in self.name.split(".")):
             raise ValueError("Function reference name must be a Python qualified name")
-        if self.operation is not None and self.operation not in operations.FUNCTION_OPERATIONS:
-            raise ValueError(f"Unsupported function operation: {self.operation}")
+        if self.kind is not None and self.kind not in operations.FUNCTION_KINDS:
+            raise ValueError(f"Unsupported function kind: {self.kind}")
         if not isinstance(self.validate_signature, bool):
             raise TypeError("validate_signature must be a boolean")
 
@@ -55,7 +55,7 @@ class FunctionReference:
 def function(
     function: abc.Callable[..., object] | str,
     *,
-    operation: operations.FunctionOperation | None = None,
+    kind: operations.FunctionKind | None = None,
     validate_signature: bool = True,
 ) -> FunctionReference:
     """Reference a callable or a ``module.path:qualname`` entrypoint string.
@@ -64,7 +64,7 @@ def function(
         function: A named Python callable such as ``module.calculate``, or an
             importable module and qualified name separated by a colon. Creating
             a reference does not load code; compilation and execution do.
-        operation: Optional operation metadata for generic mapping declarations.
+        kind: Optional kind metadata for generic mapping declarations.
         validate_signature: Whether compilation and documentation should inspect
             the Python signature and validate implementation contracts.
 
@@ -75,7 +75,7 @@ def function(
         TypeError: If the argument is neither callable nor a string, or
             validate_signature is not a boolean.
         ValueError: If the entrypoint is invalid or the callable has no valid
-            module and function name, or if operation is unsupported.
+            module and function name, or if kind is unsupported.
     """
     if isinstance(function, str):
         module, separator, name = function.rpartition(":")
@@ -90,7 +90,7 @@ def function(
     return FunctionReference(
         module=module,
         name=name,
-        operation=operation,
+        kind=kind,
         validate_signature=validate_signature,
     )
 
