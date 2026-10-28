@@ -52,7 +52,7 @@ uptimely examples
 Build and run it:
 
 ```sh
-uptimely build examples/pump_analytics --verbose
+uptimely build examples/pump_analytics --verbose --preview 10
 uptimely run examples/pump_analytics
 ```
 
