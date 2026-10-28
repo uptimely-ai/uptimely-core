@@ -129,8 +129,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert '"function_kind": "vectorize"' in report
     assert '"function_kind": "write"' in report
     assert "Invocation lineage legend" in report
-    assert "Vectorize function</span>" in report
-    assert "Write function</span>" in report
+    assert 'class="function"' not in report
     assert '"source": "invocation:maximum:pump:pump_dataset:bearing_temperature_by_pump"' in report
     assert (
         '"target": "invocation:normalize_health_signal:'

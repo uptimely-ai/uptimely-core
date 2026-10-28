@@ -1,10 +1,6 @@
 {% from "graph/components.html.j2" import node_details_panel, graph_canvas, graph_legend %}
 <section id="invocation-lineage-graph" class="absolute inset-0">
 		{% call graph_legend("Invocation lineage legend") %}
-				<span class="legend-heading">Operations (2D)</span>
-				{% for function_type, color in graph_style.function_colors.items() %}
-				<span class="function" style="--color:{{ color }}">{{ function_type|title }} function</span>
-				{% endfor %}
 				<span class="legend-heading">Entities (3D)</span>
 				<div class="entity-legend" id="entity-legend"></div>
 		{% endcall %}
