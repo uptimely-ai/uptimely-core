@@ -47,12 +47,13 @@ def test_pump_dimensions_are_declared_in_spec_order() -> None:
 
 
 def test_pump_entities_are_declared_in_spec_order() -> None:
-    expected = [pump_entities.PUMP_TELEMETRY, pump_entities.PUMP]
+    expected = [pump_entities.PUMP_TELEMETRY, pump_entities.PUMP, pump_entities.CONSTANTS]
 
     assert pump_entities.entities == expected
     assert [entity.id for entity in pump_telemetry_spec.python_spec.entities] == [
         "pump_telemetry",
         "pump",
+        "constants",
     ]
     assert pump_entities.PUMP_TELEMETRY.dimensions == pump_telemetry_spec.python_spec.dimensions
     assert pump_entities.PUMP.dimensions == [
@@ -64,12 +65,18 @@ def test_pump_entities_are_declared_in_spec_order() -> None:
         "pump_telemetry_dataset",
         "pump_dataset",
         "pump_external_workflow_dataset",
+        "constants_dataset",
     ]
     assert [
         dataset.id
         for entity in pump_telemetry_spec.python_spec.entities
         for dataset in entity.datasets
-    ] == ["pump_telemetry_dataset", "pump_dataset", "pump_external_workflow_dataset"]
+    ] == [
+        "pump_telemetry_dataset",
+        "pump_dataset",
+        "pump_external_workflow_dataset",
+        "constants_dataset",
+    ]
 
 
 def test_argument_definition_supports_recursive_compact_types() -> None:
@@ -98,7 +105,7 @@ def test_example_manifest_parses_complete_spec() -> None:
 
     assert spec_from_directory == spec_definition
     assert spec_definition.dimensions["pump"].parent == "production_line"
-    assert set(spec_definition.entities) == {"pump_telemetry", "pump"}
+    assert set(spec_definition.entities) == {"pump_telemetry", "pump", "constants"}
     assert spec_definition.entities["pump_telemetry"].dimension_ids == [
         "plant",
         "production_line",
@@ -136,7 +143,7 @@ def test_spec_from_entities_python_api() -> None:
         name=pump_telemetry_spec.python_spec.name,
     )
 
-    assert set(spec_definition.entities) == {"pump_telemetry", "pump"}
+    assert set(spec_definition.entities) == {"pump_telemetry", "pump", "constants"}
     assert spec_definition.name == pump_telemetry_spec.python_spec.name
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True

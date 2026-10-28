@@ -499,7 +499,7 @@ def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> No
     } == {
         ("collapse", "maximum"),
     }
-    assert len(graph.invocations) == 15
+    assert len(graph.invocations) == 16
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
         graph.subset(["missing"])

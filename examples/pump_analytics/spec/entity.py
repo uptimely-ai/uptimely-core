@@ -25,4 +25,11 @@ PUMP = Entity(
     dimensions=[dimension.PLANT, dimension.PRODUCTION_LINE, dimension.PUMP],
 )
 
-entities = [PUMP_TELEMETRY, PUMP]
+CONSTANTS = Entity(
+    id="constants",
+    name="Constants",
+    description="Project-wide physical constants",
+    dimensions=[],
+)
+
+entities = [PUMP_TELEMETRY, PUMP, CONSTANTS]

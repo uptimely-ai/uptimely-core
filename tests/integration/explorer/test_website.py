@@ -295,9 +295,9 @@ def test_website_exports_all_reports_with_relative_navigation(
     datasets = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     assert "One row per pump and timestamp" in datasets
     assert "read · read_pump_telemetry" in datasets
-    assert datasets.count("data-dataset-schema=") == 3
+    assert datasets.count("data-dataset-schema=") == 4
     assert "schema only, no sample records" in datasets
-    assert datasets.count('<details class="mt-6 border-t border-slate-800 pt-4">') == 3
+    assert datasets.count('<details class="mt-6 border-t border-slate-800 pt-4">') == 4
     assert "<summary" in datasets
     assert "Dataset details</summary>" in datasets
     assert "Blue: dimensions" not in datasets
@@ -604,12 +604,14 @@ def test_execution_plan_pages_render_only_their_section(
                 in script
             )
             expected_label = (
-                'read_pump_telemetry(source="$params.telemetry_source", environment="development")'
+                'read_pump_telemetry(source="$params.telemetry_source", '
+                'pump_assets_source="$params.pump_assets_source", environment="development")'
             )
             assert json.dumps(expected_label) in document
             expected_lines = [
                 "read_pump_telemetry(",
                 '  source="$params.telemetry_source",',
+                '  pump_assets_source="$params.pump_assets_source",',
                 '  environment="development"',
                 ")",
             ]
