@@ -24,7 +24,10 @@
         }
     },
     "features": {
-        "ghcr.io/devcontainers/features/common-utils:2.5.5": {}
+        "ghcr.io/devcontainers/features/common-utils:2.5.5": {},
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "24"
+        }
     },
     "remoteUser": "vscode",
     "updateRemoteUserUID": true,
