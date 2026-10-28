@@ -18,7 +18,7 @@ from uptimely.spec.python import (
     Dimension,
     Entity,
     Feature,
-    kind,
+    function,
     ref,
 )
 
@@ -26,7 +26,7 @@ pump_dimension = Dimension(id="pump", type="string")
 assets = Entity(id="assets", name="Assets", dimensions=[pump_dimension])
 
 
-@kind("collapse")
+@function(kind="collapse")
 def maximum(
     dataset: pl.LazyFrame, feature: str, dimensions: list[str], output: str
 ) -> pl.LazyFrame: ...
@@ -89,10 +89,31 @@ or `PythonSpec.to_dict()` so those references can be resolved.
 
 `Action` declares work without executing it. It takes `id`, `function`,
 `arguments`, and `outputs`, with optional `inputs`, `function_id`, and
-`row_context` requirements. Decorate callable
-implementations with `@kind(...)`; use `ref.function(..., kind=...)`
-for entrypoint strings. Implementations aren't called during authoring; assembly
-checks callable parameter names and required arguments.
+`row_context` requirements. Optionally annotate callable implementations with
+`@function(kind=...)`. The decorator attaches semantic metadata for validation;
+it returns the original function without wrapping or executing it. Alternatively,
+keep implementations undecorated and supply their contract through
+`ref.function(implementation, kind=...)`. Entrypoint strings also use explicit
+function references. Kind belongs to the function, not the action.
+
+An explicit reference kind must agree with decorated metadata. References to
+decorated callables inherit their kind when it is omitted. Decoration is
+optional, but a function kind is still required to build an executable action;
+Uptimely never guesses a producer's kind from its signature or collection.
+Implementations aren't called during authoring; assembly checks callable
+parameter names and required arguments.
+
+```python
+from uptimely.spec.python import function, ref
+
+
+@function(kind="collapse")
+def maximum(dataset, feature, dimensions, output): ...
+
+
+decorated = ref.function(maximum)  # Carries the declared collapse contract.
+external = ref.function("third_party.analytics:maximum", kind="collapse")
+```
 `read` functions take no dataframe arguments. `conform`, `collapse`, and
 `expand` each take only their foreign/source dataframe; the engine supplies and
 reconciles the target dataset separately. `conform` sources and targets have
@@ -228,6 +249,20 @@ class registries.
 feature inputs and outputs, and execution requirements.
 
 ::: uptimely.spec.python.actions
+    options:
+      heading_level: 3
+      show_root_heading: false
+
+## functions
+
+`uptimely.spec.python.functions` defines optional implementation-level semantics.
+Import `function` directly from `uptimely.spec.python` for
+`@function(kind="...")`, or import the `functions` module for
+`@functions.function(kind="...")`. The former `@kind(...)` decorator is removed.
+The decorator does not prove implementation behavior; it declares the contract
+that Uptimely validates at its supported boundaries.
+
+::: uptimely.spec.python.functions
     options:
       heading_level: 3
       show_root_heading: false

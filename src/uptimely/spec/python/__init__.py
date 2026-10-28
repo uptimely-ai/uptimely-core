@@ -1,11 +1,12 @@
 """Python authoring declarations for spec."""
 
-from . import actions, feature
-from .actions import Action, kind
+from . import actions, feature, functions
+from .actions import Action
 from .dataset import Dataset, Model, Order, RowScope
 from .dimension import Dimension
 from .entity import Entity
 from .feature import Feature
+from .functions import function
 from .spec import PythonSpec
 
 __all__ = [
@@ -20,5 +21,6 @@ __all__ = [
     "RowScope",
     "actions",
     "feature",
-    "kind",
+    "functions",
+    "function",
 ]

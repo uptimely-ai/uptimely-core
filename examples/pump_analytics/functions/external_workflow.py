@@ -4,20 +4,20 @@ import pathlib
 
 import polars as pl
 
-from uptimely.spec.python import kind
+from uptimely.spec.python import function
 
 EXAMPLE_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE_PATH = EXAMPLE_ROOT / "data" / "pump_external_workflow.csv"
 OUTPUT_PATH = EXAMPLE_ROOT / "_generated" / "pump_external_workflow_results.csv"
 
 
-@kind("read")
+@function(kind="read")
 def read_pump_external_inputs() -> pl.DataFrame:
     """Load the dataframe inputs declared by the external workflow mapping."""
     return pl.read_csv(SOURCE_PATH)
 
 
-@kind("escape")
+@function(kind="escape")
 def process_pump_external_workflow() -> None:
     """Read pump inputs, calculate ratios, and write results internally."""
     observations = pl.read_csv(SOURCE_PATH)

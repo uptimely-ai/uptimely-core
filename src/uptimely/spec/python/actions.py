@@ -12,33 +12,12 @@ from uptimely.spec import model as spec_model
 
 from . import bind, binding_conversion, ref
 from . import feature as feature_module
+from . import functions as function_semantics
 from . import row_context as row_context_module
 
-__all__ = ["Action", "kind"]
+__all__ = ["Action"]
 
-_KIND_ATTRIBUTE = "__uptimely_kind__"
-_Parameters = typing.ParamSpec("_Parameters")
-_Result = typing.TypeVar("_Result")
 _Function = abc.Callable[..., object] | str | ref.FunctionReference
-
-
-def kind(
-    value: functions.FunctionKind,
-) -> abc.Callable[
-    [abc.Callable[_Parameters, _Result]],
-    abc.Callable[_Parameters, _Result],
-]:
-    """Mark a callable with the kind used by its actions."""
-    if value not in functions.FUNCTION_KINDS:
-        raise ValueError(f"Unsupported function kind: {value}")
-
-    def decorate(
-        function: abc.Callable[_Parameters, _Result],
-    ) -> abc.Callable[_Parameters, _Result]:
-        setattr(function, _KIND_ATTRIBUTE, value)
-        return function
-
-    return decorate
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -83,15 +62,16 @@ class Action:
     @property
     def kind(self) -> functions.FunctionKind:
         """Return the kind declared on the function or its reference."""
-        value = (
-            self.function.kind
-            if isinstance(self.function, ref.FunctionReference)
-            else getattr(self.function, _KIND_ATTRIBUTE, None)
-        )
+        if isinstance(self.function, ref.FunctionReference):
+            value = self.function.kind
+        elif callable(self.function):
+            value = function_semantics.declared_kind(self.function)
+        else:
+            value = None
         if value not in functions.FUNCTION_KINDS:
             raise ValueError(
-                "Function must be annotated with @kind(...) or supplied as a "
-                "FunctionReference with kind metadata"
+                "Function kind is required: use @function(kind=...) or "
+                "ref.function(..., kind=...) for an undecorated implementation"
             )
         return typing.cast(functions.FunctionKind, value)
 
@@ -100,7 +80,7 @@ class Action:
         """Return the normalized entrypoint without importing string references."""
         if isinstance(self.function, ref.FunctionReference):
             return self.function
-        return ref.function(self.function, kind=self.kind)
+        return ref.function(self.function)
 
     @property
     def catalog_id(self) -> str:
