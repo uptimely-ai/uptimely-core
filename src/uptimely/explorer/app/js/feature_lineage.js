@@ -1,6 +1,12 @@
 {
 	const DETAIL_VALUE_MAX_LENGTH = 220;
-	const FEATURE_LAYOUT = Object.freeze({ rankGap: 100, nodeSpacing: 70, fitPadding: 80 });
+	const FEATURE_LAYOUT = Object.freeze({
+		rankGap: 100, nodeSpacing: 70, fitPadding: 80,
+		lanePadding: 32, laneHeaderHeight: 36, laneGap: 16,
+		labelFont: '600 14px "DM Sans", sans-serif', labelColor: '#9fb3c3',
+		evenBackground: 'rgba(143, 163, 181, .07)', oddBackground: 'rgba(143, 163, 181, .03)',
+		borderColor: 'rgba(143, 163, 181, .3)', orderingPasses: 4,
+	});
 	const LINK_ROUTE = Object.freeze({
 		straightTolerance: 1, cornerRadius: 14, curveSteps: 8,
 		arrowLength: 8, arrowHalfAngle: Math.PI / 6,
@@ -34,6 +40,7 @@
 				: 'Produces';
 			const rows = [
 				['Node type', 'Action'],
+				['Dataset', node.dataset_id],
 				['Action', node.action_id || label],
 				['Function', node.function_id || 'n/a'],
 				['Function kind', node.function_kind || 'n/a'],
@@ -46,7 +53,7 @@
 		const dataType = node.data_type || node.type || 'unknown';
 		const entity = node.entity || 'n/a';
 		ExplorerGraph.showDetails(nodeDetails, 'Selected item', [
-			['Node type', 'Feature'], ['Feature', label],
+			['Node type', 'Feature'], ['Feature', label], ['Dataset', node.dataset_id],
 			['Entity', formatDetailValue(entity)], ['Data type', formatDetailValue(dataType)],
 		]);
 	};
@@ -84,16 +91,90 @@
 		function prepareGraphLayout(graphData) {
 			const nodeRanks = rankNodes(graphData);
 			const rankGroups = new Map();
+			const lanes = new Map();
+			const nodesById = new Map(graphData.nodes.map(node => [node.id, node]));
+			const neighbors = new Map(graphData.nodes.map(node => [node.id, []]));
+			const compareNodes = (a, b) =>
+				(a.label || a.id).localeCompare(b.label || b.id) || a.id.localeCompare(b.id);
 			for (const node of graphData.nodes) {
 				node.rank = nodeRanks.get(node.id);
 				ExplorerGraph.sizeCard(node, node.label || node.id);
 				if (!rankGroups.has(node.rank)) rankGroups.set(node.rank, []);
 				rankGroups.get(node.rank).push(node);
+				if (!lanes.has(node.dataset_id)) {
+					lanes.set(node.dataset_id, {
+						id: node.dataset_id, ranks: new Map(), connections: new Map(),
+					});
+				}
+				const lane = lanes.get(node.dataset_id);
+				if (!lane.ranks.has(node.rank)) lane.ranks.set(node.rank, []);
+				lane.ranks.get(node.rank).push(node);
 			}
-			for (const nodes of rankGroups.values()) {
-				nodes.sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
+			for (const link of graphData.links) {
+				const source = nodesById.get(link.source);
+				const target = nodesById.get(link.target);
+				neighbors.get(source.id).push(target);
+				neighbors.get(target.id).push(source);
+				if (source.dataset_id === target.dataset_id) continue;
+				for (const [from, to] of [[source, target], [target, source]]) {
+					const connections = lanes.get(from.dataset_id).connections;
+					connections.set(to.dataset_id, (connections.get(to.dataset_id) || 0) + 1);
+				}
 			}
+			// Keep strongly connected datasets adjacent, without assuming a dataset DAG.
+			const remaining = [...lanes.values()].sort((a, b) => a.id.localeCompare(b.id));
+			const orderedLanes = [];
+			while (remaining.length) {
+				const previous = orderedLanes.at(-1);
+				if (previous) remaining.sort((a, b) =>
+					(previous.connections.get(b.id) || 0) - (previous.connections.get(a.id) || 0)
+						|| a.id.localeCompare(b.id));
+				orderedLanes.push(remaining.shift());
+			}
+			let graphHeight = 0;
+			for (const lane of orderedLanes) {
+				const stackHeight = Math.max(...[...lane.ranks.values()].map(nodes =>
+					(nodes.length - 1) * FEATURE_LAYOUT.nodeSpacing + nodes[0].cardHeight));
+				lane.top = graphHeight;
+				lane.height = FEATURE_LAYOUT.laneHeaderHeight + 2 * FEATURE_LAYOUT.lanePadding + stackHeight;
+				lane.center = lane.top + FEATURE_LAYOUT.laneHeaderHeight
+					+ FEATURE_LAYOUT.lanePadding + stackHeight / 2;
+				graphHeight += lane.height + FEATURE_LAYOUT.laneGap;
+				for (const nodes of lane.ranks.values()) nodes.sort(compareNodes);
+			}
+			graphHeight = Math.max(0, graphHeight - FEATURE_LAYOUT.laneGap);
+			const positionRows = (rank = null) => {
+				for (const lane of orderedLanes) {
+					const groups = rank === null ? lane.ranks.values() : [lane.ranks.get(rank) || []];
+					for (const nodes of groups) {
+						nodes.forEach((node, index) => {
+							node.fy = lane.center - graphHeight / 2
+								+ (index - (nodes.length - 1) / 2) * FEATURE_LAYOUT.nodeSpacing;
+							node.y = node.fy;
+						});
+					}
+				}
+			};
+			positionRows();
 			const ranksInOrder = [...rankGroups.keys()].sort((a, b) => a - b);
+			// Alternate predecessor/successor sweeps to reduce crossings within lanes.
+			for (let pass = 0; pass < FEATURE_LAYOUT.orderingPasses; pass++) {
+				const forward = pass % 2 === 0;
+				for (const rank of forward ? ranksInOrder : [...ranksInOrder].reverse()) {
+					const scores = new Map(rankGroups.get(rank).map(node => {
+						const adjacent = neighbors.get(node.id).filter(other =>
+							forward ? other.rank < rank : other.rank > rank);
+						return [node.id, adjacent.length
+							? adjacent.reduce((sum, other) => sum + other.y, 0) / adjacent.length
+							: node.y];
+					}));
+					for (const lane of orderedLanes) {
+						lane.ranks.get(rank)?.sort((a, b) =>
+							scores.get(a.id) - scores.get(b.id));
+					}
+					positionRows(rank);
+				}
+			}
 			const rankWidths = new Map(ranksInOrder.map(rank => [
 				rank,
 				Math.max(...rankGroups.get(rank).map(node => node.cardWidth))
@@ -104,18 +185,47 @@
 				rankOffsets.set(rank, graphWidth + rankWidths.get(rank) / 2);
 				graphWidth += rankWidths.get(rank) + FEATURE_LAYOUT.rankGap;
 			}
+			graphWidth = Math.max(0, graphWidth - FEATURE_LAYOUT.rankGap);
 			for (const rank of ranksInOrder) {
 				const nodes = rankGroups.get(rank);
-				nodes.forEach((node, index) => {
+				nodes.forEach(node => {
 					node.fx = rankOffsets.get(rank) - graphWidth / 2;
-					node.fy = (index - (nodes.length - 1) / 2) * FEATURE_LAYOUT.nodeSpacing;
 					node.x = node.fx;
-					node.y = node.fy;
+					node.rankLeft = node.x - rankWidths.get(rank) / 2;
+					node.rankRight = node.x + rankWidths.get(rank) / 2;
+					const lane = lanes.get(node.dataset_id);
+					node.routeY = lane.top + lane.height - FEATURE_LAYOUT.lanePadding / 2 - graphHeight / 2;
 				});
 			}
+			return { lanes: orderedLanes, width: graphWidth, height: graphHeight };
 		}
 
-		prepareGraphLayout(data);
+		const layout = prepareGraphLayout(data);
+		function drawDatasetLanes(ctx, globalScale) {
+			ctx.save();
+			ctx.font = FEATURE_LAYOUT.labelFont;
+			ctx.textAlign = 'left';
+			ctx.textBaseline = 'middle';
+			layout.lanes.forEach((lane, index) => {
+				const left = -layout.width / 2 - FEATURE_LAYOUT.lanePadding;
+				const top = lane.top - layout.height / 2;
+				const width = layout.width + 2 * FEATURE_LAYOUT.lanePadding;
+				ctx.fillStyle = index % 2 === 0
+					? FEATURE_LAYOUT.evenBackground : FEATURE_LAYOUT.oddBackground;
+				ctx.fillRect(left, top, width, lane.height);
+				ctx.strokeStyle = FEATURE_LAYOUT.borderColor;
+				ctx.lineWidth = 1 / Math.max(globalScale, MIN_RENDER_SCALE);
+				ctx.beginPath();
+				ctx.moveTo(left, top);
+				ctx.lineTo(left + width, top);
+				ctx.stroke();
+				ctx.fillStyle = FEATURE_LAYOUT.labelColor;
+				ctx.fillText(ExplorerGraph.humanizeDatasetName(lane.id),
+					left + FEATURE_LAYOUT.lanePadding / 2,
+					top + FEATURE_LAYOUT.laneHeaderHeight / 2, width - FEATURE_LAYOUT.lanePadding);
+			});
+			ctx.restore();
+		}
 		const selectAtPointer = event =>
 			ExplorerGraph.selectCard(graph, graphContainer, data.nodes, event, updateDetails);
 
@@ -131,14 +241,19 @@
 			const direction = target.x >= source.x ? 1 : -1;
 			const start = [source.x + direction * source.cardWidth / 2, source.y];
 			const end = [target.x - direction * target.cardWidth / 2, target.y];
-			if (Math.abs(start[1] - end[1]) < LINK_ROUTE.straightTolerance) return [start, end];
-			const bendX = (start[0] + end[0]) / 2;
-			const corners = [[bendX, start[1]], [bendX, end[1]]];
+			const skipsRanks = target.rank > source.rank + 1;
+			if (!skipsRanks && Math.abs(start[1] - end[1]) < LINK_ROUTE.straightTolerance) return [start, end];
+			// Use column gaps and a lane gutter so long edges do not run through cards.
+			const exitX = source.rankRight + FEATURE_LAYOUT.rankGap / 2;
+			const entryX = target.rankLeft - FEATURE_LAYOUT.rankGap / 2;
+			const corners = skipsRanks
+				? [[exitX, start[1]], [exitX, source.routeY], [entryX, source.routeY], [entryX, end[1]]]
+				: [[exitX, start[1]], [exitX, end[1]]];
 			const points = [start];
 			let current = start;
 			for (let index = 0; index < corners.length; index++) {
 				const corner = corners[index];
-				const next = index === 0 ? corners[1] : end;
+				const next = corners[index + 1] || end;
 				const incomingLength = Math.hypot(corner[0] - current[0], corner[1] - current[1]);
 				const outgoingLength = Math.hypot(next[0] - corner[0], next[1] - corner[1]);
 				const radius = Math.min(LINK_ROUTE.cornerRadius, incomingLength / 2, outgoingLength / 2);
@@ -236,6 +351,7 @@
 			.width(graphContainer.clientWidth)
 			.height(graphContainer.clientHeight)
 			.backgroundColor(style.background_color)
+			.onRenderFramePre(drawDatasetLanes)
 			.nodeLabel(node => ExplorerGraph.tooltip(`${node.is_action ? 'action' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`))
 			.nodeRelSize(FORCE_GRAPH_2D.nodeRelativeSize)
 			.nodeVal(node => node.is_action ? FORCE_GRAPH_2D.functionValue : FORCE_GRAPH_2D.featureValue)
@@ -257,7 +373,11 @@
 			.onLinkClick((_link, event) => selectAtPointer(event))
 			.onBackgroundClick(event => selectAtPointer(event))
 			.cooldownTicks(STATIC_LAYOUT_COOLDOWN_TICKS);
-		const view = ExplorerGraph.createView(graph, graphContainer, FEATURE_LAYOUT.fitPadding, '2d');
+		const view = ExplorerGraph.createView(graph, graphContainer, FEATURE_LAYOUT.fitPadding, '2d', {
+			x: 0, y: 0,
+			width: layout.width + 2 * FEATURE_LAYOUT.lanePadding,
+			height: Math.max(1, layout.height),
+		});
 		view.selectNode = id => {
 			highlight.select(data.nodes.find(node => node.id === id) || null);
 		};

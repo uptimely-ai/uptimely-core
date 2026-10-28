@@ -208,15 +208,26 @@ const ExplorerGraph = (() => {
 		};
 	}
 
-	function createView(graph, container, padding, dimension) {
+	function createView(graph, container, padding, dimension, bounds = null) {
+		const fitGraph = duration => {
+			if (dimension === '2d' && bounds) {
+				graph.centerAt(bounds.x, bounds.y, duration);
+				graph.zoom(Math.min(
+					Math.max(1, container.clientWidth - 2 * padding) / bounds.width,
+					Math.max(1, container.clientHeight - 2 * padding) / bounds.height,
+				), duration);
+				return;
+			}
+			graph.zoomToFit(duration, padding);
+		};
 		let initialFitComplete = false;
 		graph.onEngineStop(() => {
 			if (!initialFitComplete) {
-				graph.zoomToFit(VIEW_TIMING.initialFit, padding);
+				fitGraph(VIEW_TIMING.initialFit);
 				initialFitComplete = true;
 			}
 		});
-		const fit = () => graph.zoomToFit(VIEW_TIMING.fit, padding);
+		const fit = () => fitGraph(VIEW_TIMING.fit);
 		const resize = () => {
 			graph.width(container.clientWidth).height(container.clientHeight);
 			fit();
