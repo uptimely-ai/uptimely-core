@@ -1,8 +1,9 @@
 # Python authoring
 
-`uptimely.spec.python` provides declarations that convert to the
-[spec document model](spec/model.md). The sections below follow the
-authoring modules in the source tree.
+Use `import uptimely as up` for Python authoring declarations and `up.ref` for
+deferred references. These declarations convert to the
+[spec document model](spec/model.md). Their defining modules remain available
+under `uptimely.spec.python`; the reference sections below follow those modules.
 
 For a runnable example, see the
 [analytics project structure](../project-layout/project-structure.md).
@@ -11,44 +12,35 @@ For a runnable example, see the
 
 ```python
 import polars as pl
+import uptimely as up
 
-from uptimely.spec.python import (
-    Action,
-    Dataset,
-    Dimension,
-    Entity,
-    Feature,
-    function,
-    ref,
-)
-
-pump_dimension = Dimension(id="pump", type="string")
-assets = Entity(id="assets", name="Assets", dimensions=[pump_dimension])
+pump_dimension = up.Dimension(id="pump", type="string")
+assets = up.Entity(id="assets", name="Assets", dimensions=[pump_dimension])
 
 
-@function(kind="collapse")
+@up.function(kind="collapse")
 def maximum(
     dataset: pl.LazyFrame, feature: str, dimensions: list[str], output: str
 ) -> pl.LazyFrame: ...
 
 
-class Pump(Dataset):
+class Pump(up.Dataset):
     id = "pump_summary"
     description = "Maximum bearing temperature per pump."
     entity = assets
 
     producers = [
-        Action(
+        up.Action(
             id="temperature_max",
             function=maximum,
             arguments=dict(
-                dataset=ref.dataset("telemetry").dataframe,
-                feature=ref.feature("bearing_temperature"),
+                dataset=up.ref.dataframe("telemetry"),
+                feature=up.ref.column("bearing_temperature"),
                 dimensions=["pump"],
-                output=ref.feature("bearing_temperature_max").id,
+                output=up.ref.output("bearing_temperature_max"),
             ),
             outputs=[
-                Feature(
+                up.Feature(
                     name="bearing_temperature_max",
                     type="float",
                     unit="C",
@@ -60,9 +52,7 @@ class Pump(Dataset):
 ```
 
 ```python
-from uptimely.spec.python import PythonSpec
-
-python_spec = PythonSpec(
+python_spec = up.Spec(
     dimensions=[pump_dimension],
     entities=[assets],
     datasets=[Pump],
@@ -70,12 +60,19 @@ python_spec = PythonSpec(
 )
 ```
 
-`PythonSpec` requires explicit `dimensions`, `entities`, and `datasets` sequences,
+Root-level `Spec`, `Dataset`, `Action`, `Dimension`, `Entity`, and `Feature` are Python
+authoring classes. Document-model classes remain under `uptimely.spec.model`
+and the existing `uptimely.spec` exports. In particular, root-level `Spec`,
+`Dimension`, and `Entity` now refer to authoring declarations rather than document
+models. `up.PythonSpec` remains available as an alias of `up.Spec`; the defining
+class is still `uptimely.spec.python.PythonSpec`.
+
+`up.Spec` requires explicit `dimensions`, `entities`, and `datasets` sequences,
 including empty sequences when appropriate. It instantiates dataset classes and
 groups datasets using their `entity` attribute, which accepts an entity ID string
 or an `Entity` object. An entity's `dimensions` accepts dimension ID strings,
 `Dimension` objects, or a mixture of both. Referenced entities and dimensions
-must also appear in the corresponding `PythonSpec` sequence; object references
+must also appear in the corresponding `up.Spec` sequence; object references
 do not register them implicitly. Duplicate registrations, undeclared references,
 and conflicting object metadata are rejected.
 
@@ -83,8 +80,8 @@ The explicit dataset sequence is authoritative; datasets nested in an `Entity`
 are not automatically registered. Unused registered entities and dimensions are
 preserved. Reference resolution does not mutate the supplied declarations.
 The function catalog is collected from the registered datasets.
-Convert declarations containing ID references through `PythonSpec.to_model()`
-or `PythonSpec.to_dict()` so those references can be resolved.
+Convert declarations containing ID references through `up.Spec.to_model()`
+or `up.Spec.to_dict()` so those references can be resolved.
 `Model([Pump]).to_declarations()` optionally registers dataset classes.
 
 `Action` declares work without executing it. It takes `id`, `function`,
@@ -279,8 +276,21 @@ serialization helpers. Actions bind functions directly through their
 
 ## ref
 
-`uptimely.spec.python.ref` builds references to functions and spec
-objects.
+`up.ref` (also available as `uptimely.spec.python.ref`) builds deferred
+references to functions and spec objects. It does not construct or load data.
+
+| Helper | Meaning |
+| --- | --- |
+| `up.ref.dataframe()` | Current dataset's dataframe. |
+| `up.ref.dataframe("telemetry")` | Named dataset's dataframe. |
+| `up.ref.column("temperature")` | Input feature column; infers a dependency unless `inputs` is explicit. |
+| `up.ref.output("maximum")` | Identifier of a feature in the containing action's `outputs`; no input dependency. |
+
+`ref.output()` does not declare a feature. An undeclared output name raises
+`ValueError`, including references nested in lists, dictionaries, and bindings.
+The existing `ref.current_dataset().dataframe`, `ref.dataset(name).dataframe`,
+`ref.feature(name)`, and `ref.feature(name).id` forms remain supported.
+The general `.id` selector does not require the feature to be an action output.
 
 Function references accept `validate_signature`, defaulting to `True`.
 Conversion preserves it in the function catalog and exported JSON. When

@@ -41,7 +41,8 @@ def test_removed_json_module_paths_are_unavailable(module: str) -> None:
 
 
 def test_public_models_are_canonical_objects() -> None:
-    assert uptimely.Spec is spec.Spec is model.Spec
+    assert spec.Spec is model.Spec
+    assert uptimely.Spec is spec.PythonSpec
 
 
 @pytest.mark.parametrize("name", ["Function", "Call", "PreparedSpec", "prepare_spec"])

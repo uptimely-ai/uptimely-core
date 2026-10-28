@@ -18,6 +18,7 @@ from uptimely.engine.engine import Engine as EngineImplementation
 from uptimely.execution_plan.models import ExecutionPlan, Invocation
 from uptimely.explorer import graph_style
 from uptimely.spec import feature_graph
+from uptimely.spec import python as python_spec
 from uptimely.spec.feature_graph import FeatureGraph, SubGraph
 from uptimely.spec.feature_graph import models as feature_graph_models
 from uptimely.spec.feature_graph.models import FeatureNode, FunctionNode
@@ -72,14 +73,14 @@ for name in {removed_paths!r}:
 
 
 def test_canonical_package_exports_preserve_object_identity() -> None:
-    assert uptimely.Spec is spec.Spec is SpecModel
+    assert spec.Spec is SpecModel
     assert uptimely.load_spec is spec.load_spec
     assert uptimely.from_python is spec.from_python
     assert uptimely.write_document is spec.write_document
     assert not hasattr(spec, "SpecParser")
     assert not hasattr(spec, "SpecSerializer")
-    assert uptimely.Dimension is spec.Dimension
-    assert uptimely.Entity is spec.Entity
+    assert uptimely.Dimension is python_spec.Dimension
+    assert uptimely.Entity is python_spec.Entity
     assert uptimely.FeatureGraph is spec.FeatureGraph is FeatureGraph
     assert graph_style.GraphStyle.__module__ == "uptimely.explorer.graph_style"
     assert not hasattr(spec, "GraphStyle")
@@ -99,3 +100,12 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert engine.EngineConfig is EngineConfig
 
     assert execution_plan.ExecutionPlan is ExecutionPlan
+
+
+def test_root_authoring_exports_preserve_object_identity() -> None:
+    assert uptimely.Spec is uptimely.PythonSpec is python_spec.PythonSpec
+    assert uptimely.Action is python_spec.Action
+    assert uptimely.Dataset is python_spec.Dataset
+    assert uptimely.Feature is python_spec.Feature
+    assert uptimely.function is python_spec.function
+    assert uptimely.ref is spec.ref
