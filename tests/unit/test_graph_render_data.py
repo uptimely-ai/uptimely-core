@@ -1,4 +1,4 @@
-from uptimely.explorer import render
+from uptimely.explorer import graph_render, render
 from uptimely.spec import model
 from uptimely.spec.feature_graph import models
 
@@ -12,7 +12,7 @@ def test_render_field_filter_preserves_falsy_values() -> None:
 def test_feature_render_data_preserves_empty_strings() -> None:
     node = models.FeatureNode(name="reading", data_type="", entity="asset")
 
-    assert node.to_render_data("feature") == {
+    assert graph_render._node_render_data(node) == {
         "node_type": "feature",
         "is_function": False,
         "label": "reading",
@@ -33,8 +33,8 @@ def test_function_render_data_includes_declared_metadata() -> None:
         name="double", features=("doubled",), entity="asset", function=function
     )
 
-    assert node.to_render_data() == {
-        "node_type": "function",
+    assert graph_render._node_render_data(node) == {
+        "node_type": "feature",
         "is_function": True,
         "label": "double",
         "features": ["doubled"],

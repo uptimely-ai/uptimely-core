@@ -25,10 +25,6 @@ class GraphBase:
         """Return a stable node key from a feature name or function call."""
         return reference.node_id
 
-    def _node_data(self, reference: NodeMeta) -> dict:
-        """Build display metadata for a graph node reference."""
-        return reference.to_render_data(self._node_type(reference))
-
     def _topology_items_for_level(
         self,
         level: list[Node],
@@ -79,10 +75,6 @@ class GraphBase:
     def render_graph(self) -> str:
         """Return a text representation of the feature dependency graph."""
         return views.texttree.create_topology_tree_txt(self.graph)
-
-    def _node_type(self, reference: NodeMeta) -> str:
-        """Return the single presentation type used by the feature graph."""
-        return "feature"
 
     @property
     def input_names(self) -> list[str]:

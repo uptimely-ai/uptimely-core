@@ -91,6 +91,19 @@ def test_compiler_does_not_import_presentation_or_runtime_layers() -> None:
                 ), path
 
 
+def test_feature_graph_does_not_import_explorer() -> None:
+    directory = pathlib.Path(spec.__file__).parent / "feature_graph"
+    for path in directory.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                assert all(
+                    not alias.name.startswith("uptimely.explorer") for alias in node.names
+                ), path
+            elif isinstance(node, ast.ImportFrom):
+                assert not (node.module or "").startswith("uptimely.explorer"), path
+
+
 def test_execution_plan_does_not_import_outer_layers() -> None:
     directory = pathlib.Path(execution_plan_models.__file__).parent
     for path in directory.glob("*.py"):

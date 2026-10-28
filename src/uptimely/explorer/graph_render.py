@@ -9,6 +9,7 @@ from graphable import views
 
 from uptimely import project_paths
 from uptimely.spec import functions
+from uptimely.spec.feature_graph import models
 
 from . import render
 
@@ -102,8 +103,8 @@ def graph_payload_from_cytoscape(
 ) -> tuple[list[dict[str, typing.Any]], list[dict[str, str]]]:
     """Normalize Cytoscape graph elements into node and link payloads."""
     config = views.CytoscapeStylingConfig(
-        node_data_fnc=lambda node: graph._node_data(node.reference),
-        reference_fnc=lambda node: graph._node_key(node.reference),
+        node_data_fnc=lambda node: _node_render_data(node.reference),
+        reference_fnc=lambda node: node.reference.node_id,
     )
     elements = json.loads(views.create_topology_cytoscape(graph.graph, config))
 
@@ -123,6 +124,41 @@ def graph_payload_from_cytoscape(
         nodes.append(data)
 
     return nodes, links
+
+
+def _node_render_data(
+    reference: models.FeatureNode | models.FunctionNode,
+) -> dict[str, object]:
+    """Build Explorer display metadata from a feature graph node."""
+    if isinstance(reference, models.FunctionNode):
+        return render.filled_fields(
+            node_type="feature",
+            is_function=True,
+            label=(
+                f"{reference.name} · {reference.action_id}"
+                if reference.action_id is not None
+                else reference.name
+            ),
+            action_id=reference.action_id,
+            features=list(reference.features),
+            entity=reference.entity,
+            function_kind=(reference.function.kind if reference.function is not None else None),
+            type="python_function" if reference.function is not None else None,
+            entrypoint=(reference.function.entrypoint if reference.function is not None else None),
+            info=(
+                {"description": reference.function.description}
+                if reference.function is not None
+                else None
+            ),
+        )
+
+    return render.filled_fields(
+        node_type="feature",
+        is_function=False,
+        label=reference.name,
+        entity=reference.entity,
+        data_type=reference.data_type,
+    )
 
 
 def _create_website_pages(
