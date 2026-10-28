@@ -110,9 +110,8 @@
 			const label = node.label || node.id;
 			const isFunction = node.is_function === true;
 			const baseColor = isFunction ? functionColor : node.datasetColor;
-			const color = highlight.hasSelection()
-				? highlight.isSelected(node) ? '#f8d66d'
-					: highlight.isNodeHighlighted(node) ? '#67e8f9' : '#46545f'
+			const color = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
+				? '#46545f'
 				: baseColor;
 			const width = node.cardWidth;
 			const left = node.x - width / 2;

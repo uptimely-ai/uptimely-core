@@ -108,9 +108,8 @@
 			.onRenderFramePre(drawStageLanes)
 			.nodeCanvasObjectMode(() => 'replace')
 			.nodeCanvasObject((node, ctx) => {
-				const color = highlight.hasSelection()
-					? highlight.isSelected(node) ? '#f8d66d'
-						: highlight.isNodeHighlighted(node) ? '#67e8f9' : '#46545f'
+				const color = highlight.hasSelection() && !highlight.isNodeHighlighted(node)
+					? '#46545f'
 					: invocationColors[node.function_kind];
 				const left = node.x - node.cardWidth / 2;
 				ctx.save();
