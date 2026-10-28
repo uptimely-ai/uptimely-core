@@ -20,7 +20,7 @@ class Entity:
 
     id: str
     name: str
-    dimensions: list[dimension_module.Dimension]
+    dimensions: list[str | dimension_module.Dimension]
     datasets: list[dataset_module.Dataset] = dataclasses.field(default_factory=list)
     description: str | None = None
 
@@ -30,10 +30,17 @@ class Entity:
 
     def to_model(self) -> spec_model.Entity:
         """Convert this entity declaration to its JSON model."""
+        dimensions: list[spec_model.Dimension] = []
+        for dimension in self.dimensions:
+            if isinstance(dimension, str):
+                raise ValueError(
+                    "Resolve dimension IDs through PythonSpec before converting an entity"
+                )
+            dimensions.append(dimension.to_model())
         return spec_model.Entity(
             id=self.id,
             name=self.name,
             description=self.description,
-            dimensions=[dimension.to_model() for dimension in self.dimensions],
+            dimensions=dimensions,
             datasets=dataset_module.to_models(self.datasets),
         )

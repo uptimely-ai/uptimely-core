@@ -97,11 +97,7 @@ def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
 
 class CalculatedData(Dataset):
     id = "calculated_dataset"
-    entity = Entity(
-        id="measurements",
-        name="Measurements",
-        dimensions=[Dimension(id="id", type="integer")],
-    )
+    entity = "measurements"
 
     read = FunctionMapping(
         function=read_values,
@@ -120,6 +116,14 @@ class CalculatedData(Dataset):
 
 
 definition = PythonSpec(
+    dimensions=[Dimension(id="id", type="integer")],
+    entities=[
+        Entity(
+            id="measurements",
+            name="Measurements",
+            dimensions=["id"],
+        )
+    ],
     datasets=[CalculatedData],
     name="Analytics Specification",
 )

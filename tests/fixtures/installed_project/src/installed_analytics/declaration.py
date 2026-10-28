@@ -12,10 +12,11 @@ from uptimely.spec.python import (
 
 from . import functions
 
+row = Dimension(id="row", type="integer")
 sample = Entity(
     id="sample",
     name="Sample",
-    dimensions=[Dimension(id="row", type="integer")],
+    dimensions=[row],
 )
 
 
@@ -30,4 +31,6 @@ class Values(Dataset):
     )
 
 
-python_spec = PythonSpec(name="Installed analytics", datasets=[Values])
+python_spec = PythonSpec(
+    dimensions=[row], entities=[sample], name="Installed analytics", datasets=[Values]
+)

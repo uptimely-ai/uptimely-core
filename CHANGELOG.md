@@ -10,6 +10,12 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** `PythonSpec` requires explicit `dimensions`, `entities`, and
+  `datasets` sequences instead of inferring registrations. Dataset entities may
+  reference registered entities by ID or object, and entity dimensions may mix
+  registered dimension IDs and objects. Undeclared references and duplicate
+  registrations are rejected.
+
 - **Breaking:** `read` functions take no dataframe arguments; `conform`,
   `collapse`, and `expand` take only their foreign/source dataframe and return
   target-dataset fragments. Dimensional operations declare matching dimension

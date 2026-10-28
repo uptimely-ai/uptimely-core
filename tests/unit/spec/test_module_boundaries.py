@@ -274,7 +274,7 @@ def test_python_dictionary_and_json_export_share_the_same_encoding(
         id = "readings"
         entity = assets
 
-    declaration = spec.PythonSpec(datasets=[Readings])
+    declaration = spec.PythonSpec(dimensions=[pump], entities=[assets], datasets=[Readings])
     document = declaration.to_model()
     path = tmp_path / "spec.json"
     codec.write_document(document, path)

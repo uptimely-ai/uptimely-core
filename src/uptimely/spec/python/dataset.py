@@ -78,7 +78,7 @@ class Dataset:
 
     id: str
     description: str | None = None
-    entity: Entity | None = None
+    entity: str | Entity | None = None
     keys: tuple[dimension_module.Dimension, ...] = ()
     row_scope = RowScope()
     order: abc.Sequence[Order] = ()
@@ -89,7 +89,7 @@ class Dataset:
         id: str | None = None,
         mappings: abc.Mapping[str, FunctionMapping] | None = None,
         description: str | None = None,
-        entity: Entity | None = None,
+        entity: str | Entity | None = None,
         keys: tuple[dimension_module.Dimension, ...] | None = None,
         row_scope: RowScope | None = None,
         order: abc.Sequence[Order] | None = None,
@@ -129,7 +129,18 @@ class Dataset:
         mappings: dict[str, spec_model.Mapping] = {}
         features: dict[str, spec_model.Feature] = {}
         producers: dict[str, str] = {}
+        if isinstance(self.entity, str):
+            raise ValueError("Resolve entity IDs through PythonSpec before converting a dataset")
         keys = self.entity.dimensions if self.entity is not None else self.keys
+        resolved_keys: list[dimension_module.Dimension] = []
+        for key in keys:
+            if isinstance(key, str):
+                raise ValueError(
+                    "Resolve dimension IDs through PythonSpec before converting a dataset"
+                )
+            if not isinstance(key, dimension_module.Dimension):
+                raise TypeError("dataset dimensions must contain Dimension declarations")
+            resolved_keys.append(key)
         for name, declaration in self.mappings.items():
             model = self._mapping_model(name, declaration)
             for metadata in declaration.outputs:
@@ -142,14 +153,14 @@ class Dataset:
                 producers[identifier] = name
                 features[identifier] = metadata.to_model()
             if declaration.operation in {operations.READ, operations.COLLAPSE}:
-                for key in keys:
+                for key in resolved_keys:
                     if key.id not in features:
                         features[key.id] = spec_model.Feature(
                             id=key.id, type=key.type, description=key.description
                         )
                 key_outputs = [
                     f"{selectors.FEATURE_PREFIX}{key.id}"
-                    for key in keys
+                    for key in resolved_keys
                     if f"{selectors.FEATURE_PREFIX}{key.id}" not in model.features.outputs
                 ]
                 model.features.outputs[:0] = key_outputs

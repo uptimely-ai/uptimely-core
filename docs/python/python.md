@@ -60,13 +60,28 @@ class Pump(Dataset):
 from uptimely.spec.python import PythonSpec
 
 python_spec = PythonSpec(
+    dimensions=[pump_dimension],
+    entities=[assets],
     datasets=[Pump],
     name="Pump analytics",
 )
 ```
 
-`PythonSpec` instantiates the dataset classes, groups them using each class's
-`entity` attribute, and derives its entities, dimensions, and function catalog.
+`PythonSpec` requires explicit `dimensions`, `entities`, and `datasets` sequences,
+including empty sequences when appropriate. It instantiates dataset classes and
+groups datasets using their `entity` attribute, which accepts an entity ID string
+or an `Entity` object. An entity's `dimensions` accepts dimension ID strings,
+`Dimension` objects, or a mixture of both. Referenced entities and dimensions
+must also appear in the corresponding `PythonSpec` sequence; object references
+do not register them implicitly. Duplicate registrations, undeclared references,
+and conflicting object metadata are rejected.
+
+The explicit dataset sequence is authoritative; datasets nested in an `Entity`
+are not automatically registered. Unused registered entities and dimensions are
+preserved. Reference resolution does not mutate the supplied declarations.
+The function catalog is collected from the registered datasets.
+Convert declarations containing ID references through `PythonSpec.to_model()`
+or `PythonSpec.to_dict()` so those references can be resolved.
 `Model([Pump]).to_declarations()` optionally registers dataset classes.
 
 `FunctionMapping` takes `function`, `arguments`, and `outputs`. Decorate callable
@@ -103,6 +118,8 @@ generated declarations, use `Dataset(id=..., mappings={...})`.
 
 ### Migrating from list-based declarations
 
+- Supply all three registries to `PythonSpec(dimensions=[...], entities=[...],
+  datasets=[...])`; entities and dimensions are no longer inferred from datasets.
 - Replace `features` and list-based `mappings` with named mappings. Put feature
   metadata in each mapping's `outputs`; use `Feature.name` for feature IDs.
 - Replace `Mapping(bind=..., id=...)` with `FunctionMapping(function=...,
