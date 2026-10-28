@@ -19,7 +19,7 @@ import fastmcp
 import polars as pl
 
 from uptimely import engine as uptimely_engine
-from uptimely import entrypoint, spec
+from uptimely import entrypoint, project_paths, spec
 from uptimely.project import build as project_build
 from uptimely.spec import functions, references
 from uptimely.spec import model as spec_model
@@ -40,9 +40,7 @@ class ServerState:
     """Project root, runtime settings, and the currently loaded build snapshot."""
 
     project_root: pathlib.Path
-    engine_config: uptimely_engine.EngineConfig = dataclasses.field(
-        default_factory=uptimely_engine.EngineConfig
-    )
+    config: uptimely_engine.Config | None = None
     snapshot: BuildSnapshot | None = dataclasses.field(default=None, repr=False)
 
     def load_snapshot(self, *, reload: bool = False) -> BuildSnapshot:
@@ -275,7 +273,8 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
 
         snapshot = state.load_snapshot()
         plan = snapshot.bundle.execution_plan
-        engine = uptimely_engine.Engine(snapshot.bundle, state.engine_config)
+        config = state.config or _load_config(None, state.project_root)
+        engine = uptimely_engine.Engine(snapshot.bundle, config)
         result = engine.run()
 
         expected_outputs = {
@@ -359,13 +358,16 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
     return mcp
 
 
-def _load_engine_config(
+def _load_config(
     config_path: pathlib.Path | None,
-) -> uptimely_engine.EngineConfig:
-    """Load backend settings from a JSON file."""
+    project_root: pathlib.Path,
+) -> uptimely_engine.Config:
+    """Load project runtime configuration from a JSON file."""
     if config_path is None:
-        return uptimely_engine.EngineConfig()
-    return uptimely_engine.EngineConfig.model_validate_json(config_path.read_text(encoding="utf-8"))
+        config_path = project_root / project_paths.CONFIG_FILE
+        if not config_path.exists():
+            return uptimely_engine.Config()
+    return uptimely_engine.Config.model_validate_json(config_path.read_text(encoding="utf-8"))
 
 
 def main() -> None:
@@ -381,7 +383,7 @@ def main() -> None:
         "--config",
         type=pathlib.Path,
         default=None,
-        help="JSON file with engine backend settings",
+        help="JSON file with engine settings and global parameters",
     )
     args = parser.parse_args()
 
@@ -389,10 +391,10 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
     logger.info("Starting uptimely MCP server for project %s", args.project_root)
 
-    engine_config = _load_engine_config(args.config)
+    config = _load_config(args.config, args.project_root)
     state = ServerState(
         project_root=args.project_root,
-        engine_config=engine_config,
+        config=config,
     )
     create_server(state).run()
 

@@ -20,7 +20,7 @@ from uptimely.spec import model as spec_model  # noqa: E402
 
 PROJECT_ROOT = EXAMPLES_ROOT / "pump_analytics"
 BUILD_MANIFEST_PATH = PROJECT_ROOT / "_generated" / "build" / "build.json"
-CONFIG_PATH = EXAMPLES_ROOT / "pump_analytics" / "config" / "engine.json"
+CONFIG_PATH = EXAMPLES_ROOT / "pump_analytics" / "config" / "config.json"
 
 pytestmark = pytest.mark.skipif(
     not BUILD_MANIFEST_PATH.exists(), reason="example build is not generated"
@@ -30,11 +30,25 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture()
 def state() -> server.ServerState:
     """Provide server state bound to the pump analytics build."""
-    engine_config = server._load_engine_config(CONFIG_PATH)
+    config = server._load_config(CONFIG_PATH, PROJECT_ROOT)
     return server.ServerState(
         project_root=PROJECT_ROOT,
-        engine_config=engine_config,
+        config=config,
     )
+
+
+def test_load_config_defaults_to_project_config(tmp_path: pathlib.Path) -> None:
+    config_directory = tmp_path / "config"
+    config_directory.mkdir()
+    (config_directory / "config.json").write_text(
+        '{"engine": {"backend": {"dataframe": "polars"}}, "params": {"threshold": 10}}',
+        encoding="utf-8",
+    )
+
+    config = server._load_config(None, tmp_path)
+
+    assert config.engine.backend.dataframe == "polars"
+    assert config.params.root == {"threshold": 10}
 
 
 async def _call(state: server.ServerState, tool: str, arguments: dict | None = None) -> dict:

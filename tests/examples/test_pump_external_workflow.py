@@ -24,7 +24,9 @@ def test_pump_external_workflow_reads_calculates_and_writes_without_materializin
     saved_plan = plan_module.from_json(plan_path)
     output_path = tmp_path / "pump_external_workflow_results.csv"
     monkeypatch.setattr(external_workflow, "OUTPUT_PATH", output_path)
-    parameters = json.loads((EXAMPLE_ROOT / "config" / "params.json").read_text(encoding="utf-8"))
+    parameters = json.loads((EXAMPLE_ROOT / "config" / "config.json").read_text(encoding="utf-8"))[
+        "params"
+    ]
 
     result = engine_for_plan(
         saved_plan,

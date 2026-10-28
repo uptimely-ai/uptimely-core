@@ -1,5 +1,0 @@
-{
-  "constants_source": "examples/pump_analytics/data/constants.json",
-  "pump_assets_source": "examples/pump_analytics/data/pump_assets.json",
-  "telemetry_source": "examples/pump_analytics/data/pump_telemetry.json"
-}

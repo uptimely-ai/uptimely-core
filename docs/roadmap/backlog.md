@@ -15,16 +15,16 @@ projects, functions or commands.
 ### Agreed semantics
 
 - Use global scalar parameters by referencing `$params.<name>` in JSON or
-  Python bindings. Store required scalar values in the flat
-  `config/params.json` map. Support JSON strings, finite numbers, booleans, and
+  Python bindings. Store required scalar values in the flat `params` map in
+  `config/config.json`. Support JSON strings, finite numbers, booleans, and
   null; references may appear within argument lists and dictionaries.
-- Keep backend settings in `config/engine.json`; move source and sink path
-  values into `config/params.json`. Literal values remain supported.
+- Keep backend settings in the `engine` section of `config/config.json`; move
+  source and sink path values into its `params` section. Literal values remain supported.
 
 | title | breaking | description |
 |---|---|---|
 | Define global scalar parameter references | No | Add `$params.<name>` references to JSON and Python authoring. Resolve them recursively in argument lists and dictionaries; preserve literal arguments. |
-| Load required project parameter values | Yes | Load the flat scalar map in `config/params.json`, preserve explicit null values, and report invalid or unresolved parameters. Move source and sink paths out of the `bind` section while retaining backend settings in `engine.json`. |
+| Load required project parameter values | Yes | Load the flat scalar map in `config/config.json` under `params`, preserve explicit null values, and report invalid or unresolved parameters. Move source and sink paths out of the `bind` section while retaining backend settings under `engine`. |
 
 ## Planned release: Function-level planning and incremental assembly
 

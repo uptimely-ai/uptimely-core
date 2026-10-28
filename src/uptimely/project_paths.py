@@ -28,8 +28,7 @@ SPEC_PYTHON_ENTRY_FILE: typing.Final = SPEC_SOURCE_DIR / "spec.py"
 DEFAULT_SPEC_ATTRIBUTE: typing.Final = "python_spec"
 SPEC_JSON_ENTRY_FILE: typing.Final = SPEC_SOURCE_DIR / "spec.json"
 COMPILER_CONFIG_FILE: typing.Final = CONFIG_DIR / "compiler.json"
-ENGINE_CONFIG_FILE: typing.Final = CONFIG_DIR / "engine.json"
-PARAMS_CONFIG_FILE: typing.Final = CONFIG_DIR / "params.json"
+CONFIG_FILE: typing.Final = CONFIG_DIR / "config.json"
 
 DATA_DIR: typing.Final = pathlib.Path("data")
 FUNCTIONS_DIR: typing.Final = pathlib.Path("functions")

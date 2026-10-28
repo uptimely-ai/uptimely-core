@@ -23,7 +23,7 @@ class Engine:
     def __init__(
         self,
         bundle: build_models.BuildBundle,
-        config: config_module.EngineConfig,
+        config: config_module.Config | config_module.EngineConfig,
         parameters: abc.Mapping[str, object] | None = None,
     ) -> None:
         """Prepare an engine using bundle resources and runtime configuration."""
@@ -32,9 +32,16 @@ class Engine:
         self.bundle = bundle
         self.plan = bundle.execution_plan
         self.spec_definition = bundle.spec_definition
-        self.config = config
-        self.parameters = self._load_parameters(bundle, parameters)
-        self.backend = backend_module.create_backend(config.backend)
+        if isinstance(config, config_module.Config):
+            self.config = config.engine
+            configured_parameters = config.params.root
+        else:
+            self.config = config
+            configured_parameters = self._load_parameters(bundle, parameters)
+        if parameters is not None and isinstance(config, config_module.Config):
+            configured_parameters = config_module.Params.model_validate(dict(parameters)).root
+        self.parameters = configured_parameters
+        self.backend = backend_module.create_backend(self.config.backend)
         self._validate_engine()
 
     @staticmethod
@@ -42,17 +49,16 @@ class Engine:
         bundle: build_models.BuildBundle,
         parameters: abc.Mapping[str, object] | None,
     ) -> dict[str, object]:
-        """Validate explicit values or load the project's standard parameter file."""
+        """Validate explicit values or load parameters from the project config file."""
         if parameters is not None:
-            return config_module.ParameterConfig.model_validate(dict(parameters)).root
-        path = bundle.project_root / project_paths.PARAMS_CONFIG_FILE
+            return config_module.Params.model_validate(dict(parameters)).root
+        path = bundle.project_root / project_paths.CONFIG_FILE
         if not path.is_file():
             if path.exists():
                 raise ValueError(f"Parameter configuration is not a file: {path}")
             return {}
-        return config_module.ParameterConfig.model_validate_json(
-            path.read_text(encoding="utf-8")
-        ).root
+        configuration = config_module.Config.model_validate_json(path.read_text(encoding="utf-8"))
+        return configuration.params.root
 
     def _validate_engine(self) -> None:
         """Validate that this engine can execute the plan."""

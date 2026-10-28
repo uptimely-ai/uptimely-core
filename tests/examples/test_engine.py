@@ -17,8 +17,8 @@ SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 def _engine_parameters() -> dict[str, object]:
-    path = EXAMPLES_ROOT / "pump_analytics/config/params.json"
-    return json.loads(path.read_text(encoding="utf-8"))
+    path = EXAMPLES_ROOT / "pump_analytics/config/config.json"
+    return json.loads(path.read_text(encoding="utf-8"))["params"]
 
 
 def _execution_plan() -> execution_plan.ExecutionPlan:
