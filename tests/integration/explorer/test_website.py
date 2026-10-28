@@ -394,7 +394,7 @@ def test_feature_lineage_payload_contains_expected_nodes_and_links() -> None:
     node_ids = {node["id"] for node in nodes}
     assert "health_signal_normalized" in node_ids
     assert any(
-        link["source"] == "function:spec:normalize_health_signal"
+        link["source"] == "action:pump:pump_dataset:health_signal_normalized"
         and link["target"] == "health_signal_normalized"
         for link in links
     )

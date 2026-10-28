@@ -1,38 +1,32 @@
 import dataclasses
 
-from uptimely.spec import functions, model
+from uptimely.spec import model
 
 
 @dataclasses.dataclass(frozen=True)
-class FunctionNode:
-    """Graph metadata for one declared function template."""
+class ActionNode:
+    """Graph metadata for one declared action and its bound function."""
 
-    name: str
+    action_id: str
     features: tuple[str, ...]
     entity: str | None
-    action_id: str | None = None
+    dataset_id: str
+    action: model.Action | None = dataclasses.field(default=None, compare=False, hash=False)
     function: model.FunctionTemplate | None = dataclasses.field(
         default=None, compare=False, hash=False
     )
 
     @property
     def node_id(self) -> str:
-        """Stable graph identifier for this function definition."""
-        function_kind = (
-            "spec"
-            if self.function is not None and self.function.kind == functions.VECTORIZE
-            else self.function.kind
-            if self.function is not None
-            else "unknown"
-        )
-        action = f":{self.action_id}" if self.action_id is not None else ""
-        return f"function:{function_kind}:{self.name}{action}"
+        """Stable graph identifier for this action in its dataset."""
+        entity = self.entity or ""
+        return f"action:{entity}:{self.dataset_id}:{self.action_id}"
 
     def __str__(self) -> str:
-        return self.name
+        return self.action_id
 
     def __repr__(self) -> str:
-        return self.name
+        return str(self)
 
 
 @dataclasses.dataclass(frozen=True)

@@ -10,7 +10,7 @@ from uptimely.spec import references as bindings
 from . import models
 
 Node = graphable_.graphable.Graphable
-FeatureGraphNodeMeta = models.FunctionNode | models.FeatureNode
+FeatureGraphNodeMeta = models.ActionNode | models.FeatureNode
 
 
 class FeatureGraphBase:
@@ -22,7 +22,7 @@ class FeatureGraphBase:
 
     @staticmethod
     def _node_key(reference: FeatureGraphNodeMeta) -> str:
-        """Return a stable node key from a feature name or function call."""
+        """Return a stable node key from an action or feature."""
         return reference.node_id
 
     def _topology_items_for_level(
@@ -41,15 +41,15 @@ class FeatureGraphBase:
                 for node in level
                 if isinstance(node.reference, models.FeatureNode)
             ]
-        if item_type == "function":
+        if item_type == "action":
             return [
-                node.reference for node in level if isinstance(node.reference, models.FunctionNode)
+                node.reference for node in level if isinstance(node.reference, models.ActionNode)
             ]
-        if item_type == "function_name":
+        if item_type == "action_name":
             return [
-                node.reference.name
+                node.reference.action_id
                 for node in level
-                if isinstance(node.reference, models.FunctionNode)
+                if isinstance(node.reference, models.ActionNode)
             ]
         if item_type == "node":
             return level
@@ -78,7 +78,7 @@ class FeatureGraphBase:
 
     @property
     def input_names(self) -> list[str]:
-        """Source-provided inputs required by functions in this graph."""
+        """Source-provided inputs required by actions in this graph."""
         return sorted(
             node.reference.name
             for node in self.graph
@@ -87,7 +87,7 @@ class FeatureGraphBase:
 
     @property
     def feature_input_names(self) -> list[str]:
-        """Raw features required by functions but not produced by one."""
+        """Raw features required by actions but not produced by one."""
         return self.input_names
 
     @property
@@ -120,7 +120,7 @@ class FeatureGraphBase:
 
     @property
     def feature_names(self) -> set[str]:
-        """Names of all features produced by graph functions."""
+        """Names of all features produced by graph actions."""
         return {
             node.reference.name
             for node in self.graph
@@ -136,23 +136,30 @@ class FeatureGraph(FeatureGraphBase):
     def __init__(self, spec: spec_model.Spec) -> None:
         """Build the complete dependency graph from spec declarations."""
         validation.validate_spec(spec)
-        self.functions: list[spec_model.FunctionTemplate] = []
+        self.actions: list[spec_model.Action] = []
         self._graph_operations: list[
-            tuple[spec_model.FunctionTemplate, str, str, list[str], list[str]]
+            tuple[
+                spec_model.FunctionTemplate,
+                spec_model.Action,
+                str,
+                str,
+                list[str],
+                list[str],
+            ]
         ] = []
 
         for entity_id, entity in spec.entities.items():
             for dataset in entity.datasets.values():
-                for action_id, action in dataset.actions.items():
+                for action in dataset.actions.values():
                     function = spec.functions[action.binding.function]
                     dependencies = action.input_features
-                    if all(existing.id != function.id for existing in self.functions):
-                        self.functions.append(function)
+                    self.actions.append(action)
                     self._graph_operations.append(
                         (
                             function,
+                            action,
                             entity_id,
-                            action_id,
+                            dataset.id,
                             [
                                 feature_id
                                 for feature_id in action.output_features
@@ -168,29 +175,33 @@ class FeatureGraph(FeatureGraphBase):
         self.graph = self._create_graph()
 
     def _create_graph(self) -> graphable_.graph.Graph:
-        """Build a graph from the loaded function call dependencies."""
+        """Build a graph from declared action dependencies."""
         graph = graphable_.graph.Graph()
         nodes: dict[str, Node] = {}
-        function_entities: dict[tuple[str, str, str | None], set[str]] = {}
-        function_outputs: dict[tuple[str, str, str | None], set[str]] = {}
-        for function, entity, action_id, outputs, _dependencies in self._graph_operations:
-            function_key = (
-                function.kind,
-                function.id,
-                action_id if function.kind == functions.ESCAPE else None,
-            )
-            function_entities.setdefault(function_key, set()).add(entity)
-            function_outputs.setdefault(function_key, set()).update(outputs)
 
         output_names = {
             output
-            for _function, _entity, _action_id, outputs, _dependencies in self._graph_operations
+            for (
+                _function,
+                _action,
+                _entity,
+                _dataset,
+                outputs,
+                _dependencies,
+            ) in self._graph_operations
             for output in outputs
             if output not in self.spec.dimensions
         }
         dependency_names = {
             parent
-            for function, _entity, _action_id, _outputs, dependencies in self._graph_operations
+            for (
+                _function,
+                _action,
+                _entity,
+                _dataset,
+                _outputs,
+                dependencies,
+            ) in self._graph_operations
             for parent in dependencies
         }
         feature_metadata: dict[str, models.FeatureNode] = {}
@@ -234,7 +245,7 @@ class FeatureGraph(FeatureGraphBase):
                             is_source_input=function_kind
                             not in {functions.COLLAPSE, functions.ESCAPE, functions.VECTORIZE},
                         )
-        for function, entity, _action_id, outputs, _dependencies in self._graph_operations:
+        for function, _action, entity, _dataset, outputs, _dependencies in self._graph_operations:
             for output in outputs:
                 register_feature_metadata(
                     output,
@@ -270,30 +281,25 @@ class FeatureGraph(FeatureGraphBase):
                 is_source_input=metadata.is_source_input if metadata else False,
             )
 
-        for function, entity, operation_id, outputs, dependencies in self._graph_operations:
-            function_key = (
-                function.kind,
-                function.id,
-                operation_id if function.kind == functions.ESCAPE else None,
-            )
-            entities = function_entities[function_key]
-            function_node = node(
-                models.FunctionNode(
-                    name=function.id,
-                    features=tuple(sorted(function_outputs[function_key])),
-                    entity=next(iter(entities)) if len(entities) == 1 else None,
-                    action_id=operation_id if function.kind == functions.ESCAPE else None,
+        for function, action, entity, dataset_id, outputs, dependencies in self._graph_operations:
+            action_node = node(
+                models.ActionNode(
+                    action_id=action.id,
+                    features=tuple(sorted(outputs)),
+                    entity=entity,
+                    dataset_id=dataset_id,
+                    action=action,
                     function=function,
                 )
             )
 
             for output in outputs:
                 output_node = node(feature_meta(output, function, entity))
-                graph.add_edge(function_node, output_node)
+                graph.add_edge(action_node, output_node)
 
             for parent in set(dependencies):
                 parent_node = node(feature_meta(parent))
-                graph.add_edge(parent_node, function_node)
+                graph.add_edge(parent_node, action_node)
 
         self._node_index = nodes
         return graph

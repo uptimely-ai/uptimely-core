@@ -174,11 +174,11 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			assert.deepEqual(object.geometry.parameters, {
 				radius: 5, widthSegments: 16, heightSegments: 12,
 			});
+			assert.equal(object.children[1].text, id);
+			assert.equal(object.children[1].position.y, 14);
 			assert.equal(object.material.color.value, {
 				before: '#2dd4bf', selected: '#fb7185', after: '#ff9f43', unrelated: '#a78bfa',
 			}[id]);
-			assert.equal(object.children[1].text, id);
-			assert.equal(object.children[1].position.y, 14);
 		}
 		assert.equal(element('dataset-legend').children[0].textContent, 'After');
 		assert.equal(
@@ -224,11 +224,19 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		const selected2D = nodes2D[1];
 		graph2D.properties.get('nodeCanvasObject')(selected2D, canvas);
 		const left = selected2D.x - selected2D.cardWidth / 2;
-		assert.deepEqual(rectangles[0], [left, selected2D.y - 19, 116, 38, 12]);
+		assert.deepEqual(rectangles[0], [
+			left,
+			selected2D.y - selected2D.cardHeight / 2,
+			selected2D.cardWidth,
+			selected2D.cardHeight,
+			12,
+		]);
 		assert.deepEqual(rectangles[1], filename === 'invocation_lineage.js'
 			? [left + 12, selected2D.y - 6, 12, 12, 3]
 			: [left + 13, selected2D.y - 9, 4, 18, 2]);
-		const selectedColor = filename === 'invocation_lineage.js' ? '#abcdef' : '#fb7185';
+		const selectedColor = filename === 'invocation_lineage.js'
+			? '#abcdef'
+			: '#fb7185';
 		assert.deepEqual(strokes, [[selectedColor, 3]]);
 		assert.deepEqual(fills, [
 			filename === 'invocation_lineage.js' ? '#1a2732' : '#172a35', selectedColor,

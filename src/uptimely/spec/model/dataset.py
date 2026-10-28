@@ -48,7 +48,7 @@ class ActionFeatures(common.StrictModel):
 class Action(common.StrictModel):
     """A function binding with declared feature inputs, outputs, and row context."""
 
-    id: str = pydantic.Field(exclude=True)
+    id: str
     binding: common.Binding
     features: ActionFeatures = pydantic.Field(default_factory=ActionFeatures)
     row_context: uptimely_row_context.RowContext | None = None

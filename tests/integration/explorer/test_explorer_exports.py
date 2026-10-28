@@ -240,11 +240,14 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     assert all(node.get("data_type") == "string" for node in audit_feature_nodes.values())
     assert all(node.get("is_source_input") is not True for node in audit_feature_nodes.values())
     assert {(link["source"], link["target"]) for link in graph_links} >= {
-        ("function:escape:external_audit:external_audit", "audit_reference"),
-        ("function:escape:external_audit:external_audit", "audit_status"),
-        ("audit_reference", "function:escape:external_audit:external_audit_followup"),
+        ("action:pump_telemetry:pump_telemetry_dataset:external_audit", "audit_reference"),
+        ("action:pump_telemetry:pump_telemetry_dataset:external_audit", "audit_status"),
         (
-            "function:escape:external_audit:external_audit_followup",
+            "audit_reference",
+            "action:pump_telemetry:pump_telemetry_dataset:external_audit_followup",
+        ),
+        (
+            "action:pump_telemetry:pump_telemetry_dataset:external_audit_followup",
             "audit_followup",
         ),
     }

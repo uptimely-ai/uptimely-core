@@ -265,7 +265,15 @@ def test_structural_operations_do_not_inspect_python_entrypoints(
     validation.validate_spec(document)
     graph = spec.FeatureGraph(document)
     assert graph.feature_names
-    assert all(function is document.functions[function.id] for function in graph.functions)
+    expected_actions = [
+        action
+        for entity in document.entities.values()
+        for dataset in entity.datasets.values()
+        for action in dataset.actions.values()
+    ]
+    assert all(
+        actual is expected for actual, expected in zip(graph.actions, expected_actions, strict=True)
+    )
     assert spec.load_spec(SPEC_PATH) == document
 
 

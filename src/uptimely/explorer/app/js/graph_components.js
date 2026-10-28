@@ -81,7 +81,7 @@ const ExplorerGraph = (() => {
 
 	function prepareDatasetColors(data, container) {
 		const names = [...new Set(data.nodes
-			.filter(node => !node.is_function)
+			.filter(node => !node.is_action)
 			.map(node => node.dataset_id || UNASSIGNED_DATASET))]
 			.sort((a, b) => a.localeCompare(b));
 		const colors = new Map(names.map(
@@ -138,6 +138,7 @@ const ExplorerGraph = (() => {
 		}
 		ctx.fillStyle = dimmed ? DIMMED_COLOR : color;
 		ctx.fill();
+		ctx.textAlign = 'left';
 		ctx.fillStyle = dimmed ? CARD_STYLE.dimmedTextColor : CARD_STYLE.textColor;
 		ctx.font = CARD_STYLE.font;
 		ctx.textAlign = 'left';
