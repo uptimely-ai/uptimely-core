@@ -315,7 +315,11 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
     graph = compiler.InvocationGraph(document)
     by_mapping = {node.mapping_id: node for node in graph.invocations}
 
-    assert {node.mapping_id for node in graph.invocations if node.operation == "escape"} == {
+    assert {
+        node.mapping_id
+        for node in graph.invocations
+        if document.functions[node.function_id].kind == "escape"
+    } == {
         "escape_start",
         "escape_chain",
         "escape_unrelated",
@@ -331,9 +335,13 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
         dependency.mapping_id for dependency in graph.dependencies(by_mapping["escape_unrelated"])
     } == {"read_pump_telemetry"}
 
-    escape_ids = {node.node_id for node in by_mapping.values() if node.operation == "escape"}
+    escape_ids = {
+        node.node_id
+        for node in by_mapping.values()
+        if document.functions[node.function_id].kind == "escape"
+    }
     for node in graph.invocations:
-        if node.operation in {"vectorize", "write"}:
+        if document.functions[node.function_id].kind in {"vectorize", "write"}:
             assert not escape_ids.intersection(
                 dependency.node_id for dependency in graph.dependencies(node)
             )
@@ -346,7 +354,9 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
     ):
         subset = graph.subset([feature_id])
         assert {
-            node.mapping_id for node in subset.invocations if node.operation == "escape"
+            node.mapping_id
+            for node in subset.invocations
+            if document.functions[node.function_id].kind == "escape"
         } == expected_mappings
 
     selected = compiler.Compiler().compile(document, features=["external_third"])
@@ -477,11 +487,16 @@ def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> No
     )
 
     assert [
-        node.feature_id for node in subset.get_invocation_order() if node.operation == "vectorize"
+        node.feature_id
+        for node in subset.get_invocation_order()
+        if graph.spec.functions[node.function_id].kind == "vectorize"
     ] == [
         "health_signal_normalized",
     ]
-    assert {(node.operation, node.function_id) for node in subset.dependencies(normalized)} == {
+    assert {
+        (graph.spec.functions[node.function_id].kind, node.function_id)
+        for node in subset.dependencies(normalized)
+    } == {
         ("collapse", "maximum"),
     }
     assert len(graph.invocations) == 15

@@ -131,12 +131,9 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert "Execution graph legend" in report
     assert "Vectorize function</span>" in report
     assert "Write function</span>" in report
+    assert '"source": "invocation:maximum:pump:pump_dataset:bearing_temperature_by_pump"' in report
     assert (
-        '"source": "invocation:collapse:maximum:'
-        'pump:pump_dataset:bearing_temperature_by_pump"' in report
-    )
-    assert (
-        '"target": "invocation:vectorize:normalize_health_signal:'
+        '"target": "invocation:normalize_health_signal:'
         'pump:pump_dataset:health_signal_normalized"' in report
     )
     invocation_script = (tmp_path / "js/invocation_graph.js").read_text(encoding="utf-8")

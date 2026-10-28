@@ -35,7 +35,7 @@ def emit_invocation(
     )
     return execution_plan.Invocation(
         id=node.node_id,
-        operation=node.operation,
+        operation=function.kind,
         entrypoint=function.entrypoint,
         function_id=node.function_id,
         mapping_id=node.mapping_id,
