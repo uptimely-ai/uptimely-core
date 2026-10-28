@@ -695,7 +695,7 @@ def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -
         ("args", {}, "requires 1 dataframe argument.*fit kind.*read"),
     ],
 )
-def test_function_contract_validates_operation_inputs_and_return(
+def test_function_contract_validates_kind_inputs_and_return(
     tmp_path: pathlib.Path, field: str, value: object, message: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))

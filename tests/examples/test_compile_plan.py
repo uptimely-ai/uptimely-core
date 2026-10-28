@@ -103,7 +103,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert ">Stages</span></h1>" in report
     assert "Stage 1" in report
     assert "parallel invocations" in report
-    assert ">Operation</dt>" in report
+    assert ">Function kind</dt>" in report
     assert ">Function</dt>" in report
     assert ">Produces</dt>" in report
     assert ">Depends on invocations</dt>" in report
@@ -124,10 +124,10 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert "3d-force-graph" in report
     assert "Invocation details" in report
     assert '"node_type": "invocation"' in report
-    assert '"operation": "read"' in report
-    assert '"operation": "collapse"' in report
-    assert '"operation": "vectorize"' in report
-    assert '"operation": "write"' in report
+    assert '"function_kind": "read"' in report
+    assert '"function_kind": "collapse"' in report
+    assert '"function_kind": "vectorize"' in report
+    assert '"function_kind": "write"' in report
     assert "Execution graph legend" in report
     assert "Vectorize function</span>" in report
     assert "Write function</span>" in report

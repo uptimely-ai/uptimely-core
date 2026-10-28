@@ -30,7 +30,7 @@ class DataLineageStep:
     number: int
     invocation_id: str
     function: str
-    operation: str
+    function_kind: str
     entity: str
     dataset: str | None
     grain: str
@@ -125,7 +125,7 @@ def _build_stages(
                     number=numbers[invocation.id],
                     invocation_id=invocation.id,
                     function=invocation.function_id,
-                    operation=invocation.function_kind,
+                    function_kind=invocation.function_kind,
                     entity=invocation.entity_id,
                     dataset=invocation.dataset_id,
                     grain=dataset.row_scope.grain if dataset else "",

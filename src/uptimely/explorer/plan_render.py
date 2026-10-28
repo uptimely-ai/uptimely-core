@@ -73,7 +73,7 @@ def _render_step(
     return {
         "position": position,
         "function": invocation.function_id,
-        "operation": invocation.function_kind,
+        "function_kind": invocation.function_kind,
         "title": invocation.function_id.replace("_", " ").capitalize(),
         "entrypoint": invocation.entrypoint,
         "entity": invocation.entity_id,
@@ -156,7 +156,7 @@ def _create_website_pages(
         {
             "id": invocation.id,
             "node_type": "invocation",
-            "operation": invocation.function_kind,
+            "function_kind": invocation.function_kind,
             "stage": stage_by_invocation[invocation.id],
             "label": _invocation_label(invocation),
             "label_lines": _invocation_label_lines(invocation),
@@ -228,7 +228,7 @@ def _create_website_pages(
         "stage_count": len(stages),
         "dependency_count": len(graph_links),
         "max_parallel_invocations": max((len(stage["steps"]) for stage in stages), default=0),
-        "operation_counts": sorted(
+        "function_kind_counts": sorted(
             collections.Counter(invocation.function_kind for invocation in plan.invocations).items()
         ),
         "stages": stages,

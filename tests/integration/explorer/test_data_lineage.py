@@ -82,7 +82,7 @@ def test_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
         step = steps[invocation.id]
         dimensions = spec_definition.entities[invocation.entity_id].dimension_ids
         assert step.dataset == invocation.dataset_id
-        assert step.operation == invocation.function_kind
+        assert step.function_kind == invocation.function_kind
         assert step.dependencies == sorted(
             numbers[identifier] for identifier in invocation.dependency_ids
         )
@@ -199,9 +199,9 @@ def test_lineage_has_focused_invocation_playback(tmp_path: pathlib.Path) -> None
     assert 'class="lineage-invocation-type">Aggregate</small>' in document
     assert "lineage-invocation-phase" not in document
     assert "<h3>Maximum</h3>" in document
-    for operation_type in ("READ", "AGGREGATE", "VECTORIZE", "WRITE"):
-        assert f'<span class="lineage-operation-label">{operation_type}</span>' in document
-    assert '<span class="lineage-operation-label">OPERATION</span>' not in document
+    for function_kind in ("READ", "AGGREGATE", "VECTORIZE", "WRITE"):
+        assert f'<span class="lineage-function-kind-label">{function_kind}</span>' in document
+    assert '<span class="lineage-function-kind-label">FUNCTION_KIND</span>' not in document
     assert "lineage-step h3 {" in styles
     assert 'class="lineage-table-dataset">Dataset:' in document
     assert 'class="lineage-dataset"' not in document

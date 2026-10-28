@@ -154,7 +154,7 @@ the dataset legend above, including on both sides of each transformation.
 
 <p class="cv-function-subtitle">Move to a coarser grain</p>
 
-`collapse` is the operation that groups source observations and returns a
+`collapse` is the function kind that groups source observations and returns a
 dataset at the target grain. The engine runs the grouping; `collapse`
 analytical functions calculate output features within each group.
 
@@ -188,8 +188,8 @@ analytical functions calculate output features within each group.
 
 <p class="cv-function-subtitle">Run one opaque external workflow</p>
 
-Use `escape` only when an external operation does not fit the standard
-operations. Prefer `read`, `vectorize`, `collapse`, and `write` when their
+Use `escape` only when an external workflow does not fit the standard
+function kinds. Prefer `read`, `vectorize`, `collapse`, and `write` when their
 explicit dataflow and runtime checks fit the work.
 
 <div class="concepts-visual">

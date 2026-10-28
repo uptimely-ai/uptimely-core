@@ -80,7 +80,7 @@ for (const filename of ['feature_graph.js', 'invocation_graph.js']) {
 		element('graph-data').textContent = JSON.stringify({
 			nodes: ['before', 'selected', 'after', 'unrelated'].map((id, index) => ({
 				id, label: id, label_lines: [id], stage: index + 1,
-				function_id: id, operation: 'read', entity: 'test',
+				function_id: id, function_kind: 'read', entity: 'test',
 			})),
 			links: [
 				{ source: 'before', target: 'selected' },

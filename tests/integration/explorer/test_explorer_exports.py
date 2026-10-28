@@ -86,10 +86,10 @@ def test_build_spec_context() -> None:
     assert context.summary.dataset_count == 3
     assert sorted(context.summary.function_buckets) == sorted(functions.FUNCTION_KINDS)
     assert context.summary.function_buckets == {
-        operation: sum(
-            function.kind == operation for function in spec_definition.functions.root.values()
+        function_kind: sum(
+            function.kind == function_kind for function in spec_definition.functions.root.values()
         )
-        for operation in functions.FUNCTION_KINDS
+        for function_kind in functions.FUNCTION_KINDS
     }
     assert context.summary.function_buckets["escape"] == 1
     assert context.feature_dependencies
@@ -211,7 +211,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     assert "Declares external outputs" in stages_page
     assert "not verified or materialized as dataframe columns" in stages_page
     escape_steps = re.findall(
-        r'<article class="lineage-step"[^>]*data-operation="escape".*?</article>',
+        r'<article class="lineage-step"[^>]*data-function-kind="escape".*?</article>',
         lineage_page,
         re.DOTALL,
     )

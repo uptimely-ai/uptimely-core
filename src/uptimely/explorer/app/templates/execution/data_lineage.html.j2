@@ -71,39 +71,39 @@
       {% set external_outputs = step.columns|selectattr("role", "equalto", "Declared external output")|list %}
       {% set keys = step.columns|selectattr("role", "equalto", "Dimension")|list %}
       <article class="lineage-step" id="step-{{ step.number }}" data-invocation-id="{{ step.invocation_id }}"
-        data-dependencies="{{ step.dependencies|join(',') }}" data-operation="{{ step.operation }}" data-stage="{{ stage_number }}">
+        data-dependencies="{{ step.dependencies|join(',') }}" data-function-kind="{{ step.function_kind }}" data-stage="{{ stage_number }}">
         <h3>{{ step.function|replace("_", " ")|title }}</h3>
-        <span class="lineage-operation-label">{{ {"collapse": "Aggregate"}.get(step.operation, step.operation)|upper }}</span>
+        <span class="lineage-function-kind-label">{{ {"collapse": "Aggregate"}.get(step.function_kind, step.function_kind)|upper }}</span>
         <div class="lineage-scene">
           <div class="lineage-panel">
-            {% if step.operation == "read" %}
+            {% if step.function_kind == "read" %}
             <div class="lineage-boundary"><strong>Source</strong>{{ step.dataset or step.entity }}<p>The read invocation supplies the declared columns.</p></div>
-            {% elif step.operation == "escape" %}
+            {% elif step.function_kind == "escape" %}
             <div class="lineage-boundary"><strong>Declared feature inputs</strong>{{ (declared_inputs|map(attribute="name")|list)|join(", ") or "None" }}<p>These declarations do not establish that dataframe columns are available to the invocation.</p></div>
             {% elif inputs or keys %}
-            {{ sample_table(inputs, keys, "Input", "input", 3, step.operation == "collapse", step.dataset or step.entity) }}
+            {{ sample_table(inputs, keys, "Input", "input", 3, step.function_kind == "collapse", step.dataset or step.entity) }}
             {% else %}
             <div class="lineage-boundary"><strong>No declared input columns</strong>Only declared information is shown.</div>
             {% endif %}
           </div>
           <div class="lineage-arrow">
             <span class="lineage-arrow-icon" aria-hidden="true">&darr;</span>
-            <small class="lineage-invocation-type">{{ {"collapse": "Aggregate", "escape": "Uncontrolled external operation"}.get(step.operation, step.operation|title) }}</small>
+            <small class="lineage-invocation-type">{{ {"collapse": "Aggregate", "escape": "Uncontrolled external operation"}.get(step.function_kind, step.function_kind|title) }}</small>
           </div>
           <div class="lineage-panel lineage-panel-output">
             <p class="lineage-waiting" hidden>Output will form here as the invocation is illustrated.</p>
-            {% if step.operation == "write" %}
+            {% if step.function_kind == "write" %}
             <div class="lineage-boundary" data-write-boundary><strong>Write destination</strong>{{ step.dataset or step.entity }}<p>Consumes the input columns; produces no analytical features.</p></div>
-            {% elif step.operation == "escape" %}
+            {% elif step.function_kind == "escape" %}
             <div class="lineage-boundary"><strong>Declared external outputs</strong>{{ (external_outputs|map(attribute="name")|list)|join(", ") or "None" }}<p>These declarations are not verified results and are not materialized as dataframe columns.</p></div>
             {% elif outputs or keys %}
-            {{ sample_table(outputs, keys, "Output", "output", 1 if step.operation == "collapse" else 3, step.operation == "collapse", step.dataset or step.entity) }}
+            {{ sample_table(outputs, keys, "Output", "output", 1 if step.function_kind == "collapse" else 3, step.function_kind == "collapse", step.dataset or step.entity) }}
             {% else %}
             <div class="lineage-boundary"><strong>No declared output columns</strong>No output schema is inferred.</div>
             {% endif %}
           </div>
         </div>
-        <p class="lineage-status" aria-live="polite">{% if step.operation == "collapse" %}Illustrative grouping: three placeholder rows become one group. Actual grouping and row counts are not known.{% elif step.operation == "write" %}Write boundary: no new analytical columns.{% elif step.operation == "escape" %}External operation is uncontrolled and not executed. Declared outputs are not verified or materialized.{% else %}Declared columns shown with three placeholder rows. Actual row counts are not known.{% endif %}</p>
+        <p class="lineage-status" aria-live="polite">{% if step.function_kind == "collapse" %}Illustrative grouping: three placeholder rows become one group. Actual grouping and row counts are not known.{% elif step.function_kind == "write" %}Write boundary: no new analytical columns.{% elif step.function_kind == "escape" %}External operation is uncontrolled and not executed. Declared outputs are not verified or materialized.{% else %}Declared columns shown with three placeholder rows. Actual row counts are not known.{% endif %}</p>
         <details class="lineage-details">
           <summary>Declared schema and dependencies</summary>
           <p>Entity: {{ step.entity }} &middot; Dataset: {{ step.dataset or "None" }}</p>

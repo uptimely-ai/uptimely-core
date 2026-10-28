@@ -10,7 +10,7 @@ from uptimely.spec.validation import context as context_module
 from uptimely.spec.validation import functions as validation_functions
 
 
-def test_named_operations_match_the_public_operation_contract() -> None:
+def test_named_function_kinds_match_the_public_contract() -> None:
     assert functions.FUNCTION_KINDS == (
         functions.WRITE,
         functions.READ,
@@ -37,7 +37,7 @@ def test_named_operations_match_the_public_operation_contract() -> None:
         ("conform", 1, "dataframe"),
     ],
 )
-def test_operation_contracts_validate_every_function_operation(
+def test_function_kind_contracts_validate_every_kind(
     kind: functions.FunctionKind,
     dataframe_input_count: int | None,
     return_kind: functions.FunctionReturns,
@@ -210,7 +210,7 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
         ),
     ],
 )
-def test_fixed_operation_contracts_remain_enforced(
+def test_fixed_function_kind_contracts_remain_enforced(
     function: dict[str, object], expected_error: str
 ) -> None:
     model = spec_model.Spec.model_validate({"functions": {"function": function}})
@@ -225,17 +225,17 @@ def test_fixed_operation_contracts_remain_enforced(
     assert expected_error in str(error)
 
 
-def test_function_model_reexports_the_shared_operation_contract() -> None:
+def test_function_model_reexports_the_shared_kind_contract() -> None:
     assert spec_model.FUNCTION_KINDS is functions.FUNCTION_KINDS
 
 
-def test_fragment_operations_exclude_calculations_and_sinks() -> None:
+def test_fragment_kinds_exclude_calculations_and_sinks() -> None:
     assert set(functions.FRAGMENT_KINDS) == {"read", "conform", "expand", "collapse"}
     assert set(functions.FRAGMENT_KINDS) < set(functions.FUNCTION_KINDS)
 
 
 @pytest.mark.parametrize("kind", ["python_one_liner", "sql_select", "unknown", ""])
-def test_function_templates_reject_unsupported_operations(kind: str) -> None:
+def test_function_templates_reject_unsupported_kinds(kind: str) -> None:
     with pytest.raises(pydantic.ValidationError, match="kind"):
         spec_model.FunctionTemplate.model_validate(
             {

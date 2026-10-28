@@ -27,12 +27,12 @@ While the version is `0.x`, minor releases may include breaking changes.
   rejecting duplicate keys and feature collisions. The built-in runtime
   supports Polars `DataFrame` and `LazyFrame` only.
 
-- Spec validation now suggests a matching operation when a function's declared
-  return kind or dataframe argument count conflicts with its operation. It
-  never changes the operation automatically.
+- Spec validation now suggests a matching function kind when a function's
+  declared return kind or dataframe argument count conflicts with its kind. It
+  never changes the function kind automatically.
 - Spec validation warns about declared features with no producing mapping
   instead of rejecting the Spec, and allows escape dependencies on features
-  produced by any operation.
+  produced by any function kind.
 - Documented the purity contract for analytical calculations and added an
   example test that verifies a calculation leaves its input unchanged.
 - **Breaking:** Execution plans now use `invocations` with explicit `function_id`

@@ -88,8 +88,8 @@ def test_argument_definition_supports_recursive_compact_types() -> None:
 def test_function_catalog_functions_declare_kinds() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    operations = {function.kind for function in spec_definition.functions.root.values()}
-    assert "vectorize" in operations
+    function_kinds = {function.kind for function in spec_definition.functions.root.values()}
+    assert "vectorize" in function_kinds
 
 
 def test_example_manifest_parses_complete_spec() -> None:

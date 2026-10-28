@@ -1,6 +1,6 @@
 # Analytical functions
 
-The framework creates many safeguards what can go into the analytical functions, and what comes out. For example dataset, feature and dimension data types, structural validation, operation types etc.
+The framework creates many safeguards for what can go into the analytical functions, and what comes out. For example dataset, feature and dimension data types, structural validation, and function kinds.
 
 However, what happens inside the analytical functions written by user is developer's responsibility. It is possible to even produce structurally correct results with methods that are against the spec definition.
 
@@ -43,9 +43,9 @@ declared inputs and return the result. They should not perform I/O, log,
 mutate their input data or shared state, or do unrelated work. This keeps
 calculations predictable and makes them easier to test and reuse.
 
-Keep source and sink communication in `read` and `write` operations. Use an
-explicitly declared operational function when work requires side effects
-outside a calculation, and leave execution concerns to the engine.
+Keep source and sink communication in `read` and `write` functions. Use an
+explicitly declared `escape` function when work requires side effects outside
+those kinds, and leave execution concerns to the engine.
 
 Test calculation functions directly: check the returned values and schema,
 verify that inputs remain unchanged, and cover domain-specific invariants.

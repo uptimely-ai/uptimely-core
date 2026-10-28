@@ -99,7 +99,7 @@ Their references participate in normal ownership, producer, unknown-reference,
 and cycle checks, and may connect features across datasets. Binding arguments
 are still validated, including any explicitly bound dataframe references, but
 escape does not receive the dataframe relationship checks used by controlled
-operations. Its declared features need not match Python parameters or return
+function kinds. Its declared features need not match Python parameters or return
 values. Compilation retains their dependencies; execution invokes the function
 and ignores its return value without materializing declared outputs.
 

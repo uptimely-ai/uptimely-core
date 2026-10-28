@@ -71,7 +71,7 @@ class InvocationGraph:
         for entity_id, entity in self.spec.entities.items():
             for dataset in entity.datasets.values():
                 for mapping in dataset.mappings.values():
-                    operation = self.spec.functions[mapping.binding.function].kind
+                    function_kind = self.spec.functions[mapping.binding.function].kind
                     feature_id = (
                         next(
                             (
@@ -81,7 +81,7 @@ class InvocationGraph:
                             ),
                             None,
                         )
-                        if operation == functions.COLLAPSE
+                        if function_kind == functions.COLLAPSE
                         else mapping.output_features[0]
                         if mapping.output_features
                         else None
@@ -98,11 +98,11 @@ class InvocationGraph:
                         row_context=mapping.row_context,
                     )
                     nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
-                    if operation == functions.WRITE:
+                    if function_kind == functions.WRITE:
                         dataset_sinks.setdefault(dataset.id, []).append(invocation)
-                    elif operation in functions.FRAGMENT_KINDS:
+                    elif function_kind in functions.FRAGMENT_KINDS:
                         dataset_sources.setdefault(dataset.id, []).append(invocation)
-                    elif operation == functions.VECTORIZE:
+                    elif function_kind == functions.VECTORIZE:
                         calculations.setdefault(dataset.id, []).append(invocation)
                     for feature in mapping.output_features:
                         if feature not in self.spec.dimensions:

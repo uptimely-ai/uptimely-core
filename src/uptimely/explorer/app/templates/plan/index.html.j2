@@ -22,12 +22,12 @@
         <div class="mt-5 grid gap-5 lg:grid-cols-2">
           <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5">
             <div class="mb-5 flex items-baseline justify-between gap-4"><h2 class="font-display text-lg font-semibold text-white">Invocations</h2><span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">total {{ invocation_count }}</span></div>
-            {% set operation_max = operation_counts|map(attribute=1)|max if operation_counts else 0 %}
+            {% set function_kind_max = function_kind_counts|map(attribute=1)|max if function_kind_counts else 0 %}
             <div class="space-y-4">
-              {% for label, value in operation_counts %}
-              <div class="grid grid-cols-[5.5rem_minmax(0,1fr)_3rem] items-center gap-3" data-operation="{{ label }}" data-count="{{ value }}">
+              {% for label, value in function_kind_counts %}
+              <div class="grid grid-cols-[5.5rem_minmax(0,1fr)_3rem] items-center gap-3" data-function-kind="{{ label }}" data-count="{{ value }}">
                 <span class="font-mono text-xs text-slate-400">{{ label }}</span>
-                <div class="h-2 overflow-hidden rounded-full bg-slate-800"><div class="h-full rounded-full bg-cyan-400" style="width: {{ (value / operation_max * 100) if operation_max else 0 }}%"></div></div>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-800"><div class="h-full rounded-full bg-cyan-400" style="width: {{ (value / function_kind_max * 100) if function_kind_max else 0 }}%"></div></div>
                 <span class="text-right font-mono text-xs text-white">{{ value }}</span>
               </div>
               {% else %}
@@ -74,8 +74,8 @@
           <article class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
             <dl class="grid overflow-hidden rounded-lg border border-slate-800 bg-slate-950/55 font-mono text-xs md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]">
               <div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
-                <dt class="mb-1 uppercase tracking-wider text-slate-500">Operation</dt>
-                <dd class="text-amber-200">{{ step.operation }}</dd>
+                <dt class="mb-1 uppercase tracking-wider text-slate-500">Function kind</dt>
+                <dd class="text-amber-200">{{ step.function_kind }}</dd>
               </div>
               <div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
                 <dt class="mb-1 uppercase tracking-wider text-slate-500">Function</dt>

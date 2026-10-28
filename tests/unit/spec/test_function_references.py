@@ -15,7 +15,7 @@ MODULE_LOCATIONS = [
     "math",
     "unavailable_package.functions",
 ]
-MAPPING_OPERATIONS: tuple[functions.FunctionKind, ...] = (
+MAPPING_KINDS: tuple[functions.FunctionKind, ...] = (
     "read",
     "write",
     "escape",
@@ -52,7 +52,7 @@ def test_function_reference_rejects_unsupported_operation() -> None:
         ref.function("math:ceil", kind=typing.cast(functions.FunctionKind, "unknown"))
 
 
-@pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
+@pytest.mark.parametrize("kind", MAPPING_KINDS)
 @pytest.mark.parametrize("validate_signature", [False, True])
 def test_signature_validation_setting_survives_conversion_without_importing(
     kind: functions.FunctionKind,
@@ -155,8 +155,8 @@ def test_string_locations_are_preserved_without_importing(
     }
 
 
-@pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
-def test_generic_mapping_exports_function_operation_without_importing(
+@pytest.mark.parametrize("kind", MAPPING_KINDS)
+def test_generic_mapping_exports_function_kind_without_importing(
     kind: functions.FunctionKind, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def unexpected_import(*_args: object, **_kwargs: object) -> typing.NoReturn:
@@ -219,8 +219,8 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
     assert reloaded.functions["ceil"].returns == "any"
 
 
-@pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
-def test_generic_mapping_accepts_operation_metadata(
+@pytest.mark.parametrize("kind", MAPPING_KINDS)
+def test_generic_mapping_accepts_function_kind_metadata(
     kind: functions.FunctionKind,
 ) -> None:
     declaration = mapping.FunctionMapping(
@@ -233,7 +233,7 @@ def test_generic_mapping_accepts_operation_metadata(
     assert declaration.kind == kind
 
 
-@pytest.mark.parametrize("kind", MAPPING_OPERATIONS)
+@pytest.mark.parametrize("kind", MAPPING_KINDS)
 @pytest.mark.parametrize("function_id", [None, "rounded"])
 def test_references_supply_catalog_ids_and_preserve_overrides(
     kind: functions.FunctionKind, function_id: str | None
