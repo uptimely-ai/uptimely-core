@@ -7,7 +7,7 @@ import pytest
 from conftest import EXAMPLES_ROOT, copy_example_project, engine_for_plan, example_bundle
 from examples.pump_analytics.functions import analytics
 
-from uptimely import compiler
+from uptimely import execution_plan
 from uptimely import spec as spec_module
 from uptimely.cli import cli
 from uptimely.engine import dataframe as dataframe_module
@@ -22,7 +22,7 @@ def _engine_bind() -> dict[str, object]:
     return engine_config["bind"]
 
 
-def _execution_plan() -> compiler.ExecutionPlan:
+def _execution_plan() -> execution_plan.ExecutionPlan:
     return example_bundle().execution_plan
 
 

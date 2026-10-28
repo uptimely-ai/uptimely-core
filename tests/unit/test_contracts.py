@@ -225,8 +225,11 @@ def test_fixed_function_kind_contracts_remain_enforced(
     assert expected_error in str(error)
 
 
-def test_function_model_reexports_the_shared_kind_contract() -> None:
-    assert spec_model.FUNCTION_KINDS is functions.FUNCTION_KINDS
+def test_function_model_uses_the_shared_kind_contract() -> None:
+    assert spec_model.FunctionTemplate.model_fields["kind"].annotation is functions.FunctionKind
+    assert (
+        spec_model.FunctionTemplate.model_fields["returns"].annotation is functions.FunctionReturns
+    )
 
 
 def test_fragment_kinds_exclude_calculations_and_sinks() -> None:

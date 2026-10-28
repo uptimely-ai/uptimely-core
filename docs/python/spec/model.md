@@ -54,7 +54,7 @@ function catalog.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [FunctionTemplate, FunctionCatalog, FUNCTION_TYPES]
+      members: [FunctionTemplate, FunctionCatalog]
 
 For supported function kinds and values, see the
 [spec vocabulary](../spec-vocabulary.md).

@@ -10,9 +10,6 @@ from uptimely import row_context
 from . import ref
 
 __all__ = [
-    "UNBOUNDED",
-    "RowContext",
-    "ContextExtent",
     "RowContextBinding",
     "time",
     "steps",
@@ -20,10 +17,6 @@ __all__ = [
     "current",
     "dataset",
 ]
-
-UNBOUNDED = row_context.UNBOUNDED
-RowContext = row_context.RowContext
-ContextExtent = row_context.ContextExtent
 
 
 @dataclasses.dataclass(frozen=True)
@@ -125,14 +118,15 @@ def current() -> row_context.RowContext:
     return row_context.RowContext()
 
 
-def dataset() -> RowContext:
+def dataset() -> row_context.RowContext:
     """Declare that the entire input dataset is required."""
-    return row_context.RowContext(before=UNBOUNDED, after=UNBOUNDED)
+    return row_context.RowContext(before=row_context.UNBOUNDED, after=row_context.UNBOUNDED)
 
 
 def _context(
-    value: typing.Any, explicit: RowContext | RowContextBinding[typing.Any] | None = None
-) -> RowContext | None:
+    value: typing.Any,
+    explicit: row_context.RowContext | RowContextBinding[typing.Any] | None = None,
+) -> row_context.RowContext | None:
     """Consolidate argument annotations and explicit action metadata."""
     annotated = _collect(value)
     if explicit is None:
@@ -140,12 +134,12 @@ def _context(
     context = (
         _collect(explicit)
         if isinstance(explicit, RowContextBinding)
-        else RowContext.model_validate(explicit)
+        else row_context.RowContext.model_validate(explicit)
     )
     return context.merge(annotated) if annotated is not None else context
 
 
-def _collect(value: typing.Any) -> RowContext | None:
+def _collect(value: typing.Any) -> row_context.RowContext | None:
     """Collect annotations recursively within one binding's arguments."""
     context = None
     if isinstance(value, RowContextBinding):

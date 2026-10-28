@@ -34,5 +34,7 @@ contract. See [Python authoring](python.md) for declarations that produce it, or
 Public convenience imports such as `uptimely.spec.Spec` and
 `uptimely.spec.load_spec` remain available. The reference pages
 document each interface in its defining module.
+Authoring declarations and reference helpers belong to `uptimely.spec.python`
+or the curated `uptimely` root API, not the document-model namespace.
 
 </div>

@@ -6,7 +6,7 @@ from uptimely.spec.python import (
     Dimension,
     Entity,
     Feature,
-    PythonSpec,
+    Spec,
     ref,
 )
 
@@ -34,6 +34,6 @@ class Values(Dataset):
     ]
 
 
-python_spec = PythonSpec(
+python_spec = Spec(
     dimensions=[row], entities=[sample], name="Installed analytics", datasets=[Values]
 )

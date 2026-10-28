@@ -6,6 +6,7 @@ import uptimely.compiler as compiler
 import uptimely.engine as engine
 import uptimely.execution_plan as execution_plan
 import uptimely.spec as spec
+import uptimely.spec.model as spec_model
 from uptimely.compiler.compiler import Compiler as CompilerImplementation
 from uptimely.compiler.graph import (
     InvocationGraph as InvocationGraphImplementation,
@@ -23,6 +24,7 @@ from uptimely.spec.feature_graph import FeatureGraph, SubGraph
 from uptimely.spec.feature_graph import models as feature_graph_models
 from uptimely.spec.feature_graph.models import FeatureNode, FunctionNode
 from uptimely.spec.model import Spec as SpecModel
+from uptimely.spec.python import row_context as authoring_context
 
 
 def test_removed_compatibility_paths_are_unavailable_in_fresh_process() -> None:
@@ -52,6 +54,7 @@ def test_removed_compatibility_paths_are_unavailable_in_fresh_process() -> None:
         "uptimely.plan",
         "uptimely.plan.models",
         "uptimely.plan.serialization",
+        "uptimely.project.paths",
     ]
     script = f"""
 import importlib
@@ -87,13 +90,12 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert not hasattr(feature_graph, "GraphStyle")
     assert feature_graph_models.FeatureNode is FeatureNode
     assert feature_graph_models.FunctionNode is FunctionNode
-    assert uptimely.PythonSpec is spec.PythonSpec
     assert uptimely.SubGraph is spec.SubGraph is SubGraph
 
     assert uptimely.InvocationGraph is compiler.InvocationGraph is InvocationGraphImplementation
     assert uptimely.InvocationNode is compiler.InvocationNode is InvocationNodeImplementation
     assert uptimely.Compiler is compiler.Compiler is CompilerImplementation
-    assert uptimely.ExecutionPlan is compiler.ExecutionPlan is ExecutionPlan
+    assert uptimely.ExecutionPlan is ExecutionPlan
     assert execution_plan.Invocation is Invocation
     assert not hasattr(execution_plan, "Callable")
     assert uptimely.Engine is engine.Engine is EngineImplementation
@@ -103,9 +105,38 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
 
 
 def test_root_authoring_exports_preserve_object_identity() -> None:
-    assert uptimely.Spec is uptimely.PythonSpec is python_spec.PythonSpec
+    assert uptimely.Spec is python_spec.Spec
     assert uptimely.Action is python_spec.Action
     assert uptimely.Dataset is python_spec.Dataset
     assert uptimely.Feature is python_spec.Feature
     assert uptimely.function is python_spec.function
-    assert uptimely.ref is spec.ref
+    assert uptimely.ref is python_spec.ref
+
+
+def test_obsolete_exports_are_unavailable() -> None:
+    removed_exports = [
+        (uptimely, ["PythonSpec"]),
+        (python_spec, ["PythonSpec"]),
+        (
+            spec,
+            [
+                "PythonSpec",
+                "RowContext",
+                "actions",
+                "bind",
+                "dataset",
+                "dimension",
+                "entity",
+                "feature",
+                "ref",
+                "row_context",
+            ],
+        ),
+        (compiler, ["ExecutionPlan"]),
+        (spec_model, ["FUNCTION_TYPES", "FUNCTION_KINDS"]),
+        (authoring_context, ["RowContext", "ContextExtent", "UNBOUNDED"]),
+    ]
+    for module, names in removed_exports:
+        for name in names:
+            assert not hasattr(module, name), f"{module.__name__}.{name}"
+            assert name not in module.__all__

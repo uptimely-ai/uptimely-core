@@ -11,14 +11,24 @@ While the version is `0.x`, minor releases may include breaking changes.
 ### Added
 
 - Author workflows with `import uptimely as up`: `up.Dataset`, `up.Action`,
-  `up.Feature`, `up.Spec`, and `@up.function`. `up.PythonSpec` remains an alias
-  for `up.Spec`. Use `up.ref.dataframe()`
+  `up.Feature`, `up.Spec`, and `@up.function`. Use `up.ref.dataframe()`
   (optionally with a dataset ID), `up.ref.column(name)`, and
   `up.ref.output(name)` for deferred argument wiring. Output references validate
   membership in the containing action's declared outputs without adding input
   dependencies. Existing reference helpers remain supported.
 
 ### Changed
+
+- **Breaking:** Removed obsolete import aliases. Python authoring uses
+  `uptimely.Spec` or `uptimely.spec.python.Spec`, not `PythonSpec`. Import
+  authoring modules from `uptimely.spec.python`, row context from
+  `uptimely.row_context`, and execution-plan models from
+  `uptimely.execution_plan`, not `uptimely.compiler`. Project path conventions
+  live in `uptimely.project_paths`; the `uptimely.project.paths` forwarding
+  module is removed, while `uptimely.project` convenience exports remain.
+  CLI helpers live in their command modules, not `uptimely.cli.cli`.
+  Function-kind vocabulary lives in `uptimely.spec.functions`; removed its
+  duplicate model exports and the unused legacy `FUNCTION_TYPES` constant.
 
 - **Breaking:** Root-level `uptimely.Spec`, `uptimely.Dimension`, and
   `uptimely.Entity` now expose Python authoring declarations.
@@ -38,7 +48,7 @@ While the version is `0.x`, minor releases may include breaking changes.
   Undecorated implementations use `ref.function(..., kind=...)`. Callable
   references inherit decorated kinds and reject conflicting explicit kinds.
 
-- **Breaking:** `PythonSpec` requires explicit `dimensions`, `entities`, and
+- **Breaking:** Python authoring `Spec` requires explicit `dimensions`, `entities`, and
   `datasets` sequences instead of inferring registrations. Dataset entities may
   reference registered entities by ID or object, and entity dimensions may mix
   registered dimension IDs and objects. Undeclared references and duplicate

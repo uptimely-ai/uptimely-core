@@ -8,7 +8,9 @@ functions. Python declarations for requesting those windows live in
 
 ## row_context
 
-`RowContext` is also re-exported from `uptimely.spec`.
+Import `RowContext`, `ContextExtent`, and `UNBOUNDED` from `uptimely.row_context`.
+The Python authoring module provides binding helpers, not aliases of these
+runtime types and constants.
 
 ::: uptimely.row_context
     options:

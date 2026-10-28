@@ -33,9 +33,7 @@ class Entity:
         dimensions: list[spec_model.Dimension] = []
         for dimension in self.dimensions:
             if isinstance(dimension, str):
-                raise ValueError(
-                    "Resolve dimension IDs through PythonSpec before converting an entity"
-                )
+                raise ValueError("Resolve dimension IDs through Spec before converting an entity")
             dimensions.append(dimension.to_model())
         return spec_model.Entity(
             id=self.id,

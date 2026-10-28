@@ -190,7 +190,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             "        arguments={},\n"
             "        outputs=[Feature(name='value')],\n"
             "    )]\n"
-            "definition = api.PythonSpec(dimensions=[], entities=[example], datasets=[Values])\n",
+            "definition = api.Spec(dimensions=[], entities=[example], datasets=[Values])\n",
             encoding="utf-8",
         )
         arguments = ["--python-spec", "declaration:definition"]

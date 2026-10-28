@@ -81,7 +81,7 @@ def test_modified_example_is_compiled_instead_of_using_stale_plan(
         self: compiler.Compiler,
         spec_definition: spec.Spec,
         features: list[str] | None = None,
-    ) -> compiler.ExecutionPlan:
+    ) -> execution_plan.ExecutionPlan:
         compiled_specs.append(spec_definition)
         return bundle.execution_plan
 
@@ -101,7 +101,7 @@ def test_render_uses_supplied_custom_plan_without_compiling(
         self: compiler.Compiler,
         spec_definition: spec.Spec,
         features: list[str] | None = None,
-    ) -> compiler.ExecutionPlan:
+    ) -> execution_plan.ExecutionPlan:
         pytest.fail("An explicitly supplied plan must not be compiled again")
 
     monkeypatch.setattr(compiler.Compiler, "compile", unexpected_compile)

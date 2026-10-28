@@ -34,10 +34,9 @@ class PythonSource:
     def load(self) -> spec.Spec:
         """Validate and load a Python spec declaration."""
         declaration = self.entrypoint.resolve()
-        if not isinstance(declaration, python_spec_api.PythonSpec):
+        if not isinstance(declaration, python_spec_api.Spec):
             raise TypeError(
-                f"{self.entrypoint.module.location}:{self.entrypoint.function.name} "
-                "must be a PythonSpec"
+                f"{self.entrypoint.module.location}:{self.entrypoint.function.name} must be a Spec"
             )
         return spec.from_python(
             entities=declaration.entities,
