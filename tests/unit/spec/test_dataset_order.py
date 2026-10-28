@@ -6,12 +6,24 @@ import polars as pl
 import pydantic
 import pytest
 from conftest import engine_for_plan, render_explorer
-from examples.simple_analytics.functions import functions
-from examples.simple_analytics.spec import spec as spec_module
 
 from uptimely import compiler, spec
 from uptimely.spec import python as python_spec
 from uptimely.spec import validation
+
+
+def _read_order_data() -> pl.DataFrame:
+    return pl.DataFrame({"id": [1, 2], "input_1": [1, 3], "input_2": [2, 4]})
+
+
+def _sum_order_features(
+    dataset: pl.LazyFrame,
+    left_feature: str,
+    right_feature: str,
+    output: str,
+) -> pl.LazyFrame:
+    return dataset.with_columns((pl.col(left_feature) + pl.col(right_feature)).alias(output))
+
 
 ORDER = [
     {"dimension": "$dimensions.machine", "direction": "asc"},
@@ -219,12 +231,13 @@ def test_dataset_order_appears_in_html(tmp_path: pathlib.Path) -> None:
 
 
 def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
+    identifier = python_spec.dimension.Dimension(id="id", type="integer")
     declaration = python_spec.dataset.Dataset(
-        id=spec_module.SimpleAnalytics.id,
+        id="ordered_values",
         mappings={
             "read": python_spec.mapping.FunctionMapping(
                 inputs=[],
-                function=python_spec.ref.function(functions.read_data, operation="read"),
+                function=python_spec.ref.function(_read_order_data, operation="read"),
                 arguments={},
                 outputs=[
                     python_spec.feature.Feature(name="input_1"),
@@ -234,7 +247,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
             ),
             "sum": python_spec.mapping.FunctionMapping(
                 inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
-                function=python_spec.ref.function(functions.sum_features, operation="vectorize"),
+                function=python_spec.ref.function(_sum_order_features, operation="vectorize"),
                 arguments={
                     "left_feature": python_spec.ref.feature("input_1"),
                     "right_feature": python_spec.ref.feature("input_2"),
@@ -245,22 +258,33 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
             ),
         },
     )
-    unordered = spec.from_python(
-        datasets=[declaration], dimensions=spec_module.python_spec.dimensions
+    entity = python_spec.entity.Entity(
+        id="order_test",
+        name="Order test",
+        dimensions=[identifier],
+        datasets=[declaration],
     )
+    unordered = spec.from_python(entities=[entity], dimensions=[identifier])
     ordered = spec.from_python(
-        datasets=[
-            python_spec.dataset.Dataset(
-                id=declaration.id,
-                mappings=declaration.mappings,
-                order=[
-                    python_spec.dataset.Order(
-                        dimension=python_spec.ref.dimension("id"), direction="desc"
+        entities=[
+            python_spec.entity.Entity(
+                id=entity.id,
+                name=entity.name,
+                dimensions=[identifier],
+                datasets=[
+                    python_spec.dataset.Dataset(
+                        id=declaration.id,
+                        mappings=declaration.mappings,
+                        order=[
+                            python_spec.dataset.Order(
+                                dimension=python_spec.ref.dimension("id"), direction="desc"
+                            )
+                        ],
                     )
                 ],
             )
         ],
-        dimensions=spec_module.python_spec.dimensions,
+        dimensions=[identifier],
     )
     assert (
         compiler.Compiler().compile(ordered).invocations
@@ -271,5 +295,5 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
     assert result.failures == {}
     frame = result.datasets[declaration.id]
     assert isinstance(frame, pl.DataFrame)
-    assert frame.select(functions.read_data().columns).rows() == functions.read_data().rows()
+    assert frame.select(_read_order_data().columns).rows() == _read_order_data().rows()
     assert frame["id"].to_list() != frame.sort("id", descending=True)["id"].to_list()

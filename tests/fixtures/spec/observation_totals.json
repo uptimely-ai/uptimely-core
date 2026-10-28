@@ -10,12 +10,12 @@
     "read_observations": {
       "operation": "read",
       "returns": "dataframe",
-      "entrypoint": "examples.simple_analytics.functions.functions:read_data"
+      "entrypoint": "conftest:read_observation_totals"
     },
     "sum_features": {
       "operation": "vectorize",
       "returns": "dataframe",
-      "entrypoint": "examples.simple_analytics.functions.functions:sum_features",
+      "entrypoint": "conftest:sum_observation_features",
       "args": {
         "left_feature": {"type": "string"},
         "right_feature": {"type": "string"},

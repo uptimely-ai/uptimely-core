@@ -4,7 +4,6 @@ from collections import abc
 import polars as pl
 import pytest
 from examples.pump_analytics.functions import analytics
-from examples.simple_analytics.functions import functions
 
 
 @pytest.mark.parametrize("dimensions", [[], ["plant", "pump"]])
@@ -195,20 +194,3 @@ def test_deltas_use_all_partition_keys_and_preserve_null_gaps(
 
     assert result.drop("delta").equals(frame.collect())
     assert result["delta"].to_list() == [-1.0, -2.0, None, None, None, None]
-
-
-def test_example_two_sum_and_first_item_calculations() -> None:
-    frame = pl.LazyFrame(
-        {
-            "id": ["one", "two", "one", "two"],
-            "left": [1.0, -3.0, None, 0.0],
-            "right": [2.0, 1.0, 5.0, 0.0],
-        }
-    )
-
-    result = functions.sum_features(frame, "left", "right", "sum")
-    result = functions.tag_first_item(result, "id", "first").collect()
-
-    assert result["sum"].to_list() == [3.0, -2.0, None, 0.0]
-    assert result["first"].to_list() == [True, True, False, False]
-    assert result.drop("sum", "first").equals(frame.collect())

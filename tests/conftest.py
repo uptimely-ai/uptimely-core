@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import tempfile
 
+import polars as pl
 import pytest
 
 from uptimely import compiler, execution_plan, spec
@@ -64,11 +65,31 @@ def copy_example_project(
 
 def plan_for_spec(spec_definition: spec.Spec) -> execution_plan.ExecutionPlan:
     """Reuse saved example plans; compile only new or modified specifications."""
-    for example in ("pump_analytics", "simple_analytics"):
-        bundle = example_bundle(example)
-        if spec_definition == bundle.spec_definition:
-            return bundle.execution_plan
+    bundle = example_bundle("pump_analytics")
+    if spec_definition == bundle.spec_definition:
+        return bundle.execution_plan
     return compiler.Compiler().compile(spec_definition)
+
+
+def read_observation_totals() -> pl.DataFrame:
+    """Load the small dataset used by the observation-totals spec fixture."""
+    return pl.DataFrame(
+        {
+            "id": [1, 2],
+            "input_1": [1, 3],
+            "input_2": [2, 4],
+        }
+    )
+
+
+def sum_observation_features(
+    dataset: pl.LazyFrame,
+    left_feature: str,
+    right_feature: str,
+    output: str,
+) -> pl.LazyFrame:
+    """Add two selected features for the observation-totals spec fixture."""
+    return dataset.with_columns((pl.col(left_feature) + pl.col(right_feature)).alias(output))
 
 
 def _spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Spec:
@@ -182,8 +203,7 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     os.environ["UPTIMELY_TEST_EXAMPLES_ROOT"] = str(EXAMPLES_ROOT)
 
-    for example in ("pump_analytics", "simple_analytics"):
-        project_module.build_project(EXAMPLES_ROOT / example)
+    project_module.build_project(EXAMPLES_ROOT / "pump_analytics")
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:
