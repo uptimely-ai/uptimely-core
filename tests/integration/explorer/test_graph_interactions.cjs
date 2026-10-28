@@ -6,6 +6,49 @@ const vm = require('node:vm');
 
 const scriptDirectory = path.resolve(__dirname, '../../../src/uptimely/explorer/app/js');
 
+function loadLineageScript(context, filename) {
+	let source = fs.readFileSync(path.join(scriptDirectory, filename), 'utf8');
+	if (filename === 'lineage_config.js') {
+		const exports = [...source.matchAll(/^export const (\w+)/gm)]
+			.map(([, name]) => name);
+		source = source.replace(/^export /gm, '');
+		source += `\nglobalThis.LineageConfig = { ${exports.join(', ')} };`;
+	} else if (filename === 'lineage_layout.js') {
+		source = source.replace(
+			/^import \{([\s\S]*?)\} from '\.\/lineage_config\.js';/m,
+			'const {$1} = globalThis.LineageConfig;',
+		);
+		source = source.replace(
+			/export \{([\s\S]*?)\};\s*$/,
+			'globalThis.LineageLayout = {$1};',
+		);
+	} else if (filename === 'lineage_components.js') {
+		source = source.replace(
+			/^import \* as LineageConfig from '\.\/lineage_config\.js';\nimport \* as LineageLayout from '\.\/lineage_layout\.js';/m,
+			'const LineageConfig = globalThis.LineageConfig;\nconst LineageLayout = globalThis.LineageLayout;',
+		);
+		source = source.replace(
+			/export \{ ExplorerLineage \};/,
+			'globalThis.ExplorerLineage = ExplorerLineage;',
+		);
+	} else if (filename === 'lineage_view_controller.js') {
+		source = source.replace(/^export function /gm, 'function ');
+		source += '\nglobalThis.mountLineageViews = mountLineageViews;';
+	} else {
+		source = source.replace(
+			/^import \{ (?:ExplorerLineage|mountLineageViews) \} from '\.\/[^']+';\n/gm,
+			'',
+		);
+	}
+	vm.runInContext(`{\n${source}\n}`, context, { filename });
+}
+
+function loadLineageDependencies(context) {
+	for (const script of ['lineage_config.js', 'lineage_layout.js', 'lineage_components.js']) {
+		loadLineageScript(context, script);
+	}
+}
+
 function createElement() {
 	return {
 		clientWidth: 1200, clientHeight: 800, hidden: false, textContent: '',
@@ -154,13 +197,12 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 				},
 			},
 		});
-		for (const script of ['graph_components.js', 'view_controller.js']) {
-			vm.runInContext(fs.readFileSync(path.join(scriptDirectory, script), 'utf8'), context);
-		}
+		loadLineageDependencies(context);
+		loadLineageScript(context, 'lineage_view_controller.js');
 		vm.runInContext(`
-			ExplorerGraph.showDetails = (panel, title, rows) => { panel.rows = rows; };
+			ExplorerLineage.showDetails = (panel, title, rows) => { panel.rows = rows; };
 		`, context);
-		vm.runInContext(fs.readFileSync(path.join(scriptDirectory, filename), 'utf8'), context);
+		loadLineageScript(context, filename);
 		buttons[1].listeners.click();
 		assert.equal(buttons[1].attributes['aria-pressed'], 'true');
 		const graph = graphs.get('3d');
@@ -183,7 +225,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		}
 		assert.equal(element('dataset-legend').children[0].textContent, 'After');
 		assert.equal(
-			vm.runInContext("ExplorerGraph.humanizeDatasetName('pump_telemetry_dataset')", context),
+			vm.runInContext("ExplorerLineage.humanizeDatasetName('pump_telemetry_dataset')", context),
 			'Pump Telemetry Dataset',
 		);
 		const node = graph.properties.get('graphData').nodes[1];
@@ -274,7 +316,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			buttons[index].listeners.click();
 			const activeGraph = graphs.get(dimension);
 			const fitCount = activeGraph.fitCalls.length;
-			element('reset-graph').listeners.click();
+			element('reset-lineage').listeners.click();
 			if (dimension === '2d') {
 				assert.deepEqual(activeGraph.properties.get('centerAtArguments'),
 					[0, filename === 'invocation_lineage.js' ? -24 : 0, 600]);
@@ -309,13 +351,12 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 
 test('shared card sizing preserves width bounds', () => {
 	const context = vm.createContext({});
-	vm.runInContext(fs.readFileSync(path.join(scriptDirectory, 'graph_components.js'), 'utf8'), context);
+	loadLineageDependencies(context);
 	const dimensions = vm.runInContext(`
-		['a', 'selected', 'x'.repeat(100)].map(label => {
-			const node = {};
-			ExplorerGraph.sizeCard(node, label);
-			return [node.cardWidth, node.cardHeight];
-		});
+		const nodes = ['a', 'selected', 'x'.repeat(100)]
+			.map((label, index) => ({ id: String(index), label, dataset_id: 'test' }));
+		ExplorerLineage.prepareDatasetLayout({ nodes, links: [] }, () => 0, node => node.label);
+		nodes.map(node => [node.cardWidth, node.cardHeight]);
 	`, context);
 	assert.deepEqual(Array.from(dimensions, value => Array.from(value)), [
 		[112, 38], [116, 38], [280, 38],
@@ -340,11 +381,10 @@ function datasetLayout(filename, nodes, links) {
 		document: { getElementById: element, createElement },
 		ForceGraph: () => () => graph,
 		performance: { now: () => 1100 },
-		mountGraphViews(data, create2D) { view = create2D(container, data, () => {}); },
+		mountLineageViews(data, create2D) { view = create2D(container, data, () => {}); },
 	});
-	for (const script of ['graph_components.js', filename]) {
-		vm.runInContext(fs.readFileSync(path.join(scriptDirectory, script), 'utf8'), context);
-	}
+	loadLineageDependencies(context);
+	loadLineageScript(context, filename);
 	const rectangles = [];
 	const labels = [];
 	const paths = [];
