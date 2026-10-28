@@ -15,11 +15,14 @@ from uptimely.spec import model as spec_model
 from uptimely.spec import references, selectors
 
 SPEC_PAGES = render.WEBSITE_PAGES["spec"]
+SPEC_CONTENT_PAGES = {
+    section: filename for section, filename in SPEC_PAGES.items() if section != "feature_lineage"
+}
 SECTION = render.WebsiteSection(
     active_page="spec",
     pages=tuple(
         render.WebsitePage(f"spec/{section}.html.j2", filename, active_section=section)
-        for section, filename in SPEC_PAGES.items()
+        for section, filename in SPEC_CONTENT_PAGES.items()
     ),
 )
 __all__ = [

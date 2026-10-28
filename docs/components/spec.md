@@ -352,7 +352,7 @@ Homogeneous collections use recursive type expressions:
 ```
 
 Use plain `array` or `object` for heterogeneous or unspecified contents.
-Argument types describe implementation values, not data dependencies.
+Argument types describe implementation values, not feature dependencies.
 Nested expressions such as `object{str: array[string]}` are supported.
 
 ## Action Features
@@ -393,7 +393,8 @@ An action separates analytical requirements from the implementation binding:
 | `binding.args` | object | No | `{}` | Concrete arguments matching the template schema. |
 
 Input and output lists contain distinct `$features.<id>` references, without
-selectors. Inputs establish dependencies even when not passed as arguments.
+selectors. Inputs establish feature dependencies even when not passed as
+arguments.
 Conversely, passing a feature identifier is not a declaration that its data
 must exist. Declare every consumed feature in `inputs`.
 
@@ -507,7 +508,7 @@ Declarations must describe actual reach, not merely the window parameter.
 
 Document-model validation checks the Spec version, field types, required
 values, and rejects unknown fields. Semantic Spec validation checks that
-declarations fit together: references and dependencies are valid and
+declarations fit together: references and feature dependencies are valid and
 unambiguous, function bindings match their argument contracts, kinds obey
 their input/output contracts, feature producers are unique, row-context
 requirements match their dimensions and ordering, and feature dependencies

@@ -22,7 +22,7 @@ available in an installed version.
 
 | Command | Reference | Purpose |
 | --- | --- | --- |
-| `uptimely spec` | [Spec](spec.md) | Inspect feature dependencies. |
+| `uptimely spec feature-graph` | [Spec feature-graph](spec.md) | Inspect feature dependencies. |
 | `uptimely engine` | [Engine](engine.md) | Run an analytics workflow. |
 | `uptimely examples` | [Examples](examples.md) | Download runnable example projects. |
 | `uptimely explorer` | [Explorer](explorer.md) | Preview the Analytics Explorer website. |

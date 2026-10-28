@@ -12,7 +12,7 @@ from conftest import EXAMPLES_ROOT, render_explorer
 
 from uptimely import project, spec
 from uptimely.explorer import graph_style, render
-from uptimely.explorer.sections import feature_graph
+from uptimely.explorer.sections import feature_lineage
 
 ASSETS = {
     "css/base.css",
@@ -21,9 +21,9 @@ ASSETS = {
     "css/graph.css",
     "css/icons.css",
     "css/spec.css",
-    "js/invocation_graph.js",
+    "js/invocation_lineage.js",
     "js/data_lineage.js",
-    "js/feature_graph.js",
+    "js/feature_lineage.js",
     "js/graph_components.js",
     "js/icons.js",
     "js/tailwind_config.js",
@@ -77,12 +77,12 @@ def test_graph_style_is_passed_as_json_without_changing_shared_script(
         charge_strength=-120,
     )
     monkeypatch.setattr(graph_style, "GraphStyle", lambda: style)
-    feature_graph.SECTION.write_pages(
+    feature_lineage.SECTION.write_pages(
         tmp_path,
         render.WebsiteContext(),
-        feature_graph.build_context(spec.FeatureGraph(spec.Spec())),
+        feature_lineage.build_context(spec.FeatureGraph(spec.Spec())),
     )
-    document = (tmp_path / "spec/graph.html").read_text(encoding="utf-8")
+    document = (tmp_path / "spec/feature_lineage.html").read_text(encoding="utf-8")
     match = re.search(
         r'<script id="graph-style" type="application/json">(.*?)</script>',
         document,
@@ -91,7 +91,7 @@ def test_graph_style_is_passed_as_json_without_changing_shared_script(
     assert match is not None
     assert json.loads(match.group(1)) == dataclasses.asdict(style)
     assert 'style="--graph-background: #123456"' in document
-    assert 'src="../js/feature_graph.js"' in document
+    assert 'src="../js/feature_lineage.js"' in document
 
 
 def test_build_manifest_includes_all_explorer_assets() -> None:

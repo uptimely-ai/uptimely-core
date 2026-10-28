@@ -20,7 +20,12 @@ from uptimely.execution_plan.models import ExecutionPlan, Invocation
 from uptimely.explorer import graph_style
 from uptimely.spec import feature_graph
 from uptimely.spec import python as python_spec
-from uptimely.spec.feature_graph import FeatureGraph, SubGraph
+from uptimely.spec.feature_graph import (
+    FeatureGraph,
+    FeatureGraphBase,
+    FeatureGraphNodeMeta,
+    FeatureSubGraph,
+)
 from uptimely.spec.feature_graph import models as feature_graph_models
 from uptimely.spec.feature_graph.models import FeatureNode, FunctionNode
 from uptimely.spec.model import Spec as SpecModel
@@ -43,9 +48,12 @@ def test_removed_compatibility_paths_are_unavailable_in_fresh_process() -> None:
         "uptimely.compiler.callable_node",
         "uptimely.compiler.execution_graph",
         "uptimely.spec.explorer_render",
-        "uptimely.spec.graph_render",
-        "uptimely.spec.feature_graph.render",
+        "uptimely.spec.feature_graph_render",
+        "uptimely.spec.graph",
+        "uptimely.spec.feature_graph.graph",
         "uptimely.explorer.graph_render",
+        "uptimely.explorer.sections.lineage",
+        "uptimely.explorer.sections.plan_graph",
         "uptimely.explorer.lineage",
         "uptimely.explorer.plan_render",
         "uptimely.explorer.spec_render",
@@ -85,12 +93,14 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert uptimely.Dimension is python_spec.Dimension
     assert uptimely.Entity is python_spec.Entity
     assert uptimely.FeatureGraph is spec.FeatureGraph is FeatureGraph
+    assert feature_graph.FeatureGraphBase is FeatureGraphBase
+    assert feature_graph.FeatureGraphNodeMeta is FeatureGraphNodeMeta
     assert graph_style.GraphStyle.__module__ == "uptimely.explorer.graph_style"
     assert not hasattr(spec, "GraphStyle")
     assert not hasattr(feature_graph, "GraphStyle")
     assert feature_graph_models.FeatureNode is FeatureNode
     assert feature_graph_models.FunctionNode is FunctionNode
-    assert uptimely.SubGraph is spec.SubGraph is SubGraph
+    assert uptimely.FeatureSubGraph is spec.FeatureSubGraph is FeatureSubGraph
 
     assert uptimely.InvocationGraph is compiler.InvocationGraph is InvocationGraphImplementation
     assert uptimely.InvocationNode is compiler.InvocationNode is InvocationNodeImplementation

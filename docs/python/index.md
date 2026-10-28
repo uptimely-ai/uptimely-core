@@ -13,7 +13,7 @@ and return values generated from the Python source.
 | `uptimely.project` | [Projects](project.md) | Load project specs and build or read active build bundles. |
 | `uptimely.spec` | <span id="spec-models-and-operations"></span>[Spec](spec.md) | Load, validate, prepare, and serialize spec definitions. |
 | `uptimely.spec.python` | <span id="python-authoring"></span>[Python authoring](python.md) | Declare spec using Python classes and helpers. |
-| `uptimely.spec.feature_graph` | <span id="dependency-graphs"></span>[Feature graphs](feature-graph.md) | Inspect dependencies and select feature subgraphs. |
+| `uptimely.spec.feature_graph` | <span id="feature-graphs"></span>[Feature graphs](feature-graph.md) | Inspect feature dependencies and select subgraphs. |
 | `uptimely.spec.validation` | [Spec validation](spec/validation.md) | Validate document relationships and handle structured errors. |
 | `uptimely.compiler` | <span id="compilation"></span><span id="portable-plans"></span>[Compiler and plans](compiler.md) | Compile spec and read or write portable plans. |
 | `uptimely.engine` | <span id="execution"></span>[Execution engine](engine.md) | Execute plans with configurable runtime adapters. |

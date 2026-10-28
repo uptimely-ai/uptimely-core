@@ -12,7 +12,7 @@ The workflow has three related specifications:
 
 The Spec document describes the analytical system: its entities,
 dimensions, datasets, features, reusable functions, and bindings between
-inputs and outputs. Declaring these relationships explicitly makes
+inputs and outputs. Declaring these relationships explicitly makes feature
 dependencies visible, allows tools to validate and document the system, and
 gives the compiler enough information to determine what calculations are
 required. The document describes the spec; it does not implement the
@@ -21,8 +21,9 @@ functions or connect to live data.
 ## Compiler
 
 The compiler specification defines how a Spec document becomes a
-portable plan for deployment and execution. It resolves declared dependencies, selects required
-calculations, and orders function calls so independent work can be identified
+portable plan for deployment and execution. It resolves declared feature
+dependencies into action dependencies, selects required calculations, and
+orders function calls so independent work can be identified
 and prerequisites run first. Keeping this step separate from execution makes
 the plan inspectable and reusable, and lets errors in the declared workflow be
 found before it runs.

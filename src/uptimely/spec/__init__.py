@@ -1,7 +1,7 @@
 """Spec document models and operations."""
 
 from .api import from_python, load_spec
-from .feature_graph import FeatureGraph, SubGraph
+from .feature_graph import FeatureGraph, FeatureSubGraph
 from .json.codec import write_document
 from .model import (
     Action,
@@ -33,5 +33,5 @@ __all__ = [
     "from_python",
     "load_spec",
     "write_document",
-    "SubGraph",
+    "FeatureSubGraph",
 ]

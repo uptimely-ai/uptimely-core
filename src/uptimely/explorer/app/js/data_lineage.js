@@ -1,18 +1,18 @@
 (() => {
-  const board = document.getElementById("lineage-board");
+  const board = document.getElementById("data-lineage-board");
   if (!board) return;
-  const steps = Array.from(board.querySelectorAll(".lineage-step"));
-  const stages = Array.from(board.querySelectorAll(".lineage-stage"));
-  const previous = document.getElementById("lineage-previous");
-  const next = document.getElementById("lineage-next");
-  const play = document.getElementById("lineage-play");
-  const position = document.getElementById("lineage-position");
-  const stagePosition = document.getElementById("lineage-stage-position");
+  const steps = Array.from(board.querySelectorAll(".data-lineage-step"));
+  const stages = Array.from(board.querySelectorAll(".data-lineage-stage"));
+  const previous = document.getElementById("data-lineage-previous");
+  const next = document.getElementById("data-lineage-next");
+  const play = document.getElementById("data-lineage-play");
+  const position = document.getElementById("data-lineage-position");
+  const stagePosition = document.getElementById("data-lineage-stage-position");
   const stepMarkers = Array.from(document.querySelectorAll("[data-step-marker]"));
   const stageMarkers = Array.from(document.querySelectorAll("[data-stage-marker]"));
-  const playbackProgress = document.getElementById("lineage-playback-progress");
+  const playbackProgress = document.getElementById("data-lineage-playback-progress");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const descriptions = steps.map(step => step.querySelector(".lineage-status").textContent);
+  const descriptions = steps.map(step => step.querySelector(".data-lineage-status").textContent);
   let index = 0;
   let phase = 0;
   let playing = false;
@@ -42,21 +42,21 @@
     const newFrame = renderedFrame !== `${index}:${phase}`;
     renderedFrame = `${index}:${phase}`;
     step.classList.toggle("is-playing", playing);
-    if (newFrame) step.querySelectorAll(".lineage-new").forEach(element => element.classList.remove("lineage-new"));
+    if (newFrame) step.querySelectorAll(".data-lineage-new").forEach(element => element.classList.remove("data-lineage-new"));
     const completed = phase > sequence.length;
     const input = step.querySelector('table[data-side="input"]');
     if (input) {
-      input.classList.toggle("lineage-grouped", phase >= 2 && step.dataset.functionKind === "collapse" && !completed);
+      input.classList.toggle("data-lineage-grouped", phase >= 2 && step.dataset.functionKind === "collapse" && !completed);
       input.querySelectorAll("[data-role]").forEach(cell => {
-        cell.classList.toggle("lineage-input-active", phase > 0 && !completed && cell.dataset.role === "Input");
-        cell.classList.toggle("lineage-group-key", phase >= 2 && !completed
+        cell.classList.toggle("data-lineage-input-active", phase > 0 && !completed && cell.dataset.role === "Input");
+        cell.classList.toggle("data-lineage-group-key", phase >= 2 && !completed
           && step.dataset.functionKind === "collapse" && cell.dataset.role === "Dimension");
       });
     }
-    const arrow = step.querySelector(".lineage-arrow");
+    const arrow = step.querySelector(".data-lineage-arrow");
     arrow.classList.toggle("is-working", phase > 0 && !completed);
-    if (newFrame && playing && frame?.type === "invocation") arrow.classList.add("lineage-new");
-    const source = step.querySelector(".lineage-panel .lineage-boundary");
+    if (newFrame && playing && frame?.type === "invocation") arrow.classList.add("data-lineage-new");
+    const source = step.querySelector(".data-lineage-panel .data-lineage-boundary");
     if (source) source.classList.toggle("is-working", phase > 0 && !completed);
     const table = step.querySelector('table[data-side="output"]');
     if (table) {
@@ -78,11 +78,11 @@
     const boundary = step.querySelector("[data-write-boundary]");
     if (boundary) {
       boundary.hidden = !completed && frame?.type !== "write";
-      if (newFrame && playing && frame?.type === "write") boundary.classList.add("lineage-new");
+      if (newFrame && playing && frame?.type === "write") boundary.classList.add("data-lineage-new");
     }
-    step.querySelector(".lineage-waiting").hidden = completed
+    step.querySelector(".data-lineage-waiting").hidden = completed
       || (table ? !table.hidden : boundary ? !boundary.hidden : true);
-    const status = step.querySelector(".lineage-status");
+    const status = step.querySelector(".data-lineage-status");
     if (phase === 0) {
       status.textContent = "Input ready. Play to illustrate the invocation.";
     } else if (phase > sequence.length) {
@@ -104,11 +104,11 @@
         status.textContent = `Adding declared column: ${frame.element.dataset.column}`;
         if (playing && newFrame) {
           const column = frame.element.cellIndex;
-          table.querySelectorAll("tr").forEach(row => row.cells[column].classList.add("lineage-new"));
+          table.querySelectorAll("tr").forEach(row => row.cells[column].classList.add("data-lineage-new"));
         }
       } else {
         status.textContent = "Adding an illustrative row (not calculated data).";
-        if (playing && newFrame) frame.element.classList.add("lineage-new");
+        if (playing && newFrame) frame.element.classList.add("data-lineage-new");
       }
     }
     previous.disabled = index === 0;
@@ -188,8 +188,8 @@
   window.addEventListener("hashchange", followHash);
   document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
   reducedMotion.addEventListener("change", () => { if (playing) pause(); });
-  board.classList.add("lineage-enhanced");
-  document.getElementById("lineage-toolbar").hidden = false;
+  board.classList.add("data-lineage-enhanced");
+  document.getElementById("data-lineage-toolbar").hidden = false;
   playbackProgress.hidden = false;
   render();
   followHash();

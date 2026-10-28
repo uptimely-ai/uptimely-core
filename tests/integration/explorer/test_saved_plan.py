@@ -10,7 +10,7 @@ from conftest import EXAMPLES_ROOT, example_bundle
 from uptimely import compiler, spec
 from uptimely import execution_plan as plan_module
 from uptimely.explorer import explorer, render
-from uptimely.explorer.sections import data_lineage, feature_graph
+from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section
 
@@ -43,7 +43,7 @@ def test_explorer_shares_one_website_context_between_sections(
         tmp_path / "custom.html"
     )
 
-    assert section_ids == ["spec", "graph", "plan", "execution"]
+    assert section_ids == ["spec", "spec", "plan", "execution"]
     assert all(website is contexts[0] for website in contexts)
     assert contexts[0] == render.WebsiteContext(
         project_name=definition.name,
@@ -59,7 +59,7 @@ def test_section_context_builders_do_not_write_files(tmp_path: pathlib.Path) -> 
     output_directory = tmp_path / "not-created"
     contexts = [
         spec_section.build_context(spec_section._build_context(definition, False)),
-        feature_graph.build_context(spec.FeatureGraph(definition)),
+        feature_lineage.build_context(spec.FeatureGraph(definition)),
         plan_section.build_context(supplied, output_directory),
         data_lineage.build_context(definition, supplied),
     ]
@@ -92,7 +92,7 @@ def test_render_saved_plan_without_compiling(
     index = explorer.Explorer(definition, plan=supplied).create_html(target)
 
     assert index.is_file()
-    for page in ("plan/graph.html", "plan/stages.html"):
+    for page in ("plan/invocation_lineage.html", "plan/stages.html"):
         assert SAVED_PLAN_MARKER in (index.parent / page).read_text(encoding="utf-8")
     assert (index.parent / "execution/data_lineage.html").is_file()
     assert plan_module.to_dict(supplied) == original

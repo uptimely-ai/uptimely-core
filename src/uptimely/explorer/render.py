@@ -14,12 +14,23 @@ ASSET_DIRECTORIES = ("css", "js")
 
 WEBSITE_PAGES = {
     "spec": {
-        section: f"spec/{section}.html"
-        for section in ("overview", "features", "entities", "datasets", "dimensions", "functions")
+        **{
+            section: f"spec/{section}.html"
+            for section in (
+                "overview",
+                "features",
+                "entities",
+                "datasets",
+                "dimensions",
+                "functions",
+            )
+        },
+        "feature_lineage": "spec/feature_lineage.html",
     },
-    "graph": {"lineage": "spec/graph.html"},
-    "plan": {section: f"plan/{section}.html" for section in ("overview", "graph", "stages")},
-    "execution": {"lineage": "execution/data_lineage.html"},
+    "plan": {
+        section: f"plan/{section}.html" for section in ("overview", "invocation_lineage", "stages")
+    },
+    "execution": {"data_lineage": "execution/data_lineage.html"},
 }
 
 

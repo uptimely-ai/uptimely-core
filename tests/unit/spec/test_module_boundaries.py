@@ -92,8 +92,8 @@ def test_compiler_does_not_import_presentation_or_runtime_layers() -> None:
                 ), path
 
 
-def test_feature_graph_does_not_import_explorer() -> None:
-    directory = pathlib.Path(spec.__file__).parent / "feature_graph"
+def test_graph_does_not_import_explorer() -> None:
+    directory = pathlib.Path(spec.__file__).parent / "graph"
     for path in directory.rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):

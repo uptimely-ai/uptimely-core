@@ -14,7 +14,7 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     examples.configure_parser(commands.add_parser("examples", help="Manage example projects"))
     explorer.configure_parser(
-        commands.add_parser("explorer", help="Explore spec, lineage, and execution plans")
+        commands.add_parser("explorer", help="Explore spec, feature lineage, and execution plans")
     )
     spec.configure_parser(
         commands.add_parser("spec", help="Inspect specs and feature dependencies")

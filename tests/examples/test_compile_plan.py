@@ -119,8 +119,8 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert source_match is not None
     assert (report_path.parent / source_match.group(1)).resolve().is_file()
 
-    report = (tmp_path / "plan/graph.html").read_text(encoding="utf-8")
-    assert 'id="invocation-graph"' in report
+    report = (tmp_path / "plan/invocation_lineage.html").read_text(encoding="utf-8")
+    assert 'id="invocation-lineage-graph"' in report
     assert "3d-force-graph" in report
     assert "Invocation details" in report
     assert '"node_type": "invocation"' in report
@@ -128,7 +128,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert '"function_kind": "collapse"' in report
     assert '"function_kind": "vectorize"' in report
     assert '"function_kind": "write"' in report
-    assert "Execution graph legend" in report
+    assert "Invocation lineage legend" in report
     assert "Vectorize function</span>" in report
     assert "Write function</span>" in report
     assert '"source": "invocation:maximum:pump:pump_dataset:bearing_temperature_by_pump"' in report
@@ -136,7 +136,7 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
         '"target": "invocation:normalize_health_signal:'
         'pump:pump_dataset:health_signal_normalized"' in report
     )
-    invocation_script = (tmp_path / "js/invocation_graph.js").read_text(encoding="utf-8")
+    invocation_script = (tmp_path / "js/invocation_lineage.js").read_text(encoding="utf-8")
     shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
     assert "ExplorerGraph.entityNodeObject(node, node.function_id, style)" in invocation_script
     assert "SphereGeometry" in shared_script
@@ -151,7 +151,7 @@ def test_website_exports_plan_pages_to_default_path(tmp_path: pathlib.Path, monk
     assert index == pathlib.Path("_generated/explorer/index.html")
     for filename in (
         "plan/overview.html",
-        "plan/graph.html",
+        "plan/invocation_lineage.html",
         "plan/stages.html",
     ):
         assert (index.parent / filename).is_file()

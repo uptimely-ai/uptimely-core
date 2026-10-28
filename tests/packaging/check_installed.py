@@ -80,7 +80,7 @@ class InstalledImportsTest(unittest.TestCase):
                 build = project / "_generated" / "build"
                 self.assertTrue((build / "explorer" / "index.html").is_file())
                 self.assertTrue((build / "explorer" / "css" / "base.css").is_file())
-                self.assertTrue((build / "explorer" / "js" / "feature_graph.js").is_file())
+                self.assertTrue((build / "explorer" / "js" / "feature_lineage.js").is_file())
                 plan = json.loads((build / "execution_plan.json").read_text(encoding="utf-8"))
                 self.assertTrue(plan["invocations"])
                 for package in plan["resources"]["entrypoint_packages"].values():

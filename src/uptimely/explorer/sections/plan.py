@@ -13,14 +13,17 @@ from uptimely.explorer import common, render
 from uptimely.explorer import graph_style as graph_style_module
 from uptimely.spec import functions
 
-from . import plan_graph
+from . import invocation_lineage
 
 PLAN_PAGES = render.WEBSITE_PAGES["plan"]
 SECTION = render.WebsiteSection(
     active_page="plan",
     pages=tuple(
         render.WebsitePage(
-            f"plan/{section}.html.j2", filename, active_section=section, title=section.title()
+            f"plan/{section}.html.j2",
+            filename,
+            active_section=section,
+            title="Invocation lineage" if section == "invocation_lineage" else section.title(),
         )
         for section, filename in PLAN_PAGES.items()
     ),
@@ -92,7 +95,7 @@ def build_context(
     plan: execution_plan.ExecutionPlan,
     output_directory: pathlib.Path,
 ) -> dict[str, object]:
-    """Prepare overview, graph, and stage data without rendering or writing pages.
+    """Prepare overview, invocation-lineage, and stage data without rendering or writing pages.
 
     Args:
         plan: The compiled execution plan to render.
@@ -123,8 +126,8 @@ def build_context(
         for stage_number, stage in enumerate(invocations_by_stage, start=1)
     ]
     steps = [step for stage in stages for step in stage["steps"]]
-    graph_nodes, graph_links = plan_graph.plan_graph_payload(plan)
-    invocation_graph_data = common.serialize_graph_payload(graph_nodes, graph_links)
+    invocation_nodes, invocation_links = invocation_lineage.invocation_lineage_payload(plan)
+    invocation_lineage_data = common.serialize_graph_payload(invocation_nodes, invocation_links)
 
     for stage in stages:
         stage["steps"].sort(
@@ -164,13 +167,13 @@ def build_context(
             }
         ),
         "stage_count": len(stages),
-        "dependency_count": len(graph_links),
+        "dependency_count": len(invocation_links),
         "max_parallel_invocations": max((len(stage["steps"]) for stage in stages), default=0),
         "function_kind_counts": sorted(
             collections.Counter(invocation.function_kind for invocation in plan.invocations).items()
         ),
         "stages": stages,
-        "invocation_graph_data": invocation_graph_data,
+        "invocation_lineage_data": invocation_lineage_data,
         "graph_style": graph_style,
         "graph_style_data": dataclasses.asdict(graph_style),
     }

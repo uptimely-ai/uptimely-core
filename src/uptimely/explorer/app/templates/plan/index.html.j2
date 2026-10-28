@@ -12,7 +12,7 @@
       {% block plan_overview %}
       <section id="plan-overview" class="mb-16">
         <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {% for label, value, icon_key in [("Invocations", invocation_count, "invocations"), ("Functions", function_count, "functions"), ("Entities", entity_count, "entities"), ("Features", feature_count, "features"), ("Stages", stage_count, "stages"), ("Dependencies", dependency_count, "execution-graph"), ("Max parallel invocations", max_parallel_invocations, "stages")] %}
+          {% for label, value, icon_key in [("Invocations", invocation_count, "invocations"), ("Functions", function_count, "functions"), ("Entities", entity_count, "entities"), ("Features", feature_count, "features"), ("Stages", stage_count, "stages"), ("Dependencies", dependency_count, "invocation-lineage"), ("Max parallel invocations", max_parallel_invocations, "stages")] %}
           <div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5" data-stat="{{ label }}">
             <div class="flex items-center justify-between gap-3"><span class="font-mono text-[10px] uppercase tracking-[.15em] text-slate-500">{{ label }}</span>{{ icon(icon_key, "nav-icon") }}</div>
             <p class="mt-4 font-display text-3xl font-semibold text-white" data-value="{{ value }}">{{ value }}</p>
@@ -54,8 +54,8 @@
         </div>
       </section>
       {% endblock %}
-      {% block plan_graph %}
-      {% include "plan/invocation_graph.html.j2" %}
+      {% block invocation_lineage %}
+      {% include "plan/invocation_lineage_content.html.j2" %}
       {% endblock %}
       {% block plan_stages %}
       <section id="invocations" class="mb-16">

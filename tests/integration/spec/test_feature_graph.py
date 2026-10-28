@@ -12,7 +12,7 @@ SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 @pytest.mark.parametrize("verbose", [False, True])
-def test_feature_graph_cli_inspects_without_exporting(
+def test_graph_cli_inspects_without_exporting(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -158,13 +158,13 @@ def test_dependency_features_keep_their_producer_entity_without_becoming_source_
 def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     render_explorer(spec_definition, tmp_path / "index.html")
-    output = tmp_path / "spec/graph.html"
+    output = tmp_path / "spec/feature_lineage.html"
     html = output.read_text(encoding="utf-8")
-    script = (tmp_path / "js/feature_graph.js").read_text(encoding="utf-8")
+    script = (tmp_path / "js/feature_lineage.js").read_text(encoding="utf-8")
     shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
 
     assert output.exists()
-    assert 'src="../js/feature_graph.js"' in html
+    assert 'src="../js/feature_lineage.js"' in html
     assert "3d-force-graph" in html
     assert "SphereGeometry" in shared_script
     assert "ExplorerGraph.entityNodeObject(node, node.label, style)" in script
@@ -196,13 +196,13 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
 def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     render_explorer(spec_definition, tmp_path / "index.html")
-    output = tmp_path / "spec/graph.html"
+    output = tmp_path / "spec/feature_lineage.html"
     html = output.read_text(encoding="utf-8")
-    script = (tmp_path / "js/feature_graph.js").read_text(encoding="utf-8")
+    script = (tmp_path / "js/feature_lineage.js").read_text(encoding="utf-8")
     shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
     styles = (tmp_path / "css/graph.css").read_text(encoding="utf-8")
 
-    assert 'src="../js/feature_graph.js"' in html
+    assert 'src="../js/feature_lineage.js"' in html
     assert 'href="../css/graph.css"' in html
     assert "force-graph@1.52.0/dist/force-graph.min.js" in html
     assert "ForceGraph()(graphContainer)" in script
@@ -243,7 +243,7 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert '"is_function": false, "entity": "pump", "data_type": "float"' in html
     assert '"label": "operating_point_recommendation", "tags": [], "node_type": "feature"' in html
     assert '"is_function": false, "entity": "pump_telemetry"' in html
-    assert 'aria-label="Feature graph legend"' in html
+    assert 'aria-label="Feature lineage legend"' in html
     assert "Function</span>" in html
     for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
         assert f"{category} function</span>" not in html

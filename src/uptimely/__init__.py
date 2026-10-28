@@ -3,7 +3,7 @@
 # Load spec before the compiler to initialize the declaration and document models.
 from .spec import (  # noqa: I001
     FeatureGraph,
-    SubGraph,
+    FeatureSubGraph,
     from_python,
     load_spec,
     write_document,
@@ -40,7 +40,7 @@ __all__ = [
     "from_python",
     "load_spec",
     "write_document",
-    "SubGraph",
+    "FeatureSubGraph",
     "FeatureGraph",
     "Engine",
     "InvocationGraph",

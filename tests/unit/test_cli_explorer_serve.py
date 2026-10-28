@@ -20,7 +20,7 @@ def test_serve_explorer_serves_only_the_saved_website_and_closes_on_interrupt(
     directory = tmp_path / "website"
     directory.mkdir()
     (directory / "index.html").write_text("<h1>Spec</h1>", encoding="utf-8")
-    (directory / "feature_graph.html").write_text("<h1>Graph</h1>", encoding="utf-8")
+    (directory / "data_lineage.html").write_text("<h1>Data lineage</h1>", encoding="utf-8")
     (tmp_path / "private.txt").write_text("not public", encoding="utf-8")
     servers: list[http_server.ThreadingHTTPServer] = []
     original_serve_forever = http_server.ThreadingHTTPServer.serve_forever
@@ -37,8 +37,8 @@ def test_serve_explorer_serves_only_the_saved_website_and_closes_on_interrupt(
             with request.urlopen(f"{base}/", timeout=5) as response:
                 assert response.status == 200
                 assert response.read() == b"<h1>Spec</h1>"
-            with request.urlopen(f"{base}/feature_graph.html", timeout=5) as response:
-                assert response.read() == b"<h1>Graph</h1>"
+            with request.urlopen(f"{base}/data_lineage.html", timeout=5) as response:
+                assert response.read() == b"<h1>Data lineage</h1>"
             with pytest.raises(urllib_error.HTTPError) as error:
                 request.urlopen(f"{base}/../private.txt", timeout=5)
             assert error.value.code == 404

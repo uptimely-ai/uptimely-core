@@ -4,7 +4,7 @@
 	ExplorerGraph.prepareEntityColors(invocationGraphData, document.getElementById('entity-legend'));
 	const invocationNodeDetails = document.getElementById('invocation-node-details');
 	const formatList = (values) => Array.isArray(values) && values.length ? values.join(', ') : 'none';
-	const updateinvocationDetails = (node) => {
+	const updateInvocationDetails = (node) => {
 		if (!node) {
 			ExplorerGraph.showDetails(invocationNodeDetails, 'invocation details', [],
 				'Select an invocation to inspect its function kind, entity, declared features, and invocation dependencies.');
@@ -24,19 +24,19 @@
 			node.function_kind === 'escape' ? 'Not verified or materialized as dataframe columns.' : '');
 	};
 	const invocationColors = style.function_colors;
-	function create3D(invocationGraphContainer, invocationGraphData, updateinvocationDetails) {
+	function create3D(invocationGraphContainer, invocationGraphData, updateInvocationDetails) {
 		const highlight = ExplorerGraph.createDependencyHighlight(invocationGraphData);
 		return ExplorerGraph.create3D(invocationGraphContainer, invocationGraphData, style, {
 			label: node => `${node.function_id}\n${node.function_kind === 'escape' ? 'declares external outputs' : 'produces'}: ${node.feature}`,
 			color: node => node.entityColor,
-			onSelect: updateinvocationDetails,
+			onSelect: updateInvocationDetails,
 			highlight,
 			configure: graph => graph.linkDirectionalArrowLength(style.arrow_length)
 				.linkDirectionalArrowRelPos(style.arrow_rel_pos),
 			object: node => ExplorerGraph.entityNodeObject(node, node.function_id, style),
 		});
 	}
-	function create2D(invocationGraphContainer, invocationGraphData, updateinvocationDetails) {
+	function create2D(invocationGraphContainer, invocationGraphData, updateInvocationDetails) {
 		const highlight = ExplorerGraph.createDependencyHighlight(invocationGraphData);
 		const layers = new Map();
 		for (const node of invocationGraphData.nodes) {
@@ -94,8 +94,8 @@
 			}
 			ctx.restore();
 		};
-		const selectinvocationAtPointer = event => ExplorerGraph.selectCard(
-			invocationGraph, invocationGraphContainer, invocationGraphData.nodes, event, updateinvocationDetails);
+		const selectInvocationAtPointer = event => ExplorerGraph.selectCard(
+			invocationGraph, invocationGraphContainer, invocationGraphData.nodes, event, updateInvocationDetails);
 		const invocationGraph = ForceGraph()(invocationGraphContainer)
 			.width(invocationGraphContainer.clientWidth)
 			.height(invocationGraphContainer.clientHeight)
@@ -142,9 +142,9 @@
 			.linkDirectionalParticleColor(link => highlight.isLinkHighlighted(link)
 				? '#f8d66d'
 				: highlight.hasSelection() ? '#46545f' : style.link_color)
-			.onNodeClick((_node, event) => selectinvocationAtPointer(event))
-			.onLinkClick((_link, event) => selectinvocationAtPointer(event))
-			.onBackgroundClick(event => selectinvocationAtPointer(event))
+			.onNodeClick((_node, event) => selectInvocationAtPointer(event))
+			.onLinkClick((_link, event) => selectInvocationAtPointer(event))
+			.onBackgroundClick(event => selectInvocationAtPointer(event))
 			.cooldownTicks(1);
 		const view = ExplorerGraph.createView(invocationGraph, invocationGraphContainer, 140, '2d');
 		view.selectNode = id => {
@@ -154,5 +154,5 @@
 		return view;
 	}
 
-	mountGraphViews(invocationGraphData, create2D, create3D, updateinvocationDetails, invocationNodeDetails);
+	mountGraphViews(invocationGraphData, create2D, create3D, updateInvocationDetails, invocationNodeDetails);
 }
