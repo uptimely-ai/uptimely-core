@@ -7,7 +7,7 @@ from conftest import EXAMPLES_ROOT
 from uptimely import spec
 from uptimely.spec import model as spec_model
 from uptimely.spec import references
-from uptimely.spec.python import conversion, dataset, feature, mapping, ref
+from uptimely.spec.python import actions, conversion, dataset, feature, ref
 from uptimely.spec.validation import context
 from uptimely.spec.validation import errors as validation_errors
 
@@ -340,14 +340,15 @@ def test_python_conversion_and_json_loading_share_escape_input_validation(
 ) -> None:
     declaration = dataset.Dataset(
         id="observations",
-        mappings={
-            "escape": mapping.FunctionMapping(
+        pipelines=[
+            actions.Action(
+                id="escape",
                 inputs=[],
                 function=ref.function("example:escape", kind="escape"),
                 arguments={},
                 outputs=[feature.Feature(name="external_result")],
             )
-        },
+        ],
     )
     expected_message = (
         "entities.entity.datasets.observations.mappings.escape.features.inputs: "

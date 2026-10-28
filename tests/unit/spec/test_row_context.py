@@ -10,12 +10,12 @@ from conftest import engine_for_plan, render_explorer
 from uptimely import compiler, row_context, spec
 from uptimely import execution_plan as uptimely_plan
 from uptimely.spec.python import (
+    actions,
     binding_conversion,
     dataset,
     dimension,
     entity,
     feature,
-    mapping,
     ref,
 )
 from uptimely.spec.python import row_context as authoring
@@ -46,8 +46,9 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
             dataset.Dataset(
                 id="observations",
                 order=[dataset.Order(ref.dimension("timestamp"), "asc")] if ordered else [],
-                mappings={
-                    "read_observations": mapping.FunctionMapping(
+                producers=[
+                    actions.Action(
+                        id="read_observations",
                         inputs=[],
                         function=ref.function(read_observations, kind="read"),
                         arguments={},
@@ -56,7 +57,8 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                             feature.Feature(name="temperature", type="integer"),
                         ],
                     ),
-                    "result": mapping.FunctionMapping(
+                    actions.Action(
+                        id="result",
                         inputs=[ref.feature("temperature")],
                         row_context=context,
                         function=ref.function(calculate, kind="vectorize"),
@@ -68,7 +70,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                         },
                         outputs=[feature.Feature(name="result", type="integer")],
                     ),
-                },
+                ],
             )
         ],
         dimensions=[dimension.Dimension(id="timestamp", type=dimension_type)],
@@ -125,7 +127,8 @@ def test_count_extents_require_nonnegative_integers(factory, value):
 
 
 def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
-    declaration = mapping.FunctionMapping(
+    declaration = actions.Action(
+        id="declaration",
         row_context=authoring.time("explicit", dimension=ref.dimension("timestamp"), after="3h"),
         inputs=[],
         function=ref.function(f"{__name__}:calculate", kind="vectorize"),
@@ -141,14 +144,12 @@ def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
         },
         outputs=[],
     )
-    assert declaration.to_model("calculate").row_context.to_dict() == {
+    assert declaration.to_model().row_context.to_dict() == {
         "dimension": "$dimensions.timestamp",
         "before": {"time": "24h"},
         "after": {"time": "3h"},
     }
-    assert declaration.to_model("calculate").binding.args == {
-        "configuration": {"windows": ["8h", "24h"]}
-    }
+    assert declaration.to_model().binding.args == {"configuration": {"windows": ["8h", "24h"]}}
     assert binding_conversion.argument_definition(
         declaration.bound_arguments()["configuration"]
     ) == {"type": "object{str: array[string]}"}
@@ -158,14 +159,16 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
     first = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h")
     second = authoring.time("8h", dimension=ref.dimension("other"), before="8h")
     with pytest.raises(ValueError, match="one dimension"):
-        mapping.FunctionMapping(
+        actions.Action(
+            id="action",
             inputs=[],
             function=ref.function(calculate, kind="vectorize"),
             arguments={"configuration": [first, second]},
             outputs=[],
         )
     with pytest.raises(ValueError, match="one measurement"):
-        mapping.FunctionMapping(
+        actions.Action(
+            id="action",
             inputs=[],
             function=ref.function(calculate, kind="vectorize"),
             arguments={"configuration": [first, authoring.rows(8, before=7)]},
@@ -200,7 +203,8 @@ def test_context_rejects_invalid_metadata(payload):
 
 def test_unknown_current_and_whole_dataset_context_are_distinct():
     assert (
-        mapping.FunctionMapping(
+        actions.Action(
+            id="action",
             inputs=[],
             function=ref.function(calculate, kind="vectorize"),
             arguments={},
@@ -295,14 +299,15 @@ def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Pat
 
 @pytest.mark.parametrize("operation", ["read", "expand", "collapse", "vectorize"])
 def test_all_data_mappings_preserve_annotated_context(operation):
-    declaration = mapping.FunctionMapping(
+    declaration = actions.Action(
+        id="declaration",
         inputs=[],
         function=ref.function(f"{__name__}:calculate", kind=operation),
         arguments={"configuration": {"windows": [authoring.rows(8, before=7)]}},
         outputs=[],
     )
-    assert declaration.to_model("calculate").row_context.before.rows == 7
-    assert declaration.to_model("calculate").binding.args == {"configuration": {"windows": [8]}}
+    assert declaration.to_model().row_context.before.rows == 7
+    assert declaration.to_model().binding.args == {"configuration": {"windows": [8]}}
 
 
 def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
@@ -383,8 +388,9 @@ def test_plan_context_is_present_in_portable_operations() -> None:
 def test_collapse_functions_execute_without_row_context() -> None:
     source = dataset.Dataset(
         id="observations",
-        mappings={
-            "read_observations": mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id="read_observations",
                 inputs=[],
                 function=ref.function(read_observations, kind="read"),
                 arguments={},
@@ -393,12 +399,13 @@ def test_collapse_functions_execute_without_row_context() -> None:
                     feature.Feature(name="temperature", type="integer"),
                 ],
             )
-        },
+        ],
     )
     summary = dataset.Dataset(
         id="summary",
-        mappings={
-            "summary": mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id="summary",
                 inputs=[ref.feature("temperature")],
                 function=ref.function(maximum, kind="collapse"),
                 arguments={
@@ -408,7 +415,7 @@ def test_collapse_functions_execute_without_row_context() -> None:
                 },
                 outputs=[feature.Feature(name="temperature_max", type="integer")],
             )
-        },
+        ],
     )
     timestamp = dimension.Dimension(id="timestamp", type="datetime")
     spec_definition = spec.from_python(

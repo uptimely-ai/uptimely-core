@@ -12,7 +12,7 @@ from uptimely.engine import backend as backend_module
 from uptimely.engine import dataframe as dataframe_module
 from uptimely.engine import state as state_module
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import dataset, dimension, entity, feature, mapping, ref
+from uptimely.spec.python import actions, dataset, dimension, entity, feature, ref
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -106,14 +106,16 @@ def nested_maximum(
 def _spec(*, lazy=False, empty=False):
     source = dataset.Dataset(
         id="observations",
-        mappings={
-            "read_values": mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id="read_values",
                 inputs=[],
                 function=ref.function(read_values, kind="read"),
                 arguments={"lazy": lazy, "empty": empty},
                 outputs=[feature.Feature(name=name) for name in ("group", "id", "value")],
             ),
-            "double": mapping.FunctionMapping(
+            actions.Action(
+                id="double",
                 inputs=[ref.feature("value")],
                 function=ref.function(double, kind="vectorize"),
                 arguments={
@@ -123,7 +125,8 @@ def _spec(*, lazy=False, empty=False):
                 },
                 outputs=[feature.Feature(name="doubled")],
             ),
-            "unneeded": mapping.FunctionMapping(
+            actions.Action(
+                id="unneeded",
                 inputs=[ref.feature("value")],
                 function=ref.function(double, kind="vectorize"),
                 arguments={
@@ -133,12 +136,13 @@ def _spec(*, lazy=False, empty=False):
                 },
                 outputs=[feature.Feature(name="unneeded")],
             ),
-        },
+        ],
     )
     summary = dataset.Dataset(
         id="summary",
-        mappings={
-            "group_summary": mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id="group_summary",
                 inputs=[ref.feature("value"), ref.feature("doubled")],
                 function=ref.function(summarize, kind="collapse"),
                 arguments={
@@ -148,24 +152,26 @@ def _spec(*, lazy=False, empty=False):
                 },
                 outputs=[feature.Feature(name=name) for name in ("maximum", "average", "values")],
             )
-        },
+        ],
     )
     global_summary = dataset.Dataset(
         id="global",
-        mappings={
-            "global_total": mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id="global_total",
                 inputs=[ref.feature("maximum")],
                 function=ref.function(total, kind="collapse"),
                 arguments={"dataset": ref.dataset("summary").dataframe},
                 outputs=[feature.Feature(name="total")],
             ),
-            "global_maximum": mapping.FunctionMapping(
+            actions.Action(
+                id="global_maximum",
                 inputs=[ref.feature("maximum")],
                 function=ref.function(maximum, kind="collapse"),
                 arguments={"dataset": ref.dataset("summary").dataframe},
                 outputs=[feature.Feature(name="global_max")],
             ),
-        },
+        ],
     )
     group = dimension.Dimension(id="group", type="string")
     identifier = dimension.Dimension(id="id", type="integer")
@@ -207,14 +213,16 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys()
     group = dimension.Dimension(id="group", type="string")
     target = dataset.Dataset(
         id="target",
-        mappings={
-            "read_target": mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id="read_target",
                 inputs=[],
                 function=ref.function(read_conform_target, kind="read"),
                 arguments={},
                 outputs=[feature.Feature(name="base_value")],
             ),
-            "conform_source": mapping.FunctionMapping(
+            actions.Action(
+                id="conform_source",
                 inputs=[ref.feature("source_value")],
                 function=ref.function(conform_source, kind="conform"),
                 arguments={
@@ -223,18 +231,19 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys()
                 },
                 outputs=[feature.Feature(name="conformed_value")],
             ),
-        },
+        ],
     )
     foreign = dataset.Dataset(
         id="foreign",
-        mappings={
-            "read_source": mapping.FunctionMapping(
+        producers=[
+            actions.Action(
+                id="read_source",
                 inputs=[],
                 function=ref.function(read_conform_source, kind="read"),
                 arguments={},
                 outputs=[feature.Feature(name="source_value")],
             )
-        },
+        ],
     )
     spec_definition = spec.from_python(
         entities=[

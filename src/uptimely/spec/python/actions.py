@@ -1,4 +1,4 @@
-"""Declarative function bindings and their produced features."""
+"""Declarative analytical work and its data and execution requirements."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from . import bind, binding_conversion, ref
 from . import feature as feature_module
 from . import row_context as row_context_module
 
-__all__ = ["FunctionMapping", "kind"]
+__all__ = ["Action", "kind"]
 
 _KIND_ATTRIBUTE = "__uptimely_kind__"
 _Parameters = typing.ParamSpec("_Parameters")
@@ -28,7 +28,7 @@ def kind(
     [abc.Callable[_Parameters, _Result]],
     abc.Callable[_Parameters, _Result],
 ]:
-    """Mark a callable with the kind used by its mapping."""
+    """Mark a callable with the kind used by its actions."""
     if value not in functions.FUNCTION_KINDS:
         raise ValueError(f"Unsupported function kind: {value}")
 
@@ -42,10 +42,11 @@ def kind(
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
-class FunctionMapping:
-    """Declare an analytical function call without executing it.
+class Action:
+    """Declare analytical work without executing its implementation.
 
     Args:
+        id: Non-empty action identifier, unique within its dataset.
         function: Real callable, entrypoint string, or explicit function reference.
         arguments: Named implementation arguments, including structural references.
         outputs: Named output features in declaration order; empty for writes.
@@ -53,10 +54,11 @@ class FunctionMapping:
         inputs: Explicit dependency override for opaque dataframe access. Otherwise
             dependencies are collected from feature-valued arguments. Identifier
             selectors do not imply data dependencies.
-        row_context: Function-call-specific observation requirements, merged with
+        row_context: Action-specific observation requirements, merged with
             argument annotations.
     """
 
+    id: str
     function: _Function
     arguments: dict[str, typing.Any]
     outputs: list[feature_module.Feature]
@@ -68,10 +70,12 @@ class FunctionMapping:
 
     def __post_init__(self) -> None:
         """Validate the declaration and merge argument-level row-context annotations."""
+        if not isinstance(self.id, str) or not self.id.strip():
+            raise ValueError("Action requires a non-empty id")
         _ = self.kind
         output_names = [output.name for output in self.outputs]
         if len(output_names) != len(set(output_names)):
-            raise ValueError("Function-call output feature names must not repeat")
+            raise ValueError("Action output feature names must not repeat")
         object.__setattr__(
             self, "row_context", row_context_module._context(self.arguments, self.row_context)
         )
@@ -113,7 +117,7 @@ class FunctionMapping:
             inspect.signature(self.function).bind(**self.arguments)
         return self.arguments.copy()
 
-    def to_model(self, identifier: str) -> spec_model.Mapping:
+    def to_model(self) -> spec_model.Mapping:
         """Convert this declaration to its canonical document model."""
         arguments = self.bound_arguments()
         inputs = (
@@ -122,7 +126,7 @@ class FunctionMapping:
             else _inputs(self.arguments)
         )
         return spec_model.Mapping(
-            id=identifier,
+            id=self.id,
             binding=spec_model.Binding(
                 function=self.catalog_id,
                 args={
@@ -134,7 +138,7 @@ class FunctionMapping:
         )
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
-        """Build the reusable function contract declared by this mapping."""
+        """Build the reusable function contract declared by this action."""
         function_arguments = {
             name: spec_model.Argument(id=name, **binding_conversion.argument_definition(value))
             for name, value in self.bound_arguments().items()
@@ -158,7 +162,7 @@ def _feature_id(value: ref.Reference | str) -> str:
     if isinstance(value, ref.Reference):
         prefix, _, identifier = value.value.rpartition(".")
         if prefix != selectors.FEATURE_PREFIX.removesuffix("."):
-            raise ValueError(f"Mapping input must reference a feature, got {value.value!r}")
+            raise ValueError(f"Action input must reference a feature, got {value.value!r}")
         return identifier
     return value.removeprefix(selectors.FEATURE_PREFIX)
 

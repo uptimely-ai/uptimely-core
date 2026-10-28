@@ -17,7 +17,7 @@ from uptimely.engine import execution as execution_module
 from uptimely.engine import state as state_module
 from uptimely.execution_plan import serialization as plan_serialization
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import dataset, dimension, feature, mapping, ref
+from uptimely.spec.python import actions, dataset, dimension, feature, ref
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
 
@@ -661,14 +661,15 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
     monkeypatch.syspath_prepend(str(tmp_path))
     declaration = dataset.Dataset(
         id="external",
-        mappings={
-            "external_action": mapping.FunctionMapping(
+        pipelines=[
+            actions.Action(
+                id="external_action",
                 inputs=[ref.feature("asset_id")],
                 function=ref.function(f"{package_name}.external_action:process", kind="escape"),
                 arguments={},
                 outputs=[feature.Feature(name="external_result")],
             )
-        },
+        ],
     )
     spec_definition = spec.from_python(
         datasets=[declaration],

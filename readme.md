@@ -62,18 +62,18 @@ project source.
 
 ## Python API
 
-Author a spec in Python by describing its entity, dataset, and function
-mappings. This small example reads two rows and defines a derived feature:
+Author a spec in Python by describing its entity, dataset, and actions.
+This small example reads two rows and defines a derived feature:
 
 ```python
 import polars as pl
 
 from uptimely.spec.python import (
+    Action,
     Dataset,
     Dimension,
     Entity,
     Feature,
-    FunctionMapping,
     PythonSpec,
     kind,
     ref,
@@ -99,20 +99,24 @@ class CalculatedData(Dataset):
     id = "calculated_dataset"
     entity = "measurements"
 
-    read = FunctionMapping(
-        function=read_values,
-        arguments={},
-        outputs=[Feature(name="value")],
-    )
-    double = FunctionMapping(
-        function=double,
-        arguments={
-            "dataset": ref.current_dataset().dataframe,
-            "value": ref.feature("value"),
-            "output": ref.feature("doubled").id,
-        },
-        outputs=[Feature(name="doubled")],
-    )
+    producers = [
+        Action(
+            id="read",
+            function=read_values,
+            arguments={},
+            outputs=[Feature(name="value")],
+        ),
+        Action(
+            id="double",
+            function=double,
+            arguments={
+                "dataset": ref.current_dataset().dataframe,
+                "value": ref.feature("value"),
+                "output": ref.feature("doubled").id,
+            },
+            outputs=[Feature(name="doubled")],
+        ),
+    ]
 
 
 definition = PythonSpec(
@@ -129,6 +133,11 @@ definition = PythonSpec(
 )
 specification = definition.to_model()
 ```
+
+Datasets group actions into `producers` (feature-producing kinds), `publishers`
+(`write`), and `pipelines` (`escape`, for opaque custom workflows). Each action
+has an explicit ID unique within its dataset. These lists declare roles, not
+execution order; dependencies determine execution.
 
 ## Further exploration
 

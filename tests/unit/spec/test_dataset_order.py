@@ -234,8 +234,9 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
     identifier = python_spec.dimension.Dimension(id="id", type="integer")
     declaration = python_spec.dataset.Dataset(
         id="ordered_values",
-        mappings={
-            "read": python_spec.mapping.FunctionMapping(
+        producers=[
+            python_spec.actions.Action(
+                id="read",
                 inputs=[],
                 function=python_spec.ref.function(_read_order_data, kind="read"),
                 arguments={},
@@ -245,7 +246,8 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
                     python_spec.feature.Feature(name="id", type="integer"),
                 ],
             ),
-            "sum": python_spec.mapping.FunctionMapping(
+            python_spec.actions.Action(
+                id="sum",
                 inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
                 function=python_spec.ref.function(_sum_order_features, kind="vectorize"),
                 arguments={
@@ -256,7 +258,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
                 },
                 outputs=[python_spec.feature.Feature(name="sum")],
             ),
-        },
+        ],
     )
     entity = python_spec.entity.Entity(
         id="order_test",
@@ -274,7 +276,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
                 datasets=[
                     python_spec.dataset.Dataset(
                         id=declaration.id,
-                        mappings=declaration.mappings,
+                        producers=declaration.producers,
                         order=[
                             python_spec.dataset.Order(
                                 dimension=python_spec.ref.dimension("id"), direction="desc"

@@ -170,14 +170,15 @@ def test_sources_and_transforms_python_spec() -> None:
         datasets=[
             python_spec.dataset.Dataset(
                 id="transformed_dataset",
-                mappings={
-                    "read": python_spec.mapping.FunctionMapping(
+                producers=[
+                    python_spec.actions.Action(
+                        id="read",
                         inputs=[],
                         function=python_spec.ref.function(_read_transform_data, kind="read"),
                         arguments={},
                         outputs=[python_spec.feature.Feature(name="input_1")],
                     )
-                },
+                ],
             )
         ],
     )
@@ -188,14 +189,16 @@ def test_sources_and_transforms_python_spec() -> None:
         datasets=[
             python_spec.dataset.Dataset(
                 id="target",
-                mappings={
-                    "read": python_spec.mapping.FunctionMapping(
+                producers=[
+                    python_spec.actions.Action(
+                        id="read",
                         inputs=[],
                         function=python_spec.ref.function(_read_transform_data, kind="read"),
                         arguments={},
                         outputs=[python_spec.feature.Feature(name="target_value")],
                     ),
-                    "expand_data": python_spec.mapping.FunctionMapping(
+                    python_spec.actions.Action(
+                        id="expand_data",
                         inputs=[python_spec.ref.feature("input_1")],
                         function=python_spec.ref.function(expand_data, kind="expand"),
                         arguments={
@@ -203,7 +206,7 @@ def test_sources_and_transforms_python_spec() -> None:
                         },
                         outputs=[python_spec.feature.Feature(name="input_2")],
                     ),
-                },
+                ],
             )
         ],
     )
@@ -214,8 +217,9 @@ def test_sources_and_transforms_python_spec() -> None:
         datasets=[
             python_spec.dataset.Dataset(
                 id="summary",
-                mappings={
-                    "collapse_data": python_spec.mapping.FunctionMapping(
+                producers=[
+                    python_spec.actions.Action(
+                        id="collapse_data",
                         inputs=[python_spec.ref.feature("input_2")],
                         function=python_spec.ref.function(analytics.maximum, kind="collapse"),
                         arguments={
@@ -226,7 +230,7 @@ def test_sources_and_transforms_python_spec() -> None:
                         },
                         outputs=[python_spec.feature.Feature(name="collapsed_feature")],
                     )
-                },
+                ],
             )
         ],
     )

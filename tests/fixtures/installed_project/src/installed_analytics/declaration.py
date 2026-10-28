@@ -1,11 +1,11 @@
 """Python source with a relative import within an installed package."""
 
 from uptimely.spec.python import (
+    Action,
     Dataset,
     Dimension,
     Entity,
     Feature,
-    FunctionMapping,
     PythonSpec,
     ref,
 )
@@ -24,11 +24,14 @@ class Values(Dataset):
     id = "values"
     entity = sample
 
-    read = FunctionMapping(
-        function=ref.function(functions.Readers.values, kind="read"),
-        arguments={},
-        outputs=[Feature(name="value")],
-    )
+    producers = [
+        Action(
+            id="read",
+            function=ref.function(functions.Readers.values, kind="read"),
+            arguments={},
+            outputs=[Feature(name="value")],
+        )
+    ]
 
 
 python_spec = PythonSpec(
