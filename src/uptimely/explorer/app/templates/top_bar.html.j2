@@ -1,4 +1,8 @@
 <header class="site-topbar" aria-label="Project context">
+  {% if include_navigation %}
+  <button class="mobile-nav-toggle" type="button" aria-label="Open navigation"
+    aria-expanded="false" aria-controls="explorer-navigation">{{ icon("menu", "nav-icon") }}</button>
+  {% endif %}
   <a class="site-product" href="{{ rel_root }}{{ index_filename or 'index.html' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>{{ icon("home", "nav-icon") }}<span>{{ project_name or "Untitled analytics project" }}</span></a>
   <span class="build-badge{% if is_scoped %} build-badge-partial{% endif %}"
     title="Spec: complete model. Plan and execution: {{ execution_scope or 'all features' }}"

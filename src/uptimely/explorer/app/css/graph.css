@@ -48,3 +48,8 @@ html:has(.lineage-page), .lineage-page { height: 100%; overflow: hidden; }
 	#lineage-error, .lineage-error { top: 106px; }
 	.panel { font-size: 11px; padding: 10px; }
 }
+@media (max-width: 640px) {
+	.lineage-page .site-content {
+		inset: var(--site-topbar-height) 0 0;
+	}
+}

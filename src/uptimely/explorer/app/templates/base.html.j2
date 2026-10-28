@@ -19,7 +19,7 @@
   {% set rel_root = root_path or "" %}
   {% include "top_bar.html.j2" %}
   {% if include_navigation %}
-  <nav class="site-nav" aria-label="Explorer pages">
+  <nav class="site-nav" id="explorer-navigation" aria-label="Explorer pages">
     {% for page, label, icon_key in [("spec", "Spec", "spec"), ("plan", "Plan", "plan"), ("execution", "Execution", "execution")] %}
     <a href="{{ rel_root }}{{ website_pages[page]['data_lineage' if page == 'execution' else 'overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
     {% if page == "spec" %}

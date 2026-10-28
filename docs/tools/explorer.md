@@ -31,7 +31,8 @@ pages describe the selected outputs and their dependencies.
 
 ## What you’ll find
 
-Use the sidebar to explore:
+Use the sidebar on larger screens, or open the hamburger menu on mobile, to
+explore:
 
 | Section | What it shows |
 | --- | --- |
