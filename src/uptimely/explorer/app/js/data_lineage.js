@@ -36,88 +36,88 @@
     return [...preparation, ...headers.map(header => ({ type: "column", element: header })),
       ...rows.map(row => ({ type: "row", element: row }))];
   }
-  function render() {
-    steps.forEach((step, number) => { step.hidden = number !== index; });
-    stages.forEach(stage => { stage.hidden = !stage.contains(steps[index]); });
-    const step = steps[index];
-    const sequence = frames();
-    const frame = sequence[phase - 1];
-    const newFrame = renderedFrame !== `${index}:${phase}`;
-    renderedFrame = `${index}:${phase}`;
-    step.classList.toggle("is-playing", playing);
-    if (newFrame) step.querySelectorAll(".data-lineage-new").forEach(element => element.classList.remove("data-lineage-new"));
-    const completed = phase > sequence.length;
+  function renderInput(step, completed) {
     const input = step.querySelector('table[data-side="input"]');
-    if (input) {
-      input.classList.toggle("data-lineage-grouped", phase >= GROUPING_PHASE && step.dataset.functionKind === "collapse" && !completed);
-      input.querySelectorAll("[data-role]").forEach(cell => {
-        cell.classList.toggle("data-lineage-input-active", phase > 0 && !completed && cell.dataset.role === "Input");
-        cell.classList.toggle("data-lineage-group-key", phase >= GROUPING_PHASE && !completed
-          && step.dataset.functionKind === "collapse" && cell.dataset.role === "Dimension");
-      });
-    }
-    const arrow = step.querySelector(".data-lineage-arrow");
-    arrow.classList.toggle("is-working", phase > 0 && !completed);
-    if (newFrame && playing && frame?.type === "invocation") arrow.classList.add("data-lineage-new");
-    const source = step.querySelector(".data-lineage-panel .data-lineage-boundary");
-    if (source) source.classList.toggle("is-working", phase > 0 && !completed);
+    if (!input) return;
+    const isCollapse = step.dataset.functionKind === "collapse";
+    input.classList.toggle("data-lineage-grouped",
+      phase >= GROUPING_PHASE && isCollapse && !completed);
+    input.querySelectorAll("[data-role]").forEach(cell => {
+      cell.classList.toggle("data-lineage-input-active",
+        phase > 0 && !completed && cell.dataset.role === "Input");
+      cell.classList.toggle("data-lineage-group-key",
+        phase >= GROUPING_PHASE && !completed && isCollapse && cell.dataset.role === "Dimension");
+    });
+  }
+  function renderOutputTable(step, sequence, completed) {
     const table = step.querySelector('table[data-side="output"]');
-    if (table) {
-      const visibleColumns = new Set(sequence.slice(0, phase)
-        .filter(frame => frame.type === "column").map(frame => frame.element.cellIndex));
-      table.querySelectorAll("tr").forEach(row => {
-        Array.from(row.cells).forEach((cell, column) => {
-          cell.hidden = cell.dataset.role === "Output" && !visibleColumns.has(column);
-        });
+    if (!table) return null;
+    const visibleColumns = new Set(sequence.slice(0, phase)
+      .filter(frame => frame.type === "column").map(frame => frame.element.cellIndex));
+    table.querySelectorAll("tr").forEach(row => {
+      Array.from(row.cells).forEach((cell, column) => {
+        cell.hidden = cell.dataset.role === "Output" && !visibleColumns.has(column);
       });
-      const visibleRows = new Set(sequence.slice(0, phase)
-        .filter(frame => frame.type === "row").map(frame => frame.element));
-      table.querySelectorAll("tbody tr").forEach(row => {
-        row.hidden = !visibleRows.has(row);
-      });
-      table.hidden = !completed && !sequence.slice(0, phase).some(frame => frame.type === "column" || frame.type === "row");
-      table.parentElement.hidden = table.hidden;
-    }
+    });
+    const visibleRows = new Set(sequence.slice(0, phase)
+      .filter(frame => frame.type === "row").map(frame => frame.element));
+    table.querySelectorAll("tbody tr").forEach(row => {
+      row.hidden = !visibleRows.has(row);
+    });
+    table.hidden = !completed && !sequence.slice(0, phase)
+      .some(frame => frame.type === "column" || frame.type === "row");
+    table.parentElement.hidden = table.hidden;
+    return table;
+  }
+  function renderBoundary(step, frame, completed, newFrame) {
     const boundary = step.querySelector("[data-write-boundary]");
     if (boundary) {
       boundary.hidden = !completed && frame?.type !== "write";
       if (newFrame && playing && frame?.type === "write") boundary.classList.add("data-lineage-new");
     }
-    step.querySelector(".data-lineage-waiting").hidden = completed
-      || (table ? !table.hidden : boundary ? !boundary.hidden : true);
+    return boundary;
+  }
+  function renderStatus(step, frame, sequence, completed, newFrame, table) {
     const status = step.querySelector(".data-lineage-status");
     if (phase === 0) {
       status.textContent = "Input ready. Play to illustrate the invocation.";
-    } else if (phase > sequence.length) {
+      return;
+    }
+    if (completed) {
       status.textContent = descriptions[index];
-    } else {
-      if (frame.type === "inputs") {
-        status.textContent = step.dataset.functionKind === "escape"
-          ? "Showing declared feature references; dataframe column availability is not verified."
-          : step.dataset.functionKind === "read"
-          ? "Reading from the declared source (illustration only)."
-          : "Highlighting all declared input columns. Exact input-to-output mappings are not inferred.";
-      } else if (frame.type === "group") {
+      return;
+    }
+    switch (frame.type) {
+      case "inputs":
+        status.textContent = {
+          escape: "Showing declared feature references; dataframe column availability is not verified.",
+          read: "Reading from the declared source (illustration only).",
+        }[step.dataset.functionKind]
+          || "Highlighting all declared input columns. Exact input-to-output mappings are not inferred.";
+        break;
+      case "group":
         status.textContent = "Grouping the three placeholder rows by their shared keys (one illustrative group).";
-      } else if (frame.type === "invocation") {
+        break;
+      case "invocation":
         status.textContent = `Illustrating ${step.querySelector("h3").textContent}. The function is not executed.`;
-      } else if (frame.type === "write") {
+        break;
+      case "write":
         status.textContent = "Passing the illustrative input table to the write destination. No new analytical columns.";
-      } else if (frame.type === "column") {
+        break;
+      case "column":
         status.textContent = `Adding declared column: ${frame.element.dataset.column}`;
         if (playing && newFrame) {
           const column = frame.element.cellIndex;
           table.querySelectorAll("tr").forEach(row => row.cells[column].classList.add("data-lineage-new"));
         }
-      } else {
+        break;
+      default:
         status.textContent = "Adding an illustrative row (not calculated data).";
         if (playing && newFrame) frame.element.classList.add("data-lineage-new");
-      }
+        break;
     }
-    previous.disabled = index === 0;
-    next.disabled = index === steps.length - 1;
-    position.value = `Step ${index + 1} of ${steps.length}`;
-    stagePosition.value = `Stage ${step.dataset.stage} of ${stages.length}`;
+  }
+  function renderProgress(step, sequence) {
     stageMarkers.forEach(marker => {
       const markerStage = Number(marker.dataset.stageMarker);
       marker.classList.toggle("is-current", markerStage === Number(step.dataset.stage));
@@ -128,8 +128,39 @@
       marker.classList.toggle("is-current", markerStep === index + 1);
       marker.classList.toggle("is-complete", markerStep < index + 1);
     });
-    play.textContent = playing ? "Pause" : index === steps.length - 1 && phase > sequence.length ? "Replay" : "Play";
+    previous.disabled = index === 0;
+    next.disabled = index === steps.length - 1;
+    position.value = `Step ${index + 1} of ${steps.length}`;
+    stagePosition.value = `Stage ${step.dataset.stage} of ${stages.length}`;
+    play.textContent = playing
+      ? "Pause"
+      : index === steps.length - 1 && phase > sequence.length ? "Replay" : "Play";
     play.setAttribute("aria-pressed", String(playing));
+  }
+  function render() {
+    steps.forEach((step, number) => { step.hidden = number !== index; });
+    stages.forEach(stage => { stage.hidden = !stage.contains(steps[index]); });
+    const step = steps[index];
+    const sequence = frames();
+    const frame = sequence[phase - 1];
+    const newFrame = renderedFrame !== `${index}:${phase}`;
+    renderedFrame = `${index}:${phase}`;
+    step.classList.toggle("is-playing", playing);
+    if (newFrame) step.querySelectorAll(".data-lineage-new")
+      .forEach(element => element.classList.remove("data-lineage-new"));
+    const completed = phase > sequence.length;
+    renderInput(step, completed);
+    const arrow = step.querySelector(".data-lineage-arrow");
+    arrow.classList.toggle("is-working", phase > 0 && !completed);
+    if (newFrame && playing && frame?.type === "invocation") arrow.classList.add("data-lineage-new");
+    const source = step.querySelector(".data-lineage-panel .data-lineage-boundary");
+    if (source) source.classList.toggle("is-working", phase > 0 && !completed);
+    const table = renderOutputTable(step, sequence, completed);
+    const boundary = renderBoundary(step, frame, completed, newFrame);
+    step.querySelector(".data-lineage-waiting").hidden = completed
+      || (table ? !table.hidden : boundary ? !boundary.hidden : true);
+    renderStatus(step, frame, sequence, completed, newFrame, table);
+    renderProgress(step, sequence);
   }
   function pause() {
     playing = false;

@@ -136,8 +136,8 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
         'pump:pump_dataset:health_signal_normalized"' in report
     )
     invocation_script = (tmp_path / "js/invocation_lineage.js").read_text(encoding="utf-8")
-    shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
-    assert "ExplorerGraph.datasetNodeObject(node, node.function_id, style)" in invocation_script
+    shared_script = (tmp_path / "js/lineage_components.js").read_text(encoding="utf-8")
+    assert "ExplorerLineage.datasetNodeObject(node, node.function_id, style)" in invocation_script
     assert "SphereGeometry" in shared_script
 
 

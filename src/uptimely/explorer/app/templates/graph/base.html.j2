@@ -1,6 +1,6 @@
 {% extends "base.html.j2" %}
-{% block body_class %}graph-page{% endblock %}
-{% block body_attributes %}style="--graph-background: {{ style.background_color }}" {% endblock %}
+{% block body_class %}lineage-page{% endblock %}
+{% block body_attributes %}style="--lineage-background: {{ style.background_color }}" {% endblock %}
 {% block head %}
 	<script src="https://unpkg.com/force-graph@1.52.0/dist/force-graph.min.js"></script>
 	<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
@@ -11,14 +11,12 @@
 <link rel="stylesheet" href="{{ root_path or "" }}css/graph.css">
 {% endblock %}
 {% block content %}
-<main class="graph-workspace">
+<main class="lineage-workspace">
 	{% include "graph/view_controls.html.j2" %}
-	<div class="graph-stage">{% block body %}{% endblock %}</div>
+	<div class="lineage-stage">{% block body %}{% endblock %}</div>
 </main>
 {% endblock %}
 {% block scripts %}
 {{ super() }}
-<script src="{{ root_path or "" }}js/graph_components.js"></script>
-<script src="{{ root_path or "" }}js/view_controller.js"></script>
-{% block graph_script %}{% endblock %}
+{% block lineage_script %}{% endblock %}
 {% endblock %}

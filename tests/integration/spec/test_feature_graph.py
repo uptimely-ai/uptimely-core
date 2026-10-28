@@ -174,13 +174,13 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     output = tmp_path / "spec/feature-lineage.html"
     html = output.read_text(encoding="utf-8")
     script = (tmp_path / "js/feature_lineage.js").read_text(encoding="utf-8")
-    shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
+    shared_script = (tmp_path / "js/lineage_components.js").read_text(encoding="utf-8")
 
     assert output.exists()
-    assert 'src="../js/feature_lineage.js"' in html
+    assert '<script type="module" src="../js/feature_lineage.js">' in html
     assert "3d-force-graph" in html
     assert "SphereGeometry" in shared_script
-    assert "ExplorerGraph.datasetNodeObject(node, node.label, style)" in script
+    assert "ExplorerLineage.datasetNodeObject(node, node.label, style)" in script
     assert "ConeGeometry" not in script
     assert "OctahedronGeometry" in script
     assert "CylinderGeometry" not in script
@@ -196,8 +196,7 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "['Node type', 'Action']" in script
     assert "['Function', node.function_id || 'n/a']" in script
     assert "rows.push([outputLabel, formatDetailValue(features.join(', '))])" in script
-    assert "ExplorerGraph.showDetails(nodeDetails, 'Selected item', rows)" in script
-    assert 'src="../js/graph_components.js"' in html
+    assert "ExplorerLineage.showDetails(nodeDetails, 'Selected item', rows)" in script
     assert "document.createTextNode(value == null ? 'n/a' : String(value))" in shared_script
     assert "Action</span>" in html
     for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
@@ -214,50 +213,49 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     output = tmp_path / "spec/feature-lineage.html"
     html = output.read_text(encoding="utf-8")
     script = (tmp_path / "js/feature_lineage.js").read_text(encoding="utf-8")
-    shared_script = (tmp_path / "js/graph_components.js").read_text(encoding="utf-8")
+    shared_script = (tmp_path / "js/lineage_components.js").read_text(encoding="utf-8")
+    layout_script = (tmp_path / "js/lineage_layout.js").read_text(encoding="utf-8")
+    config_script = (tmp_path / "js/lineage_config.js").read_text(encoding="utf-8")
     styles = (tmp_path / "css/graph.css").read_text(encoding="utf-8")
 
-    assert 'src="../js/feature_lineage.js"' in html
+    assert '<script type="module" src="../js/feature_lineage.js">' in html
     assert 'href="../css/graph.css"' in html
     assert "force-graph@1.52.0/dist/force-graph.min.js" in html
-    assert "ForceGraph()(graphContainer)" in script
+    assert "ExplorerLineage.createDatasetLineage2D(" in script
     assert "graph-hint" not in html
-    assert 'id="reset-graph"' in html
-    assert ">Reset graph</button>" in html
-    assert "ExplorerGraph.prepareDatasetLayout(" in script
-    assert "function prepareDatasetLayout(graphData, rankForNode, labelForNode)" in shared_script
+    assert 'id="reset-lineage"' in html
+    assert ">Reset lineage</button>" in html
+    assert "ExplorerLineage.prepareDatasetLayout(" in script
+    assert "function prepareDatasetLayout(graphData, rankForNode, labelForNode)" in layout_script
     assert "function drawEntityLanes(ctx, globalScale)" not in script
-    assert "function drawNode(node, ctx)" in script
-    assert (
-        "ExplorerGraph.selectCard(graph, graphContainer, data.nodes, event, updateDetails)"
-        in script
-    )
-    assert ".nodeCanvasObject(drawNode)" in script
-    assert "node.dataset_id || UNASSIGNED_DATASET" in shared_script
+    assert "const drawNode = (node, ctx) =>" in script
+    assert "function selectCard(forceGraph, container, nodes, event, onSelect)" in shared_script
+    assert ".nodeCanvasObject((node, ctx) => drawNode(node, ctx))" in shared_script
+    assert "node.dataset_id || LineageConfig.UNASSIGNED_DATASET" in shared_script
     assert "rankNodes" in script
-    assert "node.fx = rankOffsets.get(rank) - graphWidth / 2" in shared_script
-    assert "(index - (nodes.length - 1) / 2) * DATASET_LAYOUT.nodeSpacing" in shared_script
+    assert "node.fx = rankOffsets.get(rank) - layoutWidth / 2" in layout_script
+    assert "(index - (nodes.length - 1) / 2) * DATASET_LAYOUT.nodeSpacing" in layout_script
     assert "node.datasetColor = colors.get(node.dataset_id)" in shared_script
     assert "appendLegend(container, names.map(dataset =>" in shared_script
     assert "item.textContent = label" in shared_script
-    assert "'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa'" in shared_script
+    assert "'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa'" in config_script
     assert '"#b9c9d8"' in html
-    assert "function datasetLinkRoute(link)" in shared_script
-    assert "source.routeY" in shared_script
-    assert "2 * inverse * t * corner[0] + t * t * after[0]" in shared_script
-    assert ".linkCanvasObjectMode(() => 'replace')" in script
-    assert "ExplorerGraph.createDatasetLinkRenderer(data, style, highlight)" in script
-    assert ".linkDirectionalParticles(LINK_ROUTE.particleCount)" in script
-    assert "link.flowOffset = index / Math.max(1, data.links.length)" in shared_script
-    assert "performance.now() / LINK_ROUTE.flowDurationMs" in shared_script
+    assert "function datasetLinkRoute(link)" in layout_script
+    assert "source.routeY" in layout_script
+    assert "2 * inverse * t * corner[0] + t * t * after[0]" in layout_script
+    assert ".linkCanvasObjectMode(() => 'replace')" in shared_script
+    assert "LineageLayout.createDatasetLinkRenderer(graphData, style, highlight)" in shared_script
+    assert ".linkDirectionalParticles(LineageConfig.LINK_ROUTE.particleCount)" in shared_script
+    assert "link.flowOffset = index / Math.max(1, data.links.length)" in layout_script
+    assert "performance.now() / LINK_ROUTE.flowDurationMs" in layout_script
     assert ".linkCurvature(0.18)" not in script
-    assert ".linkDirectionalParticles(LINK_STYLE.particleCount)" in shared_script
-    assert ".nodeColor(node => node.is_action ? functionColor : node.datasetColor)" in script
+    assert ".linkDirectionalParticles(LineageConfig.LINK_STYLE.particleCount)" in shared_script
+    assert "color: node => node.is_action ? functionColor : node.datasetColor" in script
     assert (
-        "ExplorerGraph.createView(graph, graphContainer, DATASET_LAYOUT.fitPadding, "
-        "'2d', layout.bounds)" in script
+        "createLineageView(forceGraph, container, "
+        "LineageConfig.DATASET_LAYOUT.fitPadding, '2d', layout.bounds)" in shared_script
     )
-    assert "graph.width(container.clientWidth).height(container.clientHeight)" in shared_script
+    assert "forceGraph.width(container.clientWidth).height(container.clientHeight)" in shared_script
     assert "health_signal_normalized" in html
     assert '"label": "bearing_temperature_max", "tags": [], "node_type": "feature"' in html
     assert (
@@ -275,8 +273,8 @@ def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert 'class="details details-2d"' in html
     assert "Selected item" in html
     assert ".details-2d { right: auto; left: 16px;" in styles
-    assert "graph.screen2GraphCoords(" in shared_script
-    assert ".onNodeClick((_node, event) => selectAtPointer(event))" in script
-    assert ".onBackgroundClick(event => selectAtPointer(event))" in script
+    assert "forceGraph.screen2GraphCoords(" in shared_script
+    assert ".onNodeClick((_node, event) => selectAtPointer(event))" in shared_script
+    assert ".onBackgroundClick(event => selectAtPointer(event))" in shared_script
     assert "<h2>Node details</h2>" not in html
     assert "3d-force-graph" in html

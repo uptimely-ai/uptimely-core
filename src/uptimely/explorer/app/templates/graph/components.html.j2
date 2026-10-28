@@ -1,17 +1,17 @@
-{% macro node_details_panel(panel_class="details", title="Node details", id="node-details", summary="Select any feature in the graph to see its identifier and details.") %}
+{% macro node_details_panel(panel_class="details", title="Node details", id="node-details", summary="Select any feature in the lineage to see its identifier and details.") %}
 	<div class="{{ panel_class }}" id="{{ id }}" role="region" aria-label="{{ title }}" aria-live="polite">
 		<h2>{{ title }}</h2>
 		<div class="meta">Click a node</div>
 		<div class="summary">{{ summary }}</div>
 	</div>
 {% endmacro %}
-{% macro graph_canvas() %}
-	<div id="graph">
-		<div id="graph-2d" class="graph-view"></div>
-		<div id="graph-3d" class="graph-view" hidden></div>
+{% macro lineage_canvas() %}
+	<div id="lineage">
+		<div id="lineage-2d" class="lineage-view"></div>
+		<div id="lineage-3d" class="lineage-view" hidden></div>
 	</div>
 {% endmacro %}
-{% macro graph_legend(label) %}
+{% macro lineage_legend(label) %}
 	<details class="panel" open>
 		<summary>{{ label }}</summary>
 		<div class="legend" aria-label="{{ label }}">{{ caller() }}</div>

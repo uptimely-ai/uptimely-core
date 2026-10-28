@@ -4,6 +4,6 @@
 {% block body %}
 {% include "plan/invocation_lineage_content.html.j2" %}
 {% endblock %}
-{% block graph_script %}
-<script src="{{ root_path or "" }}js/invocation_lineage.js"></script>
+{% block lineage_script %}
+<script type="module" src="{{ root_path or "" }}js/invocation_lineage.js"></script>
 {% endblock %}
