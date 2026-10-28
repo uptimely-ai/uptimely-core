@@ -1,37 +1,9 @@
 """Prepare invocation-lineage payloads for compiled execution plans."""
 
-import json
 import typing
 
 from uptimely import execution_plan
 from uptimely.spec import functions
-
-
-def invocation_label(invocation: execution_plan.Invocation) -> str:
-    """Format an invocation with its actual bound arguments."""
-    arguments = ", ".join(
-        f"{name}={json.dumps(value, ensure_ascii=False, separators=(',', ':'))}"
-        for name, value in invocation.arguments.items()
-    )
-    return f"{invocation.function_id}({arguments})"
-
-
-def invocation_label_lines(invocation: execution_plan.Invocation) -> list[str]:
-    """Return a multiline invocation signature with indented bound arguments."""
-    if not invocation.arguments:
-        return [f"{invocation.function_id}()"]
-
-    arguments = list(invocation.arguments.items())
-    lines = [f"{invocation.function_id}("]
-    for index, (name, value) in enumerate(arguments):
-        value_lines = json.dumps(value, ensure_ascii=False, indent=2).splitlines()
-        argument_lines = [f"  {name}={value_lines[0]}"]
-        argument_lines.extend(f"  {line}" for line in value_lines[1:])
-        if index < len(arguments) - 1:
-            argument_lines[-1] += ","
-        lines.extend(argument_lines)
-    lines.append(")")
-    return lines
 
 
 def invocation_lineage_payload(
@@ -49,9 +21,10 @@ def invocation_lineage_payload(
             "node_type": "invocation",
             "function_kind": invocation.function_kind,
             "stage": stage_by_invocation[invocation.id],
-            "label": invocation_label(invocation),
-            "label_lines": invocation_label_lines(invocation),
+            "label": invocation.function_id,
+            "label_lines": [invocation.function_id],
             "function_id": invocation.function_id,
+            "arguments": invocation.arguments,
             "mapping_id": invocation.mapping_id,
             "entity": invocation.entity_id,
             "dataset_id": invocation.dataset_id,

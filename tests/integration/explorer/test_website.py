@@ -607,48 +607,14 @@ def test_execution_plan_pages_render_only_their_section(
                 "ExplorerGraph.createView(invocationGraph, invocationGraphContainer, 140, '2d')"
                 in script
             )
-            expected_label = (
-                'read_pump_telemetry(source="$params.telemetry_source", '
-                'pump_assets_source="$params.pump_assets_source", environment="development")'
-            )
-            assert json.dumps(expected_label) in document
-            expected_lines = [
-                "read_pump_telemetry(",
-                '  source="$params.telemetry_source",',
-                '  pump_assets_source="$params.pump_assets_source",',
-                '  environment="development"',
-                ")",
-            ]
-            assert f'"label_lines": {json.dumps(expected_lines)}' in document
-            expected_list_lines = [
-                "optimize_pump_operating_point(",
-                '  dataset="pump_telemetry_dataset",',
-                "  optimization_features=[",
-                '    "discharge_pressure",',
-                '    "flow_rate",',
-                '    "motor_power",',
-                '    "bearing_temperature",',
-                '    "vibration_rms"',
-                "  ],",
-                '  output="operating_point_recommendation"',
-                ")",
-            ]
-            assert f'"label_lines": {json.dumps(expected_list_lines)}' in document
-            expected_object_lines = [
-                "maximum(",
-                '  dataset="pump_telemetry_dataset",',
-                '  feature="bearing_temperature",',
-                "  dimensions=[",
-                '    "plant",',
-                '    "production_line",',
-                '    "pump"',
-                "  ],",
-                '  output="bearing_temperature_max"',
-                ")",
-            ]
-            assert f'"label_lines": {json.dumps(expected_object_lines)}' in document
+            assert '"label": "read_pump_telemetry"' in document
+            assert '"label_lines": ["read_pump_telemetry"]' in document
             assert ".nodeLabel(node => ExplorerGraph.tooltip(node.label))" in script
-            assert "node.label_lines.forEach((line, index) =>" in script
+            assert "ctx.textBaseline = 'middle'" in script
+            assert "ctx.roundRect(left + 12, node.y - 6, 12, 12, 3)" in script
+            assert "ctx.shadowBlur = 14" in script
+            assert ": '#1a2732'" in script
+            assert "['Arguments', formatArguments(node.arguments)]" in script
             assert "const rank = node.stage - 1" in script
             graph_data_match = re.search(
                 r'<script id="graph-data" type="application/json">(.*?)</script>',
@@ -657,6 +623,19 @@ def test_execution_plan_pages_render_only_their_section(
             )
             assert graph_data_match is not None
             graph_nodes = json.loads(graph_data_match.group(1))["nodes"]
+            read_node = next(
+                node for node in graph_nodes if node["function_id"] == "read_pump_telemetry"
+            )
+            assert read_node["arguments"] == {
+                "source": "$params.telemetry_source",
+                "pump_assets_source": "$params.pump_assets_source",
+                "environment": "development",
+            }
+            assert read_node["label_lines"] == ["read_pump_telemetry"]
+            assert "arguments" not in read_node["label"]
+            maximum_node = next(node for node in graph_nodes if node["function_id"] == "maximum")
+            assert maximum_node["arguments"]["dimensions"] == ["plant", "production_line", "pump"]
+            assert maximum_node["label_lines"] == ["maximum"]
             normalize_node = next(
                 node for node in graph_nodes if node["function_id"] == "normalize_health_signal"
             )
