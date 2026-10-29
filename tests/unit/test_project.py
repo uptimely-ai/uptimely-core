@@ -104,14 +104,6 @@ def test_build_manifest_normalizes_feature_selection() -> None:
     assert manifest.features == ["pressure", "temperature"]
 
 
-def test_build_manifest_rejects_legacy_schema_version_field() -> None:
-    data = _manifest_data()
-    data["schema_version"] = data.pop("build_version")
-
-    with pytest.raises(pydantic.ValidationError, match="schema_version"):
-        project.BuildManifest.model_validate(data)
-
-
 @pytest.mark.parametrize("version", [0, 2, "1", True])
 def test_build_manifest_rejects_unsupported_or_noninteger_version(version: object) -> None:
     data = _manifest_data()

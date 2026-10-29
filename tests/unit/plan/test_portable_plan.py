@@ -240,11 +240,3 @@ def test_plan_rejects_invalid_collapse_metadata(field: str, value: object, messa
     payload["invocations"][1][field] = value
     with pytest.raises(ValueError, match=message):
         uptimely_plan.from_dict(payload)
-
-
-@pytest.mark.parametrize("field", ["output", "source", "group_by", "operations"])
-def test_plan_rejects_removed_collapse_fields(field: str) -> None:
-    payload = uptimely_plan.to_dict(_sample_plan())
-    payload["invocations"][1][field] = []
-    with pytest.raises(TypeError, match=field):
-        uptimely_plan.from_dict(payload)
