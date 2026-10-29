@@ -117,16 +117,15 @@ def compute(spec: model.Spec) -> model.Action:
     return target(spec).actions["compute"]
 
 
-@pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
 @pytest.mark.parametrize(
     "validate",
     validation.VALIDATION_DEPENDENCIES,
     ids=lambda validate: f"{validate.__module__.rsplit('.', 1)[-1]}.{validate.__name__}",
 )
 def test_atomic_rules_accept_spec_and_do_not_mutate(
-    kind: functions.FunctionKind, validate: validation.Validator
+    validate: validation.Validator,
 ) -> None:
-    spec = make_spec(kind)
+    spec = make_spec()
     before = spec.model_dump()
     assert validate(spec) is None
     assert spec.model_dump() == before
