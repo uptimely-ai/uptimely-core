@@ -464,7 +464,7 @@ def test_cli_requires_valid_subcommands(
 
 
 def test_console_script_registration() -> None:
-    root = pathlib.Path(__file__).parents[2]
+    root = pathlib.Path(__file__).parents[3]
     config = tomllib.loads((root / "pyproject.toml").read_text())
     assert config["project"]["scripts"]["uptimely"] == "uptimely.cli.cli:main"
     assert config["project"]["scripts"]["uptimely-mcp"] == "uptimely.mcp.server:main"

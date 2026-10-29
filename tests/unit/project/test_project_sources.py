@@ -5,7 +5,7 @@ import pytest
 from uptimely import project, spec
 from uptimely.project.build import source as build_source
 
-FIXTURE_SPEC = pathlib.Path(__file__).parents[1] / "fixtures/spec/observation_totals.json"
+FIXTURE_SPEC = pathlib.Path(__file__).parents[2] / "fixtures/spec/observation_totals.json"
 
 
 def test_json_source_loads_configured_path(tmp_path: pathlib.Path) -> None:
