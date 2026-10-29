@@ -196,6 +196,7 @@ def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
     path = tmp_path / "spec.json"
     spec.write_document(_spec(), path)
     configuration = json.loads(path.read_text())
+    configuration["functions"]["add_one"]["args"]["output"]["type"] = "dataframe"
     configuration["functions"]["add_one"]["args"]["dataset"]["type"] = "string"
     path.write_text(json.dumps(configuration))
     with pytest.raises(ValueError, match="requires argument type dataframe"):
