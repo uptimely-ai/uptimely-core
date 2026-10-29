@@ -7,7 +7,7 @@ import graphlib
 
 from uptimely.spec import model as spec_model
 
-from . import (
+from .rules import (
     action_contracts,
     action_inputs,
     action_outputs,

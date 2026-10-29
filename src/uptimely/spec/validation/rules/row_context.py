@@ -9,7 +9,8 @@ from uptimely import row_context as row_context_model
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 
-from . import collapse_inputs, traversal
+from .. import traversal
+from . import collapse_inputs
 
 
 @dataclasses.dataclass(frozen=True)

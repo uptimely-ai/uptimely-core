@@ -8,7 +8,7 @@ import warnings
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 
-from . import errors, traversal
+from .. import errors, traversal
 
 type OutputDeclaration = tuple[str, str | None]
 type ActionOutputFacts = tuple[traversal.ActionFacts, tuple[OutputDeclaration, ...]]

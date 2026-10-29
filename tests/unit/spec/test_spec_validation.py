@@ -8,8 +8,9 @@ from uptimely import spec
 from uptimely.spec import model as spec_model
 from uptimely.spec import references
 from uptimely.spec.python import actions, conversion, dataset, feature, ref
-from uptimely.spec.validation import action_contracts, traversal
 from uptimely.spec.validation import errors as validation_errors
+from uptimely.spec.validation import traversal
+from uptimely.spec.validation.rules import action_contracts
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 

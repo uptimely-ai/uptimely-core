@@ -7,7 +7,8 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import validation
-from uptimely.spec.validation import collapse_inputs, traversal
+from uptimely.spec.validation import traversal
+from uptimely.spec.validation.rules import collapse_inputs
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 

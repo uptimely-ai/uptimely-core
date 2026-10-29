@@ -7,8 +7,9 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import functions as function_kinds
-from uptimely.spec.validation import action_contracts, action_outputs, errors, functions, traversal
+from uptimely.spec.validation import errors, traversal
 from uptimely.spec.validation import spec as spec_validation
+from uptimely.spec.validation.rules import action_contracts, action_outputs, functions
 
 
 @pytest.fixture

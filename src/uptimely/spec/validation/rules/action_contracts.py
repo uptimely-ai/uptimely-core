@@ -8,7 +8,8 @@ import dataclasses
 from uptimely.spec import arg_types, functions, selectors
 from uptimely.spec import model as spec_model
 
-from . import collapse_inputs, errors, traversal
+from .. import errors, traversal
+from . import collapse_inputs
 
 EXPAND_INPUT_ERROR = (
     "Expand action must reference a declared feature from a lower-dimensional foreign dataset"

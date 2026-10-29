@@ -8,7 +8,7 @@ import typing
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 
-from . import traversal
+from .. import traversal
 
 
 @dataclasses.dataclass(frozen=True)
