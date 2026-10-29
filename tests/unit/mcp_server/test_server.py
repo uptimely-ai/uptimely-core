@@ -193,6 +193,7 @@ async def test_list_calculated_features(state: server.ServerState) -> None:
     payload = await _call(state, "list_calculated_features")
     assert payload == [
         "bearing_temperature_delta",
+        "bearing_temperature_rise",
         "converged",
         "energy_cost_score",
         "health_signal_normalized",

@@ -31,6 +31,8 @@ class DataFrameBackend(typing.Protocol):
         self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "1:1"
     ) -> object: ...
 
+    def left_join(self, left: object, right: object, keys: abc.Sequence[str]) -> object: ...
+
     def collect(self, frame: object) -> object: ...
 
     def is_duplicated(self, frame: object) -> bool: ...
@@ -111,6 +113,21 @@ class PolarsBackend:
             how="full",
             coalesce=True,
             validate=validate,
+            nulls_equal=True,
+        )
+
+    def left_join(self, left: object, right: object, keys: abc.Sequence[str]) -> object:
+        """Left-join a lower-dimensional fragment, broadcasting when it has no keys."""
+        if not keys:
+            if self.should_validate_values(right) and self.row_count(right) > 1:
+                raise ValueError("Dimensionless fragments must contain at most one global row")
+            return left.join(right, how="cross")
+        return left.join(
+            right,
+            on=list(keys),
+            how="left",
+            coalesce=True,
+            validate="m:1",
             nulls_equal=True,
         )
 

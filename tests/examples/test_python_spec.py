@@ -126,10 +126,11 @@ def test_example_manifest_parses_complete_spec() -> None:
         "write",
         "vectorize",
         "collapse",
+        "expand",
         "escape",
     }
     assert "aggregate" not in spec_definition.functions.by_kind("vectorize")
-    assert len(spec_definition.functions.by_kind("vectorize")) == 6
+    assert len(spec_definition.functions.by_kind("vectorize")) == 7
 
     pump_dataset = spec_definition.entities["pump"].datasets["pump_dataset"]
     collapse = pump_dataset.actions["bearing_temperature_by_pump"]

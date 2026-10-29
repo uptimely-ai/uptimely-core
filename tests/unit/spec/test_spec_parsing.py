@@ -231,7 +231,7 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
 
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    assert len(spec_definition.functions.by_kind("vectorize")) == 6
+    assert len(spec_definition.functions.by_kind("vectorize")) == 7
     collapse = (
         spec_definition.entities["pump"]
         .datasets["pump_dataset"]
@@ -251,6 +251,7 @@ def test_system_and_subset_support_multiple_variables() -> None:
         "converged",
         "pressure_flow_efficiency",
         "bearing_temperature_delta",
+        "bearing_temperature_rise",
         "vibration_delta",
         "pump_health_score",
         "operating_point_recommendation",

@@ -52,7 +52,7 @@ def test_feature_graph_summary_subset_and_tree(
         "--verbose",
     )
     text = capsys.readouterr().out
-    assert "Feature graph: 12 features" in text
+    assert "Feature graph: 13 features" in text
     assert "Selected feature subset: 2 features" in text
     assert "health_signal_normalized" in text
     assert "Selected feature subset\n" in text
@@ -72,7 +72,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     invoke(monkeypatch, "run", str(project_root), "--verbose")
     text = capsys.readouterr().out
     assert "Engine completed in " in text
-    assert "2 datasets processed" in text
+    assert "3 datasets processed" in text
     assert "Scope: selected features: health_signal_normalized" in text
     assert "- Dataset: pump_dataset - 5 features" in text
 
@@ -95,7 +95,7 @@ def test_engine_default_logs_only_duration_and_processed_datasets(
 
     result = capsys.readouterr()
     assert not result.err
-    dataset_count = 2 if scoped else 4
+    dataset_count = 3 if scoped else 4
     assert result.out.splitlines() == [
         "",
         f"Engine completed in 1.234 s: {dataset_count} datasets processed",

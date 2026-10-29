@@ -163,6 +163,41 @@ class Telemetry(Dataset):
             ],
         ),
         Action(
+            id="room_temperature_reference",
+            function=analytics.broadcast_constant,
+            arguments=dict(  # noqa: C408
+                constants=ref.dataframe("constants_dataset"),
+                feature=ref.column("room_temperature"),
+                output=ref.output("room_temperature_reference"),
+            ),
+            outputs=[
+                Feature(
+                    name="room_temperature_reference",
+                    type="float",
+                    unit="C",
+                    description="Room-temperature constant broadcast to every telemetry row.",
+                )
+            ],
+        ),
+        Action(
+            id="bearing_temperature_rise",
+            function=analytics.subtract,
+            arguments=dict(  # noqa: C408
+                dataset=ref.dataframe(),
+                feature=ref.column("bearing_temperature"),
+                subtrahend=ref.column("room_temperature_reference"),
+                output=ref.output("bearing_temperature_rise"),
+            ),
+            outputs=[
+                Feature(
+                    name="bearing_temperature_rise",
+                    type="float",
+                    unit="C",
+                    description="Bearing-temperature rise above the room-temperature constant.",
+                )
+            ],
+        ),
+        Action(
             id="bearing_temperature_delta",
             function=analytics.delta,
             arguments=dict(  # noqa: C408
@@ -260,6 +295,7 @@ class Telemetry(Dataset):
                     ref.column("energy_cost_score"),
                     ref.column("converged"),
                     ref.column("pressure_flow_efficiency"),
+                    ref.column("bearing_temperature_rise"),
                     ref.column("bearing_temperature_delta"),
                     ref.column("vibration_delta"),
                     ref.column("pump_health_score"),

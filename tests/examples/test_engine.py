@@ -33,6 +33,7 @@ def test_engine_returns_calculated_features_without_writing_output(
     assert not result.failures
     assert sorted({feature for _, feature in result.calculated_outputs}) == [
         "bearing_temperature_delta",
+        "bearing_temperature_rise",
         "converged",
         "energy_cost_score",
         "health_signal_normalized",
@@ -72,6 +73,9 @@ def test_engine_returns_calculated_features_without_writing_output(
     efficiency = [5.3 * 118.0 / (36 * 17.9), 5.4 * 119.5 / (36 * 18.1), 4.1 * 83.0 / (36 * 11.7)]
     assert telemetry_frame["pressure_flow_efficiency"].to_list() == pytest.approx(efficiency)
     assert telemetry_frame["bearing_temperature_delta"].to_list() == [None, 0.5, None]
+    assert telemetry_frame["bearing_temperature_rise"].to_list() == pytest.approx(
+        [68.2 - 20.0, 68.7 - 20.0, 64.5 - 20.0]
+    )
     assert telemetry_frame["vibration_delta"].to_list() == pytest.approx([None, 0.1, None])
     assert telemetry_frame["pump_health_score"].to_list() == pytest.approx(
         [None, efficiency[1] - 0.05 - 0.05, None]
@@ -514,6 +518,7 @@ def test_engine_executes_requested_feature_and_its_dependencies(
     } == {
         "read",
         "collapse",
+        "expand",
         "vectorize",
     }
 
