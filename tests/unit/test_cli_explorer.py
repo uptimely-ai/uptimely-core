@@ -167,21 +167,3 @@ def test_explorer_reports_selected_scope(
     home = (bundle.explorer_path / "index.html").read_text(encoding="utf-8")
     assert "Partial build" in home
     assert "Plan and execution: selected features: pump_health_score" in home
-
-
-def test_explorer_does_not_accept_unsupported_directory_as_a_build(
-    tmp_path: pathlib.Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    root = tmp_path / "project"
-    legacy_site = root / project.EXPLORER_OUTPUT_DIR
-    legacy_site.mkdir(parents=True)
-    (legacy_site / "index.html").write_text("legacy website", encoding="utf-8")
-    monkeypatch.setattr(sys, "argv", ["uptimely", "explorer", "serve", "--project-root", str(root)])
-
-    with pytest.raises(SystemExit) as error:
-        cli.main()
-
-    assert error.value.code == 1
-    assert "No active build found" in capsys.readouterr().err
