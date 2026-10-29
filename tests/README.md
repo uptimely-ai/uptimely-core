@@ -27,6 +27,10 @@ verify compiler or builder behavior, rather than using them as repeated setup.
 Pytest defaults to eight workers. The pre-commit pytest hook also runs with eight
 workers when Python files are staged.
 
+Project-build CLI option combinations run in-process, while a separate
+installed-console-script smoke test verifies the real entry point without
+`PYTHONPATH`. Both paths build actual example artifacts.
+
 ## Explorer JavaScript tests
 
 The devcontainer and CI provide Node.js 24 LTS. Run the JavaScript tests
