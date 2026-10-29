@@ -13,13 +13,31 @@ OUTPUT_PATH = EXAMPLE_ROOT / "_generated" / "pump_external_workflow_results.csv"
 
 @function(kind="read")
 def read_pump_external_inputs() -> pl.DataFrame:
-    """Load the dataframe inputs declared by the external workflow action."""
+    """Load the dataframe inputs declared by the external workflow action.
+
+    Returns:
+    -------
+    Observations read from the external workflow source CSV.
+
+    Examples:
+    --------
+    >>> observations = read_pump_external_inputs()  # doctest: +SKIP
+    """
     return pl.read_csv(SOURCE_PATH)
 
 
 @function(kind="escape")
 def process_pump_external_workflow() -> None:
-    """Read pump inputs, calculate ratios, and write results internally."""
+    """Read pump inputs, calculate ratios, and write results internally.
+
+    Returns:
+    -------
+    Results are written to the generated output CSV as a side effect.
+
+    Examples:
+    --------
+    >>> process_pump_external_workflow()  # doctest: +SKIP
+    """
     observations = pl.read_csv(SOURCE_PATH)
     result = observations.with_columns(
         (pl.col("measurement") / pl.col("reference_value")).alias("ratio")

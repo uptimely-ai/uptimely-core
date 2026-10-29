@@ -29,8 +29,10 @@ Before making project-wide changes, consult the relevant guides:
 - Add type hints to new or changed code and keep docstrings current.
 - Define reusable literal values as module-level constants named in
   `UPPER_SNAKE_CASE` when practical.
-- Write Google-style docstrings. Use `Args:`, `Returns:`, and `Raises:` sections
-  when applicable.
+- Write Google-style docstrings for uptimely-core package modules, classes, and functions
+  - Use `Args:`, `Returns:`, and `Raises:` sections when applicable.
+- Write numpy style docstrings in the examples package modules, classes, and functions
+  - Do not include data types
 - Import modules rather than individual classes, functions, or constants.
   Use absolute imports from the owning package across packages
   (`from uptimely.compiler import plan`), and relative imports for siblings
