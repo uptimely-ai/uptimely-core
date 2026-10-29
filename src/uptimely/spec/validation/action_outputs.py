@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import collections.abc
+
+from uptimely.spec import model as spec_model
+
 from .. import functions, selectors
 from . import context as context_module
+from . import errors
 
 
 def validate_output_presence(
@@ -62,13 +67,17 @@ def validate_dimension_collision(
 
 
 def validate_function_reference(
-    item: context_module.ActionFacts,
+    function_id: str,
+    dataset_id: str,
+    function_catalog: collections.abc.Mapping[str, spec_model.FunctionTemplate],
+    path: context_module.SpecPath,
 ) -> context_module.ValidationResult:
-    """Require a action's function to be declared."""
-    if item.function is None:
-        return ValueError(
-            f"Dataset {item.location.dataset.id} actions reference unknown functions: "
-            f"{item.location.action.binding.function}"
+    """Require an action's function reference to resolve in the catalog."""
+    if function_id not in function_catalog:
+        return errors.SpecError(
+            f"Dataset {dataset_id} actions reference unknown functions: {function_id}",
+            code="unknown_function_reference",
+            path=path,
         )
     return None
 

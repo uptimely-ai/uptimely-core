@@ -104,7 +104,12 @@ def _output_results(
     """Validate action outputs and dataset producer coverage."""
     for _, output_actions, _ in context.iter_output_datasets():
         for item, declarations in output_actions:
-            yield action_outputs.validate_function_reference(item)
+            yield action_outputs.validate_function_reference(
+                item.location.action.binding.function,
+                item.location.dataset.id,
+                context.model.functions.root,
+                (*item.location.declaration_path, "binding", "function"),
+            )
             if item.kind == function_kinds.WRITE:
                 yield action_outputs.validate_write_outputs(item)
                 continue
