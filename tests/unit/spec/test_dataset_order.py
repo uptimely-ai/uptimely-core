@@ -231,7 +231,9 @@ def test_dataset_order_appears_in_html(tmp_path: pathlib.Path) -> None:
     assert "Logical order" not in (tmp_path / "spec/features.html").read_text(encoding="utf-8")
 
 
-def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
+def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
     identifier = python_spec.dimension.Dimension(id="id", type="integer")
     declaration = python_spec.dataset.Dataset(
         id="ordered_values",
@@ -294,9 +296,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
         == compiler.Compiler().compile(unordered).invocations
     )
 
-    result = execution_support.engine_for_plan(
-        compiler.Compiler().compile(ordered), spec_definition=ordered
-    ).run()
+    result = engine_for_plan(compiler.Compiler().compile(ordered), spec_definition=ordered).run()
     assert result.failures == {}
     frame = result.datasets[declaration.id]
     assert isinstance(frame, pl.DataFrame)

@@ -98,7 +98,9 @@ def _spec() -> spec.Spec:
     )
 
 
-def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
+def test_explicit_inputs_drive_dependencies_not_identifier_arguments(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
     spec_definition = _spec()
     dataset_model = spec_definition.entities["entity"].datasets["observations"]
     assert dataset_model.actions["metadata"].input_features == []
@@ -115,7 +117,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     ]
     metadata = compiler.Compiler().compile(spec_definition, features=["metadata"])
     assert all("result" not in item.output_features for item in metadata.invocations)
-    execution = execution_support.engine_for_plan(metadata, spec_definition=spec_definition).run()
+    execution = engine_for_plan(metadata, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["observations"]["metadata"].to_list() == [7, 7]
 
@@ -131,7 +133,10 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     ],
 )
 def test_dataframe_returns_are_validated(
-    monkeypatch: pytest.MonkeyPatch, shape: str, message: str
+    monkeypatch: pytest.MonkeyPatch,
+    shape: str,
+    message: str,
+    engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     spec_definition = _spec()
     compiled = compiler.Compiler().compile(spec_definition, features=["result"])
@@ -148,12 +153,14 @@ def test_dataframe_returns_are_validated(
         return 1
 
     monkeypatch.setattr(f"{__name__}.add_one", invalid)
-    execution = execution_support.engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert message in next(iter(execution.failures.values()))
     assert ("observations", "result") not in execution.calculated_outputs
 
 
-def test_returned_row_order_does_not_control_alignment(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_returned_row_order_does_not_control_alignment(
+    monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
+) -> None:
     spec_definition = _spec()
     compiled = compiler.Compiler().compile(spec_definition, features=["result"])
 
@@ -161,7 +168,7 @@ def test_returned_row_order_does_not_control_alignment(monkeypatch: pytest.Monke
         return dataset.with_columns((pl.col("value") + 1).alias(output)).reverse()
 
     monkeypatch.setattr(f"{__name__}.add_one", reversed_result)
-    execution = execution_support.engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["observations"].sort("id").select("id", "value", "result").rows() == [
         (1, 10, 11),
@@ -216,7 +223,7 @@ def test_nested_arguments_preserve_literals_and_resolve_dataframes() -> None:
 
 
 def test_implicit_dimensions_have_runtime_type_validation(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     spec_definition = _spec()
     source = next(
@@ -230,7 +237,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
 
     read_values_original = read_values
     monkeypatch.setattr(f"{__name__}.read_values", wrong_dimension)
-    execution = execution_support.engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert "Output column id has type String; expected integer" in next(
         iter(execution.failures.values())
     )
@@ -239,7 +246,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
 
 @pytest.mark.parametrize("with_sink", [False, True])
 def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
-    tmp_path: pathlib.Path, with_sink: bool
+    tmp_path: pathlib.Path, with_sink: bool, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     path = tmp_path / "spec.json"
     spec.write_document(_spec(), path)
@@ -265,7 +272,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     path.write_text(json.dumps(configuration))
     spec_definition = spec.load_spec(path)
     compiled = compiler.Compiler().compile(spec_definition, features=["result"])
-    execution = execution_support.engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["observations"].sort("id")["result"].to_list() == [11, 21]
 

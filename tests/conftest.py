@@ -1,17 +1,13 @@
 """Pytest fixtures and lifecycle hooks for isolated test artifacts."""
 
-import os
+import itertools
 import pathlib
-import shutil
 import tempfile
 
 import pytest
 from support import examples, execution
 
-from uptimely import project
-
-_ORIGINAL_EXAMPLES_ROOT = os.environ.get("UPTIMELY_TEST_EXAMPLES_ROOT")
-_TEST_ROOT: pathlib.Path | None = None
+from uptimely import engine, execution_plan, project, spec
 
 
 @pytest.fixture(scope="session")
@@ -39,25 +35,53 @@ def example_project_factory(example_projects: pathlib.Path) -> examples.ProjectF
     return examples.copy_example_project
 
 
+@pytest.fixture
+def bundle_for_plan(tmp_path: pathlib.Path) -> execution.BundleFactory:
+    """Create independent synthetic bundles under this test's temporary path."""
+    identifiers = itertools.count()
+
+    def create(
+        execution_plan: execution_plan.ExecutionPlan,
+        project_root: pathlib.Path | None = None,
+        spec_definition: spec.Spec | None = None,
+    ) -> project.BuildBundle:
+        return execution.bundle_for_plan(
+            execution_plan,
+            project_root,
+            spec_definition,
+            build_root=tmp_path / f"bundle-{next(identifiers)}",
+        )
+
+    return create
+
+
+@pytest.fixture
+def engine_for_plan(bundle_for_plan: execution.BundleFactory) -> execution.EngineFactory:
+    """Create engines whose synthetic bundle files belong to this test."""
+
+    def create(
+        execution_plan: execution_plan.ExecutionPlan,
+        parameters: dict[str, object] | None = None,
+        project_root: pathlib.Path | None = None,
+        spec_definition: spec.Spec | None = None,
+    ) -> engine.Engine:
+        return engine.Engine(
+            bundle_for_plan(execution_plan, project_root, spec_definition),
+            engine.EngineConfig(),
+            parameters,
+        )
+
+    return create
+
+
 def pytest_configure(config: pytest.Config) -> None:
-    """Reserve a shared location without copying or building examples."""
-    global _TEST_ROOT
-
-    if hasattr(config, "workerinput"):
-        return
-
-    _TEST_ROOT = pathlib.Path(tempfile.mkdtemp(prefix="uptimely-core-tests-"))
-    examples.EXAMPLES_ROOT = _TEST_ROOT / "examples"
-    os.environ["UPTIMELY_TEST_EXAMPLES_ROOT"] = str(examples.EXAMPLES_ROOT)
-
-
-def pytest_unconfigure(config: pytest.Config) -> None:
-    """Remove the isolated example projects created for this test run."""
-    examples.cleanup()
-    execution.cleanup()
-    if not hasattr(config, "workerinput") and _TEST_ROOT is not None:
-        shutil.rmtree(_TEST_ROOT)
-        if _ORIGINAL_EXAMPLES_ROOT is None:
-            os.environ.pop("UPTIMELY_TEST_EXAMPLES_ROOT", None)
-        else:
-            os.environ["UPTIMELY_TEST_EXAMPLES_ROOT"] = _ORIGINAL_EXAMPLES_ROOT
+    """Reserve one session-owned shared directory before test collection."""
+    if not hasattr(config, "workerinput"):
+        root = tempfile.TemporaryDirectory(prefix="uptimely-core-tests-")
+        config.add_cleanup(root.cleanup)
+        patch = pytest.MonkeyPatch()
+        config.add_cleanup(patch.undo)
+        examples_root = pathlib.Path(root.name) / "examples"
+        patch.setattr(examples, "EXAMPLES_ROOT", examples_root)
+        patch.setenv("UPTIMELY_TEST_EXAMPLES_ROOT", str(examples_root))
+    config.add_cleanup(examples.clear_caches)

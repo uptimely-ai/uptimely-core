@@ -33,10 +33,12 @@ def test_spec_reference_snippet_syntax(language: str, snippet: str) -> None:
         json.loads(document)
 
 
-def test_spec_json_parses_compiles_and_executes() -> None:
+def test_spec_json_parses_compiles_and_executes(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
     spec_definition = spec.load_spec(OBSERVATION_TOTALS_PATH)
     compiled = compiler.Compiler().compile(spec_definition, features=["total"])
-    execution = execution_support.engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
 
     assert len(compiled.invocations) == 2
     assert not execution.failures

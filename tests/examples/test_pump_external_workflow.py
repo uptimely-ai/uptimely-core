@@ -13,7 +13,10 @@ from uptimely import project
 
 
 def test_pump_external_workflow_reads_calculates_and_writes_without_materializing_outputs(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, pump_bundle: project.BuildBundle
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    pump_bundle: project.BuildBundle,
+    engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     """The declared boundary runs while the function owns internal I/O."""
     bundle = pump_bundle
@@ -27,7 +30,7 @@ def test_pump_external_workflow_reads_calculates_and_writes_without_materializin
         (bundle.project_root / "config" / "config.json").read_text(encoding="utf-8")
     )["params"]
 
-    result = execution_support.engine_for_plan(
+    result = engine_for_plan(
         saved_plan,
         parameters=parameters,
         project_root=bundle.project_root,
