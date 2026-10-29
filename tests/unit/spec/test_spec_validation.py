@@ -8,26 +8,14 @@ from uptimely import spec
 from uptimely.spec import model as spec_model
 from uptimely.spec import references
 from uptimely.spec.python import actions, conversion, dataset, feature, ref
-from uptimely.spec.validation import action_contracts, collapse_inputs, context
+from uptimely.spec.validation import action_contracts, traversal
 from uptimely.spec.validation import errors as validation_errors
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 def _action_contracts(spec_definition: spec.Spec) -> tuple[action_contracts.ActionContract, ...]:
-    indexes = context.SpecValidationContext.build(spec_definition)
-    collapse_facts = tuple(
-        collapse_inputs.iter_collapse_inputs(
-            indexes.actions, indexes.dimension_ids, indexes.feature_owners
-        )
-    )
-    return tuple(
-        action_contracts.iter_action_contracts(
-            indexes.actions,
-            indexes.dataset,
-            collapse_inputs.source_index(collapse_facts),
-        )
-    )
+    return tuple(action_contracts.iter_action_contracts(spec_definition))
 
 
 def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str) -> pathlib.Path:
@@ -89,7 +77,7 @@ def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -
     action.binding.function = "missing"
     model.entities["duplicate"] = entity.model_copy(update={"id": "duplicate"}, deep=True)
 
-    locations = list(context.SpecValidationContext.build(model).iter_actions())
+    locations = [item.location for item in traversal.iter_actions(model)]
     declarations = list(references.iter_action_items(model))
     actual = [(item.entity_id, item.dataset, item.action_id, item.action) for item in locations]
     assert actual == declarations
@@ -109,31 +97,24 @@ def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -
         (item.entity_id, item.dataset, item.action) for item in locations
     ]
 
-    facts = [
-        item
-        for item in context.SpecValidationContext.build(model).actions
-        if item.location.dataset is dataset
-    ]
+    facts = [item for item in traversal.iter_actions(model) if item.location.dataset is dataset]
     dimensions = frozenset(entity.dimension_ids)
     assert facts
     assert all(item.dimensions == dimensions for item in facts)
     assert all(item.local_features == frozenset(dataset.features) | dimensions for item in facts)
 
 
-def test_validation_context_retains_duplicate_index_candidates() -> None:
+def test_traversal_retains_duplicate_declarations_and_feature_owners() -> None:
     model = spec_model.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     pump_dataset = model.entities["pump"].datasets["pump_dataset"]
     model.entities["pump_telemetry"].datasets[pump_dataset.id] = pump_dataset.model_copy(deep=True)
 
-    validation_context = context.SpecValidationContext.build(model)
-
-    assert len(validation_context.datasets_by_id[pump_dataset.id]) == 2
+    locations = tuple(traversal.iter_datasets(model))
+    assert sum(item.dataset.id == pump_dataset.id for item in locations) == 2
     feature_id = next(
-        feature_id
-        for feature_id in pump_dataset.features
-        if feature_id not in validation_context.dimension_ids
+        feature_id for feature_id in pump_dataset.features if feature_id not in model.dimensions
     )
-    assert len(validation_context.feature_owners[feature_id]) == 2
+    assert len(traversal.feature_owners(model)[feature_id]) == 2
 
 
 @pytest.mark.parametrize(
@@ -266,7 +247,7 @@ def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_ch
     assert actions["escape_second"].output_features == ["external_third"]
     health_signal_producer = next(
         item
-        for item in context.SpecValidationContext.build(parsed_spec).actions
+        for item in traversal.iter_actions(parsed_spec)
         if "health_signal_normalized" in item.outputs
     )
     assert health_signal_producer.kind == "vectorize"
@@ -504,18 +485,11 @@ def test_matching_key_selectors_validate_on_target_and_source(
     path = _write_configuration(tmp_path, configuration, "matching_keys.json")
 
     spec_definition = spec.load_spec(path)
-    indexes = context.SpecValidationContext.build(spec_definition)
-    contract = next(
-        item
-        for item in _action_contracts(spec_definition)
-        if item.action.location.action_id == "conform_values"
-    )
-    assert action_contracts.validate_matching_keys(contract, indexes.dataset) is None
+    assert action_contracts.validate_matching_keys(spec_definition) is None
 
 
 def test_grouping_dimension_references_are_not_matching_key_declarations() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    indexes = context.SpecValidationContext.build(spec_definition)
     contract = next(
         item
         for item in _action_contracts(spec_definition)
@@ -523,7 +497,7 @@ def test_grouping_dimension_references_are_not_matching_key_declarations() -> No
     )
 
     assert contract.action.dimension_references == ("plant", "production_line", "pump")
-    assert action_contracts.validate_matching_keys(contract, indexes.dataset) is None
+    assert action_contracts.validate_matching_keys(spec_definition) is None
 
 
 @pytest.mark.parametrize(
@@ -568,6 +542,9 @@ def test_matching_key_errors_point_to_the_declared_key(
 
 def test_dimension_key_selector_is_not_a_dataframe_value(tmp_path: pathlib.Path) -> None:
     configuration = _matching_key_configuration("$datasets.@.dimensions.ids", key_type="dataframe")
+    function = configuration["functions"]["conform_with_keys"]
+    function["kind"] = "escape"
+    function["returns"] = "any"
     path = _write_configuration(tmp_path, configuration, "dimension_key_dataframe.json")
 
     with pytest.raises(validation_errors.SpecError) as error:
@@ -650,8 +627,7 @@ def test_collapse_validates_source_grouping_and_output_contract(
     ("inputs", "message"),
     [
         ([], "must reference a source feature"),
-        (["$features.health_signal_normalized"], "target dataset"),
-        (["$features.bearing_temperature_max"], "target dataset"),
+        (["$features.local_source"], "target dataset"),
         (["$features.missing"], "unknown input feature"),
         (["$datasets.pump_telemetry_dataset"], "Action features must use"),
     ],
@@ -660,6 +636,7 @@ def test_collapse_validates_explicit_inputs(
     tmp_path: pathlib.Path, inputs: list, message: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration["entities"]["pump"]["datasets"]["pump_dataset"]["features"]["local_source"] = {}
     collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
         "bearing_temperature_by_pump"
     ]
@@ -760,7 +737,7 @@ def test_collapse_rejects_inputs_from_multiple_datasets(
     collapse["features"]["inputs"] = references
     path = tmp_path / "mixed_inputs.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    with pytest.raises(ValueError, match="one dataset; use expand"):
+    with pytest.raises(ValueError, match="inputs must belong to one"):
         spec.load_spec(path)
 
 

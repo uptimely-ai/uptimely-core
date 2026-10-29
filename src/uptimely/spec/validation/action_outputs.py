@@ -3,23 +3,23 @@
 from __future__ import annotations
 
 import collections.abc
+import warnings
 
+from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 
-from .. import functions, selectors
-from . import context as context_module
-from . import errors
+from . import errors, traversal
 
 type OutputDeclaration = tuple[str, str | None]
-type ActionOutputFacts = tuple[context_module.ActionFacts, tuple[OutputDeclaration, ...]]
+type ActionOutputFacts = tuple[traversal.ActionFacts, tuple[OutputDeclaration, ...]]
 type DatasetOutputFacts = tuple[
-    context_module.DatasetLocation, tuple[ActionOutputFacts, ...], tuple[str, ...]
+    traversal.DatasetLocation, tuple[ActionOutputFacts, ...], tuple[str, ...]
 ]
 
 
 def iter_output_datasets(
-    datasets: collections.abc.Iterable[context_module.DatasetLocation],
-    actions: collections.abc.Iterable[context_module.ActionFacts],
+    datasets: collections.abc.Iterable[traversal.DatasetLocation],
+    actions: collections.abc.Iterable[traversal.ActionFacts],
 ) -> collections.abc.Iterator[DatasetOutputFacts]:
     """Yield action outputs and uncovered features for each dataset."""
     actions_by_key = {item.location.key: item for item in actions}
@@ -27,7 +27,7 @@ def iter_output_datasets(
         producers: dict[str, str] = {}
         output_actions: list[ActionOutputFacts] = []
         for action_id in location.dataset.actions:
-            item = actions_by_key[(*location.key, action_id)]
+            item = actions_by_key[*location.key, action_id]
             declarations: list[OutputDeclaration] = []
             if item.kind != functions.WRITE:
                 for feature_id in item.outputs:
@@ -38,131 +38,143 @@ def iter_output_datasets(
         missing = tuple(
             sorted(set(location.dataset.features) - producers.keys() - location.dimensions)
         )
-        yield location, tuple(output_actions), missing
+        yield (location, tuple(output_actions), missing)
 
 
-def validate_output_presence(
-    item: context_module.ActionFacts, action_id: str
-) -> context_module.ValidationResult:
+def validate_output_presence(spec: spec_model.Spec) -> None:
     """Require a producing action to declare at least one output."""
-    if not item.outputs:
-        return ValueError(f"Action {action_id} must declare one or more features")
-    return None
+    for item in traversal.iter_actions(spec):
+        if item.kind == functions.WRITE:
+            continue
+        action_id = item.location.action_id
+        if not item.outputs:
+            raise ValueError(f"Action {action_id} must declare one or more features")
 
 
-def validate_calculation_features(
-    item: context_module.ActionFacts,
-) -> context_module.ValidationResult:
-    """Require calculated outputs to be declared in the target dataset."""
-    unknown = sorted(set(item.outputs) - item.location.dataset.features.keys())
-    if unknown:
-        return ValueError(
-            f"Action {item.location.action.id} references unknown feature: " + ", ".join(unknown)
-        )
-    return None
-
-
-def validate_function_id(item: context_module.ActionFacts) -> context_module.ValidationResult:
+def validate_function_id(spec: spec_model.Spec) -> None:
     """Require a calculation function ID to be nonempty."""
-    if item.function is not None and not item.function.id.strip():
-        return ValueError("Every function must define a non-empty string id")
-    return None
+    for item in traversal.iter_actions(spec):
+        if item.kind != functions.VECTORIZE:
+            continue
+        if item.function is not None and (not item.function.id.strip()):
+            raise ValueError("Every function must define a non-empty string id")
 
 
-def validate_output_names(item: context_module.ActionFacts) -> context_module.ValidationResult:
+def validate_output_names(spec: spec_model.Spec) -> None:
     """Require calculated output names to be nonempty."""
-    if any(not feature.strip() for feature in item.outputs):
-        return ValueError("Every calculation must define a non-empty output feature name")
-    return None
+    for item in traversal.iter_actions(spec):
+        if item.kind != functions.VECTORIZE:
+            continue
+        if any(not feature.strip() for feature in item.outputs):
+            raise ValueError("Every calculation must define a non-empty output feature name")
 
 
-def validate_feature_ownership(duplicate: str | None) -> context_module.ValidationResult:
+def validate_feature_ownership(spec: spec_model.Spec) -> None:
     """Require a unique owner for each non-dimension feature."""
-    if duplicate is not None:
-        return ValueError(f"Duplicate feature name: {duplicate}")
-    return None
+    for feature, owners in traversal.feature_owners(spec).items():
+        if len(owners) > 1:
+            raise ValueError(f"Duplicate feature name: {feature}")
 
 
-def validate_dimension_collision(
-    item: context_module.ActionFacts, dimension_ids: frozenset[str]
-) -> context_module.ValidationResult:
+def validate_dimension_collision(spec: spec_model.Spec) -> None:
     """Reject calculated feature names that collide with dimensions."""
-    collisions = set(item.outputs) & dimension_ids
-    if item.kind == functions.VECTORIZE and collisions:
-        return ValueError(
-            "Calculated feature names cannot duplicate entity dimensions: "
-            + ", ".join(sorted(collisions))
-        )
-    return None
+    dimension_ids = frozenset(spec.dimensions)
+    for item in traversal.iter_actions(spec):
+        collisions = set(item.outputs) & dimension_ids
+        if item.kind == functions.VECTORIZE and collisions:
+            raise ValueError(
+                "Calculated feature names cannot duplicate entity dimensions: "
+                + ", ".join(sorted(collisions))
+            )
 
 
-def validate_function_reference(
-    function_id: str,
-    dataset_id: str,
-    function_catalog: collections.abc.Mapping[str, spec_model.FunctionTemplate],
-    path: context_module.SpecPath,
-) -> context_module.ValidationResult:
+def validate_function_reference(spec: spec_model.Spec) -> None:
     """Require an action's function reference to resolve in the catalog."""
-    if function_id not in function_catalog:
-        return errors.SpecError(
-            f"Dataset {dataset_id} actions reference unknown functions: {function_id}",
-            code="unknown_function_reference",
-            path=path,
-        )
-    return None
+    function_catalog = spec.functions.root
+    for item in traversal.iter_actions(spec):
+        function_id = item.location.action.binding.function
+        dataset_id = item.location.dataset.id
+        path = (*item.location.declaration_path, "binding", "function")
+        if function_id not in function_catalog:
+            raise errors.SpecError(
+                f"Dataset {dataset_id} actions reference unknown functions: {function_id}",
+                code="unknown_function_reference",
+                path=path,
+            )
 
 
-def validate_write_outputs(item: context_module.ActionFacts) -> context_module.ValidationResult:
+def validate_write_outputs(spec: spec_model.Spec) -> None:
     """Reject output features on a write action."""
-    if item.outputs:
-        return ValueError(f"Write action {item.location.action_id} cannot produce features")
-    return None
+    for item in traversal.iter_actions(spec):
+        if item.kind != functions.WRITE:
+            continue
+        if item.outputs:
+            raise ValueError(f"Write action {item.location.action_id} cannot produce features")
 
 
-def validate_output_feature(
-    item: context_module.ActionFacts, feature: str
-) -> context_module.ValidationResult:
+def validate_output_feature(spec: spec_model.Spec) -> None:
     """Require an output feature to be declared in the target dataset."""
-    if feature not in item.location.dataset.features:
-        return ValueError(f"Action {item.location.action_id} references unknown feature: {feature}")
-    return None
+    for item in traversal.iter_actions(spec):
+        if item.kind == functions.WRITE:
+            continue
+        for feature in item.outputs:
+            if feature not in item.location.dataset.features:
+                raise ValueError(
+                    f"Action {item.location.action_id} references unknown feature: {feature}"
+                )
 
 
-def validate_unique_producer(
-    item: context_module.ActionFacts, feature: str, previous: str | None
-) -> context_module.ValidationResult:
+def validate_unique_producer(spec: spec_model.Spec) -> None:
     """Reject multiple producers for a non-dimension feature."""
-    if feature not in item.dimensions and previous is not None:
-        return ValueError(
-            f"Feature {feature} is produced by multiple actions: "
-            f"{previous}, {item.location.action_id}"
-        )
-    return None
+    for _, output_actions, _ in iter_output_datasets(
+        traversal.iter_datasets(spec), traversal.iter_actions(spec)
+    ):
+        for item, declarations in output_actions:
+            if item.kind == functions.WRITE:
+                continue
+            for feature, previous in declarations:
+                if feature not in item.dimensions and previous is not None:
+                    raise ValueError(
+                        f"Feature {feature} is produced by multiple actions: "
+                        f"{previous}, {item.location.action_id}"
+                    )
 
 
-def validate_collapse_output(item: context_module.ActionFacts) -> context_module.ValidationResult:
+def validate_collapse_output(spec: spec_model.Spec) -> None:
     """Require collapse to produce a non-dimension feature."""
-    if item.kind == functions.COLLAPSE and not set(item.outputs) - item.dimensions:
-        return ValueError(
-            f"Collapse action {item.location.action_id} must produce a non-dimension feature"
-        )
-    return None
+    for item in traversal.iter_actions(spec):
+        if item.kind == functions.COLLAPSE and (not set(item.outputs) - item.dimensions):
+            raise ValueError(
+                f"Collapse action {item.location.action_id} must produce a non-dimension feature"
+            )
 
 
-def validate_current_feature_selector(
-    item: context_module.ActionFacts,
-) -> context_module.ValidationResult:
+def validate_current_feature_selector(spec: spec_model.Spec) -> None:
     """Reject ambiguous current-feature selectors on multi-output calculations."""
-    if item.kind not in {functions.VECTORIZE, functions.COLLAPSE}:
-        return None
-    count = (
-        len(set(item.outputs) - item.dimensions)
-        if item.kind == functions.COLLAPSE
-        else len(item.outputs)
-    )
-    if count > 1 and selectors.CURRENT_ID in item.feature_selectors:
-        return ValueError(
-            f"{item.kind.capitalize()} action {item.location.action_id} "
-            "cannot use $features.@ when it produces multiple features"
+    for item in traversal.iter_actions(spec):
+        if item.kind not in {functions.VECTORIZE, functions.COLLAPSE}:
+            continue
+        count = (
+            len(set(item.outputs) - item.dimensions)
+            if item.kind == functions.COLLAPSE
+            else len(item.outputs)
         )
-    return None
+        if count > 1 and selectors.CURRENT_ID in item.feature_selectors:
+            raise ValueError(
+                f"{item.kind.capitalize()} action {item.location.action_id} "
+                "cannot use $features.@ when it produces multiple features"
+            )
+
+
+def warn_unproduced_features(spec: spec_model.Spec) -> None:
+    """Warn when declared dataset features have no action producer."""
+    for location, _, missing in iter_output_datasets(
+        traversal.iter_datasets(spec), traversal.iter_actions(spec)
+    ):
+        if missing:
+            feature_path = ".".join((*location.path, "features"))
+            warnings.warn(
+                f"{feature_path}: Features have no producer action: {', '.join(missing)}",
+                UserWarning,
+                stacklevel=2,
+            )

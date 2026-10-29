@@ -1,4 +1,4 @@
-"""Atomic dimension declaration checks over prepared ancestry facts."""
+"""Atomic dimension reference, ancestry, and entity-membership checks."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import dataclasses
 
 from uptimely.spec import model as spec_model
 
-from . import context as context_module
 from . import errors
 
 
@@ -20,9 +19,7 @@ class DimensionParents:
     cycle: tuple[str, ...]
 
 
-def iter_parent_declarations(
-    model: spec_model.Spec,
-) -> collections.abc.Iterator[DimensionParents]:
+def iter_parent_declarations(model: spec_model.Spec) -> collections.abc.Iterator[DimensionParents]:
     """Yield dimension parent facts in declaration order."""
     for dimension_id, dimension in model.dimensions.items():
         chain: list[str] = []
@@ -44,35 +41,32 @@ def iter_entity_dimensions(
     )
 
 
-def validate_parent(
-    item: DimensionParents, dimension_ids: frozenset[str]
-) -> context_module.ValidationResult:
+def validate_parent(spec: spec_model.Spec) -> None:
     """Require a dimension's parent to be declared."""
-    if item.parent_id is not None and item.parent_id not in dimension_ids:
-        return ValueError(
-            f"Dimension {item.dimension_id} references unknown parent: {item.parent_id}"
-        )
-    return None
+    for dimension_id, dimension in spec.dimensions.items():
+        if dimension.parent is not None and dimension.parent not in spec.dimensions:
+            raise ValueError(
+                f"Dimension {dimension_id} references unknown parent: {dimension.parent}"
+            )
 
 
-def validate_parent_cycle(item: DimensionParents) -> context_module.ValidationResult:
-    """Reject a cycle in a dimension's ancestry."""
-    if item.cycle:
-        return errors.SpecError(
-            "Dimension parent cycle: " + " -> ".join(item.cycle),
-            code="dimension_parent_cycle",
-            path=("dimensions", item.dimension_id, "parent"),
-        )
-    return None
+def validate_parent_cycle(spec: spec_model.Spec) -> None:
+    """Reject a cycle in dimension ancestry after parent references are validated."""
+    for item in iter_parent_declarations(spec):
+        if item.cycle:
+            raise errors.SpecError(
+                "Dimension parent cycle: " + " -> ".join(item.cycle),
+                code="dimension_parent_cycle",
+                path=("dimensions", item.dimension_id, "parent"),
+            )
 
 
-def validate_entity_dimensions(
-    entity_id: str, dimensions: frozenset[str], dimension_ids: frozenset[str]
-) -> context_module.ValidationResult:
+def validate_entity_dimensions(spec: spec_model.Spec) -> None:
     """Require an entity's dimensions to be declared."""
-    if not dimensions.issubset(dimension_ids):
-        return ValueError(
-            f"Entity {entity_id} references unknown dimensions: "
-            + ", ".join(sorted(dimensions - dimension_ids))
-        )
-    return None
+    dimension_ids = frozenset(spec.dimensions)
+    for entity_id, dimensions in iter_entity_dimensions(spec):
+        if not dimensions.issubset(dimension_ids):
+            raise ValueError(
+                f"Entity {entity_id} references unknown dimensions: "
+                + ", ".join(sorted(dimensions - dimension_ids))
+            )

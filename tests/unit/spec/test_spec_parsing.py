@@ -331,10 +331,9 @@ def test_spec_validation_rejects_duplicate_fragment_input_names(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]["actions"][
-        "duplicate_input"
-    ] = {
-        "binding": {"function": "read_pump_telemetry", "args": {}},
+    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
+    dataset["actions"]["duplicate_input"] = {
+        "binding": dataset["actions"]["read_pump_telemetry"]["binding"],
         "features": {"inputs": [], "outputs": ["$features.bearing_temperature"]},
     }
     spec_path = tmp_path / "spec.json"
@@ -401,13 +400,17 @@ def test_spec_validation_rejects_cross_dataset_feature_dependency(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    calculation = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"].pop(
-        "health_signal_normalized"
+    calculation = json.loads(
+        json.dumps(
+            configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
+                "health_signal_normalized"
+            ]
+        )
     )
     calculation["features"]["outputs"] = ["$features.health_signal_normalized_copy"]
-    copied_feature = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["features"].pop(
+    copied_feature = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["features"][
         "health_signal_normalized"
-    )
+    ]
     configuration["entities"]["pump_copy"] = {
         "name": "Pump copy",
         "dimensions": ["pump"],
@@ -424,6 +427,6 @@ def test_spec_validation_rejects_cross_dataset_feature_dependency(
 
     with pytest.raises(
         ValueError,
-        match="use a source resource operation",
+        match="cannot read feature .* from another dataset",
     ):
         spec.load_spec(spec_path)

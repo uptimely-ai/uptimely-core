@@ -1,6 +1,6 @@
 """Public semantic-validation entry points.
 
-The spec coordinator orders read-only domain checks over context-prepared facts.
+Atomic rules accept a spec and raise on failure. The runner orders their prerequisites.
 """
 
 from __future__ import annotations

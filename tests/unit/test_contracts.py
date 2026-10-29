@@ -6,7 +6,6 @@ import pytest
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import bindings
-from uptimely.spec.validation import context as context_module
 from uptimely.spec.validation import functions as validation_functions
 
 
@@ -60,14 +59,8 @@ def test_function_kind_contracts_validate_every_kind(
             }
         }
     )
-    function_id, function, dataframe_inputs = next(validation_functions.iter_functions(model))
-    assert (
-        validation_functions.validate_return_kind(function_id, function, dataframe_inputs) is None
-    )
-    assert (
-        validation_functions.validate_dataframe_count(function_id, function, dataframe_inputs)
-        is None
-    )
+    assert validation_functions.validate_return_kind(model) is None
+    assert validation_functions.validate_dataframe_count(model) is None
 
 
 @pytest.mark.parametrize("dataframe_input_count", [0, 1, 3])
@@ -90,14 +83,8 @@ def test_escape_contract_accepts_any_number_of_dataframe_arguments(
         }
     )
 
-    function_id, function, dataframe_inputs = next(validation_functions.iter_functions(model))
-    assert (
-        validation_functions.validate_return_kind(function_id, function, dataframe_inputs) is None
-    )
-    assert (
-        validation_functions.validate_dataframe_count(function_id, function, dataframe_inputs)
-        is None
-    )
+    assert validation_functions.validate_return_kind(model) is None
+    assert validation_functions.validate_dataframe_count(model) is None
 
 
 def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
@@ -139,27 +126,10 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
         }
     )
 
-    validation_context = context_module.SpecValidationContext.build(model)
-    for item in bindings.iter_bound_actions(validation_context.actions):
-        assert bindings.validate_arguments(item) is None
-        for value, argument_type in bindings.iter_binding_selectors(item):
-            assert (
-                bindings.validate_selector_type(
-                    value,
-                    argument_type,
-                    (*item.location.declaration_path, "binding", "args"),
-                )
-                is None
-            )
-    for function_id, function, dataframe_inputs in validation_functions.iter_functions(model):
-        assert (
-            validation_functions.validate_return_kind(function_id, function, dataframe_inputs)
-            is None
-        )
-        assert (
-            validation_functions.validate_dataframe_count(function_id, function, dataframe_inputs)
-            is None
-        )
+    assert bindings.validate_arguments(model) is None
+    assert bindings.validate_selector_type(model) is None
+    assert validation_functions.validate_return_kind(model) is None
+    assert validation_functions.validate_dataframe_count(model) is None
 
 
 @pytest.mark.parametrize(
@@ -211,12 +181,9 @@ def test_fixed_function_kind_contracts_remain_enforced(
 ) -> None:
     model = spec_model.Spec.model_validate({"functions": {"function": function}})
 
-    function_id, item, dataframe_inputs = next(validation_functions.iter_functions(model))
-    error = validation_functions.validate_return_kind(
-        function_id, item, dataframe_inputs
-    ) or validation_functions.validate_dataframe_count(function_id, item, dataframe_inputs)
-    assert isinstance(error, ValueError)
-    assert expected_error in str(error)
+    with pytest.raises(ValueError, match=expected_error):
+        validation_functions.validate_return_kind(model)
+        validation_functions.validate_dataframe_count(model)
 
 
 def test_function_model_uses_the_shared_kind_contract() -> None:

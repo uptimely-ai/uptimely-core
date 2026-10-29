@@ -2,76 +2,78 @@
 
 from __future__ import annotations
 
-from .. import functions, selectors
-from . import context as context_module
-from . import errors
+from uptimely.spec import functions, selectors
+from uptimely.spec import model as spec_model
+
+from . import errors, traversal
 
 
-def validate_escape_inputs(item: context_module.ActionFacts) -> context_module.ValidationResult:
+def validate_escape_inputs(spec: spec_model.Spec) -> None:
     """Require escape actions to declare feature inputs."""
-    if item.kind == functions.ESCAPE and not item.inputs:
-        return errors.SpecError(
-            "Escape actions must declare one or more input features",
-            code="invalid_mapping_feature_inputs",
-            path=(*item.location.path, "features", "inputs"),
-        )
-    return None
+    for item in traversal.iter_actions(spec):
+        if item.kind == functions.ESCAPE and (not item.inputs):
+            raise errors.SpecError(
+                "Escape actions must declare one or more input features",
+                code="invalid_mapping_feature_inputs",
+                path=(*item.location.path, "features", "inputs"),
+            )
 
 
-def validate_input_feature(
-    item: context_module.ActionFacts, feature: str, feature_names: frozenset[str]
-) -> context_module.ValidationResult:
+def validate_input_feature(spec: spec_model.Spec) -> None:
     """Require an explicit input feature to be declared."""
-    if feature not in feature_names:
-        return ValueError(
-            f"Action {item.location.action.id} references unknown input feature: {feature}"
-        )
-    return None
+    feature_names = traversal.feature_names(spec)
+    for item in traversal.iter_actions(spec):
+        for feature in item.inputs:
+            if feature not in feature_names:
+                raise ValueError(
+                    f"Action {item.location.action.id} references unknown input feature: {feature}"
+                )
 
 
-def validate_input_scope(
-    item: context_module.ActionFacts,
-    feature: str,
-) -> context_module.ValidationResult:
+def validate_input_scope(spec: spec_model.Spec) -> None:
     """Require vectorize and write inputs to belong to the target dataset."""
-    if item.kind in {functions.VECTORIZE, functions.WRITE} and feature not in item.local_features:
-        return ValueError(
-            f"Action {item.location.action.id} cannot read feature {feature} from another dataset"
-        )
-    return None
+    for item in traversal.iter_actions(spec):
+        for feature in item.inputs:
+            if (
+                item.kind in {functions.VECTORIZE, functions.WRITE}
+                and feature not in item.local_features
+            ):
+                raise ValueError(
+                    f"Action {item.location.action.id} cannot read feature {feature} "
+                    "from another dataset"
+                )
 
 
-def validate_feature_reference(
-    item: context_module.ActionFacts, feature: str, feature_names: frozenset[str]
-) -> context_module.ValidationResult:
+def validate_feature_reference(spec: spec_model.Spec) -> None:
     """Require a structural feature reference to be declared."""
-    if feature != selectors.CURRENT_ID and feature not in feature_names:
-        return ValueError(f"Action {item.location.action.id} references unknown feature: {feature}")
-    return None
+    feature_names = traversal.feature_names(spec)
+    for item in traversal.iter_actions(spec):
+        for feature in item.feature_selectors:
+            if feature != selectors.CURRENT_ID and feature not in feature_names:
+                raise ValueError(
+                    f"Action {item.location.action.id} references unknown feature: {feature}"
+                )
 
 
-def validate_dataset_reference(
-    item: context_module.ActionFacts,
-    dataset: str,
-    datasets_by_id: dict[str, tuple[context_module.DatasetLocation, ...]],
-) -> context_module.ValidationResult:
+def validate_dataset_reference(spec: spec_model.Spec) -> None:
     """Require a structural dataset reference to be declared."""
-    if dataset != selectors.CURRENT_ID and dataset not in datasets_by_id:
-        return ValueError(f"Action {item.location.action.id} references unknown dataset: {dataset}")
-    return None
+    datasets_by_id = traversal.dataset_index(spec)
+    for item in traversal.iter_actions(spec):
+        for dataset in item.dataset_references:
+            if dataset != selectors.CURRENT_ID and dataset not in datasets_by_id:
+                raise ValueError(
+                    f"Action {item.location.action.id} references unknown dataset: {dataset}"
+                )
 
 
-def validate_dimension_reference(
-    item: context_module.ActionFacts,
-    dimension: str,
-    dimension_ids: frozenset[str],
-    path: context_module.SpecPath,
-) -> context_module.ValidationResult:
+def validate_dimension_reference(spec: spec_model.Spec) -> None:
     """Require a structural dimension reference to be declared."""
-    if dimension not in dimension_ids:
-        return errors.SpecError(
-            f"Action {item.location.action.id} references unknown dimension: {dimension}",
-            code="unknown_dimension_reference",
-            path=path,
-        )
-    return None
+    dimension_ids = frozenset(spec.dimensions)
+    for item in traversal.iter_actions(spec):
+        for dimension, path in item.dimension_reference_paths:
+            if dimension not in dimension_ids:
+                raise errors.SpecError(
+                    f"Action {item.location.action.id} references unknown dimension: {dimension}",
+                    code="unknown_dimension_reference",
+                    path=path,
+                )

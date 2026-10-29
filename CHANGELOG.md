@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 While the version is `0.x`, minor releases may include breaking changes.
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** Semantic validation rules now accept the spec document directly
+  and raise on failure, replacing prepared-context and diagnostic-generator
+  interfaces. Rules run according to explicit dependencies rather than legacy
+  phase ordering, so documents with multiple faults may report a different
+  first error. Public loading helpers still validate automatically.
+
 ## [0.8.0] - 2026-10-28
 
 ### Added
