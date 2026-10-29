@@ -36,7 +36,7 @@ explore:
 
 | Section | What it shows |
 | --- | --- |
-| **Spec** | An overview of the model, its features, entities, datasets, dimensions, functions, and feature relationships. |
+| **Spec** | An overview of the model, its features, entities, datasets, dimensions, functions, and feature relationships. Function pages include argument, return, raise, and example documentation parsed from implementation docstrings when signature validation is enabled. |
 | **Plan** | The compiled invocations, their dependencies, and the stages used to organize the plan. |
 | **Execution / Data lineage** | A visual walkthrough of how data is assembled after each action. |
 

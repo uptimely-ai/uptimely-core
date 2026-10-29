@@ -879,10 +879,9 @@ wmi = ["wmi (>=1.5.1) ; platform_system == \"Windows\""]
 name = "docstring-parser"
 version = "0.18.0"
 description = "Parse Python docstrings in reST, Google and Numpydoc format"
-optional = true
+optional = false
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"mcp\""
 files = [
     {file = "docstring_parser-0.18.0-py3-none-any.whl", hash = "sha256:b3fcbed555c47d8479be0796ef7e19c2670d428d72e96da63f3a40122860374b"},
     {file = "docstring_parser-0.18.0.tar.gz", hash = "sha256:292510982205c12b1248696f44959db3cdd1740237a968ea1e2e7a900eeb2015"},
@@ -3404,4 +3403,4 @@ s3 = ["boto3"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "8a25065a921821ff7c5ecb3046b8a507c05acf59a143e113816b7dd9df215623"
+content-hash = "6f1aa6e41b63450230f465a23378d115f3798a1b2d1927fc6e169d587d3807f8"

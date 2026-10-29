@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import inspect
 import re
 from collections import abc
 
@@ -40,6 +41,7 @@ class FunctionReference:
     name: str
     kind: functions.FunctionKind | None = None
     validate_signature: bool = True
+    description: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.module, str):
@@ -54,6 +56,8 @@ class FunctionReference:
             raise ValueError(f"Unsupported function kind: {self.kind}")
         if not isinstance(self.validate_signature, bool):
             raise TypeError("validate_signature must be a boolean")
+        if self.description is not None and not isinstance(self.description, str):
+            raise TypeError("Function reference description must be a string")
 
     @property
     def entrypoint(self) -> str:
@@ -61,11 +65,21 @@ class FunctionReference:
         return entrypoint_module.Entrypoint.format(self.module, self.name)
 
 
+def _docstring_summary(function: abc.Callable[..., object]) -> str | None:
+    """Return the docstring summary line of a callable, or None without one."""
+    docstring = inspect.getdoc(function)
+    if not docstring:
+        return None
+    summary = docstring.split("\n\n", 1)[0]
+    return " ".join(summary.split())
+
+
 def function(
     function: abc.Callable[..., object] | str,
     *,
     kind: functions.FunctionKind | None = None,
     validate_signature: bool = True,
+    description: str | None = None,
 ) -> FunctionReference:
     """Reference a callable or a ``module.path:qualname`` entrypoint string.
 
@@ -77,9 +91,12 @@ def function(
             agree with decorated semantics when supplied for a decorated callable.
         validate_signature: Whether compilation and documentation should inspect
             the Python signature and validate implementation contracts.
+        description: Optional explicit function description. Defaults to the
+            docstring summary line when a callable is given.
 
     Returns:
-        A reference containing the module location and function name.
+        A reference containing the module location, function name, and
+        description.
 
     Raises:
         TypeError: If the argument is neither callable nor a string, or
@@ -104,11 +121,14 @@ def function(
                     f"Function kind '{kind}' conflicts with decorated kind '{declared}'"
                 )
             kind = declared
+        if description is None:
+            description = _docstring_summary(function)
     return FunctionReference(
         module=module,
         name=name,
         kind=kind,
         validate_signature=validate_signature,
+        description=description,
     )
 
 

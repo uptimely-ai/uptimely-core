@@ -299,6 +299,12 @@ Conversion preserves it in the function catalog and exported JSON. When
 inspect its signature. Spec-level contracts and declared feature dependencies
 are still validated, and execution still requires a loadable implementation.
 
+Function references also carry a `description` into the function catalog and
+exported JSON. When a callable is referenced, the description defaults to the
+summary line of its docstring; pass `description=` to override it. Entrypoint
+strings have no default because the implementation is not imported while
+loading the spec.
+
 Use an entrypoint string when the implementation must not be imported while
 loading the Python spec:
 

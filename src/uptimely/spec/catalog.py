@@ -15,6 +15,7 @@ def function_template(
     args: dict[str, spec_model.Argument],
     *,
     validate_signature: bool = True,
+    description: str | None = None,
 ) -> spec_model.FunctionTemplate:
     """Create a function template for the spec document from its declarations."""
     return spec_model.FunctionTemplate(
@@ -24,6 +25,7 @@ def function_template(
         entrypoint=entrypoint,
         validate_signature=validate_signature,
         args=args,
+        description=description,
     )
 
 

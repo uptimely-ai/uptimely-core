@@ -5,8 +5,11 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import pathlib
+import re
 import typing
 from importlib import util
+
+import docstring_parser
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely.explorer import render
@@ -131,6 +134,43 @@ def _feature_data(
     return fragment_features, calculated_features, referenced_features, escape_features
 
 
+_SECTION_HEADER_COLON = re.compile(r"^([A-Z][A-Za-z ]*):(\n-+)$", flags=re.MULTILINE)
+
+
+def _parse_docstring(docstring: str) -> dict[str, typing.Any] | None:
+    """Parse a function docstring into template-ready documentation sections.
+
+    Numpy-style section headers that a Google-style linter suffixed with a
+    colon are normalized back before parsing.
+
+    Args:
+        docstring: Cleaned docstring text in any style docstring_parser detects.
+
+    Returns:
+        Documentation sections for the function card, or None when the
+        docstring cannot be parsed.
+    """
+    normalized = _SECTION_HEADER_COLON.sub(r"\1\2", docstring)
+    try:
+        parsed = docstring_parser.parse(normalized)
+    except docstring_parser.ParseError:
+        return None
+    returns = parsed.returns
+    return {
+        "summary": parsed.short_description,
+        "body": parsed.long_description,
+        "params": {parameter.arg_name: parameter.description for parameter in parsed.params},
+        "returns": (returns.description or returns.type_name) if returns else None,
+        "raises": [
+            {"type": error.type_name, "description": error.description} for error in parsed.raises
+        ],
+        "examples": [
+            "\n".join(part for part in (example.snippet, example.description) if part)
+            for example in parsed.examples
+        ],
+    }
+
+
 def _build_context(
     spec_definition: spec_model.Spec,
     include_generated_at: bool,
@@ -188,6 +228,12 @@ def _build_context(
             return_type = function_entrypoint.function.signature.returns
             if return_type:
                 function["return_type"] = return_type
+            docstring = function_entrypoint.function.docstring
+            documentation = _parse_docstring(docstring) if docstring else None
+            if documentation:
+                function["doc"] = documentation
+                if not function.get("description"):
+                    function["description"] = documentation["summary"]
     (
         fragment_features,
         calculated_features,
