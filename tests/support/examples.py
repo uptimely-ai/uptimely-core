@@ -14,7 +14,6 @@ REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 EXAMPLES_ROOT = pathlib.Path(
     os.environ.get("UPTIMELY_TEST_EXAMPLES_ROOT", REPOSITORY_ROOT / "examples")
 )
-_TEMP_ROOTS: list[pathlib.Path] = []
 
 
 class BundleFactory(typing.Protocol):
@@ -60,8 +59,7 @@ def _example_project(example: str, features: tuple[str, ...] | None) -> pathlib.
     source = EXAMPLES_ROOT / example
     if features is None:
         return source
-    root = pathlib.Path(tempfile.mkdtemp(prefix="uptimely-test-example-"))
-    _TEMP_ROOTS.append(root)
+    root = pathlib.Path(tempfile.mkdtemp(prefix="scoped-example-", dir=EXAMPLES_ROOT.parent))
     target = root / example
     shutil.copytree(source, target, ignore=shutil.ignore_patterns("_generated", "__pycache__"))
     project_module.build_project(
@@ -101,10 +99,7 @@ def plan_for_spec(spec_definition: spec.Spec) -> execution_plan.ExecutionPlan:
     return compiler.Compiler().compile(spec_definition)
 
 
-def cleanup() -> None:
-    """Clear session caches and remove scoped example projects."""
+def clear_caches() -> None:
+    """Release cached paths when their owning pytest session ends."""
     prepare_example_projects.cache_clear()
     _example_project.cache_clear()
-    for path in _TEMP_ROOTS:
-        shutil.rmtree(path)
-    _TEMP_ROOTS.clear()

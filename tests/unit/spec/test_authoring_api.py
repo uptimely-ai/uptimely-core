@@ -18,7 +18,9 @@ def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(value) * 2).alias(output))
 
 
-def test_root_authoring_api_compiles_and_executes() -> None:
+def test_root_authoring_api_compiles_and_executes(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
     class CalculatedData(up.Dataset):
         id = "calculated_dataset"
         entity = "measurements"
@@ -60,7 +62,7 @@ def test_root_authoring_api_compiles_and_executes() -> None:
     assert model.functions["double"].args["output"].type == "string"
 
     execution_plan = up.Compiler().compile(model, features=["doubled"])
-    execution = execution_support.engine_for_plan(execution_plan, spec_definition=model).run()
+    execution = engine_for_plan(execution_plan, spec_definition=model).run()
     assert not execution.failures
     result = execution.datasets["calculated_dataset"].sort("id")
     assert result["doubled"].to_list() == [20, 40]

@@ -1,8 +1,7 @@
 """Construct test bundles and engines from hand-authored plans."""
 
 import pathlib
-import shutil
-import tempfile
+import typing
 
 from uptimely import engine as engine_module
 from uptimely import execution_plan, spec
@@ -10,7 +9,29 @@ from uptimely import project as project_module
 from uptimely.spec import model as spec_model
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-_TEMP_ROOTS: list[pathlib.Path] = []
+
+
+class BundleFactory(typing.Protocol):
+    """Create synthetic bundles in test-owned temporary directories."""
+
+    def __call__(
+        self,
+        execution_plan: execution_plan.ExecutionPlan,
+        project_root: pathlib.Path | None = None,
+        spec_definition: spec.Spec | None = None,
+    ) -> project_module.BuildBundle: ...
+
+
+class EngineFactory(typing.Protocol):
+    """Create engines backed by test-owned synthetic bundles."""
+
+    def __call__(
+        self,
+        execution_plan: execution_plan.ExecutionPlan,
+        parameters: dict[str, object] | None = None,
+        project_root: pathlib.Path | None = None,
+        spec_definition: spec.Spec | None = None,
+    ) -> engine_module.Engine: ...
 
 
 def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Spec:
@@ -51,11 +72,12 @@ def bundle_for_plan(
     execution_plan: execution_plan.ExecutionPlan,
     project_root: pathlib.Path | None = None,
     spec_definition: spec.Spec | None = None,
+    *,
+    build_root: pathlib.Path,
 ) -> project_module.BuildBundle:
     """Wrap a plan in a test bundle for engine execution."""
     root = (project_root or REPOSITORY_ROOT).resolve()
-    build_root = pathlib.Path(tempfile.mkdtemp(prefix="uptimely-test-plan-"))
-    _TEMP_ROOTS.append(build_root)
+    build_root.mkdir(parents=True)
     bundle_spec = spec_definition or spec_for_plan(execution_plan)
     spec.write_document(bundle_spec, build_root / "spec.json")
     return project_module.BuildBundle(
@@ -78,24 +100,3 @@ def bundle_for_plan(
         explorer_path=build_root / "explorer",
         execution_plan=execution_plan,
     )
-
-
-def engine_for_plan(
-    execution_plan: execution_plan.ExecutionPlan,
-    parameters: dict[str, object] | None = None,
-    project_root: pathlib.Path | None = None,
-    spec_definition: spec.Spec | None = None,
-) -> engine_module.Engine:
-    """Create an engine for a plan using test runtime defaults."""
-    return engine_module.Engine(
-        bundle_for_plan(execution_plan, project_root, spec_definition),
-        engine_module.EngineConfig(),
-        parameters,
-    )
-
-
-def cleanup() -> None:
-    """Remove temporary test bundles created during this session."""
-    for path in _TEMP_ROOTS:
-        shutil.rmtree(path)
-    _TEMP_ROOTS.clear()

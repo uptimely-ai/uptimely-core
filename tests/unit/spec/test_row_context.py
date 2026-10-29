@@ -272,7 +272,9 @@ def test_directional_context_requires_dataset_order():
     _spec(authoring.dataset(), ordered=False)
 
 
-def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Path):
+def test_spec_plan_execution_and_explorer_preserve_context(
+    tmp_path: pathlib.Path, engine_for_plan: execution_support.EngineFactory
+) -> None:
     context = authoring.time(
         "24h", dimension=ref.dimension("timestamp"), before="24h", after="2h"
     ).row_context
@@ -289,7 +291,7 @@ def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Pat
     assert operation.input_features == ["temperature"]
     assert operation.row_context == context
     portable = uptimely_plan.from_dict(uptimely_plan.to_dict(compiled))
-    result = execution_support.engine_for_plan(portable, spec_definition=restored).run()
+    result = engine_for_plan(portable, spec_definition=restored).run()
     assert not result.failures
     frame = result.datasets["observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
@@ -313,6 +315,7 @@ def test_all_data_mappings_preserve_annotated_context(operation):
 
 def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     tmp_path: pathlib.Path,
+    engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     context = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h").row_context
     spec_definition = _spec(context)
@@ -361,7 +364,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     plan_path = uptimely_plan.export_json(plan, tmp_path / "plan.json")
     restored_plan = uptimely_plan.from_json(plan_path)
     assert restored_plan == plan
-    result = execution_support.engine_for_plan(restored_plan, spec_definition=restored_spec).run()
+    result = engine_for_plan(restored_plan, spec_definition=restored_spec).run()
     assert not result.failures
     frame = next(iter(result.datasets.values()))
     assert frame["result"].to_list() == [11, 21]
@@ -384,7 +387,9 @@ def test_plan_context_is_present_in_portable_operations() -> None:
     assert operation.row_context == authoring.current()
 
 
-def test_collapse_functions_execute_without_row_context() -> None:
+def test_collapse_functions_execute_without_row_context(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
     source = dataset.Dataset(
         id="observations",
         producers=[
@@ -443,6 +448,6 @@ def test_collapse_functions_execute_without_row_context() -> None:
     assert "row_context" not in payload["binding"]
     restored = uptimely_plan.from_dict(json.loads(json.dumps(uptimely_plan.to_dict(plan))))
     assert restored == plan
-    result = execution_support.engine_for_plan(restored, spec_definition=spec_definition).run()
+    result = engine_for_plan(restored, spec_definition=spec_definition).run()
     assert not result.failures
     assert result.datasets["summary"]["temperature_max"].to_list() == [20]

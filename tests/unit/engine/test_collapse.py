@@ -191,14 +191,16 @@ def _spec(*, lazy=False, empty=False):
 
 
 @pytest.mark.parametrize("lazy", [False, True])
-def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
+def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(
+    lazy, engine_for_plan: execution_support.EngineFactory
+):
     spec_definition = _spec(lazy=lazy)
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
     assert not any("unneeded" in item.output_features for item in plan.invocations)
     collapse = next(item for item in plan.invocations if item.function_kind == "collapse")
     assert collapse.input_features == ["value", "doubled"]
     assert len(collapse.dependency_ids) == 2
-    result = execution_support.engine_for_plan(plan, spec_definition=spec_definition).run()
+    result = engine_for_plan(plan, spec_definition=spec_definition).run()
     assert not result.failures
     frame = result.datasets["summary"]
     if isinstance(frame, pl.LazyFrame):
@@ -209,7 +211,9 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(lazy):
     ]
 
 
-def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys() -> None:
+def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
     group = dimension.Dimension(id="group", type="string")
     target = dataset.Dataset(
         id="target",
@@ -275,7 +279,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys()
     assert stage_by_id[source_read.id] < stage_by_id[conform_invocation.id]
     assert stage_by_id[target_read.id] < stage_by_id[conform_invocation.id]
 
-    result = execution_support.engine_for_plan(portable, spec_definition=spec_definition).run()
+    result = engine_for_plan(portable, spec_definition=spec_definition).run()
 
     assert result.failures == {}
     assert set(result.invocation_statuses.values()) == {"succeeded"}
@@ -307,14 +311,16 @@ def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> Non
 
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("empty", [False, True])
-def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path):
+def test_chained_global_collapses_round_trip(
+    lazy, empty, tmp_path: pathlib.Path, engine_for_plan: execution_support.EngineFactory
+):
     spec_definition = _spec(lazy=lazy, empty=empty)
     path = tmp_path / "spec.json"
     spec.write_document(spec_definition, path)
     restored = spec.load_spec(path)
     plan = compiler.Compiler().compile(restored)
     portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
-    result = execution_support.engine_for_plan(portable, spec_definition=restored).run()
+    result = engine_for_plan(portable, spec_definition=restored).run()
     assert not result.failures
     frame = result.datasets["global"]
     if isinstance(frame, pl.LazyFrame):
@@ -324,7 +330,9 @@ def test_chained_global_collapses_round_trip(lazy, empty, tmp_path: pathlib.Path
 
 
 @pytest.mark.parametrize("lazy", [False, True])
-def test_collapse_consumes_expanded_features(lazy):
+def test_collapse_consumes_expanded_features(
+    lazy, engine_for_plan: execution_support.EngineFactory
+):
     spec_definition = _spec(lazy=lazy)
     spec_definition.entities.pop("global")
     source = spec_definition.entities["observation"].datasets["observations"]
@@ -407,7 +415,7 @@ def test_collapse_consumes_expanded_features(lazy):
             "columns": spec_model.Argument(id="columns", type="array[string]"),
         },
     )
-    result = execution_support.engine_for_plan(
+    result = engine_for_plan(
         compiler.Compiler().compile(spec_definition, features=["combined_maximum"]),
         spec_definition=spec_definition,
     ).run()
@@ -431,7 +439,9 @@ def test_collapse_consumes_expanded_features(lazy):
         ("duplicate", "duplicate dimension keys"),
     ],
 )
-def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
+def test_collapse_rejects_invalid_returns(
+    monkeypatch, shape, message, engine_for_plan: execution_support.EngineFactory
+):
     spec_definition = _spec()
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
     original = summarize
@@ -447,16 +457,16 @@ def test_collapse_rejects_invalid_returns(monkeypatch, shape, message):
         return frame.drop("average") if shape == "missing" else pl.concat([frame, frame])
 
     monkeypatch.setattr(f"{__name__}.summarize", invalid)
-    result = execution_support.engine_for_plan(plan, spec_definition=spec_definition).run()
+    result = engine_for_plan(plan, spec_definition=spec_definition).run()
     assert message in next(iter(result.failures.values()))
     assert "summary" not in result.datasets
 
 
 @pytest.mark.parametrize("lazy", [False, True])
-def test_collapse_preserves_null_group_keys(lazy):
+def test_collapse_preserves_null_group_keys(lazy, engine_for_plan: execution_support.EngineFactory):
     spec_definition = _spec(lazy=lazy)
     spec_definition.functions["read_values"].entrypoint = f"{__name__}:read_null_groups"
-    result = execution_support.engine_for_plan(
+    result = engine_for_plan(
         compiler.Compiler().compile(spec_definition, features=["maximum"]),
         spec_definition=spec_definition,
     ).run()

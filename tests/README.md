@@ -42,6 +42,16 @@ The factories prepare the shared examples before the test body runs, so tests
 can safely patch compilation or building afterward. Direct helper calls remain
 appropriate when testing the helpers themselves.
 
+For hand-authored execution plans, request `bundle_for_plan` or `engine_for_plan`
+as factory fixtures. Each call creates a separate bundle beneath the test's
+`tmp_path`, managed by pytest's temporary-directory retention policy. The support
+modules do not track synthetic bundles in global cleanup lists.
+
+The shared full example and cached scoped builds live beneath one session-owned
+directory, removed by registered pytest cleanup after workers finish. Example
+paths and environment overrides are restored at session cleanup, including when
+collection fails.
+
 Tests that read files directly under `EXAMPLES_ROOT` must request the
 `example_projects` fixture, either as an argument or with
 `@pytest.mark.usefixtures("example_projects")`. Do not read generated artifacts

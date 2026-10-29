@@ -5,9 +5,32 @@ from concurrent import futures
 
 import pytest
 from support import examples as example_support
+from support import execution as execution_support
 from support import rendering as rendering_support
 
 from uptimely import compiler, execution_plan, project, spec
+
+
+def test_synthetic_bundle_factory_uses_independent_test_owned_directories(
+    tmp_path: pathlib.Path,
+    pump_bundle: project.BuildBundle,
+    bundle_for_plan: execution_support.BundleFactory,
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    first = bundle_for_plan(pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition)
+    second = bundle_for_plan(
+        pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
+    )
+    engine = engine_for_plan(
+        pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
+    )
+
+    assert first.root != second.root
+    assert first.root.parent == second.root.parent == tmp_path
+    assert first.spec_path.is_file()
+    assert second.spec_path.is_file()
+    assert engine.plan is pump_bundle.execution_plan
+    assert len(list(tmp_path.glob("bundle-*/spec.json"))) == 3
 
 
 def test_pump_bundle_is_reused_within_test_and_not_shared_with_factory_results(
