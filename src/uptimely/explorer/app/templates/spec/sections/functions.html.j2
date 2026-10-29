@@ -1,122 +1,239 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
-{% macro function_card(function_id, function, category=none) %}
-<article class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-  {% if category %}<p class="mb-2 font-mono text-[10px] uppercase tracking-wider text-cyan-300">{{ category }} function</p>{% endif %}
-  <div class="flex items-start justify-between gap-4">
-    <div>
-      {% set function_heading = "h3" %}
-      <{{ function_heading }} class="break-words font-display text-lg font-semibold text-white">{{ function_id }}</{{ function_heading }}>
-      <p class="mt-2 text-xs text-lime-300">declared returns {{ function.declared_returns }}{% if function.signature_validation_disabled %} · Python signature validation disabled{% elif function.return_type %} · Python signature returns {{ function.return_type }}{% endif %}</p>
-    </div>
+{% set kind_meta = {
+  "read": {"icon": "database", "label": "Read", "blurb": "Reads external observations into a dataset."},
+  "conform": {"icon": "shuffle", "label": "Conform", "blurb": "Adapts a same-dimension foreign dataset to the target row scope."},
+  "expand": {"icon": "expand", "label": "Expand", "blurb": "Transfers observations from a lower-dimensional foreign dataset."},
+  "collapse": {"icon": "combine", "label": "Collapse", "blurb": "Calculates features from a higher-dimensional foreign dataset, grouped by the target entity dimensions."},
+  "vectorize": {"icon": "wand-sparkles", "label": "Vectorize", "blurb": "Calculates new features row by row while preserving observation keys."},
+  "write": {"icon": "send", "label": "Write", "blurb": "Persists or evaluates selected data outside the workflow."},
+  "escape": {"icon": "arrow-up-right", "label": "Escape", "blurb": "Uncontrolled operations with external effects."}
+} %}
+{% set default_kind_meta = {"icon": "braces", "label": none, "blurb": "Function group."} %}
+{% set returns_meta = {
+  "dataframe": {"label": "A data table", "note": none},
+  "none": {"label": "Nothing", "note": "Results are delivered, not returned"},
+  "any": {"label": "External result", "note": "Return value is ignored"}
+} %}
+{# Miniature infographic palette echoing the documentation concept illustrations. #}
+{% set mini_key = "#475569" %}
+{% set mini_feature = "#22d3ee" %}
+{% set mini_foreign = "#a78bfa" %}
+{% set mini_result = "#fbbf24" %}
+{% macro mini_table(x, y, rows) %}
+{%- for row in rows %}{% set row_index = loop.index0 %}{% for fill in row %}<rect x="{{ x + loop.index0 * 17 }}" y="{{ y + row_index * 10 }}" width="14" height="7" rx="2" fill="{{ fill }}"/>{% endfor %}{% endfor %}
+{%- endmacro %}
+{% macro mini_arrow(x, y) %}<path d="M{{ x }} {{ y }}h14m-4.5-4.5 4.5 4.5-4.5 4.5" stroke="#64748b" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>{% endmacro %}
+{% macro kind_minigraphic(group_name) %}
+<svg viewBox="0 0 150 44" class="h-11 w-auto" aria-hidden="true" focusable="false">
+{%- if group_name == "read" %}
+  <ellipse cx="30" cy="11" rx="15" ry="5" fill="none" stroke="{{ mini_key }}" stroke-width="1.5"/>
+  <path d="M15 11v21c0 2.8 6.7 5 15 5s15-2.2 15-5V11" fill="none" stroke="{{ mini_key }}" stroke-width="1.5"/>
+  <path d="M15 22c0 2.8 6.7 5 15 5s15-2.2 15-5" fill="none" stroke="{{ mini_key }}" stroke-width="1.5"/>
+  {{ mini_arrow(62, 22) }}
+  {{ mini_table(94, 7, [[mini_key, mini_feature, mini_feature], [mini_key, mini_feature, mini_feature], [mini_key, mini_feature, mini_feature]]) }}
+{%- elif group_name == "conform" %}
+  {{ mini_table(14, 2, [[mini_key ~ "66", mini_foreign ~ "55"], [mini_key, mini_foreign], [mini_key, mini_foreign], [mini_key ~ "66", mini_foreign ~ "55"]]) }}
+  {{ mini_arrow(62, 22) }}
+  {{ mini_table(98, 12, [[mini_key, mini_foreign], [mini_key, mini_foreign]]) }}
+{%- elif group_name == "expand" %}
+  {{ mini_table(14, 19, [[mini_key, mini_foreign]]) }}
+  {{ mini_arrow(62, 22) }}
+  {{ mini_table(94, 7, [[mini_key, mini_key, mini_foreign], [mini_key, mini_key, mini_foreign], [mini_key, mini_key, mini_foreign]]) }}
+{%- elif group_name == "collapse" %}
+  {{ mini_table(14, 7, [[mini_key, mini_key, mini_feature], [mini_key, mini_key, mini_feature], [mini_key, mini_key, mini_feature]]) }}
+  {{ mini_arrow(62, 22) }}
+  {{ mini_table(98, 19, [[mini_key, mini_result]]) }}
+{%- elif group_name == "vectorize" %}
+  {{ mini_table(14, 7, [[mini_key, mini_feature], [mini_key, mini_feature], [mini_key, mini_feature]]) }}
+  {{ mini_arrow(62, 22) }}
+  {{ mini_table(94, 7, [[mini_key, mini_feature, mini_result], [mini_key, mini_feature, mini_result], [mini_key, mini_feature, mini_result]]) }}
+{%- elif group_name == "write" %}
+  {{ mini_table(14, 7, [[mini_key, mini_result], [mini_key, mini_result], [mini_key, mini_result]]) }}
+  {{ mini_arrow(62, 22) }}
+  <g transform="translate(97 10)" fill="none" stroke="{{ mini_feature }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m22 2-7 20-4-9-9-4Z"/>
+    <path d="M22 2 11 13"/>
+  </g>
+{%- elif group_name == "escape" %}
+  {{ mini_table(14, 7, [[mini_key, mini_feature], [mini_key, mini_feature], [mini_key, mini_feature]]) }}
+  {{ mini_arrow(62, 22) }}
+  <rect x="96" y="9" width="26" height="26" rx="7" fill="none" stroke="{{ mini_foreign }}" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <path d="m104 27 10-10m-6 0h6v6" fill="none" stroke="{{ mini_foreign }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+{%- else %}
+  {{ mini_table(14, 7, [[mini_key, mini_feature], [mini_key, mini_feature], [mini_key, mini_feature]]) }}
+  {{ mini_arrow(62, 22) }}
+  {{ mini_table(94, 7, [[mini_key, mini_feature], [mini_key, mini_feature], [mini_key, mini_feature]]) }}
+{%- endif %}
+</svg>
+{% endmacro %}
+{% macro function_card(function_id, function, group_name) %}
+{% set meta = kind_meta.get(group_name, default_kind_meta) %}
+{% set is_escape = function.kind == "escape" %}
+{% set accent_chip = "border-violet-400/30 bg-violet-400/10 text-violet-200" if is_escape else "border-cyan-400/30 bg-cyan-400/10 text-cyan-200" %}
+{% set returns_info = returns_meta.get(function.declared_returns, {"label": function.declared_returns, "note": none}) %}
+{% set usage_count = function.action_usage_count or 0 %}
+<article class="rounded-3xl border border-slate-800/80 bg-slate-900/50 p-6 shadow-lg shadow-slate-950/40 sm:p-10">
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
+    {% set function_heading = "h3" %}
+    <{{ function_heading }} class="min-w-0 break-words font-display text-2xl font-semibold tracking-tight text-white">{{ function_id }}</{{ function_heading }}>
+    <span class="ml-auto flex flex-wrap items-center gap-2">
+      <span class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[.14em] {{ accent_chip }}">
+        <i data-lucide="{{ meta.icon }}" class="h-3 w-3" aria-hidden="true"></i>{{ group_name }}
+      </span>
+      <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-700/70 bg-slate-900/70 px-3 py-1 font-mono text-[10px] uppercase tracking-[.14em] {{ "text-slate-300" if usage_count else "text-slate-500" }}">
+        <i data-lucide="workflow" class="h-3 w-3" aria-hidden="true"></i>{{ usage_count }} action{{ "s" if usage_count != 1 }}
+      </span>
+    </span>
   </div>
-  <p class="mt-4 text-sm leading-6 text-slate-400">{{ function.description or "No description provided." }}</p>
+  <p class="mt-4 max-w-3xl text-base leading-7 text-slate-300">{{ function.description or "No description provided." }}</p>
   {% if function.doc and function.doc.body %}
-  <p class="mt-2 text-sm leading-6 text-slate-400">{{ function.doc.body }}</p>
+  <p class="mt-3 max-w-3xl text-sm leading-7 text-slate-400">{{ function.doc.body }}</p>
   {% endif %}
-  {% if function.kind == "escape" %}
-  <p class="mt-3 rounded-lg border border-violet-900/60 bg-violet-950/30 p-3 text-xs leading-5 text-violet-200">Uncontrolled external operation. Its Python return value is ignored; declared outputs are not verified or materialized as dataframe columns.</p>
-  {% if function.escape_actions %}
-  <div class="mt-4 space-y-3">
-    <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Declared feature boundaries</p>
-    {% for action in function.escape_actions %}
-    <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3 font-mono text-xs text-slate-300">
-      <p>{{ action.entity }} / {{ action.dataset }} · {{ action.action }}</p>
-      <p class="mt-1">Inputs: {{ action.inputs|join(", ") or "none" }}</p>
-      <p>External outputs: {{ action.outputs|join(", ") or "none" }}</p>
+  {% if function.doc and function.doc.examples %}
+  <div class="mt-10 space-y-8">
+    {% for example in function.doc.examples %}
+    <div>
+      <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">Example{% if function.doc.examples|length > 1 %} {{ loop.index }}{% endif %}</h4>
+      <pre class="mt-3 overflow-x-auto rounded-xl bg-slate-950/60 p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">{{ example }}</code></pre>
     </div>
     {% endfor %}
   </div>
   {% endif %}
-  {% endif %}
-  {% if function.signature_validation_disabled %}
-  <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/80 p-3 font-mono text-xs text-slate-200">
-    <div class="mb-2 text-slate-500">Declared arguments</div>
-    {% if function.args %}
-      {% for argument_id, argument in function.args.items() %}
-        <div><span class="text-cyan-200">{{ argument_id }}</span><span class="text-slate-500">: </span><span class="text-lime-300">{{ argument.type or "unspecified" }}</span></div>
+  {% if function.kind == "escape" %}
+  <p class="mt-10 flex items-start gap-2.5 text-sm leading-6 text-violet-200/90">
+    <i data-lucide="triangle-alert" class="mt-1 h-4 w-4 shrink-0 text-violet-300" aria-hidden="true"></i>
+    Uncontrolled external operation: the return value is ignored and declared outputs are not verified.
+  </p>
+  {% if function.escape_actions %}
+  <div class="mt-10">
+    <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">Used by actions</h4>
+    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Each action sends the listed input features to the external workflow and declares the external outputs it produces. The engine does not verify the declared outputs.</p>
+    <div class="mt-2 divide-y divide-slate-800/60">
+      {% for action in function.escape_actions %}
+      <div class="py-4">
+        <p class="font-mono text-xs font-medium text-slate-200">{{ action.entity }} / {{ action.dataset }} · {{ action.action }}</p>
+        <p class="mt-2 font-mono text-xs leading-5 text-slate-400">Sends input features: {{ action.inputs|join(", ") or "none" }}</p>
+        <p class="mt-1 font-mono text-xs leading-5 text-violet-300">Declares external outputs: {{ action.outputs|join(", ") or "none" }}</p>
+      </div>
       {% endfor %}
-    {% else %}
-      <div class="text-slate-400">None</div>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+  {% if function.args %}
+  <div class="mt-10">
+    <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">{{ "Declared arguments" if function.signature_validation_disabled else "Arguments" }}</h4>
+    <dl class="mt-2 divide-y divide-slate-800/60">
+      {% for argument_id, argument in function.args.items() %}
+      <div class="grid gap-x-10 gap-y-1.5 py-4 sm:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
+        <dt class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span class="font-mono text-sm font-medium text-cyan-200">{{ argument_id }}</span>
+          <span class="rounded-md border border-lime-400/20 bg-lime-400/5 px-2 py-0.5 font-mono text-[11px] text-lime-300">{{ argument.type or "unspecified" }}</span>
+        </dt>
+        {% set argument_doc = function.doc.params.get(argument_id) if function.doc else none %}
+        <dd class="text-sm leading-6 {{ "text-slate-400" if argument_doc or argument.comment else "text-slate-600" }}">{{ argument_doc or argument.comment or "—" }}</dd>
+      </div>
+      {% endfor %}
+    </dl>
+  </div>
+  {% endif %}
+  {% set doc_returns = function.doc.returns if function.doc else none %}
+  {% set doc_raises = function.doc.raises if function.doc else none %}
+  {% if doc_returns or function.return_type %}
+  <div class="mt-10">
+    <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">Returns</h4>
+    {% if function.return_type %}
+    <p class="mt-3 font-mono text-xs text-lime-300">-&gt; {{ function.return_type }}</p>
+    {% endif %}
+    {% if doc_returns %}
+    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-300">{{ doc_returns }}</p>
+    {% elif not function.return_type %}
+    <p class="mt-3 max-w-3xl text-sm leading-6 text-slate-300">{{ returns_info.label }}{% if returns_info.note %} — {{ returns_info.note|lower }}{% endif %}</p>
     {% endif %}
   </div>
-  {% else %}
-  <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/80 p-3 font-mono text-xs text-slate-200">
-    <div class="text-slate-500">def <span class="text-white">{{ function_id }}</span>(</div>
-    {% if function.args %}
-      {% for argument_id, argument in function.args.items() %}
-        <div class="pl-4"><span class="text-cyan-200">{{ argument_id }}</span><span class="text-slate-500">: </span><span class="text-lime-300">{{ argument.type or "unspecified" }}</span>{% if not loop.last %}<span class="text-slate-500">,</span>{% endif %}</div>
-        {% if function.doc and function.doc.params.get(argument_id) %}
-        <div class="whitespace-normal pl-8 font-sans text-[11px] leading-4 text-slate-500">{{ function.doc.params[argument_id] }}</div>
-        {% endif %}
+  {% endif %}
+  {% if doc_raises %}
+  <div class="mt-10">
+    <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">Raises</h4>
+    <ul class="mt-3 space-y-2">
+      {% for error in doc_raises %}
+      <li class="text-sm leading-6 text-slate-300"><span class="font-mono text-amber-300">{{ error.type }}</span>{% if error.description %}<span class="text-slate-400"> — {{ error.description }}</span>{% endif %}</li>
       {% endfor %}
-    {% else %}
-      <div class="pl-4 text-slate-400">pass</div>
-    {% endif %}
-    <div class="text-slate-500">)</div>
-    {% if function.return_type %}<div class="mt-1 text-lime-300">-&gt; {{ function.return_type }}</div>{% endif %}
+    </ul>
   </div>
-  {% if function.doc %}
-    {% if function.doc.returns %}
-    <div class="mt-4">
-      <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Returns</p>
-      <p class="mt-1 text-xs leading-5 text-slate-400">{{ function.doc.returns }}</p>
-    </div>
-    {% endif %}
-    {% if function.doc.raises %}
-    <div class="mt-4">
-      <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Raises</p>
-      {% for error in function.doc.raises %}
-      <p class="mt-1 text-xs leading-5 text-slate-400"><span class="font-mono text-amber-300">{{ error.type }}</span>{% if error.description %} — {{ error.description }}{% endif %}</p>
-      {% endfor %}
-    </div>
-    {% endif %}
-    {% if function.doc.examples %}
-    <div class="mt-4">
-      <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Examples</p>
-      {% for example in function.doc.examples %}
-      <pre class="mt-2 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950/80 p-3 font-mono text-[11px] leading-5 text-slate-300">{{ example }}</pre>
-      {% endfor %}
-    </div>
-    {% endif %}
   {% endif %}
-  {% endif %}
-  {% if function.entrypoint %}
-    <div class="mt-5 border-t border-slate-800 pt-4">
-      <p class="font-mono text-[10px] uppercase tracking-[.16em] text-slate-500">source</p>
-      <a href="{{ function.entrypoint_file or function.entrypoint }}" class="mt-2 flex min-w-0 items-center gap-2 font-mono text-xs text-cyan-200 transition hover:text-cyan-100" target="_blank" rel="noreferrer">
-        <i data-lucide="external-link" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></i>
-        <span class="truncate">{{ function.entrypoint }}</span>
-      </a>
-    </div>
+  {% if function.entrypoint or function.signature_validation_disabled %}
+  <div class="mt-10 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-slate-800/60 pt-5">
+    {% if function.entrypoint %}
+    <a href="{{ function.entrypoint_file or function.entrypoint }}" class="group inline-flex min-w-0 max-w-full items-center gap-2.5" target="_blank" rel="noreferrer">
+      <i data-lucide="file-code-2" class="h-3.5 w-3.5 shrink-0 text-cyan-300" aria-hidden="true"></i>
+      <span class="truncate font-mono text-xs text-slate-400 transition group-hover:text-cyan-100">{{ function.entrypoint }}</span>
+      <i data-lucide="arrow-up-right" class="h-3 w-3 shrink-0 text-slate-600 transition group-hover:text-cyan-300" aria-hidden="true"></i>
+    </a>
+    {% endif %}
+    {% if function.signature_validation_disabled %}
+    <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-amber-200"><i data-lucide="shield-off" class="h-3 w-3" aria-hidden="true"></i>Python signature validation disabled</span>
+    {% endif %}
+  </div>
   {% endif %}
 </article>
 {% endmacro %}
-<section id="functions" class="mb-16">
+<section id="functions" class="mb-24">
   {{ section_header("Functions", "Browse the function catalog, argument types, return signatures, and source entrypoints.", count=summary.function_count, count_label="functions") }}
+  {% set chart_max = function_groups.values()|map("length")|max %}
+  <div aria-label="Function kinds" class="mb-14 rounded-2xl border border-slate-800 bg-slate-900/75 p-5 sm:p-6">
+    <div class="mb-5 flex items-baseline justify-between gap-4">
+      <h2 class="font-display text-lg font-semibold text-white">Functions by kind</h2>
+      <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">total {{ summary.function_count }}</span>
+    </div>
+    <div class="space-y-1.5">
+      {% for group_name, group in function_groups.items() %}
+      {% set meta = kind_meta.get(group_name, default_kind_meta) %}
+      {% set value = group|length %}
+      {% set nav_accent = "text-violet-300" if group_name == "escape" else "text-cyan-300" %}
+      {% set bar_color = "bg-violet-400" if group_name == "escape" else "bg-cyan-400" %}
+      {% if value %}
+      <a href="#functions-{{ group_name }}" class="group grid grid-cols-[7.5rem_minmax(0,1fr)_2.5rem] items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-800/50">
+        <span class="flex items-center gap-2 font-mono text-xs text-slate-400 transition group-hover:text-slate-200"><i data-lucide="{{ meta.icon }}" class="h-3.5 w-3.5 {{ nav_accent }}" aria-hidden="true"></i>{{ group_name }}</span>
+        <span class="h-2 overflow-hidden rounded-full bg-slate-800"><span class="block h-full rounded-full {{ bar_color }}" style="width: {{ (value / chart_max * 100) if chart_max else 0 }}%"></span></span>
+        <span class="text-right font-mono text-xs text-white">{{ value }}</span>
+      </a>
+      {% else %}
+      <div class="grid grid-cols-[7.5rem_minmax(0,1fr)_2.5rem] items-center gap-3 px-2 py-2 opacity-45">
+        <span class="flex items-center gap-2 font-mono text-xs text-slate-500"><i data-lucide="{{ meta.icon }}" class="h-3.5 w-3.5" aria-hidden="true"></i>{{ group_name }}</span>
+        <span class="h-2 rounded-full bg-slate-800"></span>
+        <span class="text-right font-mono text-xs text-slate-500">0</span>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
   {% for group_name, group in function_groups.items() %}
     {% set ordered_functions = group.items() | list %}
     {% if ordered_functions %}
-      <div class="mb-8">
-        {% set group_icons = {"read": "database", "write": "send", "escape": "arrow-up-right", "vectorize": "wand-sparkles", "collapse": "combine", "expand": "expand", "conform": "shuffle"} %}
-        <div data-function-group="{{ group_name }}" class="mb-4 flex items-center justify-between gap-4 rounded-2xl border border-cyan-900/60 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/50 px-4 py-3 shadow-lg shadow-cyan-950/10">
-          <div class="flex items-center gap-3">
-            <span class="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-800/70 bg-cyan-950/60 text-cyan-300">
-              <i data-lucide="{{ group_icons.get(group_name, 'braces') }}" class="h-5 w-5" aria-hidden="true"></i>
-            </span>
-            <div>
+      {% set meta = kind_meta.get(group_name, default_kind_meta) %}
+      {% set group_accent = "border-violet-400/25 bg-violet-400/10 text-violet-300" if group_name == "escape" else "border-cyan-400/25 bg-cyan-400/10 text-cyan-300" %}
+      <div id="functions-{{ group_name }}" data-function-group="{{ group_name }}" class="mb-20 scroll-mt-24">
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-4 border-b border-slate-800/70 pb-6">
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-x-3.5 gap-y-1.5">
               {% set group_heading = "h2" %}
-              <{{ group_heading }} class="font-display text-xl font-semibold tracking-tight text-white">{{ group_name|title }}</{{ group_heading }}>
-              <p class="mt-0.5 text-xs text-slate-400">{{ "Functions wrapped in grouping by the target entity dimensions" if group_name == "collapse" else "Uncontrolled operations with external effects" if group_name == "escape" else "Function group" }}</p>
+              <{{ group_heading }} class="font-display text-2xl font-semibold tracking-tight text-white">{{ meta.label or group_name|title }}</{{ group_heading }}>
+              <span class="rounded-full border px-3 py-1 font-mono text-xs font-semibold tracking-wide {{ group_accent }}">{{ ordered_functions|length }} function{{ "s" if ordered_functions|length != 1 }}</span>
             </div>
+            <p class="mt-1.5 max-w-2xl text-sm leading-6 text-slate-400">{{ meta.blurb }}</p>
           </div>
-          <span class="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-cyan-200">{{ ordered_functions|length }} functions</span>
+          <div class="hidden shrink-0 md:block" aria-hidden="true">{{ kind_minigraphic(group_name) }}</div>
         </div>
-        <div class="grid gap-5 lg:grid-cols-2">
+        <div class="mt-10 space-y-10">
           {% for function_id, function in ordered_functions %}
-            {{ function_card(function_id, function, "Collapse" if group_name == "collapse" else none) }}
+            {{ function_card(function_id, function, group_name) }}
           {% endfor %}
         </div>
       </div>
     {% endif %}
   {% endfor %}
 </section>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<script src="{{ root_path or "" }}js/code_highlight.js"></script>

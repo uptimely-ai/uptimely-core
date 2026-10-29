@@ -45,7 +45,7 @@ def test_numpy_docstring_parses_into_documentation_sections() -> None:
         {"type": "ValueError", "description": "If the ordering column is missing."}
     ]
     assert documentation["examples"] == [
-        '>>> frame = make_frame()\n>>> delta(frame, "ts").collect()["delta"].to_list()\n[None, 1.5]'
+        'frame = make_frame()\ndelta(frame, "ts").collect()["delta"].to_list()\n[None, 1.5]'
     ]
 
 

@@ -36,7 +36,7 @@ explore:
 
 | Section | What it shows |
 | --- | --- |
-| **Spec** | An overview of the model, its features, entities, datasets, dimensions, functions, and feature relationships. Function pages include argument, return, raise, and example documentation parsed from implementation docstrings when signature validation is enabled. |
+| **Spec** | An overview of the model, its features, entities, datasets, dimensions, functions, and feature relationships. The functions page opens with a bar chart of the catalog by function kind that links to each kind's group, and every group heading pairs its function count with a miniature infographic of the transformation. Function cards show how many actions use the function, a plain-language summary, and syntax-highlighted Python examples, and detail arguments with their types, return, and raise documentation parsed from implementation docstrings when signature validation is enabled. |
 | **Plan** | The compiled invocations, their dependencies, and the stages used to organize the plan. |
 | **Execution / Data lineage** | A visual walkthrough of how data is assembled after each action. |
 

@@ -135,6 +135,25 @@ def _feature_data(
 
 
 _SECTION_HEADER_COLON = re.compile(r"^([A-Z][A-Za-z ]*):(\n-+)$", flags=re.MULTILINE)
+_DOCTEST_PROMPT = re.compile(r"^(?:>>>|\.\.\.) ?", flags=re.MULTILINE)
+_DOCTEST_DIRECTIVE = re.compile(r"[ \t]*#[ \t]*doctest:.*$", flags=re.MULTILINE)
+
+
+def _format_example(example: docstring_parser.DocstringExample) -> str:
+    """Render a parsed docstring example as plain Python code with output.
+
+    Doctest prompts and doctest directive comments are removed so the
+    example reads as an ordinary snippet.
+
+    Args:
+        example: Parsed docstring example with an optional snippet and output.
+
+    Returns:
+        The cleaned example text.
+    """
+    text = "\n".join(part for part in (example.snippet, example.description) if part)
+    text = _DOCTEST_PROMPT.sub("", text)
+    return _DOCTEST_DIRECTIVE.sub("", text).strip()
 
 
 def _parse_docstring(docstring: str) -> dict[str, typing.Any] | None:
@@ -164,10 +183,7 @@ def _parse_docstring(docstring: str) -> dict[str, typing.Any] | None:
         "raises": [
             {"type": error.type_name, "description": error.description} for error in parsed.raises
         ],
-        "examples": [
-            "\n".join(part for part in (example.snippet, example.description) if part)
-            for example in parsed.examples
-        ],
+        "examples": [_format_example(example) for example in parsed.examples],
     }
 
 
@@ -189,8 +205,10 @@ def _build_context(
             function_groups.setdefault(kind, {})[function_id] = function
             function["declared_returns"] = function_kinds.KIND_RETURN_KINDS[kind]
             function["escape_actions"] = []
+            function["action_usage_count"] = 0
     for entity_id, dataset, action in references.iter_actions(spec_definition):
         function = function_definitions[action.binding.function]
+        function["action_usage_count"] = function.get("action_usage_count", 0) + 1
         if function.get("kind") == function_kinds.ESCAPE:
             function["escape_actions"].append(
                 {
