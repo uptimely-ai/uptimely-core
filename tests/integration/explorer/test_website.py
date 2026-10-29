@@ -385,7 +385,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "ExplorerLineage.createDatasetLineage2D(" in graph_script
     plan = (index.parent / "plan/invocation-lineage.html").read_text(encoding="utf-8")
     assert 'id="invocation-lineage-graph"' in plan
-    assert "normalize_health_signal" in plan
+    assert "min_max_scale" in plan
     assert not pathlib.Path("_generated/spec").exists()
     assert not pathlib.Path("_generated/compile").exists()
 
@@ -669,11 +669,11 @@ def test_execution_plan_pages_render_only_their_section(
             }
             assert read_node["label_lines"] == ["read_pump_telemetry"]
             assert "arguments" not in read_node["label"]
-            maximum_node = next(node for node in graph_nodes if node["function_id"] == "maximum")
+            maximum_node = next(node for node in graph_nodes if node["function_id"] == "aggregate")
             assert maximum_node["arguments"]["dimensions"] == ["plant", "production_line", "pump"]
-            assert maximum_node["label_lines"] == ["maximum"]
+            assert maximum_node["label_lines"] == ["aggregate"]
             normalize_node = next(
-                node for node in graph_nodes if node["function_id"] == "normalize_health_signal"
+                node for node in graph_nodes if node["function_id"] == "min_max_scale"
             )
             assert normalize_node["stage"] == 3
             assert "['Dataset', node.dataset_id]" in script

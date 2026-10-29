@@ -141,7 +141,7 @@ async def test_escape_function_description_reports_external_feature_boundary(
         id="external_audit",
         kind="escape",
         returns="any",
-        entrypoint="examples.pump_analytics.functions.analytics:maximum",
+        entrypoint="examples.pump_analytics.functions.analytics:aggregate",
     )
     dataset = definition.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
     dataset.features["audit_reference"] = spec_model.Feature(id="audit_reference", type="string")

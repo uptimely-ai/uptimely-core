@@ -34,7 +34,7 @@ def test_disabled_signature_renders_without_importing_module_or_parent(
     monkeypatch.syspath_prepend(str(tmp_path))
 
     definition = spec.load_spec(SPEC_PATH)
-    function = definition.functions["pressure_flow_efficiency"]
+    function = definition.functions["ratio"]
     function.entrypoint = "signature_validation_fixture.calculation:calculate"
     function.validate_signature = False
 
@@ -52,4 +52,4 @@ def test_disabled_signature_renders_without_importing_module_or_parent(
     assert "Python signature validation disabled" in functions_page
     assert function.entrypoint in functions_page
     assert "Declared arguments" in functions_page
-    assert "pressure_flow_efficiency</span>(" not in functions_page
+    assert "ratio</span>(" not in functions_page

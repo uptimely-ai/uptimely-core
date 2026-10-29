@@ -110,7 +110,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     configuration["functions"]["external_audit"] = {
         "kind": "escape",
         "returns": "any",
-        "entrypoint": "examples.pump_analytics.functions.analytics:maximum",
+        "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
         "args": {},
         "description": "Send an audit record to an external service.",
     }
@@ -302,9 +302,9 @@ def test_generate_html_explorer(
     assert "pump_telemetry_dataset" in document
     assert "Manufacturing plant identifier" in document
     assert "discharge_pressure" in document
-    assert "maximum" in document
-    assert "normalize_health_signal" in document
-    assert "examples.pump_analytics.functions.analytics:maximum" in document
+    assert "aggregate" in document
+    assert "min_max_scale" in document
+    assert "examples.pump_analytics.functions.analytics:aggregate" in document
     assert "examples/pump_analytics/functions/analytics.py" in document
     assert "file:///" in document
     assert "-&gt; LazyFrame" in document

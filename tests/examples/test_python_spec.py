@@ -22,10 +22,10 @@ def expand_data(source: pl.DataFrame) -> pl.DataFrame:
     return source.select("id", pl.col("input_1").alias("expanded"))
 
 
-def test_maximum_executes_independently() -> None:
+def test_aggregate_executes_independently() -> None:
     frame = pl.LazyFrame({"pump": ["a", "a"], "temperature": [10.0, 20.0]})
 
-    result = analytics.maximum(frame, "temperature", ["pump"], "maximum")
+    result = analytics.aggregate(frame, "temperature", "max", ["pump"], "maximum")
 
     assert isinstance(result, pl.LazyFrame)
     assert result.collect().to_dicts() == [{"pump": "a", "maximum": 20.0}]
@@ -128,13 +128,13 @@ def test_example_manifest_parses_complete_spec() -> None:
         "collapse",
         "escape",
     }
-    assert "maximum" not in spec_definition.functions.by_kind("vectorize")
-    assert len(spec_definition.functions.by_kind("vectorize")) == 7
+    assert "aggregate" not in spec_definition.functions.by_kind("vectorize")
+    assert len(spec_definition.functions.by_kind("vectorize")) == 6
 
     pump_dataset = spec_definition.entities["pump"].datasets["pump_dataset"]
     collapse = pump_dataset.actions["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
-    assert collapse.binding.function == "maximum"
+    assert collapse.binding.function == "aggregate"
     assert "bearing_temperature_max" in collapse.output_features
 
 
@@ -230,7 +230,7 @@ def test_sources_and_transforms_python_spec() -> None:
                     python_spec.actions.Action(
                         id="collapse_data",
                         inputs=[python_spec.ref.feature("input_2")],
-                        function=python_spec.ref.function(analytics.maximum, kind="collapse"),
+                        function=python_spec.ref.function(analytics.aggregate, kind="collapse"),
                         arguments={
                             "dataset": python_spec.ref.dataset("target").dataframe,
                             "feature": python_spec.ref.feature("input_2").id,
@@ -259,7 +259,7 @@ def test_sources_and_transforms_python_spec() -> None:
     }
     assert expand.input_features == ["input_1"]
     collapse = spec_definition.entities["summary"].datasets["summary"].actions["collapse_data"]
-    assert collapse.binding.function == "maximum"
+    assert collapse.binding.function == "aggregate"
     assert collapse.binding.args == {
         "dataset": "$datasets.target.dataframe",
         "feature": "$features.input_2.id",
@@ -267,4 +267,4 @@ def test_sources_and_transforms_python_spec() -> None:
         "output": "$features.collapsed_feature.id",
     }
     assert collapse.output_features == ["collapsed_feature"]
-    assert spec_definition.functions["maximum"].kind == "collapse"
+    assert spec_definition.functions["aggregate"].kind == "collapse"

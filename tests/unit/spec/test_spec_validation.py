@@ -33,7 +33,7 @@ def _escape_configuration() -> dict:
     configuration["functions"]["external_action"] = {
         "kind": "escape",
         "returns": "any",
-        "entrypoint": "examples.pump_analytics.functions.analytics:maximum",
+        "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
         "args": {"source": {"type": "dataframe"}},
     }
     target = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
@@ -667,7 +667,7 @@ def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Pat
 
 def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["functions"]["maximum"].pop("entrypoint")
+    configuration["functions"]["aggregate"].pop("entrypoint")
     path = tmp_path / "missing_entrypoint.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="entrypoint"):
@@ -686,12 +686,12 @@ def test_function_contract_validates_kind_inputs_and_return(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     if field == "returns":
-        configuration["functions"]["maximum"][field] = value
+        configuration["functions"]["aggregate"][field] = value
     else:
         configuration["functions"]["unmapped_vectorize"] = {
             "kind": "vectorize",
             "returns": "dataframe",
-            "entrypoint": "examples.pump_analytics.functions.analytics:maximum",
+            "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
             "args": value,
         }
     path = tmp_path / "invalid_function_contract.json"
@@ -707,7 +707,7 @@ def test_function_contract_hint_never_selects_escape_implicitly(
     configuration["functions"]["unmapped_vectorize"] = {
         "kind": "vectorize",
         "returns": "any",
-        "entrypoint": "examples.pump_analytics.functions.analytics:maximum",
+        "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
         "args": {"dataset": {"type": "dataframe"}},
     }
     path = tmp_path / "unmatched_function_contract.json"

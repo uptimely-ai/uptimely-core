@@ -180,7 +180,7 @@ running the runners by hand:
 
 - *"Which vectorize functions does this spec document declare?"* →
   `list_functions`
-- *"What arguments does `normalize_health_signal` take?"* → `describe_function`
+- *"What arguments does `min_max_scale` take?"* → `describe_function`
 - *"What does `pump_health_score` depend on?"* → `describe_feature`
 - *"What feature scope does this build cover?"* → `describe_build`
 - *"Run the saved build and show up to five rows per dataset"* →

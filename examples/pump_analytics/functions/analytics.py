@@ -1,8 +1,13 @@
 """Analytical, source, and sink functions for pump telemetry."""
 
+import functools
+import operator
+
 import polars as pl
 
 from uptimely import function
+
+SUPPORTED_AGGREGATIONS = ("max", "min", "mean", "sum")
 
 
 @function(kind="read")
@@ -120,20 +125,23 @@ def write_pump_telemetry(dataset: pl.LazyFrame, features: list[str]) -> None:
 
 
 @function(kind="collapse")
-def maximum(
-    dataset: pl.LazyFrame, feature: str, dimensions: list[str], output: str
+def aggregate(
+    dataset: pl.LazyFrame, feature: str, method: str, dimensions: list[str], output: str
 ) -> pl.LazyFrame:
-    """Return a dimension-keyed maximum fragment at the requested grain.
+    """Return a dimension-keyed aggregate fragment at the requested grain.
 
     Parameters
     ----------
     dataset
         Dataset to aggregate.
     feature
-        Name of the column to take the maximum of.
+        Name of the column to aggregate.
+    method
+        Aggregation method; one of ``"max"``, ``"min"``, ``"mean"``, or
+        ``"sum"``.
     dimensions
         Dimension columns defining the aggregation grain. When empty,
-        the maximum is computed over the whole dataset.
+        the aggregate is computed over the whole dataset.
     output
         Name of the resulting aggregate column.
 
@@ -141,13 +149,20 @@ def maximum(
     -------
     Aggregated fragment keyed by the requested dimensions.
 
+    Raises:
+    ------
+    ValueError
+        If ``method`` is not a supported aggregation method.
+
     Examples:
     --------
     >>> frame = pl.LazyFrame({"pump": ["p1", "p1"], "flow": [1.0, 3.0]})
-    >>> maximum(frame, "flow", [], "max_flow").collect().to_dicts()
+    >>> aggregate(frame, "flow", "max", [], "max_flow").collect().to_dicts()
     [{'max_flow': 3.0}]
     """
-    expression = pl.col(feature).max().alias(output)
+    if method not in SUPPORTED_AGGREGATIONS:
+        raise ValueError(f"Unsupported aggregation method: {method}")
+    expression = getattr(pl.col(feature), method)().alias(output)
     data_collapsed = (
         dataset.group_by(dimensions).agg(expression) if dimensions else dataset.select(expression)
     )
@@ -155,23 +170,23 @@ def maximum(
 
 
 @function(kind="vectorize")
-def bearing_temperature_delta(
+def delta(
     dataset: pl.LazyFrame,
-    temperature: str,
+    feature: str,
     partition_by: list[str],
     order_by: str,
     output: str,
 ) -> pl.LazyFrame:
-    """Return the ordered bearing-temperature difference within each asset.
+    """Return the ordered difference from the previous row within each partition.
 
     Parameters
     ----------
     dataset
-        Dataset containing the bearing-temperature readings.
-    temperature
-        Name of the bearing-temperature column.
+        Dataset containing the readings.
+    feature
+        Name of the column to difference.
     partition_by
-        Columns identifying each asset partition.
+        Columns identifying each partition.
     order_by
         Column defining the ordering within each partition.
     output
@@ -179,39 +194,79 @@ def bearing_temperature_delta(
 
     Returns:
     -------
-    Dataset with the ordered temperature difference appended.
+    Dataset with the ordered difference appended.
 
     Examples:
     --------
     >>> frame = pl.LazyFrame({"pump": ["p1", "p1"], "ts": [1, 2], "temp": [60.0, 61.5]})
-    >>> bearing_temperature_delta(frame, "temp", ["pump"], "ts", "delta").collect()[
-    ...     "delta"
-    ... ].to_list()
+    >>> delta(frame, "temp", ["pump"], "ts", "temp_delta").collect()["temp_delta"].to_list()
     [None, 1.5]
     """
     data_vectorized = dataset.with_columns(
-        pl.col(temperature).diff().over(partition_by, order_by=order_by).alias(output)
+        pl.col(feature).diff().over(partition_by, order_by=order_by).alias(output)
     )
     return data_vectorized
 
 
 @function(kind="vectorize")
-def extract_recommendation_value(
+def ratio(
     dataset: pl.LazyFrame,
-    optimization_attribute: str,
-    column: str,
+    numerator_features: list[str],
+    denominator_features: list[str],
     output: str,
+    scale: float = 1.0,
 ) -> pl.LazyFrame:
-    """Return the requested field from the recommendation struct column.
+    """Return the scaled ratio of the numerator and denominator products.
 
     Parameters
     ----------
     dataset
-        Dataset containing the recommendation struct column.
-    optimization_attribute
+        Dataset containing the numerator and denominator columns.
+    numerator_features
+        Names of the columns multiplied into the numerator.
+    denominator_features
+        Names of the columns multiplied into the denominator.
+    output
+        Name of the resulting ratio column.
+    scale
+        Constant factor applied to the ratio, for example a unit
+        conversion. Defaults to ``1.0``.
+
+    Returns:
+    -------
+    Dataset with the scaled ratio appended.
+
+    Examples:
+    --------
+    >>> frame = pl.LazyFrame({"hydraulic": [5.0], "electrical": [10.0]})
+    >>> ratio(frame, ["hydraulic"], ["electrical"], "efficiency").collect()[
+    ...     "efficiency"
+    ... ].to_list()
+    [0.5]
+    """
+    numerator = functools.reduce(operator.mul, (pl.col(name) for name in numerator_features))
+    denominator = functools.reduce(operator.mul, (pl.col(name) for name in denominator_features))
+    data_vectorized = dataset.with_columns((scale * numerator / denominator).alias(output))
+    return data_vectorized
+
+
+@function(kind="vectorize")
+def extract_field(
+    dataset: pl.LazyFrame,
+    field: str,
+    column: str,
+    output: str,
+) -> pl.LazyFrame:
+    """Return the requested field from a struct column.
+
+    Parameters
+    ----------
+    dataset
+        Dataset containing the struct column.
+    field
         Name of the struct field to extract.
     column
-        Name of the struct column holding the recommendations.
+        Name of the struct column.
     output
         Name of the resulting extracted column.
 
@@ -222,64 +277,58 @@ def extract_recommendation_value(
     Examples:
     --------
     >>> frame = pl.LazyFrame({"recommendation": [{"converged": True}]})
-    >>> extract_recommendation_value(frame, "converged", "recommendation", "ok").collect()[
-    ...     "ok"
-    ... ].to_list()
+    >>> extract_field(frame, "converged", "recommendation", "ok").collect()["ok"].to_list()
     [True]
     """
-    data_vectorized = dataset.with_columns(
-        pl.col(column).struct.field(optimization_attribute).alias(output)
-    )
+    data_vectorized = dataset.with_columns(pl.col(column).struct.field(field).alias(output))
     return data_vectorized
 
 
 @function(kind="vectorize")
-def normalize_health_signal(
+def min_max_scale(
     dataset: pl.LazyFrame,
-    scale_feature: str,
+    feature: str,
     lower_bound: float,
     upper_bound: float,
-    scaling_features: list[str],
+    features: list[str],
     output: str,
 ) -> pl.LazyFrame:
-    """Return a min-max-scaled health signal with a stable constant-data value.
+    """Return a min-max-scaled column with a stable constant-data value.
 
     Parameters
     ----------
     dataset
-        Dataset containing the health signal.
-    scale_feature
+        Dataset containing the column to scale.
+    feature
         Name of the column to scale.
     lower_bound
         Lower bound of the scaled range; also used when the input
         column is constant.
     upper_bound
         Upper bound of the scaled range.
-    scaling_features
+    features
         Declared feature dependencies; unused by the calculation.
     output
         Name of the resulting scaled column.
 
     Returns:
     -------
-    Dataset with the scaled health signal appended.
+    Dataset with the scaled column appended.
 
     Examples:
     --------
     >>> frame = pl.LazyFrame({"score": [0.0, 5.0, 10.0]})
-    >>> normalize_health_signal(frame, "score", 0.0, 1.0, [], "scaled").collect()[
-    ...     "scaled"
-    ... ].to_list()
+    >>> min_max_scale(frame, "score", 0.0, 1.0, [], "scaled").collect()["scaled"].to_list()
     [0.0, 0.5, 1.0]
     """
-    _ = scaling_features
-    feature = pl.col(scale_feature)
-    minimum = feature.min()
-    spread = feature.max() - minimum
+    _ = features
+    column = pl.col(feature)
+    minimum = column.min()
+    spread = column.max() - minimum
     expression = (
         pl.when(spread == 0)
         .then(pl.lit(lower_bound))
-        .otherwise(lower_bound + (feature - minimum) * (upper_bound - lower_bound) / spread)
+        .otherwise(lower_bound + (column - minimum) * (upper_bound - lower_bound) / spread)
     )
     data_vectorized = dataset.with_columns(expression.alias(output))
     return data_vectorized
@@ -327,38 +376,6 @@ def optimize_pump_operating_point(
 
 
 @function(kind="vectorize")
-def pressure_flow_efficiency(
-    dataset: pl.LazyFrame, pressure_features: list[str], output: str
-) -> pl.LazyFrame:
-    """Return hydraulic power divided by electrical motor power.
-
-    Parameters
-    ----------
-    dataset
-        Dataset containing the pressure, flow, and power measurements.
-    pressure_features
-        Names of the pressure, flow, and power columns, in that order.
-    output
-        Name of the resulting efficiency column.
-
-    Returns:
-    -------
-    Dataset with the efficiency ratio appended.
-
-    Examples:
-    --------
-    >>> frame = pl.LazyFrame({"pressure": [3.6], "flow": [10.0], "power": [2.0]})
-    >>> pressure_flow_efficiency(frame, ["pressure", "flow", "power"], "efficiency").collect()[
-    ...     "efficiency"
-    ... ].to_list()
-    [0.5]
-    """
-    pressure, flow, power = map(pl.col, pressure_features)
-    data_vectorized = dataset.with_columns((pressure * flow / (36.0 * power)).alias(output))
-    return data_vectorized
-
-
-@function(kind="vectorize")
 def pump_health_score(
     dataset: pl.LazyFrame, health_features: list[str], output: str
 ) -> pl.LazyFrame:
@@ -389,46 +406,5 @@ def pump_health_score(
     temperature_delta, vibration_delta, efficiency = map(pl.col, health_features)
     data_vectorized = dataset.with_columns(
         (efficiency - temperature_delta.abs() / 10.0 - vibration_delta.abs() / 2.0).alias(output)
-    )
-    return data_vectorized
-
-
-@function(kind="vectorize")
-def vibration_delta_from_previous(
-    dataset: pl.LazyFrame,
-    vibration: str,
-    partition_by: list[str],
-    order_by: str,
-    output: str,
-) -> pl.LazyFrame:
-    """Return the ordered vibration difference within each asset.
-
-    Parameters
-    ----------
-    dataset
-        Dataset containing the vibration readings.
-    vibration
-        Name of the vibration column.
-    partition_by
-        Columns identifying each asset partition.
-    order_by
-        Column defining the ordering within each partition.
-    output
-        Name of the resulting difference column.
-
-    Returns:
-    -------
-    Dataset with the ordered vibration difference appended.
-
-    Examples:
-    --------
-    >>> frame = pl.LazyFrame({"pump": ["p1", "p1"], "ts": [1, 2], "vib": [2.0, 3.5]})
-    >>> vibration_delta_from_previous(frame, "vib", ["pump"], "ts", "delta").collect()[
-    ...     "delta"
-    ... ].to_list()
-    [None, 1.5]
-    """
-    data_vectorized = dataset.with_columns(
-        pl.col(vibration).diff().over(partition_by, order_by=order_by).alias(output)
     )
     return data_vectorized
