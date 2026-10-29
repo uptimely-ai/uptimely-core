@@ -19,7 +19,13 @@ Definitions can be authored in Python and exported to JSON, or supplied directly
 
 Browset the [example project explorer](https://uptimely-ai.github.io/uptimely-core/examples/pump_analytics/).
 
-More business stuff at [uptimely.ai website](https://uptimely.ai).
+More business benefits at [uptimely.ai website](https://uptimely.ai).
+
+## Documentation
+
+* [The full documentation site](https://uptimely-ai.github.io/uptimely-core/)
+* [Python API reference](https://uptimely-ai.github.io/uptimely-core/python/)
+* [CLI API reference](https://uptimely-ai.github.io/uptimely-core/cli/)
 
 ## Install
 
@@ -70,6 +76,16 @@ uptimely run examples/pump_analytics --verbose --preview 10
 Output will show the materialized datasets:
 
 ![Uptimely run preview](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-run-preview.png)
+
+## Explore the resources
+
+Use the project explorer to inspect a project visually:
+
+```sh
+uptimely explore examples/pump_analytics
+```
+
+Open <http://127.0.0.1:8001/> to view the Explorer.
 
 
 ## Python API
@@ -161,19 +177,6 @@ bundle = project.build_project(".")
 result = Engine(bundle, EngineConfig()).run()
 ```
 
-## Further exploration
-
-Use the project explorer to inspect a project visually:
-
-```sh
-uptimely explore examples/pump_analytics
-```
-
-Open <http://127.0.0.1:8001/> to view the Explorer.
-
-See the [documentation site](https://uptimely-ai.github.io/uptimely-core/) for
-the full guides, and the [Python API reference](docs/python/index.md) for
-public classes, functions, and signatures.
 
 ## Repository guide
 
