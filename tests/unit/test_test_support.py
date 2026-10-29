@@ -79,13 +79,13 @@ def test_example_setup_reuses_artifacts_without_building_or_compiling(
 
     monkeypatch.setattr(compiler.Compiler, "compile", unexpected_work)
     monkeypatch.setattr(project, "build_project", unexpected_work)
-    plan = example_support.plan_for_spec(bundle.spec_definition)
+    plan = bundle.execution_plan
     copied_root = example_support.copy_example_project(tmp_path / "project")
 
     assert execution_plan.to_dict(plan) == execution_plan.to_dict(bundle.execution_plan)
     assert project.load_build_bundle(copied_root).manifest == bundle.manifest
     assert rendering_support.render_explorer(
-        bundle.spec_definition, tmp_path / "site/index.html"
+        bundle.spec_definition, tmp_path / "site/index.html", plan=plan
     ).is_file()
 
 
@@ -135,33 +135,18 @@ def test_scoped_example_is_built_once_for_multiple_consumers(
     assert project.load_build_bundle(copied_root).manifest.features == list(features)
 
 
-def test_modified_example_is_compiled_instead_of_using_stale_plan(
-    monkeypatch: pytest.MonkeyPatch,
+def test_render_requires_explicit_plan(
+    tmp_path: pathlib.Path,
 ) -> None:
-    bundle = example_support.example_bundle()
-    definition = bundle.spec_definition
-    definition.name = "Modified example"
-    compiled_specs: list[spec.Spec] = []
-
-    def compile_spec(
-        self: compiler.Compiler,
-        spec_definition: spec.Spec,
-        features: list[str] | None = None,
-    ) -> execution_plan.ExecutionPlan:
-        compiled_specs.append(spec_definition)
-        return bundle.execution_plan
-
-    monkeypatch.setattr(compiler.Compiler, "compile", compile_spec)
-
-    assert example_support.plan_for_spec(definition) is bundle.execution_plan
-    assert compiled_specs == [definition]
+    with pytest.raises(TypeError, match="plan"):
+        rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")  # type: ignore[call-arg]
 
 
 def test_render_uses_supplied_custom_plan_without_compiling(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    bundle = example_support.example_bundle()
-    bundle.spec_definition.name = "Custom rendering"
+    definition = spec.Spec(name="Custom rendering")
+    plan = compiler.Compiler().compile(definition)
 
     def unexpected_compile(
         self: compiler.Compiler,
@@ -171,9 +156,19 @@ def test_render_uses_supplied_custom_plan_without_compiling(
         pytest.fail("An explicitly supplied plan must not be compiled again")
 
     monkeypatch.setattr(compiler.Compiler, "compile", unexpected_compile)
+    monkeypatch.setattr(
+        example_support,
+        "example_bundle",
+        lambda: pytest.fail("Rendering must not load example artifacts"),
+    )
+    monkeypatch.setattr(
+        example_support,
+        "prepare_example_projects",
+        lambda *_args: pytest.fail("Rendering must not prepare example projects"),
+    )
 
     assert rendering_support.render_explorer(
-        bundle.spec_definition, tmp_path / "index.html", plan=bundle.execution_plan
+        definition, tmp_path / "index.html", plan=plan
     ).is_file()
 
 

@@ -16,7 +16,7 @@ from the modules in `support/`, not from `conftest`:
 
 - `support.examples` prepares, copies, and loads example artifacts.
 - `support.execution` constructs test bundles and engines from execution plans.
-- `support.rendering` renders Explorer pages with supplied or reusable plans.
+- `support.rendering` renders Explorer pages with explicitly supplied plans.
 - `support.functions` provides callable entrypoints referenced by test specs.
 
 ## Running tests
@@ -57,11 +57,12 @@ Tests that read files directly under `EXAMPLES_ROOT` must request the
 `@pytest.mark.usefixtures("example_projects")`. Do not read generated artifacts
 or check their existence during collection.
 
-Explorer tests use `render_explorer()`, which reuses a saved plan for an unchanged
-example spec. Pass an existing `plan=` when a custom spec has already been
-compiled. New or modified specs are compiled normally, so invalid inputs still
-exercise validation. Keep direct compilation and build calls in tests that
-verify compiler or builder behavior, rather than using them as repeated setup.
+Explorer tests use `render_explorer(..., plan=...)`, which never compiles or loads
+example artifacts. For unchanged examples, pass `pump_bundle.execution_plan`
+alongside `pump_bundle.spec_definition`. For custom or changed workflow specs,
+compile explicitly and reuse that plan for assertions and rendering. Rendering
+support stays shared because unit, integration, and example tests all use it;
+there is no automatic spec comparison or implicit example dependency.
 
 Pytest defaults to eight workers. The pre-commit pytest hook also runs with eight
 workers when Python files are staged.

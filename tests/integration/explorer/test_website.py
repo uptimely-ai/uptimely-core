@@ -14,12 +14,11 @@ from examples.pump_analytics.functions import analytics
 from support import examples as example_support
 from support import rendering as rendering_support
 
-from uptimely import compiler, spec
+from uptimely import compiler, project, spec
 from uptimely.explorer.sections import feature_lineage
 from uptimely.explorer.sections import spec as spec_render
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
-pytestmark = pytest.mark.usefixtures("example_projects")
 REPORTS = {
     "spec/overview.html": "spec",
     "spec/features.html": "features",
@@ -116,7 +115,10 @@ def heading_titles(document: str) -> list[str]:
 
 
 def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
-    rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")
+    spec_definition = spec.Spec()
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=compiler.Compiler().compile(spec_definition)
+    )
     expected = {
         "index.html": ("home", "house", "Untitled analytics project"),
         "spec/overview.html": ("overview", "layout-dashboard", "Overview"),
@@ -231,7 +233,10 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
 
 def test_icon_palette_contrast(tmp_path: pathlib.Path) -> None:
     """Keep concept colors legible on normal and selected navigation backgrounds."""
-    rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")
+    spec_definition = spec.Spec()
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=compiler.Compiler().compile(spec_definition)
+    )
     icon_styles = (tmp_path / "css/icons.css").read_text(encoding="utf-8")
     colors = set(re.findall(r"--icon-color: (#[0-9a-f]{6});", icon_styles))
     assert len(colors) == 10
@@ -253,12 +258,12 @@ def test_icon_palette_contrast(tmp_path: pathlib.Path) -> None:
 
 
 def test_website_exports_all_reports_with_relative_navigation(
-    tmp_path: pathlib.Path, monkeypatch
+    tmp_path: pathlib.Path, monkeypatch, pump_bundle: project.BuildBundle
 ) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
+    spec_definition = pump_bundle.spec_definition
     monkeypatch.chdir(tmp_path)
 
-    index = rendering_support.render_explorer(spec_definition)
+    index = rendering_support.render_explorer(spec_definition, plan=pump_bundle.execution_plan)
 
     assert index == pathlib.Path("_generated/explorer/index.html")
     assert {path.name for path in index.parent.iterdir()} == {
@@ -385,6 +390,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert not pathlib.Path("_generated/compile").exists()
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_feature_lineage_payload_contains_expected_nodes_and_links() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     feature_graph = spec.FeatureGraph(spec_definition)
@@ -400,15 +406,19 @@ def test_feature_lineage_payload_contains_expected_nodes_and_links() -> None:
     )
 
 
-def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monkeypatch) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    expected_plan = example_support.plan_for_spec(spec_definition)
+def test_homepage_shows_project_counts_and_journey(
+    tmp_path: pathlib.Path, monkeypatch, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
+    expected_plan = pump_bundle.execution_plan
 
     def fail_compile(*args: object, **kwargs: object) -> None:
         pytest.fail("Example rendering must reuse the saved plan")
 
     monkeypatch.setattr(compiler.Compiler, "compile", fail_compile)
-    index = rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+    index = rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = index.read_text(encoding="utf-8")
 
     assert "<title>Pump analytics | OpenAnalytics</title>" in document
@@ -452,7 +462,12 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
 def test_homepage_handles_unnamed_and_escaped_projects(
     tmp_path: pathlib.Path, name: str | None
 ) -> None:
-    index = rendering_support.render_explorer(spec.Spec(name=name), tmp_path / "index.html")
+    spec_definition = spec.Spec(name=name)
+    index = rendering_support.render_explorer(
+        spec_definition,
+        tmp_path / "index.html",
+        plan=compiler.Compiler().compile(spec_definition),
+    )
     document = index.read_text(encoding="utf-8")
 
     assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 6
@@ -478,10 +493,16 @@ def test_homepage_handles_unnamed_and_escaped_projects(
     ],
 )
 def test_spec_pages_render_only_their_section(
-    tmp_path: pathlib.Path, filename: str, section_id: str, title: str
+    tmp_path: pathlib.Path,
+    filename: str,
+    section_id: str,
+    title: str,
+    pump_bundle: project.BuildBundle,
 ) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+    spec_definition = pump_bundle.spec_definition
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     for candidate in ("overview", "entities", "datasets", "dimensions", "functions"):
@@ -497,9 +518,13 @@ def test_spec_pages_render_only_their_section(
     assert "sm:text-6xl" not in document
 
 
-def test_spec_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+def test_spec_overview_displays_source_profile(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / "spec/overview.html").read_text(encoding="utf-8")
 
     assert "Pump analytics" in document
@@ -512,10 +537,14 @@ def test_spec_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
     assert "rounded-3xl border border-cyan-900/60 bg-gradient-to-br" in document
 
 
-def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
+def test_website_supports_custom_index_path_and_in_memory_spec(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
 
-    index = rendering_support.render_explorer(spec_definition, tmp_path / "nested" / "spec.htm")
+    index = rendering_support.render_explorer(
+        spec_definition, tmp_path / "nested" / "spec.htm", plan=pump_bundle.execution_plan
+    )
 
     assert index == tmp_path / "nested" / "spec.html"
     assert index.is_file()
@@ -537,7 +566,10 @@ def test_relocated_website_navigation_works_under_url_prefix(
     tmp_path: pathlib.Path, index_name: str
 ) -> None:
     original = tmp_path / "generated"
-    rendering_support.render_explorer(spec.Spec(), original / index_name)
+    spec_definition = spec.Spec()
+    rendering_support.render_explorer(
+        spec_definition, original / index_name, plan=compiler.Compiler().compile(spec_definition)
+    )
     host_root = tmp_path / "hosted"
     relocated = host_root / "projects" / "spec"
     relocated.parent.mkdir(parents=True)
@@ -586,10 +618,12 @@ def test_relocated_website_navigation_works_under_url_prefix(
     ],
 )
 def test_execution_plan_pages_render_only_their_section(
-    tmp_path: pathlib.Path, filename: str, title: str
+    tmp_path: pathlib.Path, filename: str, title: str, pump_bundle: project.BuildBundle
 ) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+    spec_definition = pump_bundle.spec_definition
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert 'aria-label="Plan sections"' in document
@@ -666,9 +700,11 @@ def test_execution_plan_pages_render_only_their_section(
 
 @pytest.mark.parametrize("filename", ["spec/feature-lineage.html", "plan/invocation-lineage.html"])
 def test_graph_pages_have_one_selector_and_shared_data(
-    tmp_path: pathlib.Path, filename: str
+    tmp_path: pathlib.Path, filename: str, pump_bundle: project.BuildBundle
 ) -> None:
-    rendering_support.render_explorer(spec.load_spec(SPEC_PATH), tmp_path / "index.html")
+    rendering_support.render_explorer(
+        pump_bundle.spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert document.count('aria-label="Lineage view"') == 1
@@ -731,17 +767,26 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
         (tmp_path / filename).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / filename).write_text("old", encoding="utf-8")
     (tmp_path / "graph/custom.html").write_text("custom graph", encoding="utf-8")
-    rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")
+    spec_definition = spec.Spec()
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=compiler.Compiler().compile(spec_definition)
+    )
     assert all(not (tmp_path / filename).exists() for filename in obsolete)
     assert (tmp_path / "custom.html").read_text(encoding="utf-8") == "old"
     assert (tmp_path / "graph/custom.html").read_text(encoding="utf-8") == "custom graph"
     assert (tmp_path / "spec/feature-lineage.html").is_file()
 
 
-def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    first = rendering_support.render_explorer(spec_definition, tmp_path / "first" / "index.html")
-    second = rendering_support.render_explorer(spec_definition, tmp_path / "second" / "index.html")
+def test_website_without_timestamp_is_deterministic(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
+    first = rendering_support.render_explorer(
+        spec_definition, tmp_path / "first" / "index.html", plan=pump_bundle.execution_plan
+    )
+    second = rendering_support.render_explorer(
+        spec_definition, tmp_path / "second" / "index.html", plan=pump_bundle.execution_plan
+    )
 
     first_files = {
         path.relative_to(first.parent): path.read_bytes()
@@ -756,10 +801,14 @@ def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> N
     assert first_files == second_files
 
 
-def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    plan = example_support.plan_for_spec(spec_definition)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+def test_execution_plan_overview_statistics_match_plan(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
+    plan = pump_bundle.execution_plan
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
     cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
     assert cards == {
@@ -792,7 +841,10 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -
 
 
 def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> None:
-    rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")
+    spec_definition = spec.Spec()
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=compiler.Compiler().compile(spec_definition)
+    )
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
 
     assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 7
@@ -803,10 +855,14 @@ def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> Non
 @pytest.mark.parametrize(
     "filename", ["overview.html", "features.html", "graph.html", "stages.html"]
 )
-def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filename: str) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
+def test_website_index_can_share_a_report_basename(
+    tmp_path: pathlib.Path, filename: str, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
 
-    index = rendering_support.render_explorer(spec_definition, tmp_path / filename)
+    index = rendering_support.render_explorer(
+        spec_definition, tmp_path / filename, plan=pump_bundle.execution_plan
+    )
     assert index.is_file()
     for report in REPORTS:
         page = tmp_path / report
@@ -819,13 +875,13 @@ def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filen
         ]
 
 
-def test_standalone_html_apis_are_removed() -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
+def test_standalone_html_apis_are_removed(pump_bundle: project.BuildBundle) -> None:
+    spec_definition = pump_bundle.spec_definition
     feature_graph = spec.FeatureGraph(spec_definition)
     assert not hasattr(spec_definition, "create_html")
     assert not hasattr(feature_graph, "export_html")
     assert not hasattr(feature_graph.subset(["health_signal_normalized"]), "export_html")
-    assert not hasattr(example_support.plan_for_spec(spec_definition), "export_html")
+    assert not hasattr(pump_bundle.execution_plan, "export_html")
     assert not hasattr(spec_render, "create_html")
     assert not hasattr(spec_render, "create_website_pages")
     assert not hasattr(feature_lineage, "render_graph_html")
@@ -833,15 +889,19 @@ def test_standalone_html_apis_are_removed() -> None:
 
 
 def test_website_propagates_compilation_errors_without_writing_reports(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
 ) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
+    spec_definition = pump_bundle.spec_definition
     spec_definition.functions[
         "read_pump_telemetry"
     ].entrypoint = "missing_functions:read_pump_telemetry"
 
     with pytest.raises((ImportError, ValueError), match="missing_functions"):
-        rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+        rendering_support.render_explorer(
+            spec_definition,
+            tmp_path / "index.html",
+            plan=compiler.Compiler().compile(spec_definition),
+        )
 
     assert not list(tmp_path.iterdir())
 
@@ -851,10 +911,12 @@ def test_website_propagates_compilation_errors_without_writing_reports(
     ["spec/feature-lineage.html", "plan/invocation-lineage.html"],
 )
 def test_website_graph_links_reference_exported_nodes(
-    tmp_path: pathlib.Path, filename: str
+    tmp_path: pathlib.Path, filename: str, pump_bundle: project.BuildBundle
 ) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+    spec_definition = pump_bundle.spec_definition
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / filename).read_text(encoding="utf-8")
     match = re.search(
         r'<script id="graph-data" type="application/json">(.*?)</script>', document, re.DOTALL
@@ -872,11 +934,13 @@ def test_website_graph_links_reference_exported_nodes(
 
 
 def test_invocation_lineage_matches_compiled_invocation_dependencies(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
 ) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    plan = example_support.plan_for_spec(spec_definition)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+    spec_definition = pump_bundle.spec_definition
+    plan = pump_bundle.execution_plan
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / "plan/invocation-lineage.html").read_text(encoding="utf-8")
     match = re.search(
         r'<script id="graph-data" type="application/json">(.*?)</script>', document, re.DOTALL
@@ -894,22 +958,31 @@ def test_invocation_lineage_matches_compiled_invocation_dependencies(
     }
 
 
-def test_website_does_not_execute_spec(tmp_path: pathlib.Path, monkeypatch) -> None:
+def test_website_does_not_execute_spec(
+    tmp_path: pathlib.Path, monkeypatch, pump_bundle: project.BuildBundle
+) -> None:
     @functools.wraps(analytics.read_pump_telemetry)
     def fail_if_executed(*args: object, **kwargs: object) -> None:
         raise AssertionError("Website generation must not execute spec")
 
     monkeypatch.setattr(analytics, "read_pump_telemetry", fail_if_executed)
-    spec_definition = spec.load_spec(SPEC_PATH)
+    spec_definition = pump_bundle.spec_definition
 
-    assert rendering_support.render_explorer(spec_definition, tmp_path / "index.html").is_file()
+    assert rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    ).is_file()
 
 
-def test_website_can_include_spec_timestamp(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
+def test_website_can_include_spec_timestamp(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
 
     rendering_support.render_explorer(
-        spec_definition, tmp_path / "index.html", include_generated_at=True
+        spec_definition,
+        tmp_path / "index.html",
+        include_generated_at=True,
+        plan=pump_bundle.execution_plan,
     )
 
     assert re.search(

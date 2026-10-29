@@ -7,11 +7,10 @@ from examples.pump_analytics.spec import spec as pump_analytics_module
 from support import examples as example_support
 from support import rendering as rendering_support
 
-from uptimely import spec
+from uptimely import compiler, project, spec
 from uptimely.explorer.sections import spec as spec_render
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
-pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 def test_spec_exports_only_json(tmp_path: pathlib.Path) -> None:
@@ -58,6 +57,7 @@ def _explorer_counts(spec_definition: spec.Spec) -> dict[str, int]:
     }
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_explorer_context_has_expected_fields() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
@@ -87,6 +87,7 @@ def test_explorer_context_has_expected_fields() -> None:
     }
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_explorer_context_counts_match_spec() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     expected_counts = _explorer_counts(spec_definition)
@@ -117,12 +118,16 @@ def test_explorer_context_counts_match_spec() -> None:
     ]
 
 
-def test_html_explorer_overview_counts_match_spec(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
+def test_html_explorer_overview_counts_match_spec(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
     spec_definition.name = "Pump analytics"
     expected_counts = _explorer_counts(spec_definition)
 
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=compiler.Compiler().compile(spec_definition)
+    )
     output_path = tmp_path / "spec/overview.html"
     parser = TextCollector()
     parser.feed(output_path.read_text(encoding="utf-8"))

@@ -295,7 +295,7 @@ def test_spec_plan_execution_and_explorer_preserve_context(
     assert not result.failures
     frame = result.datasets["observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
-    rendering_support.render_explorer(restored, tmp_path / "index.html")
+    rendering_support.render_explorer(restored, tmp_path / "index.html", plan=compiled)
     assert "Row context:" not in (tmp_path / "spec/features.html").read_text()
     assert "Row context" in (tmp_path / "plan/stages.html").read_text()
 
@@ -373,7 +373,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
         datetime.datetime(2026, 1, 1),
     ]
 
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(restored_spec, tmp_path / "index.html", plan=restored_plan)
     features_html = (tmp_path / "spec/features.html").read_text(encoding="utf-8")
     assert "result" in features_html
     assert "Row context:" not in features_html

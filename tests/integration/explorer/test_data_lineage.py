@@ -4,15 +4,10 @@ import pathlib
 import re
 from html import parser as html_parser
 
-import pytest
-from support import examples as example_support
 from support import rendering as rendering_support
 
-from uptimely import spec
+from uptimely import compiler, project, spec
 from uptimely.explorer.sections import data_lineage
-
-SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
-pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 class DataLineageStructureCollector(html_parser.HTMLParser):
@@ -47,11 +42,13 @@ class DataLineageStructureCollector(html_parser.HTMLParser):
 
 
 def test_data_lineage_layout_has_balanced_stage_and_card_containers(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
 ) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    plan = example_support.plan_for_spec(spec_definition)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+    spec_definition = pump_bundle.spec_definition
+    plan = pump_bundle.execution_plan
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     collector = DataLineageStructureCollector()
     collector.feed(document)
@@ -67,9 +64,11 @@ def test_data_lineage_layout_has_balanced_stage_and_card_containers(
     ] == ["data-lineage-details"] * len(plan.invocations)
 
 
-def test_data_lineage_tables_match_compiled_operations_and_producer_colors() -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    plan = example_support.plan_for_spec(spec_definition)
+def test_data_lineage_tables_match_compiled_operations_and_producer_colors(
+    pump_bundle: project.BuildBundle,
+) -> None:
+    spec_definition = pump_bundle.spec_definition
+    plan = pump_bundle.execution_plan
 
     stages = data_lineage._build_stages(spec_definition, plan)
 
@@ -118,10 +117,14 @@ def test_data_lineage_tables_match_compiled_operations_and_producer_colors() -> 
             assert not any(column.role == "Output" for column in step.columns)
 
 
-def test_data_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    plan = example_support.plan_for_spec(spec_definition)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+def test_data_lineage_exports_every_table_and_dependency(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
+    plan = pump_bundle.execution_plan
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     tables = re.findall(
         r'<article class="data-lineage-step" id="step-(\d+)" data-invocation-id="([^"]+)"'
@@ -151,7 +154,10 @@ def test_data_lineage_exports_every_table_and_dependency(tmp_path: pathlib.Path)
 
 
 def test_empty_data_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> None:
-    rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")
+    spec_definition = spec.Spec()
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=compiler.Compiler().compile(spec_definition)
+    )
     document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     assert "No processing steps." in document
     assert '<table class="data-lineage-table"' not in document
@@ -159,15 +165,22 @@ def test_empty_data_lineage_has_explicit_empty_state(tmp_path: pathlib.Path) -> 
 
 
 def test_data_lineage_has_no_legend_badges(tmp_path: pathlib.Path) -> None:
-    rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")
+    spec_definition = spec.Spec()
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=compiler.Compiler().compile(spec_definition)
+    )
     document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     assert "data-lineage-legend" not in document
     assert "Data lineage color key" not in document
 
 
-def test_data_lineage_has_focused_invocation_playback(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+def test_data_lineage_has_focused_invocation_playback(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     styles = (tmp_path / "css/data_lineage.css").read_text(encoding="utf-8")
     script = (tmp_path / "js/data_lineage.js").read_text(encoding="utf-8")
@@ -182,7 +195,7 @@ def test_data_lineage_has_focused_invocation_playback(tmp_path: pathlib.Path) ->
     )
     assert 'class="data-lineage-stage-position" id="data-lineage-stage-position"' in document
     assert 'id="data-lineage-stage-track" role="list" aria-label="Execution stages"' in document
-    execution_plan = example_support.plan_for_spec(spec_definition)
+    execution_plan = pump_bundle.execution_plan
     execution_stages = execution_plan.execution_stages
     assert document.count('data-stage-marker="') == len(execution_stages)
     assert document.count('data-step-marker="') == sum(map(len, execution_stages))
@@ -244,11 +257,15 @@ def test_data_lineage_has_focused_invocation_playback(tmp_path: pathlib.Path) ->
     assert "data-lineage-grouped" in styles
 
 
-def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    execution_plan = example_support.plan_for_spec(spec_definition)
+def test_visible_tables_preserve_every_declared_column(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
+    execution_plan = pump_bundle.execution_plan
     stages = data_lineage._build_stages(spec_definition, execution_plan)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     collector = DataLineageStructureCollector()
     collector.feed(document)
@@ -259,11 +276,15 @@ def test_visible_tables_preserve_every_declared_column(tmp_path: pathlib.Path) -
     assert "Observation key" in document
 
 
-def test_data_lineage_omits_declared_row_grain(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
+def test_data_lineage_omits_declared_row_grain(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
     dataset = next(iter(next(iter(spec_definition.entities.values())).datasets.values()))
     dataset.row_scope.grain = "<script>alert('grain')</script>"
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     assert dataset.row_scope.grain not in document
     assert "&lt;script&gt;alert(&#39;grain&#39;)&lt;/script&gt;" not in document
