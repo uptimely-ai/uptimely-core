@@ -3,3 +3,6 @@
 .dataset-table-scroll::-webkit-scrollbar-track { background: #0f172a; }
 .dataset-table-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 999px; }
 .dataset-table-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* Blend highlight.js example output into the explorer code blocks. */
+#functions pre code.hljs { background: transparent; padding: 0; }

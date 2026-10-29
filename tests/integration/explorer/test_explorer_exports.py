@@ -204,8 +204,8 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
         "dataset columns." in datasets_page
     )
     assert "Uncontrolled external operation" in functions_page
-    assert "Python return value is ignored" in functions_page
-    assert "External outputs: audit_reference, audit_status" in functions_page
+    assert "return value is ignored" in functions_page
+    assert "Declares external outputs: audit_reference, audit_status" in functions_page
     assert "Declares external outputs" in (index.parent / "js/feature_lineage.js").read_text(
         encoding="utf-8"
     )
@@ -289,7 +289,7 @@ def test_generate_html_explorer(
     assert ">Features<" in document
     assert "Datasets" in document
     assert "Actions" in document
-    assert ">source<" in document
+    assert 'data-lucide="file-code-2"' in document
     assert "space-y-5" in document
     for filename, section in (
         ("spec/overview.html", "overview"),
@@ -315,16 +315,20 @@ def test_generate_html_explorer(
     )
     assert "pump" in document
     assert ">Overview<" in document
-    assert ">source<" in document
-    assert "mt-5 border-t border-slate-800 pt-4" in document
+    assert "border-t border-slate-800/60 pt-5" in document
     for group_name in ("vectorize", "read", "write"):
         assert f'data-function-group="{group_name}"' in document
     assert "Vectorize" in document
     assert "Read" in document
     assert "Write" in document
     assert 'data-function-group="collapse"' in document
-    assert "Functions wrapped in grouping by the target entity dimensions" in document
-    assert "Collapse function" in document
+    assert (
+        "Calculates features from a higher-dimensional foreign dataset, "
+        "grouped by the target entity dimensions." in document
+    )
+    assert "Functions by kind" in document
+    assert 'data-lucide="workflow"' in document
+    assert '<code class="language-python">' in document
 
 
 def test_generate_html_explorer_from_in_memory_spec_is_deterministic(

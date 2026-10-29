@@ -29,6 +29,7 @@ ASSETS = {
     "js/lineage_components.js",
     "js/lineage_layout.js",
     "js/icons.js",
+    "js/code_highlight.js",
     "js/tailwind_config.js",
     "js/lineage_view_controller.js",
 }
