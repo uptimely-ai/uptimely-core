@@ -43,18 +43,7 @@ def bundle_files(root: pathlib.Path) -> dict[str, bytes]:
     }
 
 
-@pytest.mark.parametrize(
-    "verbose",
-    [False, True],
-)
-@pytest.mark.parametrize("explicit_root", [False, True])
-@pytest.mark.parametrize("empty_generated", [False, True])
-def test_project_build_examples(
-    tmp_path: pathlib.Path,
-    verbose: bool,
-    explicit_root: bool,
-    empty_generated: bool,
-) -> None:
+def copy_unbuilt_example(tmp_path: pathlib.Path) -> pathlib.Path:
     examples = tmp_path / "examples"
     examples.mkdir()
     shutil.copyfile(REPOSITORY_ROOT / "examples/__init__.py", examples / "__init__.py")
@@ -64,31 +53,68 @@ def test_project_build_examples(
         root,
         ignore=shutil.ignore_patterns("_generated", "__pycache__"),
     )
+    return root
+
+
+@pytest.mark.parametrize(
+    "verbose",
+    [False, True],
+)
+@pytest.mark.parametrize("explicit_root", [False, True])
+@pytest.mark.parametrize("empty_generated", [False, True])
+def test_project_build_examples(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    verbose: bool,
+    explicit_root: bool,
+    empty_generated: bool,
+) -> None:
+    root = copy_unbuilt_example(tmp_path)
     if empty_generated:
         (root / project.GENERATED_DIR).mkdir()
     arguments = ["--project-root", str(root)] if explicit_root else []
     if verbose:
         arguments.append("--verbose")
+    monkeypatch.chdir(tmp_path if explicit_root else root)
+    invoke(monkeypatch, *arguments)
+    result = capsys.readouterr()
+
+    assert not result.err
+    if verbose:
+        assert result.out.startswith("\n\nBuild\n")
+        assert "  Build scope: all features\n" in result.out
+        source = REPOSITORY_ROOT / "examples" / "pump_analytics" / project.SPEC_PYTHON_ENTRY_FILE
+        assert f"  Spec source file: {source}\n" in result.out
+        assert "Build files created to" not in result.out
+    else:
+        assert result.out == f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
+    bundle = project.load_build_bundle(root)
+    assert bundle.manifest.features is None
+    assert spec.load_spec(bundle.spec_path).entities
+    assert bundle.execution_plan.invocations
+    assert (bundle.explorer_path / "index.html").is_file()
+
+
+def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None:
+    root = copy_unbuilt_example(tmp_path)
     executable = shutil.which("uptimely")
     assert executable is not None, "The installed uptimely console script is required"
-    command = [executable, "project", "build", *arguments]
-    cwd = tmp_path if explicit_root else root
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
+
     result = subprocess.run(
-        command, cwd=cwd, env=environment, capture_output=True, text=True, timeout=90
+        [executable, "project", "build"],
+        cwd=root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=90,
     )
 
     assert result.returncode == 0, result.stderr
     assert not result.stderr
-    if verbose:
-        assert result.stdout.startswith("\n\nBuild\n")
-        assert "  Build scope: all features\n" in result.stdout
-        source = REPOSITORY_ROOT / "examples" / "pump_analytics" / project.SPEC_PYTHON_ENTRY_FILE
-        assert f"  Spec source file: {source}\n" in result.stdout
-        assert "Build files created to" not in result.stdout
-    else:
-        assert result.stdout == f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
+    assert result.stdout == f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
     bundle = project.load_build_bundle(root)
     assert bundle.manifest.features is None
     assert spec.load_spec(bundle.spec_path).entities
