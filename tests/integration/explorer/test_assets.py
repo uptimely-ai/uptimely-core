@@ -11,7 +11,7 @@ import pytest
 from support import examples as example_support
 from support import rendering as rendering_support
 
-from uptimely import project, spec
+from uptimely import compiler, project, spec
 from uptimely.explorer import graph_style, render
 from uptimely.explorer.sections import feature_lineage
 
@@ -40,7 +40,10 @@ def test_external_assets_resolve_after_moving_website(
 ) -> None:
     original = tmp_path / "original"
     destination = tmp_path / "projects/analytics"
-    rendering_support.render_explorer(spec.Spec(), original / index_name)
+    spec_definition = spec.Spec()
+    rendering_support.render_explorer(
+        spec_definition, original / index_name, plan=compiler.Compiler().compile(spec_definition)
+    )
     destination.parent.mkdir()
     shutil.move(original, destination)
     referenced_assets: set[str] = set()

@@ -5,14 +5,14 @@ import pytest
 from support import examples as example_support
 from support import rendering as rendering_support
 
-from uptimely import spec
+from uptimely import project, spec
 from uptimely.cli import cli
 from uptimely.spec.feature_graph import models
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
-pytestmark = pytest.mark.usefixtures("example_projects")
 
 
+@pytest.mark.usefixtures("example_projects")
 @pytest.mark.parametrize("verbose", [False, True])
 def test_graph_cli_inspects_without_exporting(
     tmp_path: pathlib.Path,
@@ -43,6 +43,7 @@ def test_graph_cli_inspects_without_exporting(
     assert not list(tmp_path.iterdir())
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_system_graph_connects_actions_to_feature_outputs() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     system = spec.FeatureGraph(spec_definition)
@@ -95,6 +96,7 @@ def test_system_graph_connects_actions_to_feature_outputs() -> None:
     assert ("converged", "converged") in actual_edges
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_system_graph_contains_one_node_per_action() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     system = spec.FeatureGraph(spec_definition)
@@ -124,6 +126,7 @@ def test_system_graph_contains_one_node_per_action() -> None:
     assert "bearing_temperature_by_pump" in graph_text
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_subset_raises_helpful_error_for_missing_output() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     system = spec.FeatureGraph(spec_definition)
@@ -132,6 +135,7 @@ def test_subset_raises_helpful_error_for_missing_output() -> None:
         system.subset(["temperature_3"])
 
 
+@pytest.mark.usefixtures("example_projects")
 @pytest.mark.parametrize("subset", [False, True])
 def test_graph_rendering_and_explicit_printing(
     capsys: pytest.CaptureFixture[str], subset: bool
@@ -148,6 +152,7 @@ def test_graph_rendering_and_explicit_printing(
     assert not hasattr(graph, "print")
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_system_graph_builds_from_entity_feature_bindings() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     system = spec.FeatureGraph(spec_definition)
@@ -156,6 +161,7 @@ def test_system_graph_builds_from_entity_feature_bindings() -> None:
     assert "health_signal_normalized" in system.feature_names
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_dependency_features_keep_their_producer_entity_without_becoming_source_inputs() -> None:
     system = spec.FeatureGraph(spec.load_spec(SPEC_PATH))
     features = {
@@ -170,9 +176,13 @@ def test_dependency_features_keep_their_producer_entity_without_becoming_source_
     assert features["operating_point_recommendation"].is_source_input is False
 
 
-def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+def test_website_includes_3d_lineage_html(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     output = tmp_path / "spec/feature-lineage.html"
     html = output.read_text(encoding="utf-8")
     script = (tmp_path / "js/feature_lineage.js").read_text(encoding="utf-8")
@@ -209,9 +219,13 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     assert "input_color" not in script
 
 
-def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
+def test_website_includes_2d_lineage_html(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     output = tmp_path / "spec/feature-lineage.html"
     html = output.read_text(encoding="utf-8")
     script = (tmp_path / "js/feature_lineage.js").read_text(encoding="utf-8")

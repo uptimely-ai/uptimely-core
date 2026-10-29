@@ -7,7 +7,6 @@ import shutil
 import tempfile
 import typing
 
-from uptimely import compiler, execution_plan, spec
 from uptimely import project as project_module
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
@@ -89,14 +88,6 @@ def copy_example_project(
         ignore=shutil.ignore_patterns("__pycache__"),
     )
     return target
-
-
-def plan_for_spec(spec_definition: spec.Spec) -> execution_plan.ExecutionPlan:
-    """Reuse saved example plans; compile only new or modified specifications."""
-    bundle = example_bundle("pump_analytics")
-    if spec_definition == bundle.spec_definition:
-        return bundle.execution_plan
-    return compiler.Compiler().compile(spec_definition)
 
 
 def clear_caches() -> None:

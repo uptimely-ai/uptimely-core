@@ -8,15 +8,14 @@ import pytest
 from support import examples as example_support
 from support import rendering as rendering_support
 
-from uptimely import execution_plan, project, spec
+from uptimely import execution_plan, project
 from uptimely.cli import cli
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 EXAMPLE_ROOT = example_support.EXAMPLES_ROOT / "pump_analytics"
-SPEC_PATH = EXAMPLE_ROOT / "_generated/build/spec.json"
-pytestmark = pytest.mark.usefixtures("example_projects")
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_project_build_cli_exports_complete_bundle(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -98,8 +97,12 @@ def test_compiled_plan_export_omits_generated_timestamp(
     ]
 
 
-def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> None:
-    rendering_support.render_explorer(spec.load_spec(SPEC_PATH), tmp_path / "index.html")
+def test_execution_plan_report_shows_topology_stages(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    rendering_support.render_explorer(
+        pump_bundle.spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
+    )
     report_path = tmp_path / "plan/stages.html"
     report = report_path.read_text(encoding="utf-8")
 
@@ -145,11 +148,13 @@ def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> 
     assert "SphereGeometry" in shared_script
 
 
-def test_website_exports_plan_pages_to_default_path(tmp_path: pathlib.Path, monkeypatch) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
+def test_website_exports_plan_pages_to_default_path(
+    tmp_path: pathlib.Path, monkeypatch, pump_bundle: project.BuildBundle
+) -> None:
+    spec_definition = pump_bundle.spec_definition
     monkeypatch.chdir(tmp_path)
 
-    index = rendering_support.render_explorer(spec_definition)
+    index = rendering_support.render_explorer(spec_definition, plan=pump_bundle.execution_plan)
 
     assert index == pathlib.Path("_generated/explorer/index.html")
     for filename in (
