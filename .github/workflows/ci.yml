@@ -1,4 +1,4 @@
-name: CI
+name: Code checks
 
 on:
   push:
@@ -8,17 +8,22 @@ on:
 
 jobs:
   quality:
+    name: Code quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - name: Download project files
+        uses: actions/checkout@v5
+      - name: Set up Python for code quality checks
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - uses: pre-commit/action@v3.0.1
+      - name: Run code quality checks
+        uses: pre-commit/action@v3.0.1
         env:
           SKIP: pytest
 
   test:
+    name: Automated tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -26,42 +31,48 @@ jobs:
         # graphable requires Python >=3.13; widen the matrix when that changes.
         python-version: ["3.13"]
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
+      - name: Load project files
+        uses: actions/checkout@v5
+      - name: Set up Node.js for Explorer tests
+        uses: actions/setup-node@v6
         with:
           node-version: "24"
-      - name: Run Explorer JavaScript tests
-        run: node --test tests/integration/explorer/*.cjs
+      - run: node --test tests/integration/explorer/*.cjs
       - run: pipx install poetry
-      - uses: actions/setup-python@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: poetry
           cache-dependency-path: poetry.lock
       - run: poetry install --with test
       - run: poetry run pytest --cov --cov-report=xml
-      - uses: actions/upload-artifact@v4
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
         if: matrix.python-version == '3.13'
         with:
           name: coverage-report
           path: coverage.xml
 
   installed-package:
+    name: Package install validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Download project files
+        uses: actions/checkout@v5
       - run: pipx install poetry
-      - uses: actions/setup-python@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       - run: poetry build --format wheel
-      - name: Build separate analytics package
+      - name: Build the installed project wheel
         working-directory: tests/fixtures/installed_project
         run: poetry build --format wheel --output ../../../dist
-      - name: Install release wheels in a clean environment
+      - name: Install both wheels in a clean environment
         run: |
           python -m venv "${{ runner.temp }}/uptimely-installed"
           "${{ runner.temp }}/uptimely-installed/bin/python" -m pip install dist/*.whl
-      - name: Test installed console commands outside the checkout
+      - name: Test installed commands outside the checkout
         run: |
           "${{ runner.temp }}/uptimely-installed/bin/python" -I tests/packaging/check_installed.py -v

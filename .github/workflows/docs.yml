@@ -1,4 +1,4 @@
-name: Documentation
+name: Docs release
 
 on:
   push:
@@ -12,30 +12,35 @@ permissions:
 
 jobs:
   build:
+    name: Build docs site
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Download project files
+        uses: actions/checkout@v5
       - run: pipx install poetry
-      - uses: actions/setup-python@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: poetry
           cache-dependency-path: poetry.lock
       - run: poetry install --without dev,test --with docs
-      - name: Build pump analytics project
+      - name: Build pump analytics demo site
         run: |
           poetry run uptimely project build --project-root examples/pump_analytics
-      - name: Copy pump analytics explorer into documentation
+      - name: Add generated Explorer to the docs
         run: |
           mkdir -p docs/examples/pump_analytics
           cp -R examples/pump_analytics/_generated/build/explorer/. docs/examples/pump_analytics/
-      - run: poetry run mkdocs build
-      - uses: actions/upload-pages-artifact@v3
+      - run: poetry run mkdocs build --site-dir site
+      - name: Upload the site for deployment
+        uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:
           path: site
 
   deploy:
+    name: Publish docs site
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
@@ -49,6 +54,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Deploy docs to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
