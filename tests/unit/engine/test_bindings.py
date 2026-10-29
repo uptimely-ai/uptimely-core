@@ -2,7 +2,7 @@ import dataclasses
 
 import polars as pl
 import pytest
-from conftest import _spec_for_plan
+from support import execution as execution_support
 
 from uptimely import execution_plan as plan_module
 from uptimely.engine import bindings as bindings_module
@@ -19,7 +19,7 @@ def _bindings(
     parameters: dict[str, object] | None = None,
 ) -> bindings_module.RuntimeBindings:
     return bindings_module.RuntimeBindings(
-        spec_definition or _spec_for_plan(PLAN),
+        spec_definition or execution_support.spec_for_plan(PLAN),
         state or state_module.RuntimeState(),
         parameters or {},
     )
@@ -99,7 +99,7 @@ def test_parameter_config_accepts_only_flat_scalar_values() -> None:
 
 
 def test_runtime_bindings_resolve_nested_parameter_references() -> None:
-    spec_definition = _spec_for_plan(PLAN)
+    spec_definition = execution_support.spec_for_plan(PLAN)
     spec_definition.functions["load"].args["source"].type = "array[string]"
     read_invocation = dataclasses.replace(
         PLAN.invocations[0], arguments={"source": ["$params.source"]}

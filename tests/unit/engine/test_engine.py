@@ -4,7 +4,7 @@ import types
 
 import polars as pl
 import pytest
-from conftest import bundle_for_plan
+from support import execution as execution_support
 
 from uptimely import compiler as uptimely_compiler
 from uptimely import engine as uptimely_engine
@@ -32,7 +32,9 @@ def _engine(
     project_root: pathlib.Path | None = None,
 ) -> uptimely_engine.Engine:
     return uptimely_engine.Engine(
-        bundle_for_plan(plan, project_root), uptimely_engine.EngineConfig(), parameters
+        execution_support.bundle_for_plan(plan, project_root),
+        uptimely_engine.EngineConfig(),
+        parameters,
     )
 
 
@@ -106,7 +108,7 @@ def test_engine_can_skip_lazy_value_validation(
         pytest.fail("Engine executed a LazyFrame with lazy validation disabled")
 
     _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
-    bundle = bundle_for_plan(_plan())
+    bundle = execution_support.bundle_for_plan(_plan())
     if dimensionless:
         for entity_definition in bundle.spec_definition.entities.values():
             entity_definition.dimensions = []
@@ -152,7 +154,7 @@ def test_disabled_lazy_validation_preserves_schema_checks(
 
     _patch_callables(monkeypatch, {"test:read": read})
     engine = uptimely_engine.Engine(
-        bundle_for_plan(_plan()),
+        execution_support.bundle_for_plan(_plan()),
         uptimely_engine.EngineConfig(
             backend=uptimely_engine.EngineBackendConfig(validate_lazy_frames=False),
         ),
@@ -697,7 +699,7 @@ def test_engine_validates_plan_backend() -> None:
 
 def test_engine_selects_dataframe_backend_from_config() -> None:
     engine = uptimely_engine.Engine(
-        bundle_for_plan(_plan()),
+        execution_support.bundle_for_plan(_plan()),
         uptimely_engine.EngineConfig(backend={"dataframe": "POLARS"}),
     )
 
@@ -953,7 +955,7 @@ def test_engine_config_rejects_invalid_batch_size(batch_size: object) -> None:
 def test_engine_config_rejects_unsupported_dataframe_backend(dataframe: object) -> None:
     configuration = uptimely_engine.EngineConfig(backend={"dataframe": dataframe})
     with pytest.raises(ValueError, match="Unsupported dataframe backend"):
-        uptimely_engine.Engine(bundle_for_plan(_plan()), configuration)
+        uptimely_engine.Engine(execution_support.bundle_for_plan(_plan()), configuration)
 
 
 def test_engine_config_rejects_non_string_dataframe_backend() -> None:

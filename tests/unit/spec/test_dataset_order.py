@@ -5,7 +5,8 @@ import typing
 import polars as pl
 import pydantic
 import pytest
-from conftest import engine_for_plan, render_explorer
+from support import execution as execution_support
+from support import rendering as rendering_support
 
 from uptimely import compiler, spec
 from uptimely.spec import python as python_spec
@@ -223,7 +224,7 @@ def test_dataset_order_python_authoring_validates_references() -> None:
 
 def test_dataset_order_appears_in_html(tmp_path: pathlib.Path) -> None:
     spec_definition = _parse(tmp_path, ORDER)
-    render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     html = (tmp_path / "spec/datasets.html").read_text(encoding="utf-8")
     assert "Logical order (not a physical row-order guarantee)" in html
     assert html.index("$dimensions.machine asc") < html.index("$dimensions.timestamp desc")
@@ -293,7 +294,9 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows() -> None:
         == compiler.Compiler().compile(unordered).invocations
     )
 
-    result = engine_for_plan(compiler.Compiler().compile(ordered), spec_definition=ordered).run()
+    result = execution_support.engine_for_plan(
+        compiler.Compiler().compile(ordered), spec_definition=ordered
+    ).run()
     assert result.failures == {}
     frame = result.datasets[declaration.id]
     assert isinstance(frame, pl.DataFrame)

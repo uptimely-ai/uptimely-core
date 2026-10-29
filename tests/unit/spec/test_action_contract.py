@@ -3,7 +3,7 @@ import pathlib
 
 import polars as pl
 import pytest
-from conftest import engine_for_plan
+from support import execution as execution_support
 
 from uptimely import compiler, spec
 from uptimely.engine import bindings as bindings_module
@@ -115,7 +115,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     ]
     metadata = compiler.Compiler().compile(spec_definition, features=["metadata"])
     assert all("result" not in item.output_features for item in metadata.invocations)
-    execution = engine_for_plan(metadata, spec_definition=spec_definition).run()
+    execution = execution_support.engine_for_plan(metadata, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["observations"]["metadata"].to_list() == [7, 7]
 
@@ -148,7 +148,7 @@ def test_dataframe_returns_are_validated(
         return 1
 
     monkeypatch.setattr(f"{__name__}.add_one", invalid)
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = execution_support.engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert message in next(iter(execution.failures.values()))
     assert ("observations", "result") not in execution.calculated_outputs
 
@@ -161,7 +161,7 @@ def test_returned_row_order_does_not_control_alignment(monkeypatch: pytest.Monke
         return dataset.with_columns((pl.col("value") + 1).alias(output)).reverse()
 
     monkeypatch.setattr(f"{__name__}.add_one", reversed_result)
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = execution_support.engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["observations"].sort("id").select("id", "value", "result").rows() == [
         (1, 10, 11),
@@ -230,7 +230,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
 
     read_values_original = read_values
     monkeypatch.setattr(f"{__name__}.read_values", wrong_dimension)
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = execution_support.engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert "Output column id has type String; expected integer" in next(
         iter(execution.failures.values())
     )
@@ -265,7 +265,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     path.write_text(json.dumps(configuration))
     spec_definition = spec.load_spec(path)
     compiled = compiler.Compiler().compile(spec_definition, features=["result"])
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = execution_support.engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
     assert execution.datasets["observations"].sort("id")["result"].to_list() == [11, 21]
 

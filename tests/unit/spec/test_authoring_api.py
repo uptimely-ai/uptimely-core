@@ -2,7 +2,7 @@ import typing
 
 import polars as pl
 import pytest
-from conftest import engine_for_plan
+from support import execution as execution_support
 
 import uptimely as up
 from uptimely.spec.python import bind, binding_conversion, ref, row_context
@@ -60,7 +60,7 @@ def test_root_authoring_api_compiles_and_executes() -> None:
     assert model.functions["double"].args["output"].type == "string"
 
     execution_plan = up.Compiler().compile(model, features=["doubled"])
-    execution = engine_for_plan(execution_plan, spec_definition=model).run()
+    execution = execution_support.engine_for_plan(execution_plan, spec_definition=model).run()
     assert not execution.failures
     result = execution.datasets["calculated_dataset"].sort("id")
     assert result["doubled"].to_list() == [20, 40]

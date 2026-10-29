@@ -5,13 +5,14 @@ import shutil
 import sys
 
 import pytest
-from conftest import EXAMPLES_ROOT, example_bundle, render_explorer
+from support import examples as example_support
+from support import rendering as rendering_support
 
 from uptimely import execution_plan, project, spec
 from uptimely.cli import cli
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-EXAMPLE_ROOT = EXAMPLES_ROOT / "pump_analytics"
+EXAMPLE_ROOT = example_support.EXAMPLES_ROOT / "pump_analytics"
 SPEC_PATH = EXAMPLE_ROOT / "_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
@@ -51,7 +52,7 @@ def test_project_build_cli_exports_complete_bundle(
 
 
 def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) -> None:
-    plan = example_bundle().execution_plan
+    plan = example_support.example_bundle().execution_plan
 
     output_path = execution_plan.export_json(plan, tmp_path / "execution_plan.json")
     metadata = json.loads(output_path.read_text(encoding="utf-8"))
@@ -96,7 +97,7 @@ def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) 
 
 
 def test_execution_plan_report_shows_topology_stages(tmp_path: pathlib.Path) -> None:
-    render_explorer(spec.load_spec(SPEC_PATH), tmp_path / "index.html")
+    rendering_support.render_explorer(spec.load_spec(SPEC_PATH), tmp_path / "index.html")
     report_path = tmp_path / "plan/stages.html"
     report = report_path.read_text(encoding="utf-8")
 
@@ -146,7 +147,7 @@ def test_website_exports_plan_pages_to_default_path(tmp_path: pathlib.Path, monk
     spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
 
-    index = render_explorer(spec_definition)
+    index = rendering_support.render_explorer(spec_definition)
 
     assert index == pathlib.Path("_generated/explorer/index.html")
     for filename in (

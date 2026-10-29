@@ -5,7 +5,8 @@ import pathlib
 import polars as pl
 import pydantic
 import pytest
-from conftest import engine_for_plan, render_explorer
+from support import execution as execution_support
+from support import rendering as rendering_support
 
 from uptimely import compiler, row_context, spec
 from uptimely import execution_plan as uptimely_plan
@@ -288,11 +289,11 @@ def test_spec_plan_execution_and_explorer_preserve_context(tmp_path: pathlib.Pat
     assert operation.input_features == ["temperature"]
     assert operation.row_context == context
     portable = uptimely_plan.from_dict(uptimely_plan.to_dict(compiled))
-    result = engine_for_plan(portable, spec_definition=restored).run()
+    result = execution_support.engine_for_plan(portable, spec_definition=restored).run()
     assert not result.failures
     frame = result.datasets["observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
-    render_explorer(restored, tmp_path / "index.html")
+    rendering_support.render_explorer(restored, tmp_path / "index.html")
     assert "Row context:" not in (tmp_path / "spec/features.html").read_text()
     assert "Row context" in (tmp_path / "plan/stages.html").read_text()
 
@@ -360,7 +361,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     plan_path = uptimely_plan.export_json(plan, tmp_path / "plan.json")
     restored_plan = uptimely_plan.from_json(plan_path)
     assert restored_plan == plan
-    result = engine_for_plan(restored_plan, spec_definition=restored_spec).run()
+    result = execution_support.engine_for_plan(restored_plan, spec_definition=restored_spec).run()
     assert not result.failures
     frame = next(iter(result.datasets.values()))
     assert frame["result"].to_list() == [11, 21]
@@ -369,7 +370,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
         datetime.datetime(2026, 1, 1),
     ]
 
-    render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     features_html = (tmp_path / "spec/features.html").read_text(encoding="utf-8")
     assert "result" in features_html
     assert "Row context:" not in features_html
@@ -442,6 +443,6 @@ def test_collapse_functions_execute_without_row_context() -> None:
     assert "row_context" not in payload["binding"]
     restored = uptimely_plan.from_dict(json.loads(json.dumps(uptimely_plan.to_dict(plan))))
     assert restored == plan
-    result = engine_for_plan(restored, spec_definition=spec_definition).run()
+    result = execution_support.engine_for_plan(restored, spec_definition=spec_definition).run()
     assert not result.failures
     assert result.datasets["summary"]["temperature_max"].to_list() == [20]

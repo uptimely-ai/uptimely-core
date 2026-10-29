@@ -5,7 +5,7 @@ import pathlib
 from collections import abc
 
 import pytest
-from conftest import EXAMPLES_ROOT, example_bundle
+from support import examples as example_support
 
 from uptimely import compiler, spec
 from uptimely import execution_plan as plan_module
@@ -14,7 +14,7 @@ from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section
 
-SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 SAVED_PLAN_MARKER = "saved-plan-only-marker"
 
@@ -23,7 +23,7 @@ def test_explorer_shares_one_website_context_between_sections(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     definition = spec.load_spec(SPEC_PATH)
-    supplied = example_bundle(features=("health_signal_normalized",)).execution_plan
+    supplied = example_support.example_bundle(features=("health_signal_normalized",)).execution_plan
     contexts: list[render.WebsiteContext] = []
     section_ids: list[str] = []
     write_pages = render.WebsiteSection.write_pages
@@ -56,7 +56,7 @@ def test_explorer_shares_one_website_context_between_sections(
 
 def test_section_context_builders_do_not_write_files(tmp_path: pathlib.Path) -> None:
     definition = spec.load_spec(SPEC_PATH)
-    supplied = example_bundle().execution_plan
+    supplied = example_support.example_bundle().execution_plan
     output_directory = tmp_path / "not-created"
     contexts = [
         spec_section.build_context(spec_section._build_context(definition, False)),
@@ -74,7 +74,7 @@ def test_render_saved_plan_without_compiling(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     definition = spec.load_spec(SPEC_PATH)
-    compiled = example_bundle().execution_plan
+    compiled = example_support.example_bundle().execution_plan
     first, *remaining = compiled.invocations
     custom = dataclasses.replace(
         first, arguments={**first.arguments, "saved_plan_marker": SAVED_PLAN_MARKER}
@@ -110,7 +110,7 @@ def test_explorer_distinguishes_full_model_from_scoped_plan(
     tmp_path: pathlib.Path,
 ) -> None:
     definition = spec.load_spec(SPEC_PATH)
-    plan = example_bundle(features=("health_signal_normalized",)).execution_plan
+    plan = example_support.example_bundle(features=("health_signal_normalized",)).execution_plan
     index = explorer.Explorer(
         definition,
         plan=plan,

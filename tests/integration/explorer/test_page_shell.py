@@ -4,7 +4,7 @@ import pathlib
 import re
 
 import pytest
-from conftest import EXAMPLES_ROOT, example_bundle
+from support import examples as example_support
 
 from uptimely import compiler, spec
 from uptimely.explorer import explorer
@@ -14,9 +14,13 @@ pytestmark = pytest.mark.usefixtures("example_projects")
 
 @pytest.mark.parametrize("scoped", [False, True])
 def test_pages_share_minimal_top_bar_and_build_badge(tmp_path: pathlib.Path, scoped: bool) -> None:
-    definition = spec.load_spec(EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json")
+    definition = spec.load_spec(
+        example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+    )
     features = ["health_signal_normalized"] if scoped else None
-    plan = example_bundle(features=tuple(features) if features is not None else None).execution_plan
+    plan = example_support.example_bundle(
+        features=tuple(features) if features is not None else None
+    ).execution_plan
     explorer.Explorer(definition, plan=plan, features=features).create_html(
         tmp_path / "custom.html"
     )

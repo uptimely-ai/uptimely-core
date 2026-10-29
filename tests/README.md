@@ -9,6 +9,16 @@ Tests are organized by the scope of the behavior they verify:
 
 Keep examples user-focused. Test-only scenarios and invalid inputs belong in fixtures or directly in focused unit tests.
 
+## Shared test support
+
+`conftest.py` defines pytest fixtures and lifecycle hooks. Import ordinary helpers
+from the modules in `support/`, not from `conftest`:
+
+- `support.examples` prepares, copies, and loads example artifacts.
+- `support.execution` constructs test bundles and engines from execution plans.
+- `support.rendering` renders Explorer pages with supplied or reusable plans.
+- `support.functions` provides callable entrypoints referenced by test specs.
+
 ## Running tests
 
 Run `poetry run pytest` to run the suite.

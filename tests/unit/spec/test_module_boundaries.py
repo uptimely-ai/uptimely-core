@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 import pytest
-from conftest import EXAMPLES_ROOT
+from support import examples as example_support
 
 import uptimely
 from uptimely import entrypoint, spec
@@ -15,7 +15,7 @@ from uptimely.spec import model, validation
 from uptimely.spec.json import codec
 from uptimely.spec.python import conversion, dataset, dimension, entity
 
-SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 def test_public_models_are_canonical_objects() -> None:

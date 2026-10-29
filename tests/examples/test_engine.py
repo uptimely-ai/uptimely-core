@@ -4,8 +4,9 @@ import sys
 
 import polars as pl
 import pytest
-from conftest import EXAMPLES_ROOT, copy_example_project, engine_for_plan, example_bundle
 from examples.pump_analytics.functions import analytics
+from support import examples as example_support
+from support import execution as execution_support
 
 from uptimely import execution_plan
 from uptimely import spec as spec_module
@@ -13,17 +14,17 @@ from uptimely.cli import cli
 from uptimely.engine import dataframe as dataframe_module
 from uptimely.engine import state as state_module
 
-SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 def _engine_parameters() -> dict[str, object]:
-    path = EXAMPLES_ROOT / "pump_analytics/config/config.json"
+    path = example_support.EXAMPLES_ROOT / "pump_analytics/config/config.json"
     return json.loads(path.read_text(encoding="utf-8"))["params"]
 
 
 def _execution_plan() -> execution_plan.ExecutionPlan:
-    return example_bundle().execution_plan
+    return example_support.example_bundle().execution_plan
 
 
 def _execution_spec() -> spec_module.Spec:
@@ -34,13 +35,13 @@ def _copy_pump_project(
     tmp_path: pathlib.Path, features: tuple[str, ...] | None = None
 ) -> pathlib.Path:
     project_root = tmp_path / "examples" / "pump_analytics"
-    copy_example_project(project_root, features=features)
+    example_support.copy_example_project(project_root, features=features)
     (project_root.parent / "__init__.py").write_text("", encoding="utf-8")
     return project_root
 
 
 def test_engine_returns_calculated_features_without_writing_output() -> None:
-    engine = engine_for_plan(
+    engine = execution_support.engine_for_plan(
         _execution_plan(), _engine_parameters(), spec_definition=_execution_spec()
     )
 
@@ -83,7 +84,7 @@ def test_engine_returns_calculated_features_without_writing_output() -> None:
         {"gravity": 9.81, "room_temperature": 20.0}
     ]
     assert analytics.read_constants(
-        str(EXAMPLES_ROOT / "pump_analytics/data/constants_dev.json")
+        str(example_support.EXAMPLES_ROOT / "pump_analytics/data/constants_dev.json")
     ).collect().to_dicts() == [{"gravity": 9.81, "room_temperature": 22.0}]
     efficiency = [5.3 * 118.0 / (36 * 17.9), 5.4 * 119.5 / (36 * 18.1), 4.1 * 83.0 / (36 * 11.7)]
     assert telemetry_frame["pressure_flow_efficiency"].to_list() == pytest.approx(efficiency)
@@ -165,7 +166,9 @@ def test_engine_cli_reports_scoped_saved_build(
 
 
 def test_engine_rejects_missing_parameter() -> None:
-    engine = engine_for_plan(_execution_plan(), {}, spec_definition=_execution_spec())
+    engine = execution_support.engine_for_plan(
+        _execution_plan(), {}, spec_definition=_execution_spec()
+    )
 
     result = engine.run()
 
@@ -175,7 +178,7 @@ def test_engine_rejects_missing_parameter() -> None:
 
 
 def test_engine_rejects_unknown_parameter_name() -> None:
-    engine = engine_for_plan(
+    engine = execution_support.engine_for_plan(
         _execution_plan(), {"another_parameter": "value"}, spec_definition=_execution_spec()
     )
 
@@ -188,7 +191,7 @@ def test_engine_rejects_unknown_parameter_name() -> None:
 
 def test_engine_rejects_non_scalar_parameter_value() -> None:
     with pytest.raises(ValueError, match="must be a JSON scalar"):
-        engine_for_plan(
+        execution_support.engine_for_plan(
             _execution_plan(),
             {"telemetry_source": {"path": "input.json"}},
             spec_definition=_execution_spec(),
@@ -196,7 +199,7 @@ def test_engine_rejects_non_scalar_parameter_value() -> None:
 
 
 def test_engine_merges_fragments_by_entity_dimensions() -> None:
-    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    engine = execution_support.engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
     dataframe = dataframe_module.DataFrameExecution(
         engine.backend, engine.spec_definition, state_module.RuntimeState()
     )
@@ -235,7 +238,7 @@ def test_engine_merges_fragments_by_entity_dimensions() -> None:
 def test_engine_assembly_accepts_mixed_eager_and_lazy_frames(
     existing_lazy: bool, fragment_lazy: bool
 ) -> None:
-    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    engine = execution_support.engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
     dataframe = dataframe_module.DataFrameExecution(
         engine.backend, engine.spec_definition, state_module.RuntimeState()
     )
@@ -269,7 +272,7 @@ def test_engine_assembly_preserves_partial_and_disjoint_keys(
     fragment_keys: list[str | None],
     expected_keys: list[str | None],
 ) -> None:
-    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    engine = execution_support.engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
     dataframe = dataframe_module.DataFrameExecution(
         engine.backend, engine.spec_definition, state_module.RuntimeState()
     )
@@ -294,7 +297,7 @@ def test_engine_assembly_preserves_partial_and_disjoint_keys(
 def test_engine_assembly_rejects_duplicate_keys_on_either_side(
     lazy: bool, duplicate_side: str
 ) -> None:
-    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    engine = execution_support.engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
     dataframe = dataframe_module.DataFrameExecution(
         engine.backend, engine.spec_definition, state_module.RuntimeState()
     )
@@ -315,7 +318,7 @@ def test_engine_assembly_rejects_duplicate_keys_on_either_side(
 def test_engine_validates_required_fragment_columns_and_types(
     lazy: bool, invalid_column: str
 ) -> None:
-    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    engine = execution_support.engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
     dataframe = dataframe_module.DataFrameExecution(
         engine.backend, engine.spec_definition, state_module.RuntimeState()
     )
@@ -347,7 +350,7 @@ def test_engine_validates_required_fragment_columns_and_types(
 
 @pytest.mark.parametrize("lazy", [False, True])
 def test_engine_assembly_rejects_feature_collisions(lazy: bool) -> None:
-    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    engine = execution_support.engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
     dataframe = dataframe_module.DataFrameExecution(
         engine.backend, engine.spec_definition, state_module.RuntimeState()
     )
@@ -386,7 +389,7 @@ def test_engine_assembly_rejects_feature_collisions(lazy: bool) -> None:
     ],
 )
 def test_engine_rejects_invalid_fragments(fragment: object, message: str) -> None:
-    engine = engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
+    engine = execution_support.engine_for_plan(_execution_plan(), spec_definition=_execution_spec())
     dataframe = dataframe_module.DataFrameExecution(
         engine.backend, engine.spec_definition, state_module.RuntimeState()
     )
@@ -456,8 +459,10 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
 
 def test_engine_executes_requested_feature_and_its_dependencies(tmp_path: pathlib.Path) -> None:
     spec_definition = _execution_spec()
-    plan = example_bundle(features=("health_signal_normalized",)).execution_plan
-    engine = engine_for_plan(plan, _engine_parameters(), spec_definition=spec_definition)
+    plan = example_support.example_bundle(features=("health_signal_normalized",)).execution_plan
+    engine = execution_support.engine_for_plan(
+        plan, _engine_parameters(), spec_definition=spec_definition
+    )
     assert [
         feature
         for stage in engine.plan.execution_stages

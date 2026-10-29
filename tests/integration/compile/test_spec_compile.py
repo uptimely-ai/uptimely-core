@@ -2,14 +2,14 @@ import json
 import pathlib
 
 import pytest
-from conftest import EXAMPLES_ROOT
+from support import examples as example_support
 
 from uptimely import compiler, spec
 from uptimely import execution_plan as compiler_plan
 from uptimely.compiler import inspection
 from uptimely.spec import model as spec_model
 
-SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 
