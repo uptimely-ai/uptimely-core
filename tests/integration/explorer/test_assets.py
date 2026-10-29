@@ -8,7 +8,8 @@ import shutil
 from urllib import parse
 
 import pytest
-from conftest import EXAMPLES_ROOT, render_explorer
+from support import examples as example_support
+from support import rendering as rendering_support
 
 from uptimely import project, spec
 from uptimely.explorer import graph_style, render
@@ -39,7 +40,7 @@ def test_external_assets_resolve_after_moving_website(
 ) -> None:
     original = tmp_path / "original"
     destination = tmp_path / "projects/analytics"
-    render_explorer(spec.Spec(), original / index_name)
+    rendering_support.render_explorer(spec.Spec(), original / index_name)
     destination.parent.mkdir()
     shutil.move(original, destination)
     referenced_assets: set[str] = set()
@@ -116,7 +117,7 @@ def test_graph_style_is_passed_as_json_without_changing_shared_script(
 
 @pytest.mark.usefixtures("example_projects")
 def test_build_manifest_includes_all_explorer_assets() -> None:
-    bundle = project.load_build_bundle(EXAMPLES_ROOT / "pump_analytics")
+    bundle = project.load_build_bundle(example_support.EXAMPLES_ROOT / "pump_analytics")
     assert set(bundle.manifest.explorer_files) >= ASSETS
     for filename in ASSETS:
         assert (bundle.explorer_path / filename).is_file()

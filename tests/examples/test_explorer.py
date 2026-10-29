@@ -3,13 +3,14 @@ import pathlib
 from html import parser as html_parser
 
 import pytest
-from conftest import EXAMPLES_ROOT, render_explorer
 from examples.pump_analytics.spec import spec as pump_analytics_module
+from support import examples as example_support
+from support import rendering as rendering_support
 
 from uptimely import spec
 from uptimely.explorer.sections import spec as spec_render
 
-SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 
@@ -121,7 +122,7 @@ def test_html_explorer_overview_counts_match_spec(tmp_path: pathlib.Path) -> Non
     spec_definition.name = "Pump analytics"
     expected_counts = _explorer_counts(spec_definition)
 
-    render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     output_path = tmp_path / "spec/overview.html"
     parser = TextCollector()
     parser.feed(output_path.read_text(encoding="utf-8"))

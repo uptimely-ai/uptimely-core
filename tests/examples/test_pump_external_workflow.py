@@ -5,19 +5,20 @@ import pathlib
 
 import polars as pl
 import pytest
-from conftest import EXAMPLES_ROOT, engine_for_plan, example_bundle
 from examples.pump_analytics.functions import external_workflow
+from support import examples as example_support
+from support import execution as execution_support
 
 from uptimely import execution_plan as plan_module
 
-EXAMPLE_ROOT = EXAMPLES_ROOT / "pump_analytics"
+EXAMPLE_ROOT = example_support.EXAMPLES_ROOT / "pump_analytics"
 
 
 def test_pump_external_workflow_reads_calculates_and_writes_without_materializing_outputs(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The declared boundary runs while the function owns internal I/O."""
-    bundle = example_bundle()
+    bundle = example_support.example_bundle()
     spec_definition = bundle.spec_definition
     plan_path = tmp_path / "execution_plan.json"
     plan_module.export_json(bundle.execution_plan, plan_path)
@@ -28,7 +29,7 @@ def test_pump_external_workflow_reads_calculates_and_writes_without_materializin
         "params"
     ]
 
-    result = engine_for_plan(
+    result = execution_support.engine_for_plan(
         saved_plan,
         parameters=parameters,
         project_root=EXAMPLE_ROOT,

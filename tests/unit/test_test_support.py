@@ -3,9 +3,9 @@
 import pathlib
 from concurrent import futures
 
-import conftest
 import pytest
-from conftest import copy_example_project, example_bundle, plan_for_spec, render_explorer
+from support import examples as example_support
+from support import rendering as rendering_support
 
 from uptimely import compiler, execution_plan, project, spec
 
@@ -13,34 +13,36 @@ from uptimely import compiler, execution_plan, project, spec
 def test_example_setup_reuses_artifacts_without_building_or_compiling(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    bundle = example_bundle()
+    bundle = example_support.example_bundle()
 
     def unexpected_work(*args: object, **kwargs: object) -> None:
         pytest.fail("Unchanged example setup must reuse saved artifacts")
 
     monkeypatch.setattr(compiler.Compiler, "compile", unexpected_work)
     monkeypatch.setattr(project, "build_project", unexpected_work)
-    plan = plan_for_spec(bundle.spec_definition)
-    copied_root = copy_example_project(tmp_path / "project")
+    plan = example_support.plan_for_spec(bundle.spec_definition)
+    copied_root = example_support.copy_example_project(tmp_path / "project")
 
     assert execution_plan.to_dict(plan) == execution_plan.to_dict(bundle.execution_plan)
     assert project.load_build_bundle(copied_root).manifest == bundle.manifest
-    assert render_explorer(bundle.spec_definition, tmp_path / "site/index.html").is_file()
+    assert rendering_support.render_explorer(
+        bundle.spec_definition, tmp_path / "site/index.html"
+    ).is_file()
 
 
 def test_example_objects_and_project_copies_are_independent(tmp_path: pathlib.Path) -> None:
-    first = example_bundle()
-    second = example_bundle()
+    first = example_support.example_bundle()
+    second = example_support.example_bundle()
     original_plan = execution_plan.to_dict(second.execution_plan)
     first.spec_definition.name = "Changed by one test"
     first.execution_plan.invocations[0].arguments["test_only"] = True
-    copied_root = copy_example_project(tmp_path / "project")
+    copied_root = example_support.copy_example_project(tmp_path / "project")
     copied = project.load_build_bundle(copied_root)
     copied.spec_path.write_text("changed by one test", encoding="utf-8")
 
     assert second.spec_definition.name != first.spec_definition.name
     assert execution_plan.to_dict(second.execution_plan) == original_plan
-    assert execution_plan.to_dict(example_bundle().execution_plan) == original_plan
+    assert execution_plan.to_dict(example_support.example_bundle().execution_plan) == original_plan
     assert spec.load_spec(first.spec_path).name == second.spec_definition.name
 
 
@@ -63,9 +65,11 @@ def test_scoped_example_is_built_once_for_multiple_consumers(
 
     monkeypatch.setattr(project, "build_project", build)
 
-    first = example_bundle(features=features)
-    second = example_bundle(features=features)
-    copied_root = copy_example_project(tmp_path / "scoped project", features=features)
+    first = example_support.example_bundle(features=features)
+    second = example_support.example_bundle(features=features)
+    copied_root = example_support.copy_example_project(
+        tmp_path / "scoped project", features=features
+    )
 
     assert build_calls == 1
     assert first.execution_plan is not second.execution_plan
@@ -75,7 +79,7 @@ def test_scoped_example_is_built_once_for_multiple_consumers(
 def test_modified_example_is_compiled_instead_of_using_stale_plan(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    bundle = example_bundle()
+    bundle = example_support.example_bundle()
     definition = bundle.spec_definition
     definition.name = "Modified example"
     compiled_specs: list[spec.Spec] = []
@@ -90,14 +94,14 @@ def test_modified_example_is_compiled_instead_of_using_stale_plan(
 
     monkeypatch.setattr(compiler.Compiler, "compile", compile_spec)
 
-    assert plan_for_spec(definition) is bundle.execution_plan
+    assert example_support.plan_for_spec(definition) is bundle.execution_plan
     assert compiled_specs == [definition]
 
 
 def test_render_uses_supplied_custom_plan_without_compiling(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    bundle = example_bundle()
+    bundle = example_support.example_bundle()
     bundle.spec_definition.name = "Custom rendering"
 
     def unexpected_compile(
@@ -109,7 +113,7 @@ def test_render_uses_supplied_custom_plan_without_compiling(
 
     monkeypatch.setattr(compiler.Compiler, "compile", unexpected_compile)
 
-    assert render_explorer(
+    assert rendering_support.render_explorer(
         bundle.spec_definition, tmp_path / "index.html", plan=bundle.execution_plan
     ).is_file()
 
@@ -122,9 +126,9 @@ def test_shared_examples_are_built_once_under_concurrent_requests(
     monkeypatch.setattr(project, "build_project", builds.append)
 
     with futures.ThreadPoolExecutor(max_workers=4) as executor:
-        list(executor.map(conftest._prepare_example_projects, [examples_root] * 4))
-    conftest._prepare_example_projects.cache_clear()
-    conftest._prepare_example_projects(examples_root)
+        list(executor.map(example_support.prepare_example_projects, [examples_root] * 4))
+    example_support.prepare_example_projects.cache_clear()
+    example_support.prepare_example_projects(examples_root)
 
     assert builds == [examples_root / "pump_analytics"]
     assert (examples_root / "pump_analytics/spec").is_dir()
@@ -140,12 +144,12 @@ def test_failed_example_build_can_be_retried(
 
     monkeypatch.setattr(project, "build_project", fail_build)
     with pytest.raises(RuntimeError, match="Example build failed"):
-        conftest._prepare_example_projects(examples_root)
+        example_support.prepare_example_projects(examples_root)
     assert not (tmp_path / ".examples-ready").exists()
 
     builds: list[pathlib.Path] = []
     monkeypatch.setattr(project, "build_project", builds.append)
-    conftest._prepare_example_projects(examples_root)
+    example_support.prepare_example_projects(examples_root)
 
     assert builds == [examples_root / "pump_analytics"]
     assert (tmp_path / ".examples-ready").is_file()

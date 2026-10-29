@@ -1,16 +1,16 @@
 import polars as pl
 import pytest
-from conftest import EXAMPLES_ROOT
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension as pump_dimensions
 from examples.pump_analytics.spec import entity as pump_entities
 from examples.pump_analytics.spec import spec as pump_telemetry_spec
+from support import examples as example_support
 
 from uptimely import spec
 from uptimely.spec import python as python_spec
 from uptimely.spec.python import binding_conversion
 
-SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 

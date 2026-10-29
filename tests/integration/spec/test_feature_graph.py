@@ -2,13 +2,14 @@ import pathlib
 import sys
 
 import pytest
-from conftest import EXAMPLES_ROOT, render_explorer
+from support import examples as example_support
+from support import rendering as rendering_support
 
 from uptimely import spec
 from uptimely.cli import cli
 from uptimely.spec.feature_graph import models
 
-SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 
@@ -171,7 +172,7 @@ def test_dependency_features_keep_their_producer_entity_without_becoming_source_
 
 def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     output = tmp_path / "spec/feature-lineage.html"
     html = output.read_text(encoding="utf-8")
     script = (tmp_path / "js/feature_lineage.js").read_text(encoding="utf-8")
@@ -210,7 +211,7 @@ def test_website_includes_3d_lineage_html(tmp_path: pathlib.Path) -> None:
 
 def test_website_includes_2d_lineage_html(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     output = tmp_path / "spec/feature-lineage.html"
     html = output.read_text(encoding="utf-8")
     script = (tmp_path / "js/feature_lineage.js").read_text(encoding="utf-8")

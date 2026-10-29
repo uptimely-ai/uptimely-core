@@ -9,7 +9,7 @@ import sys
 from collections import abc
 
 import pytest
-from conftest import copy_example_project, example_bundle
+from support import examples as example_support
 
 from uptimely import execution_plan as plan_module
 from uptimely import project, spec
@@ -27,7 +27,7 @@ def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
 
 
 def copy_project_spec(root: pathlib.Path) -> pathlib.Path:
-    bundle = example_bundle()
+    bundle = example_support.example_bundle()
     source = root / project.SPEC_JSON_ENTRY_FILE
     source.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(bundle.spec_path, source)
@@ -126,7 +126,7 @@ def test_project_rebuild_replaces_previous_bundle(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    root = copy_example_project(tmp_path / "examples" / "pump_analytics")
+    root = example_support.copy_example_project(tmp_path / "examples" / "pump_analytics")
     (root.parent / "__init__.py").write_text("", encoding="utf-8")
     bundle = project.load_build_bundle(root)
     old_plan = bundle.execution_plan
@@ -339,7 +339,7 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
         assert set(invocation.dependency_ids) <= plan_ids
     for sink in sinks:
         assert set(sink.input_features) <= produced_features | dimensions
-    full_plan = example_bundle().execution_plan
+    full_plan = example_support.example_bundle().execution_plan
     assert len(bundle.execution_plan.invocations) <= len(full_plan.invocations)
     assert len({invocation.id for invocation in bundle.execution_plan.invocations}) == len(
         bundle.execution_plan.invocations
@@ -404,7 +404,7 @@ def test_project_build_failures_preserve_previous_bundle(
 ) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
-    shutil.copytree(example_bundle().root, root / project.BUILD_OUTPUT_DIR)
+    shutil.copytree(example_support.example_bundle().root, root / project.BUILD_OUTPUT_DIR)
     old_bundle = bundle_files(root)
 
     if stage == "compile":
@@ -456,7 +456,7 @@ def test_project_build_fails_while_bundle_lock_is_held(
 ) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
-    shutil.copytree(example_bundle().root, root / project.BUILD_OUTPUT_DIR)
+    shutil.copytree(example_support.example_bundle().root, root / project.BUILD_OUTPUT_DIR)
 
     with (
         project.build_lock(root, exclusive=exclusive),
@@ -472,7 +472,7 @@ def test_read_build_bundle_holds_lock_for_consumer_lifetime(
 ) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
-    shutil.copytree(example_bundle().root, root / project.BUILD_OUTPUT_DIR)
+    shutil.copytree(example_support.example_bundle().root, root / project.BUILD_OUTPUT_DIR)
     built_bundle = project.load_build_bundle(root)
 
     with project.read_build_bundle(root) as bundle:

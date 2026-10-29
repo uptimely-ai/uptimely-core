@@ -7,13 +7,13 @@ import types
 
 import polars as pl
 import pytest
-from conftest import EXAMPLES_ROOT, copy_example_project
+from support import examples as example_support
 
 from uptimely import engine as engine_module
 from uptimely import project as project_module
 from uptimely.cli import cli
 
-PROJECT = EXAMPLES_ROOT / "pump_analytics"
+PROJECT = example_support.EXAMPLES_ROOT / "pump_analytics"
 SPEC_PATH = PROJECT / "_generated/build/spec.json"
 
 
@@ -28,7 +28,7 @@ def _copy_pump_project(
     features: tuple[str, ...] | None = None,
 ) -> pathlib.Path:
     project_root = tmp_path / "examples" / "pump_analytics"
-    copy_example_project(project_root, features=features)
+    example_support.copy_example_project(project_root, features=features)
     (project_root.parent / "__init__.py").write_text("", encoding="utf-8")
     return project_root
 

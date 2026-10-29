@@ -10,14 +10,15 @@ from urllib import parse as url_parse
 from urllib import request
 
 import pytest
-from conftest import EXAMPLES_ROOT, plan_for_spec, render_explorer
 from examples.pump_analytics.functions import analytics
+from support import examples as example_support
+from support import rendering as rendering_support
 
 from uptimely import compiler, spec
 from uptimely.explorer.sections import feature_lineage
 from uptimely.explorer.sections import spec as spec_render
 
-SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 REPORTS = {
     "spec/overview.html": "spec",
@@ -115,7 +116,7 @@ def heading_titles(document: str) -> list[str]:
 
 
 def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
-    render_explorer(spec.Spec(), tmp_path / "index.html")
+    rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")
     expected = {
         "index.html": ("home", "house", "Untitled analytics project"),
         "spec/overview.html": ("overview", "layout-dashboard", "Overview"),
@@ -230,7 +231,7 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
 
 def test_icon_palette_contrast(tmp_path: pathlib.Path) -> None:
     """Keep concept colors legible on normal and selected navigation backgrounds."""
-    render_explorer(spec.Spec(), tmp_path / "index.html")
+    rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")
     icon_styles = (tmp_path / "css/icons.css").read_text(encoding="utf-8")
     colors = set(re.findall(r"--icon-color: (#[0-9a-f]{6});", icon_styles))
     assert len(colors) == 10
@@ -257,7 +258,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
 
-    index = render_explorer(spec_definition)
+    index = rendering_support.render_explorer(spec_definition)
 
     assert index == pathlib.Path("_generated/explorer/index.html")
     assert {path.name for path in index.parent.iterdir()} == {
@@ -401,13 +402,13 @@ def test_feature_lineage_payload_contains_expected_nodes_and_links() -> None:
 
 def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monkeypatch) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    expected_plan = plan_for_spec(spec_definition)
+    expected_plan = example_support.plan_for_spec(spec_definition)
 
     def fail_compile(*args: object, **kwargs: object) -> None:
         pytest.fail("Example rendering must reuse the saved plan")
 
     monkeypatch.setattr(compiler.Compiler, "compile", fail_compile)
-    index = render_explorer(spec_definition, tmp_path / "index.html")
+    index = rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     document = index.read_text(encoding="utf-8")
 
     assert "<title>Pump analytics | OpenAnalytics</title>" in document
@@ -451,7 +452,7 @@ def test_homepage_shows_project_counts_and_journey(tmp_path: pathlib.Path, monke
 def test_homepage_handles_unnamed_and_escaped_projects(
     tmp_path: pathlib.Path, name: str | None
 ) -> None:
-    index = render_explorer(spec.Spec(name=name), tmp_path / "index.html")
+    index = rendering_support.render_explorer(spec.Spec(name=name), tmp_path / "index.html")
     document = index.read_text(encoding="utf-8")
 
     assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 6
@@ -480,7 +481,7 @@ def test_spec_pages_render_only_their_section(
     tmp_path: pathlib.Path, filename: str, section_id: str, title: str
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     for candidate in ("overview", "entities", "datasets", "dimensions", "functions"):
@@ -498,7 +499,7 @@ def test_spec_pages_render_only_their_section(
 
 def test_spec_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "spec/overview.html").read_text(encoding="utf-8")
 
     assert "Pump analytics" in document
@@ -514,7 +515,7 @@ def test_spec_overview_displays_source_profile(tmp_path: pathlib.Path) -> None:
 def test_website_supports_custom_index_path_and_in_memory_spec(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    index = render_explorer(spec_definition, tmp_path / "nested" / "spec.htm")
+    index = rendering_support.render_explorer(spec_definition, tmp_path / "nested" / "spec.htm")
 
     assert index == tmp_path / "nested" / "spec.html"
     assert index.is_file()
@@ -536,7 +537,7 @@ def test_relocated_website_navigation_works_under_url_prefix(
     tmp_path: pathlib.Path, index_name: str
 ) -> None:
     original = tmp_path / "generated"
-    render_explorer(spec.Spec(), original / index_name)
+    rendering_support.render_explorer(spec.Spec(), original / index_name)
     host_root = tmp_path / "hosted"
     relocated = host_root / "projects" / "spec"
     relocated.parent.mkdir(parents=True)
@@ -588,7 +589,7 @@ def test_execution_plan_pages_render_only_their_section(
     tmp_path: pathlib.Path, filename: str, title: str
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert 'aria-label="Plan sections"' in document
@@ -667,7 +668,7 @@ def test_execution_plan_pages_render_only_their_section(
 def test_graph_pages_have_one_selector_and_shared_data(
     tmp_path: pathlib.Path, filename: str
 ) -> None:
-    render_explorer(spec.load_spec(SPEC_PATH), tmp_path / "index.html")
+    rendering_support.render_explorer(spec.load_spec(SPEC_PATH), tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert document.count('aria-label="Lineage view"') == 1
@@ -730,7 +731,7 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
         (tmp_path / filename).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / filename).write_text("old", encoding="utf-8")
     (tmp_path / "graph/custom.html").write_text("custom graph", encoding="utf-8")
-    render_explorer(spec.Spec(), tmp_path / "index.html")
+    rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")
     assert all(not (tmp_path / filename).exists() for filename in obsolete)
     assert (tmp_path / "custom.html").read_text(encoding="utf-8") == "old"
     assert (tmp_path / "graph/custom.html").read_text(encoding="utf-8") == "custom graph"
@@ -739,8 +740,8 @@ def test_rebuild_removes_only_obsolete_graph_pages(tmp_path: pathlib.Path) -> No
 
 def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    first = render_explorer(spec_definition, tmp_path / "first" / "index.html")
-    second = render_explorer(spec_definition, tmp_path / "second" / "index.html")
+    first = rendering_support.render_explorer(spec_definition, tmp_path / "first" / "index.html")
+    second = rendering_support.render_explorer(spec_definition, tmp_path / "second" / "index.html")
 
     first_files = {
         path.relative_to(first.parent): path.read_bytes()
@@ -757,8 +758,8 @@ def test_website_without_timestamp_is_deterministic(tmp_path: pathlib.Path) -> N
 
 def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    plan = plan_for_spec(spec_definition)
-    render_explorer(spec_definition, tmp_path / "index.html")
+    plan = example_support.plan_for_spec(spec_definition)
+    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
     cards = dict(re.findall(r'data-stat="([^"]+)"[\s\S]*?data-value="(\d+)"', document))
     assert cards == {
@@ -791,7 +792,7 @@ def test_execution_plan_overview_statistics_match_plan(tmp_path: pathlib.Path) -
 
 
 def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> None:
-    render_explorer(spec.Spec(), tmp_path / "index.html")
+    rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")
     document = (tmp_path / "plan/overview.html").read_text(encoding="utf-8")
 
     assert re.findall(r'data-value="(\d+)"', document) == ["0"] * 7
@@ -805,7 +806,7 @@ def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> Non
 def test_website_index_can_share_a_report_basename(tmp_path: pathlib.Path, filename: str) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    index = render_explorer(spec_definition, tmp_path / filename)
+    index = rendering_support.render_explorer(spec_definition, tmp_path / filename)
     assert index.is_file()
     for report in REPORTS:
         page = tmp_path / report
@@ -824,7 +825,7 @@ def test_standalone_html_apis_are_removed() -> None:
     assert not hasattr(spec_definition, "create_html")
     assert not hasattr(feature_graph, "export_html")
     assert not hasattr(feature_graph.subset(["health_signal_normalized"]), "export_html")
-    assert not hasattr(plan_for_spec(spec_definition), "export_html")
+    assert not hasattr(example_support.plan_for_spec(spec_definition), "export_html")
     assert not hasattr(spec_render, "create_html")
     assert not hasattr(spec_render, "create_website_pages")
     assert not hasattr(feature_lineage, "render_graph_html")
@@ -840,7 +841,7 @@ def test_website_propagates_compilation_errors_without_writing_reports(
     ].entrypoint = "missing_functions:read_pump_telemetry"
 
     with pytest.raises((ImportError, ValueError), match="missing_functions"):
-        render_explorer(spec_definition, tmp_path / "index.html")
+        rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
 
     assert not list(tmp_path.iterdir())
 
@@ -853,7 +854,7 @@ def test_website_graph_links_reference_exported_nodes(
     tmp_path: pathlib.Path, filename: str
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    render_explorer(spec_definition, tmp_path / "index.html")
+    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / filename).read_text(encoding="utf-8")
     match = re.search(
         r'<script id="graph-data" type="application/json">(.*?)</script>', document, re.DOTALL
@@ -874,8 +875,8 @@ def test_invocation_lineage_matches_compiled_invocation_dependencies(
     tmp_path: pathlib.Path,
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    plan = plan_for_spec(spec_definition)
-    render_explorer(spec_definition, tmp_path / "index.html")
+    plan = example_support.plan_for_spec(spec_definition)
+    rendering_support.render_explorer(spec_definition, tmp_path / "index.html")
     document = (tmp_path / "plan/invocation-lineage.html").read_text(encoding="utf-8")
     match = re.search(
         r'<script id="graph-data" type="application/json">(.*?)</script>', document, re.DOTALL
@@ -901,13 +902,15 @@ def test_website_does_not_execute_spec(tmp_path: pathlib.Path, monkeypatch) -> N
     monkeypatch.setattr(analytics, "read_pump_telemetry", fail_if_executed)
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    assert render_explorer(spec_definition, tmp_path / "index.html").is_file()
+    assert rendering_support.render_explorer(spec_definition, tmp_path / "index.html").is_file()
 
 
 def test_website_can_include_spec_timestamp(tmp_path: pathlib.Path) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    render_explorer(spec_definition, tmp_path / "index.html", include_generated_at=True)
+    rendering_support.render_explorer(
+        spec_definition, tmp_path / "index.html", include_generated_at=True
+    )
 
     assert re.search(
         r"generated \d{4}-\d{2}-\d{2}T",

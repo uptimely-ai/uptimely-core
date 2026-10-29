@@ -7,7 +7,7 @@ import shlex
 import sys
 
 import pytest
-from conftest import EXAMPLES_ROOT
+from support import examples as example_support
 
 fastmcp = pytest.importorskip("fastmcp", reason="fastmcp extra is not installed")
 
@@ -18,8 +18,8 @@ from uptimely.explorer import explorer as explorer_module  # noqa: E402
 from uptimely.mcp import server  # noqa: E402
 from uptimely.spec import model as spec_model  # noqa: E402
 
-PROJECT_ROOT = EXAMPLES_ROOT / "pump_analytics"
-CONFIG_PATH = EXAMPLES_ROOT / "pump_analytics" / "config" / "config.json"
+PROJECT_ROOT = example_support.EXAMPLES_ROOT / "pump_analytics"
+CONFIG_PATH = example_support.EXAMPLES_ROOT / "pump_analytics" / "config" / "config.json"
 
 
 @pytest.fixture()

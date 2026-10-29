@@ -6,14 +6,16 @@ import pathlib
 import re
 
 import pytest
-from conftest import EXAMPLES_ROOT, engine_for_plan, render_explorer
+from support import examples as example_support
+from support import execution as execution_support
+from support import rendering as rendering_support
 
 from uptimely import compiler, spec
 from uptimely.explorer.sections import feature_lineage
 from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec import functions
 
-SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 REFERENCE_PATH = pathlib.Path("docs/components/spec.md")
 OBSERVATION_TOTALS_PATH = pathlib.Path("tests/fixtures/spec/observation_totals.json")
@@ -34,7 +36,7 @@ def test_spec_reference_snippet_syntax(language: str, snippet: str) -> None:
 def test_spec_json_parses_compiles_and_executes() -> None:
     spec_definition = spec.load_spec(OBSERVATION_TOTALS_PATH)
     compiled = compiler.Compiler().compile(spec_definition, features=["total"])
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = execution_support.engine_for_plan(compiled, spec_definition=spec_definition).run()
 
     assert len(compiled.invocations) == 2
     assert not execution.failures
@@ -49,7 +51,7 @@ def test_reference_exports_to_default_directory(
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
-    document_path = render_explorer(spec_definition)
+    document_path = rendering_support.render_explorer(spec_definition)
     expected = pathlib.Path("_generated/explorer/index.html")
     assert document_path == expected
     assert document_path.is_file()
@@ -66,7 +68,7 @@ def test_html_export_preserves_spec_definition(
     spec.write_document(spec_definition, spec_path)
     original = spec_path.read_bytes()
 
-    output = render_explorer(spec_definition)
+    output = rendering_support.render_explorer(spec_definition)
 
     assert output == pathlib.Path("_generated/explorer/index.html")
     assert spec_path.read_bytes() == original
@@ -181,7 +183,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     )
     assert first_escape.id in followup_escape.dependency_ids
 
-    index = render_explorer(definition, tmp_path / "site/index.html", plan=plan)
+    index = rendering_support.render_explorer(definition, tmp_path / "site/index.html", plan=plan)
     feature_page = (index.parent / "spec/features.html").read_text(encoding="utf-8")
     datasets_page = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     functions_page = (index.parent / "spec/functions.html").read_text(encoding="utf-8")
@@ -258,7 +260,7 @@ def test_generate_html_explorer(tmp_path: pathlib.Path, monkeypatch) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     monkeypatch.chdir(tmp_path)
 
-    document_path = render_explorer(spec_definition)
+    document_path = rendering_support.render_explorer(spec_definition)
     pages = {
         filename: (document_path.parent / filename).read_text(encoding="utf-8")
         for filename in (
@@ -321,8 +323,12 @@ def test_generate_html_explorer_from_in_memory_spec_is_deterministic(
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
 
-    first_path = render_explorer(spec_definition, output_path=tmp_path / "first" / "index.html")
-    second_path = render_explorer(spec_definition, output_path=tmp_path / "second" / "index.html")
+    first_path = rendering_support.render_explorer(
+        spec_definition, output_path=tmp_path / "first" / "index.html"
+    )
+    second_path = rendering_support.render_explorer(
+        spec_definition, output_path=tmp_path / "second" / "index.html"
+    )
 
     for first_page in first_path.parent.rglob("*.html"):
         relative_path = first_page.relative_to(first_path.parent)

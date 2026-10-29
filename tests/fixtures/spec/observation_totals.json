@@ -10,12 +10,12 @@
     "read_observations": {
       "kind": "read",
       "returns": "dataframe",
-      "entrypoint": "conftest:read_observation_totals"
+      "entrypoint": "support.functions:read_observation_totals"
     },
     "sum_features": {
       "kind": "vectorize",
       "returns": "dataframe",
-      "entrypoint": "conftest:sum_observation_features",
+      "entrypoint": "support.functions:sum_observation_features",
       "args": {
         "left_feature": {"type": "string"},
         "right_feature": {"type": "string"},

@@ -6,7 +6,7 @@ import threading
 from urllib import request
 
 import pytest
-from conftest import EXAMPLES_ROOT, copy_example_project
+from support import examples as example_support
 
 from uptimely import compiler, project
 from uptimely.cli import cli, explorer
@@ -14,13 +14,13 @@ from uptimely.explorer import explorer as explorer_module
 from uptimely.project import build as project_build
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
-SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 @pytest.fixture
 def built_project(tmp_path: pathlib.Path) -> pathlib.Path:
     root = tmp_path / "project with spaces"
-    return copy_example_project(root)
+    return example_support.copy_example_project(root)
 
 
 @pytest.mark.parametrize(
@@ -145,7 +145,7 @@ def test_explorer_reports_selected_scope(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    built_project = copy_example_project(
+    built_project = example_support.copy_example_project(
         tmp_path / "project with spaces", features=("pump_health_score",)
     )
     bundle = project.load_build_bundle(built_project)

@@ -6,7 +6,7 @@ import types
 from collections import abc
 
 import pytest
-from conftest import EXAMPLES_ROOT, example_bundle
+from support import examples as example_support
 
 from uptimely import compiler, spec
 from uptimely import entrypoint as shared_entrypoint
@@ -14,7 +14,7 @@ from uptimely import execution_plan as plan
 from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec.python import ref
 
-SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 
@@ -67,7 +67,7 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    baseline = example_bundle().execution_plan
+    baseline = example_support.example_bundle().execution_plan
     package_name = f"signature_fixture_{tmp_path.name.replace('-', '_')}"
     package = tmp_path / package_name
     package.mkdir()
