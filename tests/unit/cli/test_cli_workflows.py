@@ -328,6 +328,7 @@ def test_workflow_missing_inputs_are_reported(
 
 
 @pytest.mark.parametrize("command", [["spec", "feature-graph"]])
+@pytest.mark.usefixtures("example_projects")
 def test_unknown_feature_is_reported(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], command: list[str]
 ) -> None:

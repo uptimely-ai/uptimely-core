@@ -2,6 +2,7 @@ import dataclasses
 import pathlib
 from html import parser as html_parser
 
+import pytest
 from conftest import EXAMPLES_ROOT, render_explorer
 from examples.pump_analytics.spec import spec as pump_analytics_module
 
@@ -9,6 +10,7 @@ from uptimely import spec
 from uptimely.explorer.sections import spec as spec_render
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 def test_spec_exports_only_json(tmp_path: pathlib.Path) -> None:

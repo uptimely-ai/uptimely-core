@@ -14,6 +14,7 @@ from uptimely.engine import dataframe as dataframe_module
 from uptimely.engine import state as state_module
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 def _engine_parameters() -> dict[str, object]:

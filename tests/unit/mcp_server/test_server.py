@@ -19,16 +19,11 @@ from uptimely.mcp import server  # noqa: E402
 from uptimely.spec import model as spec_model  # noqa: E402
 
 PROJECT_ROOT = EXAMPLES_ROOT / "pump_analytics"
-BUILD_MANIFEST_PATH = PROJECT_ROOT / "_generated" / "build" / "build.json"
 CONFIG_PATH = EXAMPLES_ROOT / "pump_analytics" / "config" / "config.json"
-
-pytestmark = pytest.mark.skipif(
-    not BUILD_MANIFEST_PATH.exists(), reason="example build is not generated"
-)
 
 
 @pytest.fixture()
-def state() -> server.ServerState:
+def state(example_projects: pathlib.Path) -> server.ServerState:
     """Provide server state bound to the pump analytics build."""
     config = server._load_config(CONFIG_PATH, PROJECT_ROOT)
     return server.ServerState(

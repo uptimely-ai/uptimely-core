@@ -10,6 +10,7 @@ from uptimely.compiler import inspection
 from uptimely.spec import model as spec_model
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 def _add_escape_mapping(

@@ -18,6 +18,7 @@ from uptimely.explorer.sections import feature_lineage
 from uptimely.explorer.sections import spec as spec_render
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 REPORTS = {
     "spec/overview.html": "spec",
     "spec/features.html": "features",

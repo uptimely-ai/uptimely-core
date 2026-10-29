@@ -1,6 +1,7 @@
 """Direct raising-rule contracts against a complete example spec."""
 
 import json
+import pathlib
 
 import pytest
 from conftest import EXAMPLES_ROOT
@@ -16,7 +17,7 @@ from uptimely.spec.validation.rules.actions import outputs as action_outputs
 
 
 @pytest.fixture
-def document() -> spec.Spec:
+def document(example_projects: pathlib.Path) -> spec.Spec:
     return spec.Spec.model_validate(
         json.loads(
             (EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json").read_text(

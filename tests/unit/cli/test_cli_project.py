@@ -9,7 +9,7 @@ import sys
 from collections import abc
 
 import pytest
-from conftest import EXAMPLES_ROOT, copy_example_project, example_bundle
+from conftest import copy_example_project, example_bundle
 
 from uptimely import execution_plan as plan_module
 from uptimely import project, spec
@@ -19,7 +19,6 @@ from uptimely.explorer import explorer as explorer_module
 from uptimely.project.build import builder as project_build
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
-PUMP_SPEC_JSON = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
@@ -28,9 +27,10 @@ def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
 
 
 def copy_project_spec(root: pathlib.Path) -> pathlib.Path:
+    bundle = example_bundle()
     source = root / project.SPEC_JSON_ENTRY_FILE
     source.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(PUMP_SPEC_JSON, source)
+    shutil.copyfile(bundle.spec_path, source)
     return source
 
 

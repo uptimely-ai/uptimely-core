@@ -25,8 +25,33 @@ _TEMP_ROOTS: list[pathlib.Path] = []
 
 
 @functools.cache
+def _prepare_example_projects(examples_root: pathlib.Path) -> None:
+    """Prepare shared examples once, including when workers start concurrently."""
+    ready = examples_root.parent / ".examples-ready"
+    with project_module.build_lock(examples_root.parent, exclusive=True):
+        if ready.is_file():
+            return
+        shutil.copytree(
+            REPOSITORY_ROOT / "examples",
+            examples_root,
+            ignore=shutil.ignore_patterns("_generated", "__pycache__"),
+            dirs_exist_ok=True,
+        )
+        project_module.build_project(examples_root / "pump_analytics")
+        ready.touch()
+
+
+@pytest.fixture(scope="session")
+def example_projects() -> pathlib.Path:
+    """Prepare artifacts for tests that access example paths directly."""
+    _prepare_example_projects(EXAMPLES_ROOT)
+    return EXAMPLES_ROOT
+
+
+@functools.cache
 def _example_project(example: str, features: tuple[str, ...] | None) -> pathlib.Path:
     """Prepare each scoped example once per worker; reuse full session builds."""
+    _prepare_example_projects(EXAMPLES_ROOT)
     source = EXAMPLES_ROOT / example
     if features is None:
         return source
@@ -189,7 +214,7 @@ def render_explorer(
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    """Build example bundles required by tests that exercise saved artifacts."""
+    """Reserve a shared location without copying or building examples."""
     global EXAMPLES_ROOT, _TEST_ROOT
 
     if hasattr(config, "workerinput"):
@@ -197,18 +222,13 @@ def pytest_configure(config: pytest.Config) -> None:
 
     _TEST_ROOT = pathlib.Path(tempfile.mkdtemp(prefix="uptimely-core-tests-"))
     EXAMPLES_ROOT = _TEST_ROOT / "examples"
-    shutil.copytree(
-        REPOSITORY_ROOT / "examples",
-        EXAMPLES_ROOT,
-        ignore=shutil.ignore_patterns("_generated", "__pycache__"),
-    )
     os.environ["UPTIMELY_TEST_EXAMPLES_ROOT"] = str(EXAMPLES_ROOT)
-
-    project_module.build_project(EXAMPLES_ROOT / "pump_analytics")
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:
     """Remove the isolated example projects created for this test run."""
+    _prepare_example_projects.cache_clear()
+    _example_project.cache_clear()
     for path in _TEMP_ROOTS:
         shutil.rmtree(path)
     if not hasattr(config, "workerinput") and _TEST_ROOT is not None:

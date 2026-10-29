@@ -15,6 +15,7 @@ from uptimely.spec.validation.rules import features as feature_rules
 from uptimely.spec.validation.rules.actions import contracts as action_contracts
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 def _action_contracts(spec_definition: spec.Spec) -> tuple[action_contracts.ActionContract, ...]:

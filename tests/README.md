@@ -11,12 +11,18 @@ Keep examples user-focused. Test-only scenarios and invalid inputs belong in fix
 
 ## Running tests
 
-Run `poetry run pytest` to build the example bundles required by the tests.
+Run `poetry run pytest` to run the suite.
 
-Full example bundles are built once by the test controller and shared read-only
-with workers. Use `example_bundle()` to load fresh spec and plan objects, or
+Full example bundles are built on first use and shared read-only with workers.
+A cross-process lock ensures only one worker prepares them. Collection and
+focused runs that do not use examples skip copying and building entirely.
+Use `example_bundle()` to load fresh spec and plan objects, or
 `copy_example_project()` when a test needs to modify or execute an isolated
 project. Scoped example builds are prepared on demand once per worker and scope.
+Tests that read files directly under `EXAMPLES_ROOT` must request the
+`example_projects` fixture, either as an argument or with
+`@pytest.mark.usefixtures("example_projects")`. Do not read generated artifacts
+or check their existence during collection.
 
 Explorer tests use `render_explorer()`, which reuses a saved plan for an unchanged
 example spec. Pass an existing `plan=` when a custom spec has already been
