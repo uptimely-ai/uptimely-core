@@ -25,7 +25,7 @@ repos:
       - id: pytest
         name: pytest
         entry: poetry run pytest
-        args: [-n, "4"]
+        args: [-n, "8"]
         language: system
         stages: [pre-commit]
         types: [python]

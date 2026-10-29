@@ -24,7 +24,8 @@ compiled. New or modified specs are compiled normally, so invalid inputs still
 exercise validation. Keep direct compilation and build calls in tests that
 verify compiler or builder behavior, rather than using them as repeated setup.
 
-The pre-commit pytest hook runs with four workers when Python files are staged.
+Pytest defaults to eight workers. The pre-commit pytest hook also runs with eight
+workers when Python files are staged.
 
 ## Explorer JavaScript tests
 
