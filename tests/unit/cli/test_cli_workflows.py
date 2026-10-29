@@ -33,6 +33,7 @@ def _copy_pump_project(
     return project_root
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_feature_graph_summary_subset_and_tree(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
