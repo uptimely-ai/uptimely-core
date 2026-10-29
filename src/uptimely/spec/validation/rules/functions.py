@@ -7,7 +7,7 @@ import collections.abc
 from uptimely.spec import arg_types, functions
 from uptimely.spec import model as spec_model
 
-from . import errors
+from .. import errors
 
 
 def iter_functions(

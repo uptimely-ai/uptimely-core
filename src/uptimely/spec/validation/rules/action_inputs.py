@@ -5,7 +5,7 @@ from __future__ import annotations
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 
-from . import errors, traversal
+from .. import errors, traversal
 
 
 def validate_escape_inputs(spec: spec_model.Spec) -> None:

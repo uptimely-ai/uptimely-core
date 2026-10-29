@@ -12,7 +12,8 @@ import pytest
 
 from uptimely import row_context as row_context_model
 from uptimely.spec import api, functions, model
-from uptimely.spec.validation import (
+from uptimely.spec.validation import spec as validation
+from uptimely.spec.validation.rules import (
     action_contracts,
     action_inputs,
     action_outputs,
@@ -23,8 +24,7 @@ from uptimely.spec.validation import (
     dimensions,
     row_context,
 )
-from uptimely.spec.validation import functions as function_rules
-from uptimely.spec.validation import spec as validation
+from uptimely.spec.validation.rules import functions as function_rules
 
 type Mutation = collections.abc.Callable[[model.Spec], object]
 

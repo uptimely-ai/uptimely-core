@@ -7,7 +7,7 @@ import collections.abc
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
 
-from . import traversal
+from .. import traversal
 
 
 def feature_producers(

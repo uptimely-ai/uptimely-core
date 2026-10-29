@@ -5,8 +5,8 @@ import pytest
 
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
-from uptimely.spec.validation import bindings
-from uptimely.spec.validation import functions as validation_functions
+from uptimely.spec.validation.rules import bindings
+from uptimely.spec.validation.rules import functions as validation_functions
 
 
 def test_named_function_kinds_match_the_public_contract() -> None:

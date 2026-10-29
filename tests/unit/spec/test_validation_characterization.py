@@ -7,8 +7,11 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import validation
-from uptimely.spec.validation import action_contracts as contracts_validation
 from uptimely.spec.validation import (
+    traversal,
+)
+from uptimely.spec.validation.rules import action_contracts as contracts_validation
+from uptimely.spec.validation.rules import (
     action_inputs,
     action_outputs,
     bindings,
@@ -16,9 +19,8 @@ from uptimely.spec.validation import (
     dependencies,
     dimensions,
     functions,
-    traversal,
 )
-from uptimely.spec.validation import (
+from uptimely.spec.validation.rules import (
     dataset as dataset_validation,
 )
 

@@ -7,7 +7,7 @@ import dataclasses
 
 from uptimely.spec import model as spec_model
 
-from . import errors
+from .. import errors
 
 
 @dataclasses.dataclass(frozen=True)

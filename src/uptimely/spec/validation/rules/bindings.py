@@ -7,7 +7,7 @@ import collections.abc
 from uptimely.spec import arg_types, selectors
 from uptimely.spec import model as spec_model
 
-from . import errors, traversal
+from .. import errors, traversal
 
 
 def _binding_selectors(

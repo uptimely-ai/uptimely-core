@@ -8,7 +8,7 @@ import dataclasses
 from uptimely.spec import model as spec_model
 from uptimely.spec import selectors
 
-from . import errors, traversal
+from .. import errors, traversal
 
 
 @dataclasses.dataclass(frozen=True)
