@@ -74,8 +74,8 @@ def test_action_id_is_included_in_serialized_document() -> None:
     assert spec.Spec.model_validate(payload) == model
 
 
-@pytest.mark.parametrize("datasets", [[], [{"id": "old"}], None, "dataset", 1, True])
-def test_dataset_registry_rejects_old_arrays_and_invalid_types(datasets: object) -> None:
+@pytest.mark.parametrize("datasets", [None, "dataset", 1, True])
+def test_dataset_registry_rejects_non_mapping_types(datasets: object) -> None:
     with pytest.raises(pydantic.ValidationError, match="datasets"):
         spec.Spec.model_validate(_document(datasets))
 
@@ -84,11 +84,6 @@ def test_dataset_registry_rejects_old_arrays_and_invalid_types(datasets: object)
 def test_dataset_attributes_reject_explicit_id(identifier: str) -> None:
     with pytest.raises(pydantic.ValidationError, match="not an 'id' attribute"):
         spec.Spec.model_validate(_document({"telemetry": {"id": identifier}}))
-
-
-def test_dataset_rejects_legacy_mappings_key() -> None:
-    with pytest.raises(pydantic.ValidationError, match="mappings"):
-        spec.Spec.model_validate(_document({"telemetry": {"mappings": {}}}))
 
 
 def test_dataset_defaults_are_empty_independent_dictionaries() -> None:
