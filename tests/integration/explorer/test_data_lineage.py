@@ -4,12 +4,14 @@ import pathlib
 import re
 from html import parser as html_parser
 
+import pytest
 from conftest import EXAMPLES_ROOT, plan_for_spec, render_explorer
 
 from uptimely import spec
 from uptimely.explorer.sections import data_lineage
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 class DataLineageStructureCollector(html_parser.HTMLParser):

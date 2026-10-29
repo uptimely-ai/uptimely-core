@@ -21,6 +21,7 @@ from uptimely.spec.validation.rules.actions import inputs as action_inputs
 from uptimely.spec.validation.rules.actions import outputs as action_outputs
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 def _configuration() -> dict:

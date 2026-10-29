@@ -15,6 +15,7 @@ from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 SAVED_PLAN_MARKER = "saved-plan-only-marker"
 
 

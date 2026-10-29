@@ -9,6 +9,8 @@ from conftest import EXAMPLES_ROOT, example_bundle
 from uptimely import compiler, spec
 from uptimely.explorer import explorer
 
+pytestmark = pytest.mark.usefixtures("example_projects")
+
 
 @pytest.mark.parametrize("scoped", [False, True])
 def test_pages_share_minimal_top_bar_and_build_badge(tmp_path: pathlib.Path, scoped: bool) -> None:

@@ -9,6 +9,7 @@ from uptimely.cli import cli
 from uptimely.spec.feature_graph import models
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 @pytest.mark.parametrize("verbose", [False, True])

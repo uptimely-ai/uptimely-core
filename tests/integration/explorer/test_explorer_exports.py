@@ -14,6 +14,7 @@ from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec import functions
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 REFERENCE_PATH = pathlib.Path("docs/components/spec.md")
 OBSERVATION_TOTALS_PATH = pathlib.Path("tests/fixtures/spec/observation_totals.json")
 

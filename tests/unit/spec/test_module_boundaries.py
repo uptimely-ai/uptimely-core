@@ -153,6 +153,7 @@ for name in {modules!r}:
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_json_round_trip_preserves_the_document_and_compiled_plan(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -213,6 +214,7 @@ def test_codec_preserves_function_descriptions_and_dataset_ids() -> None:
     assert model.Spec.model_validate(payload) == document
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_structural_operations_do_not_inspect_python_entrypoints(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -243,6 +245,7 @@ def test_structural_operations_do_not_inspect_python_entrypoints(
     assert spec.load_spec(SPEC_PATH) == document
 
 
+@pytest.mark.usefixtures("example_projects")
 def test_validation_does_not_mutate_the_document() -> None:
     document = model.Spec.model_validate(codec.load_document(SPEC_PATH))
     before = codec.to_document(document)

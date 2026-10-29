@@ -15,6 +15,7 @@ from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec.python import ref
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 @pytest.fixture(autouse=True)

@@ -1,7 +1,9 @@
 """Verify that reusable example artifacts preserve per-test isolation."""
 
 import pathlib
+from concurrent import futures
 
+import conftest
 import pytest
 from conftest import copy_example_project, example_bundle, plan_for_spec, render_explorer
 
@@ -11,12 +13,13 @@ from uptimely import compiler, execution_plan, project, spec
 def test_example_setup_reuses_artifacts_without_building_or_compiling(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    bundle = example_bundle()
+
     def unexpected_work(*args: object, **kwargs: object) -> None:
         pytest.fail("Unchanged example setup must reuse saved artifacts")
 
     monkeypatch.setattr(compiler.Compiler, "compile", unexpected_work)
     monkeypatch.setattr(project, "build_project", unexpected_work)
-    bundle = example_bundle()
     plan = plan_for_spec(bundle.spec_definition)
     copied_root = copy_example_project(tmp_path / "project")
 
@@ -42,7 +45,7 @@ def test_example_objects_and_project_copies_are_independent(tmp_path: pathlib.Pa
 
 
 def test_scoped_example_is_built_once_for_multiple_consumers(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, example_projects: pathlib.Path
 ) -> None:
     features = ("bearing_temperature_max",)
     original_build = project.build_project
@@ -109,3 +112,40 @@ def test_render_uses_supplied_custom_plan_without_compiling(
     assert render_explorer(
         bundle.spec_definition, tmp_path / "index.html", plan=bundle.execution_plan
     ).is_file()
+
+
+def test_shared_examples_are_built_once_under_concurrent_requests(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    examples_root = tmp_path / "examples"
+    builds: list[pathlib.Path] = []
+    monkeypatch.setattr(project, "build_project", builds.append)
+
+    with futures.ThreadPoolExecutor(max_workers=4) as executor:
+        list(executor.map(conftest._prepare_example_projects, [examples_root] * 4))
+    conftest._prepare_example_projects.cache_clear()
+    conftest._prepare_example_projects(examples_root)
+
+    assert builds == [examples_root / "pump_analytics"]
+    assert (examples_root / "pump_analytics/spec").is_dir()
+
+
+def test_failed_example_build_can_be_retried(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    examples_root = tmp_path / "examples"
+
+    def fail_build(project_root: pathlib.Path) -> None:
+        raise RuntimeError("Example build failed")
+
+    monkeypatch.setattr(project, "build_project", fail_build)
+    with pytest.raises(RuntimeError, match="Example build failed"):
+        conftest._prepare_example_projects(examples_root)
+    assert not (tmp_path / ".examples-ready").exists()
+
+    builds: list[pathlib.Path] = []
+    monkeypatch.setattr(project, "build_project", builds.append)
+    conftest._prepare_example_projects(examples_root)
+
+    assert builds == [examples_root / "pump_analytics"]
+    assert (tmp_path / ".examples-ready").is_file()

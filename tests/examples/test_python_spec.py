@@ -1,4 +1,5 @@
 import polars as pl
+import pytest
 from conftest import EXAMPLES_ROOT
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension as pump_dimensions
@@ -10,6 +11,7 @@ from uptimely.spec import python as python_spec
 from uptimely.spec.python import binding_conversion
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 def _read_transform_data() -> pl.DataFrame:

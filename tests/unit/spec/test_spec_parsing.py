@@ -10,6 +10,7 @@ from uptimely.spec import binding_resolution, references, validation
 from uptimely.spec.feature_graph import models
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str) -> pathlib.Path:

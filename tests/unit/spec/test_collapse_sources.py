@@ -11,6 +11,7 @@ from uptimely.spec.validation.rules import features as feature_rules
 from uptimely.spec.validation.rules.actions import inputs as action_inputs
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 @pytest.mark.parametrize(

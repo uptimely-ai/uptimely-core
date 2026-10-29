@@ -13,6 +13,7 @@ from uptimely.cli import cli
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 EXAMPLE_ROOT = EXAMPLES_ROOT / "pump_analytics"
 SPEC_PATH = EXAMPLE_ROOT / "_generated/build/spec.json"
+pytestmark = pytest.mark.usefixtures("example_projects")
 
 
 def test_project_build_cli_exports_complete_bundle(
