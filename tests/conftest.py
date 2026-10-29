@@ -8,6 +8,8 @@ import tempfile
 import pytest
 from support import examples, execution
 
+from uptimely import project
+
 _ORIGINAL_EXAMPLES_ROOT = os.environ.get("UPTIMELY_TEST_EXAMPLES_ROOT")
 _TEST_ROOT: pathlib.Path | None = None
 
@@ -17,6 +19,24 @@ def example_projects() -> pathlib.Path:
     """Prepare artifacts for tests that access example paths directly."""
     examples.prepare_example_projects(examples.EXAMPLES_ROOT)
     return examples.EXAMPLES_ROOT
+
+
+@pytest.fixture
+def example_bundle_factory(example_projects: pathlib.Path) -> examples.BundleFactory:
+    """Load a fresh spec and plan on each call, including scoped examples."""
+    return examples.example_bundle
+
+
+@pytest.fixture
+def pump_bundle(example_bundle_factory: examples.BundleFactory) -> project.BuildBundle:
+    """Provide one independent pump bundle per test."""
+    return example_bundle_factory()
+
+
+@pytest.fixture
+def example_project_factory(example_projects: pathlib.Path) -> examples.ProjectFactory:
+    """Copy prepared example builds into paths owned by the requesting test."""
+    return examples.copy_example_project
 
 
 def pytest_configure(config: pytest.Config) -> None:

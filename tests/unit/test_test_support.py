@@ -10,6 +10,42 @@ from support import rendering as rendering_support
 from uptimely import compiler, execution_plan, project, spec
 
 
+def test_pump_bundle_is_reused_within_test_and_not_shared_with_factory_results(
+    request: pytest.FixtureRequest,
+    pump_bundle: project.BuildBundle,
+    example_bundle_factory: example_support.BundleFactory,
+) -> None:
+    original_name = pump_bundle.spec_definition.name
+    pump_bundle.spec_definition.name = "Changed fixture"
+    pump_bundle.execution_plan.invocations[0].arguments["test_only"] = True
+
+    assert request.getfixturevalue("pump_bundle") is pump_bundle
+    independent = example_bundle_factory()
+    assert independent.spec_definition.name == original_name
+    assert "test_only" not in independent.execution_plan.invocations[0].arguments
+
+
+@pytest.mark.parametrize("features", [None, ("health_signal_normalized",)])
+def test_example_factories_return_independent_bundles_and_project_copies(
+    tmp_path: pathlib.Path,
+    features: tuple[str, ...] | None,
+    example_bundle_factory: example_support.BundleFactory,
+    example_project_factory: example_support.ProjectFactory,
+) -> None:
+    first = example_bundle_factory(features=features)
+    second = example_bundle_factory(features=features)
+    copied_root = example_project_factory(tmp_path / "copied project", features=features)
+    copied = project.load_build_bundle(copied_root)
+    copied.spec_path.write_text("test-only change", encoding="utf-8")
+    first.spec_definition.name = "Changed bundle"
+    first.execution_plan.invocations[0].arguments["test_only"] = True
+
+    assert second.spec_definition.name != first.spec_definition.name
+    assert "test_only" not in second.execution_plan.invocations[0].arguments
+    assert spec.load_spec(second.spec_path).name == second.spec_definition.name
+    assert copied.manifest.features == (list(features) if features is not None else None)
+
+
 def test_example_setup_reuses_artifacts_without_building_or_compiling(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

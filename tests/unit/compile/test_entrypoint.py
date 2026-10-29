@@ -8,7 +8,7 @@ from collections import abc
 import pytest
 from support import examples as example_support
 
-from uptimely import compiler, spec
+from uptimely import compiler, project, spec
 from uptimely import entrypoint as shared_entrypoint
 from uptimely import execution_plan as plan
 from uptimely.explorer.sections import spec as spec_render
@@ -64,10 +64,10 @@ def test_explorer_context_reports_unloadable_function_modules() -> None:
 
 
 def test_compiler_skips_disabled_signatures_without_changing_dependencies(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, pump_bundle: project.BuildBundle
 ) -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    baseline = example_support.example_bundle().execution_plan
+    spec_definition = pump_bundle.spec_definition
+    baseline = pump_bundle.execution_plan
     package_name = f"signature_fixture_{tmp_path.name.replace('-', '_')}"
     package = tmp_path / package_name
     package.mkdir()

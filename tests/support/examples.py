@@ -5,6 +5,7 @@ import os
 import pathlib
 import shutil
 import tempfile
+import typing
 
 from uptimely import compiler, execution_plan, spec
 from uptimely import project as project_module
@@ -14,6 +15,25 @@ EXAMPLES_ROOT = pathlib.Path(
     os.environ.get("UPTIMELY_TEST_EXAMPLES_ROOT", REPOSITORY_ROOT / "examples")
 )
 _TEMP_ROOTS: list[pathlib.Path] = []
+
+
+class BundleFactory(typing.Protocol):
+    """Load independent mutable bundles from reusable example artifacts."""
+
+    def __call__(
+        self, example: str = "pump_analytics", features: tuple[str, ...] | None = None
+    ) -> project_module.BuildBundle: ...
+
+
+class ProjectFactory(typing.Protocol):
+    """Copy reusable example artifacts to an isolated test project."""
+
+    def __call__(
+        self,
+        target: pathlib.Path,
+        example: str = "pump_analytics",
+        features: tuple[str, ...] | None = None,
+    ) -> pathlib.Path: ...
 
 
 @functools.cache
