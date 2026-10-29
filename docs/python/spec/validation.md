@@ -16,33 +16,54 @@ import executable function implementations.
 For the validation responsibilities of the document model, Spec, compiler, and
 engine, see [Spec validation](../../components/spec.md#validation).
 
-## Phase order
+## Reporting and prerequisite contract
 
-Document validation checks declared relationships and dataflow, not generated
-invocations. Its ordered phases are:
+`validate_spec(document)` remains the public raising entry point and returns
+`None` for a valid document. Semantic validation is fail-fast: it raises the
+first actionable semantic error as a `SpecError`, which remains a `ValueError`.
+It does not aggregate or expose later errors. Pydantic continues to report
+document-shape and field-constraint errors separately.
 
-1. Vectorize output declarations, dataset IDs, feature ownership, and local
-   feature dependencies for local calculation/write checks.
-2. Dimension parents, entity dimensions, and dataset ordering.
-3. Action outputs and producer uniqueness, with warnings for declared features
-   that have no producer.
-4. Collapse source scope, action inputs, row context, and action cycles.
-5. Binding arguments, function contracts, and action contracts.
+Every semantic error has a stable, lower-case `code` and a `path`. Codes
+identify the violated rule rather than being derived from the human-readable
+message. A path is a tuple of mapping keys and sequence indexes locating the
+offending declaration or field in the document; the empty tuple identifies
+the document root. The exception message is for people, while `code` and
+`path` are the machine-readable diagnostic contract.
 
-The preliminary checks preserve loading's established error precedence.
-Direct validation now uses the same sequence as loading and Python conversion.
-Duplicate vectorize outputs are reported by action producer validation rather
-than by validating a second collection of generated calls.
+Rule execution follows explicit data prerequisites, not historical
+first-error precedence:
 
-The coordinator in `validation.spec` delegates to five named phase generators,
-making the validation sequence visible at the top level while retaining lazy
-first-error behavior. Each phase passes the same fresh `SpecValidationContext`
-facts to the explicit domain rules. Add declaration rules to the appropriate
-domain phase, keeping declaration order and testing the first error when
-faults overlap. The compiler separately checks implementation signatures,
-selected-plan feasibility, and invocation dependency ordering.
+1. Validate declarations and establish unambiguous declaration indexes.
+2. Resolve references against those declarations, including collapse-source
+   candidates.
+3. Run semantic checks that consume resolved declarations.
+4. Validate dependency graphs after their nodes and edges are known.
 
-## Internal organization
+A check runs only when its required facts are available. An invalid or
+ambiguous prerequisite blocks checks that consume that fact; it must not be
+replaced with an empty collection, a guessed owner, or an unresolved value.
+Checks that do not depend on that fact are not thereby considered invalid.
+Because reporting is fail-fast, however, validation stops at the first
+diagnostic and does not promise to report other independent errors.
+
+Within a prerequisite stage, validation order is deterministic and follows
+document declaration order and the defined topic-rule sequence. This provides
+repeatable first errors without making legacy phase precedence part of the
+contract. Changes to which error is first are intentional when required by
+these prerequisites; codes and paths identify the reported rule and location.
+
+The implementation has not yet completed this contract: it still uses the
+historical phase order, and some semantic failures are plain `ValueError`
+instances without codes or paths. The following migration will bring the
+implementation into line with this contract. The compiler separately checks
+implementation signatures, selected-plan feasibility, and invocation
+dependency ordering.
+
+## Current implementation organization
+
+This section describes the implementation during the validation migration;
+it is not the target rule-authoring contract above.
 
 The public interface remains `validate_spec(document) -> None`. Internal
 modules separate orchestration from domain checks:
@@ -104,7 +125,7 @@ function kinds. Its declared features need not match Python parameters or return
 values. Compilation retains their feature dependencies; execution invokes the
 function and ignores its return value without materializing declared outputs.
 
-### Adding or changing a rule
+### Current rule-authoring guidance
 
 1. Choose the domain module and existing phase that owns the invariant. A new
    class or phase is not needed for every rule.
