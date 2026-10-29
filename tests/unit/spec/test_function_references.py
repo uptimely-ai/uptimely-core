@@ -97,6 +97,59 @@ def test_function_reference_rejects_non_boolean_signature_validation(
         ref.function("math:ceil", validate_signature=validate_signature)
 
 
+def _documented(dataset: object) -> object:
+    """Summary line
+    spanning two lines.
+
+    Parameters
+    ----------
+    dataset
+        Input dataset.
+    """  # noqa: D205
+    return dataset
+
+
+def test_callable_reference_captures_docstring_summary() -> None:
+    reference = ref.function(_documented, kind="vectorize")
+
+    assert reference.description == "Summary line spanning two lines."
+
+
+def test_explicit_description_overrides_docstring_summary() -> None:
+    reference = ref.function(_documented, kind="vectorize", description="Custom text.")
+
+    assert reference.description == "Custom text."
+
+
+def _undocumented(dataset: object) -> object:
+    return dataset
+
+
+def test_undocumented_callable_and_string_references_have_no_description() -> None:
+    assert ref.function(_undocumented, kind="vectorize").description is None
+    assert ref.function("math:ceil").description is None
+
+
+def test_description_survives_conversion_to_exported_document() -> None:
+    reference = ref.function(_documented, kind="vectorize")
+    declaration = _dataset(
+        actions.Action(id="calculate", function=reference, arguments={}, outputs=[]),
+    )
+
+    payload = conversion.to_dict(datasets=[declaration])
+    reloaded = spec_model.Spec.model_validate(json.loads(json.dumps(payload)))
+
+    assert payload["functions"]["_documented"]["description"] == (
+        "Summary line spanning two lines."
+    )
+    assert reloaded.functions["_documented"].description == "Summary line spanning two lines."
+
+
+def test_function_reference_rejects_non_string_description() -> None:
+    with pytest.raises(TypeError, match="description must be a string"):
+        ref.function("math:ceil", description=typing.cast(str, 1))
+
+
 def test_function_model_defaults_signature_validation_and_exposes_schema() -> None:
     function = spec_model.FunctionTemplate(
         id="calculate",

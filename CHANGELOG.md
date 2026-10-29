@@ -8,6 +8,16 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- Function references now capture the implementation's docstring summary line
+  as the function catalog `description`, with an explicit
+  `ref.function(..., description=...)` override. The description is preserved
+  in exported spec documents.
+- The Explorer function catalog now renders argument, return, raise, and
+  example documentation parsed from implementation docstrings when signature
+  validation is enabled.
+
 ### Changed
 
 - **Breaking:** Semantic validation rules now accept the spec document directly

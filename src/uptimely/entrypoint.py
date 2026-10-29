@@ -227,6 +227,11 @@ class Function:
         """Return the annotated signature of this function."""
         return Signature.read(self)
 
+    @functools.cached_property
+    def docstring(self) -> str | None:
+        """Return the cleaned docstring of this function, importing its module."""
+        return inspect.getdoc(self.load())
+
     def load(self) -> typing.Callable[..., typing.Any]:
         """Import the callable from its module."""
         entrypoint = Entrypoint(Entrypoint.format(self.module.location, self.name))

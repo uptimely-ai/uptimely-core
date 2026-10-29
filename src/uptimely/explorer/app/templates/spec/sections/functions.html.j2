@@ -10,6 +10,9 @@
     </div>
   </div>
   <p class="mt-4 text-sm leading-6 text-slate-400">{{ function.description or "No description provided." }}</p>
+  {% if function.doc and function.doc.body %}
+  <p class="mt-2 text-sm leading-6 text-slate-400">{{ function.doc.body }}</p>
+  {% endif %}
   {% if function.kind == "escape" %}
   <p class="mt-3 rounded-lg border border-violet-900/60 bg-violet-950/30 p-3 text-xs leading-5 text-violet-200">Uncontrolled external operation. Its Python return value is ignored; declared outputs are not verified or materialized as dataframe columns.</p>
   {% if function.escape_actions %}
@@ -42,6 +45,9 @@
     {% if function.args %}
       {% for argument_id, argument in function.args.items() %}
         <div class="pl-4"><span class="text-cyan-200">{{ argument_id }}</span><span class="text-slate-500">: </span><span class="text-lime-300">{{ argument.type or "unspecified" }}</span>{% if not loop.last %}<span class="text-slate-500">,</span>{% endif %}</div>
+        {% if function.doc and function.doc.params.get(argument_id) %}
+        <div class="whitespace-normal pl-8 font-sans text-[11px] leading-4 text-slate-500">{{ function.doc.params[argument_id] }}</div>
+        {% endif %}
       {% endfor %}
     {% else %}
       <div class="pl-4 text-slate-400">pass</div>
@@ -49,6 +55,30 @@
     <div class="text-slate-500">)</div>
     {% if function.return_type %}<div class="mt-1 text-lime-300">-&gt; {{ function.return_type }}</div>{% endif %}
   </div>
+  {% if function.doc %}
+    {% if function.doc.returns %}
+    <div class="mt-4">
+      <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Returns</p>
+      <p class="mt-1 text-xs leading-5 text-slate-400">{{ function.doc.returns }}</p>
+    </div>
+    {% endif %}
+    {% if function.doc.raises %}
+    <div class="mt-4">
+      <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Raises</p>
+      {% for error in function.doc.raises %}
+      <p class="mt-1 text-xs leading-5 text-slate-400"><span class="font-mono text-amber-300">{{ error.type }}</span>{% if error.description %} — {{ error.description }}{% endif %}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if function.doc.examples %}
+    <div class="mt-4">
+      <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Examples</p>
+      {% for example in function.doc.examples %}
+      <pre class="mt-2 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950/80 p-3 font-mono text-[11px] leading-5 text-slate-300">{{ example }}</pre>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endif %}
   {% endif %}
   {% if function.entrypoint %}
     <div class="mt-5 border-t border-slate-800 pt-4">

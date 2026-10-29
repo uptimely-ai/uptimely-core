@@ -143,6 +143,7 @@ class Action:
                     entrypoint=reference.entrypoint,
                     args=function_arguments,
                     validate_signature=reference.validate_signature,
+                    description=reference.description,
                 )
             }
         )

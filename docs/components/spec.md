@@ -240,7 +240,7 @@ identifiers.
 | `entrypoint` | string | Yes | N/A | Python import reference in `module.path:qualname` form. |
 | `validate_signature` | boolean | No | `true` | Whether compilation and documentation inspect the Python signature and check implementation return annotations. |
 | `args` | object | No | `{}` | Argument definitions keyed by argument name. |
-| `description` | string or null | No | `null` | Explanation of the function. |
+| `description` | string or null | No | `null` | Explanation of the function. Python declarations default it to the implementation's docstring summary line. |
 
 When `validate_signature` is `true`, the Python entrypoint must declare a
 return annotation compatible with `returns`; an unannotated return is invalid.
