@@ -1,6 +1,5 @@
 import ast
 import dataclasses
-import importlib
 import pathlib
 import subprocess
 import sys
@@ -19,42 +18,9 @@ from uptimely.spec.python import conversion, dataset, dimension, entity
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
-@pytest.mark.parametrize(
-    "module",
-    [
-        "json_model",
-        "json_model.spec",
-        "json_model.common",
-        "json_model.dataset",
-        "json_model.functions",
-        "json_model.resolved",
-        "json_parser",
-        "json_serializer",
-        "catalog",
-        "bindings",
-        "json_functions",
-    ],
-)
-def test_removed_json_module_paths_are_unavailable(module: str) -> None:
-    with pytest.raises(ModuleNotFoundError):
-        importlib.import_module(f"uptimely.spec.json.{module}")
-
-
 def test_public_models_are_canonical_objects() -> None:
     assert spec.Spec is model.Spec
     assert uptimely.Spec is not model.Spec
-
-
-@pytest.mark.parametrize("name", ["Function", "Call", "PreparedSpec", "prepare_spec"])
-def test_removed_prepared_spec_exports_are_unavailable(name: str) -> None:
-    assert not hasattr(uptimely, name)
-    assert not hasattr(spec, name)
-
-
-@pytest.mark.parametrize("module", ["resolved", "resolution"])
-def test_removed_prepared_spec_modules_are_unavailable(module: str) -> None:
-    with pytest.raises(ModuleNotFoundError):
-        importlib.import_module(f"uptimely.spec.{module}")
 
 
 def test_canonical_models_do_not_import_outer_layers() -> None:

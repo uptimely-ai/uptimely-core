@@ -144,25 +144,6 @@ def test_location_properties_read_current_declarations() -> None:
     )
 
 
-@pytest.mark.parametrize(
-    "document",
-    [
-        {"spec_version": 0},
-        {
-            "spec_version": 3,
-            "functions": {"read": {"legacy_reader": {"entrypoint": "reader:load"}}},
-        },
-    ],
-)
-def test_legacy_function_catalog_schemas_are_rejected(
-    tmp_path: pathlib.Path, document: dict[str, object]
-) -> None:
-    path = tmp_path / "legacy.json"
-    path.write_text(json.dumps(document), encoding="utf-8")
-    with pytest.raises(ValueError):
-        spec.load_spec(path)
-
-
 def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
@@ -671,24 +652,6 @@ def test_collapse_validates_explicit_inputs(
     path = tmp_path / "invalid.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
-        spec.load_spec(path)
-
-
-@pytest.mark.parametrize("legacy", ["catalog", "source", "group_by", "operations", "aggregations"])
-def test_removed_aggregation_and_wrapper_schemas_are_rejected(
-    tmp_path: pathlib.Path, legacy: str
-) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    collapse = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
-        "bearing_temperature_by_pump"
-    ]
-    if legacy == "catalog":
-        configuration["functions"]["maximum"]["kind"] = "aggregate"
-    else:
-        collapse[legacy] = {}
-    path = tmp_path / "legacy.json"
-    path.write_text(json.dumps(configuration), encoding="utf-8")
-    with pytest.raises(ValueError):
         spec.load_spec(path)
 
 

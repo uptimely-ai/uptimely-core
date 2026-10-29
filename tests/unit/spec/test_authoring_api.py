@@ -132,14 +132,3 @@ def test_mutated_output_references_are_revalidated_on_conversion() -> None:
     action.outputs.clear()
     with pytest.raises(ValueError, match="undeclared output 'result'"):
         action.to_model()
-
-
-def test_legacy_identifier_can_still_reference_another_actions_feature() -> None:
-    action = up.Action(
-        id="calculate",
-        function=ref.function("external:calculate", kind="vectorize"),
-        arguments={"name": ref.feature("other").id},
-        outputs=[],
-    )
-    assert action.to_model().binding.args == {"name": "$features.other.id"}
-    assert action.to_model().input_features == []

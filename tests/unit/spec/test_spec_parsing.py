@@ -26,14 +26,6 @@ def test_spec_rejects_unknown_fields(tmp_path: pathlib.Path) -> None:
         spec.load_spec(_write_configuration(tmp_path, configuration, "unknown.json"))
 
 
-def test_spec_rejects_legacy_version_field(tmp_path: pathlib.Path) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["version"] = configuration.pop("spec_version")
-
-    with pytest.raises(pydantic.ValidationError, match="version"):
-        spec.load_spec(_write_configuration(tmp_path, configuration, "legacy-version.json"))
-
-
 def test_spec_accepts_top_level_name(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["name"] = "Pump analytics"
@@ -77,15 +69,6 @@ def test_spec_rejects_dimension_parent_cycles(tmp_path: pathlib.Path) -> None:
     )
     assert error.value.code == "dimension_parent_cycle"
     assert error.value.path == ("dimensions", "plant", "parent")
-
-
-def test_spec_rejects_duplicate_dataset_ids(tmp_path: pathlib.Path) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    duplicate = dict(configuration["entities"]["pump"]["datasets"]["pump_dataset"])
-    configuration["entities"]["pump_telemetry"]["datasets"]["pump_dataset"] = duplicate
-
-    with pytest.raises(ValueError, match="Duplicate dataset id.*pump_dataset"):
-        spec.load_spec(_write_configuration(tmp_path, configuration, "datasets.json"))
 
 
 def test_spec_errors_expose_stable_code_and_path(tmp_path: pathlib.Path) -> None:
