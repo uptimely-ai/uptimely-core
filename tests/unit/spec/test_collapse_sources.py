@@ -7,8 +7,8 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import validation
-from uptimely.spec.validation import traversal
-from uptimely.spec.validation.rules import collapse_inputs
+from uptimely.spec.validation.rules import features as feature_rules
+from uptimely.spec.validation.rules.actions import inputs as action_inputs
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
@@ -41,13 +41,13 @@ def test_collapse_source_discovery_retains_invalid_candidates(
         if "$features.bearing_temperature" in inputs:
             message = "ambiguous input feature"
     original = document.model_copy(deep=True)
-    facts = tuple(collapse_inputs.iter_collapse_inputs(document))
-    item = next(item for item in facts if item.action.location.action is action)
+    facts = tuple(action_inputs.iter_input_sources(document))
+    item = next(item for item in facts if item.action.action is action)
 
     def validate_source() -> None:
-        collapse_inputs.validate_source_feature(document)
-        collapse_inputs.validate_feature_owner(document)
-        collapse_inputs.validate_source_count(document)
+        action_inputs.validate_source_feature(document)
+        action_inputs.validate_feature_owner(document)
+        action_inputs.validate_source_count(document)
 
     if message is not None:
         with pytest.raises(ValueError, match=message):
@@ -56,9 +56,9 @@ def test_collapse_source_discovery_retains_invalid_candidates(
     else:
         validate_source()
         assert item.source is not None
-        owners = traversal.feature_owners(document)
+        owners = feature_rules.feature_owners(document)
         assert any(item.source in owners.get(feature, ()) for feature in action.input_features)
-        assert collapse_inputs.source_index(facts)[item.action.location.key] is item.source
+        assert item.action.action is action
     assert document == original
 
 
@@ -69,9 +69,7 @@ def test_revalidation_rediscovers_collapse_sources_after_edits() -> None:
         document.entities["pump"].datasets["pump_dataset"].actions["bearing_temperature_by_pump"]
     )
     first = next(
-        item
-        for item in collapse_inputs.iter_collapse_inputs(document)
-        if item.action.location.action is action
+        item for item in action_inputs.iter_input_sources(document) if item.action.action is action
     )
     assert first.source is not None
     assert first.source.dataset.id == "pump_telemetry_dataset"
@@ -79,9 +77,7 @@ def test_revalidation_rediscovers_collapse_sources_after_edits() -> None:
     target.features["local_source"] = spec.Feature(id="local_source")
     action.features.inputs = ["$features.local_source"]
     second = next(
-        item
-        for item in collapse_inputs.iter_collapse_inputs(document)
-        if item.action.location.action is action
+        item for item in action_inputs.iter_input_sources(document) if item.action.action is action
     )
     assert second.source is not None
     assert second.source.dataset.id == "pump_dataset"

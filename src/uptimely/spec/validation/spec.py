@@ -8,28 +8,29 @@ import graphlib
 from uptimely.spec import model as spec_model
 
 from .rules import (
-    action_contracts,
-    action_inputs,
-    action_outputs,
     bindings,
-    collapse_inputs,
-    dataset,
-    dependencies,
+    datasets,
     dimensions,
+    entities,
+    features,
     functions,
     row_context,
 )
+from .rules.actions import contracts as action_contracts
+from .rules.actions import dependencies
+from .rules.actions import inputs as action_inputs
+from .rules.actions import outputs as action_outputs
 
 type Validator = collections.abc.Callable[[spec_model.Spec], None]
 
 VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
-    dataset.validate_dataset_ids: (),
-    action_outputs.validate_feature_ownership: (),
+    datasets.validate_dataset_ids: (),
+    features.validate_feature_ownership: (),
     dimensions.validate_parent: (),
     dimensions.validate_parent_cycle: (dimensions.validate_parent,),
-    dimensions.validate_entity_dimensions: (),
-    dataset.validate_order_dimension: (dimensions.validate_entity_dimensions,),
-    dataset.validate_unique_order_dimension: (),
+    entities.validate_entity_dimensions: (),
+    datasets.validate_order_dimension: (entities.validate_entity_dimensions,),
+    datasets.validate_unique_order_dimension: (),
     functions.validate_return_kind: (),
     functions.validate_dataframe_count: (),
     action_outputs.validate_function_reference: (),
@@ -44,7 +45,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     ),
     action_outputs.validate_unique_producer: (
         action_outputs.validate_output_feature,
-        action_outputs.validate_feature_ownership,
+        features.validate_feature_ownership,
         action_outputs.validate_dimension_collision,
     ),
     action_outputs.validate_collapse_output: (action_outputs.validate_output_presence,),
@@ -59,38 +60,38 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         action_outputs.validate_function_reference,
     ),
     action_inputs.validate_feature_reference: (),
-    action_inputs.validate_dataset_reference: (dataset.validate_dataset_ids,),
+    action_inputs.validate_dataset_reference: (datasets.validate_dataset_ids,),
     action_inputs.validate_dimension_reference: (),
     bindings.validate_arguments: (action_outputs.validate_function_reference,),
     bindings.validate_selector_type: (bindings.validate_arguments,),
-    collapse_inputs.validate_source_feature: (action_outputs.validate_function_reference,),
-    collapse_inputs.validate_feature_owner: (
-        action_outputs.validate_feature_ownership,
+    action_inputs.validate_source_feature: (action_outputs.validate_function_reference,),
+    action_inputs.validate_feature_owner: (
+        features.validate_feature_ownership,
         action_inputs.validate_input_feature,
-        collapse_inputs.validate_source_feature,
+        action_inputs.validate_source_feature,
     ),
-    collapse_inputs.validate_source_count: (
-        dataset.validate_dataset_ids,
-        collapse_inputs.validate_feature_owner,
+    action_inputs.validate_source_count: (
+        datasets.validate_dataset_ids,
+        action_inputs.validate_feature_owner,
     ),
-    collapse_inputs.validate_source_target: (collapse_inputs.validate_source_count,),
-    collapse_inputs.validate_grouping_dimensions: (
-        collapse_inputs.validate_source_count,
-        dimensions.validate_entity_dimensions,
+    action_inputs.validate_source_target: (action_inputs.validate_source_count,),
+    action_inputs.validate_grouping_dimensions: (
+        action_inputs.validate_source_count,
+        entities.validate_entity_dimensions,
     ),
-    collapse_inputs.validate_source_features: (collapse_inputs.validate_source_count,),
-    collapse_inputs.validate_source_dimensions: (
-        collapse_inputs.validate_source_count,
+    action_inputs.validate_source_features: (action_inputs.validate_source_count,),
+    action_inputs.validate_source_dimensions: (
+        action_inputs.validate_source_count,
         action_inputs.validate_dimension_reference,
     ),
     row_context.validate_dataset_order: (
-        collapse_inputs.validate_source_count,
-        dataset.validate_order_dimension,
-        dataset.validate_unique_order_dimension,
+        action_inputs.validate_source_count,
+        datasets.validate_order_dimension,
+        datasets.validate_unique_order_dimension,
     ),
     row_context.validate_dimension: (
-        collapse_inputs.validate_source_count,
-        dimensions.validate_entity_dimensions,
+        action_inputs.validate_source_count,
+        entities.validate_entity_dimensions,
     ),
     row_context.validate_dimension_type: (row_context.validate_dimension,),
     row_context.validate_dimension_order: (
@@ -100,7 +101,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     action_contracts.validate_dataframe_reference: (bindings.validate_arguments,),
     action_contracts.validate_dataframe_selector: (action_contracts.validate_dataframe_reference,),
     action_contracts.validate_dataframe_source: (
-        dataset.validate_dataset_ids,
+        datasets.validate_dataset_ids,
         action_contracts.validate_dataframe_selector,
     ),
     action_contracts.validate_dataset_count: (
@@ -110,11 +111,11 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     action_contracts.validate_matching_keys: (
         action_contracts.validate_dataframe_source,
         action_inputs.validate_dataset_reference,
-        dimensions.validate_entity_dimensions,
+        entities.validate_entity_dimensions,
     ),
     action_contracts.validate_input_feature_source_count: (
         action_outputs.validate_function_reference,
-        action_outputs.validate_feature_ownership,
+        features.validate_feature_ownership,
         action_inputs.validate_input_feature,
     ),
     action_contracts.validate_foreign_dataframe: (action_contracts.validate_dataset_count,),
@@ -124,26 +125,26 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     ),
     action_contracts.validate_dataframe_features: (
         action_contracts.validate_dataframe_feature_source,
-        dimensions.validate_entity_dimensions,
+        entities.validate_entity_dimensions,
     ),
     action_contracts.validate_read_inputs: (action_outputs.validate_function_reference,),
     action_contracts.validate_target_input: (action_contracts.validate_dataframe_source,),
     action_contracts.validate_write_dataframe: (action_contracts.validate_dataframe_source,),
     action_contracts.validate_collapse_source: (
         action_contracts.validate_dataframe_source,
-        collapse_inputs.validate_source_count,
+        action_inputs.validate_source_count,
     ),
-    action_contracts.validate_collapse_dimensions: (collapse_inputs.validate_grouping_dimensions,),
+    action_contracts.validate_collapse_dimensions: (action_inputs.validate_grouping_dimensions,),
     action_contracts.validate_conform_dimensions: (
         action_contracts.validate_dataframe_source,
-        dimensions.validate_entity_dimensions,
+        entities.validate_entity_dimensions,
     ),
     action_contracts.validate_expand_dimensions: (
         action_contracts.validate_dataframe_feature_source,
-        dimensions.validate_entity_dimensions,
+        entities.validate_entity_dimensions,
     ),
     dependencies.validate_action_cycle: (
-        dataset.validate_dataset_ids,
+        datasets.validate_dataset_ids,
         action_outputs.validate_unique_producer,
         action_inputs.validate_input_feature,
     ),

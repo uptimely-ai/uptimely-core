@@ -7,9 +7,12 @@ import dataclasses
 
 from uptimely.spec import arg_types, functions, selectors
 from uptimely.spec import model as spec_model
+from uptimely.spec.validation import errors
+from uptimely.spec.validation.rules import actions as action_rules
+from uptimely.spec.validation.rules import datasets as dataset_rules
+from uptimely.spec.validation.rules import features as feature_rules
 
-from .. import errors, traversal
-from . import collapse_inputs
+from . import inputs
 
 EXPAND_INPUT_ERROR = (
     "Expand action must reference a declared feature from a lower-dimensional foreign dataset"
@@ -23,34 +26,33 @@ class DataframeInput:
     argument_id: str
     value: object
     source_id: str | None
-    source: traversal.DatasetLocation | None
-    path: traversal.SpecPath
+    source: dataset_rules.DatasetDeclaration | None
+    path: errors.SpecPath
 
 
 @dataclasses.dataclass(frozen=True)
 class ActionContract:
     """The action and its resolved dataframe argument resources."""
 
-    action: traversal.ActionFacts
+    action: action_rules.ActionDeclaration
     dataframe_arguments: tuple[DataframeInput, ...]
-    source: traversal.DatasetLocation | None
+    source: dataset_rules.DatasetDeclaration | None
 
 
 def iter_action_contracts(spec: spec_model.Spec) -> collections.abc.Iterator[ActionContract]:
     """Yield action-specific dataframe resources in declaration order."""
-    dataset = traversal.dataset_index(spec).get
-    collapse_sources = collapse_inputs.source_index(collapse_inputs.iter_collapse_inputs(spec))
-    for action in traversal.iter_actions(spec):
+    dataset = {item.dataset.id: item for item in dataset_rules.iter_datasets(spec)}.get
+    for item in inputs.iter_input_sources(spec):
         yield ActionContract(
-            action=action,
-            dataframe_arguments=_dataframe_inputs(action, dataset),
-            source=collapse_sources.get(action.location.key),
+            action=item.action,
+            dataframe_arguments=_dataframe_inputs(item.action, dataset),
+            source=item.source,
         )
 
 
 def _dataframe_inputs(
-    action: traversal.ActionFacts,
-    dataset: collections.abc.Callable[[str], traversal.DatasetLocation | None],
+    action: action_rules.ActionDeclaration,
+    dataset: collections.abc.Callable[[str], dataset_rules.DatasetDeclaration | None],
 ) -> tuple[DataframeInput, ...]:
     """Retain dataframe selector values and any matching dataset."""
     if action.function is None:
@@ -59,15 +61,13 @@ def _dataframe_inputs(
     for argument_id, argument in action.function.args.items():
         if argument.type != arg_types.DATAFRAME:
             continue
-        value = action.location.action.binding.args.get(argument_id)
+        value = action.action.binding.args.get(argument_id)
         source_id = None
         if isinstance(value, str) and value.startswith(selectors.DATASET_PREFIX):
             reference = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
                 selectors.DATAFRAME_SELECTOR
             )
-            source_id = (
-                action.location.dataset.id if reference == selectors.CURRENT_ID else reference
-            )
+            source_id = action.dataset.id if reference == selectors.CURRENT_ID else reference
         source = dataset(source_id) if source_id is not None else None
         result.append(
             DataframeInput(
@@ -75,18 +75,18 @@ def _dataframe_inputs(
                 value,
                 source_id,
                 source,
-                (*action.location.path, "binding", "args", argument_id),
+                (*action.path, "binding", "args", argument_id),
             )
         )
     return tuple(result)
 
 
 def _iter_matching_keys(
-    action: traversal.ActionFacts,
+    action: action_rules.ActionDeclaration,
     value: object,
-    path: traversal.SpecPath,
-    dataset: collections.abc.Callable[[str], traversal.DatasetLocation | None],
-) -> collections.abc.Iterator[tuple[str, traversal.SpecPath]]:
+    path: errors.SpecPath,
+    dataset: collections.abc.Callable[[str], dataset_rules.DatasetDeclaration | None],
+) -> collections.abc.Iterator[tuple[str, errors.SpecPath]]:
     """Yield declared dimension keys and their argument paths."""
     if (
         isinstance(value, str)
@@ -97,7 +97,7 @@ def _iter_matching_keys(
             selectors.DIMENSION_IDS_SELECTOR
         )
         location = (
-            action.location.dataset_location
+            action.dataset_declaration
             if dataset_id == selectors.CURRENT_ID
             else dataset(dataset_id)
         )
@@ -171,24 +171,24 @@ def validate_dataset_count(spec: spec_model.Spec) -> None:
                 f"{kind.capitalize()} action must consume exactly "
                 f"{expected_count} foreign dataset(s)",
                 code="invalid_mapping_dataset_input",
-                path=(*item.action.location.path, "binding", "args"),
+                path=(*item.action.path, "binding", "args"),
             )
 
 
 def validate_matching_keys(spec: spec_model.Spec) -> None:
     """Require explicitly selected matching keys to exist on every participating dataset."""
-    dataset = traversal.dataset_index(spec).get
+    dataset = {item.dataset.id: item for item in dataset_rules.iter_datasets(spec)}.get
     for item in iter_action_contracts(spec):
         participants = (
-            item.action.location.dataset_location,
+            item.action.dataset_declaration,
             *(
                 argument.source
                 for argument in item.dataframe_arguments
                 if argument.source is not None
             ),
         )
-        base_path = (*item.action.location.declaration_path, "binding", "args")
-        for name, value in item.action.location.action.binding.args.items():
+        base_path = (*item.action.declaration_path, "binding", "args")
+        for name, value in item.action.action.binding.args.items():
             for dimension_id, path in _iter_matching_keys(
                 item.action, value, (*base_path, name), dataset
             ):
@@ -204,24 +204,18 @@ def validate_matching_keys(spec: spec_model.Spec) -> None:
 
 def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
     """Require dimensional input features to belong to at most one dataset."""
-    dimension_ids = frozenset(spec.dimensions)
-    last_feature_owner = traversal.feature_owner_index(spec).get
-    for item in iter_action_contracts(spec):
+    for item in inputs.iter_input_sources(spec):
         kind = item.action.kind
         if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
             continue
         feature_dataset_ids = {
-            owner.dataset.id
-            for feature in item.action.inputs
-            if feature not in dimension_ids
-            and feature != selectors.CURRENT_ID
-            and ((owner := last_feature_owner(feature)) is not None)
+            owner.dataset.id for _, owners in item.candidates for owner in owners
         }
         if len(feature_dataset_ids) > 1:
             raise errors.SpecError(
                 f"{kind.capitalize()} action inputs must belong to one source dataset",
                 code="invalid_mapping_dataset_input",
-                path=(*item.action.location.path, "features", "inputs"),
+                path=(*item.action.path, "features", "inputs"),
             )
 
 
@@ -234,7 +228,7 @@ def validate_foreign_dataframe(spec: spec_model.Spec) -> None:
         if len(item.dataframe_arguments) != functions.KIND_DATAFRAME_INPUT_COUNTS[kind]:
             continue
         dataframe = item.dataframe_arguments[0]
-        if dataframe.source_id == item.action.location.dataset.id:
+        if dataframe.source_id == item.action.dataset.id:
             raise errors.SpecError(
                 f"{kind.capitalize()} action must reference a foreign source dataset",
                 code="invalid_mapping_dataset_input",
@@ -244,27 +238,18 @@ def validate_foreign_dataframe(spec: spec_model.Spec) -> None:
 
 def validate_dataframe_feature_source(spec: spec_model.Spec) -> None:
     """Require a dimensional dataframe argument to match the input feature owner."""
-    dimension_ids = frozenset(spec.dimensions)
-    last_feature_owner = traversal.feature_owner_index(spec).get
     for item in iter_action_contracts(spec):
         kind = item.action.kind
         if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
             continue
         if len(item.dataframe_arguments) != functions.KIND_DATAFRAME_INPUT_COUNTS[kind]:
             continue
-        feature_dataset_ids = {
-            owner.dataset.id
-            for feature in item.action.inputs
-            if feature not in dimension_ids
-            and feature != selectors.CURRENT_ID
-            and ((owner := last_feature_owner(feature)) is not None)
-        }
-        if len(feature_dataset_ids) != 1:
+        if item.source is None:
             continue
         dataframe = item.dataframe_arguments[0]
         if dataframe.source is None:
             continue
-        expected_source = next(iter(feature_dataset_ids))
+        expected_source = item.source.dataset.id
         if dataframe.source.dataset.id != expected_source:
             raise errors.SpecError(
                 f"{kind.capitalize()} action must reference its foreign source dataset "
@@ -277,7 +262,7 @@ def validate_dataframe_feature_source(spec: spec_model.Spec) -> None:
 def validate_dataframe_features(spec: spec_model.Spec) -> None:
     """Require conform and expand feature inputs to belong to dataframe inputs."""
     dimension_ids = frozenset(spec.dimensions)
-    last_feature_owner = traversal.feature_owner_index(spec).get
+    feature_owners = feature_rules.feature_owners(spec)
     for item in iter_action_contracts(spec):
         kind = item.action.kind
         if kind not in {functions.CONFORM, functions.EXPAND}:
@@ -300,8 +285,9 @@ def validate_dataframe_features(spec: spec_model.Spec) -> None:
             if (
                 feature not in available_dimensions
                 if feature in dimension_ids
-                else (owner := last_feature_owner(feature)) is None
-                or owner.dataset.id not in dataset_ids
+                else not any(
+                    owner.dataset.id in dataset_ids for owner in feature_owners.get(feature, ())
+                )
             )
         )
         if unavailable_features:
@@ -309,18 +295,18 @@ def validate_dataframe_features(spec: spec_model.Spec) -> None:
                 f"{kind.capitalize()} action inputs must belong to its dataframe inputs: "
                 + ", ".join(unavailable_features),
                 code="invalid_mapping_feature_inputs",
-                path=(*item.action.location.path, "features", "inputs"),
+                path=(*item.action.path, "features", "inputs"),
             )
 
 
 def validate_read_inputs(spec: spec_model.Spec) -> None:
     """Reject feature inputs on read actions."""
-    for item in traversal.iter_actions(spec):
+    for item in action_rules.iter_actions(spec):
         if item.kind == functions.READ and item.inputs:
             raise errors.SpecError(
                 "Read actions cannot declare feature inputs",
                 code="invalid_mapping_feature_inputs",
-                path=(*item.location.path, "features", "inputs"),
+                path=(*item.path, "features", "inputs"),
             )
 
 
@@ -335,12 +321,12 @@ def validate_target_input(spec: spec_model.Spec) -> None:
         }
         if (
             kind in {functions.VECTORIZE, functions.WRITE}
-            and item.action.location.dataset.id not in dataset_ids
+            and item.action.dataset.id not in dataset_ids
         ):
             raise errors.SpecError(
                 f"{kind.capitalize()} action must consume its target dataset",
                 code="invalid_mapping_dataset_input",
-                path=(*item.action.location.path, "binding", "args"),
+                path=(*item.action.path, "binding", "args"),
             )
 
 
@@ -354,13 +340,13 @@ def validate_write_dataframe(spec: spec_model.Spec) -> None:
             if argument.source is not None
         }
         if kind == functions.WRITE:
-            foreign = sorted(dataset_ids - {item.action.location.dataset.id})
+            foreign = sorted(dataset_ids - {item.action.dataset.id})
             if foreign:
                 raise errors.SpecError(
                     "Write action cannot publish a foreign dataset dataframe: "
                     + ", ".join(foreign),
                     code="invalid_mapping_dataset_input",
-                    path=(*item.action.location.path, "binding", "args"),
+                    path=(*item.action.path, "binding", "args"),
                 )
 
 
@@ -380,7 +366,7 @@ def validate_collapse_source(spec: spec_model.Spec) -> None:
             raise errors.SpecError(
                 f"Collapse action must consume its source dataset {item.source.dataset.id}",
                 code="invalid_mapping_dataset_input",
-                path=(*item.action.location.path, "binding", "args"),
+                path=(*item.action.path, "binding", "args"),
             )
 
 
@@ -395,7 +381,7 @@ def validate_collapse_dimensions(spec: spec_model.Spec) -> None:
             raise errors.SpecError(
                 "Collapse action source must have strictly higher dimensionality than its target",
                 code="invalid_mapping_dimensions",
-                path=(*item.action.location.path, "features", "inputs"),
+                path=(*item.action.path, "features", "inputs"),
             )
 
 
@@ -409,13 +395,13 @@ def validate_conform_dimensions(spec: spec_model.Spec) -> None:
             raise errors.SpecError(
                 "Conform action inputs must preserve target dimensionality",
                 code="invalid_mapping_dimensions",
-                path=(*item.action.location.path, "binding", "args"),
+                path=(*item.action.path, "binding", "args"),
             )
 
 
 def validate_expand_dimensions(spec: spec_model.Spec) -> None:
     """Require expand to use a declared feature from a lower-dimensional source."""
-    last_feature_owner = traversal.feature_owner_index(spec).get
+    feature_owners = feature_rules.feature_owners(spec)
     for item in iter_action_contracts(spec):
         if item.action.kind != functions.EXPAND:
             continue
@@ -425,13 +411,13 @@ def validate_expand_dimensions(spec: spec_model.Spec) -> None:
             if argument.source is not None and argument.source.dimensions < item.action.dimensions
         }
         has_lower_feature = any(
-            (owner := last_feature_owner(feature)) is not None
-            and owner.dataset.id in lower_dataset_ids
+            owner.dataset.id in lower_dataset_ids
             for feature in item.action.inputs
+            for owner in feature_owners.get(feature, ())
         )
         if not lower_dataset_ids or not has_lower_feature:
             raise errors.SpecError(
                 EXPAND_INPUT_ERROR,
                 code="invalid_mapping_dimensions",
-                path=(*item.action.location.path, "binding", "args"),
+                path=(*item.action.path, "binding", "args"),
             )

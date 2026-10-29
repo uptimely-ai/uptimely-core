@@ -16,17 +16,17 @@ document, not a phase containing several different checks:
 
 ```python
 from uptimely.spec import model
-from uptimely.spec.validation import dimensions
+from uptimely.spec.validation.rules import dimensions, entities
 
 document = model.Spec.model_validate(raw_document)
 
 dimensions.validate_parent(document)
 dimensions.validate_parent_cycle(document)
-dimensions.validate_entity_dimensions(document)
+entities.validate_entity_dimensions(document)
 ```
 
 Rules do not call other validators, mutate the document, or save state for later
-rules. Small traversal and reference-resolution helpers are shared where useful;
+rules. Resource iteration and reference-resolution helpers are shared where useful;
 there is no shared validation context or attached cache. Revalidating a document
 always observes its current declarations.
 
@@ -84,24 +84,46 @@ Pydantic reports document-shape errors separately.
 | Module in `uptimely.spec.validation` | Responsibility |
 | --- | --- |
 | `spec` | Dependency mapping and fail-fast topological runner |
-| `traversal` | Read-only dataset/action iteration and local lookup helpers |
-| `dataset` | Dataset identity and ordering |
-| `dimensions` | Parent references, ancestry cycles, and entity dimensions |
-| `functions` | Function return and dataframe argument contracts |
-| `bindings` | Supplied argument names and structural selector types |
-| `action_outputs` | Output declarations, ownership, producers, and coverage warnings |
-| `action_inputs` | Input feature scope and structural references |
-| `collapse_inputs` | Collapse source discovery and source scope |
-| `row_context` | Input ordering and context dimensions |
-| `action_contracts` | Dataframe references and kind-specific relationships |
-| `dependencies` | Action feature dependency cycles |
+| `rules.datasets` | Dataset declarations, iteration, identity, and ordering |
+| `rules.dimensions` | Parent references and ancestry cycles |
+| `rules.entities` | Entity dimension membership |
+| `rules.features` | Feature ownership discovery and uniqueness |
+| `rules.functions` | Function return and dataframe argument contracts |
+| `rules.bindings` | Supplied argument names and structural selector types |
+| `rules.actions` | Action declarations and iteration |
+| `rules.actions.inputs` | Input feature scope, structural references, and source discovery |
+| `rules.actions.outputs` | Output declarations, producers, and coverage warnings |
+| `rules.actions.contracts` | Dataframe references and kind-specific relationships |
+| `rules.actions.dependencies` | Action feature dependency cycles |
+| `rules.row_context` | Input ordering and context dimensions |
 | `errors` | Structured validation errors |
+
+Resource modules use the plural names of the spec collections. Action rules are
+grouped by the relationship they check, not by function kind. Collapse shares
+input source discovery with every other action; only invariants specific to
+collapsing are conditional on that kind.
+
+Spec-wide `iter_*` helpers accept `spec` and yield in declaration order. They do
+not validate or cache their results. `DatasetDeclaration` in `rules.datasets`
+and `ActionDeclaration` in `rules.actions` retain the owning declarations and
+mapping keys needed for lookups and diagnostic paths;
+derived features, dimensions, and selectors are read on demand. Flat resources
+do not need declaration wrappers. Rule-specific data, such as dataframe argument
+resolution, stays in the corresponding rule module. Row-context iteration
+reuses the action and selected dataset without wrapping the entire spec.
+
+Helpers live with the resources they describe rather than in a generic traversal
+module. Feature owner discovery retains every owner so ambiguous declarations
+can be reported instead of silently selecting the first. Simple dataset indexes
+and feature-name sets are constructed where needed; they do not have separate
+wrapper functions.
 
 To add a rule:
 
 1. Define a typed `validate_something(spec: Spec) -> None` function in the
    appropriate domain module. Check one invariant and raise on failure.
-2. Reuse traversal helpers where needed. Keep rule-specific calculations local;
+2. Reuse the owning resource's iteration and lookup helpers where needed.
+   Keep rule-specific calculations local;
    do not introduce a context, validation registry decorator, or phase hierarchy.
 3. Add the function to `VALIDATION_DEPENDENCIES`, listing its prerequisites.
    Document any assumptions needed by callers invoking the function directly.
@@ -129,9 +151,9 @@ and invocation dependency ordering.
       show_root_heading: false
       members: [validate_spec]
 
-## dataset
+## datasets
 
-::: uptimely.spec.validation.dataset
+::: uptimely.spec.validation.rules.datasets
     options:
       heading_level: 3
       show_root_heading: false

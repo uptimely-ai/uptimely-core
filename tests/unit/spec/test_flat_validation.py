@@ -13,18 +13,22 @@ import pytest
 from uptimely import row_context as row_context_model
 from uptimely.spec import api, functions, model
 from uptimely.spec.validation import spec as validation
+from uptimely.spec.validation.rules import actions as action_rules
 from uptimely.spec.validation.rules import (
-    action_contracts,
-    action_inputs,
-    action_outputs,
     bindings,
-    collapse_inputs,
-    dataset,
-    dependencies,
     dimensions,
+    entities,
+    features,
     row_context,
 )
+from uptimely.spec.validation.rules import (
+    datasets as dataset,
+)
 from uptimely.spec.validation.rules import functions as function_rules
+from uptimely.spec.validation.rules.actions import contracts as action_contracts
+from uptimely.spec.validation.rules.actions import dependencies
+from uptimely.spec.validation.rules.actions import inputs as action_inputs
+from uptimely.spec.validation.rules.actions import outputs as action_outputs
 
 type Mutation = collections.abc.Callable[[model.Spec], object]
 
@@ -136,16 +140,81 @@ def test_full_validation_preserves_valid_function_kinds(kind: functions.Function
     assert spec.model_dump() == before
 
 
+@pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
+def test_source_discovery_visits_every_action_kind(kind: functions.FunctionKind) -> None:
+    spec = make_spec(kind)
+    before = spec.model_dump()
+    sources = tuple(action_inputs.iter_input_sources(spec))
+    assert [item.action.action for item in sources] == [
+        item.action for item in action_rules.iter_actions(spec)
+    ]
+    item = next(item for item in sources if item.action.action is compute(spec))
+    if kind == functions.READ:
+        assert item.candidates == ()
+        assert item.source is None
+    else:
+        expected = "target" if kind in {functions.VECTORIZE, functions.WRITE} else "source"
+        assert item.source is not None
+        assert item.source.dataset.id == expected
+    assert spec.model_dump() == before
+
+
+@pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
+@pytest.mark.parametrize(
+    "inputs",
+    [[], ["machine"], ["missing"], ["s", "x"], ["s", "missing"]],
+)
+def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
+    kind: functions.FunctionKind, inputs: list[str]
+) -> None:
+    spec = make_spec(kind)
+    compute(spec).features.inputs = [f"$features.{feature}" for feature in inputs]
+    before = spec.model_dump()
+    item = next(
+        item
+        for item in action_inputs.iter_input_sources(spec)
+        if item.action.action is compute(spec)
+    )
+    assert [feature for feature, _ in item.candidates] == [
+        feature for feature in inputs if feature not in spec.dimensions
+    ]
+    assert item.source is None
+    assert spec.model_dump() == before
+
+
+@pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
+def test_source_discovery_does_not_choose_an_ambiguous_owner(
+    kind: functions.FunctionKind,
+) -> None:
+    spec = make_spec(kind)
+    source_entity = spec.entities["source_entity"]
+    duplicate = source_entity.datasets["source"].model_copy(deep=True)
+    duplicate.id = "duplicate"
+    source_entity.datasets["duplicate"] = duplicate
+    compute(spec).features.inputs = ["$features.s"]
+    item = next(
+        item
+        for item in action_inputs.iter_input_sources(spec)
+        if item.action.action is compute(spec)
+    )
+    assert [owner.dataset.id for _, owners in item.candidates for owner in owners] == [
+        "source",
+        "duplicate",
+    ]
+    assert item.source is None
+
+
 def test_every_rule_is_registered_with_one_spec_parameter() -> None:
     modules = (
         action_contracts,
         action_inputs,
         action_outputs,
         bindings,
-        collapse_inputs,
         dataset,
         dependencies,
         dimensions,
+        entities,
+        features,
         function_rules,
         row_context,
     )
@@ -239,7 +308,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "parent cycle",
         ),
         (
-            dimensions.validate_entity_dimensions,
+            entities.validate_entity_dimensions,
             "read",
             lambda s: setattr(s.entities["target_entity"].dimensions[0], "id", "missing"),
             "unknown dimensions",
@@ -305,7 +374,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "cannot produce",
         ),
         (
-            action_outputs.validate_feature_ownership,
+            features.validate_feature_ownership,
             "vectorize",
             lambda s: target(s).features.update({"s": model.Feature(id="s")}),
             "Duplicate feature",
@@ -394,37 +463,37 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "requires argument type",
         ),
         (
-            collapse_inputs.validate_source_feature,
+            action_inputs.validate_source_feature,
             "collapse",
             lambda s: compute(s).features.inputs.clear(),
             "must reference a source feature",
         ),
         (
-            collapse_inputs.validate_feature_owner,
+            action_inputs.validate_feature_owner,
             "collapse",
             lambda s: compute(s).features.inputs.append("$features.missing"),
             "unknown input",
         ),
         (
-            collapse_inputs.validate_source_count,
+            action_inputs.validate_source_count,
             "collapse",
             lambda s: compute(s).features.inputs.append("$features.x"),
             "belong to one dataset",
         ),
         (
-            collapse_inputs.validate_source_target,
+            action_inputs.validate_source_target,
             "collapse",
             lambda s: setattr(compute(s).features, "inputs", ["$features.x"]),
             "target dataset",
         ),
         (
-            collapse_inputs.validate_grouping_dimensions,
+            action_inputs.validate_grouping_dimensions,
             "collapse",
             lambda s: s.entities["source_entity"].dimensions.clear(),
             "grouping dimensions",
         ),
         (
-            collapse_inputs.validate_source_features,
+            action_inputs.validate_source_features,
             "collapse",
             lambda s: (
                 s.dimensions.update({"other": model.Dimension(id="other", type="integer")}),
@@ -433,7 +502,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "outside source",
         ),
         (
-            collapse_inputs.validate_source_dimensions,
+            action_inputs.validate_source_dimensions,
             "collapse",
             lambda s: (
                 s.dimensions.update({"other": model.Dimension(id="other", type="integer")}),

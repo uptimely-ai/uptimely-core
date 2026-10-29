@@ -7,9 +7,12 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import functions as function_kinds
-from uptimely.spec.validation import errors, traversal
+from uptimely.spec.validation import errors
 from uptimely.spec.validation import spec as spec_validation
-from uptimely.spec.validation.rules import action_contracts, action_outputs, functions
+from uptimely.spec.validation.rules import actions as action_rules
+from uptimely.spec.validation.rules import functions
+from uptimely.spec.validation.rules.actions import contracts as action_contracts
+from uptimely.spec.validation.rules.actions import outputs as action_outputs
 
 
 @pytest.fixture
@@ -27,15 +30,15 @@ def document() -> spec.Spec:
 def test_unknown_function_error_uses_declaration_path(
     document: spec.Spec, use_runner: bool
 ) -> None:
-    item = next(traversal.iter_actions(document))
-    item.location.action.binding.function = "missing_function"
+    item = next(action_rules.iter_actions(document))
+    item.action.binding.function = "missing_function"
     validate = (
         spec_validation.validate_spec if use_runner else action_outputs.validate_function_reference
     )
     with pytest.raises(errors.SpecError) as error:
         validate(document)
     assert error.value.code == "unknown_function_reference"
-    assert error.value.path == (*item.location.declaration_path, "binding", "function")
+    assert error.value.path == (*item.declaration_path, "binding", "function")
     assert "missing_function" in str(error.value)
 
 
