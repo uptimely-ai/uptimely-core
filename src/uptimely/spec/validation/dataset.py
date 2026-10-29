@@ -2,10 +2,43 @@
 
 from __future__ import annotations
 
+import collections.abc
+import dataclasses
+
 from uptimely.spec import model as spec_model
 
+from .. import selectors
 from . import context as context_module
 from . import errors
+
+
+@dataclasses.dataclass(frozen=True)
+class OrderDimension:
+    """One order declaration with its normalized identifier and preceding keys."""
+
+    location: context_module.DatasetLocation
+    dimension_id: str
+    entity_dimensions: frozenset[str]
+    preceding: frozenset[str]
+    path: context_module.SpecPath
+
+
+def iter_order_dimensions(
+    datasets: collections.abc.Iterable[context_module.DatasetLocation],
+) -> collections.abc.Iterator[OrderDimension]:
+    """Yield normalized dataset order keys and their preceding dimensions."""
+    for location in datasets:
+        preceding: set[str] = set()
+        for index, key in enumerate(location.dataset.order):
+            dimension_id = key.dimension.removeprefix(selectors.DIMENSION_PREFIX)
+            yield OrderDimension(
+                location=location,
+                dimension_id=dimension_id,
+                entity_dimensions=location.dimensions,
+                preceding=frozenset(preceding),
+                path=(*location.path, "order", index, "dimension"),
+            )
+            preceding.add(dimension_id)
 
 
 def validate_dataset_ids(model: spec_model.Spec) -> None:
@@ -32,7 +65,7 @@ def validate_unique_id(
 
 
 def validate_order_dimension(
-    item: context_module.OrderDimension,
+    item: OrderDimension,
 ) -> context_module.ValidationResult:
     """Require an order dimension to be declared by its entity."""
     if item.dimension_id not in item.entity_dimensions:
@@ -46,7 +79,7 @@ def validate_order_dimension(
 
 
 def validate_unique_order_dimension(
-    item: context_module.OrderDimension,
+    item: OrderDimension,
 ) -> context_module.ValidationResult:
     """Reject a repeated order dimension."""
     if item.dimension_id in item.preceding:

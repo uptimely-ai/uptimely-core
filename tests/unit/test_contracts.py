@@ -60,9 +60,7 @@ def test_function_kind_contracts_validate_every_kind(
             }
         }
     )
-    function_id, function, dataframe_inputs = next(
-        context_module.SpecValidationContext.build(model).iter_functions()
-    )
+    function_id, function, dataframe_inputs = next(validation_functions.iter_functions(model))
     assert (
         validation_functions.validate_return_kind(function_id, function, dataframe_inputs) is None
     )
@@ -92,9 +90,7 @@ def test_escape_contract_accepts_any_number_of_dataframe_arguments(
         }
     )
 
-    function_id, function, dataframe_inputs = next(
-        context_module.SpecValidationContext.build(model).iter_functions()
-    )
+    function_id, function, dataframe_inputs = next(validation_functions.iter_functions(model))
     assert (
         validation_functions.validate_return_kind(function_id, function, dataframe_inputs) is None
     )
@@ -144,9 +140,9 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
     )
 
     validation_context = context_module.SpecValidationContext.build(model)
-    for item in validation_context.iter_bound_actions():
+    for item in bindings.iter_bound_actions(validation_context.actions):
         assert bindings.validate_arguments(item) is None
-        for value, argument_type in validation_context.iter_binding_selectors(item):
+        for value, argument_type in bindings.iter_binding_selectors(item):
             assert (
                 bindings.validate_selector_type(
                     value,
@@ -155,7 +151,7 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
                 )
                 is None
             )
-    for function_id, function, dataframe_inputs in validation_context.iter_functions():
+    for function_id, function, dataframe_inputs in validation_functions.iter_functions(model):
         assert (
             validation_functions.validate_return_kind(function_id, function, dataframe_inputs)
             is None
@@ -215,9 +211,7 @@ def test_fixed_function_kind_contracts_remain_enforced(
 ) -> None:
     model = spec_model.Spec.model_validate({"functions": {"function": function}})
 
-    function_id, item, dataframe_inputs = next(
-        context_module.SpecValidationContext.build(model).iter_functions()
-    )
+    function_id, item, dataframe_inputs = next(validation_functions.iter_functions(model))
     error = validation_functions.validate_return_kind(
         function_id, item, dataframe_inputs
     ) or validation_functions.validate_dataframe_count(function_id, item, dataframe_inputs)

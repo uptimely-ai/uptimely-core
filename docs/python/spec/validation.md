@@ -53,68 +53,55 @@ repeatable first errors without making legacy phase precedence part of the
 contract. Changes to which error is first are intentional when required by
 these prerequisites; codes and paths identify the reported rule and location.
 
-The implementation has not yet completed this contract: it still uses the
-historical phase order, and some semantic failures are plain `ValueError`
-instances without codes or paths. The following migration will bring the
-implementation into line with this contract. The compiler separately checks
-implementation signatures, selected-plan feasibility, and invocation
-dependency ordering.
+The implementation applies the rules in a fixed topic sequence and stops at
+the first returned diagnostic. The compiler separately checks implementation
+signatures, selected-plan feasibility, and invocation dependency ordering.
 
 ## Current implementation organization
-
-This section describes the implementation during the validation migration;
-it is not the target rule-authoring contract above.
 
 The public interface remains `validate_spec(document) -> None`. Internal
 modules separate orchestration from domain checks:
 
 | Module in `uptimely.spec.validation` | Responsibility |
 | --- | --- |
-| `spec` | Named lazy generators for the ordered validation phases |
-| `context` | All traversal, indexing, reference extraction, and prepared declaration facts |
-| `dataset` | Dataset IDs and ordering dimensions |
-| `dimensions` | Dimension declarations and parent relationships |
-| `functions` | Binding arguments, nested selector types, and function contracts |
-| `action_outputs` | Early calculation outputs, ownership, and unique producers |
-| `action_inputs` | Input references, collapse source scope, and row context |
-| `action_contracts` | Dataframe reference validity and kind-specific contracts |
-| `dependencies` | Local calculation/write scope and action-cycle checks |
+| `spec` | Ordered, fail-fast topic coordination |
+| `context` | Shared declaration indexes and compact dataset/action locations |
+| `dataset` | Dataset identity and order-dimension checks and iteration |
+| `dimensions` | Parent, cycle, and entity-dimension checks and iteration |
+| `functions` | Function contracts and function iteration |
+| `bindings` | Argument validation, nested selector iteration, and selector types |
+| `action_outputs` | Output declarations, ownership, producer uniqueness, and coverage |
+| `action_inputs` | Input feature and structural-reference checks |
+| `collapse_inputs` | Collapse source discovery and source-scope checks |
+| `row_context` | Row-context resources and input-order/dimension checks |
+| `action_contracts` | Dataframe resources and kind-specific mapping checks |
+| `dependencies` | Calculation/write scope and action-cycle checks |
 | `errors` | Structured validation errors |
 
-The context retains duplicate candidates, missing references, and ancestry
-cycles as facts rather than raising semantic errors during preparation.
-Domain validators decide whether those facts are acceptable. Indexes and graph
-traversal results are prepared lazily where appropriate and cached only on the
-current context. Revalidating an edited document builds a new context.
+The shared context retains declaration candidates and feature ownership indexes
+without raising semantic errors during preparation. Topic modules own the
+domain-specific iterators and local calculations their rules need. Each
+validation call builds fresh indexes, so revalidating an edited document sees
+the current declarations.
 
 `DatasetLocation` represents dataset declarations, feature owners, and inferred
-collapse sources; separate `FeatureOwner` and `CollapseSource` wrappers are not
-needed. Feature occurrence order is retained independently of dataset order.
+collapse sources; separate `FeatureOwner` wrappers are not needed. Feature
+occurrence order is retained independently of dataset order.
 `ActionLocation` composes a `DatasetLocation`, retaining both dictionary-key
 binding paths and model-ID contract paths without copying its entity and dataset.
 `ActionFacts` derives entity dimensions and local features from that shared
-location instead of storing repeated copies for every action. Other frozen
-dataclasses are retained for facts shared by multiple atomic checks, such as
-collapse-source and dataframe relationships. Binding names, selector types, and
-function contracts are read from their declarations as the coordinator reaches
-those phases, rather than being copied into one-use wrapper records. Use
-dataclasses for shared internal records, not a separate class for every
-invariant. Specification models remain Pydantic models.
-
-The context prepares producer occurrences and coverage, collapse source
-candidates, row-context requirements, flattened binding selectors, dataframe
-inputs, and the action dependency graph. Source inference is shared by the
-collapse, row-context, and action-contract phases. No validator constructs
-indexes or returns intermediate artifacts to the coordinator. One-pass phases
-consume feature dependency and row-context facts through iterators instead of
-building
-temporary tuples that validation would immediately traverse once.
+location instead of storing repeated copies for every action. Domain resource
+records are intentionally small: for example, dataframe checks carry their
+action, dataframe arguments, and collapse source, while rules calculate
+dataset sets and dimensional conditions locally. Specification models remain
+Pydantic models.
 
 Each phase checks one declaration's invariants before advancing to the next.
 Output coverage is checked after all actions in a dataset, and declared
 features without producers generate warnings rather than errors. Dataframe
-arguments precede kind-specific relationships. Vectorize and write share
-local dataset checks; conform and expand share join-input checks.
+arguments precede kind-specific relationships. Iterators apply checks in
+document order to datasets, actions, and binding arguments. Vectorize and write
+share local dataset checks; conform and expand share join-input checks.
 
 Escape actions require explicit, nonempty feature input and output lists.
 Their references participate in normal ownership, producer, unknown-reference,
@@ -125,27 +112,19 @@ function kinds. Its declared features need not match Python parameters or return
 values. Compilation retains their feature dependencies; execution invokes the
 function and ignores its return value without materializing declared outputs.
 
-### Current rule-authoring guidance
+### Rule-authoring guidance
 
 1. Choose the domain module and existing phase that owns the invariant. A new
    class or phase is not needed for every rule.
-2. Define entry points as `_validate_<subject>(context: SpecValidationContext)
-   -> None` and mark them with `@context_module.spec_validation`. The identity
-   decorator statically checks the callable interface without wrapping it,
-   injecting context, or registering rules globally. Add entry points explicitly
-   to the typed list in `validate_spec`.
-3. Put traversal, normalization, index construction, source candidate discovery,
-   and graph walks on `SpecValidationContext`. Preparation must retain invalid
-   declarations without raising validation errors or hiding duplicate candidates.
-4. Keep conditions and their errors together in domain modules. Comprehensions,
-   `next()`, `all()`, and `any()` may inspect prepared facts; explicit `for` and
-   `while` loops belong to the context, except for the coordinator's rule loop.
-   Cohesive `_..._error` helpers may describe the first violation as an exception
-   or `None`; the entry point raises the first described error immediately.
-   They do not cache exceptions, return success booleans, or change exceptions.
-5. Preserve action-first order within a phase. Checking one rule across all
-   actions before applying the next rule changes which error is reported.
-6. Add focused tests for valid inputs and overlapping faults. Preserve exception
+2. Keep the shared context limited to declaration indexes and compact location
+   types. Put domain-specific preparation beside its rules.
+3. Use explicit iterators to apply rules to datasets, actions, and arguments.
+   Short loops and local calculations are appropriate; avoid storing derived
+   boolean facts that a rule can calculate directly.
+4. Keep each rule focused on one condition and return either `None` or its
+   diagnostic. The coordinator raises the first diagnostic in its documented
+   sequence.
+5. Add focused tests for valid inputs and overlapping faults. Preserve exception
    classes, messages, structured codes, paths, and the public exports. For
    changes to reference resolution, test both indexed validation and existing
    callers that resolve directly from the document.
