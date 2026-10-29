@@ -7,22 +7,18 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import validation
-from uptimely.spec.validation import (
-    traversal,
-)
-from uptimely.spec.validation.rules import action_contracts as contracts_validation
+from uptimely.spec.validation.rules import actions as action_rules
 from uptimely.spec.validation.rules import (
-    action_inputs,
-    action_outputs,
     bindings,
-    collapse_inputs,
-    dependencies,
     dimensions,
     functions,
 )
-from uptimely.spec.validation.rules import (
-    dataset as dataset_validation,
-)
+from uptimely.spec.validation.rules import datasets as dataset_rules
+from uptimely.spec.validation.rules import features as feature_rules
+from uptimely.spec.validation.rules.actions import contracts as contracts_validation
+from uptimely.spec.validation.rules.actions import dependencies
+from uptimely.spec.validation.rules.actions import inputs as action_inputs
+from uptimely.spec.validation.rules.actions import outputs as action_outputs
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
@@ -49,9 +45,7 @@ def test_binding_feature_selectors_do_not_become_input_dependencies() -> None:
     action.features.inputs = []
     action.binding.args["dependency_hint"] = "$features.bearing_temperature"
 
-    facts = next(
-        item for item in traversal.iter_actions(document) if item.location.action is action
-    )
+    facts = next(item for item in action_rules.iter_actions(document) if item.action is action)
 
     assert facts.inputs == ()
     assert "bearing_temperature" in facts.feature_selectors
@@ -93,10 +87,10 @@ def test_collapse_rules_report_their_own_fault_without_validating_bindings(
     else:
         document = spec.Spec.model_validate(configuration)
     with pytest.raises(ValueError, match=message):
-        collapse_inputs.validate_source_feature(document)
-        collapse_inputs.validate_feature_owner(document)
-        collapse_inputs.validate_source_count(document)
-        collapse_inputs.validate_source_target(document)
+        action_inputs.validate_source_feature(document)
+        action_inputs.validate_feature_owner(document)
+        action_inputs.validate_source_count(document)
+        action_inputs.validate_source_target(document)
     with pytest.raises(validation.SpecError, match="unknown arguments: unexpected"):
         bindings.validate_arguments(document)
 
@@ -110,7 +104,7 @@ def test_independent_rules_report_grouping_and_dimension_reference_faults() -> N
     action["binding"]["args"]["unexpected"] = "$dimensions.missing"
     document = spec.Spec.model_validate(configuration)
     with pytest.raises(ValueError, match="grouping dimensions must exist in source"):
-        collapse_inputs.validate_grouping_dimensions(document)
+        action_inputs.validate_grouping_dimensions(document)
     with pytest.raises(validation.SpecError, match="unknown dimension: missing"):
         action_inputs.validate_dimension_reference(document)
 
@@ -350,17 +344,17 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     other.actions["recommended_flow_rate"].binding.args = {"unexpected": None}
     document.entities["pump_telemetry"].datasets[dataset.id] = dataset.model_copy(deep=True)
     original = document.model_copy(deep=True)
-    datasets = tuple(traversal.iter_datasets(document))
-    actions = tuple(traversal.iter_actions(document))
+    datasets = tuple(dataset_rules.iter_datasets(document))
+    actions = tuple(action_rules.iter_actions(document))
     assert sum(item.dataset.id == dataset.id for item in datasets) == 2
-    assert any(len(owners) > 1 for owners in traversal.feature_owners(document).values())
+    assert any(len(owners) > 1 for owners in feature_rules.feature_owners(document).values())
     assert any(item.function is None for item in actions)
-    assert any(item.cycle for item in dimensions.iter_parent_declarations(document))
-    assert next(dataset_validation.iter_order_dimensions(datasets), None) is not None
-    assert next(action_outputs.iter_output_datasets(datasets, actions), None) is not None
+    assert any(cycle for _, cycle in dimensions.iter_parent_cycles(document))
+    assert next(dataset_rules.iter_order_dimensions(document), None) is not None
+    assert next(action_outputs.iter_output_datasets(document), None) is not None
     producers = dependencies.feature_producers(actions, frozenset(document.dimensions))
     assert producers
-    assert any(item.source is None for item in collapse_inputs.iter_collapse_inputs(document))
+    assert any(item.source is None for item in action_inputs.iter_input_sources(document))
     assert dependencies.find_action_cycle(actions, producers) is None
     assert next(functions.iter_functions(document), None) is not None
     assert next(contracts_validation.iter_action_contracts(document), None) is not None
@@ -378,8 +372,8 @@ def test_duplicate_feature_ownership_retains_all_candidates() -> None:
         first: dataset.features[first].model_copy(deep=True),
     }
     document.entities["pump"].datasets[duplicate.id] = duplicate
-    owners = traversal.feature_owners(document)
+    owners = feature_rules.feature_owners(document)
     assert [item.dataset for item in owners[first]] == [dataset, duplicate]
     assert [item.dataset for item in owners[second]] == [dataset, duplicate]
     with pytest.raises(ValueError, match="Duplicate feature name"):
-        action_outputs.validate_feature_ownership(document)
+        feature_rules.validate_feature_ownership(document)
