@@ -51,8 +51,10 @@ def test_project_build_cli_exports_complete_bundle(
     assert not (project_root / "_generated/compile/execution_plan.json").exists()
 
 
-def test_compiled_plan_export_omits_generated_timestamp(tmp_path: pathlib.Path) -> None:
-    plan = example_support.example_bundle().execution_plan
+def test_compiled_plan_export_omits_generated_timestamp(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    plan = pump_bundle.execution_plan
 
     output_path = execution_plan.export_json(plan, tmp_path / "execution_plan.json")
     metadata = json.loads(output_path.read_text(encoding="utf-8"))

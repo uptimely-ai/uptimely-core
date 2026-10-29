@@ -29,6 +29,19 @@ focused runs that do not use examples skip copying and building entirely.
 Use `example_bundle()` to load fresh spec and plan objects, or
 `copy_example_project()` when a test needs to modify or execute an isolated
 project. Scoped example builds are prepared on demand once per worker and scope.
+Prefer these fixtures for test setup:
+
+- `pump_bundle` loads one independent mutable bundle per test; use its
+  `spec_definition` and `execution_plan` together instead of loading each again.
+- `example_bundle_factory(features=...)` loads a fresh bundle on each call,
+  reusing saved full or scoped builds.
+- `example_project_factory(tmp_path / "project", features=...)` copies a prepared
+  project for isolated changes or execution.
+
+The factories prepare the shared examples before the test body runs, so tests
+can safely patch compilation or building afterward. Direct helper calls remain
+appropriate when testing the helpers themselves.
+
 Tests that read files directly under `EXAMPLES_ROOT` must request the
 `example_projects` fixture, either as an argument or with
 `@pytest.mark.usefixtures("example_projects")`. Do not read generated artifacts

@@ -18,9 +18,11 @@ SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spe
 
 
 @pytest.fixture
-def built_project(tmp_path: pathlib.Path) -> pathlib.Path:
+def built_project(
+    tmp_path: pathlib.Path, example_project_factory: example_support.ProjectFactory
+) -> pathlib.Path:
     root = tmp_path / "project with spaces"
-    return example_support.copy_example_project(root)
+    return example_project_factory(root)
 
 
 @pytest.mark.parametrize(
@@ -144,8 +146,9 @@ def test_explorer_serves_saved_website_without_building_or_rendering(
 def test_explorer_reports_selected_scope(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
+    example_project_factory: example_support.ProjectFactory,
 ) -> None:
-    built_project = example_support.copy_example_project(
+    built_project = example_project_factory(
         tmp_path / "project with spaces", features=("pump_health_score",)
     )
     bundle = project.load_build_bundle(built_project)

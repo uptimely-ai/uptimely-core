@@ -7,23 +7,24 @@ from collections import abc
 import pytest
 from support import examples as example_support
 
-from uptimely import compiler, spec
+from uptimely import compiler, project, spec
 from uptimely import execution_plan as plan_module
 from uptimely.explorer import explorer, render
 from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section
 
-SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
-pytestmark = pytest.mark.usefixtures("example_projects")
 SAVED_PLAN_MARKER = "saved-plan-only-marker"
 
 
 def test_explorer_shares_one_website_context_between_sections(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    example_bundle_factory: example_support.BundleFactory,
 ) -> None:
-    definition = spec.load_spec(SPEC_PATH)
-    supplied = example_support.example_bundle(features=("health_signal_normalized",)).execution_plan
+    bundle = example_bundle_factory(features=("health_signal_normalized",))
+    definition = bundle.spec_definition
+    supplied = bundle.execution_plan
     contexts: list[render.WebsiteContext] = []
     section_ids: list[str] = []
     write_pages = render.WebsiteSection.write_pages
@@ -54,9 +55,11 @@ def test_explorer_shares_one_website_context_between_sections(
     )
 
 
-def test_section_context_builders_do_not_write_files(tmp_path: pathlib.Path) -> None:
-    definition = spec.load_spec(SPEC_PATH)
-    supplied = example_support.example_bundle().execution_plan
+def test_section_context_builders_do_not_write_files(
+    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+) -> None:
+    definition = pump_bundle.spec_definition
+    supplied = pump_bundle.execution_plan
     output_directory = tmp_path / "not-created"
     contexts = [
         spec_section.build_context(spec_section._build_context(definition, False)),
@@ -71,10 +74,10 @@ def test_section_context_builders_do_not_write_files(tmp_path: pathlib.Path) -> 
 
 
 def test_render_saved_plan_without_compiling(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, pump_bundle: project.BuildBundle
 ) -> None:
-    definition = spec.load_spec(SPEC_PATH)
-    compiled = example_support.example_bundle().execution_plan
+    definition = pump_bundle.spec_definition
+    compiled = pump_bundle.execution_plan
     first, *remaining = compiled.invocations
     custom = dataclasses.replace(
         first, arguments={**first.arguments, "saved_plan_marker": SAVED_PLAN_MARKER}
@@ -99,8 +102,8 @@ def test_render_saved_plan_without_compiling(
     assert plan_module.to_dict(supplied) == original
 
 
-def test_explorer_requires_existing_plan() -> None:
-    definition = spec.load_spec(SPEC_PATH)
+def test_explorer_requires_existing_plan(pump_bundle: project.BuildBundle) -> None:
+    definition = pump_bundle.spec_definition
 
     with pytest.raises(TypeError, match="plan"):
         explorer.Explorer(definition)  # type: ignore[call-arg]
@@ -108,9 +111,11 @@ def test_explorer_requires_existing_plan() -> None:
 
 def test_explorer_distinguishes_full_model_from_scoped_plan(
     tmp_path: pathlib.Path,
+    example_bundle_factory: example_support.BundleFactory,
 ) -> None:
-    definition = spec.load_spec(SPEC_PATH)
-    plan = example_support.example_bundle(features=("health_signal_normalized",)).execution_plan
+    bundle = example_bundle_factory(features=("health_signal_normalized",))
+    definition = bundle.spec_definition
+    plan = bundle.execution_plan
     index = explorer.Explorer(
         definition,
         plan=plan,
