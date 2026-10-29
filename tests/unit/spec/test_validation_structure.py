@@ -1,4 +1,4 @@
-"""Safeguards for the shared rule interface and context-owned preparation."""
+"""Safeguards for semantic rule interfaces and coordinator coverage."""
 
 import ast
 import contextlib
@@ -34,37 +34,24 @@ def test_validation_does_not_use_runtime_assertions(source_path: pathlib.Path) -
 
 @pytest.mark.parametrize(
     "source_path",
-    sorted(
-        path
-        for path in VALIDATION_PACKAGE.glob("*.py")
-        if path.stem not in {"__init__", "context", "errors", "spec"}
-    ),
+    sorted(VALIDATION_PACKAGE.glob("*.py")),
     ids=lambda source_path: source_path.name,
 )
-def test_domain_rules_are_flat_and_return_optional_errors(
-    source_path: pathlib.Path,
-) -> None:
+def test_domain_rules_return_optional_errors(source_path: pathlib.Path) -> None:
     tree = ast.parse(source_path.read_text(encoding="utf-8"))
-    loops = [
-        node.lineno
-        for node in ast.walk(tree)
-        if isinstance(node, ast.For | ast.AsyncFor | ast.While)
-    ]
-    assert not loops, f"Move preparation loops in {source_path.name} to context: {loops}"
     module = importlib.import_module(f"uptimely.spec.validation.{source_path.stem}")
     rules = [
         node
         for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name != "validate_dataset_ids"
+        if isinstance(node, ast.FunctionDef)
+        and node.name.startswith("validate_")
+        and node.name not in {"validate_spec", "validate_dataset_ids"}
     ]
-    assert rules
     for rule in rules:
         function = getattr(module, rule.name)
         hints = typing.get_type_hints(function)
-        assert rule.name.startswith("validate_")
-        assert hints.pop("return") is context.ValidationResult
-        assert set(hints) == set(inspect.signature(function).parameters)
-        assert context.SpecValidationContext not in hints.values()
+        assert hints["return"] is context.ValidationResult
+        assert set(hints) == set(inspect.signature(function).parameters) | {"return"}
         assert not any(
             isinstance(node, ast.Raise | ast.FunctionDef)
             for node in ast.walk(rule)

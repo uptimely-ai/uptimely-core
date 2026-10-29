@@ -10,6 +10,36 @@ from .. import functions, selectors
 from . import context as context_module
 from . import errors
 
+type OutputDeclaration = tuple[str, str | None]
+type ActionOutputFacts = tuple[context_module.ActionFacts, tuple[OutputDeclaration, ...]]
+type DatasetOutputFacts = tuple[
+    context_module.DatasetLocation, tuple[ActionOutputFacts, ...], tuple[str, ...]
+]
+
+
+def iter_output_datasets(
+    datasets: collections.abc.Iterable[context_module.DatasetLocation],
+    actions: collections.abc.Iterable[context_module.ActionFacts],
+) -> collections.abc.Iterator[DatasetOutputFacts]:
+    """Yield action outputs and uncovered features for each dataset."""
+    actions_by_key = {item.location.key: item for item in actions}
+    for location in datasets:
+        producers: dict[str, str] = {}
+        output_actions: list[ActionOutputFacts] = []
+        for action_id in location.dataset.actions:
+            item = actions_by_key[(*location.key, action_id)]
+            declarations: list[OutputDeclaration] = []
+            if item.kind != functions.WRITE:
+                for feature_id in item.outputs:
+                    declarations.append((feature_id, producers.get(feature_id)))
+                    if feature_id not in item.dimensions:
+                        producers[feature_id] = item.location.action_id
+            output_actions.append((item, tuple(declarations)))
+        missing = tuple(
+            sorted(set(location.dataset.features) - producers.keys() - location.dimensions)
+        )
+        yield location, tuple(output_actions), missing
+
 
 def validate_output_presence(
     item: context_module.ActionFacts, action_id: str

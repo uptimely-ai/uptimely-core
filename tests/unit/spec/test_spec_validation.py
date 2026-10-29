@@ -8,10 +8,26 @@ from uptimely import spec
 from uptimely.spec import model as spec_model
 from uptimely.spec import references
 from uptimely.spec.python import actions, conversion, dataset, feature, ref
-from uptimely.spec.validation import context
+from uptimely.spec.validation import action_contracts, collapse_inputs, context
 from uptimely.spec.validation import errors as validation_errors
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+
+
+def _action_contracts(spec_definition: spec.Spec) -> tuple[action_contracts.ActionContract, ...]:
+    indexes = context.SpecValidationContext.build(spec_definition)
+    collapse_facts = tuple(
+        collapse_inputs.iter_collapse_inputs(
+            indexes.actions, indexes.dimension_ids, indexes.feature_owners
+        )
+    )
+    return tuple(
+        action_contracts.iter_action_contracts(
+            indexes.actions,
+            indexes.dataset,
+            collapse_inputs.source_index(collapse_facts),
+        )
+    )
 
 
 def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str) -> pathlib.Path:
@@ -474,39 +490,40 @@ def _matching_key_configuration(key_selector: object, *, key_type: str = "array[
 
 
 @pytest.mark.parametrize(
-    ("key_selector", "expected_keys"),
+    "key_selector",
     [
-        ("$datasets.@.dimensions.ids", ["plant", "production_line", "pump"]),
-        ("$datasets.pump_dataset.dimensions.ids", ["plant", "production_line", "pump"]),
-        (["$dimensions.plant.id", "$dimensions.pump.id"], []),
+        "$datasets.@.dimensions.ids",
+        "$datasets.pump_dataset.dimensions.ids",
+        ["$dimensions.plant.id", "$dimensions.pump.id"],
     ],
 )
 def test_matching_key_selectors_validate_on_target_and_source(
-    tmp_path: pathlib.Path, key_selector: object, expected_keys: list[str]
+    tmp_path: pathlib.Path, key_selector: object
 ) -> None:
     configuration = _matching_key_configuration(key_selector)
     path = _write_configuration(tmp_path, configuration, "matching_keys.json")
 
     spec_definition = spec.load_spec(path)
+    indexes = context.SpecValidationContext.build(spec_definition)
     contract = next(
         item
-        for item in context.SpecValidationContext.build(spec_definition).action_contracts
+        for item in _action_contracts(spec_definition)
         if item.action.location.action_id == "conform_values"
     )
-
-    assert [key.dimension_id for key in contract.matching_keys] == expected_keys
+    assert action_contracts.validate_matching_keys(contract, indexes.dataset) is None
 
 
 def test_grouping_dimension_references_are_not_matching_key_declarations() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
+    indexes = context.SpecValidationContext.build(spec_definition)
     contract = next(
         item
-        for item in context.SpecValidationContext.build(spec_definition).action_contracts
+        for item in _action_contracts(spec_definition)
         if item.action.location.action_id == "bearing_temperature_by_pump"
     )
 
     assert contract.action.dimension_references == ("plant", "production_line", "pump")
-    assert contract.matching_keys == ()
+    assert action_contracts.validate_matching_keys(contract, indexes.dataset) is None
 
 
 @pytest.mark.parametrize(

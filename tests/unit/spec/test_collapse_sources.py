@@ -37,7 +37,12 @@ def test_collapse_source_is_prepared_from_indexed_feature_owners(
         document.entities["pump"].datasets["pump_dataset"].actions["bearing_temperature_by_pump"]
     )
     index = context.SpecValidationContext.build(document)
-    prepared = next(item for item in index.collapse_inputs if item.action.location.action is action)
+    collapse_facts = tuple(
+        collapse_inputs.iter_collapse_inputs(
+            index.actions, index.dimension_ids, index.feature_owners
+        )
+    )
+    prepared = next(item for item in collapse_facts if item.action.location.action is action)
     results = [
         collapse_inputs.validate_source_feature(prepared),
         *(
@@ -57,7 +62,9 @@ def test_collapse_source_is_prepared_from_indexed_feature_owners(
             for feature in action.input_features
             if feature != selectors.CURRENT_ID and feature not in document.dimensions
         )
-        assert index.collapse_sources[prepared.action.location.key] is prepared.source
+        assert collapse_inputs.source_index(collapse_facts)[prepared.action.location.key] is (
+            prepared.source
+        )
 
 
 @pytest.mark.parametrize("with_row_context", [False, True])
@@ -82,10 +89,7 @@ def test_validation_prepares_collapse_sources_once_per_invocation(
     assert expected > 0
 
     with mock.patch.object(
-        context.SpecValidationContext,
-        "_prepare_collapse_inputs",
-        autospec=True,
-        side_effect=context.SpecValidationContext._prepare_collapse_inputs,
+        collapse_inputs, "iter_collapse_inputs", wraps=collapse_inputs.iter_collapse_inputs
     ) as prepare:
         validation.validate_spec(document)
         assert prepare.call_count == 1

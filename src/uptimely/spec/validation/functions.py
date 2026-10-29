@@ -2,11 +2,27 @@
 
 from __future__ import annotations
 
+import collections.abc
+
 from uptimely.spec import model as spec_model
 
-from .. import functions
+from .. import arg_types, functions
 from . import context as context_module
 from . import errors
+
+
+def iter_functions(
+    model: spec_model.Spec,
+) -> collections.abc.Iterator[tuple[str, spec_model.FunctionTemplate, int]]:
+    """Yield each function and its dataframe-argument count."""
+    return (
+        (
+            function_id,
+            function,
+            sum(argument.type == arg_types.DATAFRAME for argument in function.args.values()),
+        )
+        for function_id, function in model.functions.root.items()
+    )
 
 
 def validate_return_kind(

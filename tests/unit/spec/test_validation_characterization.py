@@ -8,8 +8,19 @@ from conftest import EXAMPLES_ROOT
 from uptimely import spec
 from uptimely.spec import validation
 from uptimely.spec.validation import action_contracts as contracts_validation
-from uptimely.spec.validation import bindings
+from uptimely.spec.validation import (
+    action_outputs,
+    bindings,
+    collapse_inputs,
+    dependencies,
+    dimensions,
+    functions,
+    row_context,
+)
 from uptimely.spec.validation import context as context_module
+from uptimely.spec.validation import (
+    dataset as dataset_validation,
+)
 
 SPEC_PATH = EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
@@ -129,12 +140,25 @@ def test_binding_and_contract_paths_keep_their_existing_action_identifiers(
     context = context_module.SpecValidationContext.build(document)
     if invalid_binding:
         binding = next(
-            item for item in context.iter_bound_actions() if item.location.action is action
+            item
+            for item in bindings.iter_bound_actions(context.actions)
+            if item.location.action is action
         )
         error = bindings.validate_arguments(binding)
     else:
+        collapse_facts = tuple(
+            collapse_inputs.iter_collapse_inputs(
+                context.actions, context.dimension_ids, context.feature_owners
+            )
+        )
         contract = next(
-            item for item in context.action_contracts if item.action.location.action is action
+            item
+            for item in contracts_validation.iter_action_contracts(
+                context.actions,
+                context.dataset,
+                collapse_inputs.source_index(collapse_facts),
+            )
+            if item.action.location.action is action
         )
         error = contracts_validation.validate_target_input(contract)
 
@@ -348,7 +372,7 @@ def test_document_validation_rejects_blank_calculated_output() -> None:
         validation.validate_spec(document)
 
 
-def test_context_prepares_invalid_declarations_without_raising_or_mutating() -> None:
+def test_topic_preparation_is_non_mutating_and_retains_invalid_declarations() -> None:
     document = spec.Spec.model_validate(_configuration())
     document.dimensions["plant"].parent = "plant"
     dataset = document.entities["pump"].datasets["pump_dataset"]
@@ -363,18 +387,48 @@ def test_context_prepares_invalid_declarations_without_raising_or_mutating() -> 
 
     assert context.duplicate_dataset is not None
     assert context.duplicate_feature is not None
-    assert any(item.cycle for item in context.dimension_parents)
-    assert context.order_dimensions
-    assert next(context.iter_calculation_dependencies(), None) is not None
-    assert next(context.iter_write_dependencies(), None) is not None
-    assert next(context.iter_output_datasets(), None) is not None
-    assert context.feature_producers
-    assert any(item.source is None for item in context.collapse_inputs)
-    assert next(context.iter_input_contexts(), None) is not None
-    assert context.action_dependencies
-    assert next(context.iter_bound_actions(), None) is not None
-    assert next(context.iter_functions(), None) is not None
-    assert context.action_contracts
+    assert any(item.cycle for item in dimensions.iter_parent_declarations(document))
+    assert next(dataset_validation.iter_order_dimensions(context.datasets), None) is not None
+    assert (
+        next(
+            dependencies.iter_calculation_dependencies(
+                context.actions, context.first_feature_owner
+            ),
+            None,
+        )
+        is not None
+    )
+    assert (
+        next(
+            dependencies.iter_write_dependencies(context.actions, context.first_feature_owner), None
+        )
+        is not None
+    )
+    assert next(action_outputs.iter_output_datasets(context.datasets, context.actions), None)
+    producers = dependencies.feature_producers(context.actions, context.dimension_ids)
+    assert producers
+    collapse_facts = tuple(
+        collapse_inputs.iter_collapse_inputs(
+            context.actions, context.dimension_ids, context.feature_owners
+        )
+    )
+    assert any(item.source is None for item in collapse_facts)
+    collapse_source_index = collapse_inputs.source_index(collapse_facts)
+    assert (
+        next(row_context.iter_row_contexts(context.actions, document, collapse_source_index), None)
+        is not None
+    )
+    assert dependencies.find_action_cycle(context.actions, producers) is None
+    assert next(bindings.iter_bound_actions(context.actions), None) is not None
+    assert next(functions.iter_functions(document), None) is not None
+    assert next(
+        contracts_validation.iter_action_contracts(
+            context.actions,
+            context.dataset,
+            collapse_source_index,
+        ),
+        None,
+    )
     assert document == original
 
 
