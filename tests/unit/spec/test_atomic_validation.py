@@ -11,7 +11,15 @@ from conftest import EXAMPLES_ROOT
 
 from uptimely import spec
 from uptimely.spec import functions as function_kinds
-from uptimely.spec.validation import action_contracts, context, errors, functions, row_context
+from uptimely.spec import validation as spec_validation
+from uptimely.spec.validation import (
+    action_contracts,
+    action_outputs,
+    context,
+    errors,
+    functions,
+    row_context,
+)
 
 type ContractRule = collections.abc.Callable[[context.ActionContract], ValueError | None]
 type RowRule = collections.abc.Callable[[context.RowContext], ValueError | None]
@@ -218,6 +226,53 @@ def test_function_rules_are_independent(
     assert "fit kind(s): write" in str(return_error)
     assert isinstance(count_error, errors.SpecError)
     assert count_error.code == "invalid_function_input_contract"
+
+
+def test_function_reference_rule_uses_explicit_catalog_and_path(
+    prepared: context.SpecValidationContext,
+) -> None:
+    item = prepared.actions[0]
+    path = (*item.location.declaration_path, "binding", "function")
+
+    assert (
+        action_outputs.validate_function_reference(
+            item.location.action.binding.function,
+            item.location.dataset.id,
+            prepared.model.functions.root,
+            path,
+        )
+        is None
+    )
+
+    error = action_outputs.validate_function_reference(
+        "missing_function",
+        item.location.dataset.id,
+        prepared.model.functions.root,
+        path,
+    )
+
+    assert isinstance(error, errors.SpecError)
+    assert error.code == "unknown_function_reference"
+    assert error.path == path
+    assert "missing_function" in str(error)
+
+
+def test_spec_validation_reports_unknown_function_reference_at_declaration(
+    prepared: context.SpecValidationContext,
+) -> None:
+    item = prepared.actions[0]
+    action = item.location.action
+    action.binding.function = "missing_function"
+
+    with pytest.raises(errors.SpecError) as error:
+        spec_validation.validate_spec(prepared.model)
+
+    assert error.value.code == "unknown_function_reference"
+    assert error.value.path == (
+        *item.location.declaration_path,
+        "binding",
+        "function",
+    )
 
 
 @pytest.mark.parametrize("kind", ["conform", "collapse", "expand"])
