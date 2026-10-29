@@ -143,11 +143,14 @@ class DataFrameExecution:
         if not output_features:
             return fragment, dataframe
 
+        fragment_dimensions = dimensions
+        if invocation.function_kind == functions.EXPAND and self.backend.is_frame(fragment):
+            fragment_dimensions = self._carried_dimensions(fragment, dimensions)
         self._validate_fragment(
-            invocation, fragment, dataframe, dimensions, output_features=output_features
+            invocation, fragment, dataframe, fragment_dimensions, output_features=output_features
         )
         fragment = self.backend.select(
-            fragment, list(dict.fromkeys([*dimensions, *output_features]))
+            fragment, list(dict.fromkeys([*fragment_dimensions, *output_features]))
         )
         if dataframe is not None:
             self._validate_dataframe(dataframe, dimensions, "Accumulated dataset")
@@ -159,6 +162,10 @@ class DataFrameExecution:
                     *dimensions,
                     *(name for name in dataset.features if name in dataframe_columns),
                 ],
+            )
+        if fragment_dimensions != dimensions:
+            return fragment, self._broadcast_fragment(
+                invocation, dataframe, fragment, fragment_dimensions
             )
         return fragment, self._combine_fragment(dataframe, fragment, dimensions)
 
@@ -180,6 +187,28 @@ class DataFrameExecution:
         self._validate_feature_collisions(dataframe, fragment, dimensions)
         return self._join_fragments(dataframe, fragment, dimensions)
 
+    def _carried_dimensions(self, fragment: object, dimensions: list[str]) -> list[str]:
+        """Return the target dimension keys carried by an expand fragment."""
+        columns = set(self.backend.column_names(fragment))
+        return [dimension for dimension in dimensions if dimension in columns]
+
+    def _broadcast_fragment(
+        self,
+        invocation: execution_plan.Invocation,
+        dataframe: object | None,
+        fragment: object,
+        fragment_dimensions: list[str],
+    ) -> object:
+        """Left-join an expand fragment onto the accumulated dataset by its carried keys."""
+        if dataframe is None:
+            raise ValueError(
+                f"Expand action {invocation.mapping_id} fragment carries a subset of the "
+                "dimension keys and requires the accumulated target dataset"
+            )
+        self._validate_feature_collisions(dataframe, fragment, fragment_dimensions)
+        left, right = self._aligned_frames(dataframe, fragment)
+        return self.backend.left_join(left, right, fragment_dimensions)
+
     def _validate_feature_collisions(
         self, dataframe: object, fragment: object, dimensions: list[str]
     ) -> None:
@@ -194,12 +223,14 @@ class DataFrameExecution:
 
     def _join_fragments(self, dataframe: object, fragment: object, dimensions: list[str]) -> object:
         """Join validated frames, retaining the native eager/lazy behavior."""
-        left = dataframe
-        right = fragment
-        if type(dataframe) is not type(fragment):
-            left = self.backend.lazy(dataframe)
-            right = self.backend.lazy(right)
+        left, right = self._aligned_frames(dataframe, fragment)
         return self.backend.join(left, right, dimensions)
+
+    def _aligned_frames(self, dataframe: object, fragment: object) -> tuple[object, object]:
+        """Return both frames, made lazy together when their types differ."""
+        if type(dataframe) is not type(fragment):
+            return self.backend.lazy(dataframe), self.backend.lazy(fragment)
+        return dataframe, fragment
 
     def _dataset(self, dataset_id: str | None) -> spec_model.Dataset:
         """Return the spec definition for a project-wide dataset ID."""

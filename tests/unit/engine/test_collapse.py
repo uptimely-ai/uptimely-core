@@ -83,6 +83,37 @@ def read_expansion_input(lazy: bool) -> pl.DataFrame | pl.LazyFrame:
     return frame.lazy() if lazy else frame
 
 
+def read_reference_constant(lazy: bool = False) -> pl.DataFrame | pl.LazyFrame:
+    frame = pl.DataFrame({"source_value": [10.0]})
+    return frame.lazy() if lazy else frame
+
+
+def read_group_limits(lazy: bool = False) -> pl.DataFrame | pl.LazyFrame:
+    frame = pl.DataFrame({"group": ["A", "B"], "source_value": [5.0, 7.0]})
+    return frame.lazy() if lazy else frame
+
+
+def broadcast_reference(
+    source: pl.DataFrame | pl.LazyFrame, feature: str, output: str
+) -> pl.DataFrame | pl.LazyFrame:
+    return source.select(pl.col(feature).alias(output))
+
+
+def broadcast_group_limit(
+    source: pl.DataFrame | pl.LazyFrame, feature: str, output: str
+) -> pl.DataFrame | pl.LazyFrame:
+    return source.select("group", pl.col(feature).alias(output))
+
+
+def inflate_reference(
+    source: pl.DataFrame | pl.LazyFrame, feature: str, output: str
+) -> pl.DataFrame | pl.LazyFrame:
+    fragment = source.select(pl.col(feature).alias(output))
+    if isinstance(fragment, pl.LazyFrame):
+        fragment = fragment.collect()
+    return pl.concat([fragment, fragment])
+
+
 def read_conform_target() -> pl.DataFrame:
     return pl.DataFrame({"group": ["A", "B"], "base_value": [10, 20]})
 
@@ -518,3 +549,114 @@ def test_dimensionless_alignment_rejects_multiple_global_rows(lazy):
 
     with pytest.raises(ValueError, match="at most one global row"):
         engine.PolarsBackend().join(left, right, [])
+
+
+def _broadcast_spec(
+    reader: object, expand_function: object, source_dimension_ids: list[str], lazy: bool
+) -> spec.Spec:
+    """Build a two-entity spec expanding a lower-dimensional source feature."""
+    group = dimension.Dimension(id="group", type="string")
+    identifier = dimension.Dimension(id="id", type="integer")
+    dimensions = {"group": group, "id": identifier}
+    observations = dataset.Dataset(
+        id="observations",
+        producers=[
+            actions.Action(
+                id="read_values",
+                inputs=[],
+                function=ref.function(read_values, kind="read"),
+                arguments={"lazy": lazy},
+                outputs=[feature.Feature(name="value")],
+            ),
+            actions.Action(
+                id="reference",
+                inputs=[ref.feature("source_value")],
+                function=ref.function(expand_function, kind="expand"),
+                arguments={
+                    "source": ref.dataset("reference_source").dataframe,
+                    "feature": ref.feature("source_value").id,
+                    "output": ref.feature("reference").id,
+                },
+                outputs=[feature.Feature(name="reference")],
+            ),
+        ],
+    )
+    source = dataset.Dataset(
+        id="reference_source",
+        producers=[
+            actions.Action(
+                id="read_reference",
+                inputs=[],
+                function=ref.function(reader, kind="read"),
+                arguments={"lazy": lazy},
+                outputs=[feature.Feature(name="source_value")],
+            )
+        ],
+    )
+    return spec.from_python(
+        entities=[
+            entity.Entity(
+                id="observation",
+                name="Observation",
+                dimensions=[group, identifier],
+                datasets=[observations],
+            ),
+            entity.Entity(
+                id="reference",
+                name="Reference",
+                dimensions=[dimensions[name] for name in source_dimension_ids],
+                datasets=[source],
+            ),
+        ],
+        dimensions=[group, identifier],
+    )
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_expand_broadcasts_dimensionless_fragment(
+    lazy, engine_for_plan: execution_support.EngineFactory
+):
+    spec_definition = _broadcast_spec(read_reference_constant, broadcast_reference, [], lazy)
+    plan = compiler.Compiler().compile(spec_definition)
+    result = engine_for_plan(plan, spec_definition=spec_definition).run()
+
+    assert not result.failures
+    frame = result.datasets["observations"]
+    if isinstance(frame, pl.LazyFrame):
+        frame = frame.collect()
+    assert frame.sort("id").to_dicts() == [
+        {"group": "A", "id": 1, "value": 2, "reference": 10.0},
+        {"group": "A", "id": 2, "value": 4, "reference": 10.0},
+        {"group": "B", "id": 3, "value": 6, "reference": 10.0},
+        {"group": "B", "id": 4, "value": None, "reference": 10.0},
+    ]
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_expand_left_joins_fragment_on_its_carried_dimension_keys(
+    lazy, engine_for_plan: execution_support.EngineFactory
+):
+    spec_definition = _broadcast_spec(read_group_limits, broadcast_group_limit, ["group"], lazy)
+    plan = compiler.Compiler().compile(spec_definition)
+    result = engine_for_plan(plan, spec_definition=spec_definition).run()
+
+    assert not result.failures
+    frame = result.datasets["observations"]
+    if isinstance(frame, pl.LazyFrame):
+        frame = frame.collect()
+    assert frame.sort("id").select("group", "id", "reference").rows() == [
+        ("A", 1, 5.0),
+        ("A", 2, 5.0),
+        ("B", 3, 7.0),
+        ("B", 4, 7.0),
+    ]
+
+
+def test_expand_rejects_multirow_dimensionless_fragment(
+    engine_for_plan: execution_support.EngineFactory,
+):
+    spec_definition = _broadcast_spec(read_reference_constant, inflate_reference, [], False)
+    plan = compiler.Compiler().compile(spec_definition)
+    result = engine_for_plan(plan, spec_definition=spec_definition).run()
+
+    assert "at most one row" in next(iter(result.failures.values()))

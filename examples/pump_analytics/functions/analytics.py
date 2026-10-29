@@ -250,6 +250,71 @@ def ratio(
     return data_vectorized
 
 
+@function(kind="expand")
+def broadcast_constant(
+    constants: pl.LazyFrame,
+    feature: str,
+    output: str,
+) -> pl.LazyFrame:
+    """Return a one-row fragment carrying a constant for the target dataset.
+
+    Parameters
+    ----------
+    constants
+        Single-row dataset containing the constant.
+    feature
+        Name of the constant column to broadcast.
+    output
+        Name of the resulting broadcast column.
+
+    Returns:
+    -------
+    One-row fragment that the engine broadcasts to every target observation.
+
+    Examples:
+    --------
+    >>> constants = pl.LazyFrame({"ambient": [20.0]})
+    >>> broadcast_constant(constants, "ambient", "ambient_reference").collect().to_dicts()
+    [{'ambient_reference': 20.0}]
+    """
+    data_expanded = constants.select(pl.col(feature).alias(output))
+    return data_expanded
+
+
+@function(kind="vectorize")
+def subtract(
+    dataset: pl.LazyFrame,
+    feature: str,
+    subtrahend: str,
+    output: str,
+) -> pl.LazyFrame:
+    """Return the difference between two feature columns.
+
+    Parameters
+    ----------
+    dataset
+        Dataset containing both feature columns.
+    feature
+        Name of the column subtracted from.
+    subtrahend
+        Name of the column subtracted from the feature.
+    output
+        Name of the resulting difference column.
+
+    Returns:
+    -------
+    Dataset with the difference appended.
+
+    Examples:
+    --------
+    >>> frame = pl.LazyFrame({"temperature": [25.0], "ambient": [20.0]})
+    >>> subtract(frame, "temperature", "ambient", "rise").collect()["rise"].to_list()
+    [5.0]
+    """
+    data_vectorized = dataset.with_columns((pl.col(feature) - pl.col(subtrahend)).alias(output))
+    return data_vectorized
+
+
 @function(kind="vectorize")
 def extract_field(
     dataset: pl.LazyFrame,

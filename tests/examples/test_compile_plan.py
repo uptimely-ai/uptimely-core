@@ -72,6 +72,7 @@ def test_compiled_plan_export_omits_generated_timestamp(
     assert {invocation["function_kind"] for invocation in metadata["invocations"]} == {
         "read",
         "collapse",
+        "expand",
         "vectorize",
         "write",
         "escape",

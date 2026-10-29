@@ -269,6 +269,7 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
     assert {invocation.function_kind for invocation in plan.invocations} == {
         "read",
         "collapse",
+        "expand",
         "vectorize",
     }
     assert {
@@ -498,7 +499,7 @@ def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> No
     } == {
         ("collapse", "aggregate"),
     }
-    assert len(graph.invocations) == 16
+    assert len(graph.invocations) == 18
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
         graph.subset(["missing"])

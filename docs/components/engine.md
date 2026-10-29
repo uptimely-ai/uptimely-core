@@ -141,6 +141,15 @@ key relationship. Keys present on only one side are retained, with nulls for
 the other fragment's absent values. This supports partial and disjoint
 coverage; equal row counts or identical key sets are not required.
 
+An `expand` fragment is the exception: it may carry only the dimension keys
+its lower-dimensional source can supply. The engine left-joins it onto the
+accumulated dataset by those carried keys with a many-to-one relationship,
+so each source observation is transferred to every matching target
+observation. A fragment with no dimension keys holds at most one row and is
+broadcast to all observations; assembling such a fragment requires an already
+accumulated target dataset, which the compiler guarantees by running the
+dataset's reads first.
+
 Only declared dimension keys may overlap between fragments; overlapping feature
 columns are rejected rather than silently discarded. A dimensionless fragment
 represents zero or one global row, and the engine uses an internal
@@ -166,9 +175,9 @@ results. The engine then validates the returned fragment before merging it:
 
 | Check | Runtime requirement |
 | --- | --- |
-| Dimensions | Every fragment contains all dimensions declared by its entity. |
+| Dimensions | Every fragment contains all dimensions declared by its entity; an expand fragment contains the dimensions its source can supply. |
 | Outputs | Every declared output feature is present as a column. |
-| Keys | Complete dimension keys are unique; dimensionless datasets contain at most one row. |
+| Keys | Complete dimension keys are unique; dimensionless datasets and fragments contain at most one row. |
 | Types | Declared dimension and feature types match the returned schema. |
 | Feature collisions | Output feature columns do not replace columns already assembled. |
 | Vectorize coverage | The result has exactly the existing dataset key set; row order may differ. |

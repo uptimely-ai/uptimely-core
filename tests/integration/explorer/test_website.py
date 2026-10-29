@@ -675,7 +675,7 @@ def test_execution_plan_pages_render_only_their_section(
             normalize_node = next(
                 node for node in graph_nodes if node["function_id"] == "min_max_scale"
             )
-            assert normalize_node["stage"] == 3
+            assert normalize_node["stage"] == 4
             assert "['Dataset', node.dataset_id]" in script
             assert "['Stage', node.stage]" in script
             assert "ExplorerLineage.prepareDatasetLayout(" in script

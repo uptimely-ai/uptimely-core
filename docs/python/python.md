@@ -124,8 +124,11 @@ references do not implicitly select matching keys. Data-producing functions
 return Polars `DataFrame` or `LazyFrame` fragments; other dataframe types and
 custom adapters are not currently supported. The engine assembles fragments
 for the same dataset by complete keys with a full outer join, preserving
-partial coverage while rejecting duplicate keys and feature collisions. See
-the runnable
+partial coverage while rejecting duplicate keys and feature collisions. An
+`expand` fragment may omit dimension keys its lower-dimensional source cannot
+supply; the engine left-joins such a fragment onto the accumulated dataset by
+the keys it carries, broadcasting a dimensionless fragment to every
+observation. See the runnable
 [dimensional operations example](https://github.com/uptimely-ai/uptimely-core/tree/main/examples/dimensional_operations)
 and [engine fragment contract](../components/engine.md#fragments).
 The implementation module's package must be installed in the build and runtime

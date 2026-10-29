@@ -410,7 +410,10 @@ feature. There is no binding-level `return` field.
 
 Each `read`, `conform`, `collapse`, or `expand` result is a fragment containing
 the target dataset's complete dimension keys and that action's declared
-outputs. The engine validates required columns, types, and unique keys, then
+outputs. An `expand` fragment may omit dimension keys its lower-dimensional
+source cannot supply; the engine left-joins it onto the accumulated dataset by
+the keys it carries. The engine validates required columns, types, and unique
+keys, then
 assembles same-dataset fragments by key with a full outer join. Partial
 coverage is retained; duplicate keys and overlapping feature outputs are
 rejected. See the [engine fragment contract](engine.md#fragments) for runtime
