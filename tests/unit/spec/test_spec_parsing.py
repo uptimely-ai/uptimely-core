@@ -231,14 +231,14 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
 
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    assert len(spec_definition.functions.by_kind("vectorize")) == 7
+    assert len(spec_definition.functions.by_kind("vectorize")) == 6
     collapse = (
         spec_definition.entities["pump"]
         .datasets["pump_dataset"]
         .actions["bearing_temperature_by_pump"]
     )
     assert not hasattr(collapse, "source")
-    assert collapse.binding.function == "maximum"
+    assert collapse.binding.function == "aggregate"
     assert collapse.binding.args["feature"] == "$features.bearing_temperature"
     system = spec.FeatureGraph(spec_definition)
 

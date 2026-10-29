@@ -1,5 +1,4 @@
 import math
-from collections import abc
 
 import polars as pl
 import pytest
@@ -7,7 +6,7 @@ from examples.pump_analytics.functions import analytics
 
 
 @pytest.mark.parametrize("dimensions", [[], ["plant", "pump"]])
-def test_maximum_handles_grouping_and_null_readings(dimensions: list[str]) -> None:
+def test_aggregate_handles_grouping_and_null_readings(dimensions: list[str]) -> None:
     frame = pl.LazyFrame(
         {
             "plant": ["A", "A", "B", "B"],
@@ -16,7 +15,7 @@ def test_maximum_handles_grouping_and_null_readings(dimensions: list[str]) -> No
         }
     )
 
-    result = analytics.maximum(frame, "temperature", dimensions, "maximum").collect()
+    result = analytics.aggregate(frame, "temperature", "max", dimensions, "maximum").collect()
 
     if dimensions:
         assert result.sort(dimensions).rows() == [("A", "one", 10.0), ("B", "one", -2.0)]
@@ -25,15 +24,23 @@ def test_maximum_handles_grouping_and_null_readings(dimensions: list[str]) -> No
     assert result.columns == [*dimensions, "maximum"]
 
 
-def test_maximum_preserves_all_null_groups() -> None:
-    result = analytics.maximum(
+def test_aggregate_preserves_all_null_groups() -> None:
+    result = analytics.aggregate(
         pl.LazyFrame({"pump": ["one", "one"], "temperature": [None, None]}),
         "temperature",
+        "max",
         ["pump"],
         "maximum",
     ).collect()
 
     assert result.rows() == [("one", None)]
+
+
+def test_aggregate_rejects_unsupported_method() -> None:
+    frame = pl.LazyFrame({"pump": ["one"], "temperature": [10.0]})
+
+    with pytest.raises(ValueError, match="Unsupported aggregation method: median"):
+        analytics.aggregate(frame, "temperature", "median", ["pump"], "maximum")
 
 
 @pytest.mark.parametrize(
@@ -52,15 +59,13 @@ def test_normalization_handles_range_constant_null_and_empty_data(
 ) -> None:
     frame = pl.LazyFrame({"signal": pl.Series(values, dtype=pl.Float64)})
 
-    result = analytics.normalize_health_signal(
-        frame, "signal", -2.0, 4.0, ["signal"], "normalized"
-    ).collect()
+    result = analytics.min_max_scale(frame, "signal", -2.0, 4.0, ["signal"], "normalized").collect()
 
     assert result["signal"].to_list() == values
     assert result["normalized"].to_list() == pytest.approx(expected)
 
 
-def test_pressure_flow_efficiency_uses_hydraulic_power_units_and_propagates_nulls() -> None:
+def test_ratio_uses_hydraulic_power_units_and_propagates_nulls() -> None:
     frame = pl.LazyFrame(
         {
             "pressure": [6.0, 3.0, 0.0, None],
@@ -69,19 +74,21 @@ def test_pressure_flow_efficiency_uses_hydraulic_power_units_and_propagates_null
         }
     )
 
-    result = analytics.pressure_flow_efficiency(
-        frame, ["pressure", "flow", "power"], "efficiency"
+    result = analytics.ratio(
+        frame, ["pressure", "flow"], ["power"], "efficiency", scale=1.0 / 36.0
     ).collect()
 
     assert result["efficiency"].to_list() == pytest.approx([1.0, 0.5, 0.0, None])
     assert result.drop("efficiency").equals(frame.collect())
 
 
-def test_pressure_flow_efficiency_retains_polars_zero_division_values() -> None:
-    result = analytics.pressure_flow_efficiency(
+def test_ratio_retains_polars_zero_division_values() -> None:
+    result = analytics.ratio(
         pl.LazyFrame({"pressure": [6.0, 0.0], "flow": [120.0, 120.0], "power": [0.0, 0.0]}),
-        ["pressure", "flow", "power"],
+        ["pressure", "flow"],
+        ["power"],
         "efficiency",
+        scale=1.0 / 36.0,
     ).collect()
 
     assert result["efficiency"][0] == math.inf
@@ -127,9 +134,7 @@ def test_optimization_struct_and_extraction_respect_convergence_boundaries() -> 
     struct = result.collect()["recommendation"]
     assert struct.struct.fields == list(expected_fields)
     for field, expected in expected_fields.items():
-        extracted = analytics.extract_recommendation_value(
-            result, field, "recommendation", "extracted"
-        ).collect()
+        extracted = analytics.extract_field(result, field, "recommendation", "extracted").collect()
         if field == "converged":
             assert struct.struct.field(field).dtype == pl.Boolean
             assert extracted["extracted"].dtype == pl.Boolean
@@ -162,25 +167,14 @@ def test_optimization_retains_zero_flow_and_null_power_costs() -> None:
     assert costs[2] is None
 
 
-def test_extract_recommendation_rejects_unknown_struct_field() -> None:
+def test_extract_field_rejects_unknown_struct_field() -> None:
     frame = pl.LazyFrame({"recommendation": [{"known": 1.0}]})
 
     with pytest.raises(pl.exceptions.StructFieldNotFoundError, match="missing"):
-        analytics.extract_recommendation_value(
-            frame, "missing", "recommendation", "extracted"
-        ).collect()
+        analytics.extract_field(frame, "missing", "recommendation", "extracted").collect()
 
 
-@pytest.mark.parametrize(
-    "delta_function",
-    [
-        analytics.bearing_temperature_delta,
-        analytics.vibration_delta_from_previous,
-    ],
-)
-def test_deltas_use_all_partition_keys_and_preserve_null_gaps(
-    delta_function: abc.Callable[[pl.LazyFrame, str, list[str], str, str], pl.LazyFrame],
-) -> None:
+def test_delta_uses_all_partition_keys_and_preserves_null_gaps() -> None:
     frame = pl.LazyFrame(
         {
             "plant": ["A", "B", "A", "A", "A", "B"],
@@ -190,7 +184,7 @@ def test_deltas_use_all_partition_keys_and_preserve_null_gaps(
         }
     )
 
-    result = delta_function(frame, "value", ["plant", "pump"], "timestamp", "delta").collect()
+    result = analytics.delta(frame, "value", ["plant", "pump"], "timestamp", "delta").collect()
 
     assert result.drop("delta").equals(frame.collect())
     assert result["delta"].to_list() == [-1.0, -2.0, None, None, None, None]

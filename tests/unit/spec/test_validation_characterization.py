@@ -210,12 +210,12 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
     argument_type: str, argument_value: list[str] | dict[str, list[str]]
 ) -> None:
     configuration = _configuration()
-    function = configuration["functions"]["pressure_flow_efficiency"]
-    function["args"]["pressure_features"]["type"] = argument_type
+    function = configuration["functions"]["ratio"]
+    function["args"]["numerator_features"]["type"] = argument_type
     binding = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
         "actions"
     ]["pressure_flow_efficiency"]["binding"]
-    binding["args"]["pressure_features"] = argument_value
+    binding["args"]["numerator_features"] = argument_value
     model = spec.Spec.model_validate(configuration)
 
     with pytest.raises(validation.SpecError) as error:
@@ -313,7 +313,7 @@ def test_document_validation_rebuilds_indexes_after_an_edit() -> None:
 
 def test_document_validation_rejects_blank_calculation_function_id() -> None:
     configuration = _configuration()
-    configuration["functions"][" "] = configuration["functions"].pop("pressure_flow_efficiency")
+    configuration["functions"][" "] = configuration["functions"].pop("ratio")
     action = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
         "actions"
     ]["pressure_flow_efficiency"]

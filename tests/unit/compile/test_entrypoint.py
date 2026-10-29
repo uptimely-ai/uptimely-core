@@ -33,7 +33,7 @@ def test_compiler_rejects_string_feature_selection() -> None:
 
 @pytest.mark.parametrize(
     ("category", "function_id"),
-    [("vectorize", "pressure_flow_efficiency"), ("collapse", "maximum")],
+    [("vectorize", "ratio"), ("collapse", "aggregate")],
 )
 def test_compiler_rejects_missing_function_entrypoints(category: str, function_id: str) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
@@ -45,19 +45,15 @@ def test_compiler_rejects_missing_function_entrypoints(category: str, function_i
 
 def test_compiler_reports_unreadable_function_signatures() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    spec_definition.functions["pressure_flow_efficiency"].entrypoint = "invalid-entrypoint"
+    spec_definition.functions["ratio"].entrypoint = "invalid-entrypoint"
 
-    with pytest.raises(
-        ValueError, match="Invalid entrypoint for function pressure_flow_efficiency"
-    ):
+    with pytest.raises(ValueError, match="Invalid entrypoint for function ratio"):
         compiler.Compiler().compile(spec_definition)
 
 
 def test_explorer_context_reports_unloadable_function_modules() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    spec_definition.functions[
-        "pressure_flow_efficiency"
-    ].entrypoint = "uptimely_test_missing_dependency:calculate"
+    spec_definition.functions["ratio"].entrypoint = "uptimely_test_missing_dependency:calculate"
 
     with pytest.raises(ModuleNotFoundError, match="uptimely_test_missing_dependency"):
         spec_render._build_context(spec_definition, False)
@@ -80,7 +76,7 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(tmp_path))
-    function = spec_definition.functions["pressure_flow_efficiency"]
+    function = spec_definition.functions["ratio"]
     function.entrypoint = f"{package_name}.calculation:calculate"
     function.validate_signature = False
 
@@ -116,16 +112,16 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
 
 def test_compiler_still_checks_other_functions_when_a_signature_is_disabled() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    spec_definition.functions["pressure_flow_efficiency"].validate_signature = False
-    spec_definition.functions["maximum"].entrypoint = "uptimely_test_missing_dependency:calculate"
+    spec_definition.functions["ratio"].validate_signature = False
+    spec_definition.functions["aggregate"].entrypoint = "uptimely_test_missing_dependency:calculate"
 
-    with pytest.raises(ValueError, match="Could not read signature.*maximum"):
+    with pytest.raises(ValueError, match="Could not read signature.*aggregate"):
         compiler.Compiler().compile(spec_definition)
 
 
 def test_compiler_still_validates_spec_when_signature_validation_is_disabled() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    spec_definition.functions["pressure_flow_efficiency"].validate_signature = False
+    spec_definition.functions["ratio"].validate_signature = False
     action = (
         spec_definition.entities["pump_telemetry"]
         .datasets["pump_telemetry_dataset"]
@@ -165,7 +161,7 @@ def test_compiler_skips_disabled_return_annotation_validation(
     )
     monkeypatch.syspath_prepend(str(tmp_path))
     spec_definition = spec.load_spec(SPEC_PATH)
-    function = spec_definition.functions["pressure_flow_efficiency"]
+    function = spec_definition.functions["ratio"]
     function.entrypoint = f"{package_name}.calculation:calculate"
     function.validate_signature = False
 
@@ -181,13 +177,13 @@ def test_compiler_checks_entrypoint_syntax_when_signature_validation_is_disabled
     validate_signature: bool,
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    function = spec_definition.functions["pressure_flow_efficiency"]
+    function = spec_definition.functions["ratio"]
     function.entrypoint = "invalid-entrypoint"
     function.validate_signature = validate_signature
 
     with pytest.raises(
         ValueError,
-        match="Invalid entrypoint for function pressure_flow_efficiency",
+        match="Invalid entrypoint for function ratio",
     ):
         compiler.Compiler().compile(spec_definition)
 

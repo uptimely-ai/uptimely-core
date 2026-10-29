@@ -6,6 +6,9 @@ from examples.pump_analytics.spec import dimension, entity
 from uptimely import Action, Dataset, Feature, Order, RowScope, ref
 from uptimely.spec.python import row_context
 
+HYDRAULIC_POWER_SCALE = 1.0 / 36.0
+"""Converts bar * m3/h into kW for the hydraulic-power numerator."""
+
 
 class Telemetry(Dataset):
     """Process and condition readings at pump-and-timestamp grain."""
@@ -70,11 +73,11 @@ class Telemetry(Dataset):
         ),
         Action(
             id="recommended_flow_rate",
-            function=analytics.extract_recommendation_value,
+            function=analytics.extract_field,
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
                 column=ref.column("operating_point_recommendation"),
-                optimization_attribute="recommended_flow_rate",
+                field="recommended_flow_rate",
                 output=ref.output("recommended_flow_rate"),
             ),
             outputs=[
@@ -88,11 +91,11 @@ class Telemetry(Dataset):
         ),
         Action(
             id="recommended_discharge_pressure",
-            function=analytics.extract_recommendation_value,
+            function=analytics.extract_field,
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
                 column=ref.column("operating_point_recommendation"),
-                optimization_attribute="recommended_discharge_pressure",
+                field="recommended_discharge_pressure",
                 output=ref.output("recommended_discharge_pressure"),
             ),
             outputs=[
@@ -106,11 +109,11 @@ class Telemetry(Dataset):
         ),
         Action(
             id="energy_cost_score",
-            function=analytics.extract_recommendation_value,
+            function=analytics.extract_field,
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
                 column=ref.column("operating_point_recommendation"),
-                optimization_attribute="energy_cost_score",
+                field="energy_cost_score",
                 output=ref.output("energy_cost_score"),
             ),
             outputs=[
@@ -123,11 +126,11 @@ class Telemetry(Dataset):
         ),
         Action(
             id="converged",
-            function=analytics.extract_recommendation_value,
+            function=analytics.extract_field,
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
                 column=ref.column("operating_point_recommendation"),
-                optimization_attribute="converged",
+                field="converged",
                 output=ref.output("converged"),
             ),
             outputs=[
@@ -140,14 +143,15 @@ class Telemetry(Dataset):
         ),
         Action(
             id="pressure_flow_efficiency",
-            function=analytics.pressure_flow_efficiency,
+            function=analytics.ratio,
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
-                pressure_features=[
+                numerator_features=[
                     ref.column("discharge_pressure"),
                     ref.column("flow_rate"),
-                    ref.column("motor_power"),
                 ],
+                denominator_features=[ref.column("motor_power")],
+                scale=HYDRAULIC_POWER_SCALE,
                 output=ref.output("pressure_flow_efficiency"),
             ),
             outputs=[
@@ -160,10 +164,10 @@ class Telemetry(Dataset):
         ),
         Action(
             id="bearing_temperature_delta",
-            function=analytics.bearing_temperature_delta,
+            function=analytics.delta,
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
-                temperature=ref.column("bearing_temperature"),
+                feature=ref.column("bearing_temperature"),
                 partition_by=[ref.dimension(key.id) for key in entity.dimensions[:-1]],
                 order_by=ref.dimension(dimension.TIMESTAMP.id),
                 output=ref.output("bearing_temperature_delta"),
@@ -180,10 +184,10 @@ class Telemetry(Dataset):
         ),
         Action(
             id="vibration_delta",
-            function=analytics.vibration_delta_from_previous,
+            function=analytics.delta,
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
-                vibration=ref.column("vibration_rms"),
+                feature=ref.column("vibration_rms"),
                 partition_by=[ref.dimension(key.id) for key in entity.dimensions[:-1]],
                 order_by=ref.dimension(dimension.TIMESTAMP.id),
                 output=ref.output("vibration_delta"),

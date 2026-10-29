@@ -54,7 +54,7 @@ def _add_escape_mapping(
 def _escape_spec_configuration() -> dict:
     """Return a valid pump spec with chained, multi-output, and unrelated escapes."""
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    entrypoint = "examples.pump_analytics.functions.analytics:maximum"
+    entrypoint = "examples.pump_analytics.functions.analytics:aggregate"
     _add_escape_mapping(
         configuration,
         "escape_start",
@@ -166,9 +166,7 @@ def test_collapse_feature_placeholder_uses_invocation_feature_id(tmp_path: pathl
 def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> None:
     plan = compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
     invocations = [
-        invocation
-        for invocation in plan.invocations
-        if invocation.function_id == "extract_recommendation_value"
+        invocation for invocation in plan.invocations if invocation.function_id == "extract_field"
     ]
 
     assert {feature for invocation in invocations for feature in invocation.output_features} == {
@@ -230,7 +228,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         id="conform_auxiliary",
         kind="conform",
         returns="dataframe",
-        entrypoint="examples.pump_analytics.functions.analytics:maximum",
+        entrypoint="examples.pump_analytics.functions.analytics:aggregate",
         validate_signature=False,
         args={
             "source": spec_model.Argument(id="source", type="dataframe"),
@@ -473,7 +471,7 @@ def test_escape_return_annotations_do_not_constrain_compilation(
 
 
 def test_controlled_function_return_annotations_remain_validated() -> None:
-    function = spec.load_spec(SPEC_PATH).functions["pressure_flow_efficiency"]
+    function = spec.load_spec(SPEC_PATH).functions["ratio"]
 
     with pytest.raises(ValueError, match="expected DataFrame or LazyFrame"):
         inspection.validate_return_annotation(function, "int")
@@ -498,7 +496,7 @@ def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> No
         (graph.spec.functions[node.function_id].kind, node.function_id)
         for node in subset.dependencies(normalized)
     } == {
-        ("collapse", "maximum"),
+        ("collapse", "aggregate"),
     }
     assert len(graph.invocations) == 16
 

@@ -49,9 +49,9 @@ def test_system_graph_connects_actions_to_feature_outputs() -> None:
     system = spec.FeatureGraph(spec_definition)
 
     action_function_ids = {action.binding.function for action in system.actions}
-    assert "maximum" in action_function_ids
-    assert "normalize_health_signal" in action_function_ids
-    assert "extract_recommendation_value" in action_function_ids
+    assert "aggregate" in action_function_ids
+    assert "min_max_scale" in action_function_ids
+    assert "extract_field" in action_function_ids
     assert "extract_converged_flag" not in action_function_ids
     assert "extract_convergence_flag" not in action_function_ids
     recommendation_nodes = [
@@ -59,7 +59,7 @@ def test_system_graph_connects_actions_to_feature_outputs() -> None:
         for node in system.graph
         if isinstance(node.reference, models.ActionNode)
         and node.reference.function is not None
-        and node.reference.function.id == "extract_recommendation_value"
+        and node.reference.function.id == "extract_field"
     ]
     recommendation_outputs = {
         neighbor.reference.name

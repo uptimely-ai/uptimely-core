@@ -82,9 +82,10 @@ def test_compiled_plan_export_omits_generated_timestamp(
         if invocation["function_kind"] == "collapse"
     )
     assert collapse_invocation["entity_id"] == "pump"
-    assert collapse_invocation["entrypoint"].endswith(":maximum")
+    assert collapse_invocation["entrypoint"].endswith(":aggregate")
     assert collapse_invocation["arguments"] == {
         "feature": "bearing_temperature",
+        "method": "max",
         "dataset": "pump_telemetry_dataset",
         "dimensions": ["plant", "production_line", "pump"],
         "output": "bearing_temperature_max",
@@ -118,10 +119,10 @@ def test_execution_plan_report_shows_topology_stages(
     assert ">health_signal_normalized</dd>" in report
     assert "md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]" in report
     assert "md:col-span-4" in report
-    assert ">Maximum</h3>" in report
+    assert ">Aggregate</h3>" in report
     assert "Open Python module" in report
     assert "No invocation dependencies" in report
-    assert "maximum</span>" in report
+    assert "aggregate</span>" in report
     source_match = re.search(r'href="([^"]*functions/analytics\.py)"', report)
     assert source_match is not None
     assert (report_path.parent / source_match.group(1)).resolve().is_file()
@@ -137,10 +138,11 @@ def test_execution_plan_report_shows_topology_stages(
     assert '"function_kind": "write"' in report
     assert "<summary>Legend</summary>" in report
     assert 'class="function"' not in report
-    assert '"source": "invocation:maximum:pump:pump_dataset:bearing_temperature_by_pump"' in report
     assert (
-        '"target": "invocation:normalize_health_signal:'
-        'pump:pump_dataset:health_signal_normalized"' in report
+        '"source": "invocation:aggregate:pump:pump_dataset:bearing_temperature_by_pump"' in report
+    )
+    assert (
+        '"target": "invocation:min_max_scale:pump:pump_dataset:health_signal_normalized"' in report
     )
     invocation_script = (tmp_path / "js/invocation_lineage.js").read_text(encoding="utf-8")
     shared_script = (tmp_path / "js/lineage_components.js").read_text(encoding="utf-8")

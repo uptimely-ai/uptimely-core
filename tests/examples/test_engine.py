@@ -461,7 +461,7 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
         }
     )
 
-    result = analytics.bearing_temperature_delta(
+    result = analytics.delta(
         frame.lazy(),
         "bearing_temperature",
         ["pump"],
@@ -469,7 +469,7 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
         "temperature_delta",
     )
     result = (
-        analytics.vibration_delta_from_previous(
+        analytics.delta(
             result,
             "vibration_rms",
             ["pump"],

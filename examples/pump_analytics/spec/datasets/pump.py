@@ -20,10 +20,11 @@ class Pump(Dataset):
     producers = [
         Action(
             id="bearing_temperature_by_pump",
-            function=analytics.maximum,
+            function=analytics.aggregate,
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe("pump_telemetry_dataset"),
                 feature=ref.column("bearing_temperature"),
+                method="max",
                 dimensions=[ref.dimension(key.id).id for key in entity.dimensions],
                 output=ref.output("bearing_temperature_max"),
             ),
@@ -38,13 +39,13 @@ class Pump(Dataset):
         ),
         Action(
             id="health_signal_normalized",
-            function=analytics.normalize_health_signal,
+            function=analytics.min_max_scale,
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
-                scale_feature=ref.column("bearing_temperature_max"),
+                feature=ref.column("bearing_temperature_max"),
                 lower_bound=-1.0,
                 upper_bound=1.0,
-                scaling_features=[ref.column("bearing_temperature_max")],
+                features=[ref.column("bearing_temperature_max")],
                 output=ref.output("health_signal_normalized"),
             ),
             outputs=[

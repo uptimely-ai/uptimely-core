@@ -211,16 +211,16 @@ def test_data_lineage_has_focused_invocation_playback(
     assert ".data-lineage-table-scroll { overflow-x: auto; overflow-y: hidden;" in styles
     assert ".data-lineage-step h3 {" in styles and "text-align: center;" in styles
     assert '<span class="data-lineage-arrow-icon" aria-hidden="true">&darr;</span>' in document
-    assert "<h3>Maximum</h3>" in document
+    assert "<h3>Aggregate</h3>" in document
     assert (
         '<div class="data-lineage-arrow">\n'
         '            <span class="data-lineage-arrow-icon" aria-hidden="true">&darr;</span>\n'
         '            <small class="data-lineage-invocation-type">' in document
     )
-    assert "<strong>maximum</strong>" not in document
+    assert "<strong>aggregate</strong>" not in document
     assert 'class="data-lineage-invocation-type">Aggregate</small>' in document
     assert "data-lineage-invocation-phase" not in document
-    assert "<h3>Maximum</h3>" in document
+    assert "<h3>Aggregate</h3>" in document
     for function_kind in ("READ", "AGGREGATE", "VECTORIZE", "WRITE"):
         assert f'<span class="data-lineage-function-kind-label">{function_kind}</span>' in document
     assert '<span class="data-lineage-function-kind-label">FUNCTION_KIND</span>' not in document
@@ -236,7 +236,7 @@ def test_data_lineage_has_focused_invocation_playback(
     assert "data-lineage-direction" not in document
     assert "data-lineage-zoom" not in document
     assert "data-lineage-animate" not in document
-    assert "<h3>Maximum</h3>" in document
+    assert "<h3>Aggregate</h3>" in document
     assert '<table class="data-lineage-table" data-side="input">' in document
     assert '<table class="data-lineage-table" data-side="output">' in document
     assert "prefers-reduced-motion: reduce" in script
