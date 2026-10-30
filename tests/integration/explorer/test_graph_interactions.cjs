@@ -496,8 +496,14 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			{ source: 'z_action', target: 'result' },
 		];
 		const layout = datasetLayout(filename, nodes, links);
-		assert.deepEqual(layout.labels, []);
 		const datasetOrder = ['a_source', 'z_output', 'b_isolated', 'Unassigned'];
+		assert.deepEqual(layout.labels.map(label => label[0]), datasetOrder);
+		layout.labels.forEach((label, index) => {
+			const [left, top, width] = layout.rectangles[index];
+			assert.equal(label[1], left + 32);
+			assert.equal(label[2], top + 18);
+			assert.equal(label[3], width - 64);
+		});
 		const byId = new Map(layout.nodes.map(node => [node.id, node]));
 		assert.equal(byId.get('a').rank, 0);
 		assert.equal(byId.get('z_action').rank, 1);
@@ -565,12 +571,13 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 	test(`${filename}: empty and unassigned graphs fit headers and gutters`, () => {
 		const empty = datasetLayout(filename, [], []);
 		assert.deepEqual(empty.rectangles, []);
+		assert.deepEqual(empty.labels, []);
 		empty.view.fit();
 		assert.ok(Number.isFinite(empty.graph.properties.get('zoom')));
 		const layout = datasetLayout(filename, [{
 			id: 'one', label: 'One', function_id: 'One', stage: 1,
 		}], []);
-		assert.deepEqual(layout.labels, []);
+		assert.deepEqual(layout.labels.map(label => label[0]), ['Unassigned']);
 		assert.equal(layout.nodes[0].dataset_id, 'Unassigned');
 		const [left, top, width, height] = layout.rectangles[0];
 		const assertFits = () => {

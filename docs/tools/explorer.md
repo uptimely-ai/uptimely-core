@@ -97,8 +97,8 @@ dependents; the selection is preserved when switching dimensions. The
 Dependencies flow left to right across the whole graph, including between datasets;
 actions stay in their owning dataset's lane. Connected datasets are placed next
 to one another where possible, and long edges use lane gutters to avoid cards.
-Dataset names appear in the legend and selected-node details, not on swimlane
-rows. Feature cards retain their dataset colors and action cards retain their
+Dataset names label the header of each swimlane in both 2D views and also appear
+in the legend and selected-node details. Feature cards retain their dataset colors and action cards retain their
 function color. Features without a dataset share an
 unassigned lane. Selecting a node highlights its dependencies across lanes.
 The 2D Topology view uses the same dataset lanes and edge routing,
