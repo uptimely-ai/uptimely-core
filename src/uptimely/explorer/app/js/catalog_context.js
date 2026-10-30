@@ -8,6 +8,7 @@ const catalogTitle = document.querySelector("main h1 span");
 const catalogSectionTitle = catalogTitle.textContent;
 const catalogDocumentTitle = document.title;
 const catalogHeading = document.querySelector("main h1");
+const catalogSectionCount = document.querySelector("[data-section-count]");
 catalogHeading.setAttribute("tabindex", "-1");
 history.scrollRestoration = "manual";
 
@@ -21,8 +22,8 @@ function selectCatalogItem(hash = location.hash) {
   const target = document.getElementById(decodeURIComponent(link.hash.slice(1)));
   const selected = catalogItems.find(item => item === target || target.contains(item));
   const isOverview = selected.id === "catalog-overview";
-  if (["dimensions", "features", "functions"].includes(catalogPanel.dataset.contextLabel)) {
-    document.querySelector("[data-section-count]").hidden = !isOverview;
+  if (catalogSectionCount) {
+    catalogSectionCount.hidden = !isOverview;
   }
   const itemHeading = selected.querySelector("h2, h3");
   const title = isOverview ? catalogSectionTitle : itemHeading.textContent.trim();
@@ -34,9 +35,6 @@ function selectCatalogItem(hash = location.hash) {
   });
   catalogItems.forEach(item => { item.hidden = item !== selected; });
   catalogGroups.forEach(group => { group.hidden = !group.contains(selected); });
-  catalogGroups.forEach(group => {
-    group.querySelector("[data-function-group-count]").hidden = !isOverview;
-  });
   catalogLinks.forEach(candidate => {
     if (decodeURIComponent(candidate.hash.slice(1)) === selected.id) {
       candidate.setAttribute("aria-current", "location");
