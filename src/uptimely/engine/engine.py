@@ -13,6 +13,7 @@ from . import config as config_module
 from . import execution as execution_module
 from . import result as result_module
 from . import state as state_module
+from . import validation as validation_module
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +63,9 @@ class Engine:
 
     def _validate_engine(self) -> None:
         """Validate that this engine can execute the plan."""
-        if self.plan.required_backend != self.backend.name:
-            raise ValueError(
-                f"Unsupported plan backend: {self.plan.required_backend}. "
-                f"Expected {self.backend.name}."
-            )
+        validation_module.validate_engine(
+            validation_module.EngineValidationContext(self.plan, self.backend),
+        )
 
     def run(self) -> result_module.ExecutionResult:
         """Execute plan stages and return explicit runtime state and statuses."""
