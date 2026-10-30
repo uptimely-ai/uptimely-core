@@ -278,7 +278,7 @@ def test_generate_html_explorer(
     assert 'data-function-group="collapse"' in document
     assert (
         "Calculates features from a higher-dimensional foreign dataset, "
-        "grouped by the target entity dimensions." in document
+        "grouped by the target entity dimensions." not in pages["spec/functions.html"]
     )
     assert "Functions by kind" in document
     assert 'data-lucide="workflow"' in document

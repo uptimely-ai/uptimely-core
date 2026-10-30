@@ -65,21 +65,21 @@
     {% set function_heading = "h3" %}
     <{{ function_heading }} class="min-w-0 break-words font-display text-2xl font-semibold tracking-tight text-white">{{ function_id }}</{{ function_heading }}>
   </div>
-  <p class="mt-4 max-w-3xl text-base leading-7 text-slate-300">{{ function.description or "No description provided." }}</p>
+  <p data-function-description class="mt-4 max-w-3xl text-base leading-7 text-slate-300">{{ function.description or "No description provided." }}</p>
   {% if function.doc and function.doc.body %}
   <p class="mt-3 max-w-3xl text-sm leading-7 text-slate-400">{{ function.doc.body }}</p>
   {% endif %}
   {% if function.doc and function.doc.examples %}
-  <div class="mt-10 grid gap-6 lg:grid-cols-2">
-    <section>
-      <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">Kind demonstration</h4>
+  <div class="mt-10 grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
+    <section class="min-w-0">
+      <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">Example{% if function.doc.examples|length > 1 %} 1{% endif %}</h4>
+      <pre class="mt-3 min-h-40 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">{{ function.doc.examples[0] }}</code></pre>
+    </section>
+    <section class="min-w-0">
+      <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">DEMONSTRATION</h4>
       <div class="mt-3 flex min-h-40 items-center justify-center overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 p-5">
         {{ kind_minigraphic(group_name) }}
       </div>
-    </section>
-    <section>
-      <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">Example{% if function.doc.examples|length > 1 %} 1{% endif %}</h4>
-      <pre class="mt-3 min-h-40 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">{{ function.doc.examples[0] }}</code></pre>
     </section>
   </div>
   {% for example in function.doc.examples[1:] %}
@@ -90,7 +90,7 @@
   {% endfor %}
   {% else %}
   <section class="mt-10 max-w-xl">
-    <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">Kind demonstration</h4>
+    <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">DEMONSTRATION</h4>
     <div class="mt-3 flex min-h-40 items-center justify-center overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 p-5">
       {{ kind_minigraphic(group_name) }}
     </div>
@@ -217,16 +217,8 @@
   {% for group_name, group in function_groups.items() %}
     {% set ordered_functions = group.items() | list %}
     {% if ordered_functions %}
-      {% set meta = kind_meta.get(group_name, default_kind_meta) %}
       <div id="functions-{{ group_name }}" data-function-group="{{ group_name }}" class="mb-20 scroll-mt-24">
-        <div class="flex flex-wrap items-center gap-x-5 gap-y-4 border-b border-slate-800/70 pb-6">
-          <div class="min-w-0 flex-1">
-            {% set group_heading = "h2" %}
-            <{{ group_heading }} class="font-display text-2xl font-semibold tracking-tight text-white">{{ meta.label or group_name|title }}</{{ group_heading }}>
-            <p class="mt-1.5 max-w-2xl text-sm leading-6 text-slate-400">{{ meta.blurb }}</p>
-          </div>
-        </div>
-        <div class="mt-10 space-y-10">
+        <div class="space-y-10">
           {% for function_id, function in ordered_functions %}
             {{ function_card(function_id, function, group_name) }}
           {% endfor %}
@@ -235,6 +227,6 @@
     {% endif %}
   {% endfor %}
 </section>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/monokai-sublime.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
 <script src="{{ root_path or "" }}js/code_highlight.js"></script>

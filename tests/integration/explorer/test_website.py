@@ -340,8 +340,12 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "data-section-count" not in functions
     assert "data-function-group-count" not in functions
     assert 'data-lucide="workflow" class="h-3 w-3"' not in functions
-    assert "Kind demonstration" in functions
+    assert ">DEMONSTRATION</h4>" in functions
+    assert "styles/monokai-sublime.min.css" in functions
+    assert "styles/github-dark.min.css" not in functions
+    assert '<code class="language-python">' in functions
     assert "Example" in functions
+    assert "lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]" in functions
     assert (
         "mt-3 flex min-h-40 items-center justify-center overflow-x-auto rounded-xl "
         "border border-slate-800 bg-slate-950/60 p-5"

@@ -9,6 +9,8 @@ const catalogSectionTitle = catalogTitle.textContent;
 const catalogDocumentTitle = document.title;
 const catalogHeading = document.querySelector("main h1");
 const catalogSectionCount = document.querySelector("[data-section-count]");
+const catalogDescription = document.querySelector("[data-section-description]");
+const catalogSectionDescription = catalogDescription?.textContent;
 catalogHeading.setAttribute("tabindex", "-1");
 history.scrollRestoration = "manual";
 
@@ -28,6 +30,11 @@ function selectCatalogItem(hash = location.hash) {
   const itemHeading = selected.querySelector("h2, h3");
   const title = isOverview ? catalogSectionTitle : itemHeading.textContent.trim();
   catalogTitle.textContent = title;
+  if (catalogPanel.dataset.contextLabel === "functions" && catalogDescription) {
+    const description = selected.querySelector("[data-function-description]");
+    catalogDescription.textContent = isOverview ? catalogSectionDescription : description.textContent;
+    if (description) description.hidden = true;
+  }
   document.title = isOverview ? catalogDocumentTitle : `${title} · ${catalogSectionTitle}`;
   catalogItems.forEach(item => {
     const heading = item.querySelector("h2, h3");
