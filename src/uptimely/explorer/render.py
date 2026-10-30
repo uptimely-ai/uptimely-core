@@ -3,6 +3,7 @@
 import dataclasses
 import functools
 import importlib.resources
+import importlib.resources.abc
 import pathlib
 from collections import abc
 
@@ -124,13 +125,23 @@ def write_assets(output_directory: pathlib.Path) -> None:
     """
     app = importlib.resources.files("uptimely.explorer").joinpath("app")
     environment = html_environment().overlay(autoescape=False)
-    for directory in ASSET_DIRECTORIES:
-        target_directory = output_directory / directory
-        target_directory.mkdir(parents=True, exist_ok=True)
-        for resource in sorted(app.joinpath(directory).iterdir(), key=lambda item: item.name):
+
+    def write_directory(
+        resources: importlib.resources.abc.Traversable, target: pathlib.Path
+    ) -> None:
+        target.mkdir(parents=True, exist_ok=True)
+        for resource in sorted(resources.iterdir(), key=lambda item: item.name):
+            destination = target / resource.name
+            if resource.is_dir():
+                write_directory(resource, destination)
+                continue
             content = resource.read_text(encoding="utf-8")
-            filename = resource.name
+            filename = destination.name
             if filename.endswith(".j2"):
                 content = environment.from_string(content).render()
                 filename = filename.removesuffix(".j2")
-            (target_directory / filename).write_text(content, encoding="utf-8")
+            (destination.parent / filename).write_text(content, encoding="utf-8")
+
+    for directory in ASSET_DIRECTORIES:
+        target_directory = output_directory / directory
+        write_directory(app.joinpath(directory), target_directory)

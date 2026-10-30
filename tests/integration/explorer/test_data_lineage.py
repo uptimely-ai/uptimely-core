@@ -330,8 +330,13 @@ def test_data_lineage_has_focused_invocation_playback(
     )
     document = (tmp_path / "execution/data-lineage.html").read_text(encoding="utf-8")
     styles = (tmp_path / "css/data_lineage.css").read_text(encoding="utf-8")
-    script = (tmp_path / "js/data_lineage.js").read_text(encoding="utf-8")
+    script = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((tmp_path / "js").glob("data_lineage*.js"))
+        + sorted((tmp_path / "js/data_lineage").glob("*.js"))
+    )
     assert 'aria-label="Lineage playback" hidden' in document
+    assert '<script type="module" src="../js/data_lineage.js"></script>' in document
     assert 'id="data-lineage-previous">Previous</button>' in document
     assert 'id="data-lineage-play" aria-pressed="false">Play</button>' in document
     assert 'id="data-lineage-next">Next</button>' in document
