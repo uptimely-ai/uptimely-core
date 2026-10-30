@@ -1,9 +1,10 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
 <section id="entities" class="mb-16">
   {{ section_header("Entities", "Explore analytical subjects, their dimensions, and the datasets that describe them.", count=summary.entity_count, count_label="entities") }}
+  {% if has_catalog_context %}{% include "catalog_overview.html.j2" %}{% endif %}
   <div class="grid gap-4">
     {% for entity_id, entity in configuration.entities.items() %}
-    <article class="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+    <article id="entity-{{ entity_id }}" data-context-item>
       <div class="flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ entity_id }}</p>

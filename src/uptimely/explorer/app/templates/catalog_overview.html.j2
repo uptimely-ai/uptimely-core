@@ -1,0 +1,99 @@
+{% macro statistic(label, value, icon_key) %}
+<div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5" data-stat="{{ label }}">
+  <div class="flex items-center justify-between gap-3"><span class="text-xs text-slate-400">{{ label }}</span>{{ icon(icon_key, "nav-icon") }}</div>
+  <p class="mt-4 font-display text-3xl font-semibold text-white" data-value="{{ value }}">{{ value }}</p>
+</div>
+{% endmacro %}
+{% macro distribution(title, counts) %}
+<div class="mt-6 rounded-2xl border border-slate-800 bg-slate-900/75 p-5">
+  <h3 class="mb-5 font-display text-lg font-semibold text-white">{{ title }}</h3>
+  {% set maximum = counts.values()|max if counts else 0 %}
+  <div class="space-y-4">
+    {% for label, value in counts.items() %}
+    <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_3rem] items-center gap-3" data-category="{{ label }}" data-count="{{ value }}">
+      <span class="break-words font-mono text-xs text-slate-400">{{ label }}</span>
+      <div class="h-2 overflow-hidden rounded-full bg-slate-800" aria-hidden="true"><div class="h-full rounded-full bg-cyan-400" style="width: {{ value / maximum * 100 if maximum else 0 }}%"></div></div>
+      <span class="text-right font-mono text-xs text-white">{{ value }}</span>
+    </div>
+    {% else %}<p class="text-sm text-slate-400">No categories to display.</p>{% endfor %}
+  </div>
+</div>
+{% endmacro %}
+<section id="catalog-overview" data-context-item class="mb-12" aria-label="{{ active_section|title }} overview">
+  <h2 class="title-with-icon mb-6 font-display text-2xl font-semibold text-white">{{ icon("overview", "nav-icon") }}<span>{{ active_section|title }} overview</span></h2>
+  {% set counts = {} %}
+  {% set totals = namespace(datasets=0, features=0, actions=0, roots=0, children=0, with_datasets=0) %}
+  {% if active_section == "features" %}
+    {% for entity in configuration.entities.values() %}
+      {% for dataset_id, dataset in entity.datasets.items() %}
+        {% set features = {} %}
+        {% for action in dataset.actions.values() %}
+          {% for reference in action.features.outputs %}
+            {% set feature_id = reference.removeprefix("$features.") %}
+            {% if feature_id not in entity.dimensions %}{% set _ = features.update({feature_id: true}) %}{% endif %}
+          {% endfor %}
+        {% endfor %}
+        {% set _ = counts.update({dataset_id: features|length}) %}
+        {% set totals.features = totals.features + features|length %}
+        {% if features %}{% set totals.datasets = totals.datasets + 1 %}{% endif %}
+      {% endfor %}
+    {% endfor %}
+    <div class="grid gap-3 sm:grid-cols-2">
+      {{ statistic("Features", totals.features, "features") }}
+      {{ statistic("Datasets with features", totals.datasets, "datasets") }}
+    </div>
+    {{ distribution("Features by dataset", counts) }}
+  {% elif active_section in ["datasets", "entities"] %}
+    {% for entity_id, entity in configuration.entities.items() %}
+      {% set totals.datasets = totals.datasets + entity.datasets|length %}
+      {% if entity.datasets %}{% set totals.with_datasets = totals.with_datasets + 1 %}{% endif %}
+      {% if active_section == "datasets" %}
+        {% set _ = counts.update({entity_id: entity.datasets|length}) %}
+      {% else %}
+        {% set category = (entity.dimensions|length)|string ~ " dimensions" %}
+        {% set _ = counts.update({category: counts.get(category, 0) + 1}) %}
+      {% endif %}
+      {% for dataset in entity.datasets.values() %}
+        {% set totals.features = totals.features + dataset.features|length %}
+        {% set totals.actions = totals.actions + dataset.actions|length %}
+      {% endfor %}
+    {% endfor %}
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {% if active_section == "datasets" %}
+        {{ statistic("Datasets", summary.dataset_count, "datasets") }}
+        {{ statistic("Owning entities", totals.with_datasets, "entities") }}
+        {{ statistic("Features", totals.features, "features") }}
+        {{ statistic("Actions", totals.actions, "invocations") }}
+      {% else %}
+        {{ statistic("Entities", summary.entity_count, "entities") }}
+        {{ statistic("With datasets", totals.with_datasets, "datasets") }}
+        {{ statistic("Datasets", totals.datasets, "datasets") }}
+        {{ statistic("Dimensions", summary.dimension_count, "dimensions") }}
+      {% endif %}
+    </div>
+    {{ distribution("Datasets by entity" if active_section == "datasets" else "Entities by dimension count", counts) }}
+  {% elif active_section == "dimensions" %}
+    {% for dimension in configuration.dimensions.values() %}
+      {% set _ = counts.update({dimension.type: counts.get(dimension.type, 0) + 1}) %}
+      {% if dimension.parent %}{% set totals.children = totals.children + 1 %}
+      {% else %}{% set totals.roots = totals.roots + 1 %}{% endif %}
+    {% endfor %}
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {{ statistic("Dimensions", summary.dimension_count, "dimensions") }}
+      {{ statistic("Types", counts|length, "dimensions") }}
+      {{ statistic("Root dimensions", totals.roots, "dimensions") }}
+      {{ statistic("Child dimensions", totals.children, "dimensions") }}
+    </div>
+    {{ distribution("Dimensions by type", counts) }}
+  {% elif active_section == "stages" %}
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {{ statistic("Stages", stage_count, "stages") }}
+      {{ statistic("Invocations", invocation_count, "invocations") }}
+      {{ statistic("Max parallel invocations", max_parallel_invocations, "stages") }}
+      {{ statistic("Dependencies", dependency_count, "invocation-lineage") }}
+    </div>
+    {% for stage in stages %}{% set _ = counts.update({"Stage " ~ stage.stage: stage.steps|length}) %}{% endfor %}
+    {{ distribution("Invocations by stage", counts) }}
+    {{ distribution("Invocations by function kind", dict(function_kind_counts)) }}
+  {% endif %}
+</section>

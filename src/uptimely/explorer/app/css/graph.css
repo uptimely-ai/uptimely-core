@@ -1,17 +1,4 @@
 html:has(.lineage-page), .lineage-page { height: 100%; overflow: hidden; }
-html.with-navigation body.lineage-page {
-	grid-template-columns: max-content max-content minmax(0, 1fr); }
-html.with-navigation .lineage-page .site-content { grid-column: 3; }
-.site-context { grid-column: 2; grid-row: 1; height: 100vh; height: 100dvh;
-	box-sizing: border-box; display: flex; flex-direction: column; gap: 20px;
-	min-width: 0; width: clamp(240px, 22vw, 320px); padding: 16px 12px; overflow-y: auto;
-	background: var(--color-surface); border-right: 1px solid var(--color-border); }
-.site-context > * { flex-shrink: 0; }
-.context-header { display: flex; flex-direction: column; gap: 12px; box-sizing: border-box;
-	min-height: var(--site-panel-header-height); padding-bottom: 16px;
-	border-bottom: 1px solid var(--color-border); }
-.site-context .nav-icon { width: 16px; height: 16px; }
-.context-toggle, .context-close { display: none; }
 .lineage-page .site-content { height: calc(100vh - var(--site-topbar-height));
 	height: calc(100dvh - var(--site-topbar-height)); margin: 0; padding: 0; }
 .lineage-workspace { display: grid; grid-template-rows: minmax(0, 1fr); height: 100%;
@@ -48,20 +35,7 @@ html.with-navigation .lineage-page .site-content { grid-column: 3; }
 .details h2 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: #b7c5cf; }
 .details .meta { font-size: 12px; color: #cfe0ea; margin-bottom: 6px; white-space: normal; word-break: break-word; }
 .details .summary { font-size: 13px; line-height: 1.5; color: #e8edf2; white-space: normal; word-break: break-word; }
-@media (min-width: 641px) {
-	.site-context.is-collapsed { width: 67px; }
-	.site-context.is-collapsed > :not(.context-header),
-	.site-context.is-collapsed h1 span,
-	.site-context.is-collapsed .icon--collapse-navigation { display: none; }
-	.site-context.is-collapsed .icon--expand-navigation { display: block; }
-	.site-context.is-collapsed .lineage-heading { flex-direction: column; }
-}
 @media (max-width: 640px) {
-	.site-context { position: fixed; inset: var(--site-topbar-height) auto 0 0; z-index: 40;
-		width: min(320px, calc(100% - 24px)); height: auto; display: none;
-		box-shadow: 12px 0 24px #02061799; }
-	.site-context.is-open { display: flex; }
-	.context-toggle, .context-close { display: block; }
 	.context-toggle { position: absolute; top: 16px; left: 16px; z-index: 2; }
 	#lineage-error, .lineage-error { top: 64px; }
 	.lineage-page .site-content {

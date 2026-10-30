@@ -292,10 +292,11 @@ def test_website_exports_all_reports_with_relative_navigation(
         assert "<iframe" not in document
     assert "Pump telemetry" in (index.parent / "spec/features.html").read_text(encoding="utf-8")
     features = (index.parent / "spec/features.html").read_text(encoding="utf-8")
-    assert "Entity:" in features
-    assert "Dataset name" in features
-    assert features.index("Dataset name:") < features.index(
-        '<article class="rounded-xl border border-slate-800 border-l-4'
+    assert '<dt class="text-xs text-slate-500">Entity</dt>' in features
+    assert '<dt class="text-xs text-slate-500">Dataset</dt>' in features
+    assert (
+        '<article id="feature-pump_telemetry_dataset-bearing_temperature" data-context-item>'
+        in features
     )
     assert "bearing_temperature" in features
     assert "read · read_pump_telemetry" in features
@@ -309,9 +310,10 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "read · read_pump_telemetry" in datasets
     assert datasets.count("data-dataset-schema=") == 4
     assert "schema only, no sample records" in datasets
-    assert datasets.count('<details class="mt-6 border-t border-slate-800 pt-4">') == 4
-    assert "<summary" in datasets
-    assert "Dataset details</summary>" in datasets
+    assert datasets.count('aria-label="Dataset details"') == 4
+    assert "<details" not in datasets
+    assert "<summary" not in datasets
+    assert "Dataset details</h3>" in datasets
     assert "Blue: dimensions" not in datasets
     assert "row keys" not in datasets
     assert "discharge_pressure" in datasets

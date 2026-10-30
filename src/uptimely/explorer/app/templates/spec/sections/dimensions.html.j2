@@ -1,9 +1,10 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
 <section id="dimensions" class="mb-16">
   {{ section_header("Dimensions", "Inspect the dimensions that define data grain and their parent relationships.", count=summary.dimension_count, count_label="dimensions") }}
+  {% if has_catalog_context %}{% include "catalog_overview.html.j2" %}{% endif %}
   <div class="grid gap-5 md:grid-cols-2">
     {% for dimension_id, dimension in configuration.dimensions.items() %}
-    <article class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
+    <article id="dimension-{{ dimension_id }}" data-context-item class="min-w-0">
       {% set heading = "h2" %}
       <{{ heading }} class="break-words font-display text-lg font-semibold text-white">{{ dimension_id }}</{{ heading }}>
       <div class="mt-3 flex flex-wrap gap-2">

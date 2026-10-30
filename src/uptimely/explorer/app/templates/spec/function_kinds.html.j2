@@ -1,0 +1,9 @@
+{% set kind_meta = {
+  "read": {"icon": "database", "label": "Read", "blurb": "Reads external observations into a dataset."},
+  "conform": {"icon": "shuffle", "label": "Conform", "blurb": "Adapts a same-dimension foreign dataset to the target row scope."},
+  "expand": {"icon": "expand", "label": "Expand", "blurb": "Transfers observations from a lower-dimensional foreign dataset."},
+  "collapse": {"icon": "combine", "label": "Collapse", "blurb": "Calculates features from a higher-dimensional foreign dataset, grouped by the target entity dimensions."},
+  "vectorize": {"icon": "wand-sparkles", "label": "Vectorize", "blurb": "Calculates new features row by row while preserving observation keys."},
+  "write": {"icon": "send", "label": "Write", "blurb": "Persists or evaluates selected data outside the workflow."},
+  "escape": {"icon": "arrow-up-right", "label": "Escape", "blurb": "Uncontrolled operations with external effects."}
+} %}

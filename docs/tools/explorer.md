@@ -53,6 +53,33 @@ only selected outputs and their dependencies in plan and execution pages;
 spec pages always show the complete model. Hover over the badge for coverage
 details, also available to screen readers.
 
+Features, datasets, dimensions, entities, functions, and plan stages have a context panel
+beside the main navigation. Select an entry to show only that item; a selected
+stage shows all its invocations. Each panel starts with **Overview**, selected
+by default, showing summary statistics and category charts rather than item
+details. These summarize features by dataset, datasets by entity, entities by dimension count,
+dimensions by type, functions by kind, and invocations by stage and function kind.
+Individual items remain separate, spacious views without outer card containers;
+the selected item's title replaces the section heading at the top. Returning to
+Overview restores the section title. Tables and code examples retain their own formatting.
+Dataset details appear directly beneath the schema, with labeled filtering,
+coverage, logical ordering, and action information when declared; no expansion
+is required.
+URL fragments preserve selections when
+sharing links or using browser Back and
+Forward. Selecting an entry opens the view at the top, rather than scrolling
+past its heading to the item's anchor. Datasets are grouped by entity; functions are grouped by kind, with
+kind links selecting the first function in that group. Without JavaScript, all
+items remain readable and the links jump to their content. The panel scrolls independently
+and can collapse to an icon rail. On mobile, use **Browse datasets** (or the
+corresponding page label) to open the panel, then select an entry, press
+**Escape**, or use **Close** to dismiss it.
+The context menu matches the main navigation's flat background, typography,
+spacing, and section-colored icons. Group labels and muted counts organize its
+entries, with Overview above a separator. Selection does not add a highlight.
+Feature entries are grouped by dataset. Each feature view shows its description,
+type, unit, owning entity and dataset, and producing action and function.
+
 Feature lineage visualizes feature inputs and outputs. Invocation lineage
 visualizes dependencies between compiled invocations. Both use the same
 **2D / 3D** switch next to the graph title,

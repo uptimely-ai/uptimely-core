@@ -228,7 +228,8 @@ def test_dataset_order_appears_in_html(tmp_path: pathlib.Path) -> None:
         spec_definition, tmp_path / "index.html", plan=compiler.Compiler().compile(spec_definition)
     )
     html = (tmp_path / "spec/datasets.html").read_text(encoding="utf-8")
-    assert "Logical order (not a physical row-order guarantee)" in html
+    assert "Logical order</h4>" in html
+    assert "Not a physical row-order guarantee." in html
     assert html.index("$dimensions.machine asc") < html.index("$dimensions.timestamp desc")
     assert "Logical order" not in (tmp_path / "spec/features.html").read_text(encoding="utf-8")
 

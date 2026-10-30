@@ -1,13 +1,5 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
-{% set kind_meta = {
-  "read": {"icon": "database", "label": "Read", "blurb": "Reads external observations into a dataset."},
-  "conform": {"icon": "shuffle", "label": "Conform", "blurb": "Adapts a same-dimension foreign dataset to the target row scope."},
-  "expand": {"icon": "expand", "label": "Expand", "blurb": "Transfers observations from a lower-dimensional foreign dataset."},
-  "collapse": {"icon": "combine", "label": "Collapse", "blurb": "Calculates features from a higher-dimensional foreign dataset, grouped by the target entity dimensions."},
-  "vectorize": {"icon": "wand-sparkles", "label": "Vectorize", "blurb": "Calculates new features row by row while preserving observation keys."},
-  "write": {"icon": "send", "label": "Write", "blurb": "Persists or evaluates selected data outside the workflow."},
-  "escape": {"icon": "arrow-up-right", "label": "Escape", "blurb": "Uncontrolled operations with external effects."}
-} %}
+{% from "spec/function_kinds.html.j2" import kind_meta %}
 {% set default_kind_meta = {"icon": "braces", "label": none, "blurb": "Function group."} %}
 {% set returns_meta = {
   "dataframe": {"label": "A data table", "note": none},
@@ -72,7 +64,7 @@
 {% set accent_chip = "border-violet-400/30 bg-violet-400/10 text-violet-200" if is_escape else "border-cyan-400/30 bg-cyan-400/10 text-cyan-200" %}
 {% set returns_info = returns_meta.get(function.declared_returns, {"label": function.declared_returns, "note": none}) %}
 {% set usage_count = function.action_usage_count or 0 %}
-<article class="rounded-3xl border border-slate-800/80 bg-slate-900/50 p-6 shadow-lg shadow-slate-950/40 sm:p-10">
+<article id="function-{{ function_id }}" data-context-item>
   <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
     {% set function_heading = "h3" %}
     <{{ function_heading }} class="min-w-0 break-words font-display text-2xl font-semibold tracking-tight text-white">{{ function_id }}</{{ function_heading }}>
@@ -181,7 +173,16 @@
 <section id="functions" class="mb-24">
   {{ section_header("Functions", "Browse the function catalog, argument types, return signatures, and source entrypoints.", count=summary.function_count, count_label="functions") }}
   {% set chart_max = function_groups.values()|map("length")|max %}
-  <div aria-label="Function kinds" class="mb-14 rounded-2xl border border-slate-800 bg-slate-900/75 p-5 sm:p-6">
+  <div id="catalog-overview" data-context-item aria-label="Functions overview" class="mb-14 rounded-2xl border border-slate-800 bg-slate-900/75 p-5 sm:p-6">
+    <h2 class="title-with-icon mb-6 font-display text-2xl font-semibold text-white">{{ icon("overview", "nav-icon") }}<span>Functions overview</span></h2>
+    <div class="mb-6 grid gap-3 sm:grid-cols-2">
+      {% for label, value, icon_key in [("Functions", summary.function_count, "functions"), ("Kinds in use", function_groups.values()|select|list|length, "functions")] %}
+      <div class="rounded-xl border border-slate-800 bg-slate-950/55 p-5" data-stat="{{ label }}">
+        <div class="flex items-center justify-between gap-3"><span class="text-xs text-slate-400">{{ label }}</span>{{ icon(icon_key, "nav-icon") }}</div>
+        <p class="mt-4 font-display text-3xl font-semibold text-white" data-value="{{ value }}">{{ value }}</p>
+      </div>
+      {% endfor %}
+    </div>
     <div class="mb-5 flex items-baseline justify-between gap-4">
       <h2 class="font-display text-lg font-semibold text-white">Functions by kind</h2>
       <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">total {{ summary.function_count }}</span>
