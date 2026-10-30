@@ -20,6 +20,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Function-kind attributes now drive dataframe and feature input-scope
+  validation. Compilation also checks enabled implementation signatures for
+  keyword-call compatibility and contradictions in supported argument and
+  return annotations; missing annotations remain permitted.
 - **Breaking:** Function kind identifiers are now typed as `FunctionKindId`,
   while `FunctionKind` is an immutable definition object with independent
   capability flags. `FUNCTION_KINDS` is now a read-only identifier-to-definition

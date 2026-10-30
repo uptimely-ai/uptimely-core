@@ -301,6 +301,9 @@ Conversion preserves it in the function catalog and exported JSON. When
 `False`, compilation and documentation do not import the implementation or
 inspect its signature. Spec-level contracts and declared feature dependencies
 are still validated, and execution still requires a loadable implementation.
+When enabled, compilation checks keyword-call compatibility, required
+parameters, positional-only parameters, and supported annotation contradictions.
+Annotations may be omitted; an explicit incompatible annotation is rejected.
 
 Function references also carry a `description` into the function catalog and
 exported JSON. When a callable is referenced, the description defaults to the

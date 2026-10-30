@@ -155,12 +155,17 @@ def validate_dataframe_source(spec: spec_model.Spec) -> None:
 
 
 def validate_dataset_count(spec: spec_model.Spec) -> None:
-    """Require dimensional operations to consume one foreign dataframe."""
+    """Require actions to consume the foreign dataframe count in their contract."""
     for item in iter_action_contracts(spec):
         kind = item.action.kind
-        if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
+        if kind is None:
             continue
-        expected_count = functions.FUNCTION_KINDS[kind].dataframe_inputs
+        definition = functions.FUNCTION_KINDS[kind]
+        if definition.dataframe_input_scope != "foreign":
+            continue
+        expected_count = definition.dataframe_inputs
+        if expected_count is None:
+            continue
         dataset_ids = {
             argument.source.dataset.id
             for argument in item.dataframe_arguments
@@ -203,29 +208,38 @@ def validate_matching_keys(spec: spec_model.Spec) -> None:
 
 
 def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
-    """Require dimensional input features to belong to at most one dataset."""
+    """Require dataframe-scoped feature inputs to belong to at most one dataset."""
     for item in inputs.iter_input_sources(spec):
-        kind = item.action.kind
-        if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
+        if item.action.kind is None:
+            continue
+        definition = functions.FUNCTION_KINDS[item.action.kind]
+        if definition.feature_input_scope != "dataframe":
             continue
         feature_dataset_ids = {
             owner.dataset.id for _, owners in item.candidates for owner in owners
         }
         if len(feature_dataset_ids) > 1:
             raise errors.SpecError(
-                f"{kind.capitalize()} action inputs must belong to one source dataset",
+                f"{item.action.kind.capitalize()} action inputs must belong to one source dataset",
                 code="invalid_mapping_dataset_input",
                 path=(*item.action.path, "features", "inputs"),
             )
 
 
 def validate_foreign_dataframe(spec: spec_model.Spec) -> None:
-    """Reject the target dataset as a dimensional operation's dataframe input."""
+    """Reject the target dataset when a kind requires a foreign dataframe."""
     for item in iter_action_contracts(spec):
         kind = item.action.kind
-        if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
+        if kind is None:
             continue
-        if len(item.dataframe_arguments) != functions.FUNCTION_KINDS[kind].dataframe_inputs:
+        definition = functions.FUNCTION_KINDS[kind]
+        if definition.dataframe_input_scope != "foreign":
+            continue
+        if (
+            definition.dataframe_inputs is None
+            or len(item.dataframe_arguments) != definition.dataframe_inputs
+            or not item.dataframe_arguments
+        ):
             continue
         dataframe = item.dataframe_arguments[0]
         if dataframe.source_id == item.action.dataset.id:
@@ -237,12 +251,19 @@ def validate_foreign_dataframe(spec: spec_model.Spec) -> None:
 
 
 def validate_dataframe_feature_source(spec: spec_model.Spec) -> None:
-    """Require a dimensional dataframe argument to match the input feature owner."""
+    """Require a dataframe-scoped feature source to match its dataframe binding."""
     for item in iter_action_contracts(spec):
         kind = item.action.kind
-        if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
+        if kind is None:
             continue
-        if len(item.dataframe_arguments) != functions.FUNCTION_KINDS[kind].dataframe_inputs:
+        definition = functions.FUNCTION_KINDS[kind]
+        if definition.feature_input_scope != "dataframe":
+            continue
+        if (
+            definition.dataframe_inputs is None
+            or len(item.dataframe_arguments) != definition.dataframe_inputs
+            or not item.dataframe_arguments
+        ):
             continue
         if item.source is None:
             continue
@@ -260,12 +281,14 @@ def validate_dataframe_feature_source(spec: spec_model.Spec) -> None:
 
 
 def validate_dataframe_features(spec: spec_model.Spec) -> None:
-    """Require conform and expand feature inputs to belong to dataframe inputs."""
+    """Require dataframe-scoped feature inputs to belong to dataframe inputs."""
     dimension_ids = frozenset(spec.dimensions)
     feature_owners = feature_rules.feature_owners(spec)
     for item in iter_action_contracts(spec):
         kind = item.action.kind
-        if kind not in {functions.CONFORM, functions.EXPAND}:
+        if kind is None:
+            continue
+        if functions.FUNCTION_KINDS[kind].feature_input_scope != "dataframe":
             continue
         dataset_ids = {
             argument.source.dataset.id
@@ -299,30 +322,36 @@ def validate_dataframe_features(spec: spec_model.Spec) -> None:
             )
 
 
-def validate_read_inputs(spec: spec_model.Spec) -> None:
-    """Reject feature inputs on read actions."""
+def validate_feature_input_scope(spec: spec_model.Spec) -> None:
+    """Reject feature inputs for kinds that do not accept feature dependencies."""
     for item in action_rules.iter_actions(spec):
-        if item.kind == functions.READ and item.inputs:
+        if (
+            item.kind is not None
+            and functions.FUNCTION_KINDS[item.kind].feature_input_scope == "none"
+            and item.inputs
+        ):
             raise errors.SpecError(
-                "Read actions cannot declare feature inputs",
+                f"Kind {item.kind} cannot declare feature inputs",
                 code="invalid_mapping_feature_inputs",
                 path=(*item.path, "features", "inputs"),
             )
 
 
 def validate_target_input(spec: spec_model.Spec) -> None:
-    """Require vectorize and write to consume their target dataset."""
+    """Require target-scoped actions to consume their target dataset."""
     for item in iter_action_contracts(spec):
         kind = item.action.kind
+        if kind is None:
+            continue
+        definition = functions.FUNCTION_KINDS[kind]
+        if definition.dataframe_input_scope != "target":
+            continue
         dataset_ids = {
             argument.source.dataset.id
             for argument in item.dataframe_arguments
             if argument.source is not None
         }
-        if (
-            kind in {functions.VECTORIZE, functions.WRITE}
-            and item.action.dataset.id not in dataset_ids
-        ):
+        if item.action.dataset.id not in dataset_ids:
             raise errors.SpecError(
                 f"{kind.capitalize()} action must consume its target dataset",
                 code="invalid_mapping_dataset_input",
@@ -331,19 +360,21 @@ def validate_target_input(spec: spec_model.Spec) -> None:
 
 
 def validate_write_dataframe(spec: spec_model.Spec) -> None:
-    """Reject foreign dataframe inputs on write actions."""
+    """Reject foreign dataframe inputs on target-scoped actions."""
     for item in iter_action_contracts(spec):
         kind = item.action.kind
+        if kind is None:
+            continue
         dataset_ids = {
             argument.source.dataset.id
             for argument in item.dataframe_arguments
             if argument.source is not None
         }
-        if kind == functions.WRITE:
+        if functions.FUNCTION_KINDS[kind].dataframe_input_scope == "target":
             foreign = sorted(dataset_ids - {item.action.dataset.id})
             if foreign:
                 raise errors.SpecError(
-                    "Write action cannot publish a foreign dataset dataframe: "
+                    f"{kind.capitalize()} action cannot publish a foreign dataset dataframe: "
                     + ", ".join(foreign),
                     code="invalid_mapping_dataset_input",
                     path=(*item.action.path, "binding", "args"),

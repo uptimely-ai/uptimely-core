@@ -111,7 +111,9 @@ def test_escape_actions_show_logical_inputs_and_outputs_in_explorer(
     configuration["functions"]["external_audit"] = {
         "kind": "escape",
         "returns": "any",
-        "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
+        "entrypoint": (
+            "examples.pump_analytics.functions.external_workflow:process_pump_external_workflow"
+        ),
         "args": {},
         "description": "Send an audit record to an external service.",
     }
