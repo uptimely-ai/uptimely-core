@@ -178,9 +178,10 @@ results. The engine then validates the returned fragment before merging it:
 | Dimensions | Every fragment contains all dimensions declared by its entity; an expand fragment contains the dimensions its source can supply. |
 | Outputs | Every declared output feature is present as a column. |
 | Keys | Complete dimension keys are unique; dimensionless datasets and fragments contain at most one row. |
+| Row count | Vectorize results preserve the accumulated target's row count. Other kinds impose no source-to-result row-count relationship. |
 | Types | Declared dimension and feature types match the returned schema. |
 | Feature collisions | Output feature columns do not replace columns already assembled. |
-| Vectorize coverage | The result has exactly the existing dataset key set; row order may differ. |
+| Vectorize coverage | Independently of row count, the result has exactly the accumulated target's dimension-key identities; row order may differ. |
 
 By default, checking lazy-frame key uniqueness, dimensionless row counts, and
 vectorize coverage executes queries. Set `backend.validate_lazy_frames` to

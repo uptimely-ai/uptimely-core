@@ -381,60 +381,82 @@ def validate_write_dataframe(spec: spec_model.Spec) -> None:
                 )
 
 
-def validate_collapse_source(spec: spec_model.Spec) -> None:
-    """Require collapse to consume its inferred source dataset."""
+def validate_dimension_source(spec: spec_model.Spec) -> None:
+    """Require dimension-reducing actions to consume their inferred source."""
     for item in iter_action_contracts(spec):
+        if item.action.kind is None:
+            continue
+        definition = functions.FUNCTION_KINDS[item.action.kind]
+        if definition.dimension_change != "remove":
+            continue
         dataset_ids = {
             argument.source.dataset.id
             for argument in item.dataframe_arguments
             if argument.source is not None
         }
-        if (
-            item.action.kind == functions.COLLAPSE
-            and item.source is not None
-            and (item.source.dataset.id not in dataset_ids)
-        ):
+        if item.source is not None and item.source.dataset.id not in dataset_ids:
             raise errors.SpecError(
-                f"Collapse action must consume its source dataset {item.source.dataset.id}",
+                f"{item.action.kind.capitalize()} action must consume its source dataset "
+                f"{item.source.dataset.id}",
                 code="invalid_mapping_dataset_input",
                 path=(*item.action.path, "binding", "args"),
             )
 
 
-def validate_collapse_dimensions(spec: spec_model.Spec) -> None:
-    """Require collapse to reduce source dimensionality."""
+def validate_dimension_change(spec: spec_model.Spec) -> None:
+    """Require dataframe sources and targets to follow their declared dimension policy."""
     for item in iter_action_contracts(spec):
-        if (
-            item.action.kind == functions.COLLAPSE
-            and item.source is not None
-            and (not item.action.dimensions < item.source.dimensions)
-        ):
+        if item.action.kind is None:
+            continue
+        dimension_change = functions.FUNCTION_KINDS[item.action.kind].dimension_change
+        if dimension_change == "unrestricted":
+            continue
+        sources = [
+            argument.source for argument in item.dataframe_arguments if argument.source is not None
+        ]
+        for source in sources:
+            source_dimensions = source.dimensions
+            target_dimensions = item.action.dimensions
+            if dimension_change == "preserve":
+                valid = source_dimensions == target_dimensions
+            elif dimension_change == "add":
+                valid = source_dimensions < target_dimensions
+            else:
+                valid = target_dimensions < source_dimensions
+            if valid:
+                continue
+            if dimension_change == "preserve":
+                message = (
+                    f"{item.action.kind.capitalize()} action inputs must preserve target "
+                    "dimensionality"
+                )
+                path = (*item.action.path, "binding", "args")
+            elif dimension_change == "remove":
+                message = (
+                    f"{item.action.kind.capitalize()} action source must have strictly higher "
+                    "dimensionality than its target"
+                )
+                path = (*item.action.path, "features", "inputs")
+            else:
+                raise errors.SpecError(
+                    EXPAND_INPUT_ERROR,
+                    code="invalid_mapping_dimensions",
+                    path=(*item.action.path, "binding", "args"),
+                )
             raise errors.SpecError(
-                "Collapse action source must have strictly higher dimensionality than its target",
+                message,
                 code="invalid_mapping_dimensions",
-                path=(*item.action.path, "features", "inputs"),
+                path=path,
             )
 
 
-def validate_conform_dimensions(spec: spec_model.Spec) -> None:
-    """Require conform inputs to preserve target dimensionality."""
-    for item in iter_action_contracts(spec):
-        if item.action.kind == functions.CONFORM and any(
-            argument.source is not None and argument.source.dimensions != item.action.dimensions
-            for argument in item.dataframe_arguments
-        ):
-            raise errors.SpecError(
-                "Conform action inputs must preserve target dimensionality",
-                code="invalid_mapping_dimensions",
-                path=(*item.action.path, "binding", "args"),
-            )
-
-
-def validate_expand_dimensions(spec: spec_model.Spec) -> None:
-    """Require expand to use a declared feature from a lower-dimensional source."""
+def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
+    """Require dimensional expansion to use a feature from a lower-dimensional source."""
     feature_owners = feature_rules.feature_owners(spec)
     for item in iter_action_contracts(spec):
-        if item.action.kind != functions.EXPAND:
+        if item.action.kind is None:
+            continue
+        if functions.FUNCTION_KINDS[item.action.kind].dimension_change != "add":
             continue
         lower_dataset_ids = {
             argument.source.dataset.id

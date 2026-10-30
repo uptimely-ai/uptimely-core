@@ -1,6 +1,7 @@
 import dataclasses
 import json
 import pathlib
+import types
 
 import polars as pl
 import pytest
@@ -11,6 +12,7 @@ from uptimely import execution_plan as plan_module
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataframe as dataframe_module
 from uptimely.engine.runtime import state as state_module
+from uptimely.spec import functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import actions, dataset, dimension, entity, feature, ref
 
@@ -650,6 +652,23 @@ def test_expand_left_joins_fragment_on_its_carried_dimension_keys(
         ("B", 3, 7.0),
         ("B", 4, 7.0),
     ]
+
+
+def test_fragment_dimension_policy_is_independent_of_expand_id(
+    monkeypatch: pytest.MonkeyPatch,
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    spec_definition = _broadcast_spec(read_group_limits, broadcast_group_limit, ["group"], False)
+    plan = compiler.Compiler().compile(spec_definition)
+    definitions = dict(functions.FUNCTION_KINDS)
+    definitions[functions.EXPAND] = dataclasses.replace(
+        definitions[functions.EXPAND], fragment_dimensions="target"
+    )
+    monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+
+    result = engine_for_plan(plan, spec_definition=spec_definition).run()
+
+    assert "missing dimension columns: id" in next(iter(result.failures.values()))
 
 
 def test_expand_rejects_multirow_dimensionless_fragment(

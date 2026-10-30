@@ -113,22 +113,58 @@ def validate_unique_dimension_keys(context: DataFrameValidationContext) -> None:
     if not frame_context.backend.should_validate_values(frame_context.frame):
         return
     if not frame_context.dimensions:
-        if frame_context.backend.row_count(frame_context.frame) > 1:
-            raise ValueError(
-                f"{frame_context.description} contains duplicate dimension keys "
-                "(dimensionless datasets allow at most one row)"
-            )
         return
     keys = frame_context.backend.select(frame_context.frame, frame_context.dimensions)
     if frame_context.backend.is_duplicated(keys):
         raise ValueError(f"{frame_context.description} contains duplicate dimension keys")
 
 
+def validate_row_count(context: DataFrameValidationContext) -> None:
+    """Enforce dimensionless and kind-specific row-count contracts."""
+    frame_context = _require_frame_context(context)
+    validate_values = frame_context.backend.should_validate_values(frame_context.frame)
+    if (
+        validate_values
+        and not frame_context.dimensions
+        and frame_context.backend.row_count(frame_context.frame) > 1
+    ):
+        raise ValueError(
+            f"{frame_context.description} contains duplicate dimension keys "
+            "(dimensionless datasets allow at most one row)"
+        )
+
+    if frame_context.invocation is None:
+        return
+    if _function_definition(frame_context).row_count_relation != "same":
+        return
+    comparison_frame = frame_context.comparison_frame
+    if comparison_frame is None:
+        invocation = _require_invocation(frame_context)
+        raise ValueError(
+            f"{invocation.function_kind.capitalize()} action {invocation.mapping_id} "
+            "must preserve the accumulated dataset row count"
+        )
+    if not validate_values or not frame_context.backend.should_validate_values(comparison_frame):
+        return
+    if frame_context.backend.row_count(comparison_frame) != frame_context.backend.row_count(
+        frame_context.frame
+    ):
+        invocation = _require_invocation(frame_context)
+        raise ValueError(
+            f"{invocation.function_kind.capitalize()} action {invocation.mapping_id} "
+            "must preserve the accumulated dataset row count"
+        )
+
+
 def validate_output_columns(context: DataFrameValidationContext) -> None:
     """Require every declared action output in the returned fragment."""
     frame_context = _require_frame_context(context)
     invocation = _require_invocation(frame_context)
-    output_features = frame_context.output_features or invocation.output_features
+    output_features = (
+        frame_context.output_features
+        if frame_context.output_features is not None
+        else invocation.output_features
+    )
     columns = set(frame_context.backend.column_names(frame_context.frame))
     missing = sorted(set(output_features) - columns)
     if missing:
@@ -142,7 +178,9 @@ def validate_fragment_declared_types(context: DataFrameValidationContext) -> Non
     frame_context = _require_frame_context(context)
     dataset = _require_dataset(frame_context)
     output_features = (
-        frame_context.output_features or _require_invocation(frame_context).output_features
+        frame_context.output_features
+        if frame_context.output_features is not None
+        else _require_invocation(frame_context).output_features
     )
     _validate_declared_types(frame_context, dataset, [*frame_context.dimensions, *output_features])
 
@@ -158,10 +196,10 @@ def validate_dataset_declared_types(context: DataFrameValidationContext) -> None
 
 
 def validate_key_coverage(context: DataFrameValidationContext) -> None:
-    """Require vectorized fragments to cover the accumulated dataset's dimension keys."""
+    """Enforce the function kind's key-identity contract against its reference frame."""
     frame_context = _require_frame_context(context)
     invocation = _require_invocation(frame_context)
-    if invocation.function_kind != functions.VECTORIZE:
+    if _function_definition(frame_context).key_relation != "identical":
         return
     dataframe = frame_context.comparison_frame
     validate_coverage = (
@@ -176,7 +214,8 @@ def validate_key_coverage(context: DataFrameValidationContext) -> None:
         )
     ):
         raise ValueError(
-            f"Vectorize action {invocation.mapping_id} must preserve the dataset dimension keys"
+            f"{invocation.function_kind.capitalize()} action {invocation.mapping_id} "
+            "must preserve the dataset dimension keys"
         )
 
 
@@ -185,6 +224,7 @@ DATAFRAME_VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     validate_input_features: (validate_input_function,),
     validate_frame_type: (),
     validate_dimension_columns: (validate_frame_type,),
+    validate_row_count: (validate_dimension_columns,),
     validate_unique_dimension_keys: (validate_dimension_columns,),
     validate_output_columns: (validate_unique_dimension_keys,),
     validate_fragment_declared_types: (validate_output_columns,),
@@ -275,6 +315,23 @@ def _validate_declared_types(
         if definition is not None and definition.type is not None:
             types[name] = definition.type
     context.backend.validate_types(context.frame, types)
+
+
+def _function_definition(context: FrameValidationContext) -> functions.FunctionKind:
+    """Resolve the kind contract for a materialized invocation result."""
+    invocation = _require_invocation(context)
+    function = context.spec_definition.functions.get(invocation.function_id)
+    if function is None:
+        raise ValueError(f"Unknown function: {invocation.function_id}")
+    if function.kind != invocation.function_kind:
+        raise ValueError(
+            f"Invocation {invocation.id} function kind {invocation.function_kind} does not match "
+            f"function {invocation.function_id} kind {function.kind}"
+        )
+    definition = functions.FUNCTION_KINDS.get(function.kind)
+    if definition is None:
+        raise ValueError(f"Unknown function kind: {function.kind}")
+    return definition
 
 
 def _require_input_context(

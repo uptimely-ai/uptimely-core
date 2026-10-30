@@ -129,16 +129,15 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     action_contracts.validate_feature_input_scope: (action_outputs.validate_function_reference,),
     action_contracts.validate_target_input: (action_contracts.validate_dataframe_source,),
     action_contracts.validate_write_dataframe: (action_contracts.validate_dataframe_source,),
-    action_contracts.validate_collapse_source: (
+    action_contracts.validate_dimension_source: (
         action_contracts.validate_dataframe_source,
         action_inputs.validate_source_count,
     ),
-    action_contracts.validate_collapse_dimensions: (action_inputs.validate_grouping_dimensions,),
-    action_contracts.validate_conform_dimensions: (
+    action_contracts.validate_dimension_change: (
         action_contracts.validate_dataframe_source,
         entities.validate_entity_dimensions,
     ),
-    action_contracts.validate_expand_dimensions: (
+    action_contracts.validate_dimension_expansion_input: (
         action_contracts.validate_dataframe_feature_source,
         entities.validate_entity_dimensions,
     ),
