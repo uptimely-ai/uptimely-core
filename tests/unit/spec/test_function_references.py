@@ -15,7 +15,7 @@ MODULE_LOCATIONS = [
     "math",
     "unavailable_package.functions",
 ]
-MAPPING_KINDS: tuple[functions.FunctionKind, ...] = (
+MAPPING_KINDS: tuple[functions.FunctionKindId, ...] = (
     "read",
     "write",
     "escape",
@@ -58,13 +58,13 @@ def test_function_reference_accepts_qualified_names() -> None:
 
 def test_function_reference_rejects_unsupported_operation() -> None:
     with pytest.raises(ValueError, match="Unsupported function kind"):
-        ref.function("math:ceil", kind=typing.cast(functions.FunctionKind, "unknown"))
+        ref.function("math:ceil", kind=typing.cast(functions.FunctionKindId, "unknown"))
 
 
 @pytest.mark.parametrize("kind", MAPPING_KINDS)
 @pytest.mark.parametrize("validate_signature", [False, True])
 def test_signature_validation_setting_survives_conversion_without_importing(
-    kind: functions.FunctionKind,
+    kind: functions.FunctionKindId,
     validate_signature: bool,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -215,7 +215,7 @@ def test_string_locations_are_preserved_without_importing(
 
 @pytest.mark.parametrize("kind", MAPPING_KINDS)
 def test_generic_mapping_exports_function_kind_without_importing(
-    kind: functions.FunctionKind, monkeypatch: pytest.MonkeyPatch
+    kind: functions.FunctionKindId, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def unexpected_import(*_args: object, **_kwargs: object) -> typing.NoReturn:
         pytest.fail(f"Unexpected function import during authoring: {_args!r} {_kwargs!r}")
@@ -279,7 +279,7 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
 
 @pytest.mark.parametrize("kind", MAPPING_KINDS)
 def test_generic_mapping_accepts_function_kind_metadata(
-    kind: functions.FunctionKind,
+    kind: functions.FunctionKindId,
 ) -> None:
     declaration = actions.Action(
         id="declaration",
@@ -295,7 +295,7 @@ def test_generic_mapping_accepts_function_kind_metadata(
 @pytest.mark.parametrize("kind", MAPPING_KINDS)
 @pytest.mark.parametrize("function_id", [None, "rounded"])
 def test_references_supply_catalog_ids_and_preserve_overrides(
-    kind: functions.FunctionKind, function_id: str | None
+    kind: functions.FunctionKindId, function_id: str | None
 ) -> None:
     declaration = actions.Action(
         id="declaration",

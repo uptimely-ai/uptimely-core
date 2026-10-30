@@ -1,53 +1,60 @@
-"""Function kinds and their spec-level execution rules."""
+"""Function kind definitions and their spec-level execution rules."""
 
 from __future__ import annotations
 
+import dataclasses
+import types
 import typing
 
 from . import arg_types
 
-FunctionKind = typing.Literal[
+FunctionKindId = typing.Literal[
     "write", "read", "escape", "conform", "expand", "collapse", "vectorize"
 ]
-FUNCTION_KINDS: typing.Final[tuple[FunctionKind, ...]] = typing.get_args(FunctionKind)
-WRITE, READ, ESCAPE, CONFORM, EXPAND, COLLAPSE, VECTORIZE = FUNCTION_KINDS
+ReturnKind = typing.Literal["dataframe", "none", "any"]
+FunctionRole = typing.Literal["source", "transform", "sink", "effect"]
 
-FunctionReturns = typing.Literal["dataframe", "none", "any"]
-FRAGMENT_KINDS: typing.Final[tuple[FunctionKind, ...]] = (
-    READ,
-    CONFORM,
-    EXPAND,
-    COLLAPSE,
+
+@dataclasses.dataclass(frozen=True)
+class FunctionKind:
+    """Definition of one built-in function kind and its declarative contract."""
+
+    id: FunctionKindId
+    dataframe_inputs: int | None
+    returns: ReturnKind
+    produces_features: bool
+    role: FunctionRole
+
+
+WRITE: typing.Final[FunctionKindId] = "write"
+READ: typing.Final[FunctionKindId] = "read"
+ESCAPE: typing.Final[FunctionKindId] = "escape"
+CONFORM: typing.Final[FunctionKindId] = "conform"
+EXPAND: typing.Final[FunctionKindId] = "expand"
+COLLAPSE: typing.Final[FunctionKindId] = "collapse"
+VECTORIZE: typing.Final[FunctionKindId] = "vectorize"
+
+FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = types.MappingProxyType(
+    {
+        WRITE: FunctionKind(WRITE, 1, "none", False, "sink"),
+        READ: FunctionKind(READ, 0, arg_types.DATAFRAME, True, "source"),
+        ESCAPE: FunctionKind(ESCAPE, None, "any", True, "effect"),
+        CONFORM: FunctionKind(CONFORM, 1, arg_types.DATAFRAME, True, "source"),
+        EXPAND: FunctionKind(EXPAND, 1, arg_types.DATAFRAME, True, "source"),
+        COLLAPSE: FunctionKind(COLLAPSE, 1, arg_types.DATAFRAME, True, "source"),
+        VECTORIZE: FunctionKind(VECTORIZE, 1, arg_types.DATAFRAME, True, "transform"),
+    }
 )
 
-KIND_DATAFRAME_INPUT_COUNTS: typing.Final[dict[FunctionKind, int | None]] = {
-    READ: 0,
-    COLLAPSE: 1,
-    CONFORM: 1,
-    EXPAND: 1,
-    VECTORIZE: 1,
-    WRITE: 1,
-    ESCAPE: None,
-}
-KIND_RETURN_KINDS: typing.Final[dict[FunctionKind, FunctionReturns]] = {
-    READ: arg_types.DATAFRAME,
-    WRITE: "none",
-    ESCAPE: "any",
-    VECTORIZE: arg_types.DATAFRAME,
-    COLLAPSE: arg_types.DATAFRAME,
-    EXPAND: arg_types.DATAFRAME,
-    CONFORM: arg_types.DATAFRAME,
-}
 
-
-def kind_hint(returns: FunctionReturns, dataframe_inputs: int) -> str:
+def kind_hint(returns: ReturnKind, dataframe_inputs: int) -> str:
     """Suggest explicitly declared kinds matching a function contract."""
     matches = [
         kind
-        for kind in FUNCTION_KINDS
+        for kind, definition in FUNCTION_KINDS.items()
         if kind != ESCAPE
-        and KIND_RETURN_KINDS[kind] == returns
-        and KIND_DATAFRAME_INPUT_COUNTS[kind] == dataframe_inputs
+        and definition.returns == returns
+        and definition.dataframe_inputs == dataframe_inputs
     ]
     if matches:
         suggestions = ", ".join(matches)
@@ -66,16 +73,15 @@ def kind_hint(returns: FunctionReturns, dataframe_inputs: int) -> str:
 __all__ = [
     "COLLAPSE",
     "CONFORM",
-    "FUNCTION_KINDS",
-    "FRAGMENT_KINDS",
-    "FunctionKind",
-    "KIND_DATAFRAME_INPUT_COUNTS",
     "ESCAPE",
     "EXPAND",
-    "FunctionReturns",
-    "KIND_RETURN_KINDS",
-    "kind_hint",
+    "FUNCTION_KINDS",
+    "FunctionKind",
+    "FunctionKindId",
+    "FunctionRole",
     "READ",
+    "ReturnKind",
     "VECTORIZE",
     "WRITE",
+    "kind_hint",
 ]

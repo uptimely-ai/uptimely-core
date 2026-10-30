@@ -15,8 +15,8 @@ class FunctionTemplate(common.StrictModel):
     """One logical function definition in the spec catalog."""
 
     id: str = pydantic.Field(exclude=True)
-    kind: functions.FunctionKind
-    returns: functions.FunctionReturns
+    kind: functions.FunctionKindId
+    returns: functions.ReturnKind
     entrypoint: str
     validate_signature: bool = pydantic.Field(
         default=True,
@@ -31,7 +31,7 @@ class FunctionCatalog(pydantic.RootModel[dict[str, FunctionTemplate]]):
 
     root: dict[str, FunctionTemplate] = pydantic.Field(default_factory=dict)
 
-    def by_kind(self, kind: functions.FunctionKind) -> dict[str, FunctionTemplate]:
+    def by_kind(self, kind: functions.FunctionKindId) -> dict[str, FunctionTemplate]:
         """Return function definitions for one kind."""
         return {
             function_id: function

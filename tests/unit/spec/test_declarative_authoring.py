@@ -366,7 +366,7 @@ def test_action_rejects_invalid_identifiers(identifier: typing.Any) -> None:
 @pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
 @pytest.mark.parametrize("collection", ["producers", "publishers", "pipelines"])
 def test_action_collection_enforces_function_kind(
-    kind: functions.FunctionKind, collection: str
+    kind: functions.FunctionKindId, collection: str
 ) -> None:
     action = authoring.Action(
         id="work",
@@ -398,7 +398,7 @@ def test_action_collections_reject_invalid_values(collection: str, invalid: typi
 
 
 @pytest.mark.parametrize("second_kind", ["read", "write", "escape"])
-def test_action_ids_are_unique_across_collections(second_kind: functions.FunctionKind) -> None:
+def test_action_ids_are_unique_across_collections(second_kind: functions.FunctionKindId) -> None:
     first = authoring.Action(
         id="duplicate",
         function=ref.function("reader:read", kind="read"),

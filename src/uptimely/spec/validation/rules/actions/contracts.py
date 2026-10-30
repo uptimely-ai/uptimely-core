@@ -160,7 +160,7 @@ def validate_dataset_count(spec: spec_model.Spec) -> None:
         kind = item.action.kind
         if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
             continue
-        expected_count = functions.KIND_DATAFRAME_INPUT_COUNTS[kind]
+        expected_count = functions.FUNCTION_KINDS[kind].dataframe_inputs
         dataset_ids = {
             argument.source.dataset.id
             for argument in item.dataframe_arguments
@@ -225,7 +225,7 @@ def validate_foreign_dataframe(spec: spec_model.Spec) -> None:
         kind = item.action.kind
         if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
             continue
-        if len(item.dataframe_arguments) != functions.KIND_DATAFRAME_INPUT_COUNTS[kind]:
+        if len(item.dataframe_arguments) != functions.FUNCTION_KINDS[kind].dataframe_inputs:
             continue
         dataframe = item.dataframe_arguments[0]
         if dataframe.source_id == item.action.dataset.id:
@@ -242,7 +242,7 @@ def validate_dataframe_feature_source(spec: spec_model.Spec) -> None:
         kind = item.action.kind
         if kind not in {functions.CONFORM, functions.COLLAPSE, functions.EXPAND}:
             continue
-        if len(item.dataframe_arguments) != functions.KIND_DATAFRAME_INPUT_COUNTS[kind]:
+        if len(item.dataframe_arguments) != functions.FUNCTION_KINDS[kind].dataframe_inputs:
             continue
         if item.source is None:
             continue

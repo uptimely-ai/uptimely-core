@@ -91,7 +91,7 @@ class ActionDeclaration:
         return frozenset(self.dataset.features) | self.dimensions
 
     @property
-    def kind(self) -> functions.FunctionKind | None:
+    def kind(self) -> functions.FunctionKindId | None:
         """Return the declared kind without requiring function resolution."""
         return self.function.kind if self.function is not None else None
 

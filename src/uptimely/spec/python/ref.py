@@ -39,7 +39,7 @@ class FunctionReference:
 
     module: str
     name: str
-    kind: functions.FunctionKind | None = None
+    kind: functions.FunctionKindId | None = None
     validate_signature: bool = True
     description: str | None = None
 
@@ -77,7 +77,7 @@ def _docstring_summary(function: abc.Callable[..., object]) -> str | None:
 def function(
     function: abc.Callable[..., object] | str,
     *,
-    kind: functions.FunctionKind | None = None,
+    kind: functions.FunctionKindId | None = None,
     validate_signature: bool = True,
     description: str | None = None,
 ) -> FunctionReference:
