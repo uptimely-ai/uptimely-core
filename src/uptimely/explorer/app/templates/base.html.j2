@@ -43,7 +43,7 @@
         ("datasets", "Datasets", "datasets"),
         ("dimensions", "Dimensions", "dimensions"),
         ("functions", "Functions", "functions"),
-        ("feature_lineage", "Feature lineage", "feature-lineage")
+        ("feature_lineage", "Lineage", "feature-lineage")
       ] %}
       <a aria-label="{{ section_label }}" title="{{ section_label }}" href="{{ rel_root }}{{ website_pages["spec"][section] }}"{% if active_page == "spec" and active_section == section %} aria-current="page"{% endif %}>{{ icon(section_icon, "nav-icon") }}<span>{{ section_label }}</span></a>
       {% endfor %}
@@ -52,7 +52,7 @@
     <div class="site-subnav" role="group" aria-label="Plan sections">
       {% for section, section_label, section_icon in [
         ("overview", "Overview", "overview"),
-        ("invocation_lineage", "Invocation lineage", "invocation-lineage"),
+        ("invocation_lineage", "Topology", "invocation-lineage"),
         ("stages", "Stages", "stages")
       ] %}
       <a aria-label="{{ section_label }}" title="{{ section_label }}" href="{{ rel_root }}{{ website_pages['plan'][section] }}"{% if active_page == "plan" and active_section == section %} aria-current="page"{% endif %}>{{ icon(section_icon, "nav-icon") }}<span>{{ section_label }}</span></a>
@@ -60,7 +60,7 @@
     </div>
     {% elif page == "execution" %}
     <div class="site-subnav" role="group" aria-label="Execution sections">
-      <a aria-label="Data lineage" title="Data lineage" href="{{ rel_root }}{{ website_pages['execution']['data_lineage'] }}"{% if active_page == "execution" and active_section == "data_lineage" %} aria-current="page"{% endif %}>{{ icon("data-lineage", "nav-icon") }}<span>Data lineage</span></a>
+      <a aria-label="Animation" title="Animation" href="{{ rel_root }}{{ website_pages['execution']['data_lineage'] }}"{% if active_page == "execution" and active_section == "data_lineage" %} aria-current="page"{% endif %}>{{ icon("data-lineage", "nav-icon") }}<span>Animation</span></a>
     </div>
     {% endif %}
     {% endfor %}

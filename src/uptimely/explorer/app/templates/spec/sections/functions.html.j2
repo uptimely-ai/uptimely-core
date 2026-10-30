@@ -220,7 +220,7 @@
             <div class="flex flex-wrap items-center gap-x-3.5 gap-y-1.5">
               {% set group_heading = "h2" %}
               <{{ group_heading }} class="font-display text-2xl font-semibold tracking-tight text-white">{{ meta.label or group_name|title }}</{{ group_heading }}>
-              <span class="rounded-full border px-3 py-1 font-mono text-xs font-semibold tracking-wide {{ group_accent }}">{{ ordered_functions|length }} function{{ "s" if ordered_functions|length != 1 }}</span>
+              <span data-function-group-count class="rounded-full border px-3 py-1 font-mono text-xs font-semibold tracking-wide {{ group_accent }}">{{ ordered_functions|length }} function{{ "s" if ordered_functions|length != 1 }}</span>
             </div>
             <p class="mt-1.5 max-w-2xl text-sm leading-6 text-slate-400">{{ meta.blurb }}</p>
           </div>
