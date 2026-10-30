@@ -9,14 +9,16 @@ options as `uptimely explorer serve`.
 
 ## `explorer serve`
 
-`serve` validates and serves the website from the active build. It does not
-load source files, compile, render, or modify build artifacts. The active-build
-read lock remains held while the server is running, so a rebuild cannot replace
-the website until the server exits.
+`serve` validates and serves the website from the active build. By default, it
+does not load source files, compile, render, or modify build artifacts. Pass
+`--build` to build and publish the project bundle first; if that build fails,
+the server does not start. This is a one-time build, not a file watcher. The
+active-build read lock remains held while the server is running, so a rebuild
+cannot replace the website until the server exits.
 
 ```console
 uptimely explore \
-  [PROJECT_ROOT] [--project-root PATH] [--host ADDRESS] [--port PORT]
+  [PROJECT_ROOT] [--project-root PATH] [--build] [--host ADDRESS] [--port PORT]
 ```
 
 Give the project directory positionally after `explore`, or use
@@ -28,6 +30,7 @@ directory is used. The grouped form is
 | --- | --- | --- | --- |
 | `PROJECT_ROOT` | No | Current working directory | Project root containing the active build. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
+| `--build` | No | Disabled | Build and publish the project bundle before serving. Uses the default full-project build options. |
 | `--host ADDRESS` | No | `127.0.0.1` | Address to bind. |
 | `--port PORT` | No | `8001` | TCP port; `0` selects an available port. |
 
@@ -35,6 +38,7 @@ Example:
 
 ```console
 uptimely explore examples/pump_analytics
+uptimely explore examples/pump_analytics --build
 ```
 
 If the build is missing or invalid, the command reports the problem and the
