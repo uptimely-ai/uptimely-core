@@ -8,8 +8,7 @@ from collections import abc
 from uptimely import execution_plan, spec
 from uptimely.spec import validation
 
-from . import graph as invocation_graph
-from . import inspection, plan_emission
+from . import validation as compiler_validation
 
 logger = logging.getLogger(__name__)
 
@@ -34,48 +33,46 @@ class Compiler:
         Raises:
             ValueError: The Spec, feature selection, or implementation contract is invalid.
         """
-        selected_features = self._validate_features(features)
+        selected_features = self._normalize_features(features)
         validation.validate_spec(spec_definition)
 
-        graph = invocation_graph.InvocationGraph(spec_definition)
-        if selected_features is not None:
-            logger.debug("Compiling feature subset: %s", sorted(selected_features))
-            graph = graph.subset(selected_features)
+        context = compiler_validation.CompilationContext(spec_definition, selected_features)
+        compiler_validation.validate_compilation(context)
 
-        execution_stages = graph.topology()
-        invocations = plan_emission.emit_invocations(spec_definition, graph)
-        entrypoints = inspection.read_entrypoints(spec_definition, graph)
-        packages = inspection.read_packages(entrypoints)
-        signatures = inspection.read_signatures(spec_definition, graph, entrypoints)
-
-        invocation_ids = {invocation.id for invocation in invocations}
+        invocation_ids = {invocation.id for invocation in context.invocations}
         stages = [
             [node.node_id for node in stage if node.node_id in invocation_ids]
-            for stage in execution_stages
+            for stage in context.execution_stages
         ]
         resources = {
-            "signatures": {node_id: signature.returns for node_id, signature in signatures.items()},
+            "signatures": {
+                node_id: signature.returns for node_id, signature in context.signatures.items()
+            },
             "entrypoint_packages": {
                 location: {
                     "distribution": package.distribution,
                     "version": package.version,
                 }
-                for location, package in packages.items()
+                for location, package in context.packages.items()
             },
         }
         compiled_plan = execution_plan.ExecutionPlan(
             plan_version=execution_plan.PLAN_VERSION,
             required_backend="polars",
             resources=resources,
-            invocations=invocations,
+            invocations=context.invocations,
             stages=stages,
         )
-        logger.debug("Compiled plan: %d invocations in %d stages", len(invocations), len(stages))
+        logger.debug(
+            "Compiled plan: %d invocations in %d stages",
+            len(context.invocations),
+            len(stages),
+        )
         return compiled_plan
 
     @staticmethod
-    def _validate_features(features: abc.Collection[str] | None) -> list[str] | None:
-        """Return requested feature identifiers in their supplied order."""
+    def _normalize_features(features: abc.Collection[str] | None) -> list[str] | None:
+        """Deduplicate requested feature identifiers while preserving their order."""
         if features is None:
             return None
         if isinstance(features, str):
