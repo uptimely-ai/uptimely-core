@@ -72,6 +72,7 @@ class InvocationGraph:
             for dataset in entity.datasets.values():
                 for action in dataset.actions.values():
                     function_kind = self.spec.functions[action.binding.function].kind
+                    function_definition = functions.FUNCTION_KINDS[function_kind]
                     feature_id = (
                         next(
                             (
@@ -98,11 +99,11 @@ class InvocationGraph:
                         row_context=action.row_context,
                     )
                     nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
-                    if function_kind == functions.WRITE:
+                    if function_definition.is_sink:
                         dataset_sinks.setdefault(dataset.id, []).append(invocation)
-                    elif functions.FUNCTION_KINDS[function_kind].role == "source":
+                    if function_definition.is_source:
                         dataset_sources.setdefault(dataset.id, []).append(invocation)
-                    elif function_kind == functions.VECTORIZE:
+                    if function_definition.is_transformer:
                         calculations.setdefault(dataset.id, []).append(invocation)
                     for feature in action.output_features:
                         if feature not in self.spec.dimensions:

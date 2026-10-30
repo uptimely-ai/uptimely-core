@@ -19,7 +19,6 @@ identifier to its contract.
       members:
         - FunctionKind
         - FunctionKindId
-        - FunctionRole
         - ReturnKind
         - FUNCTION_KINDS
         - WRITE

@@ -34,13 +34,15 @@ class InvocationExecutor:
 
     def execute(self, invocation: execution_plan.Invocation) -> None:
         """Dispatch and execute one invocation."""
-        if invocation.function_kind == functions.ESCAPE:
+        function_kind = functions.FUNCTION_KINDS.get(invocation.function_kind)
+        if function_kind is None:
+            raise ValueError(f"Unsupported invocation function kind: {invocation.function_kind}")
+        if function_kind.is_effect:
             self._execute_escape(invocation)
             return
 
         self.dataframe.validate_inputs(invocation)
-        function_kind = functions.FUNCTION_KINDS.get(invocation.function_kind)
-        return_kind = function_kind.returns if function_kind is not None else None
+        return_kind = function_kind.returns
         if return_kind == arg_types.DATAFRAME:
             self._execute_dataframe_action(invocation)
         elif return_kind == "none":
