@@ -1,4 +1,5 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
+{% from "icons.html.j2" import icon %}
 {% set total = namespace(feature_count=0) %}
 {% for entity in configuration.entities.values() %}
   {% for dataset in entity.datasets.values() %}
@@ -13,7 +14,7 @@
   {% endfor %}
 {% endfor %}
 <section id="entities" class="mb-16">
-  {{ section_header("Features", "Browse produced feature declarations by dataset.", count=total.feature_count, count_label="features") }}
+  {{ section_header("Features", "Browse feature descriptions by dataset.", count=total.feature_count, count_label="features") }}
   {% if has_catalog_context %}{% include "catalog_overview.html.j2" %}{% endif %}
   <div class="space-y-5">
     {% for entity_id, entity in configuration.entities.items() %}
@@ -42,7 +43,11 @@
                 ("Produced by", function_kind ~ " · " ~ producer.action_id),
                 ("Function", producer.action.binding.function)
               ] %}
-              <div><dt class="text-xs text-slate-500">{{ label }}</dt><dd class="mt-2 break-words font-mono text-sm text-slate-300">{{ value }}</dd></div>
+              {% set icon_key = {"Entity": "entities", "Dataset": "datasets", "Type": "features", "Unit": "dimensions", "Produced by": "functions", "Function": "functions"}[label] %}
+              <div>
+                <dt class="flex items-center gap-2 text-xs text-slate-500">{{ icon(icon_key, "h-3.5 w-3.5") }}{{ label }}</dt>
+                <dd class="mt-2 break-words font-mono text-sm text-slate-300">{{ value }}</dd>
+              </div>
               {% endfor %}
             </dl>
             {% if function_kind == "escape" %}

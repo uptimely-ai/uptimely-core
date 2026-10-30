@@ -294,8 +294,9 @@ def test_website_exports_all_reports_with_relative_navigation(
         assert "<iframe" not in document
     assert "Pump telemetry" in (index.parent / "spec/features.html").read_text(encoding="utf-8")
     features = (index.parent / "spec/features.html").read_text(encoding="utf-8")
-    assert '<dt class="text-xs text-slate-500">Entity</dt>' in features
-    assert '<dt class="text-xs text-slate-500">Dataset</dt>' in features
+    assert "Browse feature descriptions by dataset." in features
+    for icon_key in ("entities", "datasets", "features", "dimensions", "functions"):
+        assert f"icon--{icon_key} h-3.5 w-3.5" in features
     assert (
         '<article id="feature-pump_telemetry_dataset-bearing_temperature" data-context-item>'
         in features
@@ -307,9 +308,16 @@ def test_website_exports_all_reports_with_relative_navigation(
     entities = (index.parent / "spec/entities.html").read_text(encoding="utf-8")
     assert "pump_telemetry" in entities
     assert "Pump telemetry" in entities
+    assert "Explore analytical subjects" not in entities
+    assert "data-section-count" not in entities
+    assert not re.search(
+        r'<span class="font-mono text-xs text-slate-400">\d+ datasets</span>', entities
+    )
     datasets = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     assert "One row per pump and timestamp" in datasets
     assert "read · read_pump_telemetry" in datasets
+    assert "Dataset schemas at a glance." not in datasets
+    assert "data-section-count" not in datasets
     assert datasets.count("data-dataset-schema=") == 4
     assert "schema only, no sample records" in datasets
     assert datasets.count('aria-label="Dataset details"') == 4
@@ -325,6 +333,28 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "bg-[#392e19] text-[#efcf89]" in datasets
     assert "Column metadata" not in datasets
     assert "Type / unit" not in datasets
+    for article in re.findall(r'<article id="dataset-[^"]+".*?</article>', datasets, re.DOTALL):
+        assert article.index("<h2") < article.index("Dataset details")
+        assert article.index("Dataset details") < article.index("data-dataset-schema=")
+    functions = (index.parent / "spec/functions.html").read_text(encoding="utf-8")
+    assert "data-section-count" not in functions
+    assert "data-function-group-count" not in functions
+    assert 'data-lucide="workflow" class="h-3 w-3"' not in functions
+    assert "Kind demonstration" in functions
+    assert "Example" in functions
+    assert (
+        "mt-3 flex min-h-40 items-center justify-center overflow-x-auto rounded-xl "
+        "border border-slate-800 bg-slate-950/60 p-5"
+    ) in functions
+    assert (
+        "mt-3 min-h-40 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 p-5"
+    ) in functions
+    stages = (index.parent / "plan/stages.html").read_text(encoding="utf-8")
+    assert "5 stages" not in stages
+    assert (
+        "Inspect dependency-ordered invocations, parallel stages, and their argument bindings."
+        not in stages
+    )
     for entity in spec_definition.entities.values():
         for dataset in entity.datasets.values():
             table = re.search(
@@ -368,6 +398,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "bg-violet-950" not in datasets
     assert "bg-amber-950" not in datasets
     assert 'class="dataset-table-scroll overflow-x-auto' in datasets
+
     base_styles = (index.parent / "css/base.css").read_text(encoding="utf-8")
     assert (
         "* { scrollbar-color: #475569 var(--color-surface); scrollbar-width: thin; }" in base_styles
