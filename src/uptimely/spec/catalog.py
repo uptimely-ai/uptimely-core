@@ -10,7 +10,7 @@ from . import model as spec_model
 
 def function_template(
     function_id: str,
-    kind: functions.FunctionKind,
+    kind: functions.FunctionKindId,
     entrypoint: str,
     args: dict[str, spec_model.Argument],
     *,
@@ -21,7 +21,7 @@ def function_template(
     return spec_model.FunctionTemplate(
         id=function_id,
         kind=kind,
-        returns=functions.KIND_RETURN_KINDS[kind],
+        returns=functions.FUNCTION_KINDS[kind].returns,
         entrypoint=entrypoint,
         validate_signature=validate_signature,
         args=args,

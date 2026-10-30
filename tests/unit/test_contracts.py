@@ -1,3 +1,4 @@
+import dataclasses
 import typing
 
 import pydantic
@@ -10,7 +11,7 @@ from uptimely.spec.validation.rules import functions as validation_functions
 
 
 def test_named_function_kinds_match_the_public_contract() -> None:
-    assert functions.FUNCTION_KINDS == (
+    expected_ids = (
         functions.WRITE,
         functions.READ,
         functions.ESCAPE,
@@ -19,9 +20,36 @@ def test_named_function_kinds_match_the_public_contract() -> None:
         functions.COLLAPSE,
         functions.VECTORIZE,
     )
-    assert typing.get_args(functions.FunctionKind) == functions.FUNCTION_KINDS
-    assert set(functions.KIND_DATAFRAME_INPUT_COUNTS) == set(functions.FUNCTION_KINDS)
-    assert set(functions.KIND_RETURN_KINDS) == set(functions.FUNCTION_KINDS)
+    assert tuple(functions.FUNCTION_KINDS) == expected_ids
+    assert typing.get_args(functions.FunctionKindId) == expected_ids
+    assert "unknown" not in functions.FUNCTION_KINDS
+    assert all(kind.id == identifier for identifier, kind in functions.FUNCTION_KINDS.items())
+
+
+def test_function_kind_definitions_and_registry_are_immutable() -> None:
+    definition = functions.FUNCTION_KINDS[functions.READ]
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        definition.id = functions.WRITE
+    with pytest.raises(TypeError):
+        functions.FUNCTION_KINDS[functions.WRITE] = definition
+
+
+def test_function_kind_ids_remain_the_serialized_values() -> None:
+    for kind in functions.FUNCTION_KINDS:
+        model = spec_model.Spec.model_validate(
+            {
+                "functions": {
+                    kind: {
+                        "kind": kind,
+                        "returns": functions.FUNCTION_KINDS[kind].returns,
+                        "entrypoint": f"example:{kind}",
+                    }
+                }
+            }
+        )
+
+        assert model.model_dump(mode="json")["functions"][kind]["kind"] == kind
 
 
 @pytest.mark.parametrize(
@@ -37,12 +65,13 @@ def test_named_function_kinds_match_the_public_contract() -> None:
     ],
 )
 def test_function_kind_contracts_validate_every_kind(
-    kind: functions.FunctionKind,
+    kind: functions.FunctionKindId,
     dataframe_input_count: int | None,
-    return_kind: functions.FunctionReturns,
+    return_kind: functions.ReturnKind,
 ) -> None:
-    assert functions.KIND_DATAFRAME_INPUT_COUNTS[kind] == dataframe_input_count
-    assert functions.KIND_RETURN_KINDS[kind] == return_kind
+    definition = functions.FUNCTION_KINDS[kind]
+    assert definition.dataframe_inputs == dataframe_input_count
+    assert definition.returns == return_kind
 
     model = spec_model.Spec.model_validate(
         {
@@ -187,15 +216,21 @@ def test_fixed_function_kind_contracts_remain_enforced(
 
 
 def test_function_model_uses_the_shared_kind_contract() -> None:
-    assert spec_model.FunctionTemplate.model_fields["kind"].annotation is functions.FunctionKind
-    assert (
-        spec_model.FunctionTemplate.model_fields["returns"].annotation is functions.FunctionReturns
+    assert spec_model.FunctionTemplate.model_fields["kind"].annotation is functions.FunctionKindId
+    assert spec_model.FunctionTemplate.model_fields["returns"].annotation is functions.ReturnKind
+
+
+def test_function_roles_retain_the_current_execution_groups() -> None:
+    assert all(
+        definition.produces_features == (kind != functions.WRITE)
+        for kind, definition in functions.FUNCTION_KINDS.items()
     )
-
-
-def test_fragment_kinds_exclude_calculations_and_sinks() -> None:
-    assert set(functions.FRAGMENT_KINDS) == {"read", "conform", "expand", "collapse"}
-    assert set(functions.FRAGMENT_KINDS) < set(functions.FUNCTION_KINDS)
+    assert {
+        kind for kind, definition in functions.FUNCTION_KINDS.items() if definition.role == "source"
+    } == {"read", "conform", "expand", "collapse"}
+    assert functions.FUNCTION_KINDS["vectorize"].role == "transform"
+    assert functions.FUNCTION_KINDS["write"].role == "sink"
+    assert functions.FUNCTION_KINDS["escape"].role == "effect"
 
 
 @pytest.mark.parametrize("kind", ["python_one_liner", "sql_select", "unknown", ""])

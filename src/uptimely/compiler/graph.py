@@ -100,7 +100,7 @@ class InvocationGraph:
                     nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
                     if function_kind == functions.WRITE:
                         dataset_sinks.setdefault(dataset.id, []).append(invocation)
-                    elif function_kind in functions.FRAGMENT_KINDS:
+                    elif functions.FUNCTION_KINDS[function_kind].role == "source":
                         dataset_sources.setdefault(dataset.id, []).append(invocation)
                     elif function_kind == functions.VECTORIZE:
                         calculations.setdefault(dataset.id, []).append(invocation)

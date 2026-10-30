@@ -16,7 +16,7 @@ class Invocation:
     """One executable function invocation in a portable plan."""
 
     id: str
-    function_kind: str
+    function_kind: functions.FunctionKindId
     entrypoint: str
     function_id: str
     mapping_id: str

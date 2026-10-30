@@ -40,7 +40,7 @@ class DataLineageStep:
     number: int
     invocation_id: str
     function: str
-    function_kind: str
+    function_kind: functions.FunctionKindId
     entity: str
     dataset: str | None
     grain: str

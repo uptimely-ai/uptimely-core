@@ -8,8 +8,9 @@ same definitions.
 
 ## Function kinds
 
-`uptimely.spec.functions` defines supported function kinds, return kinds, and
-kind-level dataframe input rules.
+`uptimely.spec.functions` defines immutable function-kind contracts and their
+string identifiers. `FUNCTION_KINDS` is a read-only mapping from each supported
+identifier to its contract.
 
 ::: uptimely.spec.functions
     options:
@@ -17,11 +18,17 @@ kind-level dataframe input rules.
       show_root_heading: false
       members:
         - FunctionKind
-        - FunctionReturns
+        - FunctionKindId
+        - FunctionRole
+        - ReturnKind
         - FUNCTION_KINDS
-        - FRAGMENT_KINDS
-        - KIND_DATAFRAME_INPUT_COUNTS
-        - KIND_RETURN_KINDS
+        - WRITE
+        - READ
+        - ESCAPE
+        - CONFORM
+        - EXPAND
+        - COLLAPSE
+        - VECTORIZE
 
 ## Argument types
 

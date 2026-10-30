@@ -21,7 +21,7 @@ def decorated(value: str) -> str:
 
 @pytest.mark.parametrize("kind", function_kinds.FUNCTION_KINDS)
 def test_decorator_preserves_callable_identity_and_behavior(
-    kind: function_kinds.FunctionKind,
+    kind: function_kinds.FunctionKindId,
 ) -> None:
     def original(value: str) -> str:
         return value
@@ -86,7 +86,7 @@ def test_redecoration_rejects_conflicting_semantics() -> None:
 
 def test_decorator_rejects_unknown_kind() -> None:
     with pytest.raises(ValueError, match="Unsupported function kind: unknown"):
-        functions.function(kind=typing.cast(function_kinds.FunctionKind, "unknown"))
+        functions.function(kind=typing.cast(function_kinds.FunctionKindId, "unknown"))
 
 
 @pytest.mark.parametrize("use_reference", [False, True])

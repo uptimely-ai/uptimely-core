@@ -20,6 +20,12 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Function kind identifiers are now typed as `FunctionKindId`,
+  while `FunctionKind` is an immutable definition object. `FUNCTION_KINDS` is
+  now a read-only identifier-to-definition mapping; the parallel
+  `FunctionReturns`, `FRAGMENT_KINDS`, `KIND_DATAFRAME_INPUT_COUNTS`, and
+  `KIND_RETURN_KINDS` APIs have been removed. Serialized kind identifiers and
+  their runtime behavior are unchanged.
 - **Breaking:** Semantic validation rules now accept the spec document directly
   and raise on failure, replacing prepared-context and diagnostic-generator
   interfaces. Rules run according to explicit dependencies rather than legacy

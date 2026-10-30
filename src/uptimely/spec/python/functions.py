@@ -16,7 +16,7 @@ _Result = typing.TypeVar("_Result")
 
 def function(
     *,
-    kind: function_kinds.FunctionKind,
+    kind: function_kinds.FunctionKindId,
 ) -> abc.Callable[
     [abc.Callable[_Parameters, _Result]],
     abc.Callable[_Parameters, _Result],
@@ -47,11 +47,13 @@ def function(
     return decorate
 
 
-def declared_kind(implementation: abc.Callable[..., object]) -> function_kinds.FunctionKind | None:
+def declared_kind(
+    implementation: abc.Callable[..., object],
+) -> function_kinds.FunctionKindId | None:
     """Read declared semantics without inferring them from a signature."""
     value = getattr(implementation, _KIND_ATTRIBUTE, None)
     if value is None:
         return None
     if value not in function_kinds.FUNCTION_KINDS:
         raise ValueError(f"Unsupported function kind: {value}")
-    return typing.cast(function_kinds.FunctionKind, value)
+    return typing.cast(function_kinds.FunctionKindId, value)

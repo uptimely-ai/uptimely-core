@@ -25,7 +25,7 @@ def validate_return_kind(spec: spec_model.Spec) -> None:
     """Require the return kind defined by the function's kind."""
     for function_id, function, dataframe_inputs in iter_functions(spec):
         kind = function.kind
-        expected = functions.KIND_RETURN_KINDS[kind]
+        expected = functions.FUNCTION_KINDS[kind].returns
         if function.returns != expected:
             raise errors.SpecError(
                 f"Kind {kind} must declare returns={expected}."
@@ -39,7 +39,7 @@ def validate_dataframe_count(spec: spec_model.Spec) -> None:
     """Require the dataframe argument count defined by the function kind."""
     for function_id, function, dataframe_inputs in iter_functions(spec):
         kind = function.kind
-        expected = functions.KIND_DATAFRAME_INPUT_COUNTS[kind]
+        expected = functions.FUNCTION_KINDS[kind].dataframe_inputs
         if expected is not None and dataframe_inputs != expected:
             raise errors.SpecError(
                 f"Kind {kind} requires {expected} dataframe argument(s), got {dataframe_inputs}."

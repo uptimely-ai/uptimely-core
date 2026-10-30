@@ -33,7 +33,7 @@ from uptimely.spec.validation.rules.actions import outputs as action_outputs
 type Mutation = collections.abc.Callable[[model.Spec], object]
 
 
-def make_spec(kind: functions.FunctionKind = "vectorize") -> model.Spec:
+def make_spec(kind: functions.FunctionKindId = "vectorize") -> model.Spec:
     """Build a valid document without invoking semantic validation."""
     source_dimensions = ["machine"] if kind == "expand" else ["machine", "time"]
     target_dimensions = ["machine"] if kind == "collapse" else ["machine", "time"]
@@ -59,7 +59,7 @@ def make_spec(kind: functions.FunctionKind = "vectorize") -> model.Spec:
             },
             "compute": {
                 "kind": kind,
-                "returns": functions.KIND_RETURN_KINDS[kind],
+                "returns": functions.FUNCTION_KINDS[kind].returns,
                 "entrypoint": "not_imported:compute",
                 "args": args,
             },
@@ -132,7 +132,7 @@ def test_atomic_rules_accept_spec_and_do_not_mutate(
 
 
 @pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
-def test_full_validation_preserves_valid_function_kinds(kind: functions.FunctionKind) -> None:
+def test_full_validation_preserves_valid_function_kinds(kind: functions.FunctionKindId) -> None:
     spec = make_spec(kind)
     before = spec.model_dump()
     assert validation.validate_spec(spec) is None
@@ -140,7 +140,7 @@ def test_full_validation_preserves_valid_function_kinds(kind: functions.Function
 
 
 @pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
-def test_source_discovery_visits_every_action_kind(kind: functions.FunctionKind) -> None:
+def test_source_discovery_visits_every_action_kind(kind: functions.FunctionKindId) -> None:
     spec = make_spec(kind)
     before = spec.model_dump()
     sources = tuple(action_inputs.iter_input_sources(spec))
@@ -164,7 +164,7 @@ def test_source_discovery_visits_every_action_kind(kind: functions.FunctionKind)
     [[], ["machine"], ["missing"], ["s", "x"], ["s", "missing"]],
 )
 def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
-    kind: functions.FunctionKind, inputs: list[str]
+    kind: functions.FunctionKindId, inputs: list[str]
 ) -> None:
     spec = make_spec(kind)
     compute(spec).features.inputs = [f"$features.{feature}" for feature in inputs]
@@ -183,7 +183,7 @@ def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
 
 @pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
 def test_source_discovery_does_not_choose_an_ambiguous_owner(
-    kind: functions.FunctionKind,
+    kind: functions.FunctionKindId,
 ) -> None:
     spec = make_spec(kind)
     source_entity = spec.entities["source_entity"]
@@ -616,7 +616,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
 )
 def test_atomic_rules_reject_their_own_invariant(
     validate: validation.Validator,
-    kind: functions.FunctionKind,
+    kind: functions.FunctionKindId,
     mutate: Mutation,
     message: str,
 ) -> None:

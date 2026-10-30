@@ -203,7 +203,7 @@ def _build_context(
         kind = function.get("kind")
         if isinstance(kind, str):
             function_groups.setdefault(kind, {})[function_id] = function
-            function["declared_returns"] = function_kinds.KIND_RETURN_KINDS[kind]
+            function["declared_returns"] = function_kinds.FUNCTION_KINDS[kind].returns
             function["escape_actions"] = []
             function["action_usage_count"] = 0
     for entity_id, dataset, action in references.iter_actions(spec_definition):
@@ -279,7 +279,8 @@ def _build_context(
         for action in dataset.get("actions", {}).values()
         if any(
             action.get("binding", {}).get("function") in function_groups.get(kind, {})
-            for kind in function_kinds.FRAGMENT_KINDS
+            for kind, definition in function_kinds.FUNCTION_KINDS.items()
+            if definition.role == "source"
         )
     )
     summary = ExplorerSummary(

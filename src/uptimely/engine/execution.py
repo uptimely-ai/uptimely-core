@@ -39,7 +39,8 @@ class InvocationExecutor:
             return
 
         self.dataframe.validate_inputs(invocation)
-        return_kind = functions.KIND_RETURN_KINDS.get(invocation.function_kind)
+        function_kind = functions.FUNCTION_KINDS.get(invocation.function_kind)
+        return_kind = function_kind.returns if function_kind is not None else None
         if return_kind == arg_types.DATAFRAME:
             self._execute_dataframe_action(invocation)
         elif return_kind == "none":

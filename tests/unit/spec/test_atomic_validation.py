@@ -1,7 +1,9 @@
 """Direct raising-rule contracts against a complete example spec."""
 
+import dataclasses
 import json
 import pathlib
+import types
 
 import pytest
 from support import examples as example_support
@@ -62,11 +64,13 @@ def test_function_rules_raise_independently(document: spec.Spec) -> None:
 
 @pytest.mark.parametrize("kind", ["conform", "collapse", "expand"])
 def test_mapping_rules_use_shared_operation_dataframe_counts(
-    document: spec.Spec, monkeypatch: pytest.MonkeyPatch, kind: function_kinds.FunctionKind
+    document: spec.Spec, monkeypatch: pytest.MonkeyPatch, kind: function_kinds.FunctionKindId
 ) -> None:
     function = next(f for f in document.functions.root.values() if f.kind == "collapse")
     function.kind = kind
-    monkeypatch.setitem(function_kinds.KIND_DATAFRAME_INPUT_COUNTS, kind, 2)
+    definitions = dict(function_kinds.FUNCTION_KINDS)
+    definitions[kind] = dataclasses.replace(definitions[kind], dataframe_inputs=2)
+    monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match=r"exactly 2 foreign dataset\(s\)") as error:
         action_contracts.validate_dataset_count(document)

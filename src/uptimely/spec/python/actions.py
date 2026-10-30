@@ -62,7 +62,7 @@ class Action:
         )
 
     @property
-    def kind(self) -> functions.FunctionKind:
+    def kind(self) -> functions.FunctionKindId:
         """Return the kind declared on the function or its reference."""
         if isinstance(self.function, ref.FunctionReference):
             value = self.function.kind
@@ -75,7 +75,7 @@ class Action:
                 "Function kind is required: use @function(kind=...) or "
                 "ref.function(..., kind=...) for an undecorated implementation"
             )
-        return typing.cast(functions.FunctionKind, value)
+        return typing.cast(functions.FunctionKindId, value)
 
     @property
     def reference(self) -> ref.FunctionReference:

@@ -111,7 +111,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 {
                     "id": function_id,
                     "kind": function.kind,
-                    "returns": functions.KIND_RETURN_KINDS[function.kind],
+                    "returns": functions.FUNCTION_KINDS[function.kind].returns,
                 }
                 for function_id, function in sorted(catalog.root.items())
             ]
@@ -140,7 +140,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             {
                 "id": function_id,
                 "kind": template.kind,
-                "declared_returns": functions.KIND_RETURN_KINDS[template.kind],
+                "declared_returns": functions.FUNCTION_KINDS[template.kind].returns,
                 "escape_actions": [
                     {
                         "entity": entity_id,

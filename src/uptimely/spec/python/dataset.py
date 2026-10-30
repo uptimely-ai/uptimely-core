@@ -24,7 +24,7 @@ __all__ = [
     "RowScope",
 ]
 
-_ACTION_KINDS: typing.Final[dict[str, tuple[functions.FunctionKind, ...]]] = {
+_ACTION_KINDS: typing.Final[dict[str, tuple[functions.FunctionKindId, ...]]] = {
     "producers": (
         functions.READ,
         functions.COLLAPSE,

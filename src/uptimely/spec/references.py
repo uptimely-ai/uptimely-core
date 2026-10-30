@@ -32,7 +32,7 @@ def iter_action_items(
 
 def action_kind(
     action: spec_model.Action, catalog: spec_model.FunctionCatalog
-) -> functions.FunctionKind:
+) -> functions.FunctionKindId:
     """Return the declared kind of a action's function."""
     function = catalog.get(action.binding.function)
     if function is None:
