@@ -40,6 +40,11 @@ While the version is `0.x`, minor releases may include breaking changes.
   phase ordering, so documents with multiple faults may report a different
   first error. Public loading helpers still validate automatically.
 
+### Fixed
+
+- Restored documentation builds by updating engine API module references and
+  corrected broken links on the documentation homepage.
+
 ## [0.8.0] - 2026-10-28
 
 ### Added

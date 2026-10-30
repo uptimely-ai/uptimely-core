@@ -29,7 +29,7 @@ configured separately.
 
 ## result
 
-`uptimely.engine.result` describes execution outputs.
+`uptimely.engine.runtime.result` describes execution outputs.
 
 `ExecutionResult.datasets` maps each project-wide unique dataset ID to its final
 dataframe, for example `result.datasets["telemetry"]`.
@@ -41,7 +41,7 @@ either key; entity metadata is available in the bundled Spec and plan invocation
 failed, or was skipped. `result.durations` and `result.failures` give the
 duration and any error for each step.
 
-::: uptimely.engine.result
+::: uptimely.engine.runtime.result
     options:
       heading_level: 3
       show_root_heading: false
@@ -49,14 +49,14 @@ duration and any error for each step.
 
 ## backend
 
-`uptimely.engine.backend` defines adapter protocols and their built-in
+`uptimely.engine.dataframe.backend` defines adapter protocols and their built-in
 implementations.
 
 ### Adapter protocols
 
 Implement this interface to customize dataframe operations.
 
-::: uptimely.engine.backend
+::: uptimely.engine.dataframe.backend
     options:
       heading_level: 4
       show_root_heading: false
@@ -75,7 +75,7 @@ Polars join validation remain enabled; explicit `collect()` calls are allowed.
 See [runtime validation](../components/engine.md#runtime-validation) for the
 checks skipped in this mode and its limitations.
 
-::: uptimely.engine.backend
+::: uptimely.engine.dataframe.backend
     options:
       heading_level: 4
       show_root_heading: false
