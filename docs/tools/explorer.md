@@ -41,8 +41,9 @@ explore:
 | **Execution / Data lineage** | A visual walkthrough of how data is assembled after each action. |
 
 On desktop, the sidebar reaches the top of the page and sizes to its contents.
-Its header shows the project name, a home link to the project overview, and a
-**Full build** or **Partial build** badge spanning the sidebar's content width.
+Its header shows the project name and a home link to the project overview. A
+**Full build** or **Partial build** badge spans the content width at the bottom,
+below the independently scrolling navigation links.
 Full-build coverage uses muted styling. Use the toggle beside the project title
 to collapse the sidebar to icons; the same button restores the labels.
 On mobile, only the top bar is shown
@@ -56,7 +57,14 @@ Feature lineage visualizes feature inputs and outputs. Invocation lineage
 visualizes dependencies between compiled invocations. Both use the same
 **2D / 3D** switch next to the graph title,
 **Zoom in**, **Zoom out**, **Reset graph**, collapsible legend, and selected-node
-details panel. Click a node to highlight its upstream dependencies and downstream
+details panel. On these two pages, the legend and selected-item details live in a
+full-height context panel immediately to the right of the desktop navigation,
+leaving the graph unobstructed. The panel header aligns with the main navigation
+header and contains the view's icon and title, with the dimension,
+zoom, and reset controls below. Its own collapse toggle reduces it to an icon
+rail independently of the main navigation. On mobile, **Lineage controls** opens a drawer
+over the graph; use **Close** or **Escape** to dismiss it.
+Click a node to highlight its upstream dependencies and downstream
 dependents; the selection is preserved when switching dimensions. The
 2D feature-lineage view groups features and actions into horizontal dataset lanes.
 Dependencies flow left to right across the whole graph, including between datasets;

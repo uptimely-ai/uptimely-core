@@ -634,7 +634,7 @@ def test_execution_plan_pages_render_only_their_section(
         script = (tmp_path / "js/invocation_lineage.js").read_text(encoding="utf-8")
         lineage_components = (tmp_path / "js/lineage_components.js").read_text(encoding="utf-8")
         lineage_layout = (tmp_path / "js/lineage_layout.js").read_text(encoding="utf-8")
-        assert 'class="absolute inset-0"' in document
+        assert '<section id="invocation-lineage-graph">' in document
         assert document.count("<header") == 1
         assert '<header class="site-topbar"' in document
         assert ">Invocation graph</h2>" not in document
@@ -644,7 +644,7 @@ def test_execution_plan_pages_render_only_their_section(
         )
         assert ".linkDirectionalArrowLength(style.arrow_length)" in script
         assert ".linkDirectionalArrowRelPos(style.arrow_rel_pos)" in script
-        assert 'class="details details-2d"' in document
+        assert 'class="details"' in document
         if is_graph:
             assert "ExplorerLineage.createDatasetLineage2D(" in script
             assert '"label": "read_pump_telemetry"' in document
@@ -711,19 +711,15 @@ def test_graph_pages_have_one_selector_and_shared_data(
     assert document.count('aria-label="Lineage view"') == 1
     assert document.count('aria-label="Lineage zoom"') == 1
     assert re.search(
-        r'<div class="lineage-heading">\s*<h1\b.*?</h1>\s*'
-        r'<p class="lineage-description">.*?</p>\s*</div>\s*'
+        r'<div class="lineage-heading site-nav-heading">\s*<h1\b.*?</h1>\s*'
+        r'<button class="nav-label-toggle context-label-toggle".*?</button>\s*</div>\s*'
+        r"</div>\s*"
         r'<div class="lineage-control-groups">\s*'
         r'<div class="lineage-buttons" role="group" aria-label="Lineage view">',
         document,
         re.DOTALL,
     )
-    expected_description = (
-        "Feature and action dependencies by dataset"
-        if filename.startswith("spec/")
-        else "Function invocation by compiled execution stage"
-    )
-    assert f'<p class="lineage-description">{expected_description}</p>' in document
+    assert 'class="lineage-description"' not in document
     assert 'role="group" aria-label="Lineage zoom"' in document
     assert 'role="group" aria-label="Lineage reset"' in document
     assert 'aria-label="Zoom in"' in document

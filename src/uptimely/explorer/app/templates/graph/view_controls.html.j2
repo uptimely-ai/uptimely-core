@@ -1,8 +1,12 @@
-	<div class="lineage-toolbar">
-		<div class="lineage-heading">
-			<h1 class="title-with-icon">{{ icon("invocation-lineage" if active_page == "plan" else "feature-lineage", "title-icon") }}<span>{{ "Invocation lineage" if active_page == "plan" else "Feature lineage" }}</span></h1>
-			<p class="lineage-description">{{ "Function invocation by compiled execution stage" if active_page == "plan" else "Feature and action dependencies by dataset" }}</p>
+	<div class="context-header">
+		<div class="lineage-heading site-nav-heading">
+			<h1 class="title-with-icon" title="{{ 'Invocation lineage' if active_page == 'plan' else 'Feature lineage' }}">{{ icon("invocation-lineage" if active_page == "plan" else "feature-lineage", "nav-icon") }}<span>{{ "Invocation lineage" if active_page == "plan" else "Feature lineage" }}</span></h1>
+			<button class="nav-label-toggle context-label-toggle" type="button" aria-label="Collapse lineage context"
+				aria-pressed="false" aria-controls="lineage-context" title="Collapse lineage context">
+				{{ icon("collapse-navigation", "nav-icon") }}{{ icon("expand-navigation", "nav-icon") }}
+			</button>
 		</div>
+	</div>
 		<div class="lineage-control-groups">
 			<div class="lineage-buttons" role="group" aria-label="Lineage view">
 				<button class="ui-button" type="button" data-dimension="2d" aria-pressed="true" aria-controls="lineage-2d">2D</button>
@@ -16,6 +20,3 @@
 				<button class="ui-button" id="reset-lineage" type="button">Reset lineage</button>
 			</div>
 		</div>
-	</div>
-	<p id="lineage-error" role="alert" hidden></p>
-	<noscript><p class="lineage-error">JavaScript is required to display interactive lineage.</p></noscript>

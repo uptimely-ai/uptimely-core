@@ -112,4 +112,4 @@ function createLineage2D(lineageContainer, graphData, updateSelection) {
 
 mountLineageViews(
 	invocationGraphData, createLineage2D, createLineage3D,
-	updateInvocationDetails, invocationNodeDetails);
+	updateInvocationDetails);

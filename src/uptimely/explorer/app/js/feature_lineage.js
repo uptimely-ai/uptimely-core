@@ -121,4 +121,4 @@ function createLineage3D(lineageContainer, graphData, updateSelection) {
 	});
 }
 
-mountLineageViews(graphData, createLineage2D, createLineage3D, updateDetails, nodeDetails);
+mountLineageViews(graphData, createLineage2D, createLineage3D, updateDetails);

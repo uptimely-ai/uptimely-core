@@ -29,8 +29,8 @@
           {{ icon("collapse-navigation", "nav-icon") }}{{ icon("expand-navigation", "nav-icon") }}
         </button>
       </div>
-      {{ build_badge(is_scoped, execution_scope) }}
     </div>
+    <div class="site-nav-pages">
     {% for page, label, icon_key in [("spec", "Spec", "spec"), ("plan", "Plan", "plan"), ("execution", "Execution", "execution")] %}
     <a aria-label="{{ label }}" title="{{ label }}" href="{{ rel_root }}{{ website_pages[page]['data_lineage' if page == 'execution' else 'overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
     {% if page == "spec" %}
@@ -63,8 +63,11 @@
     </div>
     {% endif %}
     {% endfor %}
+    </div>
+    {{ build_badge(is_scoped, execution_scope) }}
   </nav>
   {% endif %}
+  {% block page_context %}{% endblock %}
   <div class="site-content">
     {% block content %}{% endblock %}
   </div>
