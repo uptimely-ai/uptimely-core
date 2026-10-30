@@ -147,6 +147,13 @@ function drawDatasetLanes(layout, ctx, globalScale) {
 		ctx.moveTo(left, top);
 		ctx.lineTo(left + width, top);
 		ctx.stroke();
+		ctx.font = DATASET_LAYOUT.labelFont;
+		ctx.fillStyle = DATASET_LAYOUT.labelColor;
+		ctx.textAlign = 'left';
+		ctx.textBaseline = 'middle';
+		ctx.fillText(lane.id, left + DATASET_LAYOUT.lanePadding,
+			top + DATASET_LAYOUT.laneHeaderHeight / 2,
+			width - 2 * DATASET_LAYOUT.lanePadding);
 	});
 	ctx.restore();
 }
