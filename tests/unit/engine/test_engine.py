@@ -17,7 +17,7 @@ from uptimely.engine import execution as execution_module
 from uptimely.engine import state as state_module
 from uptimely.execution_plan import serialization as plan_serialization
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions, dataset, dimension, feature, ref
+from uptimely.spec.python import actions, dataset, dimension, ref
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
 
@@ -337,7 +337,7 @@ def test_escape_ignores_any_return_without_materializing_features(
         mapping_id="action",
         entity_id="asset",
         dataset_id="external",
-        output_features=["external_result"],
+        output_features=[],
         input_features=["external_input"],
     )
     plan = uptimely_plan.ExecutionPlan(
@@ -367,7 +367,7 @@ def test_escape_ignores_any_return_without_materializing_features(
     assert result.calculated_outputs == {}
 
 
-def test_escape_chain_runs_without_materializing_declared_feature_inputs(
+def test_escape_feature_outputs_order_invocations_without_materializing_dataframes(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     first_id = "invocation:escape:first:asset:external:first"
@@ -401,7 +401,7 @@ def test_escape_chain_runs_without_materializing_declared_feature_inputs(
         mapping_id="second",
         entity_id="asset",
         dataset_id="external",
-        output_features=["second_output"],
+        output_features=[],
         input_features=["first_output"],
         dependency_ids=[first_id],
     )
@@ -441,7 +441,7 @@ def test_escape_resolves_literal_and_runtime_arguments(
         mapping_id="action",
         entity_id="asset",
         dataset_id="external",
-        output_features=["external_result"],
+        output_features=[],
         input_features=["external_input"],
         arguments={"path": "$params.output", "mode": "replace"},
     )
@@ -477,7 +477,7 @@ def test_escape_resolves_literal_and_runtime_arguments(
     assert result.failures == {}
 
 
-def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
+def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     first_id = "invocation:escape:first:asset:external:first"
@@ -490,7 +490,7 @@ def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
         mapping_id="first",
         entity_id="asset",
         dataset_id="external",
-        output_features=["external_result"],
+        output_features=[],
         input_features=["external_input"],
         arguments={"frame": "missing"},
     )
@@ -500,7 +500,7 @@ def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
         entrypoint="test:second",
         function_id="second",
         mapping_id="second",
-        output_features=["downstream_result"],
+        output_features=[],
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
@@ -528,19 +528,23 @@ def test_escape_unavailable_dataframe_binding_fails_and_skips_downstream(
     assert "Dataset dataframe is unavailable: missing" in result.failures[first_id]
 
 
-def test_escape_resolves_dataframe_arguments_from_preceding_read(
+def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     read_id = "invocation:read:load:asset:telemetry:load"
     escape_id = "invocation:escape:external_action:asset:telemetry:action"
+    vectorize_id = "invocation:vectorize:consume:asset:telemetry:consume"
     observed: list[pl.DataFrame] = []
 
     def read() -> pl.DataFrame:
         return pl.DataFrame({"asset_id": ["A"], "reading": [3]})
 
-    def external_action(dataset: pl.DataFrame) -> object:
+    def external_action(dataset: pl.DataFrame) -> pl.DataFrame:
         observed.append(dataset)
-        return object()
+        return pl.DataFrame({"external_result": [4]})
+
+    def consume() -> pl.DataFrame:
+        pytest.fail("The dataframe action must not run without its declared input feature")
 
     read_invocation = uptimely_plan.Invocation(
         id=read_id,
@@ -565,6 +569,18 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
         arguments={"dataset": "telemetry"},
         dependency_ids=[read_id],
     )
+    vectorize_invocation = uptimely_plan.Invocation(
+        id=vectorize_id,
+        function_kind="vectorize",
+        entrypoint="test:consume",
+        function_id="consume",
+        mapping_id="consume",
+        entity_id="asset",
+        dataset_id="telemetry",
+        output_features=["processed"],
+        input_features=["external_result"],
+        dependency_ids=[escape_id],
+    )
     plan = uptimely_plan.ExecutionPlan(
         plan_version=3,
         required_backend="polars",
@@ -577,17 +593,28 @@ def test_escape_resolves_dataframe_arguments_from_preceding_read(
                     "returns": "any",
                     "args": {"dataset": {"type": "dataframe"}},
                 },
+                "consume": {"kind": "vectorize", "returns": "dataframe", "args": {}},
             },
         },
-        invocations=[read_invocation, escape_invocation],
-        stages=[[read_id], [escape_id]],
+        invocations=[read_invocation, escape_invocation, vectorize_invocation],
+        stages=[[read_id], [escape_id], [vectorize_id]],
     )
 
-    _patch_callables(monkeypatch, {"test:read": read, "test:escape": external_action})
+    _patch_callables(
+        monkeypatch,
+        {"test:read": read, "test:escape": external_action, "test:consume": consume},
+    )
     result = engine_for_plan(plan).run()
 
-    assert result.failures == {}
-    assert result.invocation_statuses == {read_id: "succeeded", escape_id: "succeeded"}
+    assert result.invocation_statuses == {
+        read_id: "succeeded",
+        escape_id: "succeeded",
+        vectorize_id: "failed",
+    }
+    assert (
+        "input feature is unavailable or ambiguous: external_result"
+        in result.failures[vectorize_id]
+    )
     assert observed == [result.datasets["telemetry"]]
     assert "external_result" not in result.datasets["telemetry"].columns
     assert result.calculated_outputs == {}
@@ -606,7 +633,7 @@ def test_escape_exception_fails_and_skips_downstream(
         mapping_id="first",
         entity_id="asset",
         dataset_id="external",
-        output_features=["external_result"],
+        output_features=[],
         input_features=["external_input"],
     )
     second_invocation = dataclasses.replace(
@@ -615,7 +642,7 @@ def test_escape_exception_fails_and_skips_downstream(
         entrypoint="test:second",
         function_id="second",
         mapping_id="second",
-        output_features=["downstream_result"],
+        output_features=[],
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
@@ -674,7 +701,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
                 inputs=[ref.feature("asset_id")],
                 function=ref.function(f"{package_name}.external_action:process", kind="escape"),
                 arguments={},
-                outputs=[feature.Feature(name="external_result")],
+                outputs=[],
             )
         ],
     )
@@ -683,7 +710,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
         dimensions=[dimension.Dimension(id="asset_id", type="string")],
     )
 
-    compiled = uptimely_compiler.Compiler().compile(spec_definition, features=["external_result"])
+    compiled = uptimely_compiler.Compiler().compile(spec_definition)
     plan_serialization.export_json(compiled, plan_path)
     restored = uptimely_plan.from_json(plan_path)
     result = engine_for_plan(restored, project_root=tmp_path).run()

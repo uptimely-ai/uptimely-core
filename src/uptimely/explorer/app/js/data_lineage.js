@@ -90,7 +90,7 @@
     switch (frame.type) {
       case "inputs":
         status.textContent = {
-          escape: "Showing declared feature references; dataframe column availability is not verified.",
+          escape: "Showing logical feature dependencies only; no dataframe is implicitly passed and the return value is ignored.",
           read: "Reading from the declared source (illustration only).",
         }[step.dataset.functionKind]
           || "Highlighting all declared input columns. Exact input-to-output mappings are not inferred.";

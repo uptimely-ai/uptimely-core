@@ -12,7 +12,7 @@ from uptimely import execution_plan as plan_module
 from uptimely import project
 
 
-def test_pump_external_workflow_reads_calculates_and_writes_without_materializing_outputs(
+def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     pump_bundle: project.BuildBundle,
@@ -50,6 +50,10 @@ def test_pump_external_workflow_reads_calculates_and_writes_without_materializin
     assert result.failures == {}
     assert len(result.datasets) == 4
     dataset = result.datasets["pump_external_workflow_dataset"]
+    assert (
+        "ratio"
+        in spec_definition.entities["pump"].datasets["pump_external_workflow_dataset"].features
+    )
     assert "ratio" not in dataset.columns
     assert ("pump_external_workflow_dataset", "ratio") not in result.calculated_outputs
     assert pl.read_csv(output_path).select("pump", "ratio").rows() == [

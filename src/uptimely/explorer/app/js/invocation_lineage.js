@@ -33,14 +33,17 @@ function updateInvocationDetails(node) {
 		['Function', node.function_id || 'n/a'],
 		['Arguments', formatArguments(node.arguments)],
 		['Entity', node.entity || 'n/a'],
-		[node.function_kind === 'escape' ? 'Declares external outputs' : 'Produces', node.feature || 'n/a'],
+		[node.function_kind === 'escape' ? 'Declared feature outputs' : 'Produces',
+			node.feature || (node.function_kind === 'escape' ? 'None' : 'n/a')],
 	];
 	if (node.function_kind === 'escape' && node.input_features?.length) {
 		rows.push(['Declared inputs', formatList(node.input_features)]);
 	}
 	rows.push(['invocation dependencies', formatList(node.dependency_ids)]);
 	ExplorerLineage.showDetails(invocationNodeDetails, 'invocation details', rows,
-		node.function_kind === 'escape' ? 'Not verified or materialized as dataframe columns.' : '');
+		node.function_kind === 'escape'
+			? 'Declared feature inputs and outputs define logical dependencies only. Dataframes are passed only through explicitly bound arguments; escape return values are ignored.'
+			: '');
 }
 
 function drawStageColumns(layout, ctx, scale) {
@@ -80,7 +83,7 @@ function drawStageColumns(layout, ctx, scale) {
 function createLineage3D(lineageContainer, graphData, updateSelection) {
 	const highlight = ExplorerLineage.createLineageHighlight(graphData);
 	return ExplorerLineage.createLineage3D(lineageContainer, graphData, style, {
-		label: node => `${node.function_id}\n${node.function_kind === 'escape' ? 'declares external outputs' : 'produces'}: ${node.feature}`,
+		label: node => `${node.function_id}\n${node.function_kind === 'escape' ? 'declared outputs' : 'produces'}: ${node.feature || 'none'}`,
 		color: node => node.datasetColor,
 		onSelect: updateSelection,
 		highlight,

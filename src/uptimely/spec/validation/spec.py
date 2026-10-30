@@ -37,11 +37,11 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     action_outputs.validate_function_id: (action_outputs.validate_function_reference,),
     action_outputs.validate_output_names: (action_outputs.validate_function_reference,),
     action_outputs.validate_output_presence: (action_outputs.validate_function_reference,),
-    action_outputs.validate_write_outputs: (action_outputs.validate_function_reference,),
+    action_outputs.validate_nonproducing_outputs: (action_outputs.validate_function_reference,),
     action_outputs.validate_dimension_collision: (action_outputs.validate_function_reference,),
     action_outputs.validate_output_feature: (
         action_outputs.validate_function_reference,
-        action_outputs.validate_write_outputs,
+        action_outputs.validate_nonproducing_outputs,
     ),
     action_outputs.validate_unique_producer: (
         action_outputs.validate_output_feature,
@@ -53,7 +53,6 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         action_outputs.validate_output_presence,
         action_outputs.validate_collapse_output,
     ),
-    action_inputs.validate_escape_inputs: (action_outputs.validate_function_reference,),
     action_inputs.validate_input_feature: (),
     action_inputs.validate_input_scope: (
         action_inputs.validate_input_feature,

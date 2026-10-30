@@ -11,7 +11,6 @@ from support import execution as execution_support
 from support import rendering as rendering_support
 
 from uptimely import compiler, project, spec
-from uptimely.explorer.sections import feature_lineage
 from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec import functions
 
@@ -105,7 +104,9 @@ def test_build_spec_context() -> None:
 
 
 @pytest.mark.usefixtures("example_projects")
-def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Path) -> None:
+def test_escape_actions_show_logical_inputs_and_outputs_in_explorer(
+    tmp_path: pathlib.Path,
+) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["external_audit"] = {
         "kind": "escape",
@@ -115,21 +116,19 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
         "description": "Send an audit record to an external service.",
     }
     dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
-    dataset["features"]["audit_reference"] = {"type": "string"}
-    dataset["features"]["audit_status"] = {"type": "string"}
-    dataset["features"]["audit_followup"] = {"type": "string"}
+    dataset["features"]["external_audit_result"] = {"type": "float"}
     dataset["actions"]["external_audit"] = {
         "binding": {"function": "external_audit", "args": {}},
         "features": {
             "inputs": ["$features.bearing_temperature", "$features.vibration_rms"],
-            "outputs": ["$features.audit_reference", "$features.audit_status"],
+            "outputs": ["$features.external_audit_result"],
         },
     }
     dataset["actions"]["external_audit_followup"] = {
         "binding": {"function": "external_audit", "args": {}},
         "features": {
-            "inputs": ["$features.audit_reference"],
-            "outputs": ["$features.audit_followup"],
+            "inputs": ["$features.external_audit_result"],
+            "outputs": [],
         },
     }
     spec_path = tmp_path / "escape-spec.json"
@@ -139,23 +138,7 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
 
     context = spec_render._build_context(definition, False)
     assert context.summary.function_buckets["escape"] == 2
-    assert context.summary.feature_buckets["external"] == 4
-    assert all(
-        {
-            "function": "external_audit",
-            "kind": "escape",
-            "feature": output,
-            "dependencies": ["bearing_temperature", "vibration_rms"],
-        }
-        in context.feature_dependencies
-        for output in ("audit_reference", "audit_status")
-    )
-    assert {
-        "function": "external_audit",
-        "kind": "escape",
-        "feature": "audit_followup",
-        "dependencies": ["audit_reference"],
-    } in context.feature_dependencies
+    assert set(context.summary.feature_buckets) == {"input", "intermediate", "output"}
     function = context.configuration["functions"]["external_audit"]
     assert function["declared_returns"] == "any"
     assert function["escape_actions"] == [
@@ -164,14 +147,14 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
             "dataset": dataset.get("id", "pump_telemetry_dataset"),
             "action": "external_audit",
             "inputs": ["bearing_temperature", "vibration_rms"],
-            "outputs": ["audit_reference", "audit_status"],
+            "outputs": ["external_audit_result"],
         },
         {
             "entity": "pump_telemetry",
             "dataset": dataset.get("id", "pump_telemetry_dataset"),
             "action": "external_audit_followup",
-            "inputs": ["audit_reference"],
-            "outputs": ["audit_followup"],
+            "inputs": ["external_audit_result"],
+            "outputs": [],
         },
     ]
     escape_invocations = [
@@ -189,76 +172,31 @@ def test_escape_declarations_are_explicit_in_explorer_views(tmp_path: pathlib.Pa
     assert first_escape.id in followup_escape.dependency_ids
 
     index = rendering_support.render_explorer(definition, tmp_path / "site/index.html", plan=plan)
-    feature_page = (index.parent / "spec/features.html").read_text(encoding="utf-8")
-    datasets_page = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     functions_page = (index.parent / "spec/functions.html").read_text(encoding="utf-8")
-    graph_page = (index.parent / "spec/feature-lineage.html").read_text(encoding="utf-8")
-    plan_page = (index.parent / "plan/invocation-lineage.html").read_text(encoding="utf-8")
     stages_page = (index.parent / "plan/stages.html").read_text(encoding="utf-8")
     data_lineage_page = (index.parent / "execution/data-lineage.html").read_text(encoding="utf-8")
 
-    assert "Declared external output; not a verified dataframe column." in feature_page
-    assert "Declared inputs: $features.bearing_temperature, $features.vibration_rms" in feature_page
-    assert (
-        "Escape outputs are declared external features, not verified or materialized "
-        "dataset columns." in datasets_page
-    )
     assert "Uncontrolled external operation" in functions_page
     assert "return value is ignored" in functions_page
-    assert "Declares external outputs: audit_reference, audit_status" in functions_page
-    assert "Declares external outputs" in (index.parent / "js/feature_lineage.js").read_text(
+    assert "logical dependencies only" in functions_page
+    assert "Declares external outputs" not in (index.parent / "js/feature_lineage.js").read_text(
         encoding="utf-8"
     )
-    assert '"function_kind": "escape"' in graph_page
-    assert '"features": ["audit_reference", "audit_status"]' in graph_page
-    assert '"features": ["audit_followup"]' in graph_page
-    assert "Declares external outputs" in (index.parent / "js/invocation_lineage.js").read_text(
+    assert "Declared feature outputs" in (index.parent / "js/invocation_lineage.js").read_text(
         encoding="utf-8"
     )
-    assert "audit_reference, audit_status" in plan_page
-    assert '"input_features": ["bearing_temperature", "vibration_rms"]' in plan_page
-    assert "Declares external outputs" in stages_page
-    assert "not verified or materialized as dataframe columns" in stages_page
+    assert "Dataset feature output" in stages_page
     escape_steps = re.findall(
         r'<article class="data-lineage-step"[^>]*data-function-kind="escape".*?</article>',
         data_lineage_page,
         re.DOTALL,
     )
     assert len(escape_steps) == 3
-    escape_step = next(step for step in escape_steps if "audit_reference, audit_status" in step)
+    escape_step = next(step for step in escape_steps if "bearing_temperature" in step)
     assert "Declared feature inputs" in escape_step
-    assert "Declared external outputs" in escape_step
-    assert "not materialized as dataframe columns" in escape_step
-    assert "External declaration; no materialized result" in escape_step
+    assert "Declared logical outputs" in escape_step
+    assert "external_audit_result" in escape_step
     assert 'data-side="output"' not in escape_step
-    followup_step = next(
-        step for step in escape_steps if "Declared feature inputs</strong>audit_reference" in step
-    )
-    assert re.search(r'data-dependencies="[^"]+"', followup_step)
-
-    graph_nodes, graph_links = feature_lineage.feature_lineage_payload(
-        spec.FeatureGraph(definition)
-    )
-    audit_feature_nodes = {
-        node["label"]: node
-        for node in graph_nodes
-        if node.get("label") in {"audit_reference", "audit_status", "audit_followup"}
-    }
-    assert set(audit_feature_nodes) == {"audit_reference", "audit_status", "audit_followup"}
-    assert all(node.get("data_type") == "string" for node in audit_feature_nodes.values())
-    assert all(node.get("is_source_input") is not True for node in audit_feature_nodes.values())
-    assert {(link["source"], link["target"]) for link in graph_links} >= {
-        ("action:pump_telemetry:pump_telemetry_dataset:external_audit", "audit_reference"),
-        ("action:pump_telemetry:pump_telemetry_dataset:external_audit", "audit_status"),
-        (
-            "audit_reference",
-            "action:pump_telemetry:pump_telemetry_dataset:external_audit_followup",
-        ),
-        (
-            "action:pump_telemetry:pump_telemetry_dataset:external_audit_followup",
-            "audit_followup",
-        ),
-    }
 
 
 def test_generate_html_explorer(

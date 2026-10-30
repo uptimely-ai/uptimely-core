@@ -208,7 +208,7 @@ def test_website_includes_3d_lineage_html(
     assert "['Node type', 'Action']" in script
     assert "['Function', node.function_id || 'n/a']" in script
     assert "rows.push([outputLabel, formatDetailValue(features.join(', '))])" in script
-    assert "ExplorerLineage.showDetails(nodeDetails, 'Selected item', rows)" in script
+    assert "Declared feature dependencies only; outputs are not materialized" in script
     assert "document.createTextNode(value == null ? 'n/a' : String(value))" in shared_script
     assert "Action</span>" in html
     for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):

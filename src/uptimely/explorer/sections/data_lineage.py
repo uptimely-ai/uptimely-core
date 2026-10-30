@@ -30,7 +30,6 @@ class DataLineageColumn:
     role: str
     color: str
     producer: int | None
-    external: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -104,12 +103,7 @@ def _build_stages(
                     "Declared input" if invocation.function_kind == functions.ESCAPE else "Input",
                     invocation.input_features,
                 ),
-                (
-                    "Declared external output"
-                    if invocation.function_kind == functions.ESCAPE
-                    else "Output",
-                    invocation.output_features,
-                ),
+                ("Output", invocation.output_features),
             ):
                 for feature in features:
                     if feature in dimensions:
@@ -126,7 +120,6 @@ def _build_stages(
                             if feature in spec_definition.dimensions
                             else "#cbd5e1",
                             numbers[producer.id] if producer else None,
-                            producer is not None and producer.function_kind == functions.ESCAPE,
                         )
                     )
             dataset = entity.datasets.get(invocation.dataset_id)

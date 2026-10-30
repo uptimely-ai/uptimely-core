@@ -136,17 +136,6 @@ def validate_source_dimensions(spec: spec_model.Spec) -> None:
             )
 
 
-def validate_escape_inputs(spec: spec_model.Spec) -> None:
-    """Require escape actions to declare feature inputs."""
-    for item in action_rules.iter_actions(spec):
-        if item.kind == functions.ESCAPE and not item.inputs:
-            raise errors.SpecError(
-                "Escape actions must declare one or more input features",
-                code="invalid_mapping_feature_inputs",
-                path=(*item.path, "features", "inputs"),
-            )
-
-
 def validate_input_feature(spec: spec_model.Spec) -> None:
     """Require an explicit input feature to be declared."""
     feature_names = spec.dimensions.keys() | feature_rules.feature_owners(spec).keys()

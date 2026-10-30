@@ -90,13 +90,12 @@ def build_context(
 
 def _feature_data(
     configuration: dict[str, typing.Any],
-) -> tuple[list[dict], list[dict], set[str], list[dict]]:
+) -> tuple[list[dict], list[dict], set[str]]:
     """Collect action-produced feature metadata and calculated feature references."""
     entities = configuration.get("entities", {})
     functions = configuration.get("functions", {})
     fragment_features: list[dict] = []
     calculated_features: list[dict] = []
-    escape_features: list[dict] = []
     seen_inputs: set[tuple[str, str]] = set()
     for entity in entities.values():
         for dataset_id, dataset in entity.get("datasets", {}).items():
@@ -116,10 +115,6 @@ def _feature_data(
                                 "inputs": action.get("features", {}).get("inputs", []),
                             }
                         )
-                    elif kind == function_kinds.ESCAPE:
-                        if (dataset_id, feature_id) not in seen_inputs:
-                            escape_features.append(feature)
-                            seen_inputs.add((dataset_id, feature_id))
                     elif (dataset_id, feature_id) not in seen_inputs:
                         fragment_features.append(feature)
                         seen_inputs.add((dataset_id, feature_id))
@@ -131,7 +126,7 @@ def _feature_data(
             for reference in calculation.get("inputs", [])
         )
     }
-    return fragment_features, calculated_features, referenced_features, escape_features
+    return fragment_features, calculated_features, referenced_features
 
 
 _SECTION_HEADER_COLON = re.compile(r"^([A-Z][A-Za-z ]*):(\n-+)$", flags=re.MULTILINE)
@@ -256,7 +251,6 @@ def _build_context(
         fragment_features,
         calculated_features,
         referenced_features,
-        escape_features,
     ) = _feature_data(configuration)
     feature_buckets = {
         "input": len(fragment_features),
@@ -266,7 +260,6 @@ def _build_context(
         "output": sum(
             calculation["id"] not in referenced_features for calculation in calculated_features
         ),
-        "external": len(escape_features),
     }
     function_buckets = {
         kind: len(function_groups.get(kind, {})) for kind in function_kinds.FUNCTION_KINDS
@@ -288,7 +281,7 @@ def _build_context(
         dataset_count=dataset_count,
         action_count=action_count,
         dimension_count=len(dimensions),
-        feature_count=len([*fragment_features, *calculated_features, *escape_features]),
+        feature_count=len([*fragment_features, *calculated_features]),
         bound_feature_count=len(calculated_features),
         function_count=sum(
             len(group) for group in function_groups.values() if isinstance(group, dict)

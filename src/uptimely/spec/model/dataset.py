@@ -55,12 +55,12 @@ class Action(common.StrictModel):
 
     @property
     def input_features(self) -> list[str]:
-        """Return identifiers of required materialized features."""
+        """Return identifiers of declared feature dependencies."""
         return [value.removeprefix(selectors.FEATURE_PREFIX) for value in self.features.inputs]
 
     @property
     def output_features(self) -> list[str]:
-        """Return identifiers of produced features."""
+        """Return identifiers of declared logical feature outputs."""
         return [value.removeprefix(selectors.FEATURE_PREFIX) for value in self.features.outputs]
 
 

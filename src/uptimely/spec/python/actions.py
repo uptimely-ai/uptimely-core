@@ -29,11 +29,11 @@ class Action:
         id: Non-empty action identifier, unique within its dataset.
         function: Real callable, entrypoint string, or explicit function reference.
         arguments: Named implementation arguments, including structural references.
-        outputs: Named output features in declaration order; empty for writes.
+        outputs: Named feature outputs in declaration order; empty for writes.
         function_id: Optional function catalog ID, defaulting to the function name.
-        inputs: Explicit dependency override for opaque dataframe access. Otherwise
-            dependencies are collected from feature-valued arguments. Identifier
-            selectors do not imply data dependencies.
+        inputs: Explicit feature dependencies, useful for opaque data access.
+            Otherwise dependencies are collected from feature-valued arguments.
+            Identifier selectors do not imply data dependencies.
         row_context: Action-specific observation requirements, merged with
             argument annotations.
     """

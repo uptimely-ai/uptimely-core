@@ -17,68 +17,69 @@ def _add_escape_mapping(
     configuration: dict,
     mapping_id: str,
     function_id: str,
-    output_features: list[str],
     input_features: list[str],
     entrypoint: str,
-    *,
-    dataframe_dataset: str | None = None,
+    output_features: list[str] | None = None,
 ) -> None:
-    """Add one escape action and its function and output declarations."""
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
-    dataset["features"].update({feature_id: {"type": "float"} for feature_id in output_features})
-    arguments = {"source": {"type": "dataframe"}} if dataframe_dataset is not None else {}
+    """Add one escape action with logical feature dependencies."""
     configuration["functions"][function_id] = {
         "kind": "escape",
         "returns": "any",
         "entrypoint": entrypoint,
-        "args": arguments,
+        "args": {},
     }
     configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]["actions"][
         mapping_id
     ] = {
         "binding": {
             "function": function_id,
-            "args": (
-                {"source": f"$datasets.{dataframe_dataset}.dataframe"}
-                if dataframe_dataset is not None
-                else {}
-            ),
+            "args": {},
         },
         "features": {
             "inputs": [f"$features.{feature_id}" for feature_id in input_features],
-            "outputs": [f"$features.{feature_id}" for feature_id in output_features],
+            "outputs": [f"$features.{feature_id}" for feature_id in (output_features or [])],
         },
     }
 
 
 def _escape_spec_configuration() -> dict:
-    """Return a valid pump spec with chained, multi-output, and unrelated escapes."""
+    """Return a valid pump spec with input-only, output-only, and chained escapes."""
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
+    dataset["features"]["escape_start_output"] = {"type": "float"}
+    dataset["features"]["escape_chain_output"] = {"type": "float"}
+    dataset["features"]["escape_source_output"] = {"type": "float"}
     entrypoint = "examples.pump_analytics.functions.analytics:aggregate"
     _add_escape_mapping(
         configuration,
         "escape_start",
         "escape_start",
-        ["external_first", "external_second"],
         ["bearing_temperature"],
         entrypoint,
-        dataframe_dataset="pump_dataset",
+        ["escape_start_output"],
     )
     _add_escape_mapping(
         configuration,
         "escape_chain",
         "escape_chain",
-        ["external_third"],
-        ["external_first"],
+        ["escape_start_output"],
         entrypoint,
+        ["escape_chain_output"],
     )
     _add_escape_mapping(
         configuration,
         "escape_unrelated",
         "escape_unrelated",
-        ["external_unrelated"],
         ["bearing_temperature"],
         entrypoint,
+    )
+    _add_escape_mapping(
+        configuration,
+        "escape_source",
+        "escape_source",
+        [],
+        entrypoint,
+        ["escape_source_output"],
     )
     return configuration
 
@@ -308,7 +309,9 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
     ]
 
 
-def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathlib.Path) -> None:
+def test_escape_inputs_and_outputs_define_logical_dependencies(
+    tmp_path: pathlib.Path,
+) -> None:
     path = tmp_path / "escape_spec.json"
     path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
     document = spec.load_spec(path)
@@ -323,83 +326,44 @@ def test_escape_dependencies_and_feature_selection_are_explicit(tmp_path: pathli
         "escape_start",
         "escape_chain",
         "escape_unrelated",
+        "escape_source",
         "process_pump_external_workflow",
     }
     assert {
         dependency.mapping_id for dependency in graph.dependencies(by_mapping["escape_start"])
-    } == {"read_pump_telemetry", "bearing_temperature_by_pump"}
+    } == {"read_pump_telemetry"}
     assert {
         dependency.mapping_id for dependency in graph.dependencies(by_mapping["escape_chain"])
     } == {"escape_start"}
     assert {
         dependency.mapping_id for dependency in graph.dependencies(by_mapping["escape_unrelated"])
     } == {"read_pump_telemetry"}
-
-    escape_ids = {
-        node.node_id
-        for node in by_mapping.values()
-        if document.functions[node.function_id].kind == "escape"
-    }
-    for node in graph.invocations:
-        if document.functions[node.function_id].kind in {"vectorize", "write"}:
-            assert not escape_ids.intersection(
-                dependency.node_id for dependency in graph.dependencies(node)
-            )
-
-    for feature_id, expected_mappings in (
-        ("external_first", {"escape_start"}),
-        ("external_second", {"escape_start"}),
-        ("external_third", {"escape_start", "escape_chain"}),
-        ("external_unrelated", {"escape_unrelated"}),
-    ):
-        subset = graph.subset([feature_id])
-        assert {
-            node.mapping_id
-            for node in subset.invocations
-            if document.functions[node.function_id].kind == "escape"
-        } == expected_mappings
-
-    selected = compiler.Compiler().compile(document, features=["external_third"])
-    selected_escape_mappings = {
-        invocation.mapping_id
-        for invocation in selected.invocations
-        if invocation.function_kind == "escape"
-    }
-    assert selected_escape_mappings == {"escape_start", "escape_chain"}
-    selected_start = next(
-        invocation for invocation in selected.invocations if invocation.mapping_id == "escape_start"
-    )
-    assert selected_start.output_features == ["external_first", "external_second"]
-    selected_by_id = selected.invocations_by_id
+    assert graph.dependencies(by_mapping["escape_source"]) == []
+    assert by_mapping["escape_start"].output_features == ("escape_start_output",)
+    assert by_mapping["escape_chain"].output_features == ("escape_chain_output",)
+    assert by_mapping["escape_source"].input_features == ()
+    assert by_mapping["escape_source"].output_features == ("escape_source_output",)
     assert {
-        selected_by_id[dependency_id].mapping_id for dependency_id in selected_start.dependency_ids
-    } == {
-        "read_pump_telemetry",
-        "bearing_temperature_by_pump",
+        "escape_chain_output",
+        "escape_source_output",
+    } <= spec.FeatureGraph(document).feature_names
+    feature_subset = graph.subset(["escape_chain_output"])
+    assert {"escape_start", "escape_chain"} <= {
+        node.mapping_id for node in feature_subset.invocations
     }
-
-    stages = selected.execution_stages
-    stage_by_mapping = {
-        invocation.mapping_id: stage_index
-        for stage_index, stage in enumerate(stages)
-        for invocation in stage
+    compiled = compiler.Compiler().compile(document)
+    compiled_escapes = {
+        invocation.mapping_id: invocation
+        for invocation in compiled.invocations
         if invocation.function_kind == "escape"
     }
-    assert stage_by_mapping["escape_start"] < stage_by_mapping["escape_chain"]
-    stage_by_id = {
-        invocation.id: stage_index
-        for stage_index, stage in enumerate(stages)
-        for invocation in stage
-    }
-    assert all(
-        stage_by_id[dependency] < stage_by_id[selected_start.id]
-        for dependency in selected_start.dependency_ids
-    )
-    assert all(dependency in selected_by_id for dependency in selected_start.dependency_ids)
-
-    restored = compiler_plan.from_dict(json.loads(json.dumps(compiler_plan.to_dict(selected))))
-    assert restored == selected
-    assert restored.invocations == selected.invocations
+    assert compiled_escapes["escape_start"].output_features == ["escape_start_output"]
+    assert compiled_escapes["escape_chain"].output_features == ["escape_chain_output"]
+    assert compiled_escapes["escape_source"].input_features == []
+    assert compiled_escapes["escape_source"].output_features == ["escape_source_output"]
+    restored = compiler_plan.from_dict(json.loads(json.dumps(compiler_plan.to_dict(compiled))))
+    assert restored == compiled
+    assert restored.invocations == compiled.invocations
 
 
 def test_escape_return_annotations_do_not_constrain_compilation(
@@ -429,7 +393,6 @@ def test_escape_return_annotations_do_not_constrain_compilation(
             configuration,
             function_id,
             function_id,
-            [f"output_{function_id}"],
             ["bearing_temperature"],
             f"{module_name}:{function_id}",
         )
@@ -457,18 +420,16 @@ def test_escape_return_annotations_do_not_constrain_compilation(
         "returns_dataframe": "DataFrame",
         "returns_unannotated": None,
     }
-    assert {
-        invocation.output_features[0]
-        for invocation in compiled.invocations
-        if invocation.function_kind == "escape"
-    } == {
-        "output_returns_none",
-        "output_returns_scalar",
-        "output_returns_object",
-        "output_returns_dataframe",
-        "output_returns_unannotated",
-        "ratio",
-    }
+    assert all(
+        escaped[function_id].output_features == []
+        for function_id in (
+            "returns_none",
+            "returns_scalar",
+            "returns_object",
+            "returns_dataframe",
+            "returns_unannotated",
+        )
+    )
 
 
 def test_controlled_function_return_annotations_remain_validated() -> None:

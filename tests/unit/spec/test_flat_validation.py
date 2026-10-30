@@ -86,7 +86,9 @@ def make_spec(kind: functions.FunctionKindId = "vectorize") -> model.Spec:
                 "dimensions": target_dimensions,
                 "datasets": {
                     "target": {
-                        "features": {"x": {}} if kind == "write" else {"x": {}, "y": {}},
+                        "features": (
+                            {"x": {}} if kind in {"write", "escape"} else {"x": {}, "y": {}}
+                        ),
                         "order": [{"dimension": "$dimensions.machine", "direction": "asc"}],
                         "actions": {
                             "read_base": {
@@ -97,7 +99,9 @@ def make_spec(kind: functions.FunctionKindId = "vectorize") -> model.Spec:
                                 "binding": {"function": "compute", "args": binding_args},
                                 "features": {
                                     "inputs": inputs,
-                                    "outputs": [] if kind == "write" else ["$features.y"],
+                                    "outputs": (
+                                        [] if kind in {"write", "escape"} else ["$features.y"]
+                                    ),
                                 },
                             },
                         },
@@ -367,10 +371,10 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "one or more features",
         ),
         (
-            action_outputs.validate_write_outputs,
+            action_outputs.validate_nonproducing_outputs,
             "write",
             lambda s: compute(s).features.outputs.append("$features.x"),
-            "cannot produce",
+            "cannot produce features",
         ),
         (
             features.validate_feature_ownership,
@@ -410,12 +414,6 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
                 compute(s).binding.args.update({"output": "$features.@.id"}),
             ),
             "cannot use",
-        ),
-        (
-            action_inputs.validate_escape_inputs,
-            "escape",
-            lambda s: compute(s).features.inputs.clear(),
-            "must declare",
         ),
         (
             action_inputs.validate_input_feature,

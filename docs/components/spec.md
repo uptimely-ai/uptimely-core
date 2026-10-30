@@ -236,7 +236,7 @@ identifiers.
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `kind` | string | Yes | N/A | Function kind: `write`, `read`, `escape`, `conform`, `expand`, `collapse`, or `vectorize`. |
-| `returns` | string | Yes | N/A | Return contract: `dataframe` for data-producing kinds or `none` for `write`. |
+| `returns` | string | Yes | N/A | Return contract: `dataframe` for data-producing kinds, `none` for `write`, or `any` for `escape`. |
 | `entrypoint` | string | Yes | N/A | Python import reference in `module.path:qualname` form. |
 | `validate_signature` | boolean | No | `true` | Whether compilation and documentation inspect the Python signature and check implementation return annotations. |
 | `args` | object | No | `{}` | Argument definitions keyed by argument name. |
@@ -282,8 +282,7 @@ declared kind determines its analytical role.
 
 ### Function kinds
 
-Each function is labeled with exactly one kind. The function's dataframe arguments determine which datasets it consumes. The
-table defines the dataframe argument and result counts for each kind:
+Each function is labeled with exactly one kind. The function's dataframe arguments determine which datasets it consumes. The table defines the dataframe argument and feature-output counts for each kind:
 
 | Kind | Dataframes in | Results out | Analytical | Dimension change | Purpose |
 | --- | ---: | ---: | --- | --- | --- |
@@ -293,6 +292,7 @@ table defines the dataframe argument and result counts for each kind:
 | `expand` | 1 | 1 | No | Up | Transfer observations from a lower-dimensional foreign dataset. |
 | `vectorize` | 1 | 1 | Yes | | Calculate features while preserving observation keys. |
 | `write` | 1 | 0 | No |  | Persist or evaluate selected data. |
+| `escape` | Any explicit arguments | 0 | No |  | Perform uncontrolled work outside the feature dataset with logical feature dependencies. |
 
 Data-producing functions return tabular results. Their implementations follow
 the kind contract; analytical functions perform their calculations and
@@ -306,15 +306,25 @@ dimensions to be a strict superset of the target dimensions; `expand` requires
 them to be a strict subset. These kinds return fragments for their
 declaring (target) dataset; the engine does not pass its accumulated target
 frame to the function.
+Escape actions may declare feature inputs, outputs, both, or neither. These
+declarations define logical feature dependencies and invocation ordering; they
+do not themselves transfer dataframes to or from the escape function. An
+escape function may receive dataframes through explicitly declared dataframe
+arguments, subject to the normal argument-binding rules; feature declarations
+do not implicitly bind a dataframe. Its return value is ignored, so declared
+outputs are not materialized as dataset columns. A downstream dataframe action
+that needs an escape output will fail at runtime unless that feature is
+independently available in its dataframe.
 
 ### Arguments
 
-The `args` schema must declare exactly the number of `dataframe` arguments
-listed for the function's kind. `vectorize` and `write` receive their
-target dataset as their dataframe argument. A dataframe argument represents a
-dataset input; other arguments may carry identifiers, features, or external
-resource settings. `escape` is uncontrolled and may declare any number of
-dataframe arguments.
+The `args` schema must declare the number of `dataframe` arguments required by
+the function's kind. `vectorize` and `write` receive their target dataset as
+their dataframe argument. A dataframe argument represents a dataset input;
+other arguments may carry identifiers, features, or external resource
+settings. `escape` may declare any number of dataframe arguments. Each must be
+explicitly bound to a dataset; the engine does not implicitly pass the
+action's accumulated dataframe.
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
@@ -519,10 +529,11 @@ are acyclic. When a function's declared return kind and dataframe arguments
 conflict with its kind, validation suggests a matching kind where
 possible. It never changes the kind automatically; `escape` must be
 declared explicitly for intentional uncontrolled work. Spec validation does
-not require escape inputs to be produced by a `read` action. A declared
-feature without a producing action triggers a warning rather than preventing
-the Spec from loading. Validation does not import implementations or inspect
-calculated data.
+not require escape inputs to be produced by a `read` action. Escape outputs
+count as logical feature producers for dependency validation, but are not
+materialized by the engine. A declared feature without a producing action
+triggers a warning rather than preventing the Spec from loading. Validation
+does not import implementations or inspect calculated data.
 
 Compilation checks whether a Spec can produce a selected, schedulable plan.
 The engine checks runtime values and returned data, including whether declared

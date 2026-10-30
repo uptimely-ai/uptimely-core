@@ -155,8 +155,9 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                     if action.binding.function == function_id and template.kind == functions.ESCAPE
                 ],
                 "execution_semantics": (
-                    "Uncontrolled external operation; its return value is ignored, and declared "
-                    "outputs are not verified or materialized as dataframe columns."
+                    "Uncontrolled external operation; declared feature inputs and outputs express "
+                    "logical dependencies only. Dataframes are passed only through explicitly "
+                    "bound dataframe arguments; the return value is ignored."
                     if template.kind == functions.ESCAPE
                     else None
                 ),
