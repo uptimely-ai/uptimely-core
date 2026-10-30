@@ -35,6 +35,39 @@ def test_function_kind_definitions_and_registry_are_immutable() -> None:
         functions.FUNCTION_KINDS[functions.WRITE] = definition
 
 
+@pytest.mark.parametrize(
+    (
+        "kind",
+        "dimension_change",
+        "fragment_dimensions",
+        "row_count_relation",
+        "key_relation",
+    ),
+    [
+        ("read", "unrestricted", "target", "unrestricted", "unrestricted"),
+        ("write", "unrestricted", "not_applicable", "unrestricted", "unrestricted"),
+        ("escape", "unrestricted", "not_applicable", "unrestricted", "unrestricted"),
+        ("conform", "preserve", "target", "unrestricted", "unrestricted"),
+        ("expand", "add", "subset", "unrestricted", "unrestricted"),
+        ("collapse", "remove", "target", "unrestricted", "unrestricted"),
+        ("vectorize", "preserve", "target", "same", "identical"),
+    ],
+)
+def test_builtin_structural_contract_matrix(
+    kind: functions.FunctionKindId,
+    dimension_change: functions.DimensionChange,
+    fragment_dimensions: functions.FragmentDimensions,
+    row_count_relation: functions.RowCountRelation,
+    key_relation: functions.KeyRelation,
+) -> None:
+    definition = functions.FUNCTION_KINDS[kind]
+
+    assert definition.dimension_change == dimension_change
+    assert definition.fragment_dimensions == fragment_dimensions
+    assert definition.row_count_relation == row_count_relation
+    assert definition.key_relation == key_relation
+
+
 def test_function_kind_ids_remain_the_serialized_values() -> None:
     for kind in functions.FUNCTION_KINDS:
         model = spec_model.Spec.model_validate(

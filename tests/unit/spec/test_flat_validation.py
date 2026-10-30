@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import collections.abc
+import dataclasses
 import graphlib
 import inspect
 import pathlib
+import types
 import typing
 
 import pytest
@@ -119,6 +121,28 @@ def target(spec: model.Spec) -> model.Dataset:
 
 def compute(spec: model.Spec) -> model.Action:
     return target(spec).actions["compute"]
+
+
+def test_dimension_change_uses_dimension_identities_not_cardinality(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec = make_spec("conform")
+    spec.dimensions["other"] = model.Dimension(id="other", type="integer")
+    spec.entities["source_entity"].dimensions[1] = spec.dimensions["other"]
+    assert len(spec.entities["source_entity"].dimension_ids) == len(
+        spec.entities["target_entity"].dimension_ids
+    )
+
+    with pytest.raises(ValueError, match="preserve target dimensionality"):
+        action_contracts.validate_dimension_change(spec)
+
+    definitions = dict(functions.FUNCTION_KINDS)
+    definitions[functions.CONFORM] = dataclasses.replace(
+        definitions[functions.CONFORM], dimension_change="unrestricted"
+    )
+    monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+
+    assert action_contracts.validate_dimension_change(spec) is None
 
 
 @pytest.mark.parametrize(
@@ -574,25 +598,25 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "publish a foreign",
         ),
         (
-            action_contracts.validate_collapse_source,
+            action_contracts.validate_dimension_source,
             "collapse",
             lambda s: compute(s).binding.args.update({"data": "$datasets.target.dataframe"}),
             "consume its source",
         ),
         (
-            action_contracts.validate_collapse_dimensions,
+            action_contracts.validate_dimension_change,
             "collapse",
             lambda s: s.entities["target_entity"].dimensions.append(s.dimensions["time"]),
             "strictly higher",
         ),
         (
-            action_contracts.validate_conform_dimensions,
+            action_contracts.validate_dimension_change,
             "conform",
             lambda s: s.entities["target_entity"].dimensions.pop(),
             "preserve target",
         ),
         (
-            action_contracts.validate_expand_dimensions,
+            action_contracts.validate_dimension_expansion_input,
             "expand",
             lambda s: s.entities["source_entity"].dimensions.append(s.dimensions["time"]),
             "lower-dimensional",

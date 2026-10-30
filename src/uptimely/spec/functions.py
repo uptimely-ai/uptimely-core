@@ -14,6 +14,10 @@ FunctionKindId = typing.Literal[
 ReturnKind = typing.Literal["dataframe", "none", "any"]
 DataFrameInputScope = typing.Literal["none", "target", "foreign", "unrestricted"]
 FeatureInputScope = typing.Literal["none", "target", "dataframe", "unrestricted"]
+DimensionChange = typing.Literal["preserve", "add", "remove", "unrestricted"]
+FragmentDimensions = typing.Literal["target", "subset", "not_applicable"]
+RowCountRelation = typing.Literal["same", "unrestricted"]
+KeyRelation = typing.Literal["identical", "unrestricted"]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -24,6 +28,9 @@ class FunctionKind:
     declared dependencies and are not materialized by the engine.
     ``dataframe_input_scope`` relates bound dataframes to the action's target;
     ``feature_input_scope`` describes where declared feature inputs may come from.
+    ``dimension_change`` compares source and target dimension identities;
+    ``fragment_dimensions`` constrains raw results; row-count and key relations
+    compare a result with its accumulated target when specified.
     """
 
     id: FunctionKindId
@@ -35,6 +42,10 @@ class FunctionKind:
     is_transformer: bool
     is_sink: bool
     is_effect: bool
+    dimension_change: DimensionChange
+    fragment_dimensions: FragmentDimensions
+    row_count_relation: RowCountRelation
+    key_relation: KeyRelation
     dataframe_input_scope: DataFrameInputScope = "unrestricted"
     feature_input_scope: FeatureInputScope = "unrestricted"
 
@@ -61,6 +72,10 @@ FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = typ
             is_effect=False,
             dataframe_input_scope="target",
             feature_input_scope="target",
+            dimension_change="unrestricted",
+            fragment_dimensions="not_applicable",
+            row_count_relation="unrestricted",
+            key_relation="unrestricted",
         ),
         READ: FunctionKind(
             id=READ,
@@ -74,6 +89,10 @@ FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = typ
             is_effect=False,
             dataframe_input_scope="none",
             feature_input_scope="none",
+            dimension_change="unrestricted",
+            fragment_dimensions="target",
+            row_count_relation="unrestricted",
+            key_relation="unrestricted",
         ),
         ESCAPE: FunctionKind(
             id=ESCAPE,
@@ -87,6 +106,10 @@ FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = typ
             is_effect=True,
             dataframe_input_scope="unrestricted",
             feature_input_scope="unrestricted",
+            dimension_change="unrestricted",
+            fragment_dimensions="not_applicable",
+            row_count_relation="unrestricted",
+            key_relation="unrestricted",
         ),
         CONFORM: FunctionKind(
             id=CONFORM,
@@ -100,6 +123,10 @@ FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = typ
             is_effect=False,
             dataframe_input_scope="foreign",
             feature_input_scope="dataframe",
+            dimension_change="preserve",
+            fragment_dimensions="target",
+            row_count_relation="unrestricted",
+            key_relation="unrestricted",
         ),
         EXPAND: FunctionKind(
             id=EXPAND,
@@ -113,6 +140,10 @@ FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = typ
             is_effect=False,
             dataframe_input_scope="foreign",
             feature_input_scope="dataframe",
+            dimension_change="add",
+            fragment_dimensions="subset",
+            row_count_relation="unrestricted",
+            key_relation="unrestricted",
         ),
         COLLAPSE: FunctionKind(
             id=COLLAPSE,
@@ -126,6 +157,10 @@ FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = typ
             is_effect=False,
             dataframe_input_scope="foreign",
             feature_input_scope="dataframe",
+            dimension_change="remove",
+            fragment_dimensions="target",
+            row_count_relation="unrestricted",
+            key_relation="unrestricted",
         ),
         VECTORIZE: FunctionKind(
             id=VECTORIZE,
@@ -139,6 +174,10 @@ FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = typ
             is_effect=False,
             dataframe_input_scope="target",
             feature_input_scope="target",
+            dimension_change="preserve",
+            fragment_dimensions="target",
+            row_count_relation="same",
+            key_relation="identical",
         ),
     }
 )
@@ -171,13 +210,17 @@ __all__ = [
     "COLLAPSE",
     "CONFORM",
     "DataFrameInputScope",
+    "DimensionChange",
     "ESCAPE",
     "EXPAND",
     "FeatureInputScope",
+    "FragmentDimensions",
     "FUNCTION_KINDS",
     "FunctionKind",
     "FunctionKindId",
+    "KeyRelation",
     "READ",
+    "RowCountRelation",
     "ReturnKind",
     "VECTORIZE",
     "WRITE",

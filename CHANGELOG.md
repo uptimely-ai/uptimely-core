@@ -17,6 +17,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 - The Explorer function catalog now renders argument, return, raise, and
   example documentation parsed from implementation docstrings when signature
   validation is enabled.
+- Structural dataframe validation now follows each function kind's explicit
+  dimension, row-count, fragment, and key-identity policies. Vectorized results
+  independently preserve target row counts and key identities; dimensional
+  changes do not imply either guarantee.
 
 ### Changed
 

@@ -65,6 +65,7 @@ class DataFrameExecution:
             (
                 dataframe_validation_module.validate_frame_type,
                 dataframe_validation_module.validate_dimension_columns,
+                dataframe_validation_module.validate_row_count,
                 dataframe_validation_module.validate_unique_dimension_keys,
                 dataframe_validation_module.validate_output_columns,
                 dataframe_validation_module.validate_fragment_declared_types,
@@ -84,12 +85,16 @@ class DataFrameExecution:
         output_features = [
             feature for feature in invocation.output_features if feature not in dimensions
         ]
-        if not output_features:
-            return fragment, dataframe
-
         fragment_dimensions = dimensions
-        if invocation.function_kind == functions.EXPAND and self.backend.is_frame(fragment):
+        definition = functions.FUNCTION_KINDS.get(invocation.function_kind)
+        if definition is None:
+            raise ValueError(f"Unknown function kind: {invocation.function_kind}")
+        if definition.fragment_dimensions == "subset" and self.backend.is_frame(fragment):
             fragment_dimensions = self._carried_dimensions(fragment, dimensions)
+        elif definition.fragment_dimensions == "not_applicable":
+            raise ValueError(
+                f"Function kind {invocation.function_kind} does not materialize dataframe results"
+            )
         self._validate_fragment(
             invocation, fragment, dataframe, fragment_dimensions, output_features=output_features
         )
@@ -217,6 +222,7 @@ class DataFrameExecution:
             (
                 dataframe_validation_module.validate_frame_type,
                 dataframe_validation_module.validate_dimension_columns,
+                dataframe_validation_module.validate_row_count,
                 dataframe_validation_module.validate_unique_dimension_keys,
             ),
         )

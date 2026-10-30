@@ -34,15 +34,15 @@ class InvocationExecutor:
 
     def execute(self, invocation: execution_plan.Invocation) -> None:
         """Dispatch and execute one invocation."""
-        function_kind = functions.FUNCTION_KINDS.get(invocation.function_kind)
-        if function_kind is None:
+        kind_definition = functions.FUNCTION_KINDS.get(invocation.function_kind)
+        if kind_definition is None:
             raise ValueError(f"Unsupported invocation function kind: {invocation.function_kind}")
-        if function_kind.is_effect:
+        if kind_definition.is_effect:
             self._execute_escape(invocation)
             return
 
         self.dataframe.validate_inputs(invocation)
-        return_kind = function_kind.returns
+        return_kind = kind_definition.returns
         if return_kind == arg_types.DATAFRAME:
             self._execute_dataframe_action(invocation)
         elif return_kind == "none":
@@ -65,7 +65,8 @@ class InvocationExecutor:
         if dataframe is not None:
             self.state.datasets[invocation.dataset_id] = dataframe
         self.state.fragments[(invocation.dataset_id, invocation.mapping_id)] = fragment
-        if invocation.function_kind == functions.VECTORIZE:
+        kind_definition = functions.FUNCTION_KINDS[invocation.function_kind]
+        if kind_definition.is_transformer:
             for output in invocation.output_features:
                 self.state.calculated_outputs[(invocation.dataset_id, output)] = (
                     self.backend.select(fragment, [*dimensions, output])

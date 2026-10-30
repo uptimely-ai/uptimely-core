@@ -147,7 +147,9 @@ def test_dataframe_returns_are_validated(
         if shape == "keys":
             return dataset.select(pl.col("value").alias(output))
         if shape == "rows":
-            return dataset.head(1).with_columns(pl.lit(1).alias(output))
+            return dataset.with_columns((pl.col("id") + 100).alias("id")).with_columns(
+                pl.lit(1).alias(output)
+            )
         if shape == "type":
             return dataset.with_columns(pl.lit("one").alias(output))
         return 1

@@ -82,7 +82,7 @@ class InvocationGraph:
                             ),
                             None,
                         )
-                        if function_kind == functions.COLLAPSE
+                        if function_definition.dimension_change == "remove"
                         else action.output_features[0]
                         if action.output_features
                         else None

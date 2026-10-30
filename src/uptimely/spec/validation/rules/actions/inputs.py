@@ -148,13 +148,15 @@ def validate_input_feature(spec: spec_model.Spec) -> None:
 
 
 def validate_input_scope(spec: spec_model.Spec) -> None:
-    """Require vectorize and write inputs to belong to the target dataset."""
+    """Require target-scoped function inputs to belong to the target dataset."""
     for item in action_rules.iter_actions(spec):
+        if item.kind is None:
+            continue
+        definition = functions.FUNCTION_KINDS[item.kind]
+        if definition.feature_input_scope != "target":
+            continue
         for feature in item.inputs:
-            if (
-                item.kind in {functions.VECTORIZE, functions.WRITE}
-                and feature not in item.local_features
-            ):
+            if feature not in item.local_features:
                 raise ValueError(
                     f"Action {item.action.id} cannot read feature {feature} from another dataset"
                 )
