@@ -37,7 +37,7 @@
           {% endfor %}
           {% if features %}
           <div class="context-link-group">
-            <p class="context-group-label">{{ icon("datasets", "nav-icon") }}<span>{{ dataset_id }}</span><span class="context-link-count">{{ features|length }}</span></p>
+            <p class="context-group-label"><span>{{ dataset_id }}</span><span class="context-link-count">{{ features|length }}</span></p>
             {% for feature_id in features %}
               {{ context_link("feature-" ~ dataset_id ~ "-" ~ feature_id, feature_id) }}
               {% set total.count = total.count + 1 %}
@@ -51,7 +51,7 @@
       {% for entity_id, entity in configuration.entities.items() %}
         {% if entity.datasets %}
         <div class="context-link-group">
-          <p class="context-group-label">{{ icon("entities", "nav-icon") }}<span>{{ entity.name or entity_id }}</span><span class="context-link-count">{{ entity.datasets|length }}</span></p>
+          <p class="context-group-label"><span>{{ entity.name or entity_id }}</span><span class="context-link-count">{{ entity.datasets|length }}</span></p>
           {% for dataset_id in entity.datasets %}
             {{ context_link("dataset-" ~ dataset_id, dataset_id) }}
           {% endfor %}

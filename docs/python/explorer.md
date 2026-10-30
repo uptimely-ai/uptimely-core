@@ -62,8 +62,8 @@ and invocation-lineage views. Payload preparation belongs to
 ## `feature_lineage`
 
 `uptimely.explorer.sections.feature_lineage` visualizes feature inputs and
-outputs. This view is distinct from invocation lineage and the data-lineage
-execution walkthrough.
+outputs in the Explorer's **Lineage** view. This view is distinct from
+**Topology** (invocation dependencies) and the **Animation** execution walkthrough.
 
 ::: uptimely.explorer.sections.feature_lineage
     options:

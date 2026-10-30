@@ -2,7 +2,8 @@
 
 `uptimely.spec.feature_graph` represents dependencies between features and
 actions and supports subgraph selection. The Explorer visualizes those
-relationships as feature lineage, distinct from invocation lineage and data lineage.
+relationships in **Lineage**, distinct from **Topology** (invocation dependencies)
+and **Animation** (the execution walkthrough).
 
 <div class="api-reference" markdown="1">
 

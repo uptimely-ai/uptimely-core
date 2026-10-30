@@ -38,7 +38,7 @@ explore:
 | --- | --- |
 | **Spec** | An overview of the model, its features, entities, datasets, dimensions, functions, and feature relationships. The functions page opens with a bar chart of the catalog by function kind that links to each kind's group, and every group heading pairs its function count with a miniature infographic of the transformation. Function cards show how many actions use the function, a plain-language summary, and syntax-highlighted Python examples, and detail arguments with their types, return, and raise documentation parsed from implementation docstrings when signature validation is enabled. |
 | **Plan** | The compiled invocations, their dependencies, and the stages used to organize the plan. |
-| **Execution / Data lineage** | A visual walkthrough of how data is assembled after each action. |
+| **Execution / Animation** | A visual walkthrough of how data is assembled after each action. |
 
 On desktop, the sidebar reaches the top of the page and sizes to its contents.
 Its header shows the project name and a home link to the project overview. A
@@ -80,7 +80,7 @@ entries, with Overview above a separator. Selection does not add a highlight.
 Feature entries are grouped by dataset. Each feature view shows its description,
 type, unit, owning entity and dataset, and producing action and function.
 
-Feature lineage visualizes feature inputs and outputs. Invocation lineage
+Lineage visualizes feature inputs and outputs. Topology
 visualizes dependencies between compiled invocations. Both use the same
 **2D / 3D** switch next to the graph title,
 **Zoom in**, **Zoom out**, **Reset graph**, collapsible legend, and selected-node
@@ -93,7 +93,7 @@ rail independently of the main navigation. On mobile, **Lineage controls** opens
 over the graph; use **Close** or **Escape** to dismiss it.
 Click a node to highlight its upstream dependencies and downstream
 dependents; the selection is preserved when switching dimensions. The
-2D feature-lineage view groups features and actions into horizontal dataset lanes.
+2D Lineage view groups features and actions into horizontal dataset lanes.
 Dependencies flow left to right across the whole graph, including between datasets;
 actions stay in their owning dataset's lane. Connected datasets are placed next
 to one another where possible, and long edges use lane gutters to avoid cards.
@@ -101,25 +101,25 @@ Dataset names appear in the legend and selected-node details, not on swimlane
 rows. Feature cards retain their dataset colors and action cards retain their
 function color. Features without a dataset share an
 unassigned lane. Selecting a node highlights its dependencies across lanes.
-The 2D invocation-lineage view uses the same dataset lanes and edge routing,
+The 2D Topology view uses the same dataset lanes and edge routing,
 with execution stages ordered left to right and invocation cards colored by
 dataset, matching feature colors and the dataset legend. Labeled stage headers,
 subtle column shading, and vertical separators
 form a grid with the dataset rows. Invocations from different datasets in the
 same stage share a column. Graph fitting includes the dataset rows and stage headers.
 Hover over an invocation or select it to inspect its dataset and stage.
-In 3D, the invocation-lineage graph uses the same dataset-colored spheres,
-node sizes, label spacing, and edge length settings as feature lineage.
+In 3D, the Topology graph uses the same dataset-colored spheres,
+node sizes, label spacing, and edge length settings as Lineage.
 **Reset graph** clears the selection and dependency highlights in both dimensions
 and fits the current view to show the whole graph.
 
-Feature and invocation lineage views have distinct navigation and heading icons:
-Feature lineage uses a teal network icon for feature relationships, while
-Invocation lineage uses an orange workflow icon for dependencies between plan
+Lineage and Topology views have distinct navigation and heading icons:
+Lineage uses a teal network icon for feature relationships, while
+Topology uses an orange workflow icon for dependencies between plan
 invocations. These accents identify the views; graph nodes retain their
 data-specific colors.
 
-The data-lineage walkthrough is an illustration of the declared plan, not a
+The Animation walkthrough is an illustration of the declared plan, not a
 run of your functions. Its example table values and rows are placeholders; it
 does not show real data or calculated results. Building the project bundle does
 not execute the analytics workflow.

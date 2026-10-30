@@ -23,7 +23,7 @@ SECTION = render.WebsiteSection(
             f"plan/{section}.html.j2",
             filename,
             active_section=section,
-            title="Invocation lineage" if section == "invocation_lineage" else section.title(),
+            title="Topology" if section == "invocation_lineage" else section.title(),
         )
         for section, filename in PLAN_PAGES.items()
     ),

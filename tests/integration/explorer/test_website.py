@@ -122,27 +122,27 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
     expected = {
         "index.html": ("home", "house", "Untitled analytics project"),
         "spec/overview.html": ("overview", "layout-dashboard", "Overview"),
-        "spec/features.html": ("features", "sparkles", "Features"),
+        "spec/features.html": ("features", "sigma", "Features"),
         "spec/entities.html": ("entities", "boxes", "Entities"),
         "spec/datasets.html": ("datasets", "table", "Datasets"),
         "spec/dimensions.html": ("dimensions", "layers-3", "Dimensions"),
         "spec/functions.html": ("functions", "braces", "Functions"),
-        "spec/feature-lineage.html": ("feature-lineage", "network", "Feature lineage"),
+        "spec/feature-lineage.html": ("feature-lineage", "network", "Lineage"),
         "plan/overview.html": ("overview", "layout-dashboard", "Overview"),
         "plan/invocation-lineage.html": (
             "invocation-lineage",
             "workflow",
-            "Invocation lineage",
+            "Topology",
         ),
         "plan/stages.html": ("stages", "list-ordered", "Stages"),
-        "execution/data-lineage.html": ("data-lineage", "database-zap", "Data lineage"),
+        "execution/data-lineage.html": ("data-lineage", "database-zap", "Animation"),
     }
     palette = {
         "home": "#93c5fd",
         "spec": "#67e8f9",
         "plan": "#fcd34d",
         "overview": "#93c5fd",
-        "features": "#f9a8d4",
+        "features": "#bef264",
         "entities": "#fdba74",
         "datasets": "#6ee7b7",
         "dimensions": "#818cf8",
@@ -159,11 +159,13 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
     for icon_key, color in palette.items():
         assert f".icon--{icon_key} {{ --icon-color: {color};" in icon_styles
     assert ".site-icon { color: var(--icon-color);" in base_styles
-    assert re.search(
-        r'a\[aria-current="page"\] \{[^}]*background: #1e293b;'
-        r"[^}]*box-shadow: inset 3px 0 #94a3b8;",
-        base_styles,
+    active_navigation_style = re.search(
+        r'\.site-nav a\[aria-current="page"\] \{([^}]*)\}', base_styles
     )
+    assert active_navigation_style is not None
+    assert "background: #1e293b;" in active_navigation_style.group(1)
+    assert "border-radius: 0;" in active_navigation_style.group(1)
+    assert "box-shadow:" not in active_navigation_style.group(1)
     assert "a:focus-visible" in base_styles
     for filename, (key, symbol, title) in expected.items():
         document = (tmp_path / filename).read_text(encoding="utf-8")
@@ -194,13 +196,13 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
             ("datasets", "Datasets"),
             ("dimensions", "Dimensions"),
             ("functions", "Functions"),
-            ("feature-lineage", "Feature lineage"),
+            ("feature-lineage", "Lineage"),
             ("plan", "Plan"),
             ("overview", "Overview"),
-            ("invocation-lineage", "Invocation lineage"),
+            ("invocation-lineage", "Topology"),
             ("stages", "Stages"),
             ("execution", "Execution"),
-            ("data-lineage", "Data lineage"),
+            ("data-lineage", "Animation"),
         ]
         navigation_symbols = {
             next(
@@ -616,7 +618,7 @@ def test_relocated_website_navigation_works_under_url_prefix(
     ("filename", "title"),
     [
         ("plan/overview.html", "Overview"),
-        ("plan/invocation-lineage.html", "Invocation lineage"),
+        ("plan/invocation-lineage.html", "Topology"),
         ("plan/stages.html", "Stages"),
     ],
 )
@@ -630,7 +632,7 @@ def test_execution_plan_pages_render_only_their_section(
     document = (tmp_path / filename).read_text(encoding="utf-8")
 
     assert 'aria-label="Plan sections"' in document
-    is_graph = title == "Invocation lineage"
+    is_graph = title == "Topology"
     assert heading_titles(document) == [title]
     if is_graph:
         script = (tmp_path / "js/invocation_lineage.js").read_text(encoding="utf-8")

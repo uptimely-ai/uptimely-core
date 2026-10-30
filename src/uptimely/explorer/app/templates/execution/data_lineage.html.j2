@@ -20,14 +20,14 @@
   </table>
 </div>
 {% endmacro %}
-{% block title %}Execution / Data lineage{% endblock %}
+{% block title %}Execution / Animation{% endblock %}
 {% block stylesheets %}
 <link rel="stylesheet" href="{{ root_path or "" }}css/data_lineage.css">
 {% endblock %}
 {% block content %}
 <main class="data-lineage-page">
   <p>Execution</p>
-  <h1 class="title-with-icon">{{ icon("data-lineage", "title-icon") }}<span>Data lineage</span></h1>
+  <h1 class="title-with-icon">{{ icon("data-lineage", "title-icon") }}<span>Animation</span></h1>
   <p>Follow each invocation's declared inputs and outputs. Escape actions use logical feature dependencies; dataframes are passed only through explicit arguments and return values are ignored.</p>
   <p>Illustration only: keys, values, results, and row counts are placeholders, not calculated data.
     No spec are executed.</p>
@@ -134,7 +134,7 @@
   <p>Playback follows dependency stages. Invocations in the same stage are independent.</p>
   <noscript><p>Playback needs JavaScript. All invocation tables and declared schemas remain available below their stage headings.</p></noscript>
   {% else %}
-  <p>No processing steps. Add function actions to the spec to display data lineage.</p>
+  <p>No processing steps. Add function actions to the spec to display the animation.</p>
   {% endif %}
 </main>
 {% endblock %}

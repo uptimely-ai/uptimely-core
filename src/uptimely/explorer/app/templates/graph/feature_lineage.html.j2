@@ -1,6 +1,6 @@
 {% extends "graph/base.html.j2" %}
 {% from "graph/components.html.j2" import node_details_panel, lineage_canvas, lineage_legend %}
-{% block title %}Feature lineage{% endblock %}
+{% block title %}Lineage{% endblock %}
 {% block lineage_context %}
 	{% call lineage_legend("Legend") %}
 			<span class="function" style="--color:{{ style.function_color }}">Action</span>
