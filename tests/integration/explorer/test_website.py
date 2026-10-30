@@ -368,10 +368,12 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "bg-violet-950" not in datasets
     assert "bg-amber-950" not in datasets
     assert 'class="dataset-table-scroll overflow-x-auto' in datasets
-    spec_styles = (index.parent / "css/spec.css").read_text(encoding="utf-8")
-    assert "scrollbar-width: thin" in spec_styles
-    assert "scrollbar-color: #475569 #0f172a" in spec_styles
-    assert ".dataset-table-scroll::-webkit-scrollbar" in spec_styles
+    base_styles = (index.parent / "css/base.css").read_text(encoding="utf-8")
+    assert (
+        "* { scrollbar-color: #475569 var(--color-surface); scrollbar-width: thin; }" in base_styles
+    )
+    assert "::-webkit-scrollbar { width: 8px; height: 8px; }" in base_styles
+    assert "::-webkit-scrollbar-thumb:hover { background: #64748b; }" in base_styles
     assert "Pump analytics" in (index.parent / "spec/overview.html").read_text(encoding="utf-8")
     graph_2d = (index.parent / "spec/feature-lineage.html").read_text(encoding="utf-8")
     assert '"label": "health_signal_normalized"' in graph_2d

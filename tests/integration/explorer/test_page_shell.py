@@ -150,6 +150,13 @@ def test_context_panels_appear_on_catalog_and_lineage_pages(tmp_path: pathlib.Pa
         document = path.read_text(encoding="utf-8")
         filename = path.relative_to(tmp_path).as_posix()
         context = re.search(r'<aside class="site-context".*?</aside>', document, re.DOTALL)
+        if filename == "execution/data-lineage.html":
+            assert context is not None
+            assert 'id="animation-context"' in context.group()
+            assert 'aria-label="Animation context"' in context.group()
+            assert 'aria-controls="animation-context"' in document
+            assert '<h1 class="title-with-icon"' in context.group()
+            continue
         if filename in catalog_pages:
             assert context is not None
             panel = context.group()

@@ -1,18 +1,33 @@
 {% extends "base.html.j2" %}
-{% macro sample_table(columns, keys, label, side, row_count, aggregate, dataset) %}
-<div class="data-lineage-table-scroll" tabindex="0" role="region" aria-label="{{ label }} illustrative table">
+{% from "spec/function_kinds.html.j2" import kind_meta %}
+{% set TYPE_ICONS = {"float": "hash", "integer": "hash", "numeric": "hash", "string": "case-sensitive", "datetime": "calendar-clock", "date": "calendar", "boolean": "toggle-left", "object": "braces", "array": "brackets"} %}
+{% set PLACEHOLDER_NUMBERS = {"float": ["1.23", "4.56", "7.89"], "numeric": ["1.23", "4.56", "7.89"], "integer": ["12", "45", "78"]} %}
+{% set PLACEHOLDER_STRUCTURES = {"object": ["{}"], "array": ["[]"], "list": ["[]"]} %}
+{% set PLACEHOLDER_DATES = {"datetime": ["2024-01-01 00:00", "2024-01-01 01:00", "2024-01-01 02:00"], "date": ["2024-01-01", "2024-01-02", "2024-01-03"]} %}
+{# Dimension example prefix: "pumps" -> "pu", "production_line" -> "pl". #}
+{% macro dimension_prefix(name) -%}
+{%- set parts = name.split("_")|reject("equalto", "")|list -%}
+{%- if parts|length > 1 -%}{{ (parts[0][0] ~ parts[1][0])|lower }}{%- else -%}{{ name[:2]|lower }}{%- endif -%}
+{%- endmacro %}
+{% macro placeholder(column, index, fallback) -%}
+{%- set examples = PLACEHOLDER_NUMBERS.get(column.type) or PLACEHOLDER_DATES.get(column.type) or PLACEHOLDER_STRUCTURES.get(column.type) -%}
+{%- if examples -%}{{ examples[index % examples|length] }}
+{%- elif column.role == "Dimension" -%}{{ dimension_prefix(column.name) }}-{{ index + 1 }}
+{%- else -%}{{ fallback }} {{ index + 1 }}{%- endif -%}
+{%- endmacro %}
+{% macro sample_table(columns, keys, label, side, row_count, aggregate, dataset, join_dimensions=[], unshared=none) %}
+<div class="data-lineage-table-scroll" tabindex="0" role="region" aria-label="{{ (label ~ ': ' ~ dataset) if label else dataset ~ ' main' }} illustrative table"{% if label %} title="{{ label }}: {{ dataset }}"{% endif %}>
   <table class="data-lineage-table" data-side="{{ side }}">
-    <caption>{{ label }} <span class="data-lineage-table-dataset">Dataset: {{ dataset }}</span><span>Illustrative rows</span></caption>
     <thead><tr>
       {% for column in keys + columns %}
-      <th scope="col" data-role="{{ column.role }}" data-column="{{ column.name }}">{{ column.name }}<small>{{ column.type }}</small></th>
+      <th scope="col" data-role="{{ column.role }}" data-column="{{ column.name }}"{% if column.name in join_dimensions %} data-join-key{% elif unshared and column.role == "Dimension" %} data-dimension-change="{{ unshared }}"{% endif %} title="{{ column.name }} ({{ column.type }})"><span class="data-lineage-cell">{% set type_icon = TYPE_ICONS.get(column.type) %}{% if type_icon %}<i data-lucide="{{ type_icon }}" class="data-lineage-type-icon" data-type="{{ column.type }}" aria-hidden="true"></i>{{ column.name }}<span class="sr-only"> ({{ column.type }})</span>{% else %}{{ column.name }}<small>{{ column.type }}</small>{% endif %}</span></th>
       {% endfor %}
     </tr></thead>
     <tbody>
       {% for row in range(row_count) %}
       <tr>
         {% for column in keys + columns %}
-        <td data-role="{{ column.role }}">{% if column.role == "Dimension" %}Key {{ 1 if aggregate else row + 1 }}{% elif side == "input" %}Value {{ row + 1 }}{% else %}Result {{ row + 1 }}{% endif %}</td>
+        <td data-role="{{ column.role }}" data-column="{{ column.name }}"{% if column.name in join_dimensions %} data-join-key{% elif unshared and column.role == "Dimension" %} data-dimension-change="{{ unshared }}"{% endif %}>{% set value_index = 0 if column.role == "Dimension" and aggregate and column.name in join_dimensions else row %}<span class="data-lineage-cell">{{ placeholder(column, value_index, "Value" if side == "input" else "Result") }}</span></td>
         {% endfor %}
       </tr>
       {% endfor %}
@@ -24,41 +39,73 @@
 {% block stylesheets %}
 <link rel="stylesheet" href="{{ root_path or "" }}css/data_lineage.css">
 {% endblock %}
-{% block content %}
-<main class="data-lineage-page">
-  <p>Execution</p>
-  <h1 class="title-with-icon">{{ icon("data-lineage", "title-icon") }}<span>Animation</span></h1>
-  <p>Follow each invocation's declared inputs and outputs. Escape actions use logical feature dependencies; dataframes are passed only through explicit arguments and return values are ignored.</p>
-  <p>Illustration only: keys, values, results, and row counts are placeholders, not calculated data.
-    No spec are executed.</p>
+{% block page_context %}
+<aside class="site-context" id="animation-context" aria-label="Animation context" data-context-label="animation">
+  <div class="context-header">
+    <div class="context-heading site-nav-heading">
+      <h1 class="title-with-icon">{{ icon("data-lineage", "nav-icon") }}<span>Animation</span></h1>
+      <button class="nav-label-toggle context-label-toggle" type="button" aria-label="Collapse animation context"
+        aria-pressed="false" aria-controls="animation-context" title="Collapse animation context">
+        {{ icon("collapse-navigation", "nav-icon") }}{{ icon("expand-navigation", "nav-icon") }}
+      </button>
+    </div>
+  </div>
+  <button class="ui-button context-close" type="button" aria-label="Close animation context">Close</button>
   {% if stages %}
   <div class="data-lineage-toolbar" id="data-lineage-toolbar" role="group" aria-label="Lineage playback" hidden>
     <button class="ui-button" type="button" id="data-lineage-previous">Previous</button>
     <button class="ui-button" type="button" id="data-lineage-play" aria-pressed="false">Play</button>
     <button class="ui-button" type="button" id="data-lineage-next">Next</button>
   </div>
-  <div class="data-lineage-playback-progress" id="data-lineage-playback-progress" hidden>
-    <div class="data-lineage-step-progress">
-      <div class="data-lineage-progress-track" id="data-lineage-step-track" role="list" aria-label="Execution steps">
-        {% set marker_counter = namespace(step=0) %}
-        {% for stage in stages %}
-        {% for step in stage %}
-        {% set marker_counter.step = marker_counter.step + 1 %}
-        <span class="data-lineage-progress-segment" role="listitem" data-step-marker="{{ marker_counter.step }}" aria-label="Step {{ marker_counter.step }}"></span>
-        {% endfor %}
-        {% endfor %}
-      </div>
-      <output class="data-lineage-step-position" id="data-lineage-position" aria-live="polite"></output>
-    </div>
-    <div class="data-lineage-stage-progress">
-      <div class="data-lineage-progress-track" id="data-lineage-stage-track" role="list" aria-label="Execution stages">
-        {% for stage in stages %}
-        <span class="data-lineage-progress-segment" role="listitem" data-stage-marker="{{ loop.index }}" aria-label="Stage {{ loop.index }}"></span>
-        {% endfor %}
-      </div>
-      <output class="data-lineage-stage-position" id="data-lineage-stage-position" aria-live="polite"></output>
-    </div>
+    {% set datasets = {} %}
+    {% set step_stages = {} %}
+    {% for stage in stages %}
+      {% set stage_number = loop.index %}
+      {% for step in stage %}
+        {% set _ = step_stages.update({step.number: stage_number}) %}
+        {% if step.dataset not in datasets %}{% set _ = datasets.update({step.dataset: []}) %}{% endif %}
+        {% set _ = datasets[step.dataset].append(step) %}
+      {% endfor %}
+    {% endfor %}
+  <div class="animation-dataset-picker">
+    <label for="animation-dataset">Dataset</label>
+    <select id="animation-dataset" required>
+      <option value="" disabled selected>Choose a dataset</option>
+      {% for dataset, dataset_steps in datasets.items() %}
+      <option value="{{ loop.index }}" title="{{ dataset or dataset_steps[0].dataset_label }}">{{ dataset_steps[0].dataset_label }}</option>
+      {% endfor %}
+    </select>
   </div>
+  <nav class="context-links animation-steps" aria-label="Animation steps">
+    {% for dataset, steps in datasets.items() %}
+      <div class="context-link-group" data-animation-dataset="{{ loop.index }}">
+        {% set dataset_stage = namespace(number=0) %}
+        {% for step in steps %}
+        {% if loop.changed(step_stages[step.number]) %}
+        {% set dataset_stage.number = dataset_stage.number + 1 %}
+        <p class="context-group-label animation-stage-label"><span>Stage {{ dataset_stage.number }}</span></p>
+        {% endif %}
+        <a href="#step-{{ step.number }}" data-animation-step="{{ step.number }}">
+          <span class="animation-step-number">{{ loop.index }}</span>
+          {% set meta = kind_meta.get(step.function_kind) %}
+          {% if meta %}<span class="context-link-icon" title="{{ meta.label }}"><i data-lucide="{{ meta.icon }}" class="site-icon icon--functions nav-icon" aria-hidden="true"></i></span>{% endif %}
+          <span class="context-link-label">{{ step.action }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </nav>
+  {% else %}
+  <p class="context-empty">No processing steps.</p>
+  {% endif %}
+</aside>
+{% endblock %}
+{% block content %}
+<main class="data-lineage-page">
+  <button class="ui-button context-toggle" type="button" aria-label="Show animation context"
+    aria-expanded="false" aria-controls="animation-context">Animation controls</button>
+  {% if stages %}
+  <p id="animation-dataset-prompt" role="status" hidden>Choose a dataset in Animation controls to view its actions.</p>
   <div id="data-lineage-board">
     {% for stage in stages %}
     {% set stage_number = loop.index %}
@@ -69,70 +116,50 @@
       {% set declared_inputs = step.columns|selectattr("role", "equalto", "Declared input")|list %}
       {% set outputs = step.columns|selectattr("role", "equalto", "Output")|list %}
       {% set keys = step.columns|selectattr("role", "equalto", "Dimension")|list %}
+      {% set join_dimensions = [] %}
+      {% for table in step.input_tables %}{% for name in table.join_dimensions %}{% if name not in join_dimensions %}{% set _ = join_dimensions.append(name) %}{% endif %}{% endfor %}{% endfor %}
       <article class="data-lineage-step" id="step-{{ step.number }}" data-invocation-id="{{ step.invocation_id }}"
-        data-dependencies="{{ step.dependencies|join(',') }}" data-function-kind="{{ step.function_kind }}" data-stage="{{ stage_number }}">
-        <h3>{{ step.function|replace("_", " ")|title }}</h3>
-        <span class="data-lineage-function-kind-label">{{ {"collapse": "Aggregate"}.get(step.function_kind, step.function_kind)|upper }}</span>
+        data-dependencies="{{ step.dependencies|join(',') }}" data-function-kind="{{ step.function_kind }}" data-stage="{{ stage_number }}" aria-labelledby="step-{{ step.number }}-title">
+        <header class="data-lineage-step-header">
+          <h3 id="step-{{ step.number }}-title">{{ step.action }}</h3>
+          <p class="data-lineage-step-dataset">Dataset: {{ step.dataset or step.entity }}</p>
+        </header>
         <div class="data-lineage-scene">
-          <div class="data-lineage-panel">
+          <div class="data-lineage-panel data-lineage-panel-output">
+            <p class="data-lineage-waiting" hidden>New features will appear in the main table as the action runs.</p>
+            {{ sample_table(step.main_columns|rejectattr("role", "equalto", "Existing")|list, keys, none, "output", step.row_count, step.function_kind in ["collapse", "expand"], step.dataset or step.entity, join_dimensions, "added" if step.input_tables else none) }}
+          </div>
+          {% set meta = kind_meta.get(step.function_kind, {"icon": "braces"}) %}
+          <div class="data-lineage-arrow" data-flow="{{ 'down' if step.function_kind == 'write' else 'up' }}">
+            <span class="data-lineage-edge" aria-hidden="true"></span>
+            <span class="data-lineage-node icon--functions" aria-hidden="true"><i data-lucide="{{ meta.icon }}" class="site-icon"></i></span>
+            <span class="data-lineage-node-label">
+              <small class="data-lineage-invocation-type">{{ {"collapse": "Aggregate", "escape": "Uncontrolled external operation"}.get(step.function_kind, step.function_kind|title) }}</small>
+              <code>{{ step.function }}</code>
+            </span>
+          </div>
+          <div class="data-lineage-panel data-lineage-sources">
             {% if step.function_kind == "read" %}
-            <div class="data-lineage-boundary"><strong>Source</strong>{{ step.dataset or step.entity }}<p>The read invocation supplies the declared columns.</p></div>
+            <div class="data-lineage-boundary"><strong>Source</strong>{{ step.dataset or step.entity }}</div>
             {% elif step.function_kind == "escape" %}
             <div class="data-lineage-boundary"><strong>Declared feature inputs</strong>{{ (declared_inputs|map(attribute="name")|list)|join(", ") or "None" }}<p>These declarations do not establish that dataframe columns are available to the invocation.</p></div>
-            {% elif inputs or keys %}
-            {{ sample_table(inputs, keys, "Input", "input", 3, step.function_kind == "collapse", step.dataset or step.entity) }}
-            {% else %}
+            {% elif step.input_tables %}
+            {% for table in step.input_tables %}
+            {{ sample_table(table.columns, table.keys, "Source input", "input", table.row_count, step.function_kind == "collapse", table.dataset, table.join_dimensions, "removed") }}
+            {% endfor %}
+            {% elif step.function_kind == "write" %}
+            <div class="data-lineage-boundary" data-write-boundary="{{ step.dataset or step.entity }}"><strong>Write destination</strong>{{ step.dataset or step.entity }}</div>
+            {% elif not (inputs or keys) %}
             <div class="data-lineage-boundary"><strong>No declared input columns</strong>Only declared information is shown.</div>
             {% endif %}
           </div>
-          <div class="data-lineage-arrow">
-            <span class="data-lineage-arrow-icon" aria-hidden="true">&darr;</span>
-            <small class="data-lineage-invocation-type">{{ {"collapse": "Aggregate", "escape": "Uncontrolled external operation"}.get(step.function_kind, step.function_kind|title) }}</small>
-          </div>
-          <div class="data-lineage-panel data-lineage-panel-output">
-            <p class="data-lineage-waiting" hidden>Output will form here as the invocation is illustrated.</p>
-            {% if step.function_kind == "write" %}
-            <div class="data-lineage-boundary" data-write-boundary><strong>Write destination</strong>{{ step.dataset or step.entity }}<p>Consumes the input columns; produces no analytical features.</p></div>
-            {% elif step.function_kind == "escape" %}
-            <div class="data-lineage-boundary"><strong>Declared logical outputs</strong>{{ outputs|map(attribute="name")|join(", ") or "None" }}<p>These outputs establish dependencies only; they are not materialized as dataframe columns.</p></div>
-            {% elif outputs or keys %}
-            {{ sample_table(outputs, keys, "Output", "output", 1 if step.function_kind == "collapse" else 3, step.function_kind == "collapse", step.dataset or step.entity) }}
-            {% else %}
-            <div class="data-lineage-boundary"><strong>No declared output columns</strong>No output schema is inferred.</div>
-            {% endif %}
-          </div>
         </div>
-        <p class="data-lineage-status" aria-live="polite">{% if step.function_kind == "collapse" %}Illustrative grouping: three placeholder rows become one group. Actual grouping and row counts are not known.{% elif step.function_kind == "write" %}Write boundary: no new analytical columns.{% elif step.function_kind == "escape" %}External operation is uncontrolled and not executed. Logical outputs are not materialized as dataframe columns.{% else %}Declared columns shown with three placeholder rows. Actual row counts are not known.{% endif %}</p>
-        <details class="data-lineage-details">
-          <summary>Declared schema and dependencies</summary>
-          <p>Entity: {{ step.entity }} &middot; Dataset: {{ step.dataset or "None" }}</p>
-          <div class="data-lineage-dependencies">Depends on:
-            {% for dependency in step.dependencies %}<a href="#step-{{ dependency }}">Step {{ dependency }}</a>{% if not loop.last %}, {% endif %}{% else %}No preceding steps{% endfor %}
-          </div>
-          {% if step.columns %}
-          <div class="data-lineage-table-scroll" tabindex="0" role="region" aria-label="Step {{ step.number }} declared schema">
-            <table class="data-lineage-table data-lineage-schema">
-              <caption>Declared schema (not illustrative values)</caption>
-              <thead><tr><th scope="col">Role</th><th scope="col">Column</th><th scope="col">Type</th><th scope="col">Producer</th></tr></thead>
-              <tbody>
-                {% for column in step.columns %}
-                <tr data-column="{{ column.name }}" data-role="{{ column.role }}">
-                  <td>{{ column.role }}</td><th scope="row">{{ column.name }}</th><td>{{ column.type }}</td>
-                  <td>{% if column.producer == step.number %}This step{% elif column.producer %}<a href="#step-{{ column.producer }}">Step {{ column.producer }}</a>{% elif column.role == "Dimension" %}Observation key{% else %}No declared producer{% endif %}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          {% else %}<p>No declared columns.</p>{% endif %}
-        </details>
       </article>
       {% endfor %}
     </section>
     {% endfor %}
   </div>
-  <p>Playback follows dependency stages. Invocations in the same stage are independent.</p>
-  <noscript><p>Playback needs JavaScript. All invocation tables and declared schemas remain available below their stage headings.</p></noscript>
+  <noscript><p>Playback needs JavaScript. Each step below shows its key, input, and output columns; earlier features of the main table appear only during playback.</p></noscript>
   {% else %}
   <p>No processing steps. Add function actions to the spec to display the animation.</p>
   {% endif %}

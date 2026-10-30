@@ -57,7 +57,9 @@ if (contextPanel && contextToggle && contextClose) {
         closeContext();
         const target = contextPanel.id === "catalog-context"
           ? document.querySelector("main h1")
-          : document.getElementById(decodeURIComponent(link.hash.slice(1)));
+          : contextPanel.id === "animation-context"
+            ? document.querySelector("main")
+            : document.getElementById(decodeURIComponent(link.hash.slice(1)));
         if (target) {
           target.setAttribute("tabindex", "-1");
           target.focus({ preventScroll: true });
