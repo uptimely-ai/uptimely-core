@@ -10,7 +10,7 @@ Definitions can be authored in Python and exported to JSON, or supplied directly
 
 > [!WARNING]
 > This project follows semantic versioning, but is still at `0.x`: minor
-> releases may include breaking changes. See the [changelog](CHANGELOG.md)
+> releases may include breaking changes. See the [changelog](https://github.com/uptimely-ai/uptimely-core/blob/main/CHANGELOG.md)
 > for details.
 
 ## Demo
@@ -167,27 +167,27 @@ uptimely explore examples/pump_analytics
 Open <http://127.0.0.1:8001/> to view the Explorer.
 
 See the [documentation site](https://uptimely-ai.github.io/uptimely-core/) for
-the full guides, and the [Python API reference](docs/python/index.md) for
+the full guides, and the [Python API reference](python/index.md) for
 public classes, functions, and signatures.
 
 ## Repository guide
 
 | Path | Purpose |
 | --- | --- |
-| [`docs/`](docs/index.md) | Architecture, specification, and development documentation. |
-| [`examples/`](examples/README.md) | Runnable examples and generated artifacts. |
-| [`scripts/`](scripts) | Code snippets for repository management |
-| [`src/uptimely/`](src/uptimely/) | Package implementation for analytics, compilation, dependencies, documentation, and execution. |
-| [`tests/`](tests/) | Automated tests for the package and examples. |
+| [`docs/`](index.md) | Architecture, specification, and development documentation. |
+| [`examples/`](https://github.com/uptimely-ai/uptimely-core/blob/main/examples/README.md) | Runnable examples and generated artifacts. |
+| [`scripts/`](https://github.com/uptimely-ai/uptimely-core/tree/main/scripts) | Code snippets for repository management |
+| [`src/uptimely/`](https://github.com/uptimely-ai/uptimely-core/tree/main/src/uptimely) | Package implementation for analytics, compilation, dependencies, documentation, and execution. |
+| [`tests/`](https://github.com/uptimely-ai/uptimely-core/tree/main/tests) | Automated tests for the package and examples. |
 
 ## Development
 
 See
-[CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+[CONTRIBUTING.md](https://github.com/uptimely-ai/uptimely-core/blob/main/CONTRIBUTING.md) for the full workflow.
 
 ## License
 
-Released under the [MIT license](LICENSE). Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+Released under the [MIT license](https://github.com/uptimely-ai/uptimely-core/blob/main/LICENSE). Contributions are welcome — see [CONTRIBUTING.md](https://github.com/uptimely-ai/uptimely-core/blob/main/CONTRIBUTING.md).
 
 ## Feedback
 
