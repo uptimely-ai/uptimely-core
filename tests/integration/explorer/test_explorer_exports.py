@@ -196,9 +196,15 @@ def test_escape_actions_show_logical_inputs_and_outputs_in_explorer(
     assert len(escape_steps) == 3
     escape_step = next(step for step in escape_steps if "bearing_temperature" in step)
     assert "Declared feature inputs" in escape_step
-    assert "Declared logical outputs" in escape_step
-    assert "external_audit_result" in escape_step
-    assert 'data-side="output"' not in escape_step
+    assert "Declared logical outputs" not in escape_step
+    main_table = re.search(
+        r'<table class="data-lineage-table" data-side="output">(.*?)</table>',
+        escape_step,
+        re.DOTALL,
+    )
+    assert main_table is not None
+    assert 'data-column="bearing_temperature"' in main_table.group(1)
+    assert 'data-column="external_audit_result"' not in main_table.group(1)
 
 
 def test_generate_html_explorer(

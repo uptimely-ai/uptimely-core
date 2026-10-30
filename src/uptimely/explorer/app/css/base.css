@@ -11,6 +11,14 @@
   --font-mono: "JetBrains Mono", monospace;
 }
 body { margin: 0; background: var(--color-background); color: var(--color-text); font: 14px var(--font-body); }
+* { scrollbar-color: #475569 var(--color-surface); scrollbar-width: thin; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: var(--color-surface); }
+::-webkit-scrollbar-thumb { background: #475569; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #64748b; }
+@media (forced-colors: active) {
+  * { scrollbar-color: auto; }
+}
 [hidden] { display: none !important; }
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
 .site-topbar { position: fixed; inset: 0 0 auto; z-index: 60; height: var(--site-topbar-height);
@@ -57,7 +65,7 @@ html.with-navigation body:has(> .site-context) .site-content { grid-column: 3; }
   border-bottom: 1px solid var(--color-border); }
 .site-context .nav-icon { width: 16px; height: 16px; }
 .context-heading { min-width: 0; }
-.context-heading h2 { min-width: 0; min-height: 40px; margin: 0; padding: 0 12px;
+.context-heading h1, .context-heading h2 { min-width: 0; min-height: 40px; margin: 0; padding: 0 12px;
   font-size: 14px; font-weight: 700; color: #f8fafc; gap: 8px; }
 .context-toggle, .context-close { display: none; }
 .site-context .context-links { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
