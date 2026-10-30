@@ -5,9 +5,9 @@ import pytest
 from support import execution as execution_support
 
 from uptimely import execution_plan as plan_module
-from uptimely.engine import bindings as bindings_module
 from uptimely.engine import config as config_module
-from uptimely.engine import state as state_module
+from uptimely.engine.runtime import bindings as bindings_module
+from uptimely.engine.runtime import state as state_module
 from uptimely.spec import model as spec_model
 
 PLAN = plan_module.from_json("tests/fixtures/plans/simple_engine.json")

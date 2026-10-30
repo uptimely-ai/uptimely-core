@@ -4,9 +4,9 @@ from uptimely import execution_plan
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
 
+from ..runtime import state as state_module
 from . import backend as backend_module
-from . import dataframe_validation as dataframe_validation_module
-from . import state as state_module
+from . import validation as dataframe_validation_module
 
 
 class DataFrameExecution:

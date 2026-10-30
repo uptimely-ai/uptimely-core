@@ -7,9 +7,9 @@ from uptimely import execution_plan
 from uptimely.spec import arg_types, functions
 from uptimely.spec import model as spec_model
 
-from . import backend as backend_module
+from ..dataframe import backend as backend_module
+from ..dataframe import dataframe as dataframe_module
 from . import bindings as bindings_module
-from . import dataframe as dataframe_module
 from . import state as state_module
 
 

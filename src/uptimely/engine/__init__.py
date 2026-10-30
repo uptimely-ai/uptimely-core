@@ -1,9 +1,9 @@
 """Execution engine and runtime adapters for portable plans."""
 
-from .backend import DataFrameBackend, PolarsBackend
 from .config import Config, EngineBackendConfig, EngineConfig, ParameterConfig, Params
+from .dataframe.backend import DataFrameBackend, PolarsBackend
 from .engine import Engine
-from .result import ExecutionResult
+from .runtime.result import ExecutionResult
 
 __all__ = [
     "Engine",
