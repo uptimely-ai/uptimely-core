@@ -1,7 +1,16 @@
-lucide.createIcons();
-
 const navigation = document.querySelector("#explorer-navigation");
 const navigationToggle = document.querySelector(".mobile-nav-toggle");
+const labelToggle = document.querySelector(".nav-label-toggle");
+
+if (navigation && labelToggle) {
+  labelToggle.addEventListener("click", () => {
+    const labelsHidden = navigation.classList.toggle("labels-hidden");
+    const label = labelsHidden ? "Show navigation labels" : "Hide navigation labels";
+    labelToggle.setAttribute("aria-pressed", String(labelsHidden));
+    labelToggle.setAttribute("aria-label", label);
+    labelToggle.setAttribute("title", label);
+  });
+}
 
 if (navigation && navigationToggle) {
   const closeNavigation = () => {
@@ -27,4 +36,8 @@ if (navigation && navigationToggle) {
       navigationToggle.focus();
     }
   });
+
+  window.matchMedia("(max-width: 640px)").addEventListener("change", closeNavigation);
 }
+
+lucide.createIcons();

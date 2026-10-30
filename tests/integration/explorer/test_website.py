@@ -60,7 +60,7 @@ class NavigationCollector(html_parser.HTMLParser):
             href = attributes["href"]
             assert href is not None
             self.links.append(href)
-            if attributes.get("aria-current") == "page":
+            if self.in_navigation and attributes.get("aria-current") == "page":
                 self.active_links.append(href)
 
     def handle_endtag(self, tag: str) -> None:
@@ -186,6 +186,7 @@ def test_website_icons_share_section_palette(tmp_path: pathlib.Path) -> None:
             r'class="site-icon icon--(\S+) nav-icon"[^>]*></i><span>([^<]+)</span>',
             navigation.group(),
         ) == [
+            ("home", "Untitled analytics project"),
             ("spec", "Spec"),
             ("overview", "Overview"),
             ("features", "Features"),

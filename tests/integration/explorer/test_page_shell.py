@@ -11,7 +11,7 @@ from uptimely.explorer import explorer
 
 
 @pytest.mark.parametrize("scoped", [False, True])
-def test_pages_share_minimal_top_bar_and_build_badge(
+def test_pages_share_mobile_top_bar_and_desktop_sidebar_context(
     tmp_path: pathlib.Path,
     scoped: bool,
     example_bundle_factory: example_support.BundleFactory,
@@ -48,18 +48,38 @@ def test_pages_share_minimal_top_bar_and_build_badge(
         assert "Uptimely Core version" not in bar
         assert "<dl" not in bar
         assert "<details" not in bar
-        badge = re.search(r'<span class="build-badge[^"]*"[^>]*>([^<]+)</span>', bar)
-        assert badge is not None
-        assert badge.group(1) == ("Partial build" if scoped else "Full build")
-        assert ("build-badge-partial" in bar) == scoped
-        assert "Spec: complete model" in bar
-        assert ("selected features: health_signal_normalized" if scoped else "all features") in bar
+        assert "build-badge" not in bar
         root = "" if path.parent == tmp_path else "../"
         assert f'href="{root}custom.html"' in bar
         navigation = re.search(r"<nav\b.*?</nav>", document, re.DOTALL)
         assert navigation is not None
-        assert "openanalytics/explorer" not in navigation.group()
-        assert "icon--home" not in navigation.group()
+        nav = navigation.group()
+        assert "openanalytics/explorer" not in nav
+        assert f"<span>{definition.name}</span>" in nav
+        assert f'href="{root}custom.html"' in nav
+        assert 'data-lucide="house"' in nav
+        badge = re.search(r'<span class="build-badge[^"]*"[^>]*>([^<]+)</span>', nav)
+        assert badge is not None
+        assert badge.group(1) == ("Partial build" if scoped else "Full build")
+        assert ("build-badge-partial" in nav) == scoped
+        assert "Spec: complete model" in nav
+        assert ("selected features: health_signal_normalized" if scoped else "all features") in nav
+        assert 'class="nav-label-toggle"' in nav
+        assert 'aria-pressed="false" aria-controls="explorer-navigation"' in nav
+        for attributes in re.findall(r"<a\b([^>]*)>", nav):
+            assert "aria-label=" in attributes
+            assert "title=" in attributes
+
+    assert "grid-template-columns: max-content minmax(0, 1fr);" in styles
+    assert "html.with-navigation .site-topbar { display: none; }" in styles
+    assert ".site-nav { position: sticky; top: 0;" in styles
+    assert ".site-nav.labels-hidden a span" in styles
+    assert "--site-nav-width" not in styles
+    assert re.search(
+        r"\.build-badge \{[^}]*align-self: stretch;[^}]*"
+        r"background: transparent; color: var\(--color-muted\);",
+        styles,
+    )
 
 
 def test_mobile_navigation_uses_collapsible_menu(tmp_path: pathlib.Path) -> None:
@@ -80,7 +100,31 @@ def test_mobile_navigation_uses_collapsible_menu(tmp_path: pathlib.Path) -> None
     assert ".site-nav.is-open" in styles
     assert "max-height: calc(100dvh - var(--site-topbar-height));" in styles
     assert "navigationToggle.focus();" in script
-    assert "inset: var(--site-topbar-height) 0 0;" in graph_styles
+    assert 'window.matchMedia("(max-width: 640px)")' in script
+    assert ".site-nav-context, .nav-label-toggle, .build-badge { display: none; }" in styles
+    assert "margin-top: var(--site-topbar-height);" in graph_styles
+    assert "height: calc(100dvh - var(--site-topbar-height));" in graph_styles
+
+
+def test_desktop_navigation_labels_have_independent_toggle(tmp_path: pathlib.Path) -> None:
+    definition = spec.Spec()
+    explorer.Explorer(definition, plan=compiler.Compiler().compile(definition)).create_html(
+        tmp_path / "index.html"
+    )
+    script = (tmp_path / "js/icons.js").read_text(encoding="utf-8")
+    document = (tmp_path / "index.html").read_text(encoding="utf-8")
+
+    assert 'aria-label="Hide navigation labels"' in document
+    assert 'data-lucide="panel-left-close"' in document
+    assert 'data-lucide="panel-left-open"' in document
+    heading = re.search(r'<div class="site-nav-heading">(.*?)</div>', document, re.DOTALL)
+    assert heading is not None
+    assert 'class="site-product"' in heading.group(1)
+    assert 'class="nav-label-toggle"' in heading.group(1)
+    assert "<span>Hide labels</span>" not in document
+    assert 'navigation.classList.toggle("labels-hidden")' in script
+    assert 'labelToggle.setAttribute("aria-pressed", String(labelsHidden))' in script
+    assert '"Show navigation labels" : "Hide navigation labels"' in script
 
 
 @pytest.mark.parametrize(
@@ -102,6 +146,9 @@ def test_top_bar_project_name_is_escaped_with_untitled_fallback(
         bar = re.search(r'<header class="site-topbar".*?</header>', document, re.DOTALL)
         assert bar is not None
         assert f"<span>{expected}</span>" in bar.group()
+        navigation = re.search(r"<nav\b.*?</nav>", document, re.DOTALL)
+        assert navigation is not None
+        assert f"<span>{expected}</span>" in navigation.group()
     home = (tmp_path / "index.html").read_text(encoding="utf-8")
     assert '<p class="eyebrow">Project explorer</p>' in home
     assert "OpenAnalytics / Project explorer" not in home
