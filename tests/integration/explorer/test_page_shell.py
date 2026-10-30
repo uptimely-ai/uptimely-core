@@ -129,7 +129,7 @@ def test_desktop_navigation_labels_have_independent_toggle(tmp_path: pathlib.Pat
     assert '"Show navigation labels" : "Hide navigation labels"' in script
 
 
-def test_context_panel_is_limited_to_lineage_pages(tmp_path: pathlib.Path) -> None:
+def test_context_panels_appear_on_catalog_and_lineage_pages(tmp_path: pathlib.Path) -> None:
     definition = spec.Spec()
     explorer.Explorer(definition, plan=compiler.Compiler().compile(definition)).create_html(
         tmp_path / "index.html"
@@ -138,10 +138,31 @@ def test_context_panel_is_limited_to_lineage_pages(tmp_path: pathlib.Path) -> No
         "spec/feature-lineage.html": "node-details",
         "plan/invocation-lineage.html": "invocation-node-details",
     }
+    catalog_pages = {
+        "spec/features.html",
+        "spec/entities.html",
+        "spec/datasets.html",
+        "spec/dimensions.html",
+        "spec/functions.html",
+        "plan/stages.html",
+    }
     for path in tmp_path.rglob("*.html"):
         document = path.read_text(encoding="utf-8")
         filename = path.relative_to(tmp_path).as_posix()
         context = re.search(r'<aside class="site-context".*?</aside>', document, re.DOTALL)
+        if filename in catalog_pages:
+            assert context is not None
+            panel = context.group()
+            section = path.stem
+            assert 'id="catalog-context"' in panel
+            assert f'aria-label="{section.title()} context"' in panel
+            assert 'href="#catalog-overview"' in panel
+            assert 'class="context-separator"' in panel
+            assert 'class="nav-label-toggle context-label-toggle"' in panel
+            assert 'aria-expanded="false" aria-controls="catalog-context"' in document
+            assert 'src="../js/catalog_context.js"' in document
+            assert 'id="lineage-context"' not in document
+            continue
         if filename not in lineage_pages:
             assert context is None
             assert 'class="ui-button context-toggle"' not in document
@@ -168,17 +189,16 @@ def test_context_panel_is_limited_to_lineage_pages(tmp_path: pathlib.Path) -> No
         assert panel.index("<h1") < panel.index('class="lineage-control-groups"')
         assert "lineage-toolbar" not in document
 
-    styles = (tmp_path / "css/graph.css").read_text(encoding="utf-8")
     base_styles = (tmp_path / "css/base.css").read_text(encoding="utf-8")
     script = (tmp_path / "js/icons.js").read_text(encoding="utf-8")
     controller = (tmp_path / "js/lineage_view_controller.js").read_text(encoding="utf-8")
-    assert "grid-template-columns: max-content max-content minmax(0, 1fr);" in styles
-    assert "min-height: var(--site-panel-header-height)" in styles
+    assert "grid-template-columns: max-content max-content minmax(0, 1fr);" in base_styles
     assert "min-height: var(--site-panel-header-height)" in base_styles
-    assert ".site-context.is-collapsed { width: 67px; }" in styles
+    assert ".site-context.is-collapsed { width: 67px; }" in base_styles
     assert 'contextPanel.classList.toggle("is-collapsed")' in script
-    assert 'collapsed ? "Expand lineage context" : "Collapse lineage context"' in script
-    assert ".site-context.is-open { display: flex; }" in styles
+    assert 'contextPanel.dataset.contextLabel || "lineage"' in script
+    assert '`${collapsed ? "Expand" : "Collapse"} ${contextLabel} context`' in script
+    assert ".site-context.is-open { display: flex; }" in base_styles
     assert "contextPanel.classList.toggle" in script
     assert "contextClose.focus()" in script
     assert "contextToggle.focus()" in script

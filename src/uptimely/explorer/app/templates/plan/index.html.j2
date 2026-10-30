@@ -6,9 +6,15 @@
     <main>
       <header class="mb-8 border-b border-slate-800/80 pb-6">
         <p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Plan</p>
-        <h1 class="title-with-icon font-display text-3xl font-semibold tracking-tight text-white">{{ icon("stages" if active_section == "stages" else "overview", "title-icon") }}<span>{{ section_title }}</span></h1>
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 class="title-with-icon font-display text-3xl font-semibold tracking-tight text-white">{{ icon("stages" if active_section == "stages" else "overview", "title-icon") }}<span>{{ section_title }}</span></h1>
+          {% if active_section == "stages" %}<span class="rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1 font-mono text-xs text-slate-400">{{ stage_count }} stages</span>{% endif %}
+        </div>
         <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-400">{% if active_section == "stages" %}Inspect dependency-ordered invocations, parallel stages, and their argument bindings.{% else %}Plan compiled from the spec, ordered by dependency resolution.{% endif %}</p>
       </header>
+      {% if has_catalog_context %}
+      {% include "catalog_overview.html.j2" %}
+      {% endif %}
       {% block plan_overview %}
       <section id="plan-overview" class="mb-16">
         <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -61,17 +67,17 @@
       <section id="invocations" class="mb-16">
         <div class="space-y-8">
           {% for stage in stages %}
-          <section>
+          <section id="stage-{{ stage.stage }}" data-context-item>
             <div class="mb-3 flex items-center gap-3">
               {% set stage_heading = "h2" %}
               <{{ stage_heading }} class="rounded-lg bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">Stage {{ stage.stage }}</{{ stage_heading }}>
               <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ stage.steps | length }} parallel invocation{% if stage.steps | length != 1 %}s{% endif %}</span>
             </div>
-            <div class="grid grid-cols-1 gap-4">
+            <div class="grid grid-cols-1 gap-10">
           {% for step in stage.steps %}
           <div>
             <h3 class="mb-2 break-words font-display text-lg font-semibold text-white">{{ step.title }}</h3>
-          <article class="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
+          <article>
             <dl class="grid overflow-hidden rounded-lg border border-slate-800 bg-slate-950/55 font-mono text-xs md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]">
               <div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
                 <dt class="mb-1 uppercase tracking-wider text-slate-500">Function kind</dt>

@@ -1,79 +1,55 @@
 {% from "spec/section_header.html.j2" import section_header with context %}
-{% macro action_kind(action, functions) -%}
-  {{- functions.get(action.binding.function, {}).get("kind", "") -}}
-{%- endmacro %}
 {% set total = namespace(feature_count=0) %}
 {% for entity in configuration.entities.values() %}
-  {% for dataset_id, dataset in entity.datasets.items() %}
+  {% for dataset in entity.datasets.values() %}
+    {% set features = {} %}
     {% for action in dataset.actions.values() %}
       {% for reference in action.features.outputs %}
         {% set feature_id = reference.removeprefix("$features.") %}
-        {% if feature_id not in entity.dimensions %}{% set total.feature_count = total.feature_count + 1 %}{% endif %}
+        {% if feature_id not in entity.dimensions %}{% set _ = features.update({feature_id: true}) %}{% endif %}
       {% endfor %}
     {% endfor %}
+    {% set total.feature_count = total.feature_count + features|length %}
   {% endfor %}
 {% endfor %}
 <section id="entities" class="mb-16">
   {{ section_header("Features", "Browse produced feature declarations by dataset.", count=total.feature_count, count_label="features") }}
+  {% if has_catalog_context %}{% include "catalog_overview.html.j2" %}{% endif %}
   <div class="space-y-5">
     {% for entity_id, entity in configuration.entities.items() %}
       {% for dataset_id, dataset in entity.datasets.items() %}
-      <section>
-        <header class="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p class="font-mono text-xs text-slate-400"><span class="uppercase tracking-wider text-slate-500">Entity:</span> {{ entity.name or entity_id }}</p>
-            {% set dataset_heading = "h2" %}
-            <{{ dataset_heading }} class="mt-2 font-display text-xl font-semibold tracking-tight text-cyan-100">
-              <span class="mr-2 font-mono text-[10px] font-medium uppercase tracking-wider text-cyan-400">Dataset name:</span>{{ dataset_id }}
-            </{{ dataset_heading }}>
-          </div>
-          {% set ns = namespace(feature_count=0) %}
-          {% for action in dataset.actions.values() %}
-            {% for reference in action.features.outputs %}
-              {% set feature_id = reference.removeprefix("$features.") %}
-              {% if feature_id not in entity.dimensions %}{% set ns.feature_count = ns.feature_count + 1 %}{% endif %}
-            {% endfor %}
-          {% endfor %}
-        </header>
-        <article class="rounded-xl border border-slate-800 border-l-4 border-l-cyan-500 bg-slate-900/70 px-5">
-          <p class="border-b border-slate-800 py-3 font-mono text-xs text-slate-400">{{ ns.feature_count }} features</p>
-          <div class="divide-y divide-slate-800">
-          {% for action_id, action in dataset.actions.items() %}
-            {% set function_kind = action_kind(action, configuration.functions) %}
-            {% for reference in action.features.outputs if function_kind != "vectorize" %}
-              {% set feature_id = reference.removeprefix("$features.") %}
-              {% set feature = dataset.features[feature_id] %}
-              <div class="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,1fr)] sm:gap-4">
-                <div>
-                  <span class="font-mono text-sm text-cyan-200">{{ feature_id }}</span>
-                  {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
-                </div>
-                <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-                  <span class="font-mono text-xs {{ 'text-violet-300' if function_kind == 'escape' else 'text-slate-400' }}">{{ function_kind }} · {{ action_id }}</span>
-                  <span class="text-xs text-slate-500">{{ feature.type or "unspecified" }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>
-                </div>
-              </div>
-            {% endfor %}
-          {% endfor %}
-          {% for action_id, action in dataset.actions.items() if action_kind(action, configuration.functions) == "vectorize" %}
+        {% set features = {} %}
+        {% for action_id, action in dataset.actions.items() %}
           {% for reference in action.features.outputs %}
-          {% set feature_id = reference.removeprefix("$features.") %}
+            {% set feature_id = reference.removeprefix("$features.") %}
+            {% if feature_id not in entity.dimensions %}
+              {% set _ = features.update({feature_id: {"action_id": action_id, "action": action}}) %}
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+        {% for feature_id, producer in features.items() %}
           {% set feature = dataset.features[feature_id] %}
-          <div class="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,1fr)] sm:gap-4">
-            <div>
-              <span class="font-mono text-sm text-amber-200">{{ feature_id }}</span>
-              {% if feature.description %}<p class="mt-0.5 text-xs text-slate-500">{{ feature.description }}</p>{% endif %}
-            </div>
-            <div class="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-              <span class="font-mono text-xs text-slate-400">vectorize · {{ action_id }}</span>
-              <span class="text-xs text-slate-500">{{ feature.type or "calculated" }}{% if feature.unit %} / {{ feature.unit }}{% endif %}</span>
-            </div>
-          </div>
-          {% endfor %}
-          {% endfor %}
-          </div>
-        </article>
-      </section>
+          {% set function_kind = configuration.functions.get(producer.action.binding.function, {}).get("kind", "") %}
+          <article id="feature-{{ dataset_id }}-{{ feature_id }}" data-context-item>
+            <h2 class="font-display text-2xl font-semibold text-white">{{ feature_id }}</h2>
+            <p class="mt-4 text-sm leading-6 text-slate-400">{{ feature.description or "No description provided." }}</p>
+            <dl class="mt-6 grid gap-6 sm:grid-cols-2">
+              {% for label, value in [
+                ("Entity", entity.name or entity_id),
+                ("Dataset", dataset_id),
+                ("Type", feature.type or "unspecified"),
+                ("Unit", feature.unit or "Not specified"),
+                ("Produced by", function_kind ~ " · " ~ producer.action_id),
+                ("Function", producer.action.binding.function)
+              ] %}
+              <div><dt class="text-xs text-slate-500">{{ label }}</dt><dd class="mt-2 break-words font-mono text-sm text-slate-300">{{ value }}</dd></div>
+              {% endfor %}
+            </dl>
+            {% if function_kind == "escape" %}
+            <p class="mt-6 text-sm leading-6 text-violet-300">Declared logical output only; escape outputs are not materialized as dataframe columns.</p>
+            {% endif %}
+          </article>
+        {% endfor %}
       {% endfor %}
     {% endfor %}
   </div>

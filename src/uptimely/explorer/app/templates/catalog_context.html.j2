@@ -1,0 +1,88 @@
+{% from "spec/function_kinds.html.j2" import kind_meta %}
+{% macro context_link(target, label, icon_key=none, count=none, kind=none, show_icon=true) -%}
+<a href="#{{ target|urlencode }}">
+  {% if kind %}
+  <span class="context-link-icon"><i data-lucide="{{ kind_meta[kind].icon }}" class="site-icon icon--functions nav-icon" aria-hidden="true"></i></span>
+  {% elif show_icon %}
+  <span class="context-link-icon">{{ icon(icon_key or active_section, "nav-icon") }}</span>
+  {% endif %}
+  <span class="context-link-label">{{ label }}</span>
+  {% if count is not none %}<span class="context-link-count">{{ count }}</span>{% endif %}
+</a>
+{%- endmacro %}
+<aside class="site-context" id="catalog-context" aria-label="{{ active_section|title }} context" data-context-label="{{ active_section }}">
+  <div class="context-header">
+    <div class="context-heading site-nav-heading">
+      <h2 class="title-with-icon" title="{{ active_section|title }}">{{ icon(active_section, "nav-icon") }}<span>{{ active_section|title }}</span></h2>
+      <button class="nav-label-toggle context-label-toggle" type="button" aria-label="Collapse {{ active_section }} context"
+        aria-pressed="false" aria-controls="catalog-context" title="Collapse {{ active_section }} context">
+        {{ icon("collapse-navigation", "nav-icon") }}{{ icon("expand-navigation", "nav-icon") }}
+      </button>
+    </div>
+  </div>
+  <button class="ui-button context-close" type="button" aria-label="Close {{ active_section }} context">Close</button>
+  <nav class="context-links" aria-label="{{ active_section|title }} on this page">
+    {{ context_link("catalog-overview", "Overview", "overview") }}
+    <hr class="context-separator">
+    {% if active_section == "features" %}
+      {% set total = namespace(count=0) %}
+      {% for entity in configuration.entities.values() %}
+        {% for dataset_id, dataset in entity.datasets.items() %}
+          {% set features = {} %}
+          {% for action in dataset.actions.values() %}
+            {% for reference in action.features.outputs %}
+              {% set feature_id = reference.removeprefix("$features.") %}
+              {% if feature_id not in entity.dimensions %}{% set _ = features.update({feature_id: true}) %}{% endif %}
+            {% endfor %}
+          {% endfor %}
+          {% if features %}
+          <div class="context-link-group">
+            <p class="context-group-label">{{ icon("datasets", "nav-icon") }}<span>{{ dataset_id }}</span><span class="context-link-count">{{ features|length }}</span></p>
+            {% for feature_id in features %}
+              {{ context_link("feature-" ~ dataset_id ~ "-" ~ feature_id, feature_id) }}
+              {% set total.count = total.count + 1 %}
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      {% if not total.count %}<p class="context-empty">No features.</p>{% endif %}
+    {% elif active_section == "datasets" %}
+      {% for entity_id, entity in configuration.entities.items() %}
+        {% if entity.datasets %}
+        <div class="context-link-group">
+          <p class="context-group-label">{{ icon("entities", "nav-icon") }}<span>{{ entity.name or entity_id }}</span><span class="context-link-count">{{ entity.datasets|length }}</span></p>
+          {% for dataset_id in entity.datasets %}
+            {{ context_link("dataset-" ~ dataset_id, dataset_id) }}
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% endfor %}
+      {% if not summary.dataset_count %}<p class="context-empty">No datasets.</p>{% endif %}
+    {% elif active_section == "dimensions" %}
+      {% for dimension_id in configuration.dimensions %}
+        {{ context_link("dimension-" ~ dimension_id, dimension_id) }}
+      {% else %}<p class="context-empty">No dimensions.</p>{% endfor %}
+    {% elif active_section == "entities" %}
+      {% for entity_id, entity in configuration.entities.items() %}
+        {{ context_link("entity-" ~ entity_id, entity.name or entity_id) }}
+      {% else %}<p class="context-empty">No entities.</p>{% endfor %}
+    {% elif active_section == "functions" %}
+      {% for group_name, group in function_groups.items() if group %}
+        <div class="context-link-group">
+          {{ context_link("functions-" ~ group_name, group_name|title, count=group|length, kind=group_name) }}
+          <div class="context-sublinks">
+          {% for function_id in group %}
+            {{ context_link("function-" ~ function_id, function_id, show_icon=false) }}
+          {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+      {% if not summary.function_count %}<p class="context-empty">No functions.</p>{% endif %}
+    {% elif active_section == "stages" %}
+      {% for stage in stages %}
+        {{ context_link("stage-" ~ stage.stage, "Stage " ~ stage.stage, count=stage.steps|length) }}
+      {% else %}<p class="context-empty">No execution stages.</p>{% endfor %}
+    {% endif %}
+  </nav>
+</aside>

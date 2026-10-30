@@ -250,9 +250,17 @@ def test_generate_html_explorer(
     assert "-&gt; LazyFrame" in document
     assert "-&gt; LazyFrame" in document
     assert "read · read_pump_telemetry" in document
-    assert document.index("Pump telemetry") < document.index(
-        "rounded-2xl border border-slate-800 bg-slate-900/70 p-6"
+    assert 'aria-label="Dataset details"' in pages["spec/datasets.html"]
+    assert "<details" not in pages["spec/datasets.html"]
+    assert (
+        '<article id="dataset-pump_telemetry_dataset" data-context-item>'
+        in pages["spec/datasets.html"]
     )
+    assert (
+        '<article id="dimension-plant" data-context-item class="min-w-0">'
+        in pages["spec/dimensions.html"]
+    )
+    assert '<article id="function-aggregate" data-context-item>' in pages["spec/functions.html"]
     assert "pump" in document
     assert ">Overview<" in document
     assert "border-t border-slate-800/60 pt-5" in document

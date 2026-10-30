@@ -1,5 +1,6 @@
 {% from "icons.html.j2" import icon %}
 {% from "project_context.html.j2" import project_link, build_badge %}
+{% set has_catalog_context = include_navigation and ((active_page == "spec" and active_section in ["features", "datasets", "dimensions", "entities", "functions"]) or (active_page == "plan" and active_section == "stages")) %}
 <!DOCTYPE html>
 <html lang="en" class="bg-slate-950{% if include_navigation %} with-navigation{% endif %}">
 <head>
@@ -16,7 +17,7 @@
   <link rel="stylesheet" href="{{ root_path or "" }}css/icons.css">
   {% block stylesheets %}{% endblock %}
 </head>
-<body {% block body_attributes %}{% endblock %}class="{% block body_class %}min-h-screen bg-slate-950 font-sans text-slate-200{% endblock %}">
+<body {% block body_attributes %}{% endblock %}class="{% if has_catalog_context %}catalog-context-page {% endif %}{% block body_class %}min-h-screen bg-slate-950 font-sans text-slate-200{% endblock %}">
   {% set rel_root = root_path or "" %}
   {% include "top_bar.html.j2" %}
   {% if include_navigation %}
@@ -67,11 +68,18 @@
     {{ build_badge(is_scoped, execution_scope) }}
   </nav>
   {% endif %}
-  {% block page_context %}{% endblock %}
+  {% block page_context %}
+  {% if has_catalog_context %}{% include "catalog_context.html.j2" %}{% endif %}
+  {% endblock %}
   <div class="site-content">
+    {% if has_catalog_context %}
+    <button class="ui-button context-toggle catalog-context-toggle" type="button" aria-label="Show {{ active_section }} context"
+      aria-expanded="false" aria-controls="catalog-context">Browse {{ active_section }}</button>
+    {% endif %}
     {% block content %}{% endblock %}
   </div>
   {% block scripts %}
+  {% if has_catalog_context %}<script src="{{ root_path or "" }}js/catalog_context.js"></script>{% endif %}
   <script src="https://unpkg.com/lucide@latest"></script><script src="{{ root_path or "" }}js/icons.js"></script>
   {% endblock %}
 </body>

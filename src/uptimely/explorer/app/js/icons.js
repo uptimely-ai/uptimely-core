@@ -1,7 +1,7 @@
 const navigation = document.querySelector("#explorer-navigation");
 const navigationToggle = document.querySelector(".mobile-nav-toggle");
 const labelToggle = document.querySelector(".nav-label-toggle");
-const contextPanel = document.querySelector("#lineage-context");
+const contextPanel = document.querySelector(".site-context");
 const contextToggle = document.querySelector(".context-toggle");
 const contextClose = document.querySelector(".context-close");
 const contextLabelToggle = document.querySelector(".context-label-toggle");
@@ -51,6 +51,20 @@ if (navigation && navigationToggle) {
 }
 
 if (contextPanel && contextToggle && contextClose) {
+  contextPanel.querySelectorAll('a[href^="#"]').forEach((link) => {
+    link.addEventListener("click", () => {
+      if (window.matchMedia("(max-width: 640px)").matches) {
+        closeContext();
+        const target = contextPanel.id === "catalog-context"
+          ? document.querySelector("main h1")
+          : document.getElementById(decodeURIComponent(link.hash.slice(1)));
+        if (target) {
+          target.setAttribute("tabindex", "-1");
+          target.focus({ preventScroll: true });
+        }
+      }
+    });
+  });
   contextToggle.addEventListener("click", () => {
     const isOpen = contextToggle.getAttribute("aria-expanded") !== "true";
     if (navigationToggle?.getAttribute("aria-expanded") === "true") navigationToggle.click();
@@ -78,7 +92,8 @@ if (contextPanel && contextToggle && contextClose) {
 if (contextPanel && contextLabelToggle) {
   contextLabelToggle.addEventListener("click", () => {
     const collapsed = contextPanel.classList.toggle("is-collapsed");
-    const label = collapsed ? "Expand lineage context" : "Collapse lineage context";
+    const contextLabel = contextPanel.dataset.contextLabel || "lineage";
+    const label = `${collapsed ? "Expand" : "Collapse"} ${contextLabel} context`;
     contextLabelToggle.setAttribute("aria-pressed", String(collapsed));
     contextLabelToggle.setAttribute("aria-label", label);
     contextLabelToggle.setAttribute("title", label);
