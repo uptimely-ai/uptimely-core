@@ -10,7 +10,7 @@
   "neutral": "bg-slate-800 text-slate-300"
 } %}
 <section id="datasets" class="mb-16">
-  {{ section_header("Datasets", "Dataset schemas at a glance.", count=summary.dataset_count, count_label="datasets") }}
+  {{ section_header("Datasets", none) }}
   {% if has_catalog_context %}{% include "catalog_overview.html.j2" %}{% endif %}
   <div class="space-y-8">
     {% for entity_id, entity in configuration.entities.items() %}
@@ -50,30 +50,6 @@
           </div>
           <span class="rounded-full bg-slate-800/70 px-3 py-1 font-mono text-[10px] text-slate-400">{{ columns|length }} columns</span>
         </header>
-        {% if dataset.row_scope and dataset.row_scope.get("grain") %}<p class="mt-3 max-w-3xl text-sm leading-6 text-slate-400">{{ dataset.row_scope.grain }}</p>{% endif %}
-        {% if columns %}
-        <div class="mt-6">
-          <div class="dataset-table-scroll overflow-x-auto rounded-xl border border-slate-700/60">
-            <table data-dataset-schema="{{ dataset_id }}" class="w-full min-w-max border-collapse text-left font-mono text-xs">
-              <caption class="sr-only">Declared column types and units for {{ dataset_id }}; schema only, no sample records.</caption>
-              <thead>
-                <tr>
-                  {% for column in columns %}
-                  <th scope="col" class="border-b border-slate-700/50 px-4 py-4 {{ column_colors[column.color] }}">{{ column.name }}<span class="mt-2 block text-[10px] font-normal">{{ column.role }}</span></th>
-                  {% endfor %}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  {% for column in columns %}
-                  <td class="px-4 py-3 {{ column_colors[column.color] }}">{{ column.type }}{% if column.unit %} · {{ column.unit }}{% endif %}</td>
-                  {% endfor %}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        {% endif %}
         {% set ns = namespace(action_count=0) %}
         {% for action in dataset.actions.values() %}
           {% if action_kind(action, configuration.functions) != "vectorize" %}
@@ -81,7 +57,7 @@
           {% endif %}
         {% endfor %}
         {% if dataset.description or dataset.row_scope.get("filtering") or dataset.row_scope.get("coverage") or dataset.order or ns.action_count %}
-        <section class="mt-8 border-t border-slate-800 pt-6" aria-label="Dataset details">
+        <section class="mt-5 border-t border-slate-800 pt-5" aria-label="Dataset details">
           <h3 class="font-display text-lg font-semibold text-white">Dataset details</h3>
           <div class="mt-5 space-y-6">
             {% if dataset.description %}<p class="max-w-3xl text-sm leading-6 text-slate-400">{{ dataset.description }}</p>{% endif %}
@@ -128,6 +104,30 @@
             {% endif %}
           </div>
         </section>
+        {% endif %}
+        {% if dataset.row_scope and dataset.row_scope.get("grain") %}<p class="mt-3 max-w-3xl text-sm leading-6 text-slate-400">{{ dataset.row_scope.grain }}</p>{% endif %}
+        {% if columns %}
+        <div class="mt-6">
+          <div class="dataset-table-scroll overflow-x-auto rounded-xl border border-slate-700/60">
+            <table data-dataset-schema="{{ dataset_id }}" class="w-full min-w-max border-collapse text-left font-mono text-xs">
+              <caption class="sr-only">Declared column types and units for {{ dataset_id }}; schema only, no sample records.</caption>
+              <thead>
+                <tr>
+                  {% for column in columns %}
+                  <th scope="col" class="border-b border-slate-700/50 px-4 py-4 {{ column_colors[column.color] }}">{{ column.name }}<span class="mt-2 block text-[10px] font-normal">{{ column.role }}</span></th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  {% for column in columns %}
+                  <td class="px-4 py-3 {{ column_colors[column.color] }}">{{ column.type }}{% if column.unit %} · {{ column.unit }}{% endif %}</td>
+                  {% endfor %}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
         {% endif %}
       </article>
       {% endfor %}
