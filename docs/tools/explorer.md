@@ -62,6 +62,7 @@ dimensions by type, functions by kind, and invocations by stage and function kin
 Individual items remain separate, spacious views without outer card containers;
 the selected item's title replaces the section heading at the top. Returning to
 Overview restores the section title. Tables and code examples retain their own formatting.
+Python examples use the vivid Monokai Sublime syntax-highlighting theme.
 Dataset details appear directly beneath the schema, with labeled filtering,
 coverage, logical ordering, and action information when declared; no expansion
 is required.

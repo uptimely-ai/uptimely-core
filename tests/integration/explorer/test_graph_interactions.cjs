@@ -14,7 +14,9 @@ for (const withSectionCount of [false, true]) {
 		const items = [overview, first, second];
 		for (const item of items) {
 			const heading = { ...createElement(), textContent: item.id };
-			item.querySelector = () => heading;
+			item.description = { ...createElement(), textContent: `${item.id} description <&>` };
+			item.querySelector = selector => selector === '[data-function-description]'
+				? (item === overview ? null : item.description) : heading;
 			item.contains = candidate => candidate === item;
 		}
 		const group = {
@@ -33,6 +35,7 @@ for (const withSectionCount of [false, true]) {
 		const title = { ...createElement(), textContent: 'Functions' };
 		const heading = { ...createElement(), focus() {} };
 		const count = withSectionCount ? createElement() : null;
+		const description = { ...createElement(), textContent: 'Browse the function catalog.' };
 		const document = {
 			title: 'Spec functions',
 			getElementById: id => [overview, group, first, second].find(item => item.id === id)
@@ -41,6 +44,7 @@ for (const withSectionCount of [false, true]) {
 				if (selector === 'main h1 span') return title;
 				if (selector === 'main h1') return heading;
 				if (selector === '[data-section-count]') return count;
+				if (selector === '[data-section-description]') return description;
 				throw new Error(`Unexpected selector: ${selector}`);
 			},
 			querySelectorAll(selector) {
@@ -66,6 +70,9 @@ for (const withSectionCount of [false, true]) {
 			assert.equal(links.find(link => link.hash === `#${item.id}`)
 				.attributes['aria-current'], 'location');
 			if (count) assert.equal(count.hidden, item !== overview);
+			assert.equal(description.textContent, item === overview
+				? 'Browse the function catalog.' : item.description.textContent);
+			if (item !== overview) assert.equal(item.description.hidden, true);
 		};
 		assertSelected(second, 'function-second');
 		const click = link => link.listeners.click({ button: 0, preventDefault() {} });
