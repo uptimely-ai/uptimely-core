@@ -8,6 +8,7 @@ from http import server as http_server
 
 from uptimely import project
 from uptimely.cli import common
+from uptimely.project import build as project_build
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,11 @@ def configure_serve_parser(parser: argparse.ArgumentParser) -> None:
         parser,
         option_help="Project root containing the active build",
     )
+    parser.add_argument(
+        "--build",
+        action="store_true",
+        help="Build and publish the project bundle before serving it",
+    )
     parser.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
     parser.add_argument(
         "--port", type=_port, default=8001, help="TCP port (default: 8001; 0 selects a free port)"
@@ -91,6 +97,9 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Serve the active build's validated, saved Explorer website."""
     project_root = common.resolve_project_root(args, parser).resolve()
     try:
+        if args.build:
+            bundle = project_build.build_project(project_root)
+            logger.info("Build files created to %s", bundle.root)
         with project.read_build_bundle(project_root) as bundle:
             scope = (
                 "all features"

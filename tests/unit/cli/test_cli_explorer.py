@@ -170,3 +170,60 @@ def test_explorer_reports_selected_scope(
     home = (bundle.explorer_path / "index.html").read_text(encoding="utf-8")
     assert "Partial build" in home
     assert "Plan and execution: selected features: pump_health_score" in home
+
+
+@pytest.mark.parametrize("command", ["explore", "explorer"])
+def test_explorer_build_option_builds_before_serving(
+    built_project: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str,
+) -> None:
+    events: list[str] = []
+
+    def build(root: pathlib.Path) -> project_build.BuildBundle:
+        events.append("build")
+        assert root == built_project
+        return project.load_build_bundle(root)
+
+    def serve(*args: object) -> None:
+        events.append("serve")
+
+    monkeypatch.setattr(project_build, "build_project", build)
+    monkeypatch.setattr(explorer, "serve_explorer", serve)
+    arguments = (
+        ["explorer", "serve", str(built_project)]
+        if command == "explorer"
+        else ["explore", str(built_project)]
+    )
+    monkeypatch.setattr(sys, "argv", ["uptimely", *arguments, "--build"])
+
+    cli.main()
+
+    assert events == ["build", "serve"]
+
+
+def test_explorer_build_failure_does_not_serve(
+    built_project: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fail_build(root: pathlib.Path) -> project_build.BuildBundle:
+        raise project_build.ProjectBuildError("generation", "invalid source")
+
+    monkeypatch.setattr(project_build, "build_project", fail_build)
+    monkeypatch.setattr(
+        explorer,
+        "serve_explorer",
+        lambda *args: pytest.fail("Explorer must not start after a failed build"),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["uptimely", "explore", str(built_project), "--build"],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 1
+    assert "Project build generation failed: invalid source" in capsys.readouterr().err
