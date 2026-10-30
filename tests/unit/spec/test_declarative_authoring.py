@@ -510,7 +510,7 @@ def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> No
                 function=ref.function("implementation:custom_work", kind="escape"),
                 arguments={},
                 inputs=[ref.feature("external_input")],
-                outputs=[authoring.Feature(name="pipeline_result")],
+                outputs=[],
             )
         ]
 
@@ -526,7 +526,7 @@ def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> No
     assert "publishers" not in exported
     assert "pipelines" not in exported
     assert set(exported["actions"]) == {"calculate", "publish", "custom_work"}
-    assert set(exported["features"]) == {"result", "pipeline_result"}
+    assert set(exported["features"]) == {"result"}
 
 
 def test_model_collects_dataset_classes_in_registry_order() -> None:

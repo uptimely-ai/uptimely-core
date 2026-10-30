@@ -34,20 +34,13 @@ def _escape_configuration() -> dict:
         "kind": "escape",
         "returns": "any",
         "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
-        "args": {"source": {"type": "dataframe"}},
+        "args": {},
     }
     target = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
-    target["features"].update(
-        {
-            "external_first": {"type": "float"},
-            "external_second": {"type": "float"},
-            "external_third": {"type": "float"},
-        }
-    )
     target["actions"]["escape_first"] = {
         "binding": {
             "function": "external_action",
-            "args": {"source": "$datasets.pump_dataset.dataframe"},
+            "args": {},
         },
         "features": {
             "inputs": [
@@ -55,17 +48,17 @@ def _escape_configuration() -> dict:
                 "$features.health_signal_normalized",
                 "$features.pump",
             ],
-            "outputs": ["$features.external_first", "$features.external_second"],
+            "outputs": [],
         },
     }
     target["actions"]["escape_second"] = {
         "binding": {
             "function": "external_action",
-            "args": {"source": "$datasets.pump_dataset.dataframe"},
+            "args": {},
         },
         "features": {
-            "inputs": ["$features.external_first"],
-            "outputs": ["$features.external_third"],
+            "inputs": ["$features.bearing_temperature"],
+            "outputs": [],
         },
     }
     return configuration
@@ -237,11 +230,22 @@ def test_unproduced_declared_features_warn_instead_of_failing(
     )
 
 
-def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_chains(
+def test_escape_mappings_preserve_logical_inputs_and_outputs(
     tmp_path: pathlib.Path,
 ) -> None:
+    configuration = _escape_configuration()
+    dataset_config = configuration["entities"]["pump_telemetry"]["datasets"][
+        "pump_telemetry_dataset"
+    ]
+    dataset_config["features"]["external_result"] = {"type": "float"}
+    dataset_config["features"]["external_followup"] = {"type": "float"}
+    dataset_config["actions"]["escape_first"]["features"]["outputs"] = ["$features.external_result"]
+    dataset_config["actions"]["escape_second"]["features"]["inputs"] = []
+    dataset_config["actions"]["escape_second"]["features"]["outputs"] = [
+        "$features.external_followup"
+    ]
     path = tmp_path / "escape.json"
-    path.write_text(json.dumps(_escape_configuration()), encoding="utf-8")
+    path.write_text(json.dumps(configuration), encoding="utf-8")
 
     parsed_spec = spec.load_spec(path)
     actions = parsed_spec.entities["pump_telemetry"].datasets["pump_telemetry_dataset"].actions
@@ -251,9 +255,9 @@ def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_ch
         "health_signal_normalized",
         "pump",
     ]
-    assert actions["escape_first"].output_features == ["external_first", "external_second"]
-    assert actions["escape_second"].input_features == ["external_first"]
-    assert actions["escape_second"].output_features == ["external_third"]
+    assert actions["escape_first"].output_features == ["external_result"]
+    assert actions["escape_second"].input_features == []
+    assert actions["escape_second"].output_features == ["external_followup"]
     health_signal_producer = next(
         item
         for item in action_rules.iter_actions(parsed_spec)
@@ -267,20 +271,6 @@ def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_ch
     [
         (
             "inputs",
-            [],
-            "Escape actions must declare one or more input features",
-            "invalid_mapping_feature_inputs",
-            ("features", "inputs"),
-        ),
-        (
-            "outputs",
-            [],
-            "Action escape_first must declare one or more features",
-            None,
-            None,
-        ),
-        (
-            "inputs",
             ["$features.unknown_feature"],
             "Action escape_first references unknown input feature: unknown_feature",
             None,
@@ -288,7 +278,7 @@ def test_escape_mappings_support_cross_dataset_multi_feature_dependencies_and_ch
         ),
     ],
 )
-def test_escape_mappings_require_declared_inputs_and_outputs(
+def test_escape_mappings_validate_declared_input_references(
     tmp_path: pathlib.Path,
     field: str,
     value: list[str],
@@ -313,35 +303,7 @@ def test_escape_mappings_require_declared_inputs_and_outputs(
         assert error.value.path[-2:] == path_suffix
 
 
-def test_escape_mappings_reject_duplicate_feature_producers(tmp_path: pathlib.Path) -> None:
-    configuration = _escape_configuration()
-    actions = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "actions"
-    ]
-    duplicate = json.loads(json.dumps(actions["escape_first"]))
-    duplicate["features"]["outputs"] = ["$features.external_first"]
-    actions["escape_duplicate"] = duplicate
-    path = tmp_path / "duplicate_escape.json"
-    path.write_text(json.dumps(configuration), encoding="utf-8")
-
-    with pytest.raises(ValueError, match="Feature external_first is produced by multiple actions"):
-        spec.load_spec(path)
-
-
-def test_escape_dependencies_reject_cycles(tmp_path: pathlib.Path) -> None:
-    configuration = _escape_configuration()
-    first = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "actions"
-    ]["escape_first"]
-    first["features"]["inputs"] = ["$features.external_third"]
-    path = tmp_path / "escape_cycle.json"
-    path.write_text(json.dumps(configuration), encoding="utf-8")
-
-    with pytest.raises(ValueError, match="Action feature dependency cycle"):
-        spec.load_spec(path)
-
-
-def test_python_conversion_and_json_loading_share_escape_input_validation(
+def test_python_conversion_and_json_loading_accept_output_only_escape_actions(
     tmp_path: pathlib.Path,
 ) -> None:
     declaration = dataset.Dataset(
@@ -349,33 +311,39 @@ def test_python_conversion_and_json_loading_share_escape_input_validation(
         pipelines=[
             actions.Action(
                 id="escape",
-                inputs=[],
                 function=ref.function("example:escape", kind="escape"),
                 arguments={},
                 outputs=[feature.Feature(name="external_result")],
             )
         ],
     )
-    expected_message = (
-        "entities.entity.datasets.observations.actions.escape.features.inputs: "
-        "Escape actions must declare one or more input features"
-    )
-
-    with pytest.raises(
-        validation_errors.SpecError, match="Escape actions must declare"
-    ) as python_error:
-        spec.from_python(datasets=[declaration])
+    python_spec = spec.from_python(datasets=[declaration])
+    python_action = python_spec.entities["entity"].datasets["observations"].actions["escape"]
+    assert python_action.input_features == []
+    assert python_action.output_features == ["external_result"]
 
     path = tmp_path / "python_escape.json"
     path.write_text(json.dumps(conversion.to_dict(datasets=[declaration])), encoding="utf-8")
-    with pytest.raises(
-        validation_errors.SpecError, match="Escape actions must declare"
-    ) as json_error:
-        spec.load_spec(path)
+    json_spec = spec.load_spec(path)
+    json_action = json_spec.entities["entity"].datasets["observations"].actions["escape"]
+    assert json_action.input_features == []
+    assert json_action.output_features == ["external_result"]
 
-    assert str(python_error.value) == expected_message
-    assert str(json_error.value) == expected_message
-    assert python_error.value.code == json_error.value.code == "invalid_mapping_feature_inputs"
+
+def test_python_dataset_accepts_escape_feature_outputs() -> None:
+    declaration = dataset.Dataset(
+        id="observations",
+        pipelines=[
+            actions.Action(
+                id="escape",
+                function=ref.function("example:escape", kind="escape"),
+                arguments={},
+                outputs=[feature.Feature(name="external_result")],
+            )
+        ],
+    )
+
+    assert declaration.to_model().actions["escape"].output_features == ["external_result"]
 
 
 def test_expand_rejects_higher_dimensional_source(tmp_path: pathlib.Path) -> None:
@@ -549,17 +517,19 @@ def test_matching_key_errors_point_to_the_declared_key(
     assert expected_dimension in str(error.value)
 
 
-def test_dimension_key_selector_is_not_a_dataframe_value(tmp_path: pathlib.Path) -> None:
-    configuration = _matching_key_configuration("$datasets.@.dimensions.ids", key_type="dataframe")
+def test_escape_accepts_explicit_dataframe_arguments(tmp_path: pathlib.Path) -> None:
+    configuration = _matching_key_configuration(
+        "$datasets.pump_dataset.dataframe", key_type="dataframe"
+    )
     function = configuration["functions"]["conform_with_keys"]
     function["kind"] = "escape"
     function["returns"] = "any"
+    configuration["entities"]["pump"]["datasets"]["conformed_dataset"]["actions"]["conform_values"][
+        "features"
+    ]["outputs"] = ["$features.conformed_value"]
     path = _write_configuration(tmp_path, configuration, "dimension_key_dataframe.json")
 
-    with pytest.raises(validation_errors.SpecError) as error:
-        spec.load_spec(path)
-
-    assert error.value.code == "invalid_binding_reference_type"
+    spec.load_spec(path)
 
 
 def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.Path) -> None:

@@ -27,7 +27,7 @@ def iter_output_datasets(spec: spec_model.Spec) -> collections.abc.Iterator[Data
         for action_id in location.dataset.actions:
             item = actions_by_key[*location.key, action_id]
             declarations: list[OutputDeclaration] = []
-            if item.kind != functions.WRITE:
+            if item.kind is not None and functions.FUNCTION_KINDS[item.kind].produces_features:
                 for feature_id in item.outputs:
                     declarations.append((feature_id, producers.get(feature_id)))
                     if feature_id not in item.dimensions:
@@ -40,9 +40,9 @@ def iter_output_datasets(spec: spec_model.Spec) -> collections.abc.Iterator[Data
 
 
 def validate_output_presence(spec: spec_model.Spec) -> None:
-    """Require a producing action to declare at least one output."""
+    """Require feature-producing actions to declare outputs when their kind requires them."""
     for item in action_rules.iter_actions(spec):
-        if item.kind == functions.WRITE:
+        if item.kind is None or not functions.FUNCTION_KINDS[item.kind].requires_feature_outputs:
             continue
         action_id = item.action_id
         if not item.outputs:
@@ -94,19 +94,23 @@ def validate_function_reference(spec: spec_model.Spec) -> None:
             )
 
 
-def validate_write_outputs(spec: spec_model.Spec) -> None:
-    """Reject output features on a write action."""
+def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
+    """Reject output feature declarations on kinds that do not support them."""
     for item in action_rules.iter_actions(spec):
-        if item.kind != functions.WRITE:
+        if item.kind is None:
+            continue
+        if functions.FUNCTION_KINDS[item.kind].produces_features:
             continue
         if item.outputs:
-            raise ValueError(f"Write action {item.action_id} cannot produce features")
+            raise ValueError(
+                f"{item.kind.capitalize()} action {item.action_id} cannot produce features"
+            )
 
 
 def validate_output_feature(spec: spec_model.Spec) -> None:
     """Require an output feature to be declared in the target dataset."""
     for item in action_rules.iter_actions(spec):
-        if item.kind == functions.WRITE:
+        if item.kind is None or not functions.FUNCTION_KINDS[item.kind].produces_features:
             continue
         for feature in item.outputs:
             if feature not in item.dataset.features:
@@ -117,7 +121,7 @@ def validate_unique_producer(spec: spec_model.Spec) -> None:
     """Reject multiple producers for a non-dimension feature."""
     for _, output_actions, _ in iter_output_datasets(spec):
         for item, declarations in output_actions:
-            if item.kind == functions.WRITE:
+            if item.kind is None or not functions.FUNCTION_KINDS[item.kind].produces_features:
                 continue
             for feature, previous in declarations:
                 if feature not in item.dimensions and previous is not None:

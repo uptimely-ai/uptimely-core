@@ -152,7 +152,7 @@ Each dataset exposes three lists of actions:
 | --- | --- | --- |
 | `producers` | `read`, `collapse`, `conform`, `expand`, `vectorize` | Produce dataset features. |
 | `publishers` | `write` | Write dataset results to external destinations. |
-| `pipelines` | `escape` | Invoke opaque custom processing with declared dependencies and outputs. |
+| `pipelines` | `escape` | Invoke opaque custom processing with logical feature inputs/outputs and no dataframe handoff. |
 
 Kinds remain explicit on functions or function references. Putting an action in
 the wrong collection raises an error; placement never changes its kind.

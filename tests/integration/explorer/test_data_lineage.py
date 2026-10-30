@@ -96,7 +96,7 @@ def test_data_lineage_tables_match_compiled_operations_and_producer_colors(
             ("Output", invocation.output_features),
         ):
             if invocation.function_kind == "escape":
-                role = "Declared input" if role == "Input" else "Declared external output"
+                role = "Declared input" if role == "Input" else "Output"
             assert [column.name for column in step.columns if column.role == role] == [
                 feature for feature in features if feature not in dimensions
             ]
@@ -109,7 +109,7 @@ def test_data_lineage_tables_match_compiled_operations_and_producer_colors(
                 producer = producers[column.name]
                 assert column.color == producer.color
                 assert column.producer == producer.number
-                if column.role in {"Output", "Declared external output"}:
+                if column.role == "Output":
                     assert producer.number == step.number
         if invocation.function_kind == "collapse":
             assert "timestamp" not in [column.name for column in step.columns]

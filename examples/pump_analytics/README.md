@@ -23,5 +23,8 @@ contracts. Argument wiring uses `ref.dataframe()`, `ref.column()`, and
 For environment setup, commands to run each workflow, generated outputs, and
 documentation preview instructions, see the shared [examples guide](../README.md).
 The uncontrolled workflow writes
-`_generated/pump_external_workflow_results.csv`; its declared `ratio` output is
-not materialized as a dataframe column.
+`_generated/pump_external_workflow_results.csv` as a side effect. Its escape
+action declares `measurement` and `reference_value` as logical inputs and
+`ratio` as a logical output. These declarations do not implicitly pass a
+dataframe; this function reads the input itself. The engine does not
+materialize `ratio`, and the function's return value is ignored.

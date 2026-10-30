@@ -7,7 +7,7 @@ from uptimely import Action, Dataset, Feature, RowScope, ref
 
 
 class PumpExternalWorkflow(Dataset):
-    """Declare the pump inputs and output of a workflow that owns its I/O."""
+    """Declare the logical inputs and output of a workflow that owns its I/O."""
 
     id = "pump_external_workflow_dataset"
     description = "Pump-level inputs and outputs for an uncontrolled local workflow."
@@ -31,12 +31,6 @@ class PumpExternalWorkflow(Dataset):
             function=external_workflow.process_pump_external_workflow,
             arguments={},
             inputs=[ref.column("measurement"), ref.column("reference_value")],
-            outputs=[
-                Feature(
-                    name="ratio",
-                    type="float",
-                    description="Measurement divided by its reference value.",
-                )
-            ],
+            outputs=[Feature(name="ratio", type="float")],
         )
     ]

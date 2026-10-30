@@ -132,7 +132,7 @@ async def test_describe_function_skips_disabled_signature_without_importing_pare
 
 
 @pytest.mark.anyio
-async def test_escape_function_description_reports_external_feature_boundary(
+async def test_escape_function_description_reports_logical_feature_dependencies(
     state: server.ServerState,
 ) -> None:
     snapshot = state.load_snapshot()
@@ -144,14 +144,12 @@ async def test_escape_function_description_reports_external_feature_boundary(
         entrypoint="examples.pump_analytics.functions.analytics:aggregate",
     )
     dataset = definition.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
-    dataset.features["audit_reference"] = spec_model.Feature(id="audit_reference", type="string")
-    dataset.features["audit_status"] = spec_model.Feature(id="audit_status", type="string")
     dataset.actions["external_audit"] = spec_model.Action(
         id="external_audit",
         binding=spec_model.Binding(function="external_audit"),
         features=spec_model.ActionFeatures(
             inputs=["$features.bearing_temperature", "$features.vibration_rms"],
-            outputs=["$features.audit_reference", "$features.audit_status"],
+            outputs=[],
         ),
     )
     state.snapshot = dataclasses.replace(snapshot, spec=definition)
@@ -171,10 +169,12 @@ async def test_escape_function_description_reports_external_feature_boundary(
             "dataset": dataset.id,
             "action": "external_audit",
             "inputs": ["bearing_temperature", "vibration_rms"],
-            "outputs": ["audit_reference", "audit_status"],
+            "outputs": [],
         }
     ]
     assert "return value is ignored" in described["execution_semantics"]
+    assert "logical dependencies only" in described["execution_semantics"]
+    assert "explicitly bound dataframe arguments" in described["execution_semantics"]
 
 
 @pytest.mark.anyio

@@ -116,6 +116,43 @@ def test_escape_contract_accepts_any_number_of_dataframe_arguments(
     assert validation_functions.validate_dataframe_count(model) is None
 
 
+@pytest.mark.parametrize("argument_type", ["array[dataframe]", "object{str: array[dataframe]}"])
+def test_escape_contract_allows_nested_dataframe_arguments(argument_type: str) -> None:
+    model = spec_model.Spec.model_validate(
+        {
+            "functions": {
+                "escape": {
+                    "kind": "escape",
+                    "returns": "any",
+                    "entrypoint": "example:escape",
+                    "args": {"frames": {"type": argument_type}},
+                }
+            }
+        }
+    )
+
+    assert validation_functions.validate_return_kind(model) is None
+    assert validation_functions.validate_dataframe_count(model) is None
+
+
+def test_escape_contract_accepts_no_dataframe_arguments() -> None:
+    model = spec_model.Spec.model_validate(
+        {
+            "functions": {
+                "escape": {
+                    "kind": "escape",
+                    "returns": "any",
+                    "entrypoint": "example:escape",
+                    "args": {"path": {"type": "string"}},
+                }
+            }
+        }
+    )
+
+    assert validation_functions.validate_return_kind(model) is None
+    assert validation_functions.validate_dataframe_count(model) is None
+
+
 def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
     model = spec_model.Spec.model_validate(
         {
@@ -225,6 +262,11 @@ def test_function_capabilities_retain_the_current_execution_groups() -> None:
         definition.produces_features == (kind != functions.WRITE)
         for kind, definition in functions.FUNCTION_KINDS.items()
     )
+    assert {
+        kind
+        for kind, definition in functions.FUNCTION_KINDS.items()
+        if definition.requires_feature_outputs
+    } == {"read", "conform", "expand", "collapse", "vectorize"}
     assert {
         kind for kind, definition in functions.FUNCTION_KINDS.items() if definition.is_source
     } == {"read", "conform", "expand", "collapse"}

@@ -85,8 +85,8 @@
                 </dd>
               </div>
               <div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
-              <dt class="mb-1 uppercase tracking-wider text-slate-500">{{ "Declares external outputs" if step.uncontrolled else "Produces" }}</dt>
-                <dd class="break-all text-cyan-200">{{ step.feature }}</dd>
+              <dt class="mb-1 uppercase tracking-wider text-slate-500">{{ "Declared logical outputs" if step.uncontrolled else "Dataset feature output" }}</dt>
+                <dd class="break-all text-cyan-200">{{ step.feature or "None" }}</dd>
               </div>
               <div class="min-w-0 border-b border-slate-800 p-3">
               <dt class="mb-1 uppercase tracking-wider text-slate-500">{{ "Python return (ignored)" if step.uncontrolled else "Returns" }}</dt>
@@ -104,7 +104,7 @@
               </div>
             </dl>
             {% if step.uncontrolled %}
-            <p class="mt-3 rounded-lg border border-violet-900/60 bg-violet-950/30 p-3 text-xs leading-5 text-violet-200">Uncontrolled external operation. Declared inputs: {{ step.input_features|join(", ") or "none" }}. Declared outputs are not verified or materialized as dataframe columns.</p>
+            <p class="mt-3 rounded-lg border border-violet-900/60 bg-violet-950/30 p-3 text-xs leading-5 text-violet-200">Uncontrolled external operation. Declared inputs: {{ step.input_features|join(", ") or "none" }}. Declared outputs: {{ step.output_features|join(", ") or "none" }}. These are logical dependencies only; dataframes are passed only through explicit arguments, and escape return values are ignored.</p>
             {% endif %}
             {% if step.row_context is not none %}
             <div class="mt-3 font-mono text-xs text-slate-400">Row context: {{ step.row_context | tojson }}</div>

@@ -114,7 +114,7 @@ def test_execution_plan_report_shows_topology_stages(
     assert "parallel invocations" in report
     assert ">Function kind</dt>" in report
     assert ">Function</dt>" in report
-    assert ">Produces</dt>" in report
+    assert ">Dataset feature output</dt>" in report
     assert ">Depends on invocations</dt>" in report
     assert ">Returns</dt>" in report
     assert ">health_signal_normalized</dd>" in report

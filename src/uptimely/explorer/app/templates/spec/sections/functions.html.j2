@@ -102,18 +102,18 @@
   {% if function.kind == "escape" %}
   <p class="mt-10 flex items-start gap-2.5 text-sm leading-6 text-violet-200/90">
     <i data-lucide="triangle-alert" class="mt-1 h-4 w-4 shrink-0 text-violet-300" aria-hidden="true"></i>
-    Uncontrolled external operation: the return value is ignored and declared outputs are not verified.
+    Uncontrolled external operation: declared feature inputs and outputs express logical dependencies only. Dataframes are passed only through explicitly bound arguments, and the return value is ignored.
   </p>
   {% if function.escape_actions %}
   <div class="mt-10">
     <h4 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">Used by actions</h4>
-    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Each action sends the listed input features to the external workflow and declares the external outputs it produces. The engine does not verify the declared outputs.</p>
+    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Declared inputs and outputs establish scheduling dependencies only. The external workflow accesses data itself or through explicit dataframe arguments; escape outputs are not materialized as dataset columns.</p>
     <div class="mt-2 divide-y divide-slate-800/60">
       {% for action in function.escape_actions %}
       <div class="py-4">
         <p class="font-mono text-xs font-medium text-slate-200">{{ action.entity }} / {{ action.dataset }} · {{ action.action }}</p>
-        <p class="mt-2 font-mono text-xs leading-5 text-slate-400">Sends input features: {{ action.inputs|join(", ") or "none" }}</p>
-        <p class="mt-1 font-mono text-xs leading-5 text-violet-300">Declares external outputs: {{ action.outputs|join(", ") or "none" }}</p>
+        <p class="mt-2 font-mono text-xs leading-5 text-slate-400">Declared inputs: {{ action.inputs|join(", ") or "none" }}</p>
+        <p class="mt-1 font-mono text-xs leading-5 text-slate-400">Declared outputs: {{ action.outputs|join(", ") or "none" }}</p>
       </div>
       {% endfor %}
     </div>

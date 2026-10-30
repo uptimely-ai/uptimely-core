@@ -147,6 +147,14 @@ class Dataset:
                         f"kind '{declaration.kind}' is not allowed in {collection}; "
                         f"expected {', '.join(kinds)}"
                     )
+                if (
+                    declaration.outputs
+                    and not functions.FUNCTION_KINDS[declaration.kind].produces_features
+                ):
+                    raise ValueError(
+                        f"Dataset '{self.id}', action '{declaration.id}': "
+                        f"{declaration.kind.capitalize()} action cannot produce features"
+                    )
                 if declaration.id in collected:
                     raise ValueError(
                         f"Dataset '{self.id}' has duplicate action ID '{declaration.id}'"

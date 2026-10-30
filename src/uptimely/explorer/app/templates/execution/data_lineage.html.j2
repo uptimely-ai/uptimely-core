@@ -28,7 +28,7 @@
 <main class="data-lineage-page">
   <p>Execution</p>
   <h1 class="title-with-icon">{{ icon("data-lineage", "title-icon") }}<span>Data lineage</span></h1>
-  <p>Follow each invocation's declared inputs and outputs. Escape outputs are external declarations, not dataframe columns.</p>
+  <p>Follow each invocation's declared inputs and outputs. Escape actions use logical feature dependencies; dataframes are passed only through explicit arguments and return values are ignored.</p>
   <p>Illustration only: keys, values, results, and row counts are placeholders, not calculated data.
     No spec are executed.</p>
   {% if stages %}
@@ -68,7 +68,6 @@
       {% set inputs = step.columns|selectattr("role", "equalto", "Input")|list %}
       {% set declared_inputs = step.columns|selectattr("role", "equalto", "Declared input")|list %}
       {% set outputs = step.columns|selectattr("role", "equalto", "Output")|list %}
-      {% set external_outputs = step.columns|selectattr("role", "equalto", "Declared external output")|list %}
       {% set keys = step.columns|selectattr("role", "equalto", "Dimension")|list %}
       <article class="data-lineage-step" id="step-{{ step.number }}" data-invocation-id="{{ step.invocation_id }}"
         data-dependencies="{{ step.dependencies|join(',') }}" data-function-kind="{{ step.function_kind }}" data-stage="{{ stage_number }}">
@@ -95,7 +94,7 @@
             {% if step.function_kind == "write" %}
             <div class="data-lineage-boundary" data-write-boundary><strong>Write destination</strong>{{ step.dataset or step.entity }}<p>Consumes the input columns; produces no analytical features.</p></div>
             {% elif step.function_kind == "escape" %}
-            <div class="data-lineage-boundary"><strong>Declared external outputs</strong>{{ (external_outputs|map(attribute="name")|list)|join(", ") or "None" }}<p>These declarations are not verified results and are not materialized as dataframe columns.</p></div>
+            <div class="data-lineage-boundary"><strong>Declared logical outputs</strong>{{ outputs|map(attribute="name")|join(", ") or "None" }}<p>These outputs establish dependencies only; they are not materialized as dataframe columns.</p></div>
             {% elif outputs or keys %}
             {{ sample_table(outputs, keys, "Output", "output", 1 if step.function_kind == "collapse" else 3, step.function_kind == "collapse", step.dataset or step.entity) }}
             {% else %}
@@ -103,7 +102,7 @@
             {% endif %}
           </div>
         </div>
-        <p class="data-lineage-status" aria-live="polite">{% if step.function_kind == "collapse" %}Illustrative grouping: three placeholder rows become one group. Actual grouping and row counts are not known.{% elif step.function_kind == "write" %}Write boundary: no new analytical columns.{% elif step.function_kind == "escape" %}External operation is uncontrolled and not executed. Declared outputs are not verified or materialized.{% else %}Declared columns shown with three placeholder rows. Actual row counts are not known.{% endif %}</p>
+        <p class="data-lineage-status" aria-live="polite">{% if step.function_kind == "collapse" %}Illustrative grouping: three placeholder rows become one group. Actual grouping and row counts are not known.{% elif step.function_kind == "write" %}Write boundary: no new analytical columns.{% elif step.function_kind == "escape" %}External operation is uncontrolled and not executed. Logical outputs are not materialized as dataframe columns.{% else %}Declared columns shown with three placeholder rows. Actual row counts are not known.{% endif %}</p>
         <details class="data-lineage-details">
           <summary>Declared schema and dependencies</summary>
           <p>Entity: {{ step.entity }} &middot; Dataset: {{ step.dataset or "None" }}</p>
@@ -119,7 +118,7 @@
                 {% for column in step.columns %}
                 <tr data-column="{{ column.name }}" data-role="{{ column.role }}">
                   <td>{{ column.role }}</td><th scope="row">{{ column.name }}</th><td>{{ column.type }}</td>
-                  <td>{% if column.role == "Declared external output" %}External declaration; no materialized result{% elif column.producer and column.external %}<a href="#step-{{ column.producer }}">Step {{ column.producer }} external declaration</a>{% elif column.producer == step.number %}This step{% elif column.producer %}<a href="#step-{{ column.producer }}">Step {{ column.producer }}</a>{% elif column.role == "Dimension" %}Observation key{% else %}No declared producer{% endif %}</td>
+                  <td>{% if column.producer == step.number %}This step{% elif column.producer %}<a href="#step-{{ column.producer }}">Step {{ column.producer }}</a>{% elif column.role == "Dimension" %}Observation key{% else %}No declared producer{% endif %}</td>
                 </tr>
                 {% endfor %}
               </tbody>
