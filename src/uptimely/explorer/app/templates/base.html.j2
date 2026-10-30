@@ -1,4 +1,5 @@
 {% from "icons.html.j2" import icon %}
+{% from "project_context.html.j2" import project_link, build_badge %}
 <!DOCTYPE html>
 <html lang="en" class="bg-slate-950{% if include_navigation %} with-navigation{% endif %}">
 <head>
@@ -20,8 +21,18 @@
   {% include "top_bar.html.j2" %}
   {% if include_navigation %}
   <nav class="site-nav" id="explorer-navigation" aria-label="Explorer pages">
+    <div class="site-nav-context">
+      <div class="site-nav-heading">
+        {{ project_link(rel_root, index_filename, project_name, active_page) }}
+        <button class="nav-label-toggle" type="button" aria-label="Hide navigation labels"
+          aria-pressed="false" aria-controls="explorer-navigation" title="Hide navigation labels">
+          {{ icon("collapse-navigation", "nav-icon") }}{{ icon("expand-navigation", "nav-icon") }}
+        </button>
+      </div>
+      {{ build_badge(is_scoped, execution_scope) }}
+    </div>
     {% for page, label, icon_key in [("spec", "Spec", "spec"), ("plan", "Plan", "plan"), ("execution", "Execution", "execution")] %}
-    <a href="{{ rel_root }}{{ website_pages[page]['data_lineage' if page == 'execution' else 'overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
+    <a aria-label="{{ label }}" title="{{ label }}" href="{{ rel_root }}{{ website_pages[page]['data_lineage' if page == 'execution' else 'overview'] }}"{% if active_page == page and not active_section %} aria-current="page"{% endif %}>{{ icon(icon_key, "nav-icon") }}<span>{{ label }}</span></a>
     {% if page == "spec" %}
     <div class="site-subnav" role="group" aria-label="Spec sections">
       {% for section, section_label, section_icon in [
@@ -33,7 +44,7 @@
         ("functions", "Functions", "functions"),
         ("feature_lineage", "Feature lineage", "feature-lineage")
       ] %}
-      <a href="{{ rel_root }}{{ website_pages["spec"][section] }}"{% if active_page == "spec" and active_section == section %} aria-current="page"{% endif %}>{{ icon(section_icon, "nav-icon") }}<span>{{ section_label }}</span></a>
+      <a aria-label="{{ section_label }}" title="{{ section_label }}" href="{{ rel_root }}{{ website_pages["spec"][section] }}"{% if active_page == "spec" and active_section == section %} aria-current="page"{% endif %}>{{ icon(section_icon, "nav-icon") }}<span>{{ section_label }}</span></a>
       {% endfor %}
     </div>
     {% elif page == "plan" %}
@@ -43,12 +54,12 @@
         ("invocation_lineage", "Invocation lineage", "invocation-lineage"),
         ("stages", "Stages", "stages")
       ] %}
-      <a href="{{ rel_root }}{{ website_pages['plan'][section] }}"{% if active_page == "plan" and active_section == section %} aria-current="page"{% endif %}>{{ icon(section_icon, "nav-icon") }}<span>{{ section_label }}</span></a>
+      <a aria-label="{{ section_label }}" title="{{ section_label }}" href="{{ rel_root }}{{ website_pages['plan'][section] }}"{% if active_page == "plan" and active_section == section %} aria-current="page"{% endif %}>{{ icon(section_icon, "nav-icon") }}<span>{{ section_label }}</span></a>
       {% endfor %}
     </div>
     {% elif page == "execution" %}
     <div class="site-subnav" role="group" aria-label="Execution sections">
-      <a href="{{ rel_root }}{{ website_pages['execution']['data_lineage'] }}"{% if active_page == "execution" and active_section == "data_lineage" %} aria-current="page"{% endif %}>{{ icon("data-lineage", "nav-icon") }}<span>Data lineage</span></a>
+      <a aria-label="Data lineage" title="Data lineage" href="{{ rel_root }}{{ website_pages['execution']['data_lineage'] }}"{% if active_page == "execution" and active_section == "data_lineage" %} aria-current="page"{% endif %}>{{ icon("data-lineage", "nav-icon") }}<span>Data lineage</span></a>
     </div>
     {% endif %}
     {% endfor %}

@@ -1,0 +1,9 @@
+{% from "icons.html.j2" import icon %}
+{% macro project_link(rel_root, index_filename, project_name, active_page) -%}
+<a class="site-product" href="{{ rel_root }}{{ index_filename or 'index.html' }}" title="{{ project_name or 'Untitled analytics project' }}" aria-label="{{ project_name or 'Untitled analytics project' }}"{% if active_page == "home" %} aria-current="page"{% endif %}>{{ icon("home", "nav-icon") }}<span>{{ project_name or "Untitled analytics project" }}</span></a>
+{%- endmacro %}
+{% macro build_badge(is_scoped, execution_scope) -%}
+<span class="build-badge{% if is_scoped %} build-badge-partial{% endif %}"
+  title="Spec: complete model. Plan and execution: {{ execution_scope or 'all features' }}"
+  aria-label="Build coverage: {{ 'Partial build' if is_scoped else 'Full build' }}. Spec: complete model. Plan and execution: {{ execution_scope or 'all features' }}">{{ "Partial build" if is_scoped else "Full build" }}</span>
+{%- endmacro %}

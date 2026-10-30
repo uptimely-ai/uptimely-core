@@ -40,9 +40,14 @@ explore:
 | **Plan** | The compiled invocations, their dependencies, and the stages used to organize the plan. |
 | **Execution / Data lineage** | A visual walkthrough of how data is assembled after each action. |
 
-Every page shares a top bar with the project name and a home icon linking to the
-project overview, plus a **Full build** or **Partial build** badge. Unnamed
-projects show **Untitled analytics project**. Partial builds include
+On desktop, the sidebar reaches the top of the page and sizes to its contents.
+Its header shows the project name, a home link to the project overview, and a
+**Full build** or **Partial build** badge spanning the sidebar's content width.
+Full-build coverage uses muted styling. Use the toggle beside the project title
+to collapse the sidebar to icons; the same button restores the labels.
+On mobile, only the top bar is shown
+until the hamburger menu is opened; build badges are never shown.
+Unnamed projects show **Untitled analytics project**. Partial builds include
 only selected outputs and their dependencies in plan and execution pages;
 spec pages always show the complete model. Hover over the badge for coverage
 details, also available to screen readers.
