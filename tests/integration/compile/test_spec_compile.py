@@ -49,7 +49,9 @@ def _escape_spec_configuration() -> dict:
     dataset["features"]["escape_start_output"] = {"type": "float"}
     dataset["features"]["escape_chain_output"] = {"type": "float"}
     dataset["features"]["escape_source_output"] = {"type": "float"}
-    entrypoint = "examples.pump_analytics.functions.analytics:aggregate"
+    entrypoint = (
+        "examples.pump_analytics.functions.external_workflow:process_pump_external_workflow"
+    )
     _add_escape_mapping(
         configuration,
         "escape_start",

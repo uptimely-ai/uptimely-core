@@ -238,16 +238,18 @@ identifiers.
 | `kind` | string | Yes | N/A | Function kind: `write`, `read`, `escape`, `conform`, `expand`, `collapse`, or `vectorize`. |
 | `returns` | string | Yes | N/A | Return contract: `dataframe` for data-producing kinds, `none` for `write`, or `any` for `escape`. |
 | `entrypoint` | string | Yes | N/A | Python import reference in `module.path:qualname` form. |
-| `validate_signature` | boolean | No | `true` | Whether compilation and documentation inspect the Python signature and check implementation return annotations. |
+| `validate_signature` | boolean | No | `true` | Whether compilation and documentation inspect the Python signature and check call compatibility and supported annotations. |
 | `args` | object | No | `{}` | Argument definitions keyed by argument name. |
 | `description` | string or null | No | `null` | Explanation of the function. Python declarations default it to the implementation's docstring summary line. |
 
-When `validate_signature` is `true`, the Python entrypoint must declare a
-return annotation compatible with `returns`; an unannotated return is invalid.
-When it is `false`, compilation and documentation do not load the implementation
-or inspect its signature. This disables only implementation signature and
-return-annotation checks: declared contracts, binding arguments, feature
-dependencies, package provenance, and entrypoint syntax are still validated.
+When `validate_signature` is `true`, the Python entrypoint is checked for
+keyword-call compatibility with declared arguments, undeclared required
+parameters, positional-only parameters, and supported annotation
+contradictions. Annotations are optional; a known incompatible annotation is
+invalid. When it is `false`, compilation and documentation do not inspect the
+callable signature. This disables only implementation signature checks:
+declared contracts, binding arguments, feature dependencies, package
+provenance, and entrypoint syntax are still validated.
 Execution still requires a loadable implementation. Function packages must be
 installed in both the build and runtime environments; Uptimely does not install
 them or add project paths to `sys.path`. Recorded distribution versions are

@@ -12,14 +12,18 @@ FunctionKindId = typing.Literal[
     "write", "read", "escape", "conform", "expand", "collapse", "vectorize"
 ]
 ReturnKind = typing.Literal["dataframe", "none", "any"]
+DataFrameInputScope = typing.Literal["none", "target", "foreign", "unrestricted"]
+FeatureInputScope = typing.Literal["none", "target", "dataframe", "unrestricted"]
 
 
 @dataclasses.dataclass(frozen=True)
 class FunctionKind:
-    """Definition of one kind's logical output and execution contracts.
+    """Definition of one kind's validation contract and execution role.
 
     ``produces_features`` marks logical feature outputs; escape outputs are
     declared dependencies and are not materialized by the engine.
+    ``dataframe_input_scope`` relates bound dataframes to the action's target;
+    ``feature_input_scope`` describes where declared feature inputs may come from.
     """
 
     id: FunctionKindId
@@ -31,6 +35,8 @@ class FunctionKind:
     is_transformer: bool
     is_sink: bool
     is_effect: bool
+    dataframe_input_scope: DataFrameInputScope = "unrestricted"
+    feature_input_scope: FeatureInputScope = "unrestricted"
 
 
 WRITE: typing.Final[FunctionKindId] = "write"
@@ -43,18 +49,96 @@ VECTORIZE: typing.Final[FunctionKindId] = "vectorize"
 
 FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = types.MappingProxyType(
     {
-        WRITE: FunctionKind(WRITE, 1, "none", False, False, False, False, True, False),
-        READ: FunctionKind(READ, 0, arg_types.DATAFRAME, True, True, True, False, False, False),
-        ESCAPE: FunctionKind(ESCAPE, None, "any", True, False, False, False, False, True),
-        CONFORM: FunctionKind(
-            CONFORM, 1, arg_types.DATAFRAME, True, True, True, False, False, False
+        WRITE: FunctionKind(
+            id=WRITE,
+            dataframe_inputs=1,
+            returns="none",
+            produces_features=False,
+            requires_feature_outputs=False,
+            is_source=False,
+            is_transformer=False,
+            is_sink=True,
+            is_effect=False,
+            dataframe_input_scope="target",
+            feature_input_scope="target",
         ),
-        EXPAND: FunctionKind(EXPAND, 1, arg_types.DATAFRAME, True, True, True, False, False, False),
+        READ: FunctionKind(
+            id=READ,
+            dataframe_inputs=0,
+            returns=arg_types.DATAFRAME,
+            produces_features=True,
+            requires_feature_outputs=True,
+            is_source=True,
+            is_transformer=False,
+            is_sink=False,
+            is_effect=False,
+            dataframe_input_scope="none",
+            feature_input_scope="none",
+        ),
+        ESCAPE: FunctionKind(
+            id=ESCAPE,
+            dataframe_inputs=None,
+            returns="any",
+            produces_features=True,
+            requires_feature_outputs=False,
+            is_source=False,
+            is_transformer=False,
+            is_sink=False,
+            is_effect=True,
+            dataframe_input_scope="unrestricted",
+            feature_input_scope="unrestricted",
+        ),
+        CONFORM: FunctionKind(
+            id=CONFORM,
+            dataframe_inputs=1,
+            returns=arg_types.DATAFRAME,
+            produces_features=True,
+            requires_feature_outputs=True,
+            is_source=True,
+            is_transformer=False,
+            is_sink=False,
+            is_effect=False,
+            dataframe_input_scope="foreign",
+            feature_input_scope="dataframe",
+        ),
+        EXPAND: FunctionKind(
+            id=EXPAND,
+            dataframe_inputs=1,
+            returns=arg_types.DATAFRAME,
+            produces_features=True,
+            requires_feature_outputs=True,
+            is_source=True,
+            is_transformer=False,
+            is_sink=False,
+            is_effect=False,
+            dataframe_input_scope="foreign",
+            feature_input_scope="dataframe",
+        ),
         COLLAPSE: FunctionKind(
-            COLLAPSE, 1, arg_types.DATAFRAME, True, True, True, False, False, False
+            id=COLLAPSE,
+            dataframe_inputs=1,
+            returns=arg_types.DATAFRAME,
+            produces_features=True,
+            requires_feature_outputs=True,
+            is_source=True,
+            is_transformer=False,
+            is_sink=False,
+            is_effect=False,
+            dataframe_input_scope="foreign",
+            feature_input_scope="dataframe",
         ),
         VECTORIZE: FunctionKind(
-            VECTORIZE, 1, arg_types.DATAFRAME, True, True, False, True, False, False
+            id=VECTORIZE,
+            dataframe_inputs=1,
+            returns=arg_types.DATAFRAME,
+            produces_features=True,
+            requires_feature_outputs=True,
+            is_source=False,
+            is_transformer=True,
+            is_sink=False,
+            is_effect=False,
+            dataframe_input_scope="target",
+            feature_input_scope="target",
         ),
     }
 )
@@ -86,8 +170,10 @@ def kind_hint(returns: ReturnKind, dataframe_inputs: int) -> str:
 __all__ = [
     "COLLAPSE",
     "CONFORM",
+    "DataFrameInputScope",
     "ESCAPE",
     "EXPAND",
+    "FeatureInputScope",
     "FUNCTION_KINDS",
     "FunctionKind",
     "FunctionKindId",

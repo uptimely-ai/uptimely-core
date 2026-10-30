@@ -96,9 +96,11 @@ before compiling it into a valid, schedulable plan. Declaration rules are
 defined in [Spec validation](spec.md#validation). Compilation checks
 selected-feature feasibility, dependency ordering, plan schedulability, and
 implementation entrypoints. Unless a function sets `validate_signature` to
-`false`, it also inspects the Python signature and checks its return annotation
-against the declared return contract. Disabling signature validation does not
-disable Spec checks. Execution still requires a loadable function.
+`false`, it also checks keyword-call compatibility, required implementation
+parameters, supported argument annotations, and any supported return
+annotation against the declared contracts. Missing annotations are allowed;
+known contradictions are not. Disabling signature validation does not disable
+Spec checks. Execution still requires a loadable function.
 
 Plan loading checks supported versions and valid root fields, invocation IDs,
 dependency references, and stage ordering. The compiler's generated stages

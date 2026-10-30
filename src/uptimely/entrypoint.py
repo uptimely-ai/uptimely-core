@@ -177,22 +177,26 @@ class Signature:
 
     args: dict[str, str] = dataclasses.field(default_factory=dict)
     returns: str | None = None
+    parameters: dict[str, inspect.Parameter] = dataclasses.field(default_factory=dict)
+    return_annotation: object = dataclasses.field(default=inspect.Signature.empty, repr=False)
 
     @classmethod
     def read(cls, function: Function) -> Signature:
         """Read the annotated argument and return types of a function."""
-        signature = inspect.signature(function.load(), eval_str=True)
+        signature = inspect.signature(function.load(), follow_wrapped=True, eval_str=True)
         return cls(
             args={
                 name: TypeAnnotation.name(parameter.annotation)
                 for name, parameter in signature.parameters.items()
                 if parameter.annotation is not inspect.Parameter.empty
             },
+            parameters=dict(signature.parameters),
             returns=(
                 TypeAnnotation.name(signature.return_annotation)
                 if signature.return_annotation is not inspect.Signature.empty
                 else None
             ),
+            return_annotation=signature.return_annotation,
         )
 
 

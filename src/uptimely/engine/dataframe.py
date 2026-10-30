@@ -24,11 +24,11 @@ class DataFrameExecution:
 
     def validate_inputs(self, invocation: execution_plan.Invocation) -> None:
         """Require declared input columns to be materialized before invocation."""
-        if invocation.function_kind in {
-            functions.CONFORM,
-            functions.COLLAPSE,
-            functions.EXPAND,
-        }:
+        function = self.spec_definition.functions.get(invocation.function_id)
+        if function is None:
+            raise ValueError(f"Unknown function: {invocation.function_id}")
+        definition = functions.FUNCTION_KINDS[function.kind]
+        if definition.dataframe_input_scope == "foreign":
             self._validate_foreign_inputs(invocation)
             return
 

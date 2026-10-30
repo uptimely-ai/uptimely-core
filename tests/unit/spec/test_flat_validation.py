@@ -556,7 +556,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "dataframe inputs",
         ),
         (
-            action_contracts.validate_read_inputs,
+            action_contracts.validate_feature_input_scope,
             "read",
             lambda s: compute(s).features.inputs.append("$features.x"),
             "cannot declare",
