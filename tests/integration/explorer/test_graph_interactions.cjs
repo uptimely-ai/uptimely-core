@@ -6,6 +6,79 @@ const vm = require('node:vm');
 
 const scriptDirectory = path.resolve(__dirname, '../../../src/uptimely/explorer/app/js');
 
+for (const withSectionCount of [false, true]) {
+	test(`catalog selects one function without removed badges (section count: ${withSectionCount})`, () => {
+		const overview = { ...createElement(), id: 'catalog-overview' };
+		const first = { ...createElement(), id: 'function-first' };
+		const second = { ...createElement(), id: 'function-second' };
+		const items = [overview, first, second];
+		for (const item of items) {
+			const heading = { ...createElement(), textContent: item.id };
+			item.querySelector = () => heading;
+			item.contains = candidate => candidate === item;
+		}
+		const group = {
+			...createElement(), id: 'functions-read',
+			contains: item => item === first || item === second,
+			querySelector: () => null,
+		};
+		const links = [overview, group, first, second].map(item => ({
+			...createElement(), hash: `#${item.id}`,
+			removeAttribute(name) { delete this.attributes[name]; },
+		}));
+		const panel = {
+			dataset: { contextLabel: 'functions' },
+			querySelectorAll: () => links,
+		};
+		const title = { ...createElement(), textContent: 'Functions' };
+		const heading = { ...createElement(), focus() {} };
+		const count = withSectionCount ? createElement() : null;
+		const document = {
+			title: 'Spec functions',
+			getElementById: id => [overview, group, first, second].find(item => item.id === id)
+				|| (id === 'catalog-context' ? panel : null),
+			querySelector(selector) {
+				if (selector === 'main h1 span') return title;
+				if (selector === 'main h1') return heading;
+				if (selector === '[data-section-count]') return count;
+				throw new Error(`Unexpected selector: ${selector}`);
+			},
+			querySelectorAll(selector) {
+				if (selector === 'main [data-context-item]') return items;
+				if (selector === 'main [data-function-group]') return [group];
+				return links;
+			},
+		};
+		const location = { hash: '#function-second' };
+		const context = vm.createContext({
+			document, location,
+			history: { pushState(_state, _title, hash) { location.hash = hash; } },
+			window: { scrollTo() {}, addEventListener() {} },
+			requestAnimationFrame(callback) { callback(); },
+		});
+		vm.runInContext(
+			fs.readFileSync(path.join(scriptDirectory, 'catalog_context.js'), 'utf8'), context,
+		);
+		const assertSelected = (item, expectedTitle) => {
+			assert.deepEqual(items.filter(candidate => !candidate.hidden), [item]);
+			assert.equal(title.textContent, expectedTitle);
+			assert.equal(group.hidden, item === overview);
+			assert.equal(links.find(link => link.hash === `#${item.id}`)
+				.attributes['aria-current'], 'location');
+			if (count) assert.equal(count.hidden, item !== overview);
+		};
+		assertSelected(second, 'function-second');
+		const click = link => link.listeners.click({ button: 0, preventDefault() {} });
+		click(links[2]);
+		assertSelected(first, 'function-first');
+		click(links[1]);
+		assertSelected(first, 'function-first');
+		click(links[0]);
+		assertSelected(overview, 'Functions');
+		assert.equal(document.title, 'Spec functions');
+	});
+}
+
 function loadLineageScript(context, filename) {
 	let source = fs.readFileSync(path.join(scriptDirectory, filename), 'utf8');
 	if (filename === 'lineage_config.js') {
