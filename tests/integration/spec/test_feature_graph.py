@@ -1,4 +1,5 @@
 import pathlib
+import re
 import sys
 
 import pytest
@@ -286,9 +287,11 @@ def test_website_includes_2d_lineage_html(
     assert "Action</span>" in html
     for category in ("Read", "Vectorize", "Collapse", "Conform", "Expand", "Write"):
         assert f"{category} function</span>" not in html
-    assert 'class="details details-2d"' in html
+    context = re.search(r'<aside class="site-context".*?</aside>', html, re.DOTALL)
+    assert context is not None
+    assert 'class="details" id="node-details"' in context.group()
     assert "Selected item" in html
-    assert ".details-2d { right: auto; left: 16px;" in styles
+    assert ".details-2d" not in styles
     assert "forceGraph.screen2GraphCoords(" in shared_script
     assert ".onNodeClick((_node, event) => selectAtPointer(event))" in shared_script
     assert ".onBackgroundClick(event => selectAtPointer(event))" in shared_script

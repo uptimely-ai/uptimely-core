@@ -1,5 +1,6 @@
 :root {
   --site-topbar-height: 72px;
+  --site-panel-header-height: 57px;
   --color-background: #020617;
   --color-surface: #0f172a;
   --color-border: #334155;
@@ -50,10 +51,15 @@ html.with-navigation .site-content { grid-column: 2; grid-row: 1; }
   padding: 16px 12px; overflow-y: auto;
   background: var(--color-surface); border-right: 1px solid var(--color-border); font: 14px var(--font-body); }
 .site-nav > * { flex-shrink: 0; }
+.site-nav .site-nav-pages { display: flex; flex-direction: column; gap: 8px;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .site-nav-context { display: flex; flex-direction: column; gap: 12px;
+  box-sizing: border-box; min-height: var(--site-panel-header-height);
   padding: 0 0 16px; border-bottom: 1px solid var(--color-border); }
-.site-nav-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.site-nav .site-product { display: grid; grid-template-columns: 16px minmax(0, 1fr); }
+.site-nav-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 40px; }
+.site-nav .site-product { display: grid; grid-template-columns: 16px minmax(0, 1fr);
+  box-sizing: border-box; height: 40px; }
 .site-nav .site-product span { max-width: 22ch; }
 .nav-label-toggle { display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; width: 32px; height: 36px; padding: 0;

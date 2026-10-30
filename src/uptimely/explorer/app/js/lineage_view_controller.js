@@ -1,5 +1,5 @@
 export function mountLineageViews(
-	sourceData, createLineage2D, createLineage3D, showDetails, detailsPanel,
+	sourceData, createLineage2D, createLineage3D, showDetails,
 ) {
 	const buttons = [...document.querySelectorAll('[data-dimension]')];
 	const errorMessage = document.getElementById('lineage-error');
@@ -44,7 +44,6 @@ export function mountLineageViews(
 		}
 		view.forceGraph.resumeAnimation();
 		view.resize();
-		detailsPanel.classList.toggle('details-2d', dimension === '2d');
 		selectNode(sourceData.nodes.find(node => node.id === selectedId) || null);
 		errorMessage.hidden = true;
 	};

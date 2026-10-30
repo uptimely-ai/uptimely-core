@@ -10,10 +10,22 @@
 {% block stylesheets %}
 <link rel="stylesheet" href="{{ root_path or "" }}css/graph.css">
 {% endblock %}
+{% block page_context %}
+<aside class="site-context" id="lineage-context" aria-label="Lineage context">
+	{% include "graph/view_controls.html.j2" %}
+	<button class="ui-button context-close" type="button" aria-label="Close lineage context">Close</button>
+	{% block lineage_context %}{% endblock %}
+</aside>
+{% endblock %}
 {% block content %}
 <main class="lineage-workspace">
-	{% include "graph/view_controls.html.j2" %}
-	<div class="lineage-stage">{% block body %}{% endblock %}</div>
+	<div class="lineage-stage">
+		<button class="ui-button context-toggle" type="button" aria-label="Show lineage context"
+			aria-expanded="false" aria-controls="lineage-context">Lineage controls</button>
+		<p id="lineage-error" role="alert" hidden></p>
+		<noscript><p class="lineage-error">JavaScript is required to display interactive lineage.</p></noscript>
+		{% block body %}{% endblock %}
+	</div>
 </main>
 {% endblock %}
 {% block scripts %}

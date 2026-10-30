@@ -61,6 +61,8 @@ def test_pages_share_mobile_top_bar_and_desktop_sidebar_context(
         badge = re.search(r'<span class="build-badge[^"]*"[^>]*>([^<]+)</span>', nav)
         assert badge is not None
         assert badge.group(1) == ("Partial build" if scoped else "Full build")
+        assert nav.rfind('class="build-badge') > nav.rfind('class="site-subnav"')
+        assert re.search(r"</span>\s*</nav>$", nav)
         assert ("build-badge-partial" in nav) == scoped
         assert "Spec: complete model" in nav
         assert ("selected features: health_signal_normalized" if scoped else "all features") in nav
@@ -125,6 +127,63 @@ def test_desktop_navigation_labels_have_independent_toggle(tmp_path: pathlib.Pat
     assert 'navigation.classList.toggle("labels-hidden")' in script
     assert 'labelToggle.setAttribute("aria-pressed", String(labelsHidden))' in script
     assert '"Show navigation labels" : "Hide navigation labels"' in script
+
+
+def test_context_panel_is_limited_to_lineage_pages(tmp_path: pathlib.Path) -> None:
+    definition = spec.Spec()
+    explorer.Explorer(definition, plan=compiler.Compiler().compile(definition)).create_html(
+        tmp_path / "index.html"
+    )
+    lineage_pages = {
+        "spec/feature-lineage.html": "node-details",
+        "plan/invocation-lineage.html": "invocation-node-details",
+    }
+    for path in tmp_path.rglob("*.html"):
+        document = path.read_text(encoding="utf-8")
+        filename = path.relative_to(tmp_path).as_posix()
+        context = re.search(r'<aside class="site-context".*?</aside>', document, re.DOTALL)
+        if filename not in lineage_pages:
+            assert context is None
+            assert 'class="ui-button context-toggle"' not in document
+            continue
+        assert context is not None
+        panel = context.group()
+        assert 'id="lineage-context" aria-label="Lineage context"' in panel
+        assert '<details class="panel" open>' in panel
+        assert 'id="dataset-legend"' in panel
+        assert f'id="{lineage_pages[filename]}"' in panel
+        assert 'aria-live="polite"' in panel
+        assert document.count('id="dataset-legend"') == 1
+        assert document.count(f'id="{lineage_pages[filename]}"') == 1
+        assert document.index("</nav>") < context.start() < document.index('class="site-content"')
+        assert 'aria-expanded="false" aria-controls="lineage-context"' in document
+        assert 'aria-label="Close lineage context"' in panel
+        assert 'class="context-header"' in panel
+        assert 'class="nav-label-toggle context-label-toggle"' in panel
+        assert 'aria-label="Collapse lineage context"' in panel
+        assert '<h1 class="title-with-icon"' in panel
+        assert 'class="lineage-description"' not in panel
+        assert 'class="lineage-control-groups"' in panel
+        assert 'id="reset-lineage"' in panel
+        assert panel.index("<h1") < panel.index('class="lineage-control-groups"')
+        assert "lineage-toolbar" not in document
+
+    styles = (tmp_path / "css/graph.css").read_text(encoding="utf-8")
+    base_styles = (tmp_path / "css/base.css").read_text(encoding="utf-8")
+    script = (tmp_path / "js/icons.js").read_text(encoding="utf-8")
+    controller = (tmp_path / "js/lineage_view_controller.js").read_text(encoding="utf-8")
+    assert "grid-template-columns: max-content max-content minmax(0, 1fr);" in styles
+    assert "min-height: var(--site-panel-header-height)" in styles
+    assert "min-height: var(--site-panel-header-height)" in base_styles
+    assert ".site-context.is-collapsed { width: 67px; }" in styles
+    assert 'contextPanel.classList.toggle("is-collapsed")' in script
+    assert 'collapsed ? "Expand lineage context" : "Collapse lineage context"' in script
+    assert ".site-context.is-open { display: flex; }" in styles
+    assert "contextPanel.classList.toggle" in script
+    assert "contextClose.focus()" in script
+    assert "contextToggle.focus()" in script
+    assert "details-2d" not in controller
+    assert "observer.observe(document.getElementById('lineage'))" in controller
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,14 @@
 {% extends "graph/base.html.j2" %}
+{% from "graph/components.html.j2" import node_details_panel, lineage_legend %}
 {% set style = graph_style %}
 {% block title %}Plan {{ section_title }}{% endblock %}
+{% block lineage_context %}
+	{% call lineage_legend("Legend") %}
+		<span class="legend-heading">Datasets</span>
+		<div class="dataset-legend" id="dataset-legend"></div>
+	{% endcall %}
+	{{ node_details_panel("details", "Invocation details", "invocation-node-details", "Select an invocation to inspect its function kind, arguments, entity, declared features, and invocation dependencies.") }}
+{% endblock %}
 {% block body %}
 {% include "plan/invocation_lineage_content.html.j2" %}
 {% endblock %}
