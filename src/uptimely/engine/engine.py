@@ -8,12 +8,12 @@ from uptimely import entrypoint as entrypoint_module
 from uptimely import project_paths
 from uptimely.project.build import models as build_models
 
-from . import backend as backend_module
 from . import config as config_module
-from . import execution as execution_module
-from . import result as result_module
-from . import state as state_module
 from . import validation as validation_module
+from .dataframe import backend as backend_module
+from .runtime import execution as execution_module
+from .runtime import result as result_module
+from .runtime import state as state_module
 
 logger = logging.getLogger(__name__)
 

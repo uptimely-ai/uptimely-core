@@ -7,7 +7,7 @@ import dataclasses
 import graphlib
 
 from uptimely import execution_plan
-from uptimely.engine import backend as backend_module
+from uptimely.engine.dataframe import backend as backend_module
 
 
 @dataclasses.dataclass(frozen=True)

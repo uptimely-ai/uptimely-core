@@ -8,9 +8,9 @@ from support import execution as execution_support
 
 from uptimely import compiler, engine, spec
 from uptimely import execution_plan as plan_module
-from uptimely.engine import backend as backend_module
-from uptimely.engine import dataframe as dataframe_module
-from uptimely.engine import state as state_module
+from uptimely.engine.dataframe import backend as backend_module
+from uptimely.engine.dataframe import dataframe as dataframe_module
+from uptimely.engine.runtime import state as state_module
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import actions, dataset, dimension, entity, feature, ref
 

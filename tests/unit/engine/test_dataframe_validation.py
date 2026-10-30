@@ -5,7 +5,9 @@ import graphlib
 import pytest
 
 from uptimely import execution_plan, spec
-from uptimely.engine import backend, dataframe_validation, state
+from uptimely.engine.dataframe import backend
+from uptimely.engine.dataframe import validation as dataframe_validation
+from uptimely.engine.runtime import state
 
 
 def test_dataframe_validation_dependencies_are_complete_and_acyclic() -> None:

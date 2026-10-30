@@ -11,10 +11,10 @@ from uptimely import engine as uptimely_engine
 from uptimely import entrypoint as entrypoint_module
 from uptimely import execution_plan as uptimely_plan
 from uptimely import spec
-from uptimely.engine import bindings as bindings_module
-from uptimely.engine import dataframe as dataframe_module
-from uptimely.engine import execution as execution_module
-from uptimely.engine import state as state_module
+from uptimely.engine.dataframe import dataframe as dataframe_module
+from uptimely.engine.runtime import bindings as bindings_module
+from uptimely.engine.runtime import execution as execution_module
+from uptimely.engine.runtime import state as state_module
 from uptimely.execution_plan import serialization as plan_serialization
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import actions, dataset, dimension, ref

@@ -10,8 +10,8 @@ from support import execution as execution_support
 
 from uptimely import project
 from uptimely.cli import cli
-from uptimely.engine import dataframe as dataframe_module
-from uptimely.engine import state as state_module
+from uptimely.engine.dataframe import dataframe as dataframe_module
+from uptimely.engine.runtime import state as state_module
 
 
 def _engine_parameters() -> dict[str, object]:

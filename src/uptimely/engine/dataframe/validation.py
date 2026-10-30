@@ -7,8 +7,8 @@ import dataclasses
 import graphlib
 
 from uptimely import execution_plan
-from uptimely.engine import backend as backend_module
-from uptimely.engine import state as state_module
+from uptimely.engine.dataframe import backend as backend_module
+from uptimely.engine.runtime import state as state_module
 from uptimely.spec import arg_types, functions
 from uptimely.spec import model as spec_model
 

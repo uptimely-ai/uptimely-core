@@ -1,7 +1,7 @@
 import polars as pl
 import pytest
 
-from uptimely.engine import backend
+from uptimely.engine.dataframe import backend
 
 
 @pytest.mark.parametrize("keys", [[], ["key"]])

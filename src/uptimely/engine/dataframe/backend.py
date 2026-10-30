@@ -7,7 +7,7 @@ from collections import abc
 
 import polars as pl
 
-from . import config as config_module
+from .. import config as config_module
 
 
 class DataFrameBackend(typing.Protocol):
