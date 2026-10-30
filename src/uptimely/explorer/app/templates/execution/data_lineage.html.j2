@@ -167,5 +167,5 @@
 {% endblock %}
 {% block scripts %}
 {{ super() }}
-<script src="{{ root_path or "" }}js/data_lineage.js"></script>
+<script type="module" src="{{ root_path or "" }}js/data_lineage.js"></script>
 {% endblock %}

@@ -24,6 +24,9 @@ ASSETS = {
     "css/spec.css",
     "js/invocation_lineage.js",
     "js/data_lineage.js",
+    "js/data_lineage/links.js",
+    "js/data_lineage/tables.js",
+    "js/data_lineage/viewport.js",
     "js/feature_lineage.js",
     "js/lineage_config.js",
     "js/lineage_components.js",
@@ -88,7 +91,8 @@ def test_external_assets_resolve_after_moving_website(
     assert {
         path.relative_to(destination).as_posix()
         for directory in ("js", "css")
-        for path in (destination / directory).iterdir()
+        for path in (destination / directory).rglob("*")
+        if path.is_file()
     } == ASSETS
 
 
