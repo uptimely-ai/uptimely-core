@@ -220,17 +220,26 @@ def test_function_model_uses_the_shared_kind_contract() -> None:
     assert spec_model.FunctionTemplate.model_fields["returns"].annotation is functions.ReturnKind
 
 
-def test_function_roles_retain_the_current_execution_groups() -> None:
+def test_function_capabilities_retain_the_current_execution_groups() -> None:
     assert all(
         definition.produces_features == (kind != functions.WRITE)
         for kind, definition in functions.FUNCTION_KINDS.items()
     )
     assert {
-        kind for kind, definition in functions.FUNCTION_KINDS.items() if definition.role == "source"
+        kind for kind, definition in functions.FUNCTION_KINDS.items() if definition.is_source
     } == {"read", "conform", "expand", "collapse"}
-    assert functions.FUNCTION_KINDS["vectorize"].role == "transform"
-    assert functions.FUNCTION_KINDS["write"].role == "sink"
-    assert functions.FUNCTION_KINDS["escape"].role == "effect"
+    assert functions.FUNCTION_KINDS["vectorize"].is_transformer
+    assert functions.FUNCTION_KINDS["write"].is_sink
+    assert functions.FUNCTION_KINDS["escape"].is_effect
+
+
+def test_function_kind_capabilities_can_overlap() -> None:
+    source_transformer = dataclasses.replace(
+        functions.FUNCTION_KINDS[functions.READ], is_transformer=True
+    )
+
+    assert source_transformer.is_source
+    assert source_transformer.is_transformer
 
 
 @pytest.mark.parametrize("kind", ["python_one_liner", "sql_select", "unknown", ""])

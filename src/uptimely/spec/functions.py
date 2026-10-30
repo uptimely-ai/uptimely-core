@@ -12,7 +12,6 @@ FunctionKindId = typing.Literal[
     "write", "read", "escape", "conform", "expand", "collapse", "vectorize"
 ]
 ReturnKind = typing.Literal["dataframe", "none", "any"]
-FunctionRole = typing.Literal["source", "transform", "sink", "effect"]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -23,7 +22,10 @@ class FunctionKind:
     dataframe_inputs: int | None
     returns: ReturnKind
     produces_features: bool
-    role: FunctionRole
+    is_source: bool
+    is_transformer: bool
+    is_sink: bool
+    is_effect: bool
 
 
 WRITE: typing.Final[FunctionKindId] = "write"
@@ -36,13 +38,13 @@ VECTORIZE: typing.Final[FunctionKindId] = "vectorize"
 
 FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = types.MappingProxyType(
     {
-        WRITE: FunctionKind(WRITE, 1, "none", False, "sink"),
-        READ: FunctionKind(READ, 0, arg_types.DATAFRAME, True, "source"),
-        ESCAPE: FunctionKind(ESCAPE, None, "any", True, "effect"),
-        CONFORM: FunctionKind(CONFORM, 1, arg_types.DATAFRAME, True, "source"),
-        EXPAND: FunctionKind(EXPAND, 1, arg_types.DATAFRAME, True, "source"),
-        COLLAPSE: FunctionKind(COLLAPSE, 1, arg_types.DATAFRAME, True, "source"),
-        VECTORIZE: FunctionKind(VECTORIZE, 1, arg_types.DATAFRAME, True, "transform"),
+        WRITE: FunctionKind(WRITE, 1, "none", False, False, False, True, False),
+        READ: FunctionKind(READ, 0, arg_types.DATAFRAME, True, True, False, False, False),
+        ESCAPE: FunctionKind(ESCAPE, None, "any", True, False, False, False, True),
+        CONFORM: FunctionKind(CONFORM, 1, arg_types.DATAFRAME, True, True, False, False, False),
+        EXPAND: FunctionKind(EXPAND, 1, arg_types.DATAFRAME, True, True, False, False, False),
+        COLLAPSE: FunctionKind(COLLAPSE, 1, arg_types.DATAFRAME, True, True, False, False, False),
+        VECTORIZE: FunctionKind(VECTORIZE, 1, arg_types.DATAFRAME, True, False, True, False, False),
     }
 )
 
@@ -78,7 +80,6 @@ __all__ = [
     "FUNCTION_KINDS",
     "FunctionKind",
     "FunctionKindId",
-    "FunctionRole",
     "READ",
     "ReturnKind",
     "VECTORIZE",

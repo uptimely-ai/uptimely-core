@@ -280,7 +280,7 @@ def _build_context(
         if any(
             action.get("binding", {}).get("function") in function_groups.get(kind, {})
             for kind, definition in function_kinds.FUNCTION_KINDS.items()
-            if definition.role == "source"
+            if definition.is_source
         )
     )
     summary = ExplorerSummary(
