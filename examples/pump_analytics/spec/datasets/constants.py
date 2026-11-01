@@ -10,6 +10,7 @@ class Constants(Dataset):
     """One row containing project-wide physical constants."""
 
     id = "constants_dataset"
+    name = "Project Constants"
     description = "Physical constants used by pump analytics."
     entity = entity.CONSTANTS
     row_scope = RowScope(grain="One row per project")

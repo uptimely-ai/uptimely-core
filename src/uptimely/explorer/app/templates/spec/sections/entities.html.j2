@@ -50,7 +50,7 @@
             <dl class="mt-6 grid gap-6 sm:grid-cols-2">
               {% for label, value in [
                 ("Entity", entity.name or entity_id),
-                ("Dataset", dataset_id),
+                ("Dataset", dataset.name or dataset_id),
                 ("Type", feature.type or "unspecified"),
                 ("Unit", feature.unit or "Not specified")
               ] %}

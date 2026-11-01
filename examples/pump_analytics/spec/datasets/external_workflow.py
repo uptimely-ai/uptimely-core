@@ -10,6 +10,7 @@ class PumpExternalWorkflow(Dataset):
     """Declare the logical inputs and output of a workflow that owns its I/O."""
 
     id = "pump_external_workflow_dataset"
+    name = "Pump External Workflow"
     description = "Pump-level inputs and outputs for an uncontrolled local workflow."
     entity = entity.PUMP
     row_scope = RowScope(grain="One row per pump")

@@ -14,6 +14,7 @@ class Telemetry(Dataset):
     """Process and condition readings at pump-and-timestamp grain."""
 
     id = "pump_telemetry_dataset"
+    name = "Pump Telemetry"
     description = "Pump process and condition readings sampled at one-minute intervals."
     entity = entity.PUMP_TELEMETRY
     row_scope = RowScope(

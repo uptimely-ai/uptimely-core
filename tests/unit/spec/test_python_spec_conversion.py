@@ -450,6 +450,7 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata() -> None:
 
     class Telemetry(dataset.Dataset):
         id = "telemetry"
+        name = "Pump Telemetry"
         description = "Telemetry readings"
         entity = owner
         row_scope = dataset.RowScope(grain="One row per pump", coverage="All pumps")
@@ -477,6 +478,7 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata() -> None:
             "dimensions": ["pump"],
             "datasets": {
                 "telemetry": {
+                    "name": "Pump Telemetry",
                     "description": "Telemetry readings",
                     "row_scope": {
                         "grain": "One row per pump",
