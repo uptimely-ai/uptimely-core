@@ -88,6 +88,7 @@ class Dataset:
     """
 
     id: str
+    name: str | None = None
     description: str | None = None
     entity: str | Entity | None = None
     row_scope = RowScope()
@@ -103,6 +104,7 @@ class Dataset:
         producers: abc.Sequence[actions.Action] | None = None,
         publishers: abc.Sequence[actions.Action] | None = None,
         pipelines: abc.Sequence[actions.Action] | None = None,
+        name: str | None = None,
         description: str | None = None,
         entity: str | Entity | None = None,
         row_scope: RowScope | None = None,
@@ -112,6 +114,8 @@ class Dataset:
             self.id = id
         if not isinstance(getattr(self, "id", None), str) or not self.id.strip():
             raise ValueError("Dataset requires a non-empty id")
+        if name is not None:
+            self.name = name
         if description is not None:
             self.description = description
         if entity is not None:
@@ -203,6 +207,7 @@ class Dataset:
             actions[name] = model
         return spec_model.Dataset(
             id=self.id,
+            name=self.name,
             description=self.description,
             row_scope=self.row_scope.to_model(),
             order=[key.to_model() for key in self.order],

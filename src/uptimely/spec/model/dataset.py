@@ -83,6 +83,7 @@ class Dataset(common.StrictModel):
     """An entry under an entity's ID-keyed `datasets` object."""
 
     id: str = pydantic.Field(exclude=True)
+    name: str | None = None
     description: str | None = None
     row_scope: RowScope = pydantic.Field(default_factory=RowScope)
     features: dict[str, Feature] = pydantic.Field(default_factory=dict)

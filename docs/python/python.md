@@ -26,6 +26,7 @@ def maximum(
 
 class Pump(up.Dataset):
     id = "pump_summary"
+    name = "Pump Summary"
     description = "Maximum bearing temperature per pump."
     entity = assets
 

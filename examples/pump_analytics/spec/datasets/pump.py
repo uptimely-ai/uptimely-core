@@ -10,6 +10,7 @@ class Pump(Dataset):
     """One observation per pump, derived from timestamped telemetry."""
 
     id = "pump_dataset"
+    name = "Pump Summary"
     description = "One row per pump with collapsed condition information."
     entity = entity.PUMP
     row_scope = RowScope(

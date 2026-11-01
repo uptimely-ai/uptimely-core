@@ -46,7 +46,8 @@
           <div>
             <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">{{ entity.name or entity_id }}</p>
             {% set dataset_heading = "h2" %}
-            <{{ dataset_heading }} class="mt-2 break-words font-display text-xl font-semibold text-white">{{ dataset_id }}</{{ dataset_heading }}>
+            <{{ dataset_heading }} class="mt-2 break-words font-display text-xl font-semibold text-white">{{ dataset.name or dataset_id }}</{{ dataset_heading }}>
+            {% if dataset.name %}<p class="mt-1 font-mono text-xs text-slate-500">{{ dataset_id }}</p>{% endif %}
           </div>
           <span class="rounded-full bg-slate-800/70 px-3 py-1 font-mono text-[10px] text-slate-400">{{ columns|length }} columns</span>
         </header>

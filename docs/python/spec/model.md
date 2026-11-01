@@ -37,7 +37,8 @@ their relationships.
 `Entity.datasets` is a dictionary keyed by dataset ID. Access a dataset with
 `document.entities["pump"].datasets["telemetry"]`, or iterate over
 `entity.datasets.values()`. The internal `Dataset.id` is derived from the JSON
-object key and excluded from serialized dataset attributes.
+object key and excluded from serialized dataset attributes. `Dataset.name` is an
+optional human-readable display name, independent of that identifier.
 
 ::: uptimely.spec.model.dataset
     options:
