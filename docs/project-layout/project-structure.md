@@ -10,6 +10,8 @@ and generated artifacts separate:
 ```text
 project/
 ├── data/
+│   ├── input/
+│   └── output/
 ├── functions/
 │   └── analytics.py
 ├── config/
@@ -20,26 +22,32 @@ project/
 │   ├── entity.py
 │   └── dimension.py
 └── _generated/
-    └── build/
-        ├── build.json
-        ├── spec.json
-        ├── execution_plan.json
-        └── explorer/
+    ├── build/
+    │   ├── build.json
+    │   ├── spec.json
+    │   ├── execution_plan.json
+    │   └── explorer/
+    └── runs/
+        └── <run-id>/
+            └── output/
 ```
 
 ## Folder responsibilities
 
 | Path | Responsibility |
 | --- | --- |
-| `data/` | Raw or reference datasets used by the analytics workflow. |
+| `data/input/` | Raw or reference datasets used by the analytics workflow. |
+| `data/output/` | Optional durable or intentionally shared results; use these when outputs are part of the project's data. |
 | `functions/` | Reusable source, calculation, and write functions. |
 | `spec/` | The project specification: either Python declarations or a JSON document. |
-| `_generated/` | Generated project artifacts. The active build is stored in `_generated/build/`. |
+| `_generated/` | Disposable generated artifacts. The active build is stored in `_generated/build/`; run results and previews can be stored under `_generated/runs/<run-id>/output/`. |
 | `config/config.json` | Engine backend settings under `engine` and required global scalar values under `params`, referenced by `$params.<name>`. |
 
 This separation keeps the project easy to reason about: specification declarations
-live in `spec/`, runtime logic lives in functions, and generated resources stay
-clearly separate from source inputs.
+live in `spec/`, runtime logic lives in functions, curated data stays under
+`data/`, and generated resources stay clearly separate. Keep results under
+`_generated/` when they are disposable previews or debugging artifacts; use
+`data/output/` when results should be retained, shared, or reused as project data.
 
 Python dataset modules subclass `uptimely.spec.python.Dataset` and declare
 `Action` objects under `producers`, `publishers`, and `pipelines`. Each action

@@ -64,7 +64,24 @@ the declarations, but must distinguish unknown context from explicit zero
 context and account for grouping performed by functions and dependency chains.
 See the [row context contract](spec.md#row-context).
 
-## Global parameters
+## Configuration and runtime parameters
+
+Keep framework configuration separate from dataset contents and analytical
+inputs. Use it for values that adapt how a workflow runs in this framework, so
+the same build can run in different environments without changing its
+analytics. Examples include selecting read and write locations and
+environment-specific storage or catalog names. Framework-owned settings can
+also have defaults, such as the engine's default lazy-frame validation policy.
+Other useful controls include backend, validation, materialization, execution
+scope, and resource limits when supported by the engine.
+
+Do not put records, feature values, or business thresholds in framework
+configuration. Keep data in datasets and analytical inputs as declared feature
+inputs in the Spec. Engine options belong in the `engine` configuration or
+dedicated CLI options. The `params` map does not set engine options directly;
+it supplies scalar values to function bindings. Use it for framework controls
+such as a path or source identifier when a read or write function needs that
+value, not for dataset or analytical values.
 
 Binding arguments may contain `$params.<name>` references. Each reference
 resolves to one required scalar value from the flat `params` map in
@@ -75,20 +92,22 @@ dictionaries and lists and do not create feature dependencies.
 {
   "engine": {"backend": {}},
   "params": {
-    "threshold": 10,
-    "telemetry_source": "data/telemetry.json"
+    "telemetry_source": "data/telemetry.parquet",
+    "output_path": "data/results.parquet"
   }
 }
 ```
 
-In Python authoring, use `up.ref.parameter("threshold")`. The source and sink
-helpers refer to the same map: `up.ref.source("telemetry_source")` and
-`up.ref.sink("output_path")` both produce `$params.<name>`. Parameter values
-support JSON strings, finite numbers, booleans, and null; arrays and objects
-are rejected.
+In Python authoring, `up.ref.source("telemetry_source")` and
+`up.ref.sink("output_path")` create references to the same map. Parameter
+values support JSON strings, finite numbers, booleans, and null; arrays and
+objects are rejected. These references are required bindings, not a defaulting
+mechanism: a missing value fails the invocation. Defaults are appropriate for
+framework-owned optional settings only when that setting defines a default;
+they do not make a missing `$params` reference optional.
 
 `config/config.json` keeps backend settings under `engine` and the flat
-parameter map under `params`. Programmatic users can construct
+runtime control parameter map under `params`. Programmatic users can construct
 `Config(engine=EngineConfig(...), params=Params(...))` or pass the flat map as
 `parameters` to `Engine`.
 

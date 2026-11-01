@@ -21,7 +21,7 @@ directory is used. The grouped form is `uptimely engine run [PROJECT_ROOT]`.
 | --- | --- | --- | --- |
 | `PROJECT_ROOT` | No | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
-| `--config PATH` | No | `config/config.json` under the project root or current working directory | Engine backend settings and required global scalar parameter values in JSON. |
+| `--config PATH` | No | `config/config.json` under the project root or current working directory | Engine settings and required runtime control parameter values in JSON. |
 | `--verbose` | No | `false` | Add saved-resource statistics, execution counts, calculated features, stages, and dataset registry details. |
 | `--preview [ROWS]` | No | Disabled; 5 rows when supplied without a count | Log the first positive number of rows from each final dataset after successful execution, independently of `--verbose`. |
 
@@ -55,13 +55,14 @@ settings:
 ```
 
 Global scalar values are stored in the `params` object. A parameter referenced
-by `$params.<name>` must have an entry:
+by `$params.<name>` must have an entry. Use these for framework controls such
+as environment-specific read and write locations, not dataset contents or
+analytical values:
 
 ```json
 {
   "engine": {"backend": {}},
   "params": {
-    "threshold": 10,
     "source_path": "data/input.parquet"
   }
 }
