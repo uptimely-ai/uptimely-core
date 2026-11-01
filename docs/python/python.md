@@ -74,6 +74,10 @@ models. The authoring class is defined as `uptimely.spec.python.spec.Spec` and
 exported as `up.Spec` and `uptimely.spec.python.Spec`. The former `PythonSpec`
 name is removed.
 
+Dimensions have stable `id` values used in entity grain and feature references.
+Their optional `name` is a human-readable display label, generated from the ID
+when omitted (for example, `production_line` becomes `Production Line`).
+
 `up.Spec` requires explicit `dimensions`, `entities`, and `datasets` sequences,
 including empty sequences when appropriate. It instantiates dataset classes and
 groups datasets using their `entity` attribute, which accepts an entity ID string
