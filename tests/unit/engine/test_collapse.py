@@ -145,7 +145,7 @@ def _spec(*, lazy=False, empty=False):
                 inputs=[],
                 function=ref.function(read_values, kind="read"),
                 arguments={"lazy": lazy, "empty": empty},
-                outputs=[feature.Feature(name=name) for name in ("group", "id", "value")],
+                outputs=[feature.Feature(id=name) for name in ("group", "id", "value")],
             ),
             actions.Action(
                 id="double",
@@ -156,7 +156,7 @@ def _spec(*, lazy=False, empty=False):
                     "column": ref.feature("value").id,
                     "output": ref.feature("doubled").id,
                 },
-                outputs=[feature.Feature(name="doubled")],
+                outputs=[feature.Feature(id="doubled")],
             ),
             actions.Action(
                 id="unneeded",
@@ -167,7 +167,7 @@ def _spec(*, lazy=False, empty=False):
                     "column": ref.feature("value").id,
                     "output": ref.feature("unneeded").id,
                 },
-                outputs=[feature.Feature(name="unneeded")],
+                outputs=[feature.Feature(id="unneeded")],
             ),
         ],
     )
@@ -183,7 +183,7 @@ def _spec(*, lazy=False, empty=False):
                     "column": ref.feature("value").id,
                     "calculated": ref.feature("doubled").id,
                 },
-                outputs=[feature.Feature(name=name) for name in ("maximum", "average", "values")],
+                outputs=[feature.Feature(id=name) for name in ("maximum", "average", "values")],
             )
         ],
     )
@@ -195,14 +195,14 @@ def _spec(*, lazy=False, empty=False):
                 inputs=[ref.feature("maximum")],
                 function=ref.function(total, kind="collapse"),
                 arguments={"dataset": ref.dataset("summary").dataframe},
-                outputs=[feature.Feature(name="total")],
+                outputs=[feature.Feature(id="total")],
             ),
             actions.Action(
                 id="global_maximum",
                 inputs=[ref.feature("maximum")],
                 function=ref.function(maximum, kind="collapse"),
                 arguments={"dataset": ref.dataset("summary").dataframe},
-                outputs=[feature.Feature(name="global_max")],
+                outputs=[feature.Feature(id="global_max")],
             ),
         ],
     )
@@ -256,7 +256,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                 inputs=[],
                 function=ref.function(read_conform_target, kind="read"),
                 arguments={},
-                outputs=[feature.Feature(name="base_value")],
+                outputs=[feature.Feature(id="base_value")],
             ),
             actions.Action(
                 id="conform_source",
@@ -266,7 +266,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                     "source": ref.dataset("foreign").dataframe,
                     "matching_keys": ref.current_dataset().dimensions.ids,
                 },
-                outputs=[feature.Feature(name="conformed_value")],
+                outputs=[feature.Feature(id="conformed_value")],
             ),
         ],
     )
@@ -278,7 +278,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                 inputs=[],
                 function=ref.function(read_conform_source, kind="read"),
                 arguments={},
-                outputs=[feature.Feature(name="source_value")],
+                outputs=[feature.Feature(id="source_value")],
             )
         ],
     )
@@ -568,7 +568,7 @@ def _broadcast_spec(
                 inputs=[],
                 function=ref.function(read_values, kind="read"),
                 arguments={"lazy": lazy},
-                outputs=[feature.Feature(name="value")],
+                outputs=[feature.Feature(id="value")],
             ),
             actions.Action(
                 id="reference",
@@ -579,7 +579,7 @@ def _broadcast_spec(
                     "feature": ref.feature("source_value").id,
                     "output": ref.feature("reference").id,
                 },
-                outputs=[feature.Feature(name="reference")],
+                outputs=[feature.Feature(id="reference")],
             ),
         ],
     )
@@ -591,7 +591,7 @@ def _broadcast_spec(
                 inputs=[],
                 function=ref.function(reader, kind="read"),
                 arguments={"lazy": lazy},
-                outputs=[feature.Feature(name="source_value")],
+                outputs=[feature.Feature(id="source_value")],
             )
         ],
     )

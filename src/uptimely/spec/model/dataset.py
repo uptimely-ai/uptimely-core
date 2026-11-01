@@ -17,9 +17,17 @@ class Feature(common.StrictModel):
     """A dataset feature's logical metadata."""
 
     id: str = pydantic.Field(exclude=True)
+    name: str | None = None
     description: str | None = None
     type: str | None = None
     unit: str | None = None
+
+    @pydantic.model_validator(mode="after")
+    def generate_name(self) -> typing.Self:
+        """Generate a display name from the feature ID when one is not supplied."""
+        if self.name is None:
+            self.name = humanize_identifier(self.id)
+        return self
 
 
 class ActionFeatures(common.StrictModel):
@@ -79,8 +87,8 @@ class RowScope(common.StrictModel):
     coverage: str = ""
 
 
-def humanize_dataset_name(identifier: str) -> str:
-    """Return a display name for a dataset identifier."""
+def humanize_identifier(identifier: str) -> str:
+    """Return a display name for a snake- or kebab-case identifier."""
     return identifier.replace("_", " ").replace("-", " ").title()
 
 
@@ -99,7 +107,7 @@ class Dataset(common.StrictModel):
     def generate_name(self) -> typing.Self:
         """Generate a display name from the dataset ID when one is not supplied."""
         if self.name is None:
-            self.name = humanize_dataset_name(self.id)
+            self.name = humanize_identifier(self.id)
         return self
 
     @property

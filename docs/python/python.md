@@ -42,7 +42,7 @@ class Pump(up.Dataset):
             ),
             outputs=[
                 up.Feature(
-                    name="bearing_temperature_max",
+                    id="bearing_temperature_max",
                     type="float",
                     unit="C",
                     description="Maximum observed bearing temperature.",
@@ -51,6 +51,11 @@ class Pump(up.Dataset):
         ),
     ]
 ```
+
+`Feature.id` is the stable feature identifier used by references and serialized
+keys. `Feature.name` is an optional display label; when omitted, it is generated
+by humanizing the ID (for example, `bearing_temperature_max` becomes
+`Bearing Temperature Max`).
 
 ```python
 python_spec = up.Spec(

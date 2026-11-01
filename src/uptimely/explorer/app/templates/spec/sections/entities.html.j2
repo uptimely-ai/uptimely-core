@@ -35,7 +35,8 @@
           {% set function_kind = function.get("kind", "") %}
           {% set function_kind_meta = kind_meta.get(function_kind, {"icon": "braces", "label": function_kind|title}) %}
           <article id="feature-{{ dataset_id }}-{{ feature_id }}" data-context-item>
-            <h2 class="font-display text-2xl font-semibold text-white">{{ feature_id }}</h2>
+            <h2 class="font-display text-2xl font-semibold text-white">{{ feature.name or feature_id }}</h2>
+            {% if feature.name %}<p class="mt-1 font-mono text-xs text-slate-500">{{ feature_id }}</p>{% endif %}
             <p data-feature-description class="mt-4 text-sm leading-6 text-slate-400">{{ feature.description or "No description provided." }}</p>
             <section class="mt-6 rounded-xl border border-cyan-900/60 bg-cyan-950/20 p-4 sm:p-5">
               <h3 class="flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-[.14em] text-cyan-200">

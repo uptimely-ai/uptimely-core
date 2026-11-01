@@ -31,7 +31,7 @@ class Pump(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="bearing_temperature_max",
+                    id="bearing_temperature_max",
                     type="float",
                     unit="C",
                     description="Maximum observed bearing temperature",
@@ -51,7 +51,7 @@ class Pump(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="health_signal_normalized",
+                    id="health_signal_normalized",
                     type="float",
                     description="Normalized bearing-temperature health signal by pump.",
                 )

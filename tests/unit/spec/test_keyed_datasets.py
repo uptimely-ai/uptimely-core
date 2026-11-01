@@ -57,6 +57,23 @@ def test_keyed_datasets_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
     assert spec.load_spec(path) == model
 
 
+def test_feature_name_defaults_to_humanized_id() -> None:
+    model = spec.Spec.model_validate(
+        _document({"telemetry": {"features": {"bearing_temperature": {"type": "float"}}}})
+    )
+
+    feature = model.entities["asset"].datasets["telemetry"].features["bearing_temperature"]
+
+    assert feature.id == "bearing_temperature"
+    assert feature.name == "Bearing Temperature"
+    assert (
+        codec.to_document(model)["entities"]["asset"]["datasets"]["telemetry"]["features"][
+            "bearing_temperature"
+        ]["name"]
+        == "Bearing Temperature"
+    )
+
+
 def test_action_id_is_included_in_serialized_document() -> None:
     document = _document(
         {

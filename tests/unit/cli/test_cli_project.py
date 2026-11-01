@@ -214,7 +214,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             "        id='read',\n"
             "        function=api.ref.function(build_functions.read, kind='read'),\n"
             "        arguments={},\n"
-            "        outputs=[Feature(name='value')],\n"
+            "        outputs=[Feature(id='value')],\n"
             "    )]\n"
             "definition = api.Spec(dimensions=[], entities=[example], datasets=[Values])\n",
             encoding="utf-8",

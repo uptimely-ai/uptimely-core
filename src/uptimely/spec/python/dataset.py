@@ -118,7 +118,7 @@ class Dataset:
         if name is not None:
             self.name = name
         elif self.name is None:
-            self.name = dataset_model.humanize_dataset_name(self.id)
+            self.name = dataset_model.humanize_identifier(self.id)
         if description is not None:
             self.description = description
         if entity is not None:
@@ -187,7 +187,7 @@ class Dataset:
         for name, declaration in self._collect_actions().items():
             model = self._action_model(name, declaration)
             for metadata in declaration.outputs:
-                identifier = metadata.name
+                identifier = metadata.id
                 if identifier in producers:
                     raise ValueError(
                         f"Dataset '{self.id}' feature '{identifier}' has duplicate producers: "
@@ -199,7 +199,10 @@ class Dataset:
                 for key in resolved_entity_keys:
                     if key.id not in features:
                         features[key.id] = spec_model.Feature(
-                            id=key.id, type=key.type, description=key.description
+                            id=key.id,
+                            name=dataset_model.humanize_identifier(key.id),
+                            type=key.type,
+                            description=key.description,
                         )
                 key_outputs = [
                     f"{selectors.FEATURE_PREFIX}{key.id}"

@@ -5,23 +5,31 @@ from __future__ import annotations
 import dataclasses
 
 from uptimely.spec import model as spec_model
+from uptimely.spec.model import dataset as dataset_model
 
 __all__ = ["Feature"]
 
 
 @dataclasses.dataclass(frozen=True)
 class Feature:
-    """A named output feature; its name becomes the canonical feature ID."""
+    """A named output feature with a stable identifier and display name."""
 
-    name: str
+    id: str
+    name: str | None = None
     type: str | None = None
     unit: str | None = None
     description: str | None = None
 
+    def __post_init__(self) -> None:
+        """Generate a display name from the ID when one is not supplied."""
+        if self.name is None:
+            object.__setattr__(self, "name", dataset_model.humanize_identifier(self.id))
+
     def to_model(self) -> spec_model.Feature:
         """Convert this feature declaration to its JSON model."""
         return spec_model.Feature(
-            id=self.name,
+            id=self.id,
+            name=self.name,
             description=self.description,
             type=self.type,
             unit=self.unit,

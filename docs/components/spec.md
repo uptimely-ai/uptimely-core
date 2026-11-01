@@ -177,11 +177,14 @@ dataset order to interpret preceding and following observations.
 ## Features
 
 A feature is a column describing an entity, whether read from a source or
-calculated. Its dataset registry declares the metadata once:
+calculated. Its dataset registry declares the metadata once. The registry key
+is the feature ID; `name` is an optional human-readable label and defaults to
+the ID converted from snake or kebab case to title case:
 
 ```json
 "features": {
   "bearing_temperature": {
+    "name": "Bearing Temperature",
     "type": "float",
     "unit": "C"
   },
@@ -195,6 +198,7 @@ calculated. Its dataset registry declares the metadata once:
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
+| `name` | string or null | No | Generated from the feature identifier | Human-readable display name. |
 | `type` | string or null | No | `null` | Logical type of the feature. |
 | `description` | string or null | No | `null` | Explanation of the feature. |
 | `unit` | string or null | No | `null` | Unit of measurement for the feature. |
