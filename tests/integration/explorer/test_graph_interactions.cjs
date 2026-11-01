@@ -492,6 +492,21 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			buttons[1 - index].listeners.click();
 			assert.ok([...graph.objects.values()].every(object => object.scale.value === undefined));
 		}
+		node.is_action = filename === 'feature_lineage.js';
+		node.is_effect = true;
+		node.features = ['result'];
+		node.input_features = ['source'];
+		graph.properties.get('onNodeClick')(node);
+		const details = element(filename === 'feature_lineage.js'
+			? 'node-details' : 'invocation-node-details');
+		assert.ok(details.rows.some(([label]) => label === (
+			filename === 'feature_lineage.js' ? 'Declared logical outputs' : 'Declared feature outputs'
+		)));
+		node.function_kind = 'escape';
+		node.is_effect = false;
+		graph.properties.get('onNodeClick')(node);
+		assert.ok(details.rows.some(([label]) => label === 'Produces'));
+		assert.ok(!details.rows.some(([label]) => label === 'Declared inputs'));
 	});
 }
 

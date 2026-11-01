@@ -1,16 +1,32 @@
 """Describe feature dependencies as a graph and resolve requested outputs."""
 
+import dataclasses
+
 import graphable as graphable_
 from graphable import views
 
-from uptimely.spec import arg_types, functions, validation
+from uptimely.spec import functions, validation
 from uptimely.spec import model as spec_model
-from uptimely.spec import references as bindings
 
 from . import models
 
 Node = graphable_.graphable.Graphable
 FeatureGraphNodeMeta = models.ActionNode | models.FeatureNode
+
+
+@dataclasses.dataclass(frozen=True)
+class _GraphAction:
+    """A graph operation with its declared owners and resolved function."""
+
+    action: spec_model.Action
+    function: spec_model.FunctionTemplate
+    entity: spec_model.Entity
+    dataset: spec_model.Dataset
+
+    @property
+    def kind(self) -> functions.FunctionKind:
+        """Return the function's declared capabilities."""
+        return functions.FUNCTION_KINDS[self.function.kind]
 
 
 class FeatureGraphBase:
@@ -19,11 +35,6 @@ class FeatureGraphBase:
     graph: graphable_.graph.Graph
     _node_index: dict[str, Node]
     _explicit_output_names: list[str] | None
-
-    @staticmethod
-    def _node_key(reference: FeatureGraphNodeMeta) -> str:
-        """Return a stable node key from an action or feature."""
-        return reference.node_id
 
     def _topology_items_for_level(
         self,
@@ -136,193 +147,122 @@ class FeatureGraph(FeatureGraphBase):
     def __init__(self, spec: spec_model.Spec) -> None:
         """Build the complete dependency graph from spec declarations."""
         validation.validate_spec(spec)
-        self.actions: list[spec_model.Action] = []
-        self._graph_operations: list[
-            tuple[
-                spec_model.FunctionTemplate,
-                spec_model.Action,
-                str,
-                str,
-                list[str],
-                list[str],
-            ]
-        ] = []
-
-        for entity_id, entity in spec.entities.items():
-            for dataset in entity.datasets.values():
-                for action in dataset.actions.values():
-                    function = spec.functions[action.binding.function]
-                    dependencies = action.input_features
-                    self.actions.append(action)
-                    self._graph_operations.append(
-                        (
-                            function,
-                            action,
-                            entity_id,
-                            dataset.id,
-                            [
-                                feature_id
-                                for feature_id in action.output_features
-                                if feature_id not in spec.dimensions
-                            ],
-                            list(dict.fromkeys(dependencies)),
-                        )
-                    )
-
+        self._graph_operations = [
+            _GraphAction(action, spec.functions[action.binding.function], entity, dataset)
+            for entity in spec.entities.values()
+            for dataset in entity.datasets.values()
+            for action in dataset.actions.values()
+        ]
+        self.actions = [operation.action for operation in self._graph_operations]
         self.spec = spec
         self._node_index: dict[str, Node] = {}
         self._explicit_output_names = None
         self.graph = self._create_graph()
 
+    def _declared_features(self) -> dict[str, models.FeatureNode]:
+        """Resolve output metadata directly from action and dataset declarations."""
+        feature_metadata: dict[str, models.FeatureNode] = {}
+        for operation in self._graph_operations:
+            kind = operation.kind
+            is_source_input = kind.is_source and kind.dimension_change != "remove"
+            for name in operation.action.output_features:
+                feature = operation.dataset.features[name]
+                data_type = feature.type
+                if (
+                    data_type is None
+                    and name not in self.spec.dimensions
+                    and not kind.is_effect
+                    and not kind.is_transformer
+                ):
+                    data_type = kind.returns
+                reference = models.FeatureNode(
+                    name=name,
+                    data_type=data_type,
+                    entity=operation.entity.id,
+                    dataset_id=operation.dataset.id,
+                    display_name=feature.name,
+                    dataset_name=operation.dataset.name,
+                    is_source_input=is_source_input,
+                )
+                existing = feature_metadata.get(name)
+                if existing is not None:
+                    reference = dataclasses.replace(
+                        existing,
+                        data_type=existing.data_type
+                        if existing.data_type is not None
+                        else reference.data_type,
+                        display_name=existing.display_name
+                        if existing.display_name is not None
+                        else reference.display_name,
+                        is_source_input=existing.is_source_input or is_source_input,
+                    )
+                feature_metadata[name] = reference
+        return feature_metadata
+
     def _create_graph(self) -> graphable_.graph.Graph:
-        """Build a graph from declared action dependencies."""
+        """Connect declared feature inputs, actions, and non-dimension outputs."""
         graph = graphable_.graph.Graph()
         nodes: dict[str, Node] = {}
-
         output_names = {
-            output
-            for (
-                _function,
-                _action,
-                _entity,
-                _dataset,
-                outputs,
-                _dependencies,
-            ) in self._graph_operations
-            for output in outputs
-            if output not in self.spec.dimensions
+            name
+            for operation in self._graph_operations
+            for name in operation.action.output_features
+            if name not in self.spec.dimensions
         }
         dependency_names = {
-            parent
-            for (
-                _function,
-                _action,
-                _entity,
-                _dataset,
-                _outputs,
-                dependencies,
-            ) in self._graph_operations
-            for parent in dependencies
+            name for operation in self._graph_operations for name in operation.action.input_features
         }
-        feature_metadata: dict[str, models.FeatureNode] = {}
-
-        def register_feature_metadata(
-            name: str,
-            data_type: str | None,
-            entity: str | None,
-            dataset_id: str | None = None,
-            display_name: str | None = None,
-            *,
-            is_source_input: bool = False,
-        ) -> None:
-            existing = feature_metadata.get(name)
-            feature_metadata[name] = models.FeatureNode(
-                name=name,
-                data_type=(
-                    existing.data_type if existing and existing.data_type is not None else data_type
-                ),
-                entity=existing.entity if existing and existing.entity is not None else entity,
-                dataset_id=(
-                    existing.dataset_id
-                    if existing and existing.dataset_id is not None
-                    else dataset_id
-                ),
-                display_name=(
-                    existing.display_name
-                    if existing and existing.display_name is not None
-                    else display_name
-                ),
-                dataset_name=(
-                    existing.dataset_name
-                    if existing and existing.dataset_name is not None
-                    else (
-                        self.spec.entities[entity].datasets[dataset_id].name
-                        if entity is not None and dataset_id is not None
-                        else None
-                    )
-                ),
-                is_source_input=(
-                    (existing.is_source_input if existing else False) or is_source_input
-                ),
-            )
-
-        for entity_id, entity in self.spec.entities.items():
-            for dataset in entity.datasets.values():
-                for action in dataset.actions.values():
-                    function_kind = bindings.action_kind(action, self.spec.functions)
-                    for name in action.output_features:
-                        feature = dataset.features[name]
-                        register_feature_metadata(
-                            name,
-                            feature.type,
-                            entity_id,
-                            dataset.id,
-                            feature.name,
-                            is_source_input=function_kind
-                            not in {functions.COLLAPSE, functions.ESCAPE, functions.VECTORIZE},
-                        )
-        for function, _action, entity, _dataset, outputs, _dependencies in self._graph_operations:
-            for output in outputs:
-                register_feature_metadata(
-                    output,
-                    None
-                    if function.kind in {functions.ESCAPE, functions.VECTORIZE}
-                    else arg_types.DATAFRAME,
-                    entity,
-                )
+        feature_metadata = self._declared_features()
 
         def node(reference: FeatureGraphNodeMeta) -> Node:
-            return nodes.setdefault(
-                self._node_key(reference), graphable_.graphable.Graphable(reference)
-            )
+            key = reference.node_id
+            if key not in nodes:
+                nodes[key] = graphable_.graphable.Graphable(reference)
+            return nodes[key]
 
         def feature_meta(
             name: str,
-            function: spec_model.FunctionTemplate | None = None,
-            entity: str | None = None,
-            data_type: str | None = None,
+            operation: _GraphAction | None = None,
         ) -> models.FeatureNode:
-            metadata = feature_metadata.get(name)
-            return models.FeatureNode(
-                name=name,
+            metadata = feature_metadata.get(name, models.FeatureNode(name=name))
+            display_name = metadata.display_name
+            if not display_name:
+                dimension = self.spec.dimensions.get(name)
+                display_name = dimension.name if dimension is not None else name
+            return dataclasses.replace(
+                metadata,
                 data_type=(
                     None
-                    if function is not None and function.kind == functions.VECTORIZE
-                    else data_type or (metadata.data_type if metadata else None)
+                    if operation is not None and operation.kind.is_transformer
+                    else metadata.data_type
                 ),
-                entity=entity or (metadata.entity if metadata else None),
-                dataset_id=metadata.dataset_id if metadata else None,
-                display_name=(
-                    metadata.display_name
-                    if metadata and metadata.display_name
-                    else self.spec.dimensions[name].name
-                    if name in self.spec.dimensions
-                    else name
-                ),
-                dataset_name=(metadata.dataset_name if metadata else None),
+                entity=operation.entity.id if operation is not None else metadata.entity,
+                display_name=display_name,
                 is_input=name in dependency_names,
                 is_output=name in output_names,
-                is_source_input=metadata.is_source_input if metadata else False,
             )
 
-        for function, action, entity, dataset_id, outputs, dependencies in self._graph_operations:
+        for operation in self._graph_operations:
+            outputs = [
+                name
+                for name in operation.action.output_features
+                if name not in self.spec.dimensions
+            ]
             action_node = node(
                 models.ActionNode(
-                    action_id=action.id,
+                    action_id=operation.action.id,
                     features=tuple(sorted(outputs)),
-                    entity=entity,
-                    dataset_id=dataset_id,
-                    dataset_name=self.spec.entities[entity].datasets[dataset_id].name,
-                    action=action,
-                    function=function,
+                    entity=operation.entity.id,
+                    dataset_id=operation.dataset.id,
+                    dataset_name=operation.dataset.name,
+                    action=operation.action,
+                    function=operation.function,
                 )
             )
-
             for output in outputs:
-                output_node = node(feature_meta(output, function, entity))
+                output_node = node(feature_meta(output, operation))
                 graph.add_edge(action_node, output_node)
-
-            for parent in set(dependencies):
+            for parent in set(operation.action.input_features):
                 parent_node = node(feature_meta(parent))
                 graph.add_edge(parent_node, action_node)
 
@@ -349,10 +289,9 @@ class FeatureGraph(FeatureGraphBase):
         if missing:
             raise ValueError("Unknown output feature(s): " + ", ".join(missing))
 
-        # Requested output nodes, intermediate nodes and input nodes
         nodes = self._get_ancestor_nodes(output_names)
-        g = graphable_.graph.Graph(nodes, discover=False).clone(include_edges=True)
-        return FeatureSubGraph(graph=g, output_names=output_names)
+        graph = graphable_.graph.Graph(nodes, discover=False).clone(include_edges=True)
+        return FeatureSubGraph(graph=graph, output_names=output_names)
 
 
 class FeatureSubGraph(FeatureGraphBase):
@@ -365,7 +304,7 @@ class FeatureSubGraph(FeatureGraphBase):
     ) -> None:
         """Initialize a feature dependency subset and its explicit output targets."""
         self.graph = graph
-        self._node_index = {self._node_key(n.reference): n for n in self.graph}
+        self._node_index = {node.reference.node_id: node for node in self.graph}
         self._explicit_output_names = (
             output_names if output_names is not None else sorted(self.feature_names)
         )

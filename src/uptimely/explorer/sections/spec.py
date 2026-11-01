@@ -102,12 +102,12 @@ def _feature_data(
             for action in dataset.get("actions", {}).values():
                 function_id = action.get("binding", {}).get("function")
                 function = functions.get(function_id, {})
-                kind = function.get("kind")
+                kind = function_kinds.FUNCTION_KINDS.get(function.get("kind"))
                 for reference in action.get("features", {}).get("outputs", []):
                     feature_id = reference.removeprefix(selectors.FEATURE_PREFIX)
                     feature = dict(dataset.get("features", {}).get(feature_id, {}))
                     feature["id"] = feature_id
-                    if kind == function_kinds.VECTORIZE:
+                    if kind is not None and kind.is_transformer:
                         calculated_features.append(
                             {
                                 **feature,
@@ -204,7 +204,7 @@ def _build_context(
     for entity_id, dataset, action in references.iter_actions(spec_definition):
         function = function_definitions[action.binding.function]
         function["action_usage_count"] = function.get("action_usage_count", 0) + 1
-        if function.get("kind") == function_kinds.ESCAPE:
+        if function_kinds.FUNCTION_KINDS[function["kind"]].is_effect:
             function["escape_actions"].append(
                 {
                     "entity": entity_id,

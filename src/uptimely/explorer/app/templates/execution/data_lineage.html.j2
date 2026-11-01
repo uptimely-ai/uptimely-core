@@ -87,7 +87,7 @@
         {% endif %}
         <a href="#step-{{ step.number }}" data-animation-step="{{ step.number }}">
           <span class="animation-step-number">{{ loop.index }}</span>
-          {% set meta = kind_meta.get(step.function_kind) %}
+          {% set meta = kind_meta.get(step.kind.id) %}
           {% if meta %}<span class="context-link-icon" title="{{ meta.label }}"><i data-lucide="{{ meta.icon }}" class="site-icon icon--functions nav-icon" aria-hidden="true"></i></span>{% endif %}
           <span class="context-link-label">{{ step.action }}</span>
         </a>
@@ -119,7 +119,7 @@
       {% set join_dimensions = [] %}
       {% for table in step.input_tables %}{% for name in table.join_dimensions %}{% if name not in join_dimensions %}{% set _ = join_dimensions.append(name) %}{% endif %}{% endfor %}{% endfor %}
       <article class="data-lineage-step" id="step-{{ step.number }}" data-invocation-id="{{ step.invocation_id }}"
-        data-dependencies="{{ step.dependencies|join(',') }}" data-function-kind="{{ step.function_kind }}" data-stage="{{ stage_number }}" aria-labelledby="step-{{ step.number }}-title">
+        data-dependencies="{{ step.dependencies|join(',') }}" data-function-kind="{{ step.kind.id }}" data-stage="{{ stage_number }}" aria-labelledby="step-{{ step.number }}-title">
         <header class="data-lineage-step-header">
           <h3 id="step-{{ step.number }}-title">{{ step.action }}</h3>
           <p class="data-lineage-step-dataset">Dataset: {{ step.dataset_label if step.dataset else step.entity }}</p>
@@ -127,27 +127,27 @@
         <div class="data-lineage-scene">
           <div class="data-lineage-panel data-lineage-panel-output">
             <p class="data-lineage-waiting" hidden>New features will appear in the main table as the action runs.</p>
-            {{ sample_table(step.main_columns|rejectattr("role", "equalto", "Existing")|list, keys, none, "output", step.row_count, step.function_kind in ["collapse", "expand"], step.dataset_label if step.dataset else step.entity, join_dimensions, "added" if step.input_tables else none) }}
+            {{ sample_table(step.main_columns|rejectattr("role", "equalto", "Existing")|list, keys, none, "output", step.row_count, step.kind.dimension_change in ["remove", "add"], step.dataset_label if step.dataset else step.entity, join_dimensions, "added" if step.input_tables else none) }}
           </div>
-          {% set meta = kind_meta.get(step.function_kind, {"icon": "braces"}) %}
-          <div class="data-lineage-arrow" data-flow="{{ 'down' if step.function_kind == 'write' else 'up' }}">
+          {% set meta = kind_meta.get(step.kind.id, {"icon": "braces"}) %}
+          <div class="data-lineage-arrow" data-flow="{{ 'down' if step.kind.is_sink else 'up' }}">
             <span class="data-lineage-edge" aria-hidden="true"></span>
             <span class="data-lineage-node icon--functions" aria-hidden="true"><i data-lucide="{{ meta.icon }}" class="site-icon"></i></span>
             <span class="data-lineage-node-label">
-              <small class="data-lineage-invocation-type">{{ {"collapse": "Aggregate", "escape": "Uncontrolled external operation"}.get(step.function_kind, step.function_kind|title) }}</small>
+              <small class="data-lineage-invocation-type">{{ {"collapse": "Aggregate", "escape": "Uncontrolled external operation"}.get(step.kind.id, step.kind.id|title) }}</small>
               <code title="{{ step.function }}">{{ step.function_label }}</code>
             </span>
           </div>
           <div class="data-lineage-panel data-lineage-sources">
-            {% if step.function_kind == "read" %}
+            {% if step.kind.is_source and step.kind.dataframe_input_scope == "none" %}
             <div class="data-lineage-boundary"><strong>Source</strong>{{ step.dataset_label if step.dataset else step.entity }}</div>
-            {% elif step.function_kind == "escape" %}
+            {% elif step.kind.is_effect %}
             <div class="data-lineage-boundary"><strong>Declared feature inputs</strong>{{ (declared_inputs|map(attribute="name")|list)|join(", ") or "None" }}<p>These declarations do not establish that dataframe columns are available to the invocation.</p></div>
             {% elif step.input_tables %}
             {% for table in step.input_tables %}
-            {{ sample_table(table.columns, table.keys, "Source input", "input", table.row_count, step.function_kind == "collapse", table.dataset_label, table.join_dimensions, "removed") }}
+            {{ sample_table(table.columns, table.keys, "Source input", "input", table.row_count, step.kind.dimension_change == "remove", table.dataset_label, table.join_dimensions, "removed") }}
             {% endfor %}
-            {% elif step.function_kind == "write" %}
+            {% elif step.kind.is_sink %}
             <div class="data-lineage-boundary" data-write-boundary="{{ step.dataset or step.entity }}"><strong>Write destination</strong>{{ step.dataset_label if step.dataset else step.entity }}</div>
             {% elif not (inputs or keys) %}
             <div class="data-lineage-boundary"><strong>No declared input columns</strong>Only declared information is shown.</div>

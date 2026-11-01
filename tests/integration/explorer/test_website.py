@@ -15,7 +15,9 @@ from support import examples as example_support
 from support import rendering as rendering_support
 
 from uptimely import compiler, project, spec
+from uptimely.explorer import common
 from uptimely.explorer.sections import feature_lineage
+from uptimely.explorer.sections import plan as plan_render
 from uptimely.explorer.sections import spec as spec_render
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -892,6 +894,47 @@ def test_execution_plan_overview_statistics_match_plan(
     assert re.findall(r'data-stage="(\d+)" data-count="(\d+)"', document) == [
         (str(index), str(len(stage))) for index, stage in enumerate(plan.execution_stages, start=1)
     ]
+
+
+def test_plan_build_reuses_one_label_index_for_cards_and_lineage(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    pump_bundle: project.BuildBundle,
+) -> None:
+    definition = pump_bundle.spec_definition
+    expected_labels = common.feature_labels(definition)
+    calls = 0
+
+    def labels(spec_definition: spec.Spec) -> dict[str, str]:
+        nonlocal calls
+        assert spec_definition is definition
+        calls += 1
+        return expected_labels
+
+    monkeypatch.setattr(common, "feature_labels", labels)
+    context = plan_render.build_context(pump_bundle.execution_plan, tmp_path, definition)
+
+    assert calls == 1
+    steps = [step for stage in context["stages"] for step in stage["steps"]]
+    invocations = pump_bundle.execution_plan.invocations_by_id
+    ordered_ids = [
+        identifier for stage in pump_bundle.execution_plan.stages for identifier in stage
+    ]
+    for step in steps:
+        invocation_id = ordered_ids[step["position"] - 1]
+        invocation = invocations[invocation_id]
+        assert step["output_features"] == [
+            expected_labels.get(name, name) for name in invocation.output_features
+        ]
+        assert step["input_features"] == [
+            expected_labels.get(name, name) for name in invocation.input_features
+        ]
+    nodes = json.loads(context["invocation_lineage_data"])["nodes"]
+    for node in nodes:
+        if node["function_kind"] in {"escape", "vectorize"}:
+            assert node["feature"] == ", ".join(
+                expected_labels.get(name, name) for name in node["output_features"]
+            )
 
 
 def test_empty_execution_plan_overview_statistics(tmp_path: pathlib.Path) -> None:

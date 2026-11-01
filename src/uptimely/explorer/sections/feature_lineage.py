@@ -1,16 +1,14 @@
 """Prepare and render feature lineage for the Explorer website."""
 
 import dataclasses
-import json
 import typing
 
-from graphable import views
-
 from uptimely.explorer import common, graph_style, render
+from uptimely.spec import functions
 from uptimely.spec.feature_graph import models
 
 if typing.TYPE_CHECKING:
-    from uptimely.spec.feature_graph.feature_graph import FeatureGraphBase
+    from uptimely.spec.feature_graph import feature_graph as feature_graph_module
 
 SECTION = render.WebsiteSection(
     active_page="spec",
@@ -26,30 +24,24 @@ __all__ = ["SECTION", "build_context", "feature_lineage_payload"]
 
 
 def feature_lineage_payload(
-    feature_graph: "FeatureGraphBase",
+    feature_graph: "feature_graph_module.FeatureGraphBase",
 ) -> tuple[list[dict[str, typing.Any]], list[dict[str, str]]]:
     """Build node and link payloads for feature lineage."""
-    config = views.CytoscapeStylingConfig(
-        node_data_fnc=lambda node: _node_render_data(node.reference),
-        reference_fnc=lambda node: node.reference.node_id,
-    )
-    elements = json.loads(views.create_topology_cytoscape(feature_graph.graph, config))
-
-    nodes: list[dict[str, typing.Any]] = []
-    links: list[dict[str, str]] = []
-
-    for element in elements:
-        data = element.get("data", {})
-        if "source" in data:
-            links.append(
-                {
-                    "source": str(data["source"]),
-                    "target": str(data["target"]),
-                }
-            )
-            continue
-        nodes.append(data)
-
+    ordered_nodes = feature_graph.graph.topological_order()
+    nodes = [
+        {
+            "id": node.reference.node_id,
+            "label": str(node.reference),
+            "tags": list(node.tags),
+            **_node_render_data(node.reference),
+        }
+        for node in ordered_nodes
+    ]
+    links = [
+        {"source": node.reference.node_id, "target": dependent.reference.node_id}
+        for node in ordered_nodes
+        for dependent, _ in feature_graph.graph.internal_dependents(node)
+    ]
     return nodes, links
 
 
@@ -70,6 +62,7 @@ def _node_render_data(
             function_id=reference.function.id,
             function_name=reference.function.name,
             function_kind=reference.function.kind,
+            is_effect=functions.FUNCTION_KINDS[reference.function.kind].is_effect,
             type="python_function",
             entrypoint=reference.function.entrypoint,
             info={"description": reference.function.description},
@@ -88,7 +81,7 @@ def _node_render_data(
 
 
 def build_context(
-    feature_graph: "FeatureGraphBase",
+    feature_graph: "feature_graph_module.FeatureGraphBase",
 ) -> dict[str, object]:
     """Prepare feature-lineage payload and style data without rendering or writing pages.
 

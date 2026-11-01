@@ -42,42 +42,27 @@ def _render_step(
     plan: execution_plan.ExecutionPlan,
     spec_definition: spec.Spec,
     invocations_by_id: typing.Mapping[str, execution_plan.Invocation] | None = None,
+    feature_labels: typing.Mapping[str, str] | None = None,
 ) -> dict[str, typing.Any]:
-    """Build the display model used by the execution-plan HTML templates."""
+    """Build a plan step's display model, optionally reusing lookup indexes."""
     if spec_definition is None:
         raise ValueError("spec_definition is required to render plan steps")
     if invocations_by_id is None:
         invocations_by_id = plan.invocations_by_id
-
-    def display_value(value: object) -> object:
-        if isinstance(value, dict):
-            if "type" in value and "value" in value:
-                return display_value(value["value"])
-            return {name: display_value(item) for name, item in value.items()}
-        if isinstance(value, list):
-            return [display_value(item) for item in value]
-        return value
+    if feature_labels is None:
+        feature_labels = common.feature_labels(spec_definition)
 
     function_name = spec_definition.functions[invocation.function_id].name or invocation.function_id
     entity = spec_definition.entities[invocation.entity_id]
     dataset = (
         entity.datasets.get(invocation.dataset_id) if invocation.dataset_id is not None else None
     )
-    feature_labels = {
-        **{
-            feature_id: feature.name or feature_id
-            for owner in spec_definition.entities.values()
-            for source in owner.datasets.values()
-            for feature_id, feature in source.features.items()
-        },
-        **{
-            dimension_id: dimension.name or dimension_id
-            for dimension_id, dimension in spec_definition.dimensions.items()
-        },
-    }
+    input_labels = [feature_labels.get(name, name) for name in invocation.input_features]
+    output_labels = [feature_labels.get(name, name) for name in invocation.output_features]
+    kind = functions.FUNCTION_KINDS[invocation.function_kind]
     displayed_feature = (
-        ", ".join(feature_labels.get(feature, feature) for feature in invocation.output_features)
-        if invocation.function_kind in {functions.COLLAPSE, functions.ESCAPE, functions.VECTORIZE}
+        ", ".join(output_labels)
+        if kind.is_effect or kind.is_transformer or kind.dimension_change == "remove"
         else None
     )
     return {
@@ -93,15 +78,11 @@ def _render_step(
             dataset.name or invocation.dataset_id if dataset is not None else invocation.dataset_id
         ),
         "feature": displayed_feature,
-        "input_features": [
-            feature_labels.get(feature, feature) for feature in invocation.input_features
-        ],
-        "output_features": [
-            feature_labels.get(feature, feature) for feature in invocation.output_features
-        ],
+        "input_features": input_labels,
+        "output_features": output_labels,
         "input_feature_ids": invocation.input_features,
         "output_feature_ids": invocation.output_features,
-        "uncontrolled": invocation.function_kind == functions.ESCAPE,
+        "uncontrolled": kind.is_effect,
         "row_context": invocation.row_context.to_dict() if invocation.row_context else None,
         "depends_on_invocations": [
             {
@@ -118,7 +99,7 @@ def _render_step(
                     "function": None,
                     "engine": None,
                 },
-                "value": display_value(
+                "value": _display_value(
                     value.get("value") if isinstance(value, dict) and "type" in value else value
                 ),
             }
@@ -126,6 +107,39 @@ def _render_step(
         },
         "returns": {"type": {"engine": plan.resources.get("signatures", {}).get(invocation.id)}},
     }
+
+
+def _display_value(value: object) -> object:
+    """Unwrap typed argument values while retaining nested containers."""
+    if isinstance(value, dict):
+        if "type" in value and "value" in value:
+            return _display_value(value["value"])
+        return {name: _display_value(item) for name, item in value.items()}
+    if isinstance(value, list):
+        return [_display_value(item) for item in value]
+    return value
+
+
+def _source_href(entrypoint: str, output_directory: pathlib.Path) -> str | None:
+    """Resolve a module or file entrypoint relative to the plan pages."""
+    if not entrypoint:
+        return None
+    source_path = entrypoint.partition(":")[0]
+    if not source_path:
+        return None
+    if not source_path.endswith(".py"):
+        source_path = source_path.replace(".", "/") + ".py"
+    return pathlib.Path(os.path.relpath(source_path, start=output_directory / "plan")).as_posix()
+
+
+def _step_sort_key(step: dict[str, typing.Any]) -> tuple[str, str, str, str]:
+    """Keep stage cards in their existing display order."""
+    return (
+        step["entrypoint"] or "",
+        step["entity"],
+        step["dataset"] or "",
+        step["feature"] or "",
+    )
 
 
 def build_context(
@@ -146,67 +160,38 @@ def build_context(
     if spec_definition is None:
         raise ValueError("spec_definition is required to render the execution plan")
     invocations_by_stage = plan.execution_stages
-    invocations_in_order = [invocation for stage in invocations_by_stage for invocation in stage]
-    invocations_by_id = {invocation.id: invocation for invocation in invocations_in_order}
-    position_by_invocation = {
-        invocation.id: position for position, invocation in enumerate(invocations_in_order, start=1)
-    }
-    stages = [
-        {
-            "stage": stage_number,
-            "steps": [
-                _render_step(
-                    position_by_invocation[invocation.id],
-                    invocation,
-                    plan,
-                    spec_definition,
-                    invocations_by_id,
-                )
-                for invocation in stage
-            ],
-        }
-        for stage_number, stage in enumerate(invocations_by_stage, start=1)
-    ]
-    steps = [step for stage in stages for step in stage["steps"]]
+    invocations_by_id = plan.invocations_by_id
+    feature_labels = common.feature_labels(spec_definition)
+    stages: list[dict[str, typing.Any]] = []
+    position = 0
+    for stage_number, stage in enumerate(invocations_by_stage, start=1):
+        steps = []
+        for invocation in stage:
+            position += 1
+            step = _render_step(
+                position, invocation, plan, spec_definition, invocations_by_id, feature_labels
+            )
+            step["source_href"] = _source_href(invocation.entrypoint, output_directory)
+            step["depends_on_invocations"].sort(key=lambda dependency: dependency["function"])
+            steps.append(step)
+        stages.append({"stage": stage_number, "steps": sorted(steps, key=_step_sort_key)})
+
     invocation_nodes, invocation_links = invocation_lineage.invocation_lineage_payload(
-        plan, spec_definition
+        plan, spec_definition, feature_labels
     )
     invocation_lineage_data = common.serialize_graph_payload(invocation_nodes, invocation_links)
-
-    for stage in stages:
-        stage["steps"].sort(
-            key=lambda step: (
-                step["entrypoint"] or "",
-                step["entity"],
-                step["dataset"] or "",
-                step["feature"] or "",
-            )
-        )
-        for step in stage["steps"]:
-            entrypoint = step["entrypoint"]
-            source_path = entrypoint.partition(":")[0] if entrypoint else None
-            if source_path and not source_path.endswith(".py"):
-                source_path = source_path.replace(".", "/") + ".py"
-            step["source_href"] = (
-                pathlib.Path(
-                    os.path.relpath(source_path, start=output_directory / "plan")
-                ).as_posix()
-                if source_path
-                else None
-            )
-            step["depends_on_invocations"].sort(key=lambda dependency: dependency["function"])
 
     graph_style = graph_style_module.GraphStyle()
     return {
         "plan_version": plan.plan_version,
         "invocation_count": len(plan.invocations),
-        "function_count": len({step["function"] for step in steps}),
-        "entity_count": len({invocation.entity_id for invocation in invocations_in_order}),
+        "function_count": len({invocation.function_id for invocation in plan.invocations}),
+        "entity_count": len({invocation.entity_id for invocation in plan.invocations}),
         "feature_count": len(
             {
                 feature
                 for invocation in plan.invocations
-                if invocation.function_kind == functions.VECTORIZE
+                if functions.FUNCTION_KINDS[invocation.function_kind].is_transformer
                 for feature in invocation.output_features
             }
         ),

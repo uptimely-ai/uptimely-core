@@ -88,6 +88,9 @@ compiled invocations.
 after each action in execution. Its example values are illustrative, not
 calculated data.
 
+`DataLineageStep.kind` holds the resolved `FunctionKind`: use `kind.id` for
+display metadata and its capability attributes for rendering decisions.
+
 ::: uptimely.explorer.sections.data_lineage
     options:
       heading_level: 3

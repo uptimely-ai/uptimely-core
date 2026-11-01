@@ -1,3 +1,4 @@
+import dataclasses
 import pathlib
 import re
 import sys
@@ -8,9 +9,42 @@ from support import rendering as rendering_support
 
 from uptimely import project, spec
 from uptimely.cli import cli
+from uptimely.spec import functions
 from uptimely.spec.feature_graph import models
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+
+
+def test_graph_metadata_follows_function_capabilities(
+    monkeypatch: pytest.MonkeyPatch, pump_bundle: project.BuildBundle
+) -> None:
+    graph = spec.FeatureGraph(pump_bundle.spec_definition)
+    original = graph._declared_features()
+    catalog = dict(functions.FUNCTION_KINDS)
+    catalog["read"] = dataclasses.replace(catalog["read"], is_source=False, is_transformer=True)
+    catalog["collapse"] = dataclasses.replace(catalog["collapse"], dimension_change="preserve")
+    monkeypatch.setattr(functions, "FUNCTION_KINDS", catalog)
+    changed = graph._declared_features()
+    checked = set()
+    for operation in graph._graph_operations:
+        if operation.function.kind not in {"read", "collapse"}:
+            continue
+        checked.add(operation.function.kind)
+        for name in operation.action.output_features:
+            if name in graph.spec.dimensions:
+                continue
+            assert changed[name].is_source_input is not original[name].is_source_input
+    assert checked == {"read", "collapse"}
+    graph._graph_operations = [
+        operation for operation in graph._graph_operations if operation.function.kind == "read"
+    ]
+    rebuilt_features = [
+        node.reference
+        for node in graph._create_graph()
+        if isinstance(node.reference, models.FeatureNode)
+    ]
+    assert rebuilt_features
+    assert all(feature.data_type is None for feature in rebuilt_features)
 
 
 @pytest.mark.usefixtures("example_projects")

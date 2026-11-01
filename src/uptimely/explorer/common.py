@@ -3,6 +3,23 @@
 import json
 import typing
 
+from uptimely import spec
+
+
+def feature_labels(spec_definition: spec.Spec) -> dict[str, str]:
+    """Index feature display names, with global dimensions taking precedence."""
+    labels = {
+        feature.id: feature.name or feature.id
+        for entity in spec_definition.entities.values()
+        for dataset in entity.datasets.values()
+        for feature in dataset.features.values()
+    }
+    labels.update(
+        (dimension.id, dimension.name or dimension.id)
+        for dimension in spec_definition.dimensions.values()
+    )
+    return labels
+
 
 def serialize_graph_payload(
     nodes: list[dict[str, typing.Any]],

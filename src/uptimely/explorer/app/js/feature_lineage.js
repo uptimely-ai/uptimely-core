@@ -26,7 +26,7 @@ function updateDetails(node) {
 	if (node.is_action === true) {
 		const entrypoint = node.entrypoint || null;
 		const features = Array.isArray(node.features) ? node.features : [];
-		const outputLabel = node.function_kind === 'escape' ? 'Declared logical outputs' : 'Produces';
+		const outputLabel = node.is_effect ? 'Declared logical outputs' : 'Produces';
 		const rows = [
 			['Node type', 'Action'],
 			['Dataset', node.dataset_name || node.dataset_id],
@@ -39,7 +39,7 @@ function updateDetails(node) {
 		if (features.length) rows.push([outputLabel, formatDetailValue(features.join(', '))]);
 		if (entrypoint) rows.push(['Entrypoint', formatDetailValue(entrypoint)]);
 		ExplorerLineage.showDetails(nodeDetails, 'Selected item', rows,
-			node.function_kind === 'escape'
+			node.is_effect
 				? 'Declared feature dependencies only; outputs are not materialized as dataframe columns.'
 				: '');
 		return;
