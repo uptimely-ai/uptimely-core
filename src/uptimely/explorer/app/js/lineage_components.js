@@ -41,21 +41,20 @@ function appendLegend(container, entries) {
 	}
 }
 
-function humanizeDatasetName(dataset) {
-	return dataset.replaceAll('_', ' ')
-		.replace(/\b\w/g, character => character.toUpperCase());
-}
-
 function prepareDatasetColors(data, container) {
-	const names = [...new Set(data.nodes
+	const datasets = new Map(data.nodes
 		.filter(node => !node.is_action)
-		.map(node => node.dataset_id || LineageConfig.UNASSIGNED_DATASET))]
-		.sort((a, b) => a.localeCompare(b));
-	const colors = new Map(names.map(
+		.map(node => [
+			node.dataset_id || LineageConfig.UNASSIGNED_DATASET,
+			node.dataset_name || node.dataset_id || LineageConfig.UNASSIGNED_DATASET,
+		]));
+	const datasetIds = [...datasets.keys()].sort((a, b) =>
+		datasets.get(a).localeCompare(datasets.get(b)));
+	const colors = new Map(datasetIds.map(
 		(dataset, index) => [dataset, LineageConfig.DATASET_PALETTE[index % LineageConfig.DATASET_PALETTE.length]]
 	));
-	appendLegend(container, names.map(dataset => ({
-		label: humanizeDatasetName(dataset), color: colors.get(dataset),
+	appendLegend(container, datasetIds.map(dataset => ({
+		label: datasets.get(dataset), color: colors.get(dataset),
 	})));
 	for (const node of data.nodes) {
 		node.dataset_id = node.dataset_id || LineageConfig.UNASSIGNED_DATASET;
@@ -339,7 +338,6 @@ const ExplorerLineage = {
 	tooltip,
 	showDetails,
 	appendLegend,
-	humanizeDatasetName,
 	prepareDatasetColors,
 	datasetNodeObject,
 	drawCard,

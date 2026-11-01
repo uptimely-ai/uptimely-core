@@ -211,6 +211,7 @@ class FeatureGraph(FeatureGraphBase):
             data_type: str | None,
             entity: str | None,
             dataset_id: str | None = None,
+            display_name: str | None = None,
             *,
             is_source_input: bool = False,
         ) -> None:
@@ -225,6 +226,20 @@ class FeatureGraph(FeatureGraphBase):
                     existing.dataset_id
                     if existing and existing.dataset_id is not None
                     else dataset_id
+                ),
+                display_name=(
+                    existing.display_name
+                    if existing and existing.display_name is not None
+                    else display_name
+                ),
+                dataset_name=(
+                    existing.dataset_name
+                    if existing and existing.dataset_name is not None
+                    else (
+                        self.spec.entities[entity].datasets[dataset_id].name
+                        if entity is not None and dataset_id is not None
+                        else None
+                    )
                 ),
                 is_source_input=(
                     (existing.is_source_input if existing else False) or is_source_input
@@ -242,6 +257,7 @@ class FeatureGraph(FeatureGraphBase):
                             feature.type,
                             entity_id,
                             dataset.id,
+                            feature.name,
                             is_source_input=function_kind
                             not in {functions.COLLAPSE, functions.ESCAPE, functions.VECTORIZE},
                         )
@@ -276,6 +292,14 @@ class FeatureGraph(FeatureGraphBase):
                 ),
                 entity=entity or (metadata.entity if metadata else None),
                 dataset_id=metadata.dataset_id if metadata else None,
+                display_name=(
+                    metadata.display_name
+                    if metadata and metadata.display_name
+                    else self.spec.dimensions[name].name
+                    if name in self.spec.dimensions
+                    else name
+                ),
+                dataset_name=(metadata.dataset_name if metadata else None),
                 is_input=name in dependency_names,
                 is_output=name in output_names,
                 is_source_input=metadata.is_source_input if metadata else False,
@@ -288,6 +312,7 @@ class FeatureGraph(FeatureGraphBase):
                     features=tuple(sorted(outputs)),
                     entity=entity,
                     dataset_id=dataset_id,
+                    dataset_name=self.spec.entities[entity].datasets[dataset_id].name,
                     action=action,
                     function=function,
                 )

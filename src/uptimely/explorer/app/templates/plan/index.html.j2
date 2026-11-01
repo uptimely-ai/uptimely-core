@@ -85,13 +85,14 @@
               <div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
                 <dt class="mb-1 uppercase tracking-wider text-slate-500">Function</dt>
                 <dd class="flex min-w-0 items-center gap-2 text-white">
-                  <span class="break-all">{{ step.function }}</span>
+                  <span class="break-all" title="{{ step.function }}">{{ step.function_label }}</span>
                   {% if step.source_href %}<a href="{{ step.source_href }}" class="shrink-0 text-cyan-300 hover:text-cyan-200" title="Open Python module"><i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i><span class="sr-only">Open Python module</span></a>{% endif %}
                 </dd>
               </div>
               <div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
               <dt class="mb-1 uppercase tracking-wider text-slate-500">{{ "Declared logical outputs" if step.uncontrolled else "Dataset feature output" }}</dt>
-                <dd class="break-all text-cyan-200">{{ step.feature or "None" }}</dd>
+                <dd class="break-all text-cyan-200" title="{{ step.output_feature_ids|join(', ') }}">{{ step.feature or "None" }}</dd>
+                {% if step.dataset_label %}<p class="mt-1 text-[10px] text-slate-500">Dataset: {{ step.dataset_label }}</p>{% endif %}
               </div>
               <div class="min-w-0 border-b border-slate-800 p-3">
               <dt class="mb-1 uppercase tracking-wider text-slate-500">{{ "Python return (ignored)" if step.uncontrolled else "Returns" }}</dt>

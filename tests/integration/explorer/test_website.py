@@ -304,14 +304,14 @@ def test_website_exports_all_reports_with_relative_navigation(
     )
     assert "bearing_temperature" in features
     assert "Drive-end bearing temperature" in features
-    assert "Produced by read_pump_telemetry" in features
+    assert "Produced by Read Pump Telemetry" in features
     assert (
         'data-lucide="database" class="site-icon icon--functions h-3.5 w-3.5 text-cyan-300"'
         in features
     )
     assert "Read" in features
     assert "Load project-wide physical constants." in features
-    assert "Produced by min_max_scale" in features
+    assert "Produced by Min Max Scale" in features
     assert "Row context:" not in features
     entities = (index.parent / "spec/entities.html").read_text(encoding="utf-8")
     assert "pump_telemetry" in entities
@@ -323,7 +323,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     )
     datasets = (index.parent / "spec/datasets.html").read_text(encoding="utf-8")
     assert "One row per pump and timestamp" in datasets
-    assert "read · read_pump_telemetry" in datasets
+    assert "read · Read Pump Telemetry" in datasets
     assert "Dataset schemas at a glance." not in datasets
     assert "data-section-count" not in datasets
     assert datasets.count("data-dataset-schema=") == 4
@@ -375,11 +375,16 @@ def test_website_exports_all_reports_with_relative_navigation(
             column_row, type_row = re.findall(r"<tr[^>]*>(.*?)</tr>", table, re.DOTALL)
             columns = re.findall(r'<th scope="col"[^>]*>(.*?)</th>', column_row, re.DOTALL)
             entity_dimensions = entity.dimension_ids
-            expected_names = [
-                *entity_dimensions,
-                *(name for name in dataset.features if name not in entity_dimensions),
+            expected_columns = [
+                (name, spec_definition.dimensions[name].name or name) for name in entity_dimensions
+            ] + [
+                (name, dataset.features[name].name or name)
+                for name in dataset.features
+                if name not in entity_dimensions
             ]
-            assert [column.split("<span", 1)[0] for column in columns] == expected_names
+            assert [column.split("<span", 1)[0] for column in columns] == [
+                label for _, label in expected_columns
+            ]
             assert len(re.findall(r"<td\b", type_row)) == len(columns)
             raw_columns = {
                 name
@@ -394,7 +399,7 @@ def test_website_exports_all_reports_with_relative_navigation(
                 if spec_definition.functions[action.binding.function].kind == "escape"
                 for name in action.output_features
             }
-            for name, column in zip(expected_names, columns, strict=True):
+            for (name, _), column in zip(expected_columns, columns, strict=True):
                 if name in entity_dimensions:
                     assert ">Dimension</span>" in column
                 elif name in raw_columns:
@@ -419,7 +424,7 @@ def test_website_exports_all_reports_with_relative_navigation(
     assert "::-webkit-scrollbar-thumb:hover { background: #64748b; }" in base_styles
     assert "Pump analytics" in (index.parent / "spec/overview.html").read_text(encoding="utf-8")
     graph_2d = (index.parent / "spec/feature-lineage.html").read_text(encoding="utf-8")
-    assert '"label": "health_signal_normalized"' in graph_2d
+    assert '"label": "Health Signal Normalized"' in graph_2d
     assert "force-graph@1.52.0/dist/force-graph.min.js" in graph_2d
     graph_script = (index.parent / "js/feature_lineage.js").read_text(encoding="utf-8")
     lineage_components = (index.parent / "js/lineage_components.js").read_text(encoding="utf-8")
@@ -696,9 +701,12 @@ def test_execution_plan_pages_render_only_their_section(
         assert 'class="details"' in document
         if is_graph:
             assert "ExplorerLineage.createDatasetLineage2D(" in script
-            assert '"label": "read_pump_telemetry"' in document
-            assert '"label_lines": ["read_pump_telemetry"]' in document
-            assert r"\ndataset: ${node.dataset_id}\nstage: ${node.stage}" in script
+            assert '"label": "Read Pump Telemetry"' in document
+            assert '"label_lines": ["Read Pump Telemetry"]' in document
+            assert (
+                r"\ndataset: ${node.dataset_name || node.dataset_id}\nstage: ${node.stage}"
+                in script
+            )
             assert "ExplorerLineage.drawCard(" in script
             assert "['Arguments', formatArguments(node.arguments)]" in script
             assert "node => node.stage - 1" in script
@@ -717,16 +725,16 @@ def test_execution_plan_pages_render_only_their_section(
                 "pump_assets_source": "$params.pump_assets_source",
                 "environment": "development",
             }
-            assert read_node["label_lines"] == ["read_pump_telemetry"]
+            assert read_node["label_lines"] == ["Read Pump Telemetry"]
             assert "arguments" not in read_node["label"]
             maximum_node = next(node for node in graph_nodes if node["function_id"] == "aggregate")
             assert maximum_node["arguments"]["dimensions"] == ["plant", "production_line", "pump"]
-            assert maximum_node["label_lines"] == ["aggregate"]
+            assert maximum_node["label_lines"] == ["Aggregate"]
             normalize_node = next(
                 node for node in graph_nodes if node["function_id"] == "min_max_scale"
             )
             assert normalize_node["stage"] == 4
-            assert "['Dataset', node.dataset_id]" in script
+            assert "['Dataset', node.dataset_name || node.dataset_id]" in script
             assert "['Stage', node.stage]" in script
             assert "ExplorerLineage.prepareDatasetLayout(" in script
             assert "LineageLayout.drawDatasetLanes(layout, ctx, scale)" in lineage_components

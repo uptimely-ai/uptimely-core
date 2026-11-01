@@ -27,10 +27,12 @@ function updateInvocationDetails(node) {
 		return;
 	}
 	const rows = [
-		['Dataset', node.dataset_id],
+		['Dataset', node.dataset_name || node.dataset_id],
+		['Dataset ID', node.dataset_id],
 		['Stage', node.stage],
 		['Function kind', node.function_kind || 'n/a'],
-		['Function', node.function_id || 'n/a'],
+		['Function', node.function_name || node.function_id || 'n/a'],
+		['Function ID', node.function_id || 'n/a'],
 		['Arguments', formatArguments(node.arguments)],
 		['Entity', node.entity || 'n/a'],
 		[node.function_kind === 'escape' ? 'Declared feature outputs' : 'Produces',
@@ -83,28 +85,28 @@ function drawStageColumns(layout, ctx, scale) {
 function createLineage3D(lineageContainer, graphData, updateSelection) {
 	const highlight = ExplorerLineage.createLineageHighlight(graphData);
 	return ExplorerLineage.createLineage3D(lineageContainer, graphData, style, {
-		label: node => `${node.function_id}\n${node.function_kind === 'escape' ? 'declared outputs' : 'produces'}: ${node.feature || 'none'}`,
+		label: node => `${node.function_name || node.function_id}\n${node.function_kind === 'escape' ? 'declared outputs' : 'produces'}: ${node.feature || 'none'}`,
 		color: node => node.datasetColor,
 		onSelect: updateSelection,
 		highlight,
 		configure: forceGraph => forceGraph.linkDirectionalArrowLength(style.arrow_length)
 			.linkDirectionalArrowRelPos(style.arrow_rel_pos),
-		object: node => ExplorerLineage.datasetNodeObject(node, node.function_id, style),
+		object: node => ExplorerLineage.datasetNodeObject(node, node.function_name || node.function_id, style),
 	});
 }
 
 function createLineage2D(lineageContainer, graphData, updateSelection) {
 	const highlight = ExplorerLineage.createLineageHighlight(graphData);
 	const layout = ExplorerLineage.prepareDatasetLayout(
-		graphData, node => node.stage - 1, node => node.function_id);
+		graphData, node => node.stage - 1, node => node.function_name || node.function_id);
 	if (layout.columns.length) {
 		layout.bounds.y -= STAGE_COLUMNS.headerHeight / 2;
 		layout.bounds.height += STAGE_COLUMNS.headerHeight;
 	}
 	return ExplorerLineage.createDatasetLineage2D(lineageContainer, graphData, style, layout, highlight, {
-		label: node => `${node.label}\ndataset: ${node.dataset_id}\nstage: ${node.stage}`,
+		label: node => `${node.label}\ndataset: ${node.dataset_name || node.dataset_id}\nstage: ${node.stage}`,
 		drawNode: (node, ctx) =>
-			ExplorerLineage.drawCard(node, ctx, node.function_id, node.datasetColor, highlight),
+			ExplorerLineage.drawCard(node, ctx, node.function_name || node.function_id, node.datasetColor, highlight),
 		onSelect: updateSelection,
 		renderOverlay: (ctx, scale) => drawStageColumns(layout, ctx, scale),
 	});

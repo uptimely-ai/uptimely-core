@@ -11,10 +11,9 @@ class ActionNode:
     features: tuple[str, ...]
     entity: str | None
     dataset_id: str
+    function: model.FunctionTemplate = dataclasses.field(compare=False, hash=False)
+    dataset_name: str | None = None
     action: model.Action | None = dataclasses.field(default=None, compare=False, hash=False)
-    function: model.FunctionTemplate | None = dataclasses.field(
-        default=None, compare=False, hash=False
-    )
 
     @property
     def node_id(self) -> str:
@@ -37,6 +36,8 @@ class FeatureNode:
     data_type: str | None = None
     entity: str | None = None
     dataset_id: str | None = None
+    display_name: str | None = None
+    dataset_name: str | None = None
     is_input: bool = False
     is_output: bool = False
     is_source_input: bool = False

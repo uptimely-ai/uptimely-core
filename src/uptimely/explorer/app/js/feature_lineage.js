@@ -29,9 +29,11 @@ function updateDetails(node) {
 		const outputLabel = node.function_kind === 'escape' ? 'Declared logical outputs' : 'Produces';
 		const rows = [
 			['Node type', 'Action'],
-			['Dataset', node.dataset_id],
+			['Dataset', node.dataset_name || node.dataset_id],
+			['Dataset ID', node.dataset_id],
 			['Action', node.action_id || label],
-			['Function', node.function_id || 'n/a'],
+			['Function', node.function_name || node.function_id || 'n/a'],
+			['Function ID', node.function_id || 'n/a'],
 			['Function kind', node.function_kind || 'n/a'],
 		];
 		if (features.length) rows.push([outputLabel, formatDetailValue(features.join(', '))]);
@@ -45,7 +47,8 @@ function updateDetails(node) {
 	const dataType = node.data_type || node.type || 'unknown';
 	const entity = node.entity || 'n/a';
 	ExplorerLineage.showDetails(nodeDetails, 'Selected item', [
-		['Node type', 'Feature'], ['Feature', label], ['Dataset', node.dataset_id],
+		['Node type', 'Feature'], ['Feature', label], ['Feature ID', node.feature_id || node.id],
+		['Dataset', node.dataset_name || node.dataset_id], ['Dataset ID', node.dataset_id],
 		['Entity', formatDetailValue(entity)], ['Data type', formatDetailValue(dataType)],
 	]);
 }

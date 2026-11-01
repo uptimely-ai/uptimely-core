@@ -31,6 +31,7 @@ class DataLineageColumn:
     role: str
     color: str
     producer: int | None
+    label: str | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -38,6 +39,7 @@ class DataLineageInput:
     """Source dataset schema and shared dimension keys for a transfer."""
 
     dataset: str
+    dataset_label: str
     keys: list[DataLineageColumn]
     columns: list[DataLineageColumn]
     join_dimensions: list[str]
@@ -51,6 +53,7 @@ class DataLineageStep:
     number: int
     invocation_id: str
     function: str
+    function_label: str
     action: str
     function_kind: functions.FunctionKindId
     entity: str
@@ -105,34 +108,25 @@ def _build_stages(
         for feature in invocation.output_features
         if feature not in spec_definition.dimensions
     }
-    feature_owners = {
-        name: (entity, dataset)
-        for entity in spec_definition.entities.values()
-        for dataset in entity.datasets.values()
-        for name in dataset.features
-        if name not in spec_definition.dimensions
-    }
-    feature_types = {
-        name: feature.type or "Unspecified"
+    feature_metadata: dict[str, tuple[spec.Entity, spec.Dataset, spec.Feature]] = {
+        name: (entity, dataset, feature)
         for entity in spec_definition.entities.values()
         for dataset in entity.datasets.values()
         for name, feature in dataset.features.items()
         if name not in spec_definition.dimensions
     }
-    feature_types.update(
-        {name: dimension.type for name, dimension in spec_definition.dimensions.items()}
-    )
     compact_datasets = {
         invocation.dataset_id
         for invocation in invocations
         if invocation.function_kind == functions.COLLAPSE
-    } | {
-        feature_owners[name][1].id
+    }
+    compact_datasets.update(
+        feature_metadata[name][1].id
         for invocation in invocations
         if invocation.function_kind == functions.EXPAND
         for name in invocation.input_features
-        if name in feature_owners
-    }
+        if name in feature_metadata
+    )
     accumulated: dict[str | None, dict[str, DataLineageColumn]] = {}
     stages: list[list[DataLineageStep]] = []
     for stage in ordered_stages:
@@ -142,7 +136,12 @@ def _build_stages(
             dimensions = entity.dimension_ids
             columns = [
                 DataLineageColumn(
-                    name, spec_definition.dimensions[name].type, "Dimension", "#93c5fd", None
+                    name,
+                    spec_definition.dimensions[name].type,
+                    "Dimension",
+                    "#93c5fd",
+                    None,
+                    spec_definition.dimensions[name].name or name,
                 )
                 for name in dimensions
             ]
@@ -157,17 +156,34 @@ def _build_stages(
                     if feature in dimensions:
                         continue
                     producer = producers.get(feature)
+                    metadata = feature_metadata.get(feature)
+                    dimension = spec_definition.dimensions.get(feature)
+                    data_type = (
+                        metadata[2].type or "Unspecified"
+                        if metadata
+                        else dimension.type
+                        if dimension
+                        else "Unspecified"
+                    )
+                    label = (
+                        metadata[2].name or feature
+                        if metadata
+                        else dimension.name or feature
+                        if dimension
+                        else feature
+                    )
                     columns.append(
                         DataLineageColumn(
                             feature,
-                            feature_types.get(feature, "Unspecified"),
+                            data_type,
                             role,
                             colors[producer.id]
                             if producer
                             else "#93c5fd"
-                            if feature in spec_definition.dimensions
+                            if dimension
                             else "#cbd5e1",
                             numbers[producer.id] if producer else None,
+                            label,
                         )
                     )
             dataset = entity.datasets.get(invocation.dataset_id)
@@ -175,15 +191,17 @@ def _build_stages(
             if invocation.function_kind != functions.ESCAPE:
                 source_columns: dict[str, list[DataLineageColumn]] = {}
                 for column in columns:
-                    if column.role == "Input" and column.name in feature_owners:
-                        _, source = feature_owners[column.name]
+                    metadata = feature_metadata.get(column.name)
+                    if column.role == "Input" and metadata:
+                        source = metadata[1]
                         if source.id != invocation.dataset_id:
                             source_columns.setdefault(source.id, []).append(column)
                 for source_id, inputs in source_columns.items():
-                    source_entity, _ = feature_owners[inputs[0].name]
+                    source_entity, source_dataset, _ = feature_metadata[inputs[0].name]
                     input_tables.append(
                         DataLineageInput(
                             dataset=source_id,
+                            dataset_label=source_dataset.name or source_id,
                             keys=[
                                 DataLineageColumn(
                                     name,
@@ -191,6 +209,7 @@ def _build_stages(
                                     "Dimension",
                                     "#93c5fd",
                                     None,
+                                    spec_definition.dimensions[name].name or name,
                                 )
                                 for name in source_entity.dimension_ids
                             ],
@@ -202,6 +221,7 @@ def _build_stages(
                         )
                     )
             previous_columns = accumulated.setdefault(invocation.dataset_id, {})
+            function = spec_definition.functions.get(invocation.function_id)
             main_columns = [
                 dataclasses.replace(
                     column,
@@ -222,12 +242,15 @@ def _build_stages(
                     number=numbers[invocation.id],
                     invocation_id=invocation.id,
                     function=invocation.function_id,
+                    function_label=(function.name or invocation.function_id)
+                    if function
+                    else invocation.function_id,
                     action=_humanize(invocation.mapping_id),
                     function_kind=invocation.function_kind,
                     entity=invocation.entity_id,
                     dataset=invocation.dataset_id,
                     dataset_label=(
-                        _humanize(invocation.dataset_id)
+                        entity.datasets[invocation.dataset_id].name or invocation.dataset_id
                         if invocation.dataset_id
                         else UNASSIGNED_DATASET_LABEL
                     ),

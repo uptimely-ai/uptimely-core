@@ -255,7 +255,7 @@ def test_generate_html_explorer(
     assert "file:///" in document
     assert "-&gt; LazyFrame" in document
     assert "-&gt; LazyFrame" in document
-    assert "read · read_pump_telemetry" in document
+    assert "read · Read Pump Telemetry" in document
     assert 'aria-label="Dataset details"' in pages["spec/datasets.html"]
     assert "<details" not in pages["spec/datasets.html"]
     assert (

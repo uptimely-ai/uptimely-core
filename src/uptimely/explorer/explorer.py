@@ -84,7 +84,7 @@ class Explorer:
         plan_section.SECTION.write_pages(
             target.parent,
             website,
-            plan_section.build_context(plan, target.parent),
+            plan_section.build_context(plan, target.parent, self.spec),
         )
         data_lineage.SECTION.write_pages(
             target.parent,

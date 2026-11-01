@@ -64,7 +64,7 @@ def test_section_context_builders_do_not_write_files(
     contexts = [
         spec_section.build_context(spec_section._build_context(definition, False)),
         feature_lineage.build_context(spec.FeatureGraph(definition)),
-        plan_section.build_context(supplied, output_directory),
+        plan_section.build_context(supplied, output_directory, definition),
         data_lineage.build_context(definition, supplied),
     ]
 

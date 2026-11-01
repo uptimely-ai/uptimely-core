@@ -270,6 +270,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			nodes: ['before', 'selected', 'after', 'unrelated'].map((id, index) => ({
 				id, label: id, label_lines: [id], stage: index + 1,
 				function_id: id, function_kind: 'read', entity: 'test', dataset_id: id,
+				dataset_name: ({ before: 'Before', selected: 'Selected Dataset', after: 'After', unrelated: 'Unrelated' })[id],
 			})),
 			links: [
 				{ source: 'before', target: 'selected' },
@@ -370,15 +371,15 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		}
 		assert.equal(element('dataset-legend').children[0].textContent, 'After');
 		assert.equal(
-			vm.runInContext("ExplorerLineage.humanizeDatasetName('pump_telemetry_dataset')", context),
-			'Pump Telemetry Dataset',
+			typeof vm.runInContext('ExplorerLineage.humanizeDatasetName', context),
+			'undefined',
 		);
 		const node = graph.properties.get('graphData').nodes[1];
 		graph.properties.get('onNodeClick')(node);
 		if (filename === 'invocation_lineage.js') {
 			assert.deepEqual(
 				Array.from(element('invocation-node-details').rows.slice(0, 2), row => Array.from(row)),
-				[['Dataset', 'selected'], ['Stage', 2]],
+				[['Dataset', 'Selected Dataset'], ['Dataset ID', 'selected']],
 			);
 		}
 		assert.deepEqual(

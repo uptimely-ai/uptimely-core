@@ -34,11 +34,11 @@
       {% endfor %}
       {% for dimension_id in entity.dimensions %}
         {% set dimension = configuration.dimensions[dimension_id] %}
-        {% set _ = schema.columns.append({"name": dimension_id, "type": dimension.type, "role": "Dimension", "color": "dimension"}) %}
+        {% set _ = schema.columns.append({"name": dimension_id, "label": dimension.name or dimension_id, "type": dimension.type, "role": "Dimension", "color": "dimension"}) %}
       {% endfor %}
       {% for feature_id, feature in dataset.features.items() if feature_id not in entity.dimensions %}
         {% set color = schema.producers.get(feature_id, "neutral") %}
-        {% set _ = schema.columns.append({"name": feature_id, "type": feature.type or "unspecified", "unit": feature.unit, "role": "Raw" if color == "teal" else "External" if color == "escape" else "Feature", "color": color}) %}
+        {% set _ = schema.columns.append({"name": feature_id, "label": feature.name or feature_id, "type": feature.type or "unspecified", "unit": feature.unit, "role": "Raw" if color == "teal" else "External" if color == "escape" else "Feature", "color": color}) %}
       {% endfor %}
       {% set columns = schema.columns %}
       <article id="dataset-{{ dataset_id }}" data-context-item>
@@ -77,7 +77,7 @@
               <p class="mt-2 text-xs text-slate-500">Not a physical row-order guarantee.</p>
               <ul class="mt-2 flex flex-wrap gap-2">
                 {% for key in dataset.order %}
-                <li class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ key.dimension }} {{ key.direction }}</li>
+                <li class="rounded-md bg-slate-800 px-2 py-1 font-mono text-xs text-slate-300">{{ configuration.dimensions[key.dimension.removeprefix("$dimensions.")].name or key.dimension }} {{ key.direction }}</li>
                 {% endfor %}
               </ul>
             </div>
@@ -88,11 +88,18 @@
               <div class="divide-y divide-slate-800">
             {% for action_id, action in dataset.actions.items() if action_kind(action, configuration.functions) != "vectorize" %}
               <div class="space-y-2 py-3">
-              <p class="font-mono text-sm text-slate-300">{{ action_kind(action, configuration.functions) }} · {{ action_id }}</p>
+              {% set action_function_id = action.binding.function %}
+              {% set action_function = configuration.functions.get(action_function_id, {}) %}
+              {% set dimension_labels = [] %}
+              {% for dimension_id in entity.dimensions %}
+                {% set _ = dimension_labels.append(configuration.dimensions[dimension_id].name or dimension_id) %}
+              {% endfor %}
+              <p class="font-mono text-sm text-slate-300">{{ action_kind(action, configuration.functions) }} · {{ action_function.get("name", action_function_id) }}</p>
+              <p class="font-mono text-xs text-slate-500">{{ action_id }} · {{ action_function_id }}</p>
               {% if action_kind(action, configuration.functions) == "collapse" %}
               <div class="w-full font-mono text-xs text-slate-400">
-                Input dataset inferred from bound features · Group by entity dimensions: {{ entity.dimensions | tojson }}
-                <p>{{ action.binding.function }}({{ action.binding.args | tojson }})</p>
+                Input dataset inferred from bound features · Group by entity dimensions: {{ dimension_labels | tojson }}
+                <p>{{ action_function.get("name", action_function_id) }}({{ action.binding.args | tojson }})</p>
               </div>
               {% endif %}
               {% if action_kind(action, configuration.functions) == "escape" %}
@@ -111,11 +118,11 @@
         <div class="mt-6">
           <div class="dataset-table-scroll overflow-x-auto rounded-xl border border-slate-700/60">
             <table data-dataset-schema="{{ dataset_id }}" class="w-full min-w-max border-collapse text-left font-mono text-xs">
-              <caption class="sr-only">Declared column types and units for {{ dataset_id }}; schema only, no sample records.</caption>
+              <caption class="sr-only">Declared column types and units for {{ dataset.name or dataset_id }}; schema only, no sample records.</caption>
               <thead>
                 <tr>
                   {% for column in columns %}
-                  <th scope="col" class="border-b border-slate-700/50 px-4 py-4 {{ column_colors[column.color] }}">{{ column.name }}<span class="mt-2 block text-[10px] font-normal">{{ column.role }}</span></th>
+                  <th scope="col" class="border-b border-slate-700/50 px-4 py-4 {{ column_colors[column.color] }}">{{ column.label }}<span class="mt-2 block text-[10px] font-normal">{{ column.role }}</span><span class="mt-1 block text-[9px] font-normal text-slate-500">{{ column.name }}</span></th>
                   {% endfor %}
                 </tr>
               </thead>
