@@ -99,16 +99,8 @@ Parallel scheduling is not required for an adapter to ship.
 | Show conversion and assembly points in Explorer | No | Display known representation changes, selected assembly implementations and materialization requirements. Mark unresolved boundaries explicitly rather than claiming the portable compiler can infer every conversion. |
 
 
-## Planned release: Callable metadata and explanations
-
-Describe implementations without replacing explicit analytical contracts.
-
-**Prerequisites:** Function contracts for metadata; Explorer navigation
-extension points for the explanation views. Metadata extraction can ship first.
-
 | title | breaking | description |
 |---|---|---|
-| Extract callable metadata | No | Populate the function model with signatures, parameter and return annotations, and Google-style docstring descriptions, including `Args:` and `Returns:`. Keep metadata serializable and report signature inconsistencies. Reuse existing introspection and parsing. Documentation and annotations do not replace feature bindings or determine outputs. Respect portable compilation and optional signature-inspection behavior instead of requiring implementation imports everywhere. |
 | Add explanations for non-experts | No | Extend metadata extraction with `Explanation:` and `Formula:` sections containing argument placeholders. Explorer fills them with bound feature descriptions and units and combines them into output lineage stories. |
 
 ## Planned release: Execution reports and inspection
@@ -192,6 +184,17 @@ Keep merge rules independent of later execution capabilities.
 |---|---|---|
 | Merge JSON specification files | No | Read multiple JSON files and recursively merge objects before existing model and semantic validation. Accept identical overlaps; report conflicts with files and JSON paths. Arrays are whole values, not concatenated or deduplicated. Set the combined spec's name and source explicitly rather than merging contributor metadata. Fragments need not be semantically valid alone. Reuse reference, contract, producer and cycle checks. Do not add repository fetching, package discovery, version resolution, automatic namespacing or identifier rewriting. |
 
+### Structured dimensional semantics
+
+**Prerequisites:** Existing specification model and semantic validation.
+
+| title | breaking | description |
+|---|---|---|
+| Define and author dataset dimensional declarations | Yes | Replace inherited dimension lists and free-text `row_scope` with an explicit dimensional declaration for each dataset. Define matching JSON and Python authoring and serialization forms, with dimensions, grain semantics and value scope as structured metadata keyed by dimension ID. Describe what each dimension means at that dataset's grain, including temporal point or interval resolution where applicable. Allow scope to identify included values, with an omitted scope meaning all values; specify whether scope is descriptive or enforced without silently filtering source data. |
+| Validate dataset dimensional declarations | No | After the declaration contract is established, validate dimension references and declaration consistency, including grain, temporal resolution and scope. Provide actionable diagnostics that identify the dataset and dimension involved, and test valid and invalid declarations. |
+| Apply dimensional semantics in compilation and execution | No | Once declarations and validation are established, carry dimensional metadata through compilation and apply the specified scope semantics at runtime. Do not silently filter source data. Cover compiled output and runtime behavior with tests. |
+| Migrate specifications and documentation to dimensional declarations | No | After the JSON and Python forms and their semantics are stable, update existing specifications, examples, fixtures and documentation to replace inherited dimensions and `row_scope`. Provide migration guidance and test authoring-to-serialization round trips. |
+
 ### Tensor features
 
 **Prerequisites:** Frame adapter contracts, including portable type and
@@ -214,3 +217,24 @@ with changes to specification and plan formats.
 | Preserve immutable build snapshots | No | Published artifacts retain fixed specification, mapping bindings, plan and callable implementation source with stable build identity. Package callable code in the bundle as a wheel for packaged projects or a source archive for supported pure-Python projects; record its content hash and load implementations from that artifact at runtime rather than mutable project files. An import path or source fingerprint alone does not freeze implementation. Record dependency requirements and provenance separately; bundling project source does not bundle third-party dependencies. Changed logic or bindings require a new build, not a new authoring identity for every function or mapping. Runtime overrides must not mutate published artifacts. |
 | Improve build-source diagnostics | No | Distinguish malformed `module:attribute` entrypoints, missing spec sources and import failures inside otherwise valid modules. Preserve the underlying exception cause and actionable message, and offer a verbose traceback option. Cover Python and JSON source selection, project-directory discovery and nested import failures in tests; document the current CLI syntax rather than introducing a duplicate project-directory option. |
 | Align examples with the documented project layout | Maybe | Link example READMEs to the project structure guide and keep specifications in `spec/`, separate from runtime configuration. Align examples and documentation around importable implementation packages, using a `src/` layout where packaging is needed and grouping I/O and calculations consistently. Add validation folders when quality validations ship. Keep deployment assets separate from analytical functions; automatic assembly needs no user-authored merge category. Update scaffolding, entrypoints, commands and tests together. Earlier breaking releases must still migrate affected examples immediately. |
+
+## Planned release: Specification model migration
+
+Simplify specification concepts and make dataset grouping explicit.
+
+**Prerequisites:** Existing specification model and a documented migration path.
+
+| title | breaking | description |
+|---|---|---|
+| Remove entities and categorize datasets | Yes | Remove the `entity` concept from specification documents, Python authoring APIs, validation and compiler models, serialized plans, CLI and Explorer surfaces, examples, and documentation. Add a dataset `category` attribute for logical grouping, without giving categories implicit execution or data-filtering semantics. Provide migration guidance for moving existing entity-based groupings to dataset categories, and update fixtures and generated artifacts consistently. |
+| Rename datasets to profiles | Yes | Replace `dataset` with `profile` in specification documents, Python authoring APIs, validation and compiler models, serialized plans, CLI and Explorer surfaces, examples, and documentation. Preserve current relationships and execution semantics; this is a terminology migration, not a change to data behavior. Provide a clear migration guide and actionable diagnostics for the old name, and update fixtures and generated artifacts consistently. This task does not change dataset categories. |
+
+## Planned release: Themes
+
+Provide reusable, domain-specific starting points for analytics projects.
+
+**Prerequisites:** Stable specification, configuration, and function contracts.
+
+| title | breaking | description |
+|---|---|---|
+| Add domain themes | No | Ship selectable, versioned template sets for supported domains, including starter specifications and runtime configuration plus reusable functions for common domain calculations. Let project-owned configuration and functions override theme defaults using documented precedence rules. Keep templates customizable and explicit: adopting a theme must not silently add data or run calculations the user did not select. Document included assumptions, dependencies, and extension points. |
