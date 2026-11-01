@@ -186,7 +186,7 @@ def test_sources_and_transforms_python_spec() -> None:
                         inputs=[],
                         function=python_spec.ref.function(_read_transform_data, kind="read"),
                         arguments={},
-                        outputs=[python_spec.feature.Feature(name="input_1")],
+                        outputs=[python_spec.feature.Feature(id="input_1")],
                     )
                 ],
             )
@@ -205,7 +205,7 @@ def test_sources_and_transforms_python_spec() -> None:
                         inputs=[],
                         function=python_spec.ref.function(_read_transform_data, kind="read"),
                         arguments={},
-                        outputs=[python_spec.feature.Feature(name="target_value")],
+                        outputs=[python_spec.feature.Feature(id="target_value")],
                     ),
                     python_spec.actions.Action(
                         id="expand_data",
@@ -214,7 +214,7 @@ def test_sources_and_transforms_python_spec() -> None:
                         arguments={
                             "source": python_spec.ref.dataset("transformed_dataset").dataframe,
                         },
-                        outputs=[python_spec.feature.Feature(name="input_2")],
+                        outputs=[python_spec.feature.Feature(id="input_2")],
                     ),
                 ],
             )
@@ -238,7 +238,7 @@ def test_sources_and_transforms_python_spec() -> None:
                             "group_by": [python_spec.ref.dimension("id").id],
                             "output": python_spec.ref.feature("collapsed_feature").id,
                         },
-                        outputs=[python_spec.feature.Feature(name="collapsed_feature")],
+                        outputs=[python_spec.feature.Feature(id="collapsed_feature")],
                     )
                 ],
             )

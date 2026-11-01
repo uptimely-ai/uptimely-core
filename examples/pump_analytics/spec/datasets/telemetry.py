@@ -34,37 +34,37 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="discharge_pressure",
+                    id="discharge_pressure",
                     type="float",
                     unit="bar",
                     description="Pump discharge pressure",
                 ),
                 Feature(
-                    name="flow_rate",
+                    id="flow_rate",
                     type="float",
                     unit="m3/h",
                     description="Pump discharge flow rate",
                 ),
                 Feature(
-                    name="bearing_temperature",
+                    id="bearing_temperature",
                     type="float",
                     unit="C",
                     description="Drive-end bearing temperature",
                 ),
                 Feature(
-                    name="vibration_rms",
+                    id="vibration_rms",
                     type="float",
                     unit="mm/s",
                     description="Overall pump vibration RMS",
                 ),
                 Feature(
-                    name="motor_power",
+                    id="motor_power",
                     type="float",
                     unit="kW",
                     description="Electric motor active power consumption",
                 ),
                 Feature(
-                    name="operation_mode",
+                    id="operation_mode",
                     type="string",
                     description=(
                         "Pump speed mode: low_speed below rated flow, otherwise high_speed."
@@ -83,7 +83,7 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="recommended_flow_rate",
+                    id="recommended_flow_rate",
                     type="float",
                     unit="m3/h",
                     description="Recommended flow rate for efficient operation",
@@ -101,7 +101,7 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="recommended_discharge_pressure",
+                    id="recommended_discharge_pressure",
                     type="float",
                     unit="bar",
                     description="Recommended discharge pressure for efficient operation",
@@ -119,7 +119,7 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="energy_cost_score",
+                    id="energy_cost_score",
                     type="float",
                     description="Estimated energy-cost score for the recommended operating point",
                 )
@@ -136,7 +136,7 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="converged",
+                    id="converged",
                     type="boolean",
                     description="Whether the optimization converged",
                 )
@@ -157,7 +157,7 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="pressure_flow_efficiency",
+                    id="pressure_flow_efficiency",
                     type="float",
                     description="Hydraulic efficiency proxy from pressure, flow, and motor power",
                 )
@@ -173,7 +173,7 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="room_temperature_reference",
+                    id="room_temperature_reference",
                     type="float",
                     unit="C",
                     description="Room-temperature constant broadcast to every telemetry row.",
@@ -191,7 +191,7 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="bearing_temperature_rise",
+                    id="bearing_temperature_rise",
                     type="float",
                     unit="C",
                     description="Bearing-temperature rise above the room-temperature constant.",
@@ -210,7 +210,7 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="bearing_temperature_delta",
+                    id="bearing_temperature_delta",
                     type="float",
                     unit="C",
                     description="Bearing-temperature change from the previous pump reading.",
@@ -230,7 +230,7 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="vibration_delta",
+                    id="vibration_delta",
                     type="float",
                     unit="mm/s",
                     description="Vibration change from the previous pump reading.",
@@ -252,7 +252,7 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="pump_health_score",
+                    id="pump_health_score",
                     type="float",
                     description="Composite pump health score from bearing-temperature trend, "
                     "vibration trend, and efficiency.",
@@ -275,7 +275,7 @@ class Telemetry(Dataset):
             ),
             outputs=[
                 Feature(
-                    name="operating_point_recommendation",
+                    id="operating_point_recommendation",
                     type="object",
                     description=(
                         "Recommended pump operating point based on process demand and energy use"

@@ -67,8 +67,8 @@ def _spec() -> spec.Spec:
                         function=ref.function(read_values, kind="read"),
                         arguments={},
                         outputs=[
-                            feature.Feature(name="id", type="integer"),
-                            feature.Feature(name="value", type="integer"),
+                            feature.Feature(id="id", type="integer"),
+                            feature.Feature(id="value", type="integer"),
                         ],
                     ),
                     actions.Action(
@@ -79,7 +79,7 @@ def _spec() -> spec.Spec:
                             "dataset": ref.current_dataset().dataframe,
                             "output": ref.feature("result").id,
                         },
-                        outputs=[feature.Feature(name="result", type="integer")],
+                        outputs=[feature.Feature(id="result", type="integer")],
                     ),
                     actions.Action(
                         id="metadata",
@@ -89,7 +89,7 @@ def _spec() -> spec.Spec:
                             "dataset": ref.current_dataset().dataframe,
                             "identifier": ref.feature("result").id,
                         },
-                        outputs=[feature.Feature(name="metadata", type="integer")],
+                        outputs=[feature.Feature(id="metadata", type="integer")],
                     ),
                 ],
             )
@@ -303,7 +303,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                                 inputs=[],
                                 function=ref.function(read_lower_grain, kind="read"),
                                 arguments={},
-                                outputs=[feature.Feature(name="value", type="integer")],
+                                outputs=[feature.Feature(id="value", type="integer")],
                             )
                         ],
                     )
@@ -325,14 +325,14 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                                 inputs=[],
                                 function=ref.function(read_target_grain, kind="read"),
                                 arguments={"include_second": dataframe},
-                                outputs=[feature.Feature(name="target_value", type="integer")],
+                                outputs=[feature.Feature(id="target_value", type="integer")],
                             ),
                             actions.Action(
                                 id="copied",
                                 inputs=[ref.feature("value")],
                                 outputs=[
                                     feature.Feature(
-                                        name="copied", type="integer" if dataframe else "string"
+                                        id="copied", type="integer" if dataframe else "string"
                                     )
                                 ],
                                 function=ref.function(

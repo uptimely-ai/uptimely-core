@@ -53,9 +53,9 @@ class Action:
         if not isinstance(self.id, str) or not self.id.strip():
             raise ValueError("Action requires a non-empty id")
         _ = self.kind
-        output_names = [output.name for output in self.outputs]
-        if len(output_names) != len(set(output_names)):
-            raise ValueError("Action output feature names must not repeat")
+        output_ids = [output.id for output in self.outputs]
+        if len(output_ids) != len(set(output_ids)):
+            raise ValueError("Action output feature IDs must not repeat")
         self._validate_output_references()
         object.__setattr__(
             self, "row_context", row_context_module._context(self.arguments, self.row_context)
@@ -101,9 +101,9 @@ class Action:
         return self.arguments.copy()
 
     def _validate_output_references(self) -> None:
-        output_names = {output.name for output in self.outputs}
+        output_ids = {output.id for output in self.outputs}
         for reference in _references(self.arguments):
-            if isinstance(reference, ref.OutputReference) and reference.name not in output_names:
+            if isinstance(reference, ref.OutputReference) and reference.name not in output_ids:
                 raise ValueError(
                     f"Action '{self.id}' references undeclared output '{reference.name}'"
                 )
@@ -166,7 +166,7 @@ def _action_features(
     """Build canonical input and output feature selectors."""
     return spec_model.ActionFeatures(
         inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
-        outputs=[f"{selectors.FEATURE_PREFIX}{feature.name}" for feature in outputs],
+        outputs=[f"{selectors.FEATURE_PREFIX}{feature.id}" for feature in outputs],
     )
 
 

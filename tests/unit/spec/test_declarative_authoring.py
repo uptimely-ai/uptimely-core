@@ -45,12 +45,13 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
                 arguments={},
                 outputs=[
                     authoring.Feature(
-                        name="temperature",
+                        id="temperature",
+                        name="Ambient Temperature",
                         type="float",
                         unit="C",
                         description="Ambient temperature measurement.",
                     ),
-                    authoring.Feature(name="pump", type="string"),
+                    authoring.Feature(id="pump", type="string"),
                 ],
             )
         ],
@@ -59,10 +60,13 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     canonical = declaration.to_model()
     assert list(canonical.features) == ["temperature", "pump"]
     assert canonical.features["temperature"].id == "temperature"
+    assert canonical.features["temperature"].name == "Ambient Temperature"
+    assert canonical.features["pump"].name == "Pump"
     assert canonical.actions["read"].output_features == ["temperature", "pump"]
     payload = conversion.to_dict(datasets=[declaration])
     exported = payload["entities"]["entity"]["datasets"]["example"]
     assert exported["features"]["temperature"] == {
+        "name": "Ambient Temperature",
         "type": "float",
         "unit": "C",
         "description": "Ambient temperature measurement.",
@@ -73,15 +77,15 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     ]
 
 
-def test_mapping_rejects_duplicate_output_names() -> None:
-    with pytest.raises(ValueError, match="output feature names must not repeat"):
+def test_mapping_rejects_duplicate_output_ids() -> None:
+    with pytest.raises(ValueError, match="output feature IDs must not repeat"):
         authoring.Action(
             id="action",
             function=ref.function("reader:read", kind="read"),
             arguments={},
             outputs=[
-                authoring.Feature(name="temperature"),
-                authoring.Feature(name="temperature"),
+                authoring.Feature(id="temperature"),
+                authoring.Feature(id="temperature"),
             ],
         )
 
@@ -97,7 +101,7 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
                     "values": [ref.feature("temperature"), ref.feature("temperature")],
                     "output": ref.feature("result").id,
                 },
-                outputs=[authoring.Feature(name="result", type="float")],
+                outputs=[authoring.Feature(id="result", type="float")],
             )
         ]
 
@@ -113,7 +117,8 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
     }
     assert action.bound_arguments() == action.arguments
     assert model.binding.args["output"] == "$features.result.id"
-    assert action.outputs[0].name == "result"
+    assert action.outputs[0].id == "result"
+    assert action.outputs[0].name == "Result"
     assert action.outputs[0].type == "float"
 
 
@@ -157,7 +162,7 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
                     "test_declarative_authoring:implementation", kind="vectorize"
                 ),
                 arguments={"output": ref.feature(identifier).id},
-                outputs=[authoring.Feature(name=identifier, type="float")],
+                outputs=[authoring.Feature(id=identifier, type="float")],
             )
         ]
         producers = [*producers, dataclasses.replace(producers[0], id="second")]
@@ -171,13 +176,13 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
         id="read",
         function=ref.function("reader:read", kind="read"),
         arguments={},
-        outputs=[authoring.Feature(name="value", type="float")],
+        outputs=[authoring.Feature(id="value", type="float")],
     )
     replacement = authoring.Action(
         id="read",
         function=ref.function("reader:replacement", kind="read"),
         arguments={},
-        outputs=[authoring.Feature(name="value", type="integer")],
+        outputs=[authoring.Feature(id="value", type="integer")],
     )
     sink = authoring.Action(
         id="write",
@@ -228,7 +233,7 @@ def test_dataset_entity_supplies_dimension_metadata() -> None:
                 id="values",
                 function=ref.function("reader:values", kind="read"),
                 arguments={},
-                outputs=[authoring.Feature(name="value", type="float")],
+                outputs=[authoring.Feature(id="value", type="float")],
             )
         ]
 
@@ -254,7 +259,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
                 "key": ref.dimension("asset").id,
             }
         },
-        outputs=[authoring.Feature(name="result", type="float")],
+        outputs=[authoring.Feature(id="result", type="float")],
     )
     model = action.to_model()
     assert action.inputs is None
@@ -274,7 +279,7 @@ def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -
         function_id="custom",
         arguments={"column": ref.feature("inferred")},
         inputs=[ref.feature("explicit")],
-        outputs=[authoring.Feature(name="result", type="float")],
+        outputs=[authoring.Feature(id="result", type="float")],
     )
     declaration = authoring.Dataset(id="example", producers=[action])
 
@@ -298,7 +303,7 @@ def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> 
                     "keys": ref.current_dataset().dimensions.ids,
                     "source_keys": ref.dataset("source").dimensions.ids,
                 },
-                outputs=[authoring.Feature(name="value", type="float")],
+                outputs=[authoring.Feature(id="value", type="float")],
             )
         ],
     )
@@ -505,7 +510,7 @@ def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> No
                 id="calculate",
                 function=ref.function("implementation:calculate", kind="vectorize"),
                 arguments={"column": ref.feature("pipeline_result")},
-                outputs=[authoring.Feature(name="result")],
+                outputs=[authoring.Feature(id="result")],
             )
         ]
         publishers = [

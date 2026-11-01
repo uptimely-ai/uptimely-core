@@ -54,8 +54,8 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                         function=ref.function(read_observations, kind="read"),
                         arguments={},
                         outputs=[
-                            feature.Feature(name="timestamp", type=dimension_type),
-                            feature.Feature(name="temperature", type="integer"),
+                            feature.Feature(id="timestamp", type=dimension_type),
+                            feature.Feature(id="temperature", type="integer"),
                         ],
                     ),
                     actions.Action(
@@ -69,7 +69,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                             "output": ref.feature("result").id,
                             "configuration": {"windows": ["8h", "24h"]},
                         },
-                        outputs=[feature.Feature(name="result", type="integer")],
+                        outputs=[feature.Feature(id="result", type="integer")],
                     ),
                 ],
             )
@@ -399,8 +399,8 @@ def test_collapse_functions_execute_without_row_context(
                 function=ref.function(read_observations, kind="read"),
                 arguments={},
                 outputs=[
-                    feature.Feature(name="timestamp", type="datetime"),
-                    feature.Feature(name="temperature", type="integer"),
+                    feature.Feature(id="timestamp", type="datetime"),
+                    feature.Feature(id="temperature", type="integer"),
                 ],
             )
         ],
@@ -417,7 +417,7 @@ def test_collapse_functions_execute_without_row_context(
                     "column": ref.feature("temperature").id,
                     "output": ref.feature("temperature_max").id,
                 },
-                outputs=[feature.Feature(name="temperature_max", type="integer")],
+                outputs=[feature.Feature(id="temperature_max", type="integer")],
             )
         ],
     )

@@ -247,9 +247,9 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
                 function=python_spec.ref.function(_read_order_data, kind="read"),
                 arguments={},
                 outputs=[
-                    python_spec.feature.Feature(name="input_1"),
-                    python_spec.feature.Feature(name="input_2"),
-                    python_spec.feature.Feature(name="id", type="integer"),
+                    python_spec.feature.Feature(id="input_1"),
+                    python_spec.feature.Feature(id="input_2"),
+                    python_spec.feature.Feature(id="id", type="integer"),
                 ],
             ),
             python_spec.actions.Action(
@@ -262,7 +262,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
                     "output": "sum",
                     "dataset": python_spec.ref.current_dataset().dataframe,
                 },
-                outputs=[python_spec.feature.Feature(name="sum")],
+                outputs=[python_spec.feature.Feature(id="sum")],
             ),
         ],
     )

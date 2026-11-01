@@ -29,7 +29,7 @@ def test_root_authoring_api_compiles_and_executes(
                 id="read",
                 function=read_values,
                 arguments={},
-                outputs=[up.Feature(name="value")],
+                outputs=[up.Feature(id="value")],
             ),
             up.Action(
                 id="double",
@@ -39,7 +39,7 @@ def test_root_authoring_api_compiles_and_executes(
                     "value": up.ref.column("value"),
                     "output": up.ref.output("doubled"),
                 },
-                outputs=[up.Feature(name="doubled")],
+                outputs=[up.Feature(id="doubled")],
             ),
         ]
 
@@ -84,12 +84,13 @@ def test_column_and_output_helpers_preserve_document_values() -> None:
 
 def test_global_parameter_and_feature_authoring() -> None:
     parameter = up.ref.parameter("asset_limit")
-    feature = up.Feature("asset_limit").to_model()
+    feature = up.Feature(id="asset_limit").to_model()
 
     assert parameter == "$params.asset_limit"
     assert up.ref.source("telemetry_source") == "$params.telemetry_source"
     assert up.ref.sink("results_path") == "$params.results_path"
     assert feature.id == "asset_limit"
+    assert feature.name == "Asset Limit"
 
 
 @pytest.mark.parametrize("shape", ["direct", "list", "tuple", "dict", "bind", "context"])
@@ -110,7 +111,7 @@ def test_output_references_validate_nested_arguments(shape: str, declared: bool)
             id="calculate",
             function=ref.function("external:calculate", kind="vectorize"),
             arguments={"output": shapes[shape]},
-            outputs=[up.Feature(name="result")] if declared else [],
+            outputs=[up.Feature(id="result")] if declared else [],
         )
 
     if not declared:
@@ -129,7 +130,7 @@ def test_mutated_output_references_are_revalidated_on_conversion() -> None:
         id="calculate",
         function=ref.function("external:calculate", kind="vectorize"),
         arguments={"output": up.ref.output("result")},
-        outputs=[up.Feature(name="result")],
+        outputs=[up.Feature(id="result")],
     )
     action.outputs.clear()
     with pytest.raises(ValueError, match="undeclared output 'result'"):

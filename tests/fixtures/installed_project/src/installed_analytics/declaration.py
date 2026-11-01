@@ -29,7 +29,7 @@ class Values(Dataset):
             id="read",
             function=ref.function(functions.Readers.values, kind="read"),
             arguments={},
-            outputs=[Feature(name="value")],
+            outputs=[Feature(id="value")],
         )
     ]
 

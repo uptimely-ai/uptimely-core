@@ -103,7 +103,7 @@ class CalculatedData(up.Dataset):
             arguments={},
             outputs=[
                 up.Feature(
-                    name="value",
+                    id="value",
                     description="Input measurement for the calculation.",
                 )
             ],
@@ -118,7 +118,7 @@ class CalculatedData(up.Dataset):
             },
             outputs=[
                 up.Feature(
-                    name="doubled",
+                    id="doubled",
                     description="The input measurement multiplied by two.",
                 )
             ],

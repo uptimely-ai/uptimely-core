@@ -112,7 +112,7 @@ def _mapping_source(dimensions: list[dimension.Dimension]) -> entity.Entity:
                         inputs=[],
                         function=ref.function(_other_source, kind="read"),
                         arguments={},
-                        outputs=[feature.Feature(name="temperature")],
+                        outputs=[feature.Feature(id="temperature")],
                     )
                 ],
             )
@@ -129,7 +129,7 @@ def _conform_source(identifier: str) -> dataset.Dataset:
                 inputs=[],
                 function=ref.function(_other_source, kind="read"),
                 arguments={},
-                outputs=[feature.Feature(name="temperature")],
+                outputs=[feature.Feature(id="temperature")],
             )
         ],
     )

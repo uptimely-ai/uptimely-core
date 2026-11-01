@@ -313,7 +313,7 @@ def test_python_conversion_and_json_loading_accept_output_only_escape_actions(
                 id="escape",
                 function=ref.function("example:escape", kind="escape"),
                 arguments={},
-                outputs=[feature.Feature(name="external_result")],
+                outputs=[feature.Feature(id="external_result")],
             )
         ],
     )
@@ -338,7 +338,7 @@ def test_python_dataset_accepts_escape_feature_outputs() -> None:
                 id="escape",
                 function=ref.function("example:escape", kind="escape"),
                 arguments={},
-                outputs=[feature.Feature(name="external_result")],
+                outputs=[feature.Feature(id="external_result")],
             )
         ],
     )

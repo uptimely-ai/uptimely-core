@@ -22,13 +22,13 @@ class Constants(Dataset):
             arguments={"source": ref.source("constants_source")},
             outputs=[
                 Feature(
-                    name="gravity",
+                    id="gravity",
                     type="float",
                     unit="m/s^2",
                     description="Gravitational acceleration used in pump analytics.",
                 ),
                 Feature(
-                    name="room_temperature",
+                    id="room_temperature",
                     type="float",
                     unit="C",
                     description="Ambient room temperature used as the thermal reference.",
