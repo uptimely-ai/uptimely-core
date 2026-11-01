@@ -79,6 +79,11 @@ class RowScope(common.StrictModel):
     coverage: str = ""
 
 
+def humanize_dataset_name(identifier: str) -> str:
+    """Return a display name for a dataset identifier."""
+    return identifier.replace("_", " ").replace("-", " ").title()
+
+
 class Dataset(common.StrictModel):
     """An entry under an entity's ID-keyed `datasets` object."""
 
@@ -89,6 +94,13 @@ class Dataset(common.StrictModel):
     features: dict[str, Feature] = pydantic.Field(default_factory=dict)
     actions: dict[str, Action] = pydantic.Field(default_factory=dict)
     order: list[Order] = pydantic.Field(default_factory=list)
+
+    @pydantic.model_validator(mode="after")
+    def generate_name(self) -> typing.Self:
+        """Generate a display name from the dataset ID when one is not supplied."""
+        if self.name is None:
+            self.name = humanize_dataset_name(self.id)
+        return self
 
     @property
     def all_features(self) -> dict[str, Feature]:
