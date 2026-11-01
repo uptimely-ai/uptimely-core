@@ -42,6 +42,8 @@ def test_keyed_datasets_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
     datasets = payload["entities"]["asset"]["datasets"]
     assert all("id" not in dataset for dataset in datasets.values())
     assert datasets["first"]["name"] == "First Dataset"
+    assert datasets["second"]["name"] == "Second"
+    assert model.entities["asset"].datasets["second"].name == "Second"
     assert datasets["first"]["description"] == "First dataset"
     assert datasets["first"]["row_scope"]["grain"] == "One row per asset"
     assert payload == model.model_dump(exclude_none=False)

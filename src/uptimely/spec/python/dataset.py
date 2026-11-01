@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from uptimely.spec import catalog as function_catalog
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
+from uptimely.spec.model import dataset as dataset_model
 
 from . import actions, ref
 from . import dimension as dimension_module
@@ -116,6 +117,8 @@ class Dataset:
             raise ValueError("Dataset requires a non-empty id")
         if name is not None:
             self.name = name
+        elif self.name is None:
+            self.name = dataset_model.humanize_dataset_name(self.id)
         if description is not None:
             self.description = description
         if entity is not None:

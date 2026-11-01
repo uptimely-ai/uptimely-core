@@ -28,6 +28,13 @@ def test_action_is_the_only_public_work_declaration_name() -> None:
     assert not hasattr(authoring, "action")
 
 
+def test_dataset_name_defaults_to_humanized_id() -> None:
+    declaration = authoring.Dataset(id="pump_telemetry-dataset")
+
+    assert declaration.name == "Pump Telemetry Dataset"
+    assert declaration.to_model().name == "Pump Telemetry Dataset"
+
+
 def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     declaration = authoring.Dataset(
         id="example",

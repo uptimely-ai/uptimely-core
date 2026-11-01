@@ -113,7 +113,7 @@ not accepted.
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
-| `name` | string or null | No | `null` | Human-readable display name. |
+| `name` | string or null | No | Generated from the dataset identifier | Human-readable display name. |
 | `description` | string or null | No | `null` | Explanation of the dataset. |
 | `row_scope` | object | No | Empty descriptions | Observation grain, filtering, and coverage. |
 | `order` | array of objects | No | `[]` | Logical ordering by entity dimensions. |
