@@ -40,7 +40,7 @@
             <p data-feature-description class="mt-4 text-sm leading-6 text-slate-400">{{ feature.description or "No description provided." }}</p>
             <section class="mt-6 rounded-xl border border-cyan-900/60 bg-cyan-950/20 p-4 sm:p-5">
               <h3 class="flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-[.14em] text-cyan-200">
-                {{ icon("functions", "h-4 w-4") }}Produced by {{ producer.action.binding.function }}
+                {{ icon("functions", "h-4 w-4") }}Produced by {{ function.name or producer.action.binding.function }}
               </h3>
               <p class="mt-3 flex items-center gap-2 text-xs text-slate-400">
                 <i data-lucide="{{ function_kind_meta.icon }}" class="site-icon icon--functions h-3.5 w-3.5 text-cyan-300" aria-hidden="true"></i>

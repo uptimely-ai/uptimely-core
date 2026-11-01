@@ -40,7 +40,7 @@ def test_disabled_signature_renders_without_importing_module_or_parent(
 
     compiled = compiler.Compiler().compile(definition)
     invocation = next(item for item in compiled.invocations if item.function_id == function.id)
-    step = plan_render._render_step(1, invocation, compiled)
+    step = plan_render._render_step(1, invocation, compiled, definition)
     index = explorer.Explorer(definition, plan=compiled).create_html(tmp_path / "site/index.html")
     functions_page = (index.parent / "spec/functions.html").read_text(encoding="utf-8")
 

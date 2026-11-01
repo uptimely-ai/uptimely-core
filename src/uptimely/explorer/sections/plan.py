@@ -8,7 +8,7 @@ import os
 import pathlib
 import typing
 
-from uptimely import execution_plan
+from uptimely import execution_plan, spec
 from uptimely.explorer import common, render
 from uptimely.explorer import graph_style as graph_style_module
 from uptimely.spec import functions
@@ -40,9 +40,12 @@ def _render_step(
     position: int,
     invocation: execution_plan.Invocation,
     plan: execution_plan.ExecutionPlan,
+    spec_definition: spec.Spec,
     invocations_by_id: typing.Mapping[str, execution_plan.Invocation] | None = None,
 ) -> dict[str, typing.Any]:
     """Build the display model used by the execution-plan HTML templates."""
+    if spec_definition is None:
+        raise ValueError("spec_definition is required to render plan steps")
     if invocations_by_id is None:
         invocations_by_id = plan.invocations_by_id
 
@@ -55,23 +58,57 @@ def _render_step(
             return [display_value(item) for item in value]
         return value
 
+    function_name = spec_definition.functions[invocation.function_id].name or invocation.function_id
+    entity = spec_definition.entities[invocation.entity_id]
+    dataset = (
+        entity.datasets.get(invocation.dataset_id) if invocation.dataset_id is not None else None
+    )
+    feature_labels = {
+        **{
+            feature_id: feature.name or feature_id
+            for owner in spec_definition.entities.values()
+            for source in owner.datasets.values()
+            for feature_id, feature in source.features.items()
+        },
+        **{
+            dimension_id: dimension.name or dimension_id
+            for dimension_id, dimension in spec_definition.dimensions.items()
+        },
+    }
+    displayed_feature = (
+        ", ".join(feature_labels.get(feature, feature) for feature in invocation.output_features)
+        if invocation.function_kind in {functions.COLLAPSE, functions.ESCAPE, functions.VECTORIZE}
+        else None
+    )
     return {
         "position": position,
         "function": invocation.function_id,
         "function_kind": invocation.function_kind,
-        "title": invocation.function_id.replace("_", " ").capitalize(),
+        "title": function_name,
+        "function_label": function_name,
         "entrypoint": invocation.entrypoint,
         "entity": invocation.entity_id,
         "dataset": invocation.dataset_id,
-        "feature": ", ".join(invocation.output_features)
-        if invocation.function_kind in {functions.COLLAPSE, functions.ESCAPE, functions.VECTORIZE}
-        else None,
-        "input_features": invocation.input_features,
-        "output_features": invocation.output_features,
+        "dataset_label": (
+            dataset.name or invocation.dataset_id if dataset is not None else invocation.dataset_id
+        ),
+        "feature": displayed_feature,
+        "input_features": [
+            feature_labels.get(feature, feature) for feature in invocation.input_features
+        ],
+        "output_features": [
+            feature_labels.get(feature, feature) for feature in invocation.output_features
+        ],
+        "input_feature_ids": invocation.input_features,
+        "output_feature_ids": invocation.output_features,
         "uncontrolled": invocation.function_kind == functions.ESCAPE,
         "row_context": invocation.row_context.to_dict() if invocation.row_context else None,
         "depends_on_invocations": [
-            {"function": invocations_by_id[dependency_id].function_id}
+            {
+                "function": (
+                    spec_definition.functions[invocations_by_id[dependency_id].function_id].name
+                )
+            }
             for dependency_id in invocation.dependency_ids
         ],
         "args": {
@@ -94,16 +131,20 @@ def _render_step(
 def build_context(
     plan: execution_plan.ExecutionPlan,
     output_directory: pathlib.Path,
+    spec_definition: spec.Spec,
 ) -> dict[str, object]:
     """Prepare overview, invocation-lineage, and stage data without rendering or writing pages.
 
     Args:
         plan: The compiled execution plan to render.
         output_directory: Website directory used to resolve relative source links.
+        spec_definition: Spec model for display-name resolution.
 
     Returns:
         Display data shared by the plan pages.
     """
+    if spec_definition is None:
+        raise ValueError("spec_definition is required to render the execution plan")
     invocations_by_stage = plan.execution_stages
     invocations_in_order = [invocation for stage in invocations_by_stage for invocation in stage]
     invocations_by_id = {invocation.id: invocation for invocation in invocations_in_order}
@@ -118,6 +159,7 @@ def build_context(
                     position_by_invocation[invocation.id],
                     invocation,
                     plan,
+                    spec_definition,
                     invocations_by_id,
                 )
                 for invocation in stage
@@ -126,7 +168,9 @@ def build_context(
         for stage_number, stage in enumerate(invocations_by_stage, start=1)
     ]
     steps = [step for stage in stages for step in stage["steps"]]
-    invocation_nodes, invocation_links = invocation_lineage.invocation_lineage_payload(plan)
+    invocation_nodes, invocation_links = invocation_lineage.invocation_lineage_payload(
+        plan, spec_definition
+    )
     invocation_lineage_data = common.serialize_graph_payload(invocation_nodes, invocation_links)
 
     for stage in stages:
@@ -139,7 +183,6 @@ def build_context(
             )
         )
         for step in stage["steps"]:
-            step["depends_on_invocations"].sort(key=lambda dependency: dependency["function"])
             entrypoint = step["entrypoint"]
             source_path = entrypoint.partition(":")[0] if entrypoint else None
             if source_path and not source_path.endswith(".py"):
@@ -151,6 +194,7 @@ def build_context(
                 if source_path
                 else None
             )
+            step["depends_on_invocations"].sort(key=lambda dependency: dependency["function"])
 
     graph_style = graph_style_module.GraphStyle()
     return {

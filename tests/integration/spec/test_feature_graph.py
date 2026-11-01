@@ -59,7 +59,6 @@ def test_system_graph_connects_actions_to_feature_outputs() -> None:
         node
         for node in system.graph
         if isinstance(node.reference, models.ActionNode)
-        and node.reference.function is not None
         and node.reference.function.id == "extract_field"
     ]
     recommendation_outputs = {
@@ -114,10 +113,7 @@ def test_system_graph_contains_one_node_per_action() -> None:
 
     assert len(action_nodes) == action_count
     assert any(action.action_id == "bearing_temperature_by_pump" for action in action_nodes)
-    assert all(
-        action.function is not None and action.function.id in spec_function_ids
-        for action in action_nodes
-    )
+    assert all(action.function.id in spec_function_ids for action in action_nodes)
     assert len({action.node_id for action in action_nodes}) == action_count
     assert "bearing_temperature" in system.input_names
     assert all(isinstance(name, str) for name in system.input_names)
@@ -207,7 +203,7 @@ def test_website_includes_3d_lineage_html(
     assert '"is_action": true' in html
     assert '"is_action": false' in html
     assert "['Node type', 'Action']" in script
-    assert "['Function', node.function_id || 'n/a']" in script
+    assert "['Function', node.function_name || node.function_id || 'n/a']" in script
     assert "rows.push([outputLabel, formatDetailValue(features.join(', '))])" in script
     assert "Declared feature dependencies only; outputs are not materialized" in script
     assert "document.createTextNode(value == null ? 'n/a' : String(value))" in shared_script
@@ -253,7 +249,10 @@ def test_website_includes_2d_lineage_html(
     assert "node.fx = rankOffsets.get(rank) - layoutWidth / 2" in layout_script
     assert "(index - (nodes.length - 1) / 2) * DATASET_LAYOUT.nodeSpacing" in layout_script
     assert "node.datasetColor = colors.get(node.dataset_id)" in shared_script
-    assert "appendLegend(container, names.map(dataset =>" in shared_script
+    assert (
+        "node.dataset_name || node.dataset_id || LineageConfig.UNASSIGNED_DATASET" in shared_script
+    )
+    assert "label: datasets.get(dataset)" in shared_script
     assert "item.textContent = label" in shared_script
     assert "'#ff9f43', '#2dd4bf', '#fb7185', '#a78bfa'" in config_script
     assert '"#b9c9d8"' in html
@@ -274,14 +273,16 @@ def test_website_includes_2d_lineage_html(
     )
     assert "forceGraph.width(container.clientWidth).height(container.clientHeight)" in shared_script
     assert "health_signal_normalized" in html
-    assert '"label": "bearing_temperature_max", "tags": [], "node_type": "feature"' in html
+    assert '"label": "Bearing Temperature Max", "tags": [], "node_type": "feature"' in html
     assert (
-        '"is_action": false, "entity": "pump", "dataset_id": "pump_dataset", "data_type": "float"'
+        '"is_action": false, "feature_id": "bearing_temperature_max", "entity": "pump", '
+        '"dataset_id": "pump_dataset", "dataset_name": "Pump Summary", "data_type": "float"'
     ) in html
-    assert '"label": "operating_point_recommendation", "tags": [], "node_type": "feature"' in html
+    assert '"label": "Operating Point Recommendation", "tags": [], "node_type": "feature"' in html
     assert (
-        '"is_action": false, "entity": "pump_telemetry", '
-        '"dataset_id": "pump_telemetry_dataset"' in html
+        '"is_action": false, "feature_id": "bearing_temperature", '
+        '"entity": "pump_telemetry", "dataset_id": "pump_telemetry_dataset", '
+        '"dataset_name": "Pump Telemetry"' in html
     )
     assert 'aria-label="Legend"' in html
     assert "Action</span>" in html

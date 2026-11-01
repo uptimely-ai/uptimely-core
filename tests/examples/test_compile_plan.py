@@ -117,13 +117,13 @@ def test_execution_plan_report_shows_topology_stages(
     assert ">Dataset feature output</dt>" in report
     assert ">Depends on invocations</dt>" in report
     assert ">Returns</dt>" in report
-    assert ">health_signal_normalized</dd>" in report
+    assert ">Health Signal Normalized</dd>" in report
     assert "md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]" in report
     assert "md:col-span-4" in report
     assert ">Aggregate</h3>" in report
     assert "Open Python module" in report
     assert "No invocation dependencies" in report
-    assert "aggregate</span>" in report
+    assert "Aggregate</span>" in report
     source_match = re.search(r'href="([^"]*functions/analytics\.py)"', report)
     assert source_match is not None
     assert (report_path.parent / source_match.group(1)).resolve().is_file()
@@ -147,7 +147,10 @@ def test_execution_plan_report_shows_topology_stages(
     )
     invocation_script = (tmp_path / "js/invocation_lineage.js").read_text(encoding="utf-8")
     shared_script = (tmp_path / "js/lineage_components.js").read_text(encoding="utf-8")
-    assert "ExplorerLineage.datasetNodeObject(node, node.function_id, style)" in invocation_script
+    assert (
+        "ExplorerLineage.datasetNodeObject(node, node.function_name || node.function_id, style)"
+        in invocation_script
+    )
     assert "SphereGeometry" in shared_script
 
 

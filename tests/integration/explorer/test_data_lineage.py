@@ -75,14 +75,14 @@ def test_transfer_tables_show_source_grain_and_shared_keys(
     assert '<span class="context-link-label">Transfer Source Values</span>' in document
     assert f'<span class="context-link-icon" title="{kind.title()}"><i data-lucide=' in document
     assert '<h3 id="step-1-title">Transfer Source Values</h3>' in document
-    assert '<p class="data-lineage-step-dataset">Dataset: target</p>' in document
+    assert '<p class="data-lineage-step-dataset">Dataset: Target</p>' in document
     assert "Illustrative rows" not in document
     assert ">Main table" not in document
     assert document.index('data-side="output"') < document.index('data-side="input"')
     assert "data-dimension-transfer" not in document
     assert "data-lineage-mapping" not in document
     assert "<caption>" not in document
-    assert 'aria-label="Source input: source illustrative table"' in document
+    assert 'aria-label="Source input: Source illustrative table"' in document
     for side, row_count, dimensions in (
         ("input", source_rows, source_dimensions),
         ("output", target_rows, target_dimensions),
@@ -357,7 +357,7 @@ def test_data_lineage_has_focused_invocation_playback(
     assert "Stage {{ stage_number }} / Step {{ step.number }}" not in document
     assert '<select id="animation-dataset" required>' in document
     assert "Choose a dataset</option>" in document
-    assert 'title="pump_telemetry_dataset">Pump Telemetry Dataset</option>' in document
+    assert 'title="Pump Telemetry">Pump Telemetry</option>' in document
     dataset_groups = re.findall(
         r'<div class="context-link-group" data-animation-dataset="\d+">(.*?)</div>',
         panel.group(),
@@ -384,7 +384,7 @@ def test_data_lineage_has_focused_invocation_playback(
         '<span class="data-lineage-node icon--functions" aria-hidden="true">'
         '<i data-lucide="combine" class="site-icon"></i></span>' in document
     )
-    assert "<code>aggregate</code>" in document
+    assert '<code title="aggregate">Aggregate</code>' in document
     assert "@keyframes data-lineage-flow-up" in styles
     assert ".data-lineage-edge { position: absolute; top: 0; bottom: 0;" in styles
     assert "justify-content: center; gap: 16px 24px; }" in styles

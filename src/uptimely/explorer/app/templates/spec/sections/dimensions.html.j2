@@ -10,7 +10,7 @@
       {% if dimension.name %}<p class="mt-1 font-mono text-xs text-slate-500">{{ dimension_id }}</p>{% endif %}
       <div class="mt-3 flex flex-wrap gap-2">
         <span class="rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-cyan-200">{{ dimension.type }}</span>
-        {% if dimension.parent %}<span class="rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">child of {{ dimension.parent }}</span>{% endif %}
+        {% if dimension.parent %}<span class="rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">child of {{ configuration.dimensions[dimension.parent].name or dimension.parent }}</span>{% endif %}
       </div>
       <p class="mt-4 text-sm leading-6 text-slate-400">{{ dimension.description or "No description provided." }}</p>
     </article>

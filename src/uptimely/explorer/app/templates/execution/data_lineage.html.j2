@@ -20,7 +20,7 @@
   <table class="data-lineage-table" data-side="{{ side }}">
     <thead><tr>
       {% for column in keys + columns %}
-      <th scope="col" data-role="{{ column.role }}" data-column="{{ column.name }}"{% if column.name in join_dimensions %} data-join-key{% elif unshared and column.role == "Dimension" %} data-dimension-change="{{ unshared }}"{% endif %} title="{{ column.name }} ({{ column.type }})"><span class="data-lineage-cell">{% set type_icon = TYPE_ICONS.get(column.type) %}{% if type_icon %}<i data-lucide="{{ type_icon }}" class="data-lineage-type-icon" data-type="{{ column.type }}" aria-hidden="true"></i>{{ column.name }}<span class="sr-only"> ({{ column.type }})</span>{% else %}{{ column.name }}<small>{{ column.type }}</small>{% endif %}</span></th>
+      <th scope="col" data-role="{{ column.role }}" data-column="{{ column.name }}"{% if column.name in join_dimensions %} data-join-key{% elif unshared and column.role == "Dimension" %} data-dimension-change="{{ unshared }}"{% endif %} title="{{ column.label or column.name }} ({{ column.name }}, {{ column.type }})"><span class="data-lineage-cell">{% set type_icon = TYPE_ICONS.get(column.type) %}{% if type_icon %}<i data-lucide="{{ type_icon }}" class="data-lineage-type-icon" data-type="{{ column.type }}" aria-hidden="true"></i>{{ column.label or column.name }}<span class="sr-only"> ({{ column.type }})</span>{% else %}{{ column.label or column.name }}<small>{{ column.type }}</small>{% endif %}</span></th>
       {% endfor %}
     </tr></thead>
     <tbody>
@@ -72,7 +72,7 @@
     <select id="animation-dataset" required>
       <option value="" disabled selected>Choose a dataset</option>
       {% for dataset, dataset_steps in datasets.items() %}
-      <option value="{{ loop.index }}" title="{{ dataset or dataset_steps[0].dataset_label }}">{{ dataset_steps[0].dataset_label }}</option>
+      <option value="{{ loop.index }}" title="{{ dataset_steps[0].dataset_label }}">{{ dataset_steps[0].dataset_label }}</option>
       {% endfor %}
     </select>
   </div>
@@ -122,12 +122,12 @@
         data-dependencies="{{ step.dependencies|join(',') }}" data-function-kind="{{ step.function_kind }}" data-stage="{{ stage_number }}" aria-labelledby="step-{{ step.number }}-title">
         <header class="data-lineage-step-header">
           <h3 id="step-{{ step.number }}-title">{{ step.action }}</h3>
-          <p class="data-lineage-step-dataset">Dataset: {{ step.dataset or step.entity }}</p>
+          <p class="data-lineage-step-dataset">Dataset: {{ step.dataset_label if step.dataset else step.entity }}</p>
         </header>
         <div class="data-lineage-scene">
           <div class="data-lineage-panel data-lineage-panel-output">
             <p class="data-lineage-waiting" hidden>New features will appear in the main table as the action runs.</p>
-            {{ sample_table(step.main_columns|rejectattr("role", "equalto", "Existing")|list, keys, none, "output", step.row_count, step.function_kind in ["collapse", "expand"], step.dataset or step.entity, join_dimensions, "added" if step.input_tables else none) }}
+            {{ sample_table(step.main_columns|rejectattr("role", "equalto", "Existing")|list, keys, none, "output", step.row_count, step.function_kind in ["collapse", "expand"], step.dataset_label if step.dataset else step.entity, join_dimensions, "added" if step.input_tables else none) }}
           </div>
           {% set meta = kind_meta.get(step.function_kind, {"icon": "braces"}) %}
           <div class="data-lineage-arrow" data-flow="{{ 'down' if step.function_kind == 'write' else 'up' }}">
@@ -135,20 +135,20 @@
             <span class="data-lineage-node icon--functions" aria-hidden="true"><i data-lucide="{{ meta.icon }}" class="site-icon"></i></span>
             <span class="data-lineage-node-label">
               <small class="data-lineage-invocation-type">{{ {"collapse": "Aggregate", "escape": "Uncontrolled external operation"}.get(step.function_kind, step.function_kind|title) }}</small>
-              <code>{{ step.function }}</code>
+              <code title="{{ step.function }}">{{ step.function_label }}</code>
             </span>
           </div>
           <div class="data-lineage-panel data-lineage-sources">
             {% if step.function_kind == "read" %}
-            <div class="data-lineage-boundary"><strong>Source</strong>{{ step.dataset or step.entity }}</div>
+            <div class="data-lineage-boundary"><strong>Source</strong>{{ step.dataset_label if step.dataset else step.entity }}</div>
             {% elif step.function_kind == "escape" %}
             <div class="data-lineage-boundary"><strong>Declared feature inputs</strong>{{ (declared_inputs|map(attribute="name")|list)|join(", ") or "None" }}<p>These declarations do not establish that dataframe columns are available to the invocation.</p></div>
             {% elif step.input_tables %}
             {% for table in step.input_tables %}
-            {{ sample_table(table.columns, table.keys, "Source input", "input", table.row_count, step.function_kind == "collapse", table.dataset, table.join_dimensions, "removed") }}
+            {{ sample_table(table.columns, table.keys, "Source input", "input", table.row_count, step.function_kind == "collapse", table.dataset_label, table.join_dimensions, "removed") }}
             {% endfor %}
             {% elif step.function_kind == "write" %}
-            <div class="data-lineage-boundary" data-write-boundary="{{ step.dataset or step.entity }}"><strong>Write destination</strong>{{ step.dataset or step.entity }}</div>
+            <div class="data-lineage-boundary" data-write-boundary="{{ step.dataset or step.entity }}"><strong>Write destination</strong>{{ step.dataset_label if step.dataset else step.entity }}</div>
             {% elif not (inputs or keys) %}
             <div class="data-lineage-boundary"><strong>No declared input columns</strong>Only declared information is shown.</div>
             {% endif %}

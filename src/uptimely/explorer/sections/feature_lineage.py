@@ -61,28 +61,28 @@ def _node_render_data(
         return render.filled_fields(
             node_type="feature",
             is_action=True,
-            label=reference.function.id if reference.function is not None else reference.action_id,
+            label=reference.function.name,
             action_id=reference.action_id,
             features=list(reference.features),
             entity=reference.entity,
             dataset_id=reference.dataset_id,
-            function_id=reference.function.id if reference.function is not None else None,
-            function_kind=(reference.function.kind if reference.function is not None else None),
-            type="python_function" if reference.function is not None else None,
-            entrypoint=(reference.function.entrypoint if reference.function is not None else None),
-            info=(
-                {"description": reference.function.description}
-                if reference.function is not None
-                else None
-            ),
+            dataset_name=reference.dataset_name,
+            function_id=reference.function.id,
+            function_name=reference.function.name,
+            function_kind=reference.function.kind,
+            type="python_function",
+            entrypoint=reference.function.entrypoint,
+            info={"description": reference.function.description},
         )
 
     return render.filled_fields(
         node_type="feature",
         is_action=False,
-        label=reference.name,
+        label=reference.display_name or reference.name,
+        feature_id=reference.name,
         entity=reference.entity,
         dataset_id=reference.dataset_id,
+        dataset_name=reference.dataset_name,
         data_type=reference.data_type,
     )
 
