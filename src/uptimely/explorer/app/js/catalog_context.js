@@ -30,10 +30,13 @@ function selectCatalogItem(hash = location.hash) {
   const itemHeading = selected.querySelector("h2, h3");
   const title = isOverview ? catalogSectionTitle : itemHeading.textContent.trim();
   catalogTitle.textContent = title;
-  if (catalogPanel.dataset.contextLabel === "functions" && catalogDescription) {
-    const description = selected.querySelector("[data-function-description]");
-    catalogDescription.textContent = isOverview ? catalogSectionDescription : description.textContent;
-    if (description) description.hidden = true;
+  if (["functions", "features"].includes(catalogPanel.dataset.contextLabel) && catalogDescription) {
+    const descriptionSelector = catalogPanel.dataset.contextLabel === "functions"
+      ? "[data-function-description]" : "[data-feature-description]";
+    const description = selected.querySelector(descriptionSelector);
+    catalogDescription.textContent = isOverview
+      ? catalogSectionDescription : description?.textContent || "";
+    if (description && !isOverview) description.hidden = true;
   }
   document.title = isOverview ? catalogDocumentTitle : `${title} · ${catalogSectionTitle}`;
   catalogItems.forEach(item => {

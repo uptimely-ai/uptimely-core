@@ -20,8 +20,18 @@ class Constants(Dataset):
             function=analytics.read_constants,
             arguments={"source": ref.source("constants_source")},
             outputs=[
-                Feature(name="gravity", type="float", unit="m/s^2"),
-                Feature(name="room_temperature", type="float", unit="C"),
+                Feature(
+                    name="gravity",
+                    type="float",
+                    unit="m/s^2",
+                    description="Gravitational acceleration used in pump analytics.",
+                ),
+                Feature(
+                    name="room_temperature",
+                    type="float",
+                    unit="C",
+                    description="Ambient room temperature used as the thermal reference.",
+                ),
             ],
         )
     ]
