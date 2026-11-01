@@ -1,4 +1,4 @@
-"""Collapse source discovery reflects current declarations without cached context."""
+"""Collapse source indexes retain invalid declarations without wrapper objects."""
 
 import json
 
@@ -7,7 +7,6 @@ from support import examples as example_support
 
 from uptimely import spec
 from uptimely.spec import validation
-from uptimely.spec.validation.rules import features as feature_rules
 from uptimely.spec.validation.rules.actions import inputs as action_inputs
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -42,8 +41,9 @@ def test_collapse_source_discovery_retains_invalid_candidates(
         if "$features.bearing_temperature" in inputs:
             message = "ambiguous input feature"
     original = document.model_copy(deep=True)
-    facts = tuple(action_inputs.iter_input_sources(document))
-    item = next(item for item in facts if item.action.action is action)
+    facts = document.input_sources
+    key = ("pump", "pump_dataset", "bearing_temperature_by_pump")
+    source = facts[key]
 
     def validate_source() -> None:
         action_inputs.validate_source_feature(document)
@@ -53,34 +53,32 @@ def test_collapse_source_discovery_retains_invalid_candidates(
     if message is not None:
         with pytest.raises(ValueError, match=message):
             validate_source()
-        assert item.source is None
+        assert source is None
     else:
         validate_source()
-        assert item.source is not None
-        owners = feature_rules.feature_owners(document)
-        assert any(item.source in owners.get(feature, ()) for feature in action.input_features)
-        assert item.action.action is action
+        assert source is not None
+        owners = document.feature_owners
+        assert any(source in owners.get(feature, ()) for feature in action.input_features)
+        assert document.actions_by_key[key] is action
     assert document == original
 
 
-def test_revalidation_rediscovers_collapse_sources_after_edits() -> None:
+def test_new_document_rediscovers_collapse_sources_after_edits() -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     validation.validate_spec(document)
     action = (
         document.entities["pump"].datasets["pump_dataset"].actions["bearing_temperature_by_pump"]
     )
-    first = next(
-        item for item in action_inputs.iter_input_sources(document) if item.action.action is action
-    )
-    assert first.source is not None
-    assert first.source.dataset.id == "pump_telemetry_dataset"
+    key = ("pump", "pump_dataset", "bearing_temperature_by_pump")
+    first = document.input_sources[key]
+    assert first is not None
+    assert first[1] == "pump_telemetry_dataset"
     target = document.entities["pump"].datasets["pump_dataset"]
     target.features["local_source"] = spec.Feature(id="local_source")
     action.features.inputs = ["$features.local_source"]
-    second = next(
-        item for item in action_inputs.iter_input_sources(document) if item.action.action is action
-    )
-    assert second.source is not None
-    assert second.source.dataset.id == "pump_dataset"
+    document = spec.Spec.model_validate(document.model_dump())
+    second = document.input_sources[key]
+    assert second is not None
+    assert second[1] == "pump_dataset"
     with pytest.raises(ValueError, match="cannot use its target dataset as source"):
         validation.validate_spec(document)

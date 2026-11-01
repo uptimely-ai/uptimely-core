@@ -24,11 +24,13 @@ from uptimely.spec.feature_graph import (
 )
 from uptimely.spec.feature_graph import models as feature_graph_models
 from uptimely.spec.feature_graph.models import ActionNode, FeatureNode
+from uptimely.spec.model import BindingArgumentResolver
 from uptimely.spec.model import Spec as SpecModel
 
 
 def test_canonical_package_exports_preserve_object_identity() -> None:
     assert spec.Spec is SpecModel
+    assert spec.model.BindingArgumentResolver is BindingArgumentResolver
     assert uptimely.load_spec is spec.load_spec
     assert uptimely.from_python is spec.from_python
     assert uptimely.write_document is spec.write_document

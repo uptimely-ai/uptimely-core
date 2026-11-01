@@ -16,7 +16,7 @@ def load_spec(path: str | pathlib.Path) -> model.Spec:
         path: A JSON document or a directory containing ``spec.json``.
 
     Returns:
-        A validated spec document without attached derived state.
+        A validated spec document with reusable resource indexes.
 
     Raises:
         OSError: The JSON document cannot be read.
@@ -45,7 +45,7 @@ def from_python(
         entities: Explicit entity declarations, mutually exclusive with datasets.
 
     Returns:
-        A validated spec document without attached derived state.
+        A validated spec document with reusable resource indexes.
 
     Raises:
         TypeError: Declarations have unsupported types.

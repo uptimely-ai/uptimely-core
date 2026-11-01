@@ -26,18 +26,25 @@ def test_graph_metadata_follows_function_capabilities(
     monkeypatch.setattr(functions, "FUNCTION_KINDS", catalog)
     changed = graph._declared_features()
     checked = set()
-    for operation in graph._graph_operations:
-        if operation.function.kind not in {"read", "collapse"}:
+    for action in graph.actions:
+        kind = graph.spec.functions[action.binding.function].kind
+        if kind not in {"read", "collapse"}:
             continue
-        checked.add(operation.function.kind)
-        for name in operation.action.output_features:
+        checked.add(kind)
+        for name in action.output_features:
             if name in graph.spec.dimensions:
                 continue
             assert changed[name].is_source_input is not original[name].is_source_input
     assert checked == {"read", "collapse"}
-    graph._graph_operations = [
-        operation for operation in graph._graph_operations if operation.function.kind == "read"
-    ]
+    graph.spec = spec.Spec.model_validate(graph.spec.model_dump())
+    for entity in graph.spec.entities.values():
+        for dataset in entity.datasets.values():
+            dataset.actions = {
+                key: action
+                for key, action in dataset.actions.items()
+                if graph.spec.functions[action.binding.function].kind == "read"
+            }
+    graph.actions = graph.spec.actions
     rebuilt_features = [
         node.reference
         for node in graph._create_graph()
@@ -149,6 +156,16 @@ def test_system_graph_contains_one_node_per_action() -> None:
     assert any(action.action_id == "bearing_temperature_by_pump" for action in action_nodes)
     assert all(action.function.id in spec_function_ids for action in action_nodes)
     assert len({action.node_id for action in action_nodes}) == action_count
+    assert system.feature_nodes == tuple(
+        node.reference for node in system.graph if isinstance(node.reference, models.FeatureNode)
+    )
+    subset = system.subset(["health_signal_normalized"])
+    assert subset.feature_nodes == tuple(
+        node.reference for node in subset.graph if isinstance(node.reference, models.FeatureNode)
+    )
+    assert {feature.name for feature in subset.feature_nodes} <= {
+        feature.name for feature in system.feature_nodes
+    }
     assert "bearing_temperature" in system.input_names
     assert all(isinstance(name, str) for name in system.input_names)
 

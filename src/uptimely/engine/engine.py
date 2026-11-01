@@ -63,9 +63,7 @@ class Engine:
 
     def _validate_engine(self) -> None:
         """Validate that this engine can execute the plan."""
-        validation_module.validate_engine(
-            validation_module.EngineValidationContext(self.plan, self.backend),
-        )
+        validation_module.validate_engine(self.plan, self.backend)
 
     def run(self) -> result_module.ExecutionResult:
         """Execute plan stages and return explicit runtime state and statuses."""
@@ -75,15 +73,15 @@ class Engine:
             self.backend,
             self.spec_definition,
             {
-                invocation.entrypoint: entrypoint_module.Entrypoint(
-                    invocation.entrypoint,
+                entrypoint: entrypoint_module.Entrypoint(
+                    entrypoint,
                     package=(
-                        entrypoint_module.PackageProvenance(**packages[invocation.entrypoint])
-                        if invocation.entrypoint in packages
+                        entrypoint_module.PackageProvenance(**packages[entrypoint])
+                        if entrypoint in packages
                         else None
                     ),
                 )
-                for invocation in self.plan.invocations
+                for entrypoint in self.plan.entrypoints
             },
             self.parameters,
             state,
@@ -93,22 +91,19 @@ class Engine:
         failures: dict[str, str] = {}
 
         logger.debug("Executing plan: %d stages", len(self.plan.execution_stages))
-        for stage in self.plan.execution_stages:
-            for invocation in stage:
-                started = time.perf_counter()
-                logger.debug("Running %s invocation %s", invocation.function_kind, invocation.id)
-                try:
-                    invocation_executor.execute(invocation)
-                except Exception as error:
-                    statuses[invocation.id] = result_module.INVOCATION_STATUS_FAILED
-                    failures[invocation.id] = str(error)
-                    durations[invocation.id] = time.perf_counter() - started
-                    logger.warning("Invocation %s failed: %s", invocation.id, error)
-                    break
-                statuses[invocation.id] = result_module.INVOCATION_STATUS_SUCCEEDED
+        for invocation in self.plan.execution_invocations:
+            started = time.perf_counter()
+            logger.debug("Running %s invocation %s", invocation.function_kind, invocation.id)
+            try:
+                invocation_executor.execute(invocation)
+            except Exception as error:
+                statuses[invocation.id] = result_module.INVOCATION_STATUS_FAILED
+                failures[invocation.id] = str(error)
                 durations[invocation.id] = time.perf_counter() - started
-            if failures:
+                logger.warning("Invocation %s failed: %s", invocation.id, error)
                 break
+            statuses[invocation.id] = result_module.INVOCATION_STATUS_SUCCEEDED
+            durations[invocation.id] = time.perf_counter() - started
 
         for invocation in self.plan.invocations:
             statuses.setdefault(invocation.id, result_module.INVOCATION_STATUS_SKIPPED)

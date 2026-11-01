@@ -1,476 +1,318 @@
-"""Atomic dataframe and function-kind-specific action contract checks."""
+"""Atomic dataset-input and function-kind-specific action contract checks."""
 
-from __future__ import annotations
-
-import collections.abc
-import dataclasses
-
-from uptimely.spec import arg_types, functions, selectors
+from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
-from uptimely.spec.validation.rules import actions as action_rules
-from uptimely.spec.validation.rules import datasets as dataset_rules
-from uptimely.spec.validation.rules import features as feature_rules
-
-from . import inputs
 
 EXPAND_INPUT_ERROR = (
     "Expand action must reference a declared feature from a lower-dimensional foreign dataset"
 )
 
 
-@dataclasses.dataclass(frozen=True)
-class DataframeInput:
-    """A dataframe argument's value, normalized reference, and candidate source."""
-
-    argument_id: str
-    value: object
-    source_id: str | None
-    source: dataset_rules.DatasetDeclaration | None
-    path: errors.SpecPath
-
-
-@dataclasses.dataclass(frozen=True)
-class ActionContract:
-    """The action and its resolved dataframe argument resources."""
-
-    action: action_rules.ActionDeclaration
-    dataframe_arguments: tuple[DataframeInput, ...]
-    source: dataset_rules.DatasetDeclaration | None
+def validate_dataset_argument_reference(spec: spec_model.Spec) -> None:
+    """Require each dataset argument to reference a dataset."""
+    for key, arguments in spec.actions_arguments.items():
+        for name, value, _ in arguments:
+            if not isinstance(value, str) or not value.startswith(selectors.DATASET_PREFIX):
+                raise errors.SpecError(
+                    f"Dataset argument {name} must reference a dataset",
+                    code="invalid_mapping_dataset_input",
+                    path=(*spec.action_paths[key], "binding", "args", name),
+                )
 
 
-def iter_action_contracts(spec: spec_model.Spec) -> collections.abc.Iterator[ActionContract]:
-    """Yield action-specific dataframe resources in declaration order."""
-    dataset = {item.dataset.id: item for item in dataset_rules.iter_datasets(spec)}.get
-    for item in inputs.iter_input_sources(spec):
-        yield ActionContract(
-            action=item.action,
-            dataframe_arguments=_dataframe_inputs(item.action, dataset),
-            source=item.source,
-        )
-
-
-def _dataframe_inputs(
-    action: action_rules.ActionDeclaration,
-    dataset: collections.abc.Callable[[str], dataset_rules.DatasetDeclaration | None],
-) -> tuple[DataframeInput, ...]:
-    """Retain dataframe selector values and any matching dataset."""
-    if action.function is None:
-        return ()
-    result: list[DataframeInput] = []
-    for argument_id, argument in action.function.args.items():
-        if argument.type != arg_types.DATAFRAME:
-            continue
-        value = action.action.binding.args.get(argument_id)
-        source_id = None
-        if isinstance(value, str) and value.startswith(selectors.DATASET_PREFIX):
-            reference = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
-                selectors.DATAFRAME_SELECTOR
-            )
-            source_id = action.dataset.id if reference == selectors.CURRENT_ID else reference
-        source = dataset(source_id) if source_id is not None else None
-        result.append(
-            DataframeInput(
-                argument_id,
-                value,
-                source_id,
-                source,
-                (*action.path, "binding", "args", argument_id),
-            )
-        )
-    return tuple(result)
-
-
-def _iter_matching_keys(
-    action: action_rules.ActionDeclaration,
-    value: object,
-    path: errors.SpecPath,
-    dataset: collections.abc.Callable[[str], dataset_rules.DatasetDeclaration | None],
-) -> collections.abc.Iterator[tuple[str, errors.SpecPath]]:
-    """Yield declared dimension keys and their argument paths."""
-    if (
-        isinstance(value, str)
-        and value.startswith(selectors.DATASET_PREFIX)
-        and value.endswith(selectors.DIMENSION_IDS_SELECTOR)
-    ):
-        dataset_id = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
-            selectors.DIMENSION_IDS_SELECTOR
-        )
-        location = (
-            action.dataset_declaration
-            if dataset_id == selectors.CURRENT_ID
-            else dataset(dataset_id)
-        )
-        if location is not None:
-            for dimension_id in location.entity.dimension_ids:
-                yield (dimension_id, path)
-    elif isinstance(value, dict):
-        for name, nested in value.items():
-            yield from _iter_matching_keys(action, nested, (*path, name), dataset)
-    elif isinstance(value, list):
-        for index, nested in enumerate(value):
-            yield from _iter_matching_keys(action, nested, (*path, index), dataset)
-
-
-def validate_dataframe_reference(spec: spec_model.Spec) -> None:
-    """Require a dataframe argument to reference a dataset."""
-    for contract in iter_action_contracts(spec):
-        for item in contract.dataframe_arguments:
-            if not isinstance(item.value, str) or not item.value.startswith(
-                selectors.DATASET_PREFIX
+def validate_dataset_argument_selector(spec: spec_model.Spec) -> None:
+    """Reject identifier and dimension selectors for dataset arguments."""
+    for key, arguments in spec.actions_arguments.items():
+        for name, value, _ in arguments:
+            if isinstance(value, str) and (
+                value.endswith(selectors.ID_SELECTOR)
+                or value.endswith(selectors.DIMENSION_IDS_SELECTOR)
             ):
                 raise errors.SpecError(
-                    f"Dataframe argument {item.argument_id} must reference a dataset",
+                    f"Dataset argument {name} must select dataset data, not an identifier "
+                    "or dimension list",
                     code="invalid_mapping_dataset_input",
-                    path=item.path,
+                    path=(*spec.action_paths[key], "binding", "args", name),
                 )
 
 
-def validate_dataframe_selector(spec: spec_model.Spec) -> None:
-    """Reject a dataset ID selector where a dataframe is required."""
-    for contract in iter_action_contracts(spec):
-        for item in contract.dataframe_arguments:
-            if isinstance(item.value, str) and (
-                item.value.endswith(selectors.ID_SELECTOR)
-                or item.value.endswith(selectors.DIMENSION_IDS_SELECTOR)
-            ):
+def validate_dataset_argument_source(spec: spec_model.Spec) -> None:
+    """Require each dataset argument to resolve to a declared dataset."""
+    for key, arguments in spec.actions_arguments.items():
+        for name, _, source_id in arguments:
+            if source_id not in spec.datasets:
                 raise errors.SpecError(
-                    f"Dataframe argument {item.argument_id} must reference a dataframe",
+                    f"Dataset argument {name} references unknown dataset {source_id}",
                     code="invalid_mapping_dataset_input",
-                    path=item.path,
+                    path=(*spec.action_paths[key], "binding", "args", name),
                 )
 
 
-def validate_dataframe_source(spec: spec_model.Spec) -> None:
-    """Require a dataframe reference to resolve to a dataset."""
-    for contract in iter_action_contracts(spec):
-        for item in contract.dataframe_arguments:
-            if item.source is None:
-                raise errors.SpecError(
-                    f"Dataframe argument {item.argument_id} references unknown dataset "
-                    f"{item.source_id}",
-                    code="invalid_mapping_dataset_input",
-                    path=item.path,
-                )
-
-
-def validate_dataset_count(spec: spec_model.Spec) -> None:
-    """Require actions to consume the foreign dataframe count in their contract."""
-    for item in iter_action_contracts(spec):
-        kind = item.action.kind
-        if kind is None:
+def validate_dataset_argument_count(spec: spec_model.Spec) -> None:
+    """Require actions to consume the foreign dataset count in their kind contract."""
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None:
             continue
-        definition = functions.FUNCTION_KINDS[kind]
-        if definition.dataframe_input_scope != "foreign":
+        definition = functions.FUNCTION_KINDS[function.kind]
+        expected = definition.dataframe_inputs
+        if definition.dataframe_input_scope != "foreign" or expected is None:
             continue
-        expected_count = definition.dataframe_inputs
-        if expected_count is None:
-            continue
-        dataset_ids = {
-            argument.source.dataset.id
-            for argument in item.dataframe_arguments
-            if argument.source is not None
-        }
-        if len(item.dataframe_arguments) != expected_count or len(dataset_ids) != expected_count:
+        if len(spec.actions_arguments[key]) != expected or (
+            len(spec.dataset_argument_ids[key]) != expected
+        ):
             raise errors.SpecError(
-                f"{kind.capitalize()} action must consume exactly "
-                f"{expected_count} foreign dataset(s)",
+                f"{function.kind.capitalize()} action must consume exactly "
+                f"{expected} foreign dataset(s)",
                 code="invalid_mapping_dataset_input",
-                path=(*item.action.path, "binding", "args"),
+                path=(*spec.action_paths[key], "binding", "args"),
             )
 
 
 def validate_matching_keys(spec: spec_model.Spec) -> None:
     """Require explicitly selected matching keys to exist on every participating dataset."""
-    dataset = {item.dataset.id: item for item in dataset_rules.iter_datasets(spec)}.get
-    for item in iter_action_contracts(spec):
-        participants = (
-            item.action.dataset_declaration,
-            *(
-                argument.source
-                for argument in item.dataframe_arguments
-                if argument.source is not None
-            ),
-        )
-        base_path = (*item.action.declaration_path, "binding", "args")
-        for name, value in item.action.action.binding.args.items():
-            for dimension_id, path in _iter_matching_keys(
-                item.action, value, (*base_path, name), dataset
-            ):
-                for participant in participants:
-                    if dimension_id not in participant.dimensions:
-                        raise errors.SpecError(
-                            f"Matching key {dimension_id} is not a dimension of dataset "
-                            f"{participant.dataset.id}",
-                            code="invalid_mapping_matching_key",
-                            path=path,
-                        )
+    for key, matches in spec.matching_key_dimensions.items():
+        participants = (spec.action_dataset_keys[key], *spec.dataset_argument_sources[key])
+        for dimension, path in matches:
+            for participant in participants:
+                if dimension not in spec.dimensions_by_dataset[participant]:
+                    raise errors.SpecError(
+                        f"Matching key {dimension} is not a dimension of dataset {participant[1]}",
+                        code="invalid_mapping_matching_key",
+                        path=path,
+                    )
 
 
 def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
-    """Require dataframe-scoped feature inputs to belong to at most one dataset."""
-    for item in inputs.iter_input_sources(spec):
-        if item.action.kind is None:
-            continue
-        definition = functions.FUNCTION_KINDS[item.action.kind]
-        if definition.feature_input_scope != "dataframe":
-            continue
-        feature_dataset_ids = {
-            owner.dataset.id for _, owners in item.candidates for owner in owners
-        }
-        if len(feature_dataset_ids) > 1:
-            raise errors.SpecError(
-                f"{item.action.kind.capitalize()} action inputs must belong to one source dataset",
-                code="invalid_mapping_dataset_input",
-                path=(*item.action.path, "features", "inputs"),
-            )
-
-
-def validate_foreign_dataframe(spec: spec_model.Spec) -> None:
-    """Reject the target dataset when a kind requires a foreign dataframe."""
-    for item in iter_action_contracts(spec):
-        kind = item.action.kind
-        if kind is None:
-            continue
-        definition = functions.FUNCTION_KINDS[kind]
-        if definition.dataframe_input_scope != "foreign":
-            continue
-        if (
-            definition.dataframe_inputs is None
-            or len(item.dataframe_arguments) != definition.dataframe_inputs
-            or not item.dataframe_arguments
+    """Require dataset-scoped feature inputs to belong to at most one dataset."""
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
+            "dataframe"
         ):
             continue
-        dataframe = item.dataframe_arguments[0]
-        if dataframe.source_id == item.action.dataset.id:
+        dataset_ids = {owner[1] for _, owners in spec.input_candidates[key] for owner in owners}
+        if len(dataset_ids) > 1:
             raise errors.SpecError(
-                f"{kind.capitalize()} action must reference a foreign source dataset",
+                f"{function.kind.capitalize()} action inputs must belong to one source dataset",
                 code="invalid_mapping_dataset_input",
-                path=dataframe.path,
+                path=(*spec.action_paths[key], "features", "inputs"),
             )
 
 
-def validate_dataframe_feature_source(spec: spec_model.Spec) -> None:
-    """Require a dataframe-scoped feature source to match its dataframe binding."""
-    for item in iter_action_contracts(spec):
-        kind = item.action.kind
-        if kind is None:
+def validate_foreign_dataset_argument(spec: spec_model.Spec) -> None:
+    """Reject the target dataset when a kind requires a foreign dataset input."""
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None:
             continue
-        definition = functions.FUNCTION_KINDS[kind]
-        if definition.feature_input_scope != "dataframe":
+        definition = functions.FUNCTION_KINDS[function.kind]
+        if "target_as_foreign_input" in _dataset_input_violations(spec, key, definition):
+            name = spec.actions_arguments[key][0][0]
+            raise errors.SpecError(
+                f"{function.kind.capitalize()} action must reference a foreign source dataset",
+                code="invalid_mapping_dataset_input",
+                path=(*spec.action_paths[key], "binding", "args", name),
+            )
+
+
+def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
+    """Require a feature source to match the action's dataset input."""
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None:
             continue
+        definition = functions.FUNCTION_KINDS[function.kind]
+        arguments = spec.actions_arguments[key]
+        source = spec.input_sources[key]
         if (
-            definition.dataframe_inputs is None
-            or len(item.dataframe_arguments) != definition.dataframe_inputs
-            or not item.dataframe_arguments
+            definition.feature_input_scope != "dataframe"
+            or definition.dataframe_inputs is None
+            or len(arguments) != definition.dataframe_inputs
+            or not arguments
+            or source is None
         ):
             continue
-        if item.source is None:
-            continue
-        dataframe = item.dataframe_arguments[0]
-        if dataframe.source is None:
-            continue
-        expected_source = item.source.dataset.id
-        if dataframe.source.dataset.id != expected_source:
+        name, _, source_id = arguments[0]
+        if source_id in spec.datasets and source_id != source[1]:
             raise errors.SpecError(
-                f"{kind.capitalize()} action must reference its foreign source dataset "
-                f"{expected_source}",
+                f"{function.kind.capitalize()} action must reference its foreign source dataset "
+                f"{source[1]}",
                 code="invalid_mapping_dataset_input",
-                path=dataframe.path,
+                path=(*spec.action_paths[key], "binding", "args", name),
             )
 
 
-def validate_dataframe_features(spec: spec_model.Spec) -> None:
-    """Require dataframe-scoped feature inputs to belong to dataframe inputs."""
-    dimension_ids = frozenset(spec.dimensions)
-    feature_owners = feature_rules.feature_owners(spec)
-    for item in iter_action_contracts(spec):
-        kind = item.action.kind
-        if kind is None:
+def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
+    """Require dataset-scoped feature inputs to belong to the action's dataset inputs."""
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
+            "dataframe"
+        ):
             continue
-        if functions.FUNCTION_KINDS[kind].feature_input_scope != "dataframe":
-            continue
-        dataset_ids = {
-            argument.source.dataset.id
-            for argument in item.dataframe_arguments
-            if argument.source is not None
-        }
-        available_dimensions = frozenset().union(
-            *(
-                argument.source.dimensions
-                for argument in item.dataframe_arguments
-                if argument.source is not None
-            )
-        )
-        unavailable_features = sorted(
+        unavailable = sorted(
             feature
-            for feature in item.action.inputs
+            for feature in action.input_features
             if (
-                feature not in available_dimensions
-                if feature in dimension_ids
+                feature not in spec.dataset_argument_dimensions[key]
+                if feature in spec.dimensions
                 else not any(
-                    owner.dataset.id in dataset_ids for owner in feature_owners.get(feature, ())
+                    owner[1] in spec.dataset_argument_ids[key]
+                    for owner in spec.feature_owners.get(feature, [])
                 )
             )
         )
-        if unavailable_features:
+        if unavailable:
             raise errors.SpecError(
-                f"{kind.capitalize()} action inputs must belong to its dataframe inputs: "
-                + ", ".join(unavailable_features),
+                f"{function.kind.capitalize()} action inputs must belong to its dataset inputs: "
+                + ", ".join(unavailable),
                 code="invalid_mapping_feature_inputs",
-                path=(*item.action.path, "features", "inputs"),
+                path=(*spec.action_paths[key], "features", "inputs"),
             )
 
 
 def validate_feature_input_scope(spec: spec_model.Spec) -> None:
     """Reject feature inputs for kinds that do not accept feature dependencies."""
-    for item in action_rules.iter_actions(spec):
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
         if (
-            item.kind is not None
-            and functions.FUNCTION_KINDS[item.kind].feature_input_scope == "none"
-            and item.inputs
+            function is not None
+            and functions.FUNCTION_KINDS[function.kind].feature_input_scope == ("none")
+            and action.input_features
         ):
             raise errors.SpecError(
-                f"Kind {item.kind} cannot declare feature inputs",
+                f"Kind {function.kind} cannot declare feature inputs",
                 code="invalid_mapping_feature_inputs",
-                path=(*item.path, "features", "inputs"),
+                path=(*spec.action_paths[key], "features", "inputs"),
             )
 
 
-def validate_target_input(spec: spec_model.Spec) -> None:
+def validate_target_dataset_input(spec: spec_model.Spec) -> None:
     """Require target-scoped actions to consume their target dataset."""
-    for item in iter_action_contracts(spec):
-        kind = item.action.kind
-        if kind is None:
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None:
             continue
-        definition = functions.FUNCTION_KINDS[kind]
-        if definition.dataframe_input_scope != "target":
-            continue
-        dataset_ids = {
-            argument.source.dataset.id
-            for argument in item.dataframe_arguments
-            if argument.source is not None
-        }
-        if item.action.dataset.id not in dataset_ids:
+        definition = functions.FUNCTION_KINDS[function.kind]
+        if "missing_target" in _dataset_input_violations(spec, key, definition):
             raise errors.SpecError(
-                f"{kind.capitalize()} action must consume its target dataset",
+                f"{function.kind.capitalize()} action must consume its target dataset",
                 code="invalid_mapping_dataset_input",
-                path=(*item.action.path, "binding", "args"),
+                path=(*spec.action_paths[key], "binding", "args"),
             )
 
 
-def validate_write_dataframe(spec: spec_model.Spec) -> None:
-    """Reject foreign dataframe inputs on target-scoped actions."""
-    for item in iter_action_contracts(spec):
-        kind = item.action.kind
-        if kind is None:
+def validate_target_dataset_only(spec: spec_model.Spec) -> None:
+    """Reject foreign dataset inputs on target-scoped actions."""
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None:
             continue
-        dataset_ids = {
-            argument.source.dataset.id
-            for argument in item.dataframe_arguments
-            if argument.source is not None
-        }
-        if functions.FUNCTION_KINDS[kind].dataframe_input_scope == "target":
-            foreign = sorted(dataset_ids - {item.action.dataset.id})
-            if foreign:
-                raise errors.SpecError(
-                    f"{kind.capitalize()} action cannot publish a foreign dataset dataframe: "
-                    + ", ".join(foreign),
-                    code="invalid_mapping_dataset_input",
-                    path=(*item.action.path, "binding", "args"),
-                )
+        definition = functions.FUNCTION_KINDS[function.kind]
+        if "foreign_target_input" not in _dataset_input_violations(spec, key, definition):
+            continue
+        foreign = sorted(spec.dataset_argument_ids[key] - {spec.action_dataset_keys[key][1]})
+        if foreign:
+            raise errors.SpecError(
+                f"{function.kind.capitalize()} action cannot publish a foreign dataset: "
+                + ", ".join(foreign),
+                code="invalid_mapping_dataset_input",
+                path=(*spec.action_paths[key], "binding", "args"),
+            )
 
 
 def validate_dimension_source(spec: spec_model.Spec) -> None:
     """Require dimension-reducing actions to consume their inferred source."""
-    for item in iter_action_contracts(spec):
-        if item.action.kind is None:
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None:
             continue
-        definition = functions.FUNCTION_KINDS[item.action.kind]
-        if definition.dimension_change != "remove":
-            continue
-        dataset_ids = {
-            argument.source.dataset.id
-            for argument in item.dataframe_arguments
-            if argument.source is not None
-        }
-        if item.source is not None and item.source.dataset.id not in dataset_ids:
+        definition = functions.FUNCTION_KINDS[function.kind]
+        source = spec.input_sources[key]
+        if source is not None and "missing_source" in _dataset_input_violations(
+            spec, key, definition
+        ):
             raise errors.SpecError(
-                f"{item.action.kind.capitalize()} action must consume its source dataset "
-                f"{item.source.dataset.id}",
+                f"{function.kind.capitalize()} action must consume its source dataset {source[1]}",
                 code="invalid_mapping_dataset_input",
-                path=(*item.action.path, "binding", "args"),
+                path=(*spec.action_paths[key], "binding", "args"),
             )
+
+
+def _dataset_input_violations(
+    spec: spec_model.Spec,
+    key: spec_model.ActionKey,
+    definition: functions.FunctionKind,
+) -> tuple[functions.DatasetInputViolation, ...]:
+    source = spec.input_sources[key]
+    return definition.dataset_input_violations(
+        target_dataset_id=spec.action_dataset_keys[key][1],
+        argument_dataset_ids=tuple(source_id for _, _, source_id in spec.actions_arguments[key]),
+        resolved_dataset_ids=spec.dataset_argument_ids[key],
+        inferred_source_id=source[1] if source is not None else None,
+    )
 
 
 def validate_dimension_change(spec: spec_model.Spec) -> None:
-    """Require dataframe sources and targets to follow their declared dimension policy."""
-    for item in iter_action_contracts(spec):
-        if item.action.kind is None:
+    """Require dataset sources and targets to follow their declared dimension policy."""
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None:
             continue
-        dimension_change = functions.FUNCTION_KINDS[item.action.kind].dimension_change
-        if dimension_change == "unrestricted":
+        change = functions.FUNCTION_KINDS[function.kind].dimension_change
+        if change == "unrestricted":
             continue
-        sources = [
-            argument.source for argument in item.dataframe_arguments if argument.source is not None
-        ]
-        for source in sources:
-            source_dimensions = source.dimensions
-            target_dimensions = item.action.dimensions
-            if dimension_change == "preserve":
-                valid = source_dimensions == target_dimensions
-            elif dimension_change == "add":
-                valid = source_dimensions < target_dimensions
-            else:
-                valid = target_dimensions < source_dimensions
+        target = spec.dimensions_by_dataset[spec.action_dataset_keys[key]]
+        for source_key in spec.dataset_argument_sources[key]:
+            source = spec.dimensions_by_dataset[source_key]
+            valid = (
+                source == target
+                if change == "preserve"
+                else (source < target if change == "add" else target < source)
+            )
             if valid:
                 continue
-            if dimension_change == "preserve":
+            if change == "preserve":
                 message = (
-                    f"{item.action.kind.capitalize()} action inputs must preserve target "
-                    "dimensionality"
+                    f"{function.kind.capitalize()} action inputs must preserve "
+                    "target dimensionality"
                 )
-                path = (*item.action.path, "binding", "args")
-            elif dimension_change == "remove":
+                path = (*spec.action_paths[key], "binding", "args")
+            elif change == "remove":
                 message = (
-                    f"{item.action.kind.capitalize()} action source must have strictly higher "
+                    f"{function.kind.capitalize()} action source must have strictly higher "
                     "dimensionality than its target"
                 )
-                path = (*item.action.path, "features", "inputs")
+                path = (*spec.action_paths[key], "features", "inputs")
             else:
-                raise errors.SpecError(
-                    EXPAND_INPUT_ERROR,
-                    code="invalid_mapping_dimensions",
-                    path=(*item.action.path, "binding", "args"),
-                )
-            raise errors.SpecError(
-                message,
-                code="invalid_mapping_dimensions",
-                path=path,
-            )
+                message = EXPAND_INPUT_ERROR
+                path = (*spec.action_paths[key], "binding", "args")
+            raise errors.SpecError(message, code="invalid_mapping_dimensions", path=path)
 
 
 def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
     """Require dimensional expansion to use a feature from a lower-dimensional source."""
-    feature_owners = feature_rules.feature_owners(spec)
-    for item in iter_action_contracts(spec):
-        if item.action.kind is None:
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None or functions.FUNCTION_KINDS[function.kind].dimension_change != "add":
             continue
-        if functions.FUNCTION_KINDS[item.action.kind].dimension_change != "add":
-            continue
-        lower_dataset_ids = {
-            argument.source.dataset.id
-            for argument in item.dataframe_arguments
-            if argument.source is not None and argument.source.dimensions < item.action.dimensions
+        lower = {
+            source[1]
+            for source in spec.dataset_argument_sources[key]
+            if (
+                spec.dimensions_by_dataset[source]
+                < spec.dimensions_by_dataset[spec.action_dataset_keys[key]]
+            )
         }
-        has_lower_feature = any(
-            owner.dataset.id in lower_dataset_ids
-            for feature in item.action.inputs
-            for owner in feature_owners.get(feature, ())
-        )
-        if not lower_dataset_ids or not has_lower_feature:
+        if not any(
+            owner[1] in lower
+            for feature in action.input_features
+            for owner in spec.feature_owners.get(feature, [])
+        ):
             raise errors.SpecError(
                 EXPAND_INPUT_ERROR,
-                code="invalid_mapping_dimensions",
-                path=(*item.action.path, "binding", "args"),
+                code="invalid_mapping_feature_inputs",
+                path=(*spec.action_paths[key], "features", "inputs"),
             )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
 import typing
 
 from uptimely import row_context as uptimely_row_context
@@ -93,13 +94,100 @@ class ExecutionPlan:
     @property
     def invocations_by_id(self) -> dict[str, Invocation]:
         """Return the plan's invocation index keyed by opaque identifiers."""
-        return {invocation.id: invocation for invocation in self.invocations}
+        return self._indexes.invocations_by_id
 
-    @property
+    @functools.cached_property
     def execution_stages(self) -> list[list[Invocation]]:
         """Return staged invocations resolved from stage identifiers."""
         by_id = self.invocations_by_id
         return [[by_id[invocation_id] for invocation_id in stage] for stage in self.stages]
+
+    @functools.cached_property
+    def execution_invocations(self) -> list[Invocation]:
+        """Return invocations in stage order, retaining the order within each stage."""
+        return [invocation for stage in self.execution_stages for invocation in stage]
+
+    @functools.cached_property
+    def _indexes(self) -> _PlanResourceIndex:
+        indexes = _PlanResourceIndex()
+        for invocation in self.invocations:
+            indexes.invocations_by_id[invocation.id] = invocation
+            indexes.function_ids.add(invocation.function_id)
+            indexes.entity_ids.add(invocation.entity_id)
+            indexes.datasets[invocation.dataset_id] = invocation.entity_id
+            indexes.arguments[invocation.id] = invocation.arguments
+            indexes.entrypoints.setdefault(invocation.entrypoint, None)
+            indexes.invocations_by_kind.setdefault(invocation.function_kind, []).append(invocation)
+            for feature in invocation.output_features:
+                indexes.features.setdefault(feature, []).append(invocation)
+        return indexes
+
+    @property
+    def function_ids(self) -> set[str]:
+        """Return the distinct functions used by this plan."""
+        return self._indexes.function_ids
+
+    @property
+    def entity_ids(self) -> set[str]:
+        """Return the distinct entities used by this plan."""
+        return self._indexes.entity_ids
+
+    @property
+    def datasets(self) -> dict[str | None, str]:
+        """Return invoked dataset IDs mapped to their entity IDs."""
+        return self._indexes.datasets
+
+    @property
+    def arguments(self) -> dict[str, dict[str, typing.Any]]:
+        """Return bound arguments keyed by invocation ID."""
+        return self._indexes.arguments
+
+    @property
+    def features(self) -> dict[str, list[Invocation]]:
+        """Return output feature IDs mapped to all their producing invocations."""
+        return self._indexes.features
+
+    @functools.cached_property
+    def calculated_features(self) -> set[str]:
+        """Return distinct feature IDs produced by transformer invocations."""
+        return {
+            feature
+            for kind, invocations in self.invocations_by_kind.items()
+            if functions.FUNCTION_KINDS[kind].is_transformer
+            for invocation in invocations
+            for feature in invocation.output_features
+        }
+
+    @property
+    def entrypoints(self) -> dict[str, None]:
+        """Return distinct entrypoints in invocation declaration order."""
+        return self._indexes.entrypoints
+
+    @property
+    def invocations_by_kind(self) -> dict[functions.FunctionKindId, list[Invocation]]:
+        """Return invocations grouped by function kind in declaration order."""
+        return self._indexes.invocations_by_kind
+
+    @functools.cached_property
+    def count_per_kind(self) -> dict[functions.FunctionKindId, int]:
+        """Return invocation counts keyed by function kind, sorted by kind."""
+        return {
+            kind: len(invocations) for kind, invocations in sorted(self.invocations_by_kind.items())
+        }
+
+
+@dataclasses.dataclass
+class _PlanResourceIndex:
+    invocations_by_id: dict[str, Invocation] = dataclasses.field(default_factory=dict)
+    function_ids: set[str] = dataclasses.field(default_factory=set)
+    entity_ids: set[str] = dataclasses.field(default_factory=set)
+    datasets: dict[str | None, str] = dataclasses.field(default_factory=dict)
+    arguments: dict[str, dict[str, typing.Any]] = dataclasses.field(default_factory=dict)
+    features: dict[str, list[Invocation]] = dataclasses.field(default_factory=dict)
+    entrypoints: dict[str, None] = dataclasses.field(default_factory=dict)
+    invocations_by_kind: dict[functions.FunctionKindId, list[Invocation]] = dataclasses.field(
+        default_factory=dict
+    )
 
 
 def _validate_plan_version(version: object) -> None:

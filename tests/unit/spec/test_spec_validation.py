@@ -6,20 +6,12 @@ from support import examples as example_support
 
 from uptimely import spec
 from uptimely.spec import model as spec_model
-from uptimely.spec import references
 from uptimely.spec.python import actions, conversion, dataset, feature, ref
 from uptimely.spec.validation import errors as validation_errors
-from uptimely.spec.validation.rules import actions as action_rules
-from uptimely.spec.validation.rules import datasets as dataset_rules
-from uptimely.spec.validation.rules import features as feature_rules
 from uptimely.spec.validation.rules.actions import contracts as action_contracts
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
-
-
-def _action_contracts(spec_definition: spec.Spec) -> tuple[action_contracts.ActionContract, ...]:
-    return tuple(action_contracts.iter_action_contracts(spec_definition))
 
 
 def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str) -> pathlib.Path:
@@ -74,34 +66,27 @@ def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -
     action.binding.function = "missing"
     model.entities["duplicate"] = entity.model_copy(update={"id": "duplicate"}, deep=True)
 
-    locations = list(action_rules.iter_actions(model))
-    declarations = list(references.iter_action_items(model))
-    actual = [
-        (item.dataset_declaration.entity_id, item.dataset, item.action_id, item.action)
-        for item in locations
-    ]
-    assert actual == declarations
-    aliases = [item for item in locations if item.action_id == "alias"]
+    locations = model.action_items
+    aliases = [(key, item) for key, item in locations if key[2] == "alias"]
     assert len(aliases) == 2
-    assert aliases[0].action is action
-    assert aliases[0].key == (entity_id, dataset.id, "alias")
-    assert aliases[0].path[-1] == action.id
-    assert aliases[0].action_id != action.id
-    same_dataset_locations = [item for item in locations if item.dataset is dataset]
-    assert len(same_dataset_locations) > 1
-    assert all(
-        item.dataset_declaration is same_dataset_locations[0].dataset_declaration
-        for item in same_dataset_locations
-    )
-    assert list(references.iter_actions(model)) == [
-        (item.dataset_declaration.entity_id, item.dataset, item.action) for item in locations
+    assert aliases[0][1] is action
+    assert aliases[0][0] == (entity_id, dataset.id, "alias")
+    assert model.action_paths[aliases[0][0]][-1] == action.id
+    assert aliases[0][0][2] != action.id
+    same_dataset_locations = [
+        key for key, _ in locations if model.datasets_by_key[key[:2]] is dataset
     ]
+    assert len(same_dataset_locations) > 1
+    assert all(model.datasets_by_key[key[:2]] is dataset for key in same_dataset_locations)
+    assert all(model.action_datasets[key] is model.datasets_by_key[key[:2]] for key, _ in locations)
 
-    facts = [item for item in action_rules.iter_actions(model) if item.dataset is dataset]
+    facts = same_dataset_locations
     dimensions = frozenset(entity.dimension_ids)
     assert facts
-    assert all(item.dimensions == dimensions for item in facts)
-    assert all(item.local_features == frozenset(dataset.features) | dimensions for item in facts)
+    assert all(model.dimensions_by_dataset[key[:2]] == dimensions for key in facts)
+    assert all(
+        model.local_features[key[:2]] == frozenset(dataset.features) | dimensions for key in facts
+    )
 
 
 def test_traversal_retains_duplicate_declarations_and_feature_owners() -> None:
@@ -109,33 +94,32 @@ def test_traversal_retains_duplicate_declarations_and_feature_owners() -> None:
     pump_dataset = model.entities["pump"].datasets["pump_dataset"]
     model.entities["pump_telemetry"].datasets[pump_dataset.id] = pump_dataset.model_copy(deep=True)
 
-    locations = tuple(dataset_rules.iter_datasets(model))
-    assert sum(item.dataset.id == pump_dataset.id for item in locations) == 2
+    locations = model.dataset_items
+    assert sum(item.id == pump_dataset.id for _, item in locations) == 2
     feature_id = next(
         feature_id for feature_id in pump_dataset.features if feature_id not in model.dimensions
     )
-    assert len(feature_rules.feature_owners(model)[feature_id]) == 2
+    assert len(model.feature_owners[feature_id]) == 2
 
 
-def test_location_properties_read_current_declarations() -> None:
+def test_location_indexes_describe_original_objects() -> None:
     model = spec_model.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
-    item = next(action_rules.iter_actions(model))
-    item.dataset_declaration.entity.dimensions.append(
+    entity_id = next(iter(model.entities))
+    model.entities[entity_id].dimensions.append(
         spec_model.Dimension(id="new_dimension", type="integer")
     )
-    item.action.features.inputs = ["$features.new_input"]
-    item.action.features.outputs = ["$features.new_output"]
-    item.action.binding.args = {"nested": ["$features.selected", "$dimensions.new_dimension"]}
-
-    assert "new_dimension" in item.dimensions
-    assert "new_dimension" in item.local_features
-    assert item.inputs == ("new_input",)
-    assert item.outputs == ("new_output",)
-    assert item.feature_selectors == ("selected",)
-    assert item.dimension_references == ("new_dimension",)
-    assert item.dimension_reference_paths == (
-        ("new_dimension", (*item.declaration_path, "binding", "args", "nested", 1)),
-    )
+    item = next(iter(next(iter(model.entities[entity_id].datasets.values())).actions.values()))
+    item.features.inputs = ["$features.new_input"]
+    item.features.outputs = ["$features.new_output"]
+    item.binding.args = {"nested": ["$features.selected", "$dimensions.new_dimension"]}
+    key, indexed = model.action_items[0]
+    assert indexed is item
+    assert "new_dimension" in model.dimensions_by_dataset[key[:2]]
+    assert "new_dimension" in model.local_features[key[:2]]
+    assert item.input_features == ["new_input"]
+    assert item.output_features == ["new_output"]
+    assert item.binding.references_by_prefix["$features."] == (("selected", ("nested", 0)),)
+    assert item.binding.references_by_prefix["$dimensions."] == (("new_dimension", ("nested", 1)),)
 
 
 def test_mapping_validation(tmp_path: pathlib.Path) -> None:
@@ -259,11 +243,9 @@ def test_escape_mappings_preserve_logical_inputs_and_outputs(
     assert actions["escape_second"].input_features == []
     assert actions["escape_second"].output_features == ["external_followup"]
     health_signal_producer = next(
-        item
-        for item in action_rules.iter_actions(parsed_spec)
-        if "health_signal_normalized" in item.outputs
+        item for item in parsed_spec.actions if "health_signal_normalized" in item.output_features
     )
-    assert health_signal_producer.kind == "vectorize"
+    assert parsed_spec.functions[health_signal_producer.binding.function].kind == "vectorize"
 
 
 @pytest.mark.parametrize(
@@ -467,13 +449,18 @@ def test_matching_key_selectors_validate_on_target_and_source(
 
 def test_grouping_dimension_references_are_not_matching_key_declarations() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    contract = next(
-        item
-        for item in _action_contracts(spec_definition)
-        if item.action.action_id == "bearing_temperature_by_pump"
+    key, action = next(
+        (key, action)
+        for key, action in spec_definition.action_items
+        if key[2] == "bearing_temperature_by_pump"
     )
 
-    assert contract.action.dimension_references == ("plant", "production_line", "pump")
+    assert [dimension for dimension, _ in action.binding.references_by_prefix["$dimensions."]] == [
+        "plant",
+        "production_line",
+        "pump",
+    ]
+    assert spec_definition.matching_key_dimensions[key] == ()
     assert action_contracts.validate_matching_keys(spec_definition) is None
 
 

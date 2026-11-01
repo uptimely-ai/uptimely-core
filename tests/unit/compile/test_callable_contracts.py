@@ -1,12 +1,13 @@
 """Compiler checks for callable compatibility with declared function contracts."""
 
 import functools
+import graphlib
 import inspect
 
 import pytest
 
 from uptimely import entrypoint
-from uptimely.compiler import inspection
+from uptimely.compiler import validation
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
@@ -90,6 +91,45 @@ def _signature(name: str) -> entrypoint.Signature:
     return function.signature
 
 
+def test_callable_validation_dependencies_are_acyclic() -> None:
+    dependencies = validation.VALIDATION_DEPENDENCIES
+    ordered = tuple(graphlib.TopologicalSorter(dependencies).static_order())
+
+    assert ordered == tuple(dependencies)
+    assert all(
+        prerequisite in dependencies
+        for prerequisites in dependencies.values()
+        for prerequisite in prerequisites
+    )
+
+
+def test_callable_validation_stops_after_a_failed_prerequisite(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    context = validation.CallableValidationContext(
+        _function_template(), _signature("typed_dataframe")
+    )
+
+    def failing_validator(context: validation.CallableValidationContext) -> None:
+        calls.append("failing")
+        raise ValueError("invalid callable signature")
+
+    def dependent_validator(context: validation.CallableValidationContext) -> None:
+        calls.append("dependent")
+
+    monkeypatch.setattr(
+        validation,
+        "VALIDATION_DEPENDENCIES",
+        {failing_validator: (), dependent_validator: (failing_validator,)},
+    )
+
+    with pytest.raises(ValueError, match="invalid callable signature"):
+        validation.validation_callable_signature(context)
+
+    assert calls == ["failing"]
+
+
 def test_signature_inspection_follows_wrapped_callable() -> None:
     signature = _signature("wrapped_dataframe")
 
@@ -97,18 +137,35 @@ def test_signature_inspection_follows_wrapped_callable() -> None:
     assert signature.args["frame"] == "DataFrame | LazyFrame"
 
 
+def test_signature_properties_follow_current_parameters() -> None:
+    signature = _signature("requires_extra_parameter")
+    assert list(signature.required_parameters) == ["frame", "required"]
+    assert not signature.accepts_kwargs
+    signature.parameters = _signature("accepts_kwargs").parameters
+    assert signature.accepts_kwargs
+    assert signature.required_parameters == {}
+    signature.parameters = _signature("defaulted_extra_parameter").parameters
+    assert list(signature.required_parameters) == ["frame"]
+
+
 def test_typed_and_untyped_callables_satisfy_supported_contracts() -> None:
     function = _function_template()
 
-    inspection.validate_callable_signature(function, _signature("typed_dataframe"))
-    inspection.validate_callable_signature(function, _signature("untyped_dataframe"))
+    validation.validation_callable_signature(
+        validation.CallableValidationContext(function, _signature("typed_dataframe"))
+    )
+    validation.validation_callable_signature(
+        validation.CallableValidationContext(function, _signature("untyped_dataframe"))
+    )
 
 
 def test_callable_must_accept_declared_arguments_as_keywords() -> None:
     function = _function_template()
 
     with pytest.raises(errors.SpecError, match="positional-only") as error:
-        inspection.validate_callable_signature(function, _signature("positional_only_dataframe"))
+        validation.validation_callable_signature(
+            validation.CallableValidationContext(function, _signature("positional_only_dataframe"))
+        )
 
     assert error.value.code == "invalid_implementation_signature"
     assert error.value.path == ("functions", "calculate", "args", "frame")
@@ -116,15 +173,21 @@ def test_callable_must_accept_declared_arguments_as_keywords() -> None:
 
 def test_callable_cannot_require_undeclared_parameters() -> None:
     with pytest.raises(errors.SpecError, match="requires undeclared parameter 'required'"):
-        inspection.validate_callable_signature(
-            _function_template(), _signature("requires_extra_parameter")
+        validation.validation_callable_signature(
+            validation.CallableValidationContext(
+                _function_template(), _signature("requires_extra_parameter")
+            )
         )
 
 
 def test_declared_arguments_are_forwarded_to_kwargs_and_defaults_are_allowed() -> None:
-    inspection.validate_callable_signature(_function_template(), _signature("accepts_kwargs"))
-    inspection.validate_callable_signature(
-        _function_template(), _signature("defaulted_extra_parameter")
+    validation.validation_callable_signature(
+        validation.CallableValidationContext(_function_template(), _signature("accepts_kwargs"))
+    )
+    validation.validation_callable_signature(
+        validation.CallableValidationContext(
+            _function_template(), _signature("defaulted_extra_parameter")
+        )
     )
 
 
@@ -137,21 +200,29 @@ def test_nested_declared_argument_types_are_compared_recursively() -> None:
     )
     signature = _signature("nested_arguments")
 
-    inspection.validate_callable_signature(function, signature)
+    validation.validation_callable_signature(
+        validation.CallableValidationContext(function, signature)
+    )
 
 
 def test_supported_argument_annotation_must_match_declared_type() -> None:
     with pytest.raises(errors.SpecError, match="declares argument type dataframe"):
-        inspection.validate_callable_signature(
-            _function_template(), _signature("wrong_argument_annotation")
+        validation.validation_callable_signature(
+            validation.CallableValidationContext(
+                _function_template(), _signature("wrong_argument_annotation")
+            )
         )
 
 
 def test_missing_return_annotation_is_permitted_but_none_contradicts_dataframe() -> None:
-    inspection.validate_callable_signature(_function_template(), _signature("untyped_dataframe"))
+    validation.validation_callable_signature(
+        validation.CallableValidationContext(_function_template(), _signature("untyped_dataframe"))
+    )
     with pytest.raises(errors.SpecError, match="expected DataFrame or LazyFrame") as error:
-        inspection.validate_callable_signature(
-            _function_template(), _signature("wrong_return_annotation")
+        validation.validation_callable_signature(
+            validation.CallableValidationContext(
+                _function_template(), _signature("wrong_return_annotation")
+            )
         )
 
     assert error.value.path == ("functions", "calculate", "returns")

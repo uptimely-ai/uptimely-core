@@ -6,7 +6,7 @@ import pytest
 from support import examples as example_support
 
 from uptimely import spec
-from uptimely.spec import binding_resolution, references, validation
+from uptimely.spec import model, validation
 from uptimely.spec.feature_graph import models
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -137,7 +137,8 @@ def test_feature_references_are_explicit_and_recursive() -> None:
         "nested": {"columns": ["$features.flow_rate", "$features.bearing_temperature"]},
     }
 
-    assert binding_resolution.resolve_binding_args(args, "telemetry") == {
+    binding = model.Binding(function="read", args=args)
+    assert binding.resolve_args("telemetry") == {
         "feature": "bearing_temperature",
         "literal": "bearing_temperature_max",
         "nested": {"columns": ["flow_rate", "bearing_temperature"]},
@@ -147,9 +148,8 @@ def test_feature_references_are_explicit_and_recursive() -> None:
 def test_feature_placeholder_resolves_to_bound_feature_id() -> None:
     args = {"output": "$features.@"}
 
-    assert binding_resolution.resolve_binding_args(args, "dataset", "calculated_feature") == {
-        "output": "calculated_feature"
-    }
+    binding = model.Binding(function="calculate", args=args)
+    assert binding.resolve_args("dataset", "calculated_feature") == {"output": "calculated_feature"}
 
 
 def test_structural_references_compile_to_identifiers() -> None:
@@ -159,7 +159,8 @@ def test_structural_references_compile_to_identifiers() -> None:
         "dimension": "$dimensions.pump",
     }
 
-    assert binding_resolution.resolve_binding_args(args, "pump_telemetry_dataset") == {
+    binding = model.Binding(function="read", args=args)
+    assert binding.resolve_args("pump_telemetry_dataset") == {
         "current": "pump_telemetry_dataset",
         "specific": "pump_units",
         "dimension": "pump",
@@ -178,7 +179,8 @@ def test_nested_selectors_resolve_without_changing_literal_values() -> None:
         ]
     }
 
-    assert binding_resolution.resolve_binding_args(args, "telemetry", "calculated") == {
+    binding = model.Binding(function="calculate", args=args)
+    assert binding.resolve_args("telemetry", "calculated") == {
         "nested": [
             "telemetry",
             {"dataset": "other", "feature": "calculated"},
@@ -188,20 +190,24 @@ def test_nested_selectors_resolve_without_changing_literal_values() -> None:
             None,
         ]
     }
-    assert binding_resolution.dataset_dependencies(args, "telemetry") == ["telemetry"]
-    assert binding_resolution.resolve_binding_args({"feature": "$features.@.id"}, "telemetry") == {
-        "feature": "$features.@.id"
-    }
+    assert binding.dataset_dependencies("telemetry") == ["telemetry"]
+    assert model.Binding(function="read", args={"feature": "$features.@.id"}).resolve_args(
+        "telemetry"
+    ) == {"feature": "$features.@.id"}
 
 
-def test_resolve_binding_args_defaults_none_to_empty_dictionary() -> None:
-    assert binding_resolution.resolve_binding_args(None, "telemetry") == {}
+def test_nested_model_binding_values_are_dumped_and_resolved() -> None:
+    class NestedArgument(pydantic.BaseModel):
+        feature: str
+
+    binding = model.Binding(function="calculate")
+    binding.args["nested"] = NestedArgument(feature="$features.flow_rate")
+
+    assert binding.resolve_args("telemetry") == {"nested": {"feature": "flow_rate"}}
 
 
-@pytest.mark.parametrize("args", [[], "", 0, False, ()])
-def test_resolve_binding_args_rejects_non_dictionary_arguments(args: object) -> None:
-    with pytest.raises(TypeError, match="Binding arguments must be a dictionary or None"):
-        binding_resolution.resolve_binding_args(args, "telemetry")  # type: ignore[arg-type]
+def test_resolve_args_defaults_to_empty_dictionary() -> None:
+    assert model.Binding(function="read").resolve_args("telemetry") == {}
 
 
 def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> None:
@@ -212,21 +218,21 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
     }
     dimension_ids = {"telemetry": ["pump", "timestamp"], "source": ["pump"]}
 
-    assert references.structural_references(args, "$datasets.") == [
+    binding = model.Binding(function="read", args=args)
+    assert [identifier for identifier, _ in binding.references_by_prefix["$datasets."]] == [
         "@",
         "source",
         "source",
     ]
-    assert binding_resolution.resolve_binding_args(
-        args,
-        "telemetry",
-        dimension_ids_by_dataset=dimension_ids,
-    ) == {
+    assert binding.resolve_args("telemetry", dimension_ids_by_dataset=dimension_ids) == {
         "host_keys": ["pump", "timestamp"],
         "source_keys": ["pump"],
         "source": "source",
     }
-    assert binding_resolution.dataset_dependencies(args, "telemetry") == ["source"]
+    assert binding.dataset_dependencies("telemetry") == ["source"]
+    assert binding.dataset_input_references == ("source",)
+    assert binding.dataset_input_references is binding.dataset_input_references
+    assert binding.dataset_dependencies("telemetry") == ["source"]
 
 
 def test_system_and_subset_support_multiple_variables() -> None:

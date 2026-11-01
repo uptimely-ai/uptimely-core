@@ -18,6 +18,32 @@ SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spe
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 
+def test_compiler_entrypoints_deduplicate_locations_without_importing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    original = shared_entrypoint.Entrypoint
+
+    def parse(location: str) -> shared_entrypoint.Entrypoint:
+        calls.append(location)
+        return original(location)
+
+    monkeypatch.setattr(shared_entrypoint, "Entrypoint", parse)
+    locations = ["missing_module:first", "missing_module:second", "missing_module:first"]
+    builder = compiler.Compiler()
+    builder.__dict__["invocations"] = [
+        types.SimpleNamespace(entrypoint=location) for location in locations
+    ]
+    parsed = builder.entrypoints
+    assert list(parsed) == locations[:2]
+    assert calls == locations[:2]
+    assert builder.entrypoints is parsed
+    assert calls == locations[:2]
+    empty_builder = compiler.Compiler()
+    empty_builder.__dict__["invocations"] = []
+    assert empty_builder.entrypoints == {}
+
+
 @pytest.fixture(autouse=True)
 def isolate_package_index() -> abc.Iterator[None]:
     """Keep mocked distribution indexes separate from real environment metadata."""
@@ -47,7 +73,7 @@ def test_compiler_reports_unreadable_function_signatures() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     spec_definition.functions["ratio"].entrypoint = "invalid-entrypoint"
 
-    with pytest.raises(ValueError, match="Invalid entrypoint for function ratio"):
+    with pytest.raises(ValueError, match="Invalid entrypoint 'invalid-entrypoint'"):
         compiler.Compiler().compile(spec_definition)
 
 
@@ -128,6 +154,7 @@ def test_compiler_still_validates_spec_when_signature_validation_is_disabled() -
         .actions["pressure_flow_efficiency"]
     )
     action.features.inputs = ["$features.missing_input"]
+    spec_definition = spec.Spec.model_validate(spec_definition.model_dump())
 
     with pytest.raises(ValueError, match="unknown input feature"):
         compiler.Compiler().compile(spec_definition)
@@ -227,7 +254,7 @@ def test_compiler_checks_entrypoint_syntax_when_signature_validation_is_disabled
 
     with pytest.raises(
         ValueError,
-        match="Invalid entrypoint for function ratio",
+        match="Invalid entrypoint 'invalid-entrypoint'",
     ):
         compiler.Compiler().compile(spec_definition)
 
@@ -380,6 +407,26 @@ def test_package_provenance_exposes_package_without_distribution(
     assert provenance.version is None
     assert provenance.top_level_package == "fixture_package"
     assert provenance.distribution_candidates == ()
+
+
+@pytest.mark.parametrize(
+    ("distribution", "version"),
+    [("fixture-distribution", "1.2.3"), ("fixture-distribution", None), (None, None)],
+)
+def test_package_provenance_serializes_only_portable_metadata(
+    distribution: str | None, version: str | None
+) -> None:
+    provenance = shared_entrypoint.PackageProvenance(
+        distribution=distribution,
+        version=version,
+        top_level_package="fixture_package",
+        distribution_candidates=("fixture-distribution",),
+    )
+
+    payload = provenance.to_dict()
+
+    assert payload == {"distribution": distribution, "version": version}
+    assert shared_entrypoint.PackageProvenance(**payload) == provenance
 
 
 def test_package_provenance_rejects_ambiguous_namespaces(

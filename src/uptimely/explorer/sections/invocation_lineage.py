@@ -35,8 +35,11 @@ def invocation_lineage_payload(
     for invocation in sorted(plan.invocations, key=lambda item: item.id):
         function = spec_definition.functions[invocation.function_id]
         kind = functions.FUNCTION_KINDS[invocation.function_kind]
-        entity = spec_definition.entities[invocation.entity_id]
-        dataset = entity.datasets.get(invocation.dataset_id) if invocation.dataset_id else None
+        dataset = (
+            spec_definition.datasets_by_key.get((invocation.entity_id, invocation.dataset_id))
+            if invocation.dataset_id
+            else None
+        )
         function_name = function.name or invocation.function_id
         dataset_name = dataset.name or dataset.id if dataset is not None else invocation.dataset_id
         nodes.append(

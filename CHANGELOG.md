@@ -10,6 +10,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Spec documents and execution plans now expose reusable resource indexes for
+  datasets, features, actions or invocations, and arguments.
+  Nested spec models also provide cached child, reference, and source views,
+  reused by validation rules without additional declaration wrappers. Views
+  use cached properties; construct a new model after editing indexed declarations.
 - Function references now capture the implementation's docstring summary line
   as the function catalog `description`, with an explicit
   `ref.function(..., description=...)` override. The description is preserved

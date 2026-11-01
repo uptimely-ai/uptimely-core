@@ -8,20 +8,8 @@ import graphlib
 
 from uptimely import execution_plan
 from uptimely.engine.dataframe import backend as backend_module
-from uptimely.engine.runtime import state as state_module
-from uptimely.spec import arg_types, functions
+from uptimely.spec import functions
 from uptimely.spec import model as spec_model
-
-
-@dataclasses.dataclass
-class InputValidationContext:
-    """Runtime resources needed to validate one invocation's input features."""
-
-    backend: backend_module.DataFrameBackend
-    spec_definition: spec_model.Spec
-    state: state_module.RuntimeState
-    invocation: execution_plan.Invocation
-    function: spec_model.FunctionTemplate | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -40,50 +28,39 @@ class FrameValidationContext:
     declared_type_columns: list[str] | None = None
     comparison_frame: object | None = None
 
+    @property
+    def columns(self) -> set[str]:
+        """Return the current frame's column names."""
+        return set(self.backend.column_names(self.frame))
 
-type DataFrameValidationContext = InputValidationContext | FrameValidationContext
+    @property
+    def effective_output_features(self) -> list[str]:
+        """Return explicitly overridden outputs, or the invocation's declared outputs."""
+        return (
+            self.output_features
+            if self.output_features is not None
+            else _require_invocation(self).output_features
+        )
+
+
+type DataFrameValidationContext = FrameValidationContext
 type Validator = collections.abc.Callable[[DataFrameValidationContext], None]
 
 
-def validate_input_function(context: DataFrameValidationContext) -> None:
-    """Resolve the function definition used by runtime input validation."""
-    input_context = _require_input_context(context)
-    function = input_context.spec_definition.functions.get(input_context.invocation.function_id)
-    if function is None:
-        raise ValueError(f"Unknown function: {input_context.invocation.function_id}")
-    input_context.function = function
-
-
-def validate_input_features(context: DataFrameValidationContext) -> None:
-    """Require declared input features to be available in their allowed scope."""
-    input_context = _require_input_context(context)
-    function = _require_function(input_context)
-    definition = functions.FUNCTION_KINDS[function.kind]
-    if definition.dataframe_input_scope == "foreign":
-        _validate_foreign_inputs(input_context, function)
-        return
-
-    invocation = input_context.invocation
-    dataframe = input_context.state.datasets.get(invocation.dataset_id)
-    dataframe_columns = (
-        set(input_context.backend.column_names(dataframe)) if dataframe is not None else set()
-    )
-    required = set(invocation.input_features) - dataframe_columns
-    if not required:
-        return
-    available = [
-        set(input_context.backend.column_names(candidate_dataframe))
-        for dataset_id, candidate_dataframe in input_context.state.datasets.items()
-        if dataset_id != invocation.dataset_id
-    ]
-    for feature in invocation.input_features:
-        if feature not in required:
-            continue
-        if sum(feature in columns for columns in available) != 1:
-            raise ValueError(
-                f"Action {invocation.mapping_id} input feature is unavailable or ambiguous: "
-                f"{feature}"
-            )
+def validate_feature_collisions(
+    backend: backend_module.DataFrameBackend,
+    dataframe: object,
+    fragment: object,
+    dimensions: list[str],
+) -> None:
+    """Reject output feature names already present in the accumulated dataset."""
+    dataframe_columns = set(backend.column_names(dataframe))
+    fragment_columns = set(backend.column_names(fragment))
+    collisions = sorted((fragment_columns - set(dimensions)) & dataframe_columns)
+    if collisions:
+        raise ValueError(
+            "Fragment feature columns overlap the accumulated dataset: " + ", ".join(collisions)
+        )
 
 
 def validate_frame_type(context: DataFrameValidationContext) -> None:
@@ -99,8 +76,7 @@ def validate_frame_type(context: DataFrameValidationContext) -> None:
 def validate_dimension_columns(context: DataFrameValidationContext) -> None:
     """Require all dimension keys in a dataframe schema."""
     frame_context = _require_frame_context(context)
-    columns = set(frame_context.backend.column_names(frame_context.frame))
-    missing = sorted(set(frame_context.dimensions) - columns)
+    missing = sorted(set(frame_context.dimensions) - frame_context.columns)
     if missing:
         raise ValueError(
             f"{frame_context.description} is missing dimension columns: " + ", ".join(missing)
@@ -160,13 +136,7 @@ def validate_output_columns(context: DataFrameValidationContext) -> None:
     """Require every declared action output in the returned fragment."""
     frame_context = _require_frame_context(context)
     invocation = _require_invocation(frame_context)
-    output_features = (
-        frame_context.output_features
-        if frame_context.output_features is not None
-        else invocation.output_features
-    )
-    columns = set(frame_context.backend.column_names(frame_context.frame))
-    missing = sorted(set(output_features) - columns)
+    missing = sorted(set(frame_context.effective_output_features) - frame_context.columns)
     if missing:
         raise ValueError(
             f"Action {invocation.mapping_id} is missing output columns: " + ", ".join(missing)
@@ -177,12 +147,11 @@ def validate_fragment_declared_types(context: DataFrameValidationContext) -> Non
     """Check declared logical types for a returned fragment's keys and outputs."""
     frame_context = _require_frame_context(context)
     dataset = _require_dataset(frame_context)
-    output_features = (
-        frame_context.output_features
-        if frame_context.output_features is not None
-        else _require_invocation(frame_context).output_features
+    _validate_declared_types(
+        frame_context,
+        dataset,
+        [*frame_context.dimensions, *frame_context.effective_output_features],
     )
-    _validate_declared_types(frame_context, dataset, [*frame_context.dimensions, *output_features])
 
 
 def validate_dataset_declared_types(context: DataFrameValidationContext) -> None:
@@ -220,8 +189,6 @@ def validate_key_coverage(context: DataFrameValidationContext) -> None:
 
 
 DATAFRAME_VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
-    validate_input_function: (),
-    validate_input_features: (validate_input_function,),
     validate_frame_type: (),
     validate_dimension_columns: (validate_frame_type,),
     validate_row_count: (validate_dimension_columns,),
@@ -274,33 +241,47 @@ def validate_dataframes(
         validator(context)
 
 
-def _validate_foreign_inputs(
-    context: InputValidationContext, function: spec_model.FunctionTemplate
+def validate_frame_structure(
+    backend: backend_module.DataFrameBackend,
+    spec_definition: spec_model.Spec,
+    frame: object,
+    dimensions: list[str],
+    description: str,
+    invalid_frame_message: str | None = None,
 ) -> None:
-    """Check declared feature inputs against their foreign dataframe."""
-    invocation = context.invocation
-    dataframe_arguments = [
-        name for name, argument in function.args.items() if argument.type == arg_types.DATAFRAME
-    ]
-    if len(dataframe_arguments) != 1:
-        raise ValueError(
-            f"Action {invocation.mapping_id} must declare exactly one foreign dataframe argument"
-        )
-    argument_name = dataframe_arguments[0]
-    source_id = invocation.arguments.get(argument_name)
-    if not isinstance(source_id, str) or source_id == invocation.dataset_id:
-        raise ValueError(f"Action {invocation.mapping_id} must reference a foreign source dataset")
-    source = context.state.datasets.get(source_id)
-    if source is None:
-        raise ValueError(f"Dataset dataframe is unavailable: {source_id}")
+    """Validate frame type, dimension columns, row count, and key uniqueness."""
+    validate_dataframes(
+        FrameValidationContext(
+            backend,
+            spec_definition,
+            frame,
+            dimensions,
+            description,
+            invalid_frame_message,
+        ),
+        (
+            validate_frame_type,
+            validate_dimension_columns,
+            validate_row_count,
+            validate_unique_dimension_keys,
+        ),
+    )
 
-    source_columns = set(context.backend.column_names(source))
-    for feature in invocation.input_features:
-        if feature not in source_columns:
-            raise ValueError(
-                f"Action {invocation.mapping_id} input feature is unavailable in foreign "
-                f"source dataset: {feature}"
-            )
+
+def validate_fragment(context: FrameValidationContext) -> None:
+    """Validate a returned fragment against its declared schema and kind contract."""
+    validate_dataframes(
+        context,
+        (
+            validate_frame_type,
+            validate_dimension_columns,
+            validate_row_count,
+            validate_unique_dimension_keys,
+            validate_output_columns,
+            validate_fragment_declared_types,
+            validate_key_coverage,
+        ),
+    )
 
 
 def _validate_declared_types(
@@ -332,20 +313,6 @@ def _function_definition(context: FrameValidationContext) -> functions.FunctionK
     if definition is None:
         raise ValueError(f"Unknown function kind: {function.kind}")
     return definition
-
-
-def _require_input_context(
-    context: DataFrameValidationContext,
-) -> InputValidationContext:
-    if not isinstance(context, InputValidationContext):
-        raise TypeError("Input validation requires an input context")
-    return context
-
-
-def _require_function(context: InputValidationContext) -> spec_model.FunctionTemplate:
-    if context.function is None:
-        raise RuntimeError("Function reference validation must run before input validation")
-    return context.function
 
 
 def _require_frame_context(

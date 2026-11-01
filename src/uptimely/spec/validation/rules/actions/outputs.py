@@ -1,78 +1,54 @@
 """Atomic output declaration, ownership, and producer checks."""
 
-from __future__ import annotations
-
-import collections.abc
 import warnings
 
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
-from uptimely.spec.validation.rules import actions as action_rules
-from uptimely.spec.validation.rules import datasets as dataset_rules
-
-type OutputDeclaration = tuple[str, str | None]
-type ActionOutputFacts = tuple[action_rules.ActionDeclaration, tuple[OutputDeclaration, ...]]
-type DatasetOutputFacts = tuple[
-    dataset_rules.DatasetDeclaration, tuple[ActionOutputFacts, ...], tuple[str, ...]
-]
-
-
-def iter_output_datasets(spec: spec_model.Spec) -> collections.abc.Iterator[DatasetOutputFacts]:
-    """Yield action outputs and uncovered features for each dataset."""
-    actions_by_key = {item.key: item for item in action_rules.iter_actions(spec)}
-    for location in dataset_rules.iter_datasets(spec):
-        producers: dict[str, str] = {}
-        output_actions: list[ActionOutputFacts] = []
-        for action_id in location.dataset.actions:
-            item = actions_by_key[*location.key, action_id]
-            declarations: list[OutputDeclaration] = []
-            if item.kind is not None and functions.FUNCTION_KINDS[item.kind].produces_features:
-                for feature_id in item.outputs:
-                    declarations.append((feature_id, producers.get(feature_id)))
-                    if feature_id not in item.dimensions:
-                        producers[feature_id] = item.action_id
-            output_actions.append((item, tuple(declarations)))
-        missing = tuple(
-            sorted(set(location.dataset.features) - producers.keys() - location.dimensions)
-        )
-        yield (location, tuple(output_actions), missing)
 
 
 def validate_output_presence(spec: spec_model.Spec) -> None:
     """Require feature-producing actions to declare outputs when their kind requires them."""
-    for item in action_rules.iter_actions(spec):
-        if item.kind is None or not functions.FUNCTION_KINDS[item.kind].requires_feature_outputs:
-            continue
-        action_id = item.action_id
-        if not item.outputs:
-            raise ValueError(f"Action {action_id} must declare one or more features")
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if (
+            function is not None
+            and functions.FUNCTION_KINDS[function.kind].requires_feature_outputs
+            and not action.output_features
+        ):
+            raise ValueError(f"Action {key[2]} must declare one or more features")
 
 
 def validate_function_id(spec: spec_model.Spec) -> None:
     """Require a calculation function ID to be nonempty."""
-    for item in action_rules.iter_actions(spec):
-        if item.kind != functions.VECTORIZE:
-            continue
-        if item.function is not None and (not item.function.id.strip()):
+    for action in spec.actions:
+        function = spec.functions.root.get(action.binding.function)
+        if (
+            function is not None
+            and function.kind == functions.VECTORIZE
+            and not function.id.strip()
+        ):
             raise ValueError("Every function must define a non-empty string id")
 
 
 def validate_output_names(spec: spec_model.Spec) -> None:
     """Require calculated output names to be nonempty."""
-    for item in action_rules.iter_actions(spec):
-        if item.kind != functions.VECTORIZE:
-            continue
-        if any(not feature.strip() for feature in item.outputs):
+    for action in spec.actions:
+        function = spec.functions.root.get(action.binding.function)
+        if (
+            function is not None
+            and function.kind == functions.VECTORIZE
+            and any(not feature.strip() for feature in action.output_features)
+        ):
             raise ValueError("Every calculation must define a non-empty output feature name")
 
 
 def validate_dimension_collision(spec: spec_model.Spec) -> None:
     """Reject calculated feature names that collide with dimensions."""
-    dimension_ids = frozenset(spec.dimensions)
-    for item in action_rules.iter_actions(spec):
-        collisions = set(item.outputs) & dimension_ids
-        if item.kind == functions.VECTORIZE and collisions:
+    for action in spec.actions:
+        function = spec.functions.root.get(action.binding.function)
+        collisions = set(action.output_features) & spec.dimensions.keys()
+        if function is not None and function.kind == functions.VECTORIZE and collisions:
             raise ValueError(
                 "Calculated feature names cannot duplicate entity dimensions: "
                 + ", ".join(sorted(collisions))
@@ -81,89 +57,107 @@ def validate_dimension_collision(spec: spec_model.Spec) -> None:
 
 def validate_function_reference(spec: spec_model.Spec) -> None:
     """Require an action's function reference to resolve in the catalog."""
-    function_catalog = spec.functions.root
-    for item in action_rules.iter_actions(spec):
-        function_id = item.action.binding.function
-        dataset_id = item.dataset.id
-        path = (*item.declaration_path, "binding", "function")
-        if function_id not in function_catalog:
+    for key, action in spec.action_items:
+        function_id = action.binding.function
+        if function_id not in spec.functions:
             raise errors.SpecError(
-                f"Dataset {dataset_id} actions reference unknown functions: {function_id}",
+                f"Dataset {key[1]} actions reference unknown functions: {function_id}",
                 code="unknown_function_reference",
-                path=path,
+                path=(*spec.declaration_paths[key], "binding", "function"),
             )
 
 
 def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
     """Reject output feature declarations on kinds that do not support them."""
-    for item in action_rules.iter_actions(spec):
-        if item.kind is None:
-            continue
-        if functions.FUNCTION_KINDS[item.kind].produces_features:
-            continue
-        if item.outputs:
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if (
+            function is not None
+            and not functions.FUNCTION_KINDS[function.kind].produces_features
+            and action.output_features
+        ):
             raise ValueError(
-                f"{item.kind.capitalize()} action {item.action_id} cannot produce features"
+                f"{function.kind.capitalize()} action {key[2]} cannot produce features"
             )
 
 
 def validate_output_feature(spec: spec_model.Spec) -> None:
     """Require an output feature to be declared in the target dataset."""
-    for item in action_rules.iter_actions(spec):
-        if item.kind is None or not functions.FUNCTION_KINDS[item.kind].produces_features:
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None or not functions.FUNCTION_KINDS[function.kind].produces_features:
             continue
-        for feature in item.outputs:
-            if feature not in item.dataset.features:
-                raise ValueError(f"Action {item.action_id} references unknown feature: {feature}")
+        for feature in action.output_features:
+            if feature not in spec.datasets_by_key[key[:2]].features:
+                raise ValueError(f"Action {key[2]} references unknown feature: {feature}")
 
 
 def validate_unique_producer(spec: spec_model.Spec) -> None:
-    """Reject multiple producers for a non-dimension feature."""
-    for _, output_actions, _ in iter_output_datasets(spec):
-        for item, declarations in output_actions:
-            if item.kind is None or not functions.FUNCTION_KINDS[item.kind].produces_features:
+    """Reject multiple producers for a non-dimension feature in declaration order."""
+    producers: dict[tuple[spec_model.DatasetKey, str], str] = {}
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None or not functions.FUNCTION_KINDS[function.kind].produces_features:
+            continue
+        for feature in action.output_features:
+            if feature in spec.dimensions_by_dataset[key[:2]]:
                 continue
-            for feature, previous in declarations:
-                if feature not in item.dimensions and previous is not None:
-                    raise ValueError(
-                        f"Feature {feature} is produced by multiple actions: "
-                        f"{previous}, {item.action_id}"
-                    )
+            producer_key = (key[:2], feature)
+            previous = producers.get(producer_key)
+            if previous is not None:
+                raise ValueError(
+                    f"Feature {feature} is produced by multiple actions: {previous}, {key[2]}"
+                )
+            producers[producer_key] = key[2]
 
 
 def validate_collapse_output(spec: spec_model.Spec) -> None:
     """Require collapse to produce a non-dimension feature."""
-    for item in action_rules.iter_actions(spec):
-        if item.kind == functions.COLLAPSE and (not set(item.outputs) - item.dimensions):
-            raise ValueError(
-                f"Collapse action {item.action_id} must produce a non-dimension feature"
-            )
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if (
+            function is not None
+            and function.kind == functions.COLLAPSE
+            and not (set(action.output_features) - spec.dimensions_by_dataset[key[:2]])
+        ):
+            raise ValueError(f"Collapse action {key[2]} must produce a non-dimension feature")
 
 
 def validate_current_feature_selector(spec: spec_model.Spec) -> None:
     """Reject ambiguous current-feature selectors on multi-output calculations."""
-    for item in action_rules.iter_actions(spec):
-        if item.kind not in {functions.VECTORIZE, functions.COLLAPSE}:
+    for key, action in spec.action_items:
+        function = spec.functions.root.get(action.binding.function)
+        if function is None or function.kind not in {functions.VECTORIZE, functions.COLLAPSE}:
             continue
         count = (
-            len(set(item.outputs) - item.dimensions)
-            if item.kind == functions.COLLAPSE
-            else len(item.outputs)
+            len(set(action.output_features) - spec.dimensions_by_dataset[key[:2]])
+            if function.kind == functions.COLLAPSE
+            else len(action.output_features)
         )
-        if count > 1 and selectors.CURRENT_ID in item.feature_selectors:
+        if count > 1 and selectors.CURRENT_ID in action.feature_selectors:
             raise ValueError(
-                f"{item.kind.capitalize()} action {item.action_id} "
+                f"{function.kind.capitalize()} action {key[2]} "
                 "cannot use $features.@ when it produces multiple features"
             )
 
 
 def warn_unproduced_features(spec: spec_model.Spec) -> None:
     """Warn when declared dataset features have no action producer."""
-    for location, _, missing in iter_output_datasets(spec):
+    for key, dataset in spec.dataset_items:
+        produced = {
+            feature
+            for feature, producers in dataset.feature_producers.items()
+            if any(
+                (function := spec.functions.root.get(action.binding.function)) is not None
+                and functions.FUNCTION_KINDS[function.kind].produces_features
+                for _, action in producers
+            )
+        }
+        missing = sorted(dataset.features.keys() - produced - spec.dimensions_by_dataset[key])
         if missing:
-            feature_path = ".".join((*location.path, "features"))
             warnings.warn(
-                f"{feature_path}: Features have no producer action: {', '.join(missing)}",
+                f"entities.{key[0]}.datasets.{key[1]}.features: Features have no producer action: "
+                + ", ".join(missing),
                 UserWarning,
                 stacklevel=2,
             )

@@ -152,7 +152,9 @@ async def test_escape_function_description_reports_logical_feature_dependencies(
             outputs=[],
         ),
     )
-    state.snapshot = dataclasses.replace(snapshot, spec=definition)
+    state.snapshot = dataclasses.replace(
+        snapshot, spec=spec_model.Spec.model_validate(definition.model_dump())
+    )
 
     listing = await _call(state, "list_functions")
     described = await _call(state, "describe_function", {"function_id": "external_audit"})

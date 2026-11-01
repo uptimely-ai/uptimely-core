@@ -79,15 +79,11 @@ def _log_build_details(
     logger.info("  Number of functions: %d", len(definition.functions))
     logger.info(
         "  Number of datasets: %d",
-        sum(len(entity.datasets) for entity in definition.entities.values()),
+        len(definition.datasets),
     )
     logger.info(
         "  Number of features: %d",
-        sum(
-            len(dataset.features)
-            for entity in definition.entities.values()
-            for dataset in entity.datasets.values()
-        ),
+        sum(len(dataset.features) for dataset in definition.datasets.values()),
     )
     logger.info("\nPlan")
     logger.info("  Number of stages: %d", len(bundle.execution_plan.stages))

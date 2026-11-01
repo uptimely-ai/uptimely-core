@@ -18,39 +18,38 @@ def test_engine_validation_dependencies_are_acyclic() -> None:
 
 
 def test_engine_validation_checks_plan_backend() -> None:
-    context = validation.EngineValidationContext(
-        execution_plan.ExecutionPlan(3, "polars", {}, [], []),
-        backend.PolarsBackend(),
-    )
+    plan = execution_plan.ExecutionPlan(3, "polars", {}, [], [])
+    polars_backend = backend.PolarsBackend()
 
-    validation.validate_engine(context)
+    validation.validate_engine(plan, polars_backend)
 
-    invalid_context = validation.EngineValidationContext(
-        execution_plan.ExecutionPlan(3, "pandas", {}, [], []),
-        backend.PolarsBackend(),
-    )
+    invalid_plan = execution_plan.ExecutionPlan(3, "pandas", {}, [], [])
     with pytest.raises(ValueError, match="Unsupported plan backend: pandas"):
-        validation.validate_engine(invalid_context)
+        validation.validate_engine(invalid_plan, polars_backend)
 
 
 def test_engine_validation_stops_after_first_failed_validator(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[str] = []
-    seen_contexts: list[validation.EngineValidationContext] = []
-    context = validation.EngineValidationContext(
-        execution_plan.ExecutionPlan(3, "polars", {}, [], []),
-        backend.PolarsBackend(),
-    )
+    seen_arguments: list[tuple[execution_plan.ExecutionPlan, backend.DataFrameBackend]] = []
+    plan = execution_plan.ExecutionPlan(3, "polars", {}, [], [])
+    polars_backend = backend.PolarsBackend()
 
-    def failing_validator(context: validation.EngineValidationContext) -> None:
+    def failing_validator(
+        plan: execution_plan.ExecutionPlan,
+        backend_instance: backend.DataFrameBackend,
+    ) -> None:
         calls.append("failing")
-        seen_contexts.append(context)
+        seen_arguments.append((plan, backend_instance))
         raise ValueError("invalid engine configuration")
 
-    def dependent_validator(context: validation.EngineValidationContext) -> None:
+    def dependent_validator(
+        plan: execution_plan.ExecutionPlan,
+        backend_instance: backend.DataFrameBackend,
+    ) -> None:
         calls.append("dependent")
-        seen_contexts.append(context)
+        seen_arguments.append((plan, backend_instance))
 
     monkeypatch.setattr(
         validation,
@@ -59,7 +58,7 @@ def test_engine_validation_stops_after_first_failed_validator(
     )
 
     with pytest.raises(ValueError, match="invalid engine configuration"):
-        validation.validate_engine(context)
+        validation.validate_engine(plan, polars_backend)
 
     assert calls == ["failing"]
-    assert seen_contexts == [context]
+    assert seen_arguments == [(plan, polars_backend)]

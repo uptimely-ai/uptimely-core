@@ -21,7 +21,7 @@ import polars as pl
 from uptimely import engine as uptimely_engine
 from uptimely import entrypoint, project_paths, spec
 from uptimely.project import build as project_build
-from uptimely.spec import functions, references
+from uptimely.spec import functions
 from uptimely.spec import model as spec_model
 
 logger = logging.getLogger(__name__)
@@ -143,16 +143,14 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 "declared_returns": functions.FUNCTION_KINDS[template.kind].returns,
                 "escape_actions": [
                     {
-                        "entity": entity_id,
-                        "dataset": dataset.id,
-                        "action": action_id,
-                        "inputs": action.input_features,
-                        "outputs": action.output_features,
+                        "entity": key[0],
+                        "dataset": key[1],
+                        "action": key[2],
+                        "inputs": snapshot.spec.actions_by_key[key].input_features,
+                        "outputs": snapshot.spec.actions_by_key[key].output_features,
                     }
-                    for entity_id, dataset, action_id, action in references.iter_action_items(
-                        snapshot.spec
-                    )
-                    if action.binding.function == function_id and template.kind == functions.ESCAPE
+                    for key in snapshot.spec.actions_by_function.get(function_id, [])
+                    if template.kind == functions.ESCAPE
                 ],
                 "execution_semantics": (
                     "Uncontrolled external operation; declared feature inputs and outputs express "
@@ -187,16 +185,14 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         payload = sorted(
             {
                 feature_id
-                for entity in spec_definition.entities.values()
-                for dataset in entity.datasets.values()
-                for action in dataset.actions.values()
-                if hasattr(action, "binding")
-                if (
-                    action.binding.function in spec_definition.functions
-                    and spec_definition.functions[action.binding.function].kind
+                for feature_id, producers in spec_definition.feature_producers.items()
+                if any(
+                    spec_definition.functions[
+                        spec_definition.actions_by_key[key].binding.function
+                    ].kind
                     == functions.VECTORIZE
+                    for key in producers
                 )
-                for feature_id in action.output_features
             }
         )
         return _to_json(payload)
@@ -215,10 +211,11 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         """
         spec_definition = state.load_snapshot().spec
         by_feature = {
-            feature: (entity_id, action)
-            for entity_id, _dataset, action in references.iter_actions(spec_definition)
-            if spec_definition.functions[action.binding.function].kind == functions.VECTORIZE
-            for feature in action.output_features
+            feature: (key[0], spec_definition.actions_by_key[key])
+            for feature, producers in spec_definition.feature_producers.items()
+            for key in producers
+            if spec_definition.functions[spec_definition.actions_by_key[key].binding.function].kind
+            == functions.VECTORIZE
         }
         producer = by_feature.get(feature_id)
         if producer is None:
@@ -288,9 +285,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         outputs_by_dataset: dict[str, list[str]] = {}
         for dataset_id, feature_id in sorted(actual_outputs):
             outputs_by_dataset.setdefault(dataset_id, []).append(feature_id)
-        dataset_entities = {
-            invocation.dataset_id: invocation.entity_id for invocation in plan.invocations
-        }
+        dataset_entities = plan.datasets
 
         datasets: list[dict[str, typing.Any]] = []
         for dataset_id, features in sorted(

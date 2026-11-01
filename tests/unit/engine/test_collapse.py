@@ -10,7 +10,7 @@ from support import execution as execution_support
 from uptimely import compiler, engine, spec
 from uptimely import execution_plan as plan_module
 from uptimely.engine.dataframe import backend as backend_module
-from uptimely.engine.dataframe import dataframe as dataframe_module
+from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
@@ -334,12 +334,16 @@ def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> Non
             "observations": pl.DataFrame({"group": ["A"], "id": [1], "value": [2], "doubled": [4]}),
         }
     )
-    dataframe = dataframe_module.DataFrameExecution(
-        backend_module.create_backend(engine.EngineConfig().backend), spec_definition, state
+    executor = execution_module.InvocationExecutor(
+        backend_module.create_backend(engine.EngineConfig().backend),
+        spec_definition,
+        {},
+        {},
+        state,
     )
 
     with pytest.raises(ValueError, match="input feature.*foreign source dataset: maximum"):
-        dataframe.validate_inputs(invocation)
+        executor._validate_inputs(invocation)
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -448,6 +452,7 @@ def test_collapse_consumes_expanded_features(
             "columns": spec_model.Argument(id="columns", type="array[string]"),
         },
     )
+    spec_definition = spec_model.Spec.model_validate(spec_definition.model_dump())
     result = engine_for_plan(
         compiler.Compiler().compile(spec_definition, features=["combined_maximum"]),
         spec_definition=spec_definition,

@@ -4,6 +4,7 @@ from .common import (
     Argument,
     Binding,
     BindingArgument,
+    BindingArgumentResolver,
     Dimension,
     SpecSource,
     StrictModel,
@@ -18,7 +19,7 @@ from .dataset import (
     RowScope,
 )
 from .functions import FunctionCatalog, FunctionTemplate
-from .spec import SPEC_VERSION, Spec
+from .spec import SPEC_VERSION, ActionKey, DatasetKey, Spec
 
 __all__ = [
     "SPEC_VERSION",
@@ -26,6 +27,7 @@ __all__ = [
     "SpecSource",
     "Argument",
     "Binding",
+    "BindingArgumentResolver",
     "BindingArgument",
     "Dataset",
     "Dimension",
@@ -38,4 +40,6 @@ __all__ = [
     "Order",
     "RowScope",
     "StrictModel",
+    "ActionKey",
+    "DatasetKey",
 ]

@@ -4,29 +4,7 @@ from __future__ import annotations
 
 import collections.abc
 
-from . import functions
 from . import model as spec_model
-
-
-def function_template(
-    function_id: str,
-    kind: functions.FunctionKindId,
-    entrypoint: str,
-    args: dict[str, spec_model.Argument],
-    *,
-    validate_signature: bool = True,
-    description: str | None = None,
-) -> spec_model.FunctionTemplate:
-    """Create a function template for the spec document from its declarations."""
-    return spec_model.FunctionTemplate(
-        id=function_id,
-        kind=kind,
-        returns=functions.FUNCTION_KINDS[kind].returns,
-        entrypoint=entrypoint,
-        validate_signature=validate_signature,
-        args=args,
-        description=description,
-    )
 
 
 def merge_function_catalogs(

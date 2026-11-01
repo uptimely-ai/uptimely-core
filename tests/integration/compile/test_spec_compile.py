@@ -1,12 +1,15 @@
+import dataclasses
 import json
 import pathlib
+import types
 
 import pytest
 from support import examples as example_support
 
-from uptimely import compiler, spec
+from uptimely import compiler, entrypoint, spec
 from uptimely import execution_plan as compiler_plan
-from uptimely.compiler import inspection
+from uptimely.compiler import validation
+from uptimely.spec import functions
 from uptimely.spec import model as spec_model
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -155,7 +158,7 @@ def test_collapse_feature_placeholder_uses_invocation_feature_id(tmp_path: pathl
     definition = spec.load_spec(path)
     graph = compiler.InvocationGraph(definition)
     node = next(
-        item for item in graph.invocations if item.mapping_id == "bearing_temperature_by_pump"
+        item for item in graph.invocations if item.action_id == "bearing_temperature_by_pump"
     )
     plan = compiler.Compiler().compile(definition)
     invocation = next(
@@ -238,6 +241,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         },
     )
 
+    definition = spec_model.Spec.model_validate(definition.model_dump())
     plan = compiler.Compiler().compile(definition, features=["conformed_auxiliary"])
     conform = next(
         invocation for invocation in plan.invocations if invocation.function_kind == "conform"
@@ -318,10 +322,10 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
     path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
     document = spec.load_spec(path)
     graph = compiler.InvocationGraph(document)
-    by_mapping = {node.mapping_id: node for node in graph.invocations}
+    by_action = {node.action_id: node for node in graph.invocations}
 
     assert {
-        node.mapping_id
+        node.action_id
         for node in graph.invocations
         if document.functions[node.function_id].kind == "escape"
     } == {
@@ -332,26 +336,27 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
         "process_pump_external_workflow",
     }
     assert {
-        dependency.mapping_id for dependency in graph.dependencies(by_mapping["escape_start"])
+        dependency.action_id for dependency in graph.dependencies(by_action["escape_start"])
     } == {"read_pump_telemetry"}
     assert {
-        dependency.mapping_id for dependency in graph.dependencies(by_mapping["escape_chain"])
+        dependency.action_id for dependency in graph.dependencies(by_action["escape_chain"])
     } == {"escape_start"}
+
     assert {
-        dependency.mapping_id for dependency in graph.dependencies(by_mapping["escape_unrelated"])
+        dependency.action_id for dependency in graph.dependencies(by_action["escape_unrelated"])
     } == {"read_pump_telemetry"}
-    assert graph.dependencies(by_mapping["escape_source"]) == []
-    assert by_mapping["escape_start"].output_features == ("escape_start_output",)
-    assert by_mapping["escape_chain"].output_features == ("escape_chain_output",)
-    assert by_mapping["escape_source"].input_features == ()
-    assert by_mapping["escape_source"].output_features == ("escape_source_output",)
+    assert graph.dependencies(by_action["escape_source"]) == []
+    assert by_action["escape_start"].output_features == ("escape_start_output",)
+    assert by_action["escape_chain"].output_features == ("escape_chain_output",)
+    assert by_action["escape_source"].input_features == ()
+    assert by_action["escape_source"].output_features == ("escape_source_output",)
     assert {
         "escape_chain_output",
         "escape_source_output",
     } <= spec.FeatureGraph(document).feature_names
     feature_subset = graph.subset(["escape_chain_output"])
     assert {"escape_start", "escape_chain"} <= {
-        node.mapping_id for node in feature_subset.invocations
+        node.action_id for node in feature_subset.invocations
     }
     compiled = compiler.Compiler().compile(document)
     compiled_escapes = {
@@ -366,6 +371,21 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
     restored = compiler_plan.from_dict(json.loads(json.dumps(compiler_plan.to_dict(compiled))))
     assert restored == compiled
     assert restored.invocations == compiled.invocations
+
+
+def test_feature_subset_retains_sink_roles_independent_of_function_kind(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    definitions = dict(functions.FUNCTION_KINDS)
+    definitions[functions.ESCAPE] = dataclasses.replace(definitions[functions.ESCAPE], is_sink=True)
+    monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+
+    path = tmp_path / "sink_spec.json"
+    path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
+    graph = compiler.InvocationGraph(spec.load_spec(path))
+    subset = graph.subset(["escape_start_output"])
+
+    assert "escape_unrelated" in {node.action_id for node in subset.invocations}
 
 
 def test_escape_return_annotations_do_not_constrain_compilation(
@@ -438,7 +458,15 @@ def test_controlled_function_return_annotations_remain_validated() -> None:
     function = spec.load_spec(SPEC_PATH).functions["ratio"]
 
     with pytest.raises(ValueError, match="expected DataFrame or LazyFrame"):
-        inspection.validate_return_annotation(function, "int")
+        validation.validation_return_annotation(
+            validation.CallableValidationContext(
+                function,
+                entrypoint.Signature(
+                    parameters={},
+                    return_annotation="int",
+                ),
+            )
+        )
 
 
 def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> None:
@@ -513,6 +541,7 @@ def test_graph_rejects_duplicate_datasets_before_indexing() -> None:
     entities = list(document.entities.values())
     dataset = next(iter(entities[0].datasets.values()))
     entities[1].datasets[dataset.id] = dataset.model_copy(deep=True)
+    document = spec.Spec.model_validate(document.model_dump())
 
     with pytest.raises(ValueError, match="Duplicate dataset id"):
         compiler.Compiler().compile(document)

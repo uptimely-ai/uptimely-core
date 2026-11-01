@@ -10,7 +10,6 @@ import pytest
 from uptimely import execution_plan, spec
 from uptimely.engine.dataframe import backend
 from uptimely.engine.dataframe import validation as dataframe_validation
-from uptimely.engine.runtime import state
 from uptimely.spec import functions
 
 
@@ -28,9 +27,6 @@ def test_dataframe_validation_dependencies_are_complete_and_acyclic() -> None:
         position[prerequisite] < position[validator]
         for validator, prerequisites in dependencies.items()
         for prerequisite in prerequisites
-    )
-    assert dependencies[dataframe_validation.validate_input_features] == (
-        dataframe_validation.validate_input_function,
     )
     assert dependencies[dataframe_validation.validate_dimension_columns] == (
         dataframe_validation.validate_frame_type,
@@ -61,19 +57,12 @@ def test_dataframe_validation_stops_after_first_failed_validator(
 ) -> None:
     calls: list[str] = []
     seen_contexts: list[dataframe_validation.DataFrameValidationContext] = []
-    context = dataframe_validation.InputValidationContext(
+    context = dataframe_validation.FrameValidationContext(
         backend.PolarsBackend(),
         spec.Spec(),
-        state.RuntimeState(),
-        execution_plan.Invocation(
-            id="invocation",
-            function_kind="read",
-            entrypoint="test:read",
-            function_id="read",
-            mapping_id="read",
-            entity_id="entity",
-            dataset_id="dataset",
-        ),
+        pl.DataFrame(),
+        [],
+        "Frame",
     )
 
     def failing_validator(context: dataframe_validation.DataFrameValidationContext) -> None:
@@ -176,3 +165,12 @@ def test_key_identity_requires_the_accumulated_target() -> None:
 
     with pytest.raises(ValueError, match="preserve the dataset dimension keys"):
         dataframe_validation.validate_key_coverage(context)
+
+
+def test_frame_context_output_override_preserves_empty_outputs() -> None:
+    context = _vectorize_frame_context(pl.DataFrame({"key": ["existing"]}), None)
+    assert context.invocation is not None
+    context.invocation.output_features.append("result")
+    assert context.effective_output_features == ["result"]
+    assert dataclasses.replace(context, output_features=[]).effective_output_features == []
+    assert context.columns == {"key"}

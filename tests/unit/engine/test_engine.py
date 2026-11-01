@@ -11,7 +11,7 @@ from uptimely import engine as uptimely_engine
 from uptimely import entrypoint as entrypoint_module
 from uptimely import execution_plan as uptimely_plan
 from uptimely import spec
-from uptimely.engine.dataframe import dataframe as dataframe_module
+from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
@@ -222,13 +222,63 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
     assert executor._invoke(invocation) == entrypoint_module.PackageProvenance(
         "recorded-package", "1.0"
     )
-
     incompatible = dataclasses.replace(invocation, entrypoint="math:pi", arguments={})
     with pytest.raises(
         ValueError,
         match="recorded-package.*available runtime package: runtime-package==2.0",
     ):
         executor._invoke(incompatible)
+
+
+def test_executor_validates_inputs_against_current_runtime_state() -> None:
+    definition = spec.Spec.model_validate(
+        {
+            "functions": {
+                "calculate": {
+                    "kind": "vectorize",
+                    "returns": "dataframe",
+                    "entrypoint": "test:calculate",
+                }
+            }
+        }
+    )
+    runtime_state = state_module.RuntimeState(
+        datasets={
+            "dataset": pl.DataFrame({"local": [1]}),
+            "first": pl.DataFrame({"shared": [1], "unique": [1]}),
+            "second": pl.DataFrame({"shared": [1]}),
+        }
+    )
+    executor = execution_module.InvocationExecutor(
+        backend_module.PolarsBackend(),
+        definition,
+        {},
+        {},
+        runtime_state,
+    )
+    invocation = uptimely_plan.Invocation(
+        id="invocation",
+        function_kind="vectorize",
+        entrypoint="test:calculate",
+        function_id="calculate",
+        mapping_id="calculate",
+        entity_id="entity",
+        dataset_id="dataset",
+        input_features=["local"],
+    )
+
+    executor._validate_inputs(invocation)
+    invocation.input_features[:] = ["unique"]
+    executor._validate_inputs(invocation)
+    invocation.input_features[:] = ["shared"]
+    with pytest.raises(ValueError, match="unavailable or ambiguous: shared"):
+        executor._validate_inputs(invocation)
+    runtime_state.datasets["dataset"] = pl.DataFrame({"new": [1]})
+    del runtime_state.datasets["second"]
+    invocation.input_features[:] = ["new"]
+    executor._validate_inputs(invocation)
+    invocation.input_features[:] = ["shared"]
+    executor._validate_inputs(invocation)
 
 
 def test_engine_entrypoints_include_saved_package_provenance(
@@ -835,12 +885,14 @@ def test_input_validation_reads_each_dataset_schema_once(
         return column_names(frame)
 
     monkeypatch.setattr(engine.backend, "column_names", inspect)
-    dataframe = dataframe_module.DataFrameExecution(engine.backend, engine.spec_definition, state)
+    executor = execution_module.InvocationExecutor(
+        engine.backend, engine.spec_definition, {}, engine.parameters, state
+    )
     invocation = dataclasses.replace(
         engine.plan.invocations[1], input_features=["asset_id", "reading", "other"]
     )
 
-    dataframe.validate_inputs(invocation)
+    executor._validate_inputs(invocation)
 
     assert len(inspected) == 2
     assert inspected[0] is state.datasets["telemetry"]
@@ -855,10 +907,12 @@ def test_input_validation_rejects_missing_or_ambiguous_foreign_features(
     state = state_module.RuntimeState(
         datasets={f"source_{index}": pl.DataFrame({"reading": [index]}) for index in range(sources)}
     )
-    dataframe = dataframe_module.DataFrameExecution(engine.backend, engine.spec_definition, state)
+    executor = execution_module.InvocationExecutor(
+        engine.backend, engine.spec_definition, {}, engine.parameters, state
+    )
 
     with pytest.raises(ValueError, match="input feature is unavailable or ambiguous: reading"):
-        dataframe.validate_inputs(engine.plan.invocations[1])
+        executor._validate_inputs(engine.plan.invocations[1])
 
 
 def test_runtime_state_prefers_dataset_to_fragment_lookup() -> None:

@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Dataset",
-    "Model",
+    "DatasetRegistry",
     "Order",
     "RowScope",
 ]
@@ -127,65 +127,102 @@ class Dataset:
             self.row_scope = row_scope
         if order is not None:
             self.order = tuple(order)
-        for collection, declarations in (
-            ("producers", producers),
-            ("publishers", publishers),
-            ("pipelines", pipelines),
-        ):
-            supplied = declarations if declarations is not None else getattr(self, collection)
-            if not isinstance(supplied, abc.Sequence) or isinstance(supplied, (str, bytes)):
-                raise TypeError(f"Dataset '{self.id}' {collection} must be a sequence of Actions")
-            setattr(self, collection, list(supplied))
-        self._collect_actions()
+        self.producers = self._action_group("producers", producers, self.producers)
+        self.publishers = self._action_group("publishers", publishers, self.publishers)
+        self.pipelines = self._action_group("pipelines", pipelines, self.pipelines)
+        _ = self.actions
 
-    def _collect_actions(self) -> dict[str, actions.Action]:
-        """Validate collection roles and collect actions without overwriting IDs."""
+    @property
+    def actions(self) -> dict[str, actions.Action]:
+        """Return all declared actions keyed by ID after validating their groups."""
         collected: dict[str, actions.Action] = {}
-        for collection, kinds in _ACTION_KINDS.items():
-            declarations = getattr(self, collection)
-            if not isinstance(declarations, abc.Sequence) or isinstance(declarations, (str, bytes)):
-                raise TypeError(f"Dataset '{self.id}' {collection} must be a sequence of Actions")
-            for declaration in declarations:
-                if not isinstance(declaration, actions.Action):
-                    raise TypeError(f"Dataset '{self.id}' {collection} must contain Actions")
-                if declaration.kind not in kinds:
+        for group_name, group_actions, allowed_kinds in (
+            ("producers", self.producers, _ACTION_KINDS["producers"]),
+            ("publishers", self.publishers, _ACTION_KINDS["publishers"]),
+            ("pipelines", self.pipelines, _ACTION_KINDS["pipelines"]),
+        ):
+            group_actions = self._action_group(group_name, group_actions, ())
+            for action in group_actions:
+                if action.kind not in allowed_kinds:
                     raise ValueError(
-                        f"Dataset '{self.id}', action '{declaration.id}': "
-                        f"kind '{declaration.kind}' is not allowed in {collection}; "
-                        f"expected {', '.join(kinds)}"
+                        f"Dataset '{self.id}', action '{action.id}': "
+                        f"kind '{action.kind}' is not allowed in {group_name}; "
+                        f"expected {', '.join(allowed_kinds)}"
                     )
-                if (
-                    declaration.outputs
-                    and not functions.FUNCTION_KINDS[declaration.kind].produces_features
-                ):
+                if action.outputs and not functions.FUNCTION_KINDS[action.kind].produces_features:
                     raise ValueError(
-                        f"Dataset '{self.id}', action '{declaration.id}': "
-                        f"{declaration.kind.capitalize()} action cannot produce features"
+                        f"Dataset '{self.id}', action '{action.id}': "
+                        f"{action.kind.capitalize()} action cannot produce features"
                     )
-                if declaration.id in collected:
-                    raise ValueError(
-                        f"Dataset '{self.id}' has duplicate action ID '{declaration.id}'"
-                    )
-                collected[declaration.id] = declaration
+                if action.id in collected:
+                    raise ValueError(f"Dataset '{self.id}' has duplicate action ID '{action.id}'")
+                collected[action.id] = action
         return collected
+
+    def _action_group(
+        self,
+        group_name: str,
+        provided_actions: abc.Sequence[actions.Action] | None,
+        inherited_actions: abc.Sequence[actions.Action],
+    ) -> list[actions.Action]:
+        """Validate and copy one producer, publisher, or pipeline action group."""
+        group_actions = provided_actions if provided_actions is not None else inherited_actions
+        if not isinstance(group_actions, abc.Sequence) or isinstance(group_actions, (str, bytes)):
+            raise TypeError(f"Dataset '{self.id}' {group_name} must be a sequence of Actions")
+        if any(not isinstance(action, actions.Action) for action in group_actions):
+            raise TypeError(f"Dataset '{self.id}' {group_name} must contain Actions")
+        return list(group_actions)
 
     def to_model(self) -> spec_model.Dataset:
         """Build the canonical dataset, rejecting duplicate feature producers."""
-        actions: dict[str, spec_model.Action] = {}
-        features: dict[str, spec_model.Feature] = {}
-        producers: dict[str, str] = {}
+        return spec_model.Dataset(
+            id=self.id,
+            name=self.name,
+            description=self.description,
+            row_scope=self.row_scope.to_model(),
+            order=[key.to_model() for key in self.order],
+            features=self._feature_metadata,
+            actions=self._action_models,
+        )
+
+    @property
+    def _entity_dimensions(self) -> tuple[dimension_module.Dimension, ...]:
+        """Resolve the owning entity's dimension declarations."""
         if isinstance(self.entity, str):
             raise ValueError("Resolve entity IDs through Spec before converting a dataset")
-        entity_keys = self.entity.dimensions if self.entity is not None else ()
-        resolved_entity_keys: list[dimension_module.Dimension] = []
-        for key in entity_keys:
+        dimensions = self.entity.dimensions if self.entity is not None else ()
+        resolved: list[dimension_module.Dimension] = []
+        for key in dimensions:
             if isinstance(key, str):
                 raise ValueError("Resolve dimension IDs through Spec before converting a dataset")
             if not isinstance(key, dimension_module.Dimension):
                 raise TypeError("dataset dimensions must contain Dimension declarations")
-            resolved_entity_keys.append(key)
-        for name, declaration in self._collect_actions().items():
-            model = self._action_model(name, declaration)
+            resolved.append(key)
+        return tuple(resolved)
+
+    @property
+    def _action_models(self) -> dict[str, spec_model.Action]:
+        """Convert actions and add entity-key outputs to source actions."""
+        actions_by_id: dict[str, spec_model.Action] = {}
+        for name, declaration in self.actions.items():
+            action_model = self._action_model(name, declaration)
+            if declaration.kind in {functions.READ, functions.COLLAPSE}:
+                key_outputs = [
+                    f"{selectors.FEATURE_PREFIX}{key.id}"
+                    for key in self._entity_dimensions
+                    if f"{selectors.FEATURE_PREFIX}{key.id}" not in action_model.features.outputs
+                ]
+                action_model.features.outputs[:0] = key_outputs
+            actions_by_id[name] = action_model
+        return actions_by_id
+
+    @property
+    def _feature_metadata(self) -> dict[str, spec_model.Feature]:
+        """Collect output metadata and entity dimensions, rejecting duplicate producers."""
+        features: dict[str, spec_model.Feature] = {}
+        producers: dict[str, str] = {}
+        dimensions = self._entity_dimensions
+        for name, declaration in self.actions.items():
             for metadata in declaration.outputs:
                 identifier = metadata.id
                 if identifier in producers:
@@ -196,7 +233,7 @@ class Dataset:
                 producers[identifier] = name
                 features[identifier] = metadata.to_model()
             if declaration.kind in {functions.READ, functions.COLLAPSE}:
-                for key in resolved_entity_keys:
+                for key in dimensions:
                     if key.id not in features:
                         features[key.id] = spec_model.Feature(
                             id=key.id,
@@ -204,24 +241,10 @@ class Dataset:
                             type=key.type,
                             description=key.description,
                         )
-                key_outputs = [
-                    f"{selectors.FEATURE_PREFIX}{key.id}"
-                    for key in resolved_entity_keys
-                    if f"{selectors.FEATURE_PREFIX}{key.id}" not in model.features.outputs
-                ]
-                model.features.outputs[:0] = key_outputs
-            actions[name] = model
-        return spec_model.Dataset(
-            id=self.id,
-            name=self.name,
-            description=self.description,
-            row_scope=self.row_scope.to_model(),
-            order=[key.to_model() for key in self.order],
-            features=features,
-            actions=actions,
-        )
+        return features
 
     def _action_model(self, name: str, declaration: actions.Action) -> spec_model.Action:
+        """Convert an action and add its dataset location to declaration errors."""
         try:
             return declaration.to_model()
         except TypeError as error:
@@ -232,13 +255,13 @@ class Dataset:
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Collect reusable function contracts without executing implementations."""
         catalogs: list[spec_model.FunctionCatalog] = []
-        for name, declaration in self._collect_actions().items():
+        for name, declaration in self.actions.items():
             self._action_model(name, declaration)
             catalogs.append(declaration.function_catalog())
         return spec_model.FunctionCatalog(root=function_catalog.merge_function_catalogs(catalogs))
 
 
-class Model:
+class DatasetRegistry:
     """Register dataset classes and instantiate their declarations without execution."""
 
     def __init__(self, datasets: abc.Sequence[type[Dataset]]) -> None:

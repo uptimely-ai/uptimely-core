@@ -8,10 +8,10 @@ import typing
 from collections import abc
 
 from uptimely import row_context as row_context_values
-from uptimely.spec import catalog, functions, selectors
+from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 
-from . import bind, binding_conversion, ref
+from . import bind, binding_conversion, ref, validation
 from . import feature as feature_module
 from . import functions as function_semantics
 from . import row_context as row_context_module
@@ -56,7 +56,9 @@ class Action:
         output_ids = [output.id for output in self.outputs]
         if len(output_ids) != len(set(output_ids)):
             raise ValueError("Action output feature IDs must not repeat")
-        self._validate_output_references()
+        validation.validate_action_output_references(
+            self.id, self._references(self.arguments), (output.id for output in self.outputs)
+        )
         object.__setattr__(
             self, "row_context", row_context_module._context(self.arguments, self.row_context)
         )
@@ -95,26 +97,20 @@ class Action:
         Entrypoint strings are not imported during authoring; signature validation
         for those functions is deferred until compilation.
         """
-        self._validate_output_references()
+        validation.validate_action_output_references(
+            self.id, self._references(self.arguments), (output.id for output in self.outputs)
+        )
         if callable(self.function):
             inspect.signature(self.function).bind(**self.arguments)
         return self.arguments.copy()
-
-    def _validate_output_references(self) -> None:
-        output_ids = {output.id for output in self.outputs}
-        for reference in _references(self.arguments):
-            if isinstance(reference, ref.OutputReference) and reference.name not in output_ids:
-                raise ValueError(
-                    f"Action '{self.id}' references undeclared output '{reference.name}'"
-                )
 
     def to_model(self) -> spec_model.Action:
         """Convert this declaration to its canonical document model."""
         arguments = self.bound_arguments()
         inputs = (
-            [_feature_id(value) for value in self.inputs]
+            [self._feature_id(value) for value in self.inputs]
             if self.inputs is not None
-            else _inputs(self.arguments)
+            else self._inputs(self.arguments)
         )
         return spec_model.Action(
             id=self.id,
@@ -124,7 +120,7 @@ class Action:
                     name: binding_conversion.to_value(value) for name, value in arguments.items()
                 },
             ),
-            features=_action_features(inputs, self.outputs),
+            features=self._action_features(inputs, self.outputs),
             row_context=self.row_context,
         )
 
@@ -137,62 +133,62 @@ class Action:
         reference = self.reference
         return spec_model.FunctionCatalog(
             root={
-                self.catalog_id: catalog.function_template(
-                    function_id=self.catalog_id,
+                self.catalog_id: spec_model.FunctionTemplate(
+                    id=self.catalog_id,
                     kind=self.kind,
+                    returns=functions.FUNCTION_KINDS[self.kind].returns,
                     entrypoint=reference.entrypoint,
-                    args=function_arguments,
                     validate_signature=reference.validate_signature,
+                    args=function_arguments,
                     description=reference.description,
                 )
             }
         )
 
+    @staticmethod
+    def _feature_id(value: ref.Reference | str) -> str:
+        """Return a feature identifier or reject a reference to another resource."""
+        if isinstance(value, ref.Reference):
+            prefix, _, identifier = value.value.rpartition(".")
+            if prefix != selectors.FEATURE_PREFIX.removesuffix("."):
+                raise ValueError(f"Action input must reference a feature, got {value.value!r}")
+            return identifier
+        return value.removeprefix(selectors.FEATURE_PREFIX)
 
-def _feature_id(value: ref.Reference | str) -> str:
-    """Return a feature identifier or reject a reference to another resource."""
-    if isinstance(value, ref.Reference):
-        prefix, _, identifier = value.value.rpartition(".")
-        if prefix != selectors.FEATURE_PREFIX.removesuffix("."):
-            raise ValueError(f"Action input must reference a feature, got {value.value!r}")
-        return identifier
-    return value.removeprefix(selectors.FEATURE_PREFIX)
+    @staticmethod
+    def _action_features(
+        inputs: abc.Iterable[str],
+        outputs: abc.Iterable[feature_module.Feature],
+    ) -> spec_model.ActionFeatures:
+        """Build canonical input and output feature selectors."""
+        return spec_model.ActionFeatures(
+            inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
+            outputs=[f"{selectors.FEATURE_PREFIX}{feature.id}" for feature in outputs],
+        )
 
+    @staticmethod
+    def _inputs(value: object) -> list[str]:
+        """Collect unique feature-valued arguments in declaration order."""
+        return list(
+            dict.fromkeys(
+                reference.value.removeprefix(selectors.FEATURE_PREFIX)
+                for reference in Action._references(value)
+                if reference.type == "feature"
+            )
+        )
 
-def _action_features(
-    inputs: abc.Iterable[str],
-    outputs: abc.Iterable[feature_module.Feature],
-) -> spec_model.ActionFeatures:
-    """Build canonical input and output feature selectors."""
-    return spec_model.ActionFeatures(
-        inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
-        outputs=[f"{selectors.FEATURE_PREFIX}{feature.id}" for feature in outputs],
-    )
-
-
-def _inputs(value: object) -> list[str]:
-    """Collect unique feature-valued arguments in declaration order."""
-    return list(dict.fromkeys(_feature_references(value)))
-
-
-def _feature_references(value: object) -> typing.Iterator[str]:
-    """Yield feature references nested in a binding value."""
-    for reference in _references(value):
-        if reference.type == "feature":
-            yield reference.value.removeprefix(selectors.FEATURE_PREFIX)
-
-
-def _references(value: object) -> typing.Iterator[ref.Reference]:
-    """Yield references nested in argument bindings."""
-    if isinstance(value, row_context_module.RowContextBinding):
-        yield from _references(value.value)
-    elif isinstance(value, ref.Reference):
-        yield value
-    elif isinstance(value, bind.Bind):
-        yield from _references(value.args)
-    elif isinstance(value, abc.Mapping):
-        for child in value.values():
-            yield from _references(child)
-    elif isinstance(value, (list, tuple)):
-        for child in value:
-            yield from _references(child)
+    @staticmethod
+    def _references(value: object) -> typing.Iterator[ref.Reference]:
+        """Yield references nested in argument bindings."""
+        if isinstance(value, row_context_module.RowContextBinding):
+            yield from Action._references(value.value)
+        elif isinstance(value, ref.Reference):
+            yield value
+        elif isinstance(value, bind.Bind):
+            yield from Action._references(value.args)
+        elif isinstance(value, abc.Mapping):
+            for child in value.values():
+                yield from Action._references(child)
+        elif isinstance(value, (list, tuple)):
+            for child in value:
+                yield from Action._references(child)

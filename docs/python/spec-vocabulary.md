@@ -98,6 +98,7 @@ prefixes, the current-dataset marker, and selectors for identifiers and datafram
       heading_level: 3
       show_root_heading: false
       members:
+        - REFERENCE_PREFIX
         - FEATURE_PREFIX
         - DATASET_PREFIX
         - DIMENSION_PREFIX
