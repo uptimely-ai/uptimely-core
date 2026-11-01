@@ -72,8 +72,9 @@ nav:
       - Explorer: tools/explorer.md
       - AI agents: tools/ai.md
   - Data science:
+      - Data Modeling: data-science/data-modeling.md
+      - Comparison to SQL: data-science/comparison-to-sql.md
       - Platform comparison: data-science/platform-comparison.md
-      - Difference to dimensional modeling: data-science/dimensional-modeling.md
       - Data science work: data-science/way-of-work.md
       - Analytical functions: data-science/analytical-functions.md
       - Research: data-science/research.md

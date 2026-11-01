@@ -1,7 +1,12 @@
 # Uptimely Core
 
-Uptimely Core helps data science teams build, validate and run analytical pipelines with complex
-input/output dependencies.
+Uptimely Core is a data science framework for organizing data science work into
+meaningful structure. It lets teams to build their analytical functions with pure Python, while adding a layer to build, validate, and run analytical
+pipelines whose calculations depend on one another.
+
+Uptimely complements data modeling: data models organize business data, while
+Uptimely makes calculation-facing datasets and their feature dependencies
+explicit. See [Data Modeling and Uptimely](docs/data-science/data-modeling.md).
 
 Use it for machine telemetry, process analytics, failure prediction, and
 factory optimization. Currently works on batch, streaming abstractions are on the roadmap.
