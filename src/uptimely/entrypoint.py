@@ -21,11 +21,6 @@ def _package_distributions(
     return importlib.metadata.packages_distributions()
 
 
-def _is_valid_qualified_name(name: str) -> bool:
-    """Return whether a dotted name contains only Python identifiers."""
-    return bool(name.strip()) and all(part.isidentifier() for part in name.split("."))
-
-
 @dataclasses.dataclass(frozen=True)
 class PackageProvenance:
     """Installed distribution metadata associated with an entrypoint module."""
@@ -34,6 +29,13 @@ class PackageProvenance:
     version: str | None
     top_level_package: str | None = dataclasses.field(default=None, compare=False)
     distribution_candidates: tuple[str, ...] = dataclasses.field(default=(), compare=False)
+
+    def to_dict(self) -> dict[str, str | None]:
+        """Return portable distribution metadata, excluding lookup diagnostics."""
+        return {
+            "distribution": self.distribution,
+            "version": self.version,
+        }
 
     def __str__(self) -> str:
         """Return package information suitable for diagnostics."""
@@ -180,6 +182,25 @@ class Signature:
     parameters: dict[str, inspect.Parameter] = dataclasses.field(default_factory=dict)
     return_annotation: object = dataclasses.field(default=inspect.Signature.empty, repr=False)
 
+    @property
+    def accepts_kwargs(self) -> bool:
+        """Return whether the callable accepts arbitrary keyword arguments."""
+        return any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD
+            for parameter in self.parameters.values()
+        )
+
+    @property
+    def required_parameters(self) -> dict[str, inspect.Parameter]:
+        """Return non-variadic parameters without defaults, in signature order."""
+        return {
+            name: parameter
+            for name, parameter in self.parameters.items()
+            if parameter.default is inspect.Parameter.empty
+            and parameter.kind
+            not in {inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD}
+        }
+
     @classmethod
     def read(cls, function: Function) -> Signature:
         """Read the annotated argument and return types of a function."""
@@ -207,6 +228,11 @@ class Function:
     module: Module
     name: str
 
+    @staticmethod
+    def _is_valid_qualified_name(name: str) -> bool:
+        """Return whether a dotted name contains only Python identifiers."""
+        return bool(name.strip()) and all(part.isidentifier() for part in name.split("."))
+
     @classmethod
     def from_callable(cls, function: object) -> Function:
         """Create a function reference from a callable's module and qualified name."""
@@ -221,7 +247,7 @@ class Function:
             )
         if not Module.is_valid_location(module_path):
             raise ValueError("Function reference module must be an importable dotted module name")
-        if not _is_valid_qualified_name(function_name):
+        if not Function._is_valid_qualified_name(function_name):
             raise ValueError("Function reference name must be a Python qualified name")
 
         return cls(Module(module_path), function_name)
@@ -327,7 +353,7 @@ class Entrypoint:
 
     @staticmethod
     def _validate_function_entrypoint(entrypoint: str, function_name: str) -> None:
-        if not _is_valid_qualified_name(function_name):
+        if not Function._is_valid_qualified_name(function_name):
             raise ValueError(f"Invalid function entrypoint: {entrypoint}")
 
     @staticmethod

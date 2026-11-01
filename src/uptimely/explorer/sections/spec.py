@@ -15,7 +15,7 @@ from uptimely import entrypoint as entrypoint_module
 from uptimely.explorer import render
 from uptimely.spec import functions as function_kinds
 from uptimely.spec import model as spec_model
-from uptimely.spec import references, selectors
+from uptimely.spec import selectors
 
 SPEC_PAGES = render.WEBSITE_PAGES["spec"]
 SPEC_CONTENT_PAGES = {
@@ -89,35 +89,33 @@ def build_context(
 
 
 def _feature_data(
-    configuration: dict[str, typing.Any],
+    spec_definition: spec_model.Spec,
 ) -> tuple[list[dict], list[dict], set[str]]:
     """Collect action-produced feature metadata and calculated feature references."""
-    entities = configuration.get("entities", {})
-    functions = configuration.get("functions", {})
     fragment_features: list[dict] = []
     calculated_features: list[dict] = []
     seen_inputs: set[tuple[str, str]] = set()
-    for entity in entities.values():
-        for dataset_id, dataset in entity.get("datasets", {}).items():
-            for action in dataset.get("actions", {}).values():
-                function_id = action.get("binding", {}).get("function")
-                function = functions.get(function_id, {})
-                kind = function_kinds.FUNCTION_KINDS.get(function.get("kind"))
-                for reference in action.get("features", {}).get("outputs", []):
-                    feature_id = reference.removeprefix(selectors.FEATURE_PREFIX)
-                    feature = dict(dataset.get("features", {}).get(feature_id, {}))
-                    feature["id"] = feature_id
-                    if kind is not None and kind.is_transformer:
-                        calculated_features.append(
-                            {
-                                **feature,
-                                "binding": action.get("binding", {}),
-                                "inputs": action.get("features", {}).get("inputs", []),
-                            }
-                        )
-                    elif (dataset_id, feature_id) not in seen_inputs:
-                        fragment_features.append(feature)
-                        seen_inputs.add((dataset_id, feature_id))
+    for key, action in spec_definition.action_items:
+        dataset = spec_definition.datasets_by_key[key[:2]]
+        function = spec_definition.functions.root.get(action.binding.function)
+        kind = function_kinds.FUNCTION_KINDS[function.kind] if function is not None else None
+        for feature_id in action.output_features:
+            metadata = dataset.features.get(feature_id)
+            feature = (
+                metadata.model_dump(mode="json", exclude_none=True) if metadata is not None else {}
+            )
+            feature["id"] = feature_id
+            if kind is not None and kind.is_transformer:
+                calculated_features.append(
+                    {
+                        **feature,
+                        "binding": action.binding.model_dump(mode="json", exclude_none=True),
+                        "inputs": action.features.inputs,
+                    }
+                )
+            elif (dataset.id, feature_id) not in seen_inputs:
+                fragment_features.append(feature)
+                seen_inputs.add((dataset.id, feature_id))
     referenced_features = {
         dependency
         for calculation in calculated_features
@@ -201,14 +199,14 @@ def _build_context(
             function["declared_returns"] = function_kinds.FUNCTION_KINDS[kind].returns
             function["escape_actions"] = []
             function["action_usage_count"] = 0
-    for entity_id, dataset, action in references.iter_actions(spec_definition):
+    for key, action in spec_definition.action_items:
         function = function_definitions[action.binding.function]
         function["action_usage_count"] = function.get("action_usage_count", 0) + 1
         if function_kinds.FUNCTION_KINDS[function["kind"]].is_effect:
             function["escape_actions"].append(
                 {
-                    "entity": entity_id,
-                    "dataset": dataset.id,
+                    "entity": key[0],
+                    "dataset": key[1],
                     "action": action.id,
                     "inputs": action.input_features,
                     "outputs": action.output_features,
@@ -251,7 +249,7 @@ def _build_context(
         fragment_features,
         calculated_features,
         referenced_features,
-    ) = _feature_data(configuration)
+    ) = _feature_data(spec_definition)
     feature_buckets = {
         "input": len(fragment_features),
         "intermediate": sum(
@@ -264,17 +262,13 @@ def _build_context(
     function_buckets = {
         kind: len(function_groups.get(kind, {})) for kind in function_kinds.FUNCTION_KINDS
     }
-    dataset_count = sum(len(entity.get("datasets", {})) for entity in entities.values())
+    dataset_count = len(spec_definition.datasets)
     action_count = sum(
         1
-        for entity in entities.values()
-        for dataset in entity.get("datasets", {}).values()
-        for action in dataset.get("actions", {}).values()
-        if any(
-            action.get("binding", {}).get("function") in function_groups.get(kind, {})
-            for kind, definition in function_kinds.FUNCTION_KINDS.items()
-            if definition.is_source
-        )
+        for action in spec_definition.actions
+        if function_kinds.FUNCTION_KINDS[
+            spec_definition.functions[action.binding.function].kind
+        ].is_source
     )
     summary = ExplorerSummary(
         entity_count=len(entities),
@@ -297,7 +291,7 @@ def _build_context(
             "feature": feature,
             "dependencies": action.input_features,
         }
-        for _, _, action in references.iter_actions(spec_definition)
+        for action in spec_definition.actions
         if spec_definition.functions[action.binding.function].kind
         in {function_kinds.ESCAPE, function_kinds.VECTORIZE}
         for feature in action.output_features

@@ -91,8 +91,10 @@ version and declared backend.
 
 ## Compilation and plan validation
 
-The compiler accepts a loaded Spec and validates its current declarations
-before compiling it into a valid, schedulable plan. Declaration rules are
+The compiler accepts a loaded Spec and validates it before compiling it into a
+valid, schedulable plan. If you edit an already indexed Spec, reconstruct it with
+`Spec.model_validate(document.model_dump())` first; resource views are cached.
+Declaration rules are
 defined in [Spec validation](spec.md#validation). Compilation checks
 selected-feature feasibility, dependency ordering, plan schedulability, and
 implementation entrypoints. Unless a function sets `validate_signature` to

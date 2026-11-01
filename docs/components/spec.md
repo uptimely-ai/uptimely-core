@@ -505,7 +505,8 @@ Functions handle grouping and sorting themselves.
 Nonzero directional requirements need dataset order. A time/step dimension must
 belong to the input entity and have the matching type. When directional context
 requires ordering, that dimension must also occur in the dataset's order.
-For collapse, validation uses the inferred source dataset rather than the target.
+For dimension-removing operations, validation uses the inferred source dataset
+rather than the target. Other operations use the target dataset.
 
 Fixed durations use these distinct lowercase suffixes:
 

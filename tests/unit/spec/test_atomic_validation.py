@@ -12,7 +12,6 @@ from uptimely import spec
 from uptimely.spec import functions as function_kinds
 from uptimely.spec.validation import errors
 from uptimely.spec.validation import spec as spec_validation
-from uptimely.spec.validation.rules import actions as action_rules
 from uptimely.spec.validation.rules import functions
 from uptimely.spec.validation.rules.actions import contracts as action_contracts
 from uptimely.spec.validation.rules.actions import outputs as action_outputs
@@ -33,15 +32,15 @@ def document(example_projects: pathlib.Path) -> spec.Spec:
 def test_unknown_function_error_uses_declaration_path(
     document: spec.Spec, use_runner: bool
 ) -> None:
-    item = next(action_rules.iter_actions(document))
-    item.action.binding.function = "missing_function"
+    key, item = document.action_items[0]
+    item.binding.function = "missing_function"
     validate = (
         spec_validation.validate_spec if use_runner else action_outputs.validate_function_reference
     )
     with pytest.raises(errors.SpecError) as error:
         validate(document)
     assert error.value.code == "unknown_function_reference"
-    assert error.value.path == (*item.declaration_path, "binding", "function")
+    assert error.value.path == (*document.declaration_paths[key], "binding", "function")
     assert "missing_function" in str(error.value)
 
 
@@ -56,6 +55,7 @@ def test_function_rules_raise_independently(document: spec.Spec) -> None:
 
     function.returns = "dataframe"
     function.args.clear()
+    document = spec.Spec.model_validate(document.model_dump())
     assert functions.validate_return_kind(document) is None
     with pytest.raises(errors.SpecError) as error:
         functions.validate_dataframe_count(document)
@@ -73,7 +73,7 @@ def test_mapping_rules_use_shared_operation_dataframe_counts(
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match=r"exactly 2 foreign dataset\(s\)") as error:
-        action_contracts.validate_dataset_count(document)
+        action_contracts.validate_dataset_argument_count(document)
     assert error.value.code == "invalid_mapping_dataset_input"
     assert error.value.path[-2:] == ("binding", "args")
 
@@ -82,7 +82,9 @@ def test_local_and_foreign_input_validation_uses_kind_attributes(
     document: spec.Spec, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     vectorize = next(
-        item for item in action_rules.iter_actions(document) if item.kind == "vectorize"
+        item
+        for item in document.actions
+        if document.functions[item.binding.function].kind == "vectorize"
     )
     definitions = dict(function_kinds.FUNCTION_KINDS)
     definitions["vectorize"] = dataclasses.replace(
@@ -91,12 +93,12 @@ def test_local_and_foreign_input_validation_uses_kind_attributes(
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match="must reference a foreign source dataset"):
-        action_contracts.validate_foreign_dataframe(document)
+        action_contracts.validate_foreign_dataset_argument(document)
 
-    assert vectorize.kind == "vectorize"
+    assert document.functions[vectorize.binding.function].kind == "vectorize"
 
 
-def test_target_dataframe_validation_uses_kind_attribute(
+def test_target_dataset_validation_uses_kind_attribute(
     document: spec.Spec, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     definitions = dict(function_kinds.FUNCTION_KINDS)
@@ -106,7 +108,7 @@ def test_target_dataframe_validation_uses_kind_attribute(
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match="must consume its target dataset"):
-        action_contracts.validate_target_input(document)
+        action_contracts.validate_target_dataset_input(document)
 
 
 def test_feature_input_validation_uses_kind_attribute(

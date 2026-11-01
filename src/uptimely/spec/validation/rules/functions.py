@@ -2,28 +2,14 @@
 
 from __future__ import annotations
 
-import collections.abc
-
-from uptimely.spec import arg_types, functions
+from uptimely.spec import functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 
 
-def iter_functions(
-    spec: spec_model.Spec,
-) -> collections.abc.Iterator[tuple[str, spec_model.FunctionTemplate, int]]:
-    """Yield each function and its dataframe-argument count."""
-    for function_id, function in spec.functions.root.items():
-        yield (
-            function_id,
-            function,
-            sum(argument.type == arg_types.DATAFRAME for argument in function.args.values()),
-        )
-
-
 def validate_return_kind(spec: spec_model.Spec) -> None:
     """Require the return kind defined by the function's kind."""
-    for function_id, function, dataframe_inputs in iter_functions(spec):
+    for function_id, function, dataframe_inputs in spec.functions.iter_functions():
         kind = function.kind
         expected = functions.FUNCTION_KINDS[kind].returns
         if function.returns != expected:
@@ -37,7 +23,7 @@ def validate_return_kind(spec: spec_model.Spec) -> None:
 
 def validate_dataframe_count(spec: spec_model.Spec) -> None:
     """Require the dataframe argument count defined by the function kind."""
-    for function_id, function, dataframe_inputs in iter_functions(spec):
+    for function_id, function, dataframe_inputs in spec.functions.iter_functions():
         kind = function.kind
         expected = functions.FUNCTION_KINDS[kind].dataframe_inputs
         if expected is not None and dataframe_inputs != expected:

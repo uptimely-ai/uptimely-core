@@ -1,3 +1,4 @@
+import collections.abc
 import dataclasses
 import json
 
@@ -240,3 +241,110 @@ def test_plan_rejects_invalid_collapse_metadata(field: str, value: object, messa
     payload["invocations"][1][field] = value
     with pytest.raises(ValueError, match=message):
         uptimely_plan.from_dict(payload)
+
+
+class _CountingInvocations(list[uptimely_plan.Invocation]):
+    traversals = 0
+
+    def __iter__(self) -> collections.abc.Iterator[uptimely_plan.Invocation]:
+        self.traversals += 1
+        return super().__iter__()
+
+
+def test_plan_resource_indexes_traverse_invocations_once() -> None:
+    original = _sample_plan()
+    counted = _CountingInvocations(original.invocations)
+    plan = dataclasses.replace(original, invocations=counted)
+    counted.traversals = 0
+
+    for _ in range(3):
+        assert list(plan.invocations_by_id) == ["opaque-read", "opaque-collapse", "opaque-write"]
+        assert plan.invocations_by_id["opaque-read"] is plan.invocations[0]
+        assert plan.function_ids == {"load", "maximum", "save"}
+        assert plan.entity_ids == {"pump"}
+        assert plan.datasets == {"pump_dataset": "pump"}
+        assert plan.arguments["opaque-read"] is plan.invocations[0].arguments
+        assert plan.features["maximum"] == [plan.invocations[1]]
+        assert plan.calculated_features == set()
+        assert list(plan.entrypoints) == [
+            "example.functions:load",
+            "example.functions:maximum",
+            "example.functions:save",
+        ]
+        assert plan.invocations_by_kind["collapse"] == [plan.invocations[1]]
+        assert plan.count_per_kind == {"collapse": 1, "read": 1, "write": 1}
+        assert list(plan.count_per_kind) == ["collapse", "read", "write"]
+        assert plan.execution_stages == [[invocation] for invocation in original.invocations]
+        assert plan.execution_invocations == original.invocations
+
+    assert counted.traversals == 1
+    assert plan.execution_stages is plan.execution_stages
+    assert plan.execution_invocations is plan.execution_invocations
+    assert plan.count_per_kind is plan.count_per_kind
+    assert uptimely_plan.to_dict(plan) == uptimely_plan.to_dict(original)
+    assert dataclasses.asdict(plan) == dataclasses.asdict(original)
+
+
+def test_plan_replacement_does_not_retain_stale_indexes() -> None:
+    plan = _sample_plan()
+    original_index = plan.invocations_by_id
+    original_execution = plan.execution_invocations
+    replacement = dataclasses.replace(plan.invocations[1], output_features=["changed"])
+    plan.invocations[1] = replacement
+    assert "changed" not in plan.features
+    plan = dataclasses.replace(plan)
+    assert plan.invocations_by_id is not original_index
+    assert plan.invocations_by_id[replacement.id] is replacement
+    assert plan.features["changed"] == [replacement]
+    assert plan.execution_stages[1] == [replacement]
+    assert plan.execution_invocations is not original_execution
+    assert plan.execution_invocations[1] is replacement
+
+    copied = dataclasses.replace(plan)
+    assert copied.invocations_by_id is not plan.invocations_by_id
+    assert copied.invocations_by_id == plan.invocations_by_id
+
+
+def test_plan_indexes_do_not_preempt_unsupported_kind_execution_errors() -> None:
+    original = _sample_plan()
+    invocation = dataclasses.replace(original.invocations[0], function_kind="unsupported")
+    plan = dataclasses.replace(original, invocations=[invocation, *original.invocations[1:]])
+
+    assert plan.invocations_by_id[invocation.id] is invocation
+    assert list(plan.entrypoints) == list(original.entrypoints)
+    assert plan.features == original.features
+
+
+def test_execution_invocations_follow_stages_not_declaration_order() -> None:
+    original = _sample_plan()
+    plan = dataclasses.replace(original, invocations=list(reversed(original.invocations)))
+    assert plan.invocations != original.invocations
+    assert plan.execution_invocations == original.invocations
+    assert uptimely_plan.to_dict(plan)["invocations"][0]["id"] == "opaque-write"
+
+    independent = [
+        dataclasses.replace(invocation, dependency_ids=[]) for invocation in original.invocations
+    ]
+    grouped = dataclasses.replace(
+        original,
+        invocations=independent,
+        stages=[["opaque-write", "opaque-read"], [], ["opaque-collapse"]],
+    )
+    assert [invocation.id for invocation in grouped.execution_invocations] == [
+        "opaque-write",
+        "opaque-read",
+        "opaque-collapse",
+    ]
+    empty = dataclasses.replace(original, invocations=[], stages=[])
+    assert empty.execution_invocations == []
+    assert empty.count_per_kind == {}
+
+
+def test_count_per_kind_rebuilt_on_plan_replacement() -> None:
+    plan = _sample_plan()
+    previous = plan.count_per_kind
+    plan.invocations[0] = dataclasses.replace(plan.invocations[0], function_kind="write")
+    assert plan.count_per_kind is previous
+    plan = dataclasses.replace(plan)
+    assert plan.count_per_kind == {"collapse": 1, "write": 2}
+    assert plan.count_per_kind is not previous

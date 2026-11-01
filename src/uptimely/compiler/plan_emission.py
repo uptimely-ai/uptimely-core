@@ -3,17 +3,9 @@
 from __future__ import annotations
 
 from uptimely import execution_plan, spec
-from uptimely.spec import binding_resolution
+from uptimely.spec import model as spec_model
 
 from . import graph as invocation_graph
-
-
-def emit_invocations(
-    spec_definition: spec.Spec,
-    graph: invocation_graph.InvocationGraph,
-) -> list[execution_plan.Invocation]:
-    """Create portable invocations for all nodes in a selected graph."""
-    return [emit_invocation(spec_definition, graph, node) for node in graph.invocations]
 
 
 def emit_invocation(
@@ -25,20 +17,20 @@ def emit_invocation(
     function = spec_definition.functions.get(node.function_id)
     if function is None or not function.entrypoint:
         raise ValueError(
-            f"Missing entrypoint for function {node.function_id} used by action {node.mapping_id}"
+            f"Missing entrypoint for function {node.function_id} used by action {node.action_id}"
         )
-    arguments = binding_resolution.resolve_binding_args(
-        node.arguments,
-        node.dataset_id,
-        node.feature_id,
-        spec_definition.dimension_ids_by_dataset,
+    resolver = spec_model.BindingArgumentResolver(
+        current_dataset_id=node.dataset_id,
+        feature_id=node.feature_id,
+        dimension_ids_by_dataset=spec_definition.dimension_ids_by_dataset,
     )
+    arguments = resolver.resolve_arguments(node.arguments)
     return execution_plan.Invocation(
         id=node.node_id,
         function_kind=function.kind,
         entrypoint=function.entrypoint,
         function_id=node.function_id,
-        mapping_id=node.mapping_id,
+        mapping_id=node.action_id,
         entity_id=node.entity_id,
         dataset_id=node.dataset_id,
         output_features=list(node.output_features),

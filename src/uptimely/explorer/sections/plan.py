@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import collections
 import dataclasses
 import os
 import pathlib
@@ -53,9 +52,10 @@ def _render_step(
         feature_labels = common.feature_labels(spec_definition)
 
     function_name = spec_definition.functions[invocation.function_id].name or invocation.function_id
-    entity = spec_definition.entities[invocation.entity_id]
     dataset = (
-        entity.datasets.get(invocation.dataset_id) if invocation.dataset_id is not None else None
+        spec_definition.datasets_by_key.get((invocation.entity_id, invocation.dataset_id))
+        if invocation.dataset_id is not None
+        else None
     )
     input_labels = [feature_labels.get(name, name) for name in invocation.input_features]
     output_labels = [feature_labels.get(name, name) for name in invocation.output_features]
@@ -74,9 +74,7 @@ def _render_step(
         "entrypoint": invocation.entrypoint,
         "entity": invocation.entity_id,
         "dataset": invocation.dataset_id,
-        "dataset_label": (
-            dataset.name or invocation.dataset_id if dataset is not None else invocation.dataset_id
-        ),
+        "dataset_label": dataset.name,
         "feature": displayed_feature,
         "input_features": input_labels,
         "output_features": output_labels,
@@ -185,22 +183,13 @@ def build_context(
     return {
         "plan_version": plan.plan_version,
         "invocation_count": len(plan.invocations),
-        "function_count": len({invocation.function_id for invocation in plan.invocations}),
-        "entity_count": len({invocation.entity_id for invocation in plan.invocations}),
-        "feature_count": len(
-            {
-                feature
-                for invocation in plan.invocations
-                if functions.FUNCTION_KINDS[invocation.function_kind].is_transformer
-                for feature in invocation.output_features
-            }
-        ),
+        "function_count": len(plan.function_ids),
+        "entity_count": len(plan.entity_ids),
+        "feature_count": len(plan.calculated_features),
         "stage_count": len(stages),
         "dependency_count": len(invocation_links),
         "max_parallel_invocations": max((len(stage["steps"]) for stage in stages), default=0),
-        "function_kind_counts": sorted(
-            collections.Counter(invocation.function_kind for invocation in plan.invocations).items()
-        ),
+        "function_kind_counts": list(plan.count_per_kind.items()),
         "stages": stages,
         "invocation_lineage_data": invocation_lineage_data,
         "graph_style": graph_style,

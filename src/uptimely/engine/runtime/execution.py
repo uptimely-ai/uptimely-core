@@ -1,5 +1,6 @@
 """Invoke individual plan invocations during an engine execution."""
 
+import collections
 import typing
 
 from uptimely import entrypoint as entrypoint_module
@@ -38,26 +39,92 @@ class InvocationExecutor:
         if kind_definition is None:
             raise ValueError(f"Unsupported invocation function kind: {invocation.function_kind}")
         if kind_definition.is_effect:
-            self._execute_escape(invocation)
+            self._invoke(invocation)
             return
 
-        self.dataframe.validate_inputs(invocation)
-        return_kind = kind_definition.returns
-        if return_kind == arg_types.DATAFRAME:
-            self._execute_dataframe_action(invocation)
-        elif return_kind == "none":
+        self._validate_inputs(invocation)
+        if kind_definition.is_sink:
             self._execute_sink(invocation)
+        elif kind_definition.returns == arg_types.DATAFRAME:
+            self._execute_dataframe_action(invocation)
         else:
             raise ValueError(f"Unsupported invocation function kind: {invocation.function_kind}")
+
+    def _validate_inputs(self, invocation: execution_plan.Invocation) -> None:
+        """Require declared input features to be available in their allowed scope."""
+        function = self.spec_definition.functions.get(invocation.function_id)
+        if function is None:
+            raise ValueError(f"Unknown function: {invocation.function_id}")
+        definition = functions.FUNCTION_KINDS[function.kind]
+        if definition.dataframe_input_scope == "foreign":
+            self._validate_foreign_inputs(invocation, function)
+            return
+
+        target = self.state.datasets.get(invocation.dataset_id)
+        target_columns = set(self.backend.column_names(target)) if target is not None else set()
+        required = set(invocation.input_features) - target_columns
+        if not required:
+            return
+        available = collections.Counter(
+            column
+            for dataset_id, frame in self.state.datasets.items()
+            if dataset_id != invocation.dataset_id
+            for column in set(self.backend.column_names(frame))
+        )
+        for feature in invocation.input_features:
+            if feature not in required:
+                continue
+            if available[feature] != 1:
+                raise ValueError(
+                    f"Action {invocation.mapping_id} input feature is unavailable or ambiguous: "
+                    f"{feature}"
+                )
+
+    def _validate_foreign_inputs(
+        self,
+        invocation: execution_plan.Invocation,
+        function: spec_model.FunctionTemplate,
+    ) -> None:
+        """Check declared feature inputs against their foreign dataframe."""
+        dataframe_arguments = function.arguments_by_type.get(arg_types.DATAFRAME, {})
+        if len(dataframe_arguments) != 1:
+            raise ValueError(
+                f"Action {invocation.mapping_id} must declare exactly one foreign "
+                "dataframe argument"
+            )
+        argument_name = next(iter(dataframe_arguments))
+        source_id = invocation.arguments.get(argument_name)
+        if not isinstance(source_id, str) or source_id == invocation.dataset_id:
+            raise ValueError(
+                f"Action {invocation.mapping_id} must reference a foreign source dataset"
+            )
+        source = self.state.datasets.get(source_id)
+        if source is None:
+            raise ValueError(f"Dataset dataframe is unavailable: {source_id}")
+
+        source_columns = set(self.backend.column_names(source))
+        for feature in invocation.input_features:
+            if feature not in source_columns:
+                raise ValueError(
+                    f"Action {invocation.mapping_id} input feature is unavailable in foreign "
+                    f"source dataset: {feature}"
+                )
 
     def _execute_dataframe_action(self, invocation: execution_plan.Invocation) -> None:
         """Invoke a data-producing action, validate its result, and update the dataset."""
         dataframe = self.state.datasets.get(invocation.dataset_id)
         fragment = self._invoke(invocation)
-        entity = self.spec_definition.entities.get(invocation.entity_id)
-        if entity is None:
-            raise ValueError(f"Unknown entity: {invocation.entity_id}")
-        dimensions = entity.dimension_ids
+        dataset_key = (invocation.entity_id, invocation.dataset_id)
+        if (
+            invocation.dataset_id is not None
+            and dataset_key in self.spec_definition.datasets_by_key
+        ):
+            dimensions = self.spec_definition.dimension_ids_by_dataset[invocation.dataset_id]
+        else:
+            entity = self.spec_definition.entities.get(invocation.entity_id)
+            if entity is None:
+                raise ValueError(f"Unknown entity: {invocation.entity_id}")
+            dimensions = entity.dimension_ids
         fragment, dataframe = self.dataframe.assemble_fragment(
             invocation, fragment, dataframe, dimensions
         )
@@ -71,10 +138,6 @@ class InvocationExecutor:
                 self.state.calculated_outputs[(invocation.dataset_id, output)] = (
                     self.backend.select(fragment, [*dimensions, output])
                 )
-
-    def _execute_escape(self, invocation: execution_plan.Invocation) -> None:
-        """Invoke an uncontrolled action and discard its return value."""
-        self._invoke(invocation)
 
     def _execute_sink(self, invocation: execution_plan.Invocation) -> None:
         """Invoke a sink after confirming its accumulated dataset exists."""

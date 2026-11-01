@@ -15,7 +15,6 @@ import pytest
 from uptimely import row_context as row_context_model
 from uptimely.spec import api, functions, model
 from uptimely.spec.validation import spec as validation
-from uptimely.spec.validation.rules import actions as action_rules
 from uptimely.spec.validation.rules import (
     bindings,
     dimensions,
@@ -171,18 +170,17 @@ def test_full_validation_preserves_valid_function_kinds(kind: functions.Function
 def test_source_discovery_visits_every_action_kind(kind: functions.FunctionKindId) -> None:
     spec = make_spec(kind)
     before = spec.model_dump()
-    sources = tuple(action_inputs.iter_input_sources(spec))
-    assert [item.action.action for item in sources] == [
-        item.action for item in action_rules.iter_actions(spec)
-    ]
-    item = next(item for item in sources if item.action.action is compute(spec))
+    sources = spec.input_sources
+    assert list(sources) == [key for key, _ in spec.action_items]
+    key = ("target_entity", "target", "compute")
+    source = sources[key]
     if kind == functions.READ:
-        assert item.candidates == ()
-        assert item.source is None
+        assert spec.input_candidates[key] == ()
+        assert source is None
     else:
         expected = "target" if kind in {functions.VECTORIZE, functions.WRITE} else "source"
-        assert item.source is not None
-        assert item.source.dataset.id == expected
+        assert source is not None
+        assert source[1] == expected
     assert spec.model_dump() == before
 
 
@@ -197,15 +195,11 @@ def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
     spec = make_spec(kind)
     compute(spec).features.inputs = [f"$features.{feature}" for feature in inputs]
     before = spec.model_dump()
-    item = next(
-        item
-        for item in action_inputs.iter_input_sources(spec)
-        if item.action.action is compute(spec)
-    )
-    assert [feature for feature, _ in item.candidates] == [
+    key = ("target_entity", "target", "compute")
+    assert [feature for feature, _ in spec.input_candidates[key]] == [
         feature for feature in inputs if feature not in spec.dimensions
     ]
-    assert item.source is None
+    assert spec.input_sources[key] is None
     assert spec.model_dump() == before
 
 
@@ -219,16 +213,12 @@ def test_source_discovery_does_not_choose_an_ambiguous_owner(
     duplicate.id = "duplicate"
     source_entity.datasets["duplicate"] = duplicate
     compute(spec).features.inputs = ["$features.s"]
-    item = next(
-        item
-        for item in action_inputs.iter_input_sources(spec)
-        if item.action.action is compute(spec)
-    )
-    assert [owner.dataset.id for _, owners in item.candidates for owner in owners] == [
+    key = ("target_entity", "target", "compute")
+    assert [owner[1] for _, owners in spec.input_candidates[key] for owner in owners] == [
         "source",
         "duplicate",
     ]
-    assert item.source is None
+    assert spec.input_sources[key] is None
 
 
 def test_every_rule_is_registered_with_one_spec_parameter() -> None:
@@ -532,31 +522,31 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "unknown source dimensions",
         ),
         (
-            action_contracts.validate_dataframe_reference,
+            action_contracts.validate_dataset_argument_reference,
             "vectorize",
             lambda s: compute(s).binding.args.update({"data": 42}),
             "must reference a dataset",
         ),
         (
-            action_contracts.validate_dataframe_selector,
+            action_contracts.validate_dataset_argument_selector,
             "vectorize",
             lambda s: compute(s).binding.args.update({"data": "$datasets.target.id"}),
-            "must reference a dataframe",
+            "must select dataset data",
         ),
         (
-            action_contracts.validate_dataframe_source,
+            action_contracts.validate_dataset_argument_source,
             "vectorize",
             lambda s: compute(s).binding.args.update({"data": "$datasets.missing.dataframe"}),
             "unknown dataset",
         ),
         (
-            action_contracts.validate_dataset_count,
+            action_contracts.validate_dataset_argument_count,
             "collapse",
             lambda s: s.functions["compute"].args.clear(),
             "exactly 1 foreign",
         ),
         (
-            action_contracts.validate_foreign_dataframe,
+            action_contracts.validate_foreign_dataset_argument,
             "collapse",
             lambda s: compute(s).binding.args.update({"data": "$datasets.target.dataframe"}),
             "foreign source",
@@ -568,16 +558,16 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "one source dataset",
         ),
         (
-            action_contracts.validate_dataframe_feature_source,
+            action_contracts.validate_dataset_argument_feature_source,
             "conform",
             lambda s: compute(s).binding.args.update({"data": "$datasets.target.dataframe"}),
             "foreign source dataset source",
         ),
         (
-            action_contracts.validate_dataframe_features,
+            action_contracts.validate_dataset_argument_features,
             "expand",
             lambda s: compute(s).features.inputs.append("$features.time"),
-            "dataframe inputs",
+            "dataset inputs",
         ),
         (
             action_contracts.validate_feature_input_scope,
@@ -586,13 +576,13 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "cannot declare",
         ),
         (
-            action_contracts.validate_target_input,
+            action_contracts.validate_target_dataset_input,
             "vectorize",
             lambda s: compute(s).binding.args.update({"data": "$datasets.source.dataframe"}),
             "consume its target",
         ),
         (
-            action_contracts.validate_write_dataframe,
+            action_contracts.validate_target_dataset_only,
             "write",
             lambda s: compute(s).binding.args.update({"data": "$datasets.source.dataframe"}),
             "publish a foreign",
@@ -702,13 +692,15 @@ def test_cycle_uses_action_dictionary_keys_after_model_id_edit() -> None:
         validation.validate_spec(spec)
 
 
-def test_revalidation_observes_edits_and_warns_only_after_success() -> None:
+def test_new_model_validation_observes_edits_and_warns_only_after_success() -> None:
     spec = make_spec()
     validation.validate_spec(spec)
     target(spec).features["unproduced"] = model.Feature(id="unproduced")
+    spec = model.Spec.model_validate(spec.model_dump())
     with pytest.warns(UserWarning, match="Features have no producer action: unproduced"):
         validation.validate_spec(spec)
     compute(spec).features.inputs.append("$features.missing")
+    spec = model.Spec.model_validate(spec.model_dump())
     with pytest.raises(ValueError, match="unknown input feature: missing"):
         validation.validate_spec(spec)
 

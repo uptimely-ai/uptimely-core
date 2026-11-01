@@ -14,21 +14,6 @@ Node = graphable_.graphable.Graphable
 FeatureGraphNodeMeta = models.ActionNode | models.FeatureNode
 
 
-@dataclasses.dataclass(frozen=True)
-class _GraphAction:
-    """A graph operation with its declared owners and resolved function."""
-
-    action: spec_model.Action
-    function: spec_model.FunctionTemplate
-    entity: spec_model.Entity
-    dataset: spec_model.Dataset
-
-    @property
-    def kind(self) -> functions.FunctionKind:
-        """Return the function's declared capabilities."""
-        return functions.FUNCTION_KINDS[self.function.kind]
-
-
 class FeatureGraphBase:
     """Shared helpers for complete and subset feature graphs."""
 
@@ -88,13 +73,16 @@ class FeatureGraphBase:
         return views.texttree.create_topology_tree_txt(self.graph)
 
     @property
+    def feature_nodes(self) -> tuple[models.FeatureNode, ...]:
+        """Return feature metadata in the graph's current iteration order."""
+        return tuple(
+            node.reference for node in self.graph if isinstance(node.reference, models.FeatureNode)
+        )
+
+    @property
     def input_names(self) -> list[str]:
         """Source-provided inputs required by actions in this graph."""
-        return sorted(
-            node.reference.name
-            for node in self.graph
-            if isinstance(node.reference, models.FeatureNode) and node.reference.is_source_input
-        )
+        return sorted(feature.name for feature in self.feature_nodes if feature.is_source_input)
 
     @property
     def feature_input_names(self) -> list[str]:
@@ -118,11 +106,7 @@ class FeatureGraphBase:
         """Names of features considered intermediate for this graph."""
         if self._explicit_output_names is not None:
             return self.feature_names - set(self.input_names) - set(self.output_names)
-        return {
-            node.reference.name
-            for node in self.graph
-            if isinstance(node.reference, models.FeatureNode) and node.reference.is_intermediate
-        }
+        return {feature.name for feature in self.feature_nodes if feature.is_intermediate}
 
     @property
     def feature_intermediate_names(self) -> set[str]:
@@ -133,11 +117,9 @@ class FeatureGraphBase:
     def feature_names(self) -> set[str]:
         """Names of all features produced by graph actions."""
         return {
-            node.reference.name
-            for node in self.graph
-            if isinstance(node.reference, models.FeatureNode)
-            and node.reference.is_output
-            and not node.reference.is_source_input
+            feature.name
+            for feature in self.feature_nodes
+            if feature.is_output and not feature.is_source_input
         }
 
 
@@ -147,13 +129,7 @@ class FeatureGraph(FeatureGraphBase):
     def __init__(self, spec: spec_model.Spec) -> None:
         """Build the complete dependency graph from spec declarations."""
         validation.validate_spec(spec)
-        self._graph_operations = [
-            _GraphAction(action, spec.functions[action.binding.function], entity, dataset)
-            for entity in spec.entities.values()
-            for dataset in entity.datasets.values()
-            for action in dataset.actions.values()
-        ]
-        self.actions = [operation.action for operation in self._graph_operations]
+        self.actions = spec.actions
         self.spec = spec
         self._node_index: dict[str, Node] = {}
         self._explicit_output_names = None
@@ -162,11 +138,14 @@ class FeatureGraph(FeatureGraphBase):
     def _declared_features(self) -> dict[str, models.FeatureNode]:
         """Resolve output metadata directly from action and dataset declarations."""
         feature_metadata: dict[str, models.FeatureNode] = {}
-        for operation in self._graph_operations:
-            kind = operation.kind
+        for key, action in self.spec.action_items:
+            dataset = self.spec.action_datasets[key]
+            entity_id, _ = self.spec.action_dataset_keys[key]
+            function = self.spec.functions[action.binding.function]
+            kind = functions.FUNCTION_KINDS[function.kind]
             is_source_input = kind.is_source and kind.dimension_change != "remove"
-            for name in operation.action.output_features:
-                feature = operation.dataset.features[name]
+            for name in action.output_features:
+                feature = dataset.all_features[name]
                 data_type = feature.type
                 if (
                     data_type is None
@@ -178,10 +157,10 @@ class FeatureGraph(FeatureGraphBase):
                 reference = models.FeatureNode(
                     name=name,
                     data_type=data_type,
-                    entity=operation.entity.id,
-                    dataset_id=operation.dataset.id,
+                    entity=entity_id,
+                    dataset_id=dataset.id,
                     display_name=feature.name,
-                    dataset_name=operation.dataset.name,
+                    dataset_name=dataset.name,
                     is_source_input=is_source_input,
                 )
                 existing = feature_metadata.get(name)
@@ -204,13 +183,10 @@ class FeatureGraph(FeatureGraphBase):
         graph = graphable_.graph.Graph()
         nodes: dict[str, Node] = {}
         output_names = {
-            name
-            for operation in self._graph_operations
-            for name in operation.action.output_features
-            if name not in self.spec.dimensions
+            name for name in self.spec.feature_producers if name not in self.spec.dimensions
         }
         dependency_names = {
-            name for operation in self._graph_operations for name in operation.action.input_features
+            name for _, action in self.spec.action_items for name in action.input_features
         }
         feature_metadata = self._declared_features()
 
@@ -222,7 +198,7 @@ class FeatureGraph(FeatureGraphBase):
 
         def feature_meta(
             name: str,
-            operation: _GraphAction | None = None,
+            action: models.ActionNode | None = None,
         ) -> models.FeatureNode:
             metadata = feature_metadata.get(name, models.FeatureNode(name=name))
             display_name = metadata.display_name
@@ -233,36 +209,34 @@ class FeatureGraph(FeatureGraphBase):
                 metadata,
                 data_type=(
                     None
-                    if operation is not None and operation.kind.is_transformer
+                    if action is not None
+                    and functions.FUNCTION_KINDS[action.function.kind].is_transformer
                     else metadata.data_type
                 ),
-                entity=operation.entity.id if operation is not None else metadata.entity,
+                entity=action.entity if action is not None else metadata.entity,
                 display_name=display_name,
                 is_input=name in dependency_names,
                 is_output=name in output_names,
             )
 
-        for operation in self._graph_operations:
-            outputs = [
-                name
-                for name in operation.action.output_features
-                if name not in self.spec.dimensions
-            ]
-            action_node = node(
-                models.ActionNode(
-                    action_id=operation.action.id,
-                    features=tuple(sorted(outputs)),
-                    entity=operation.entity.id,
-                    dataset_id=operation.dataset.id,
-                    dataset_name=operation.dataset.name,
-                    action=operation.action,
-                    function=operation.function,
-                )
+        for key, action in self.spec.action_items:
+            dataset = self.spec.action_datasets[key]
+            entity_id, _ = self.spec.action_dataset_keys[key]
+            outputs = [name for name in action.output_features if name not in self.spec.dimensions]
+            action_metadata = models.ActionNode(
+                action_id=action.id,
+                features=tuple(sorted(outputs)),
+                entity=entity_id,
+                dataset_id=dataset.id,
+                dataset_name=dataset.name,
+                action=action,
+                function=self.spec.functions[action.binding.function],
             )
+            action_node = node(action_metadata)
             for output in outputs:
-                output_node = node(feature_meta(output, operation))
+                output_node = node(feature_meta(output, action_metadata))
                 graph.add_edge(action_node, output_node)
-            for parent in set(operation.action.input_features):
+            for parent in set(action.input_features):
                 parent_node = node(feature_meta(parent))
                 graph.add_edge(parent_node, action_node)
 

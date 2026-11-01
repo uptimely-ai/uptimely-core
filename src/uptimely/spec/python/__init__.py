@@ -2,7 +2,7 @@
 
 from . import ref
 from .actions import Action
-from .dataset import Dataset, Model, Order, RowScope
+from .dataset import Dataset, DatasetRegistry, Order, RowScope
 from .dimension import Dimension
 from .entity import Entity
 from .feature import Feature
@@ -15,7 +15,7 @@ __all__ = [
     "Dimension",
     "Entity",
     "Feature",
-    "Model",
+    "DatasetRegistry",
     "Order",
     "Spec",
     "RowScope",

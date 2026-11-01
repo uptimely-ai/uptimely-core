@@ -9,8 +9,6 @@ import graphable as graphable_
 from uptimely import row_context, spec
 from uptimely.spec import functions
 
-from ..spec import binding_resolution
-
 type GraphNode = graphable_.graphable.Graphable
 
 
@@ -21,7 +19,7 @@ class InvocationNode:
     function_id: str
     entity_id: str
     dataset_id: str
-    mapping_id: str
+    action_id: str
     feature_id: str | None = None
     output_features: tuple[str, ...] = ()
     arguments: dict[str, object] = dataclasses.field(
@@ -35,7 +33,7 @@ class InvocationNode:
     @property
     def node_id(self) -> str:
         """Stable graph identifier for this invocation."""
-        return f"invocation:{self.function_id}:{self.entity_id}:{self.dataset_id}:{self.mapping_id}"
+        return f"invocation:{self.function_id}:{self.entity_id}:{self.dataset_id}:{self.action_id}"
 
     def __str__(self) -> str:
         return f"{self.function_id}({self.entity_id})"
@@ -61,84 +59,85 @@ class InvocationGraph:
         self._nodes = {node.reference.node_id: node for node in self.graph}
 
     def _create_graph(self) -> graphable_.graph.Graph:
-        """Build graph nodes and connect their action, feature, and write dependencies."""
+        """Build graph nodes and connect their action, feature, and sink dependencies."""
         nodes: dict[str, GraphNode] = {}
         feature_producers: dict[str, InvocationNode] = {}
         dataset_sources: dict[str, list[InvocationNode]] = {}
         dataset_sinks: dict[str, list[InvocationNode]] = {}
-        calculations: dict[str, list[InvocationNode]] = {}
+        dataset_transformers: dict[str, list[InvocationNode]] = {}
 
-        for entity_id, entity in self.spec.entities.items():
-            for dataset in entity.datasets.values():
-                for action in dataset.actions.values():
-                    function_kind = self.spec.functions[action.binding.function].kind
-                    function_definition = functions.FUNCTION_KINDS[function_kind]
-                    feature_id = (
-                        next(
-                            (
-                                feature
-                                for feature in action.output_features
-                                if feature not in entity.dimension_ids
-                            ),
-                            None,
-                        )
-                        if function_definition.dimension_change == "remove"
-                        else action.output_features[0]
-                        if action.output_features
-                        else None
-                    )
-                    invocation = InvocationNode(
-                        function_id=action.binding.function,
-                        entity_id=entity_id,
-                        dataset_id=dataset.id,
-                        mapping_id=action.id,
-                        feature_id=feature_id,
-                        output_features=tuple(action.output_features),
-                        arguments=action.binding.args,
-                        input_features=tuple(action.input_features),
-                        row_context=action.row_context,
-                    )
-                    nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
-                    if function_definition.is_sink:
-                        dataset_sinks.setdefault(dataset.id, []).append(invocation)
-                    if function_definition.is_source:
-                        dataset_sources.setdefault(dataset.id, []).append(invocation)
-                    if function_definition.is_transformer:
-                        calculations.setdefault(dataset.id, []).append(invocation)
-                    for feature in action.output_features:
-                        if feature not in self.spec.dimensions:
-                            feature_producers[feature] = invocation
+        for key, action in self.spec.action_items:
+            entity_id = key[0]
+            dataset = self.spec.datasets_by_key[key[:2]]
+            function_kind = self.spec.functions[action.binding.function].kind
+            function_definition = functions.FUNCTION_KINDS[function_kind]
+            outputs = action.output_features
+            feature_id = (
+                next(
+                    (
+                        feature
+                        for feature in outputs
+                        if feature not in self.spec.dimensions_by_dataset[key[:2]]
+                    ),
+                    None,
+                )
+                if function_definition.dimension_change == "remove"
+                else outputs[0]
+                if outputs
+                else None
+            )
+            invocation = InvocationNode(
+                function_id=action.binding.function,
+                entity_id=entity_id,
+                dataset_id=dataset.id,
+                action_id=action.id,
+                feature_id=feature_id,
+                output_features=tuple(outputs),
+                arguments=action.binding.args,
+                input_features=tuple(action.input_features),
+                row_context=action.row_context,
+            )
+            nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
+            if function_definition.is_sink:
+                dataset_sinks.setdefault(dataset.id, []).append(invocation)
+            if function_definition.is_source:
+                dataset_sources.setdefault(dataset.id, []).append(invocation)
+            if function_definition.is_transformer:
+                dataset_transformers.setdefault(dataset.id, []).append(invocation)
+            for feature in outputs:
+                if feature not in self.spec.dimensions:
+                    feature_producers[feature] = invocation
 
         graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
-        self._add_source_dependencies(graph, nodes, dataset_sources)
-        self._add_action_dependencies(
-            graph, nodes, feature_producers, dataset_sources, calculations
+        self._add_reader_dependencies(graph, nodes, dataset_sources)
+        self._add_action_dependencies(graph, nodes, feature_producers, dataset_sources)
+        self._add_transformer_dependencies(graph, nodes, dataset_sources, dataset_transformers)
+        self._add_sink_dependencies(
+            graph, nodes, dataset_sources, dataset_sinks, dataset_transformers
         )
-        self._add_calculation_dependencies(graph, nodes, dataset_sources, calculations)
-        self._add_write_dependencies(graph, nodes, dataset_sources, dataset_sinks, calculations)
         return graph
 
-    def _add_source_dependencies(
+    def _add_reader_dependencies(
         self,
         graph: graphable_.graph.Graph,
         nodes: dict[str, GraphNode],
         dataset_sources: dict[str, list[InvocationNode]],
     ) -> None:
-        """Make source transforms depend on reads in their dataset."""
-        for fragments in dataset_sources.values():
+        """Make source operations depend on readers in their target dataset."""
+        for sources in dataset_sources.values():
             reads = [
-                fragment
-                for fragment in fragments
-                if self.spec.functions[fragment.function_id].kind == functions.READ
+                source
+                for source in sources
+                if self.spec.functions[source.function_id].kind == functions.READ
             ]
-            downstream = [
-                fragment
-                for fragment in fragments
-                if self.spec.functions[fragment.function_id].kind != functions.READ
+            source_operations = [
+                source
+                for source in sources
+                if self.spec.functions[source.function_id].kind != functions.READ
             ]
-            for fragment in downstream:
+            for source in source_operations:
                 for read in reads:
-                    graph.add_edge(nodes[read.node_id], nodes[fragment.node_id])
+                    graph.add_edge(nodes[read.node_id], nodes[source.node_id])
 
     def _add_action_dependencies(
         self,
@@ -146,12 +145,11 @@ class InvocationGraph:
         nodes: dict[str, GraphNode],
         feature_producers: dict[str, InvocationNode],
         dataset_sources: dict[str, list[InvocationNode]],
-        calculations: dict[str, list[InvocationNode]],
     ) -> None:
         """Connect action dataframe and feature references to their producers."""
         for invocation in (node.reference for node in nodes.values()):
-            dataset_references = binding_resolution.dataset_dependencies(
-                invocation.arguments, invocation.dataset_id
+            dataset_references = self.action_for(invocation).binding.dataset_dependencies(
+                invocation.dataset_id
             )
             for referenced_id in dataset_references:
                 for source in dataset_sources.get(referenced_id, []):
@@ -167,31 +165,31 @@ class InvocationGraph:
                     graph.add_edge(nodes[producer.node_id], nodes[invocation.node_id])
 
     @staticmethod
-    def _add_calculation_dependencies(
+    def _add_transformer_dependencies(
         graph: graphable_.graph.Graph,
         nodes: dict[str, GraphNode],
         dataset_sources: dict[str, list[InvocationNode]],
-        calculations: dict[str, list[InvocationNode]],
+        dataset_transformers: dict[str, list[InvocationNode]],
     ) -> None:
-        """Make vectorized calculations consume their assembled dataset sources."""
-        for dataset_id, dataset_calculations in calculations.items():
-            for invocation in dataset_calculations:
+        """Make transformers consume their assembled dataset sources."""
+        for dataset_id, transformers in dataset_transformers.items():
+            for invocation in transformers:
                 consumer = nodes[invocation.node_id]
                 for source in dataset_sources.get(dataset_id, []):
                     graph.add_edge(nodes[source.node_id], consumer)
 
-    def _add_write_dependencies(
+    def _add_sink_dependencies(
         self,
         graph: graphable_.graph.Graph,
         nodes: dict[str, GraphNode],
         dataset_sources: dict[str, list[InvocationNode]],
         dataset_sinks: dict[str, list[InvocationNode]],
-        calculations: dict[str, list[InvocationNode]],
+        dataset_transformers: dict[str, list[InvocationNode]],
     ) -> None:
-        """Make dataset writes depend on their source fragments and relevant calculations."""
+        """Make sinks depend on their dataset sources and relevant transformers."""
         for dataset_id, sinks in dataset_sinks.items():
             sources = dataset_sources.get(dataset_id, [])
-            dataset_calculations = calculations.get(dataset_id, [])
+            transformers = dataset_transformers.get(dataset_id, [])
             for sink in sinks:
                 sink_node = nodes[sink.node_id]
                 for source in sources:
@@ -200,11 +198,11 @@ class InvocationGraph:
                 dependencies = (
                     [
                         invocation
-                        for invocation in dataset_calculations
+                        for invocation in transformers
                         if referenced.intersection(invocation.output_features)
                     ]
                     if referenced
-                    else dataset_calculations
+                    else transformers
                 )
                 for invocation in dependencies:
                     graph.add_edge(nodes[invocation.node_id], sink_node)
@@ -215,7 +213,7 @@ class InvocationGraph:
 
     def action_for(self, node: InvocationNode) -> spec.Action:
         """Return the declaration that produced an invocation node."""
-        return self.dataset_for(node).actions[node.mapping_id]
+        return self.dataset_for(node).actions[node.action_id]
 
     def topology(self) -> list[list[InvocationNode]]:
         """Return invocations grouped by dependency level (topological order)."""
@@ -242,7 +240,8 @@ class InvocationGraph:
 
         selected_dataset_ids = {node.dataset_id for node in requested_nodes}
         for invocation in self.invocations:
-            if self.spec.functions[invocation.function_id].kind != functions.WRITE:
+            function_kind = self.spec.functions[invocation.function_id].kind
+            if not functions.FUNCTION_KINDS[function_kind].is_sink:
                 continue
             if invocation.dataset_id not in selected_dataset_ids:
                 continue

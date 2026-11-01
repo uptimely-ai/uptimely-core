@@ -532,6 +532,7 @@ def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> No
         ]
 
     declaration = Example()
+    assert list(declaration.actions) == ["calculate", "publish", "custom_work"]
     model = declaration.to_model()
     assert list(model.actions) == ["calculate", "publish", "custom_work"]
     assert model.actions["calculate"].input_features == ["pipeline_result"]
@@ -546,14 +547,14 @@ def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> No
     assert set(exported["features"]) == {"result"}
 
 
-def test_model_collects_dataset_classes_in_registry_order() -> None:
+def test_dataset_registry_collects_dataset_classes_in_order() -> None:
     class First(authoring.Dataset):
         id = "first"
 
     class Second(authoring.Dataset):
         id = "second"
 
-    declarations = authoring.Model(datasets=[First, Second]).to_declarations()
+    declarations = authoring.DatasetRegistry(datasets=[First, Second]).to_declarations()
     assert list(declarations) == ["first", "second"]
     assert isinstance(declarations["first"], First)
     assert isinstance(declarations["second"], Second)

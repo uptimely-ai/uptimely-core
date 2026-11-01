@@ -93,7 +93,7 @@ preserved. Reference resolution does not mutate the supplied declarations.
 The function catalog is collected from the registered datasets.
 Convert declarations containing ID references through `up.Spec.to_model()`
 or `up.Spec.to_dict()` so those references can be resolved.
-`Model([Pump]).to_declarations()` optionally registers dataset classes.
+`DatasetRegistry([Pump]).to_declarations()` optionally registers dataset classes.
 
 `Action` declares work without executing it. It takes `id`, `function`,
 `arguments`, and `outputs`, with optional `inputs`, `function_id`, and

@@ -3,30 +3,24 @@
 from __future__ import annotations
 
 import collections.abc
-import dataclasses
 import graphlib
 
 from uptimely import execution_plan
 from uptimely.engine.dataframe import backend as backend_module
 
-
-@dataclasses.dataclass(frozen=True)
-class EngineValidationContext:
-    """Plan and backend values used to validate engine configuration."""
-
-    plan: execution_plan.ExecutionPlan
-    backend: backend_module.DataFrameBackend
+type Validator = collections.abc.Callable[
+    [execution_plan.ExecutionPlan, backend_module.DataFrameBackend], None
+]
 
 
-type Validator = collections.abc.Callable[[EngineValidationContext], None]
-
-
-def validate_plan_backend(context: EngineValidationContext) -> None:
+def validate_plan_backend(
+    plan: execution_plan.ExecutionPlan,
+    backend: backend_module.DataFrameBackend,
+) -> None:
     """Require the engine backend to match the saved plan."""
-    if context.plan.required_backend != context.backend.name:
+    if plan.required_backend != backend.name:
         raise ValueError(
-            f"Unsupported plan backend: {context.plan.required_backend}. "
-            f"Expected {context.backend.name}."
+            f"Unsupported plan backend: {plan.required_backend}. Expected {backend.name}."
         )
 
 
@@ -35,11 +29,15 @@ ENGINE_VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
 }
 
 
-def validate_engine(context: EngineValidationContext) -> None:
+def validate_engine(
+    plan: execution_plan.ExecutionPlan,
+    backend: backend_module.DataFrameBackend,
+) -> None:
     """Run engine-configuration checks in prerequisite order.
 
     Args:
-        context: Plan and backend values for the engine being configured.
+        plan: Plan to validate against the configured backend.
+        backend: Backend selected for engine execution.
 
     Raises:
         ValueError: A plan is incompatible with the configured engine.
@@ -47,4 +45,4 @@ def validate_engine(context: EngineValidationContext) -> None:
     """
     ordered = tuple(graphlib.TopologicalSorter(ENGINE_VALIDATION_DEPENDENCIES).static_order())
     for validate in ordered:
-        validate(context)
+        validate(plan, backend)

@@ -7,18 +7,13 @@ from support import examples as example_support
 
 from uptimely import spec
 from uptimely.spec import validation
-from uptimely.spec.validation.rules import actions as action_rules
 from uptimely.spec.validation.rules import (
     bindings,
     dimensions,
-    functions,
 )
-from uptimely.spec.validation.rules import datasets as dataset_rules
 from uptimely.spec.validation.rules import features as feature_rules
 from uptimely.spec.validation.rules.actions import contracts as contracts_validation
-from uptimely.spec.validation.rules.actions import dependencies
 from uptimely.spec.validation.rules.actions import inputs as action_inputs
-from uptimely.spec.validation.rules.actions import outputs as action_outputs
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
@@ -46,10 +41,12 @@ def test_binding_feature_selectors_do_not_become_input_dependencies() -> None:
     action.features.inputs = []
     action.binding.args["dependency_hint"] = "$features.bearing_temperature"
 
-    facts = next(item for item in action_rules.iter_actions(document) if item.action is action)
+    facts = next(item for item in document.actions if item is action)
 
-    assert facts.inputs == ()
-    assert "bearing_temperature" in facts.feature_selectors
+    assert facts.input_features == []
+    assert "bearing_temperature" in [
+        feature for feature, _ in facts.binding.references_by_prefix["$features."]
+    ]
 
 
 @pytest.mark.parametrize("load_from_file", [False, True])
@@ -129,7 +126,7 @@ def test_binding_and_contract_paths_keep_their_existing_action_identifiers(
         action.binding.args[argument] = "$datasets.pump_dataset.dataframe"
         expected_id = action.id
         expected_code = "invalid_mapping_dataset_input"
-        validate = contracts_validation.validate_target_input
+        validate = contracts_validation.validate_target_dataset_input
     with pytest.raises(validation.SpecError) as error:
         validate(document)
     assert error.value.code == expected_code
@@ -297,7 +294,7 @@ def test_mapping_dependency_rejects_unknown_feature() -> None:
     )
 
 
-def test_document_validation_rebuilds_indexes_after_an_edit() -> None:
+def test_new_document_validation_observes_an_edit() -> None:
     document = spec.Spec.model_validate(_configuration())
     validation.validate_spec(document)
     action = (
@@ -306,6 +303,7 @@ def test_document_validation_rebuilds_indexes_after_an_edit() -> None:
         .actions["pressure_flow_efficiency"]
     )
     action.features.inputs.append("$features.health_signal_normalized")
+    document = spec.Spec.model_validate(document.model_dump())
 
     with pytest.raises(ValueError, match="cannot read feature .* from another dataset"):
         validation.validate_spec(document)
@@ -345,20 +343,19 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     other.actions["recommended_flow_rate"].binding.args = {"unexpected": None}
     document.entities["pump_telemetry"].datasets[dataset.id] = dataset.model_copy(deep=True)
     original = document.model_copy(deep=True)
-    datasets = tuple(dataset_rules.iter_datasets(document))
-    actions = tuple(action_rules.iter_actions(document))
-    assert sum(item.dataset.id == dataset.id for item in datasets) == 2
-    assert any(len(owners) > 1 for owners in feature_rules.feature_owners(document).values())
-    assert any(item.function is None for item in actions)
+    datasets = document.dataset_items
+    actions = document.actions
+    assert sum(item.id == dataset.id for _, item in datasets) == 2
+    assert any(len(owners) > 1 for owners in document.feature_owners.values())
+    assert any(item.binding.function not in document.functions for item in actions)
     assert any(cycle for _, cycle in dimensions.iter_parent_cycles(document))
-    assert next(dataset_rules.iter_order_dimensions(document), None) is not None
-    assert next(action_outputs.iter_output_datasets(document), None) is not None
-    producers = dependencies.feature_producers(actions, frozenset(document.dimensions))
-    assert producers
-    assert any(item.source is None for item in action_inputs.iter_input_sources(document))
-    assert dependencies.find_action_cycle(actions, producers) is None
-    assert next(functions.iter_functions(document), None) is not None
-    assert next(contracts_validation.iter_action_contracts(document), None) is not None
+    assert any(item.order_dimensions for _, item in datasets)
+    assert document.feature_producers
+    assert any(source is None for source in document.input_sources.values())
+    function_id, function, dataframe_inputs = next(document.functions.iter_functions())
+    assert function_id == function.id
+    assert dataframe_inputs == len(function.arguments_by_type.get("dataframe", {}))
+    assert document.actions_arguments
     assert document == original
 
 
@@ -373,8 +370,8 @@ def test_duplicate_feature_ownership_retains_all_candidates() -> None:
         first: dataset.features[first].model_copy(deep=True),
     }
     document.entities["pump"].datasets[duplicate.id] = duplicate
-    owners = feature_rules.feature_owners(document)
-    assert [item.dataset for item in owners[first]] == [dataset, duplicate]
-    assert [item.dataset for item in owners[second]] == [dataset, duplicate]
+    owners = document.feature_owners
+    assert [document.datasets_by_key[key] for key in owners[first]] == [dataset, duplicate]
+    assert [document.datasets_by_key[key] for key in owners[second]] == [dataset, duplicate]
     with pytest.raises(ValueError, match="Duplicate feature name"):
         feature_rules.validate_feature_ownership(document)

@@ -23,56 +23,6 @@ class DataFrameExecution:
         self.spec_definition = spec_definition
         self.state = state
 
-    def validate_inputs(self, invocation: execution_plan.Invocation) -> None:
-        """Require declared input columns to be materialized before invocation."""
-        dataframe_validation_module.validate_dataframes(
-            dataframe_validation_module.InputValidationContext(
-                self.backend,
-                self.spec_definition,
-                self.state,
-                invocation,
-            ),
-            (
-                dataframe_validation_module.validate_input_function,
-                dataframe_validation_module.validate_input_features,
-            ),
-        )
-
-    def _validate_fragment(
-        self,
-        invocation: execution_plan.Invocation,
-        fragment: object,
-        dataframe: object | None,
-        dimensions: list[str],
-        output_features: list[str] | None = None,
-    ) -> None:
-        """Check fragment keys, declared outputs, and logical types."""
-        dataframe_validation_module.validate_dataframes(
-            dataframe_validation_module.FrameValidationContext(
-                self.backend,
-                self.spec_definition,
-                fragment,
-                dimensions,
-                f"Fragment {invocation.function_id}",
-                invalid_frame_message=(
-                    f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
-                ),
-                invocation=invocation,
-                output_features=output_features,
-                dataset=self._dataset(invocation.dataset_id),
-                comparison_frame=dataframe,
-            ),
-            (
-                dataframe_validation_module.validate_frame_type,
-                dataframe_validation_module.validate_dimension_columns,
-                dataframe_validation_module.validate_row_count,
-                dataframe_validation_module.validate_unique_dimension_keys,
-                dataframe_validation_module.validate_output_columns,
-                dataframe_validation_module.validate_fragment_declared_types,
-                dataframe_validation_module.validate_key_coverage,
-            ),
-        )
-
     def assemble_fragment(
         self,
         invocation: execution_plan.Invocation,
@@ -95,8 +45,21 @@ class DataFrameExecution:
             raise ValueError(
                 f"Function kind {invocation.function_kind} does not materialize dataframe results"
             )
-        self._validate_fragment(
-            invocation, fragment, dataframe, fragment_dimensions, output_features=output_features
+        dataframe_validation_module.validate_fragment(
+            dataframe_validation_module.FrameValidationContext(
+                self.backend,
+                self.spec_definition,
+                fragment,
+                fragment_dimensions,
+                f"Fragment {invocation.function_id}",
+                invalid_frame_message=(
+                    f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
+                ),
+                invocation=invocation,
+                output_features=output_features,
+                dataset=dataset,
+                comparison_frame=dataframe,
+            )
         )
         fragment = self.backend.select(
             fragment, list(dict.fromkeys([*fragment_dimensions, *output_features]))
@@ -140,7 +103,9 @@ class DataFrameExecution:
         """Combine a validated fragment with the accumulated dataframe."""
         if dataframe is None:
             return fragment
-        self._validate_feature_collisions(dataframe, fragment, dimensions)
+        dataframe_validation_module.validate_feature_collisions(
+            self.backend, dataframe, fragment, dimensions
+        )
         return self._join_fragments(dataframe, fragment, dimensions)
 
     def _carried_dimensions(self, fragment: object, dimensions: list[str]) -> list[str]:
@@ -161,21 +126,11 @@ class DataFrameExecution:
                 f"Expand action {invocation.mapping_id} fragment carries a subset of the "
                 "dimension keys and requires the accumulated target dataset"
             )
-        self._validate_feature_collisions(dataframe, fragment, fragment_dimensions)
+        dataframe_validation_module.validate_feature_collisions(
+            self.backend, dataframe, fragment, fragment_dimensions
+        )
         left, right = self._aligned_frames(dataframe, fragment)
         return self.backend.left_join(left, right, fragment_dimensions)
-
-    def _validate_feature_collisions(
-        self, dataframe: object, fragment: object, dimensions: list[str]
-    ) -> None:
-        """Reject output feature names already present in the accumulated dataset."""
-        dataframe_columns = set(self.backend.column_names(dataframe))
-        fragment_columns = set(self.backend.column_names(fragment))
-        collisions = sorted((fragment_columns - set(dimensions)) & dataframe_columns)
-        if collisions:
-            raise ValueError(
-                "Fragment feature columns overlap the accumulated dataset: " + ", ".join(collisions)
-            )
 
     def _join_fragments(self, dataframe: object, fragment: object, dimensions: list[str]) -> object:
         """Join validated frames, retaining the native eager/lazy behavior."""
@@ -190,14 +145,7 @@ class DataFrameExecution:
 
     def _dataset(self, dataset_id: str | None) -> spec_model.Dataset:
         """Return the spec definition for a project-wide dataset ID."""
-        dataset = next(
-            (
-                dataset
-                for entity in self.spec_definition.entities.values()
-                if (dataset := entity.datasets.get(dataset_id)) is not None
-            ),
-            None,
-        )
+        dataset = self.spec_definition.datasets.get(dataset_id) if dataset_id is not None else None
         if dataset is None:
             raise ValueError(f"Unknown dataset: {dataset_id}")
         return dataset
@@ -210,19 +158,11 @@ class DataFrameExecution:
         invalid_frame_message: str | None = None,
     ) -> None:
         """Validate dataframe type and dimension-key integrity."""
-        dataframe_validation_module.validate_dataframes(
-            dataframe_validation_module.FrameValidationContext(
-                self.backend,
-                self.spec_definition,
-                dataframe,
-                dimensions,
-                description,
-                invalid_frame_message,
-            ),
-            (
-                dataframe_validation_module.validate_frame_type,
-                dataframe_validation_module.validate_dimension_columns,
-                dataframe_validation_module.validate_row_count,
-                dataframe_validation_module.validate_unique_dimension_keys,
-            ),
+        dataframe_validation_module.validate_frame_structure(
+            self.backend,
+            self.spec_definition,
+            dataframe,
+            dimensions,
+            description,
+            invalid_frame_message,
         )

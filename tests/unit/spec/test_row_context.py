@@ -1,6 +1,8 @@
+import dataclasses
 import datetime
 import json
 import pathlib
+import types
 
 import polars as pl
 import pydantic
@@ -10,6 +12,7 @@ from support import rendering as rendering_support
 
 from uptimely import compiler, row_context, spec
 from uptimely import execution_plan as uptimely_plan
+from uptimely.spec import functions
 from uptimely.spec.python import (
     actions,
     binding_conversion,
@@ -20,6 +23,7 @@ from uptimely.spec.python import (
     ref,
 )
 from uptimely.spec.python import row_context as authoring
+from uptimely.spec.validation.rules import row_context as row_context_rules
 
 
 def read_observations() -> pl.DataFrame:
@@ -270,6 +274,66 @@ def test_directional_context_requires_dataset_order():
         _spec(authoring.rows(1, before=1).row_context, ordered=False)
     _spec(authoring.current(), ordered=False)
     _spec(authoring.dataset(), ordered=False)
+
+
+@pytest.mark.parametrize("kind", list(functions.FUNCTION_KINDS))
+@pytest.mark.parametrize("dimension_change", ["preserve", "remove"])
+def test_row_context_dataset_selection_follows_dimension_contract(
+    kind: functions.FunctionKindId,
+    dimension_change: functions.DimensionChange,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configuration = _spec().model_dump()
+    source = configuration["entities"]["entity"]["datasets"]["observations"]
+    action = source["actions"].pop("result")
+    output = source["features"].pop("result")
+    action["row_context"] = authoring.time(
+        "1h", dimension=ref.dimension("timestamp"), before="1h"
+    ).row_context.to_dict()
+    configuration["entities"]["target"] = {
+        "name": "Target",
+        "dimensions": [],
+        "datasets": {"summary": {"features": {"result": output}, "actions": {"result": action}}},
+    }
+    configuration["functions"]["calculate"]["kind"] = kind
+    document = spec.Spec.model_validate(configuration)
+    definitions = dict(functions.FUNCTION_KINDS)
+    definitions[kind] = dataclasses.replace(definitions[kind], dimension_change=dimension_change)
+    monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+
+    key = ("target", "summary", "result")
+    expected_source = (
+        ("entity", "observations") if dimension_change == "remove" else ("target", "summary")
+    )
+    assert document.get_row_context_dataset(key) is document.datasets_by_key[expected_source]
+    assert (
+        document.get_row_context_dimensions(key) == document.dimensions_by_dataset[expected_source]
+    )
+    if dimension_change == "remove":
+        row_context_rules.validate_dataset_order(document)
+        row_context_rules.validate_dimension(document)
+        row_context_rules.validate_dimension_order(document)
+    else:
+        with pytest.raises(ValueError, match="requires dataset order"):
+            row_context_rules.validate_dataset_order(document)
+        with pytest.raises(ValueError, match="not in the input entity"):
+            row_context_rules.validate_dimension(document)
+        with pytest.raises(ValueError, match="must occur in dataset order"):
+            row_context_rules.validate_dimension_order(document)
+    row_context_rules.validate_dimension_type(document)
+
+
+def test_row_context_accessors_preserve_unresolved_sources() -> None:
+    configuration = _spec(authoring.current()).model_dump()
+    configuration["functions"]["calculate"]["kind"] = "collapse"
+    configuration["entities"]["entity"]["datasets"]["observations"]["actions"]["result"][
+        "features"
+    ]["inputs"] = ["$features.missing"]
+    document = spec.Spec.model_validate(configuration)
+    key = ("entity", "observations", "result")
+
+    assert document.get_row_context_dataset(key) is None
+    assert document.get_row_context_dimensions(key) is None
 
 
 def test_spec_plan_execution_and_explorer_preserve_context(

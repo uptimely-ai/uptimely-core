@@ -113,13 +113,12 @@ def _log_summary(
         logger.info("\nScope: %s", scope)
 
         logger.info("\nProcessed datasets:")
-        for entity in bundle.spec_definition.entities.values():
-            for dataset_id, dataset in entity.datasets.items():
-                logger.info(
-                    "- Dataset: %s - %d features",
-                    dataset_id,
-                    len(dataset.features),
-                )
+        for dataset_id, dataset in bundle.spec_definition.datasets.items():
+            logger.info(
+                "- Dataset: %s - %d features",
+                dataset_id,
+                len(dataset.features),
+            )
 
 
 def _log_previews(result: engine_module.ExecutionResult, rows: int) -> None:

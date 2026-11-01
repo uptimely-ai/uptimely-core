@@ -34,6 +34,8 @@ the implementation. Package metadata is read once per `Module` instance.
 The value exposes `distribution` and `version`, along with `top_level_package`
 and `distribution_candidates`. `PackageProvenance.read(module_path)` also
 supports standalone metadata lookup.
+Use `package.to_dict()` to serialize the distribution name and version for a
+portable plan; lookup diagnostics are not included.
 
 The installed-package index is shared across lookups and refreshed when
 `sys.path` changes, avoiding a full environment scan for each entrypoint.

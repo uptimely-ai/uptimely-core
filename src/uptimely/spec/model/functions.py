@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import functools
 import typing
 
 import pydantic
 
-from uptimely.spec import functions
+from uptimely.spec import arg_types, functions
 
 from . import common
 
@@ -33,6 +34,14 @@ class FunctionTemplate(common.StrictModel):
             self.name = common.humanize_identifier(self.id)
         return self
 
+    @functools.cached_property
+    def arguments_by_type(self) -> dict[str, dict[str, common.Argument]]:
+        """Return argument declarations grouped by type in declaration order."""
+        grouped: dict[str, dict[str, common.Argument]] = {}
+        for argument_id, argument in self.args.items():
+            grouped.setdefault(argument.type, {})[argument_id] = argument
+        return grouped
+
 
 class FunctionCatalog(pydantic.RootModel[dict[str, FunctionTemplate]]):
     """Function definitions keyed by their globally unique identifiers."""
@@ -41,10 +50,32 @@ class FunctionCatalog(pydantic.RootModel[dict[str, FunctionTemplate]]):
 
     def by_kind(self, kind: functions.FunctionKindId) -> dict[str, FunctionTemplate]:
         """Return function definitions for one kind."""
+        return self.functions_by_kind.get(kind, {})
+
+    def iter_functions(self) -> typing.Iterator[tuple[str, FunctionTemplate, int]]:
+        """Yield each function with its number of dataframe arguments."""
+        for function_id, function in self.root.items():
+            yield (
+                function_id,
+                function,
+                len(function.arguments_by_type.get(arg_types.DATAFRAME, {})),
+            )
+
+    @functools.cached_property
+    def functions_by_kind(self) -> dict[functions.FunctionKindId, dict[str, FunctionTemplate]]:
+        """Return function groups without repeatedly filtering the catalog."""
+        grouped: dict[functions.FunctionKindId, dict[str, FunctionTemplate]] = {}
+        for function_id, function in self.root.items():
+            grouped.setdefault(function.kind, {})[function_id] = function
+        return grouped
+
+    @functools.cached_property
+    def arguments(self) -> dict[tuple[str, str], common.Argument]:
+        """Return argument declarations keyed by function key and argument key."""
         return {
-            function_id: function
+            (function_id, argument_id): argument
             for function_id, function in self.root.items()
-            if function.kind == kind
+            for argument_id, argument in function.args.items()
         }
 
     def __getitem__(self, function_id: str) -> FunctionTemplate:

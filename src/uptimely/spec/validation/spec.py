@@ -97,18 +97,20 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         row_context.validate_dimension,
         row_context.validate_dataset_order,
     ),
-    action_contracts.validate_dataframe_reference: (bindings.validate_arguments,),
-    action_contracts.validate_dataframe_selector: (action_contracts.validate_dataframe_reference,),
-    action_contracts.validate_dataframe_source: (
-        datasets.validate_dataset_ids,
-        action_contracts.validate_dataframe_selector,
+    action_contracts.validate_dataset_argument_reference: (bindings.validate_arguments,),
+    action_contracts.validate_dataset_argument_selector: (
+        action_contracts.validate_dataset_argument_reference,
     ),
-    action_contracts.validate_dataset_count: (
-        action_contracts.validate_dataframe_source,
+    action_contracts.validate_dataset_argument_source: (
+        datasets.validate_dataset_ids,
+        action_contracts.validate_dataset_argument_selector,
+    ),
+    action_contracts.validate_dataset_argument_count: (
+        action_contracts.validate_dataset_argument_source,
         functions.validate_dataframe_count,
     ),
     action_contracts.validate_matching_keys: (
-        action_contracts.validate_dataframe_source,
+        action_contracts.validate_dataset_argument_source,
         action_inputs.validate_dataset_reference,
         entities.validate_entity_dimensions,
     ),
@@ -117,28 +119,34 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         features.validate_feature_ownership,
         action_inputs.validate_input_feature,
     ),
-    action_contracts.validate_foreign_dataframe: (action_contracts.validate_dataset_count,),
-    action_contracts.validate_dataframe_feature_source: (
-        action_contracts.validate_dataset_count,
+    action_contracts.validate_foreign_dataset_argument: (
+        action_contracts.validate_dataset_argument_count,
+    ),
+    action_contracts.validate_dataset_argument_feature_source: (
+        action_contracts.validate_dataset_argument_count,
         action_contracts.validate_input_feature_source_count,
     ),
-    action_contracts.validate_dataframe_features: (
-        action_contracts.validate_dataframe_feature_source,
+    action_contracts.validate_dataset_argument_features: (
+        action_contracts.validate_dataset_argument_feature_source,
         entities.validate_entity_dimensions,
     ),
     action_contracts.validate_feature_input_scope: (action_outputs.validate_function_reference,),
-    action_contracts.validate_target_input: (action_contracts.validate_dataframe_source,),
-    action_contracts.validate_write_dataframe: (action_contracts.validate_dataframe_source,),
+    action_contracts.validate_target_dataset_input: (
+        action_contracts.validate_dataset_argument_source,
+    ),
+    action_contracts.validate_target_dataset_only: (
+        action_contracts.validate_dataset_argument_source,
+    ),
     action_contracts.validate_dimension_source: (
-        action_contracts.validate_dataframe_source,
+        action_contracts.validate_dataset_argument_source,
         action_inputs.validate_source_count,
     ),
     action_contracts.validate_dimension_change: (
-        action_contracts.validate_dataframe_source,
+        action_contracts.validate_dataset_argument_source,
         entities.validate_entity_dimensions,
     ),
     action_contracts.validate_dimension_expansion_input: (
-        action_contracts.validate_dataframe_feature_source,
+        action_contracts.validate_dataset_argument_feature_source,
         entities.validate_entity_dimensions,
     ),
     dependencies.validate_action_cycle: (

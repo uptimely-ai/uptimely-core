@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import itertools
 
 from uptimely import execution_plan, spec
 from uptimely.explorer import render
@@ -108,27 +109,32 @@ class _DataLineageBuilder:
         self.ordered_stages = [
             sorted(stage, key=lambda invocation: invocation.id) for stage in plan.execution_stages
         ]
-        invocations = [invocation for stage in self.ordered_stages for invocation in stage]
+        invocations = plan.invocations
         self.numbers = {
-            invocation.id: number for number, invocation in enumerate(invocations, start=1)
+            invocation.id: number
+            for number, invocation in enumerate(
+                itertools.chain.from_iterable(self.ordered_stages), start=1
+            )
         }
         self.colors = {
             invocation_id: f"hsl({(150 + number * 137) % 360}, 70%, 75%)"
             for invocation_id, number in self.numbers.items()
         }
         self.producers = {
-            feature: invocation
-            for invocation in invocations
-            for feature in invocation.output_features
+            feature: max(producers, key=lambda item: self.numbers[item.id])
+            for feature, producers in plan.features.items()
             if feature not in definition.dimensions
         }
-        self.features = {
-            feature.id: _FeatureSource(entity, dataset, feature)
-            for entity in definition.entities.values()
-            for dataset in entity.datasets.values()
-            for feature in dataset.features.values()
-            if feature.id not in definition.dimensions
-        }
+        self.features: dict[str, _FeatureSource] = {}
+        for feature_id, feature in definition.features.items():
+            if feature_id in definition.dimensions:
+                continue
+            owner = definition.feature_owners[feature_id][-1]
+            self.features[feature_id] = _FeatureSource(
+                entity=definition.entities[owner[0]],
+                dataset=definition.datasets_by_key[owner],
+                feature=feature,
+            )
         self.compact_datasets = {
             invocation.dataset_id
             for invocation in invocations
@@ -226,7 +232,9 @@ class _DataLineageBuilder:
         """Assemble one invocation's schema, input tables, and dependencies."""
         entity = self.definition.entities[invocation.entity_id]
         kind = functions.FUNCTION_KINDS[invocation.function_kind]
-        dataset = entity.datasets.get(invocation.dataset_id)
+        dataset = (
+            self.definition.datasets.get(invocation.dataset_id) if invocation.dataset_id else None
+        )
         dimensions = set(entity.dimension_ids)
         input_role = "Declared input" if kind.is_effect else "Input"
         columns = _dimension_columns(entity, self.definition.dimensions)
@@ -242,7 +250,9 @@ class _DataLineageBuilder:
         function = self.definition.functions.get(invocation.function_id)
         dataset_label = UNASSIGNED_DATASET_LABEL
         if invocation.dataset_id:
-            dataset_label = entity.datasets[invocation.dataset_id].name or invocation.dataset_id
+            dataset_label = (
+                dataset.name if dataset is not None and dataset.name else invocation.dataset_id
+            )
         return DataLineageStep(
             number=self.numbers[invocation.id],
             invocation_id=invocation.id,

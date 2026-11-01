@@ -11,6 +11,7 @@ and **Animation** (the execution walkthrough).
 
 `uptimely.spec.feature_graph.feature_graph` exposes the complete feature
 dependency graph and feature subgraphs.
+Both expose `feature_nodes`, a live, ordered view of their feature metadata.
 
 ::: uptimely.spec.feature_graph.feature_graph
     options:
