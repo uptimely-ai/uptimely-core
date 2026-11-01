@@ -37,7 +37,12 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
                 function=ref.function("reader:read", kind="read"),
                 arguments={},
                 outputs=[
-                    authoring.Feature(name="temperature", type="float", unit="C"),
+                    authoring.Feature(
+                        name="temperature",
+                        type="float",
+                        unit="C",
+                        description="Ambient temperature measurement.",
+                    ),
                     authoring.Feature(name="pump", type="string"),
                 ],
             )
@@ -53,7 +58,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     assert exported["features"]["temperature"] == {
         "type": "float",
         "unit": "C",
-        "description": None,
+        "description": "Ambient temperature measurement.",
     }
     assert exported["actions"]["read"]["features"]["outputs"] == [
         "$features.temperature",

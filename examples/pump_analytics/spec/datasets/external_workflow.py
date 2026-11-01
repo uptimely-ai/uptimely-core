@@ -20,8 +20,16 @@ class PumpExternalWorkflow(Dataset):
             function=external_workflow.read_pump_external_inputs,
             arguments={},
             outputs=[
-                Feature(name="measurement", type="float"),
-                Feature(name="reference_value", type="float"),
+                Feature(
+                    name="measurement",
+                    type="float",
+                    description="Measured pump value provided to the external workflow.",
+                ),
+                Feature(
+                    name="reference_value",
+                    type="float",
+                    description="Reference value used to normalize the pump measurement.",
+                ),
             ],
         )
     ]
@@ -31,6 +39,12 @@ class PumpExternalWorkflow(Dataset):
             function=external_workflow.process_pump_external_workflow,
             arguments={},
             inputs=[ref.column("measurement"), ref.column("reference_value")],
-            outputs=[Feature(name="ratio", type="float")],
+            outputs=[
+                Feature(
+                    name="ratio",
+                    type="float",
+                    description="Pump measurement divided by its reference value.",
+                )
+            ],
         )
     ]

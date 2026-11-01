@@ -294,16 +294,24 @@ def test_website_exports_all_reports_with_relative_navigation(
         assert "<iframe" not in document
     assert "Pump telemetry" in (index.parent / "spec/features.html").read_text(encoding="utf-8")
     features = (index.parent / "spec/features.html").read_text(encoding="utf-8")
-    assert "Browse feature descriptions by dataset." in features
-    for icon_key in ("entities", "datasets", "features", "dimensions", "functions"):
+    assert "Browse feature descriptions by dataset." not in features
+    for icon_key in ("entities", "datasets", "features", "dimensions"):
         assert f"icon--{icon_key} h-3.5 w-3.5" in features
+    assert "icon--functions h-4 w-4" in features
     assert (
         '<article id="feature-pump_telemetry_dataset-bearing_temperature" data-context-item>'
         in features
     )
     assert "bearing_temperature" in features
-    assert "read · read_pump_telemetry" in features
-    assert "vectorize · health_signal_normalized" in features
+    assert "Drive-end bearing temperature" in features
+    assert "Produced by read_pump_telemetry" in features
+    assert (
+        'data-lucide="database" class="site-icon icon--functions h-3.5 w-3.5 text-cyan-300"'
+        in features
+    )
+    assert "Read" in features
+    assert "Load project-wide physical constants." in features
+    assert "Produced by min_max_scale" in features
     assert "Row context:" not in features
     entities = (index.parent / "spec/entities.html").read_text(encoding="utf-8")
     assert "pump_telemetry" in entities

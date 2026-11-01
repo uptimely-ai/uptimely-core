@@ -101,7 +101,12 @@ class CalculatedData(up.Dataset):
             id="read",
             function=read_values,
             arguments={},
-            outputs=[up.Feature(name="value")],
+            outputs=[
+                up.Feature(
+                    name="value",
+                    description="Input measurement for the calculation.",
+                )
+            ],
         ),
         up.Action(
             id="double",
@@ -111,7 +116,12 @@ class CalculatedData(up.Dataset):
                 "value": up.ref.column("value"),
                 "output": up.ref.output("doubled"),
             },
-            outputs=[up.Feature(name="doubled")],
+            outputs=[
+                up.Feature(
+                    name="doubled",
+                    description="The input measurement multiplied by two.",
+                )
+            ],
         ),
     ]
     publishers = [
