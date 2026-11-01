@@ -26,7 +26,7 @@ class Feature(common.StrictModel):
     def generate_name(self) -> typing.Self:
         """Generate a display name from the feature ID when one is not supplied."""
         if self.name is None:
-            self.name = humanize_identifier(self.id)
+            self.name = common.humanize_identifier(self.id)
         return self
 
 
@@ -87,11 +87,6 @@ class RowScope(common.StrictModel):
     coverage: str = ""
 
 
-def humanize_identifier(identifier: str) -> str:
-    """Return a display name for a snake- or kebab-case identifier."""
-    return identifier.replace("_", " ").replace("-", " ").title()
-
-
 class Dataset(common.StrictModel):
     """An entry under an entity's ID-keyed `datasets` object."""
 
@@ -107,7 +102,7 @@ class Dataset(common.StrictModel):
     def generate_name(self) -> typing.Self:
         """Generate a display name from the dataset ID when one is not supplied."""
         if self.name is None:
-            self.name = humanize_identifier(self.id)
+            self.name = common.humanize_identifier(self.id)
         return self
 
     @property

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from uptimely.spec import catalog as function_catalog
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
-from uptimely.spec.model import dataset as dataset_model
+from uptimely.spec.model import common as spec_common
 
 from . import actions, ref
 from . import dimension as dimension_module
@@ -118,7 +118,7 @@ class Dataset:
         if name is not None:
             self.name = name
         elif self.name is None:
-            self.name = dataset_model.humanize_identifier(self.id)
+            self.name = spec_common.humanize_identifier(self.id)
         if description is not None:
             self.description = description
         if entity is not None:
@@ -200,7 +200,7 @@ class Dataset:
                     if key.id not in features:
                         features[key.id] = spec_model.Feature(
                             id=key.id,
-                            name=dataset_model.humanize_identifier(key.id),
+                            name=spec_common.humanize_identifier(key.id),
                             type=key.type,
                             description=key.description,
                         )

@@ -13,6 +13,11 @@ class StrictModel(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(extra="forbid")
 
 
+def humanize_identifier(identifier: str) -> str:
+    """Return a display name for a snake- or kebab-case identifier."""
+    return identifier.replace("_", " ").replace("-", " ").title()
+
+
 class SpecSource(StrictModel):
     """Describe how a spec document was authored or generated."""
 

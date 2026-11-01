@@ -63,7 +63,8 @@
 <article id="function-{{ function_id }}" data-context-item>
   <div>
     {% set function_heading = "h3" %}
-    <{{ function_heading }} class="min-w-0 break-words font-display text-2xl font-semibold tracking-tight text-white">{{ function_id }}</{{ function_heading }}>
+    <{{ function_heading }} class="min-w-0 break-words font-display text-2xl font-semibold tracking-tight text-white">{{ function.name or function_id }}</{{ function_heading }}>
+    {% if function.name %}<p class="mt-1 font-mono text-xs text-slate-500">{{ function_id }}</p>{% endif %}
   </div>
   <p data-function-description class="mt-4 max-w-3xl text-base leading-7 text-slate-300">{{ function.description or "No description provided." }}</p>
   {% if function.doc and function.doc.body %}
