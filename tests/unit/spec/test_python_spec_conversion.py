@@ -213,6 +213,17 @@ def test_python_spec_resolves_registered_ids_and_objects_without_mutation(
     assert owner.datasets == []
 
 
+def test_dimension_name_defaults_to_humanized_id_and_can_be_overridden() -> None:
+    default_dimension = dimension.Dimension(id="production_line", type="string")
+    named_dimension = dimension.Dimension(
+        id="production_line", type="string", name="Production Line Name"
+    )
+
+    assert default_dimension.name == "Production Line"
+    assert default_dimension.to_model().name == "Production Line"
+    assert named_dimension.to_model().name == "Production Line Name"
+
+
 @pytest.mark.parametrize("omitted", ["dimensions", "entities", "datasets"])
 def test_python_spec_requires_all_three_registries(omitted: str) -> None:
     arguments = {"dimensions": [], "entities": [], "datasets": []}
@@ -466,11 +477,18 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata() -> None:
 
     payload = spec_definition.to_dict()
 
+    assert dimension.Dimension(id="pump", type="string").name == "Pump"
+    assert pump.to_model().name == "Pump"
     assert payload["name"] == "Pump analytics"
     assert payload["spec_version"] == 3
     assert payload["source"] == {"name": "python_api", "generated": True}
     assert payload["dimensions"] == {
-        "pump": {"type": "string", "description": "Asset ID", "parent": None}
+        "pump": {
+            "type": "string",
+            "name": "Pump",
+            "description": "Asset ID",
+            "parent": None,
+        }
     }
     assert payload["entities"] == {
         "assets": {

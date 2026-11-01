@@ -69,6 +69,7 @@ Parents must reference declared dimensions and must not form cycles.
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `type` | string | Yes | N/A | Logical key type, such as `string`, `integer`, or `datetime`. |
+| `name` | string or null | No | Generated from the dimension identifier | Human-readable display name. |
 | `description` | string or null | No | `null` | Explanation of the dimension. |
 | `parent` | string or null | No | `null` | Bare identifier of a declared parent dimension. |
 
@@ -77,8 +78,8 @@ columns to an entity, group calculations, or expand observations.
 
 ```json
 "dimensions": {
-  "pump_id": {"type": "string"},
-  "timestamp": {"type": "datetime"}
+  "pump_id": {"type": "string", "name": "Pump ID"},
+  "timestamp": {"type": "datetime", "name": "Timestamp"}
 }
 ```
 

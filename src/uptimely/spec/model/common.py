@@ -32,6 +32,14 @@ class Dimension(StrictModel):
     type: str
     description: str | None = None
     parent: str | None = None
+    name: str | None = None
+
+    @pydantic.model_validator(mode="after")
+    def generate_name(self) -> typing.Self:
+        """Generate a display name from the dimension ID when one is not supplied."""
+        if self.name is None:
+            self.name = humanize_identifier(self.id)
+        return self
 
 
 class Argument(StrictModel):

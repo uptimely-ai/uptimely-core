@@ -61,7 +61,7 @@
       {% if not summary.dataset_count %}<p class="context-empty">No datasets.</p>{% endif %}
     {% elif active_section == "dimensions" %}
       {% for dimension_id in configuration.dimensions %}
-        {{ context_link("dimension-" ~ dimension_id, dimension_id) }}
+        {{ context_link("dimension-" ~ dimension_id, configuration.dimensions[dimension_id].name or dimension_id) }}
       {% else %}<p class="context-empty">No dimensions.</p>{% endfor %}
     {% elif active_section == "entities" %}
       {% for entity_id, entity in configuration.entities.items() %}
