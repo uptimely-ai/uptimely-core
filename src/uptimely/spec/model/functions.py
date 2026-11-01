@@ -15,6 +15,7 @@ class FunctionTemplate(common.StrictModel):
     """One logical function definition in the spec catalog."""
 
     id: str = pydantic.Field(exclude=True)
+    name: str | None = None
     kind: functions.FunctionKindId
     returns: functions.ReturnKind
     entrypoint: str
@@ -24,6 +25,13 @@ class FunctionTemplate(common.StrictModel):
     )
     args: dict[str, common.Argument] = pydantic.Field(default_factory=dict)
     description: str | None = None
+
+    @pydantic.model_validator(mode="after")
+    def generate_name(self) -> typing.Self:
+        """Generate a display name from the function ID when one is not supplied."""
+        if self.name is None:
+            self.name = common.humanize_identifier(self.id)
+        return self
 
 
 class FunctionCatalog(pydantic.RootModel[dict[str, FunctionTemplate]]):

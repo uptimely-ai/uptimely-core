@@ -241,6 +241,7 @@ identifiers.
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
+| `name` | string or null | No | Generated from the function identifier | Human-readable display name. |
 | `kind` | string | Yes | N/A | Function kind: `write`, `read`, `escape`, `conform`, `expand`, `collapse`, or `vectorize`. |
 | `returns` | string | Yes | N/A | Return contract: `dataframe` for data-producing kinds, `none` for `write`, or `any` for `escape`. |
 | `entrypoint` | string | Yes | N/A | Python import reference in `module.path:qualname` form. |

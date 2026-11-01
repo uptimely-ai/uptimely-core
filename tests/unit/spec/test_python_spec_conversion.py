@@ -343,6 +343,7 @@ def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> No
     assert catalog[function_id].args["columns"].type == "array[string]"
     payload = spec_definition.to_dict()
     assert payload["functions"][function_id] == {
+        "name": category.title() + " Shared",
         "description": None,
         "kind": category,
         "returns": "none" if category == "write" else "dataframe",

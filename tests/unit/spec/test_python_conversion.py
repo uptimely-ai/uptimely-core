@@ -55,6 +55,7 @@ def test_auto_catalog_converts_declaration_lists_and_dicts(keyed: bool, as_entit
     ]
     assert payload["functions"] == {
         "source": {
+            "name": "Source",
             "description": None,
             "kind": "read",
             "returns": "dataframe",
@@ -126,6 +127,7 @@ def test_explicit_catalog_preserves_argument_metadata(
     )
 
     assert payload["functions"]["source"] == {
+        "name": "Source",
         "description": None,
         "kind": "read",
         "returns": "dataframe",
@@ -156,6 +158,7 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
     )
 
     assert payload["functions"]["configured"] == {
+        "name": "Configured",
         "description": None,
         "kind": "read",
         "returns": "dataframe",

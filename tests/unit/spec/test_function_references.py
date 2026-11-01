@@ -159,10 +159,24 @@ def test_function_model_defaults_signature_validation_and_exposes_schema() -> No
     )
 
     assert function.validate_signature is True
+    assert function.name == "Calculate"
     assert function.model_dump()["validate_signature"] is True
+    assert function.model_dump()["name"] == "Calculate"
     schema = spec_model.FunctionTemplate.model_json_schema()
     assert schema["properties"]["validate_signature"]["type"] == "boolean"
     assert schema["properties"]["validate_signature"]["default"] is True
+
+
+def test_function_model_preserves_explicit_name() -> None:
+    function = spec_model.FunctionTemplate(
+        id="calculate_sum",
+        name="Total Calculator",
+        kind="vectorize",
+        returns="dataframe",
+        entrypoint="unavailable_package:calculate",
+    )
+
+    assert function.name == "Total Calculator"
 
 
 def test_conflicting_signature_validation_settings_are_rejected() -> None:
