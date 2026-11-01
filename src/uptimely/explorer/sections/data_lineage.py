@@ -7,6 +7,7 @@ import dataclasses
 from uptimely import execution_plan, spec
 from uptimely.explorer import render
 from uptimely.spec import functions
+from uptimely.spec.model import common as spec_common
 
 SECTION = render.WebsiteSection(
     active_page="execution",
@@ -19,6 +20,8 @@ SECTION = render.WebsiteSection(
     ),
 )
 UNASSIGNED_DATASET_LABEL = "Unassigned"
+DIMENSION_COLOR = "#93c5fd"
+UNPRODUCED_COLOR = "#cbd5e1"
 __all__ = ["SECTION", "DataLineageColumn", "DataLineageStep", "build_context"]
 
 
@@ -55,7 +58,7 @@ class DataLineageStep:
     function: str
     function_label: str
     action: str
-    function_kind: functions.FunctionKindId
+    kind: functions.FunctionKind
     entity: str
     dataset: str | None
     grain: str
@@ -68,205 +71,207 @@ class DataLineageStep:
     dataset_label: str = UNASSIGNED_DATASET_LABEL
 
 
-def _humanize(identifier: str) -> str:
-    """Return a title-cased label for a snake- or kebab-case identifier.
+@dataclasses.dataclass(frozen=True)
+class _FeatureSource:
+    """A feature declaration together with its owning table and entity."""
 
-    Args:
-        identifier: Spec identifier such as ``pump_telemetry_dataset``.
+    entity: spec.Entity
+    dataset: spec.Dataset
+    feature: spec.Feature
 
-    Returns:
-        Readable label such as ``Pump Telemetry Dataset``.
-    """
-    return identifier.replace("_", " ").replace("-", " ").title()
+
+def _dimension_columns(
+    entity: spec.Entity, dimensions: dict[str, spec.Dimension]
+) -> list[DataLineageColumn]:
+    """Resolve entity dimensions from the canonical global declarations."""
+    columns = []
+    for name in entity.dimension_ids:
+        dimension = dimensions[name]
+        columns.append(
+            DataLineageColumn(
+                name=dimension.id,
+                type=dimension.type,
+                role="Dimension",
+                color=DIMENSION_COLOR,
+                producer=None,
+                label=dimension.name or dimension.id,
+            )
+        )
+    return columns
+
+
+class _DataLineageBuilder:
+    """Resolve display metadata once and accumulate schemas in execution order."""
+
+    def __init__(self, definition: spec.Spec, plan: execution_plan.ExecutionPlan) -> None:
+        self.definition = definition
+        self.ordered_stages = [
+            sorted(stage, key=lambda invocation: invocation.id) for stage in plan.execution_stages
+        ]
+        invocations = [invocation for stage in self.ordered_stages for invocation in stage]
+        self.numbers = {
+            invocation.id: number for number, invocation in enumerate(invocations, start=1)
+        }
+        self.colors = {
+            invocation_id: f"hsl({(150 + number * 137) % 360}, 70%, 75%)"
+            for invocation_id, number in self.numbers.items()
+        }
+        self.producers = {
+            feature: invocation
+            for invocation in invocations
+            for feature in invocation.output_features
+            if feature not in definition.dimensions
+        }
+        self.features = {
+            feature.id: _FeatureSource(entity, dataset, feature)
+            for entity in definition.entities.values()
+            for dataset in entity.datasets.values()
+            for feature in dataset.features.values()
+            if feature.id not in definition.dimensions
+        }
+        self.compact_datasets = {
+            invocation.dataset_id
+            for invocation in invocations
+            if functions.FUNCTION_KINDS[invocation.function_kind].dimension_change == "remove"
+        }
+        self.compact_datasets.update(
+            self.features[name].dataset.id
+            for invocation in invocations
+            if functions.FUNCTION_KINDS[invocation.function_kind].dimension_change == "add"
+            for name in invocation.input_features
+            if name in self.features
+        )
+        self.accumulated: dict[str | None, dict[str, DataLineageColumn]] = {}
+
+    def build(self) -> list[list[DataLineageStep]]:
+        """Build stage cards in dependency order."""
+        return [[self._step(invocation) for invocation in stage] for stage in self.ordered_stages]
+
+    def _feature_column(self, name: str, role: str) -> DataLineageColumn:
+        """Resolve a feature's label, type, and producer color."""
+        source = self.features.get(name)
+        dimension = self.definition.dimensions.get(name)
+        declaration = source.feature if source is not None else dimension
+        producer = self.producers.get(name)
+        color = DIMENSION_COLOR if dimension is not None else UNPRODUCED_COLOR
+        if producer is not None:
+            color = self.colors[producer.id]
+        return DataLineageColumn(
+            name=name,
+            type=declaration.type or "Unspecified" if declaration is not None else "Unspecified",
+            role=role,
+            color=color,
+            producer=self.numbers[producer.id] if producer is not None else None,
+            label=declaration.name or name if declaration is not None else name,
+        )
+
+    def _input_tables(
+        self,
+        invocation: execution_plan.Invocation,
+        entity: spec.Entity,
+        columns: list[DataLineageColumn],
+    ) -> list[DataLineageInput]:
+        """Group cross-dataset inputs with their source dimensions."""
+        if functions.FUNCTION_KINDS[invocation.function_kind].is_effect:
+            return []
+        source_columns: dict[str, list[DataLineageColumn]] = {}
+        for column in columns:
+            source = self.features.get(column.name)
+            if (
+                column.role == "Input"
+                and source is not None
+                and source.dataset.id != invocation.dataset_id
+            ):
+                source_columns.setdefault(source.dataset.id, []).append(column)
+
+        tables = []
+        target_dimensions = set(entity.dimension_ids)
+        for source_id, inputs in source_columns.items():
+            source = self.features[inputs[0].name]
+            tables.append(
+                DataLineageInput(
+                    dataset=source_id,
+                    dataset_label=source.dataset.name or source_id,
+                    keys=_dimension_columns(source.entity, self.definition.dimensions),
+                    columns=inputs,
+                    join_dimensions=[
+                        dimension.id
+                        for dimension in source.entity.dimensions
+                        if dimension.id in target_dimensions
+                    ],
+                    row_count=1 if source_id in self.compact_datasets else 3,
+                )
+            )
+        return tables
+
+    def _main_columns(
+        self, invocation: execution_plan.Invocation, columns: list[DataLineageColumn]
+    ) -> list[DataLineageColumn]:
+        """Keep materialized columns, moving replaced outputs to the end."""
+        previous = self.accumulated.setdefault(invocation.dataset_id, {})
+        inputs = set(invocation.input_features)
+        current = {
+            name: dataclasses.replace(column, role="Input" if name in inputs else "Existing")
+            for name, column in previous.items()
+        }
+        if not functions.FUNCTION_KINDS[invocation.function_kind].is_effect:
+            for column in columns:
+                if column.role == "Output":
+                    current.pop(column.name, None)
+                    current[column.name] = column
+                    previous[column.name] = column
+        return list(current.values())
+
+    def _step(self, invocation: execution_plan.Invocation) -> DataLineageStep:
+        """Assemble one invocation's schema, input tables, and dependencies."""
+        entity = self.definition.entities[invocation.entity_id]
+        kind = functions.FUNCTION_KINDS[invocation.function_kind]
+        dataset = entity.datasets.get(invocation.dataset_id)
+        dimensions = set(entity.dimension_ids)
+        input_role = "Declared input" if kind.is_effect else "Input"
+        columns = _dimension_columns(entity, self.definition.dimensions)
+        columns.extend(
+            self._feature_column(name, role)
+            for role, names in (
+                (input_role, invocation.input_features),
+                ("Output", invocation.output_features),
+            )
+            for name in names
+            if name not in dimensions
+        )
+        function = self.definition.functions.get(invocation.function_id)
+        dataset_label = UNASSIGNED_DATASET_LABEL
+        if invocation.dataset_id:
+            dataset_label = entity.datasets[invocation.dataset_id].name or invocation.dataset_id
+        return DataLineageStep(
+            number=self.numbers[invocation.id],
+            invocation_id=invocation.id,
+            function=invocation.function_id,
+            function_label=function.name or invocation.function_id
+            if function is not None
+            else invocation.function_id,
+            action=spec_common.humanize_identifier(invocation.mapping_id),
+            kind=kind,
+            entity=invocation.entity_id,
+            dataset=invocation.dataset_id,
+            dataset_label=dataset_label,
+            grain=dataset.row_scope.grain if dataset is not None else "",
+            color=self.colors[invocation.id],
+            columns=columns,
+            dependencies=sorted(
+                self.numbers[dependency] for dependency in invocation.dependency_ids
+            ),
+            input_tables=self._input_tables(invocation, entity, columns),
+            main_columns=self._main_columns(invocation, columns),
+            row_count=1 if invocation.dataset_id in self.compact_datasets else 3,
+        )
 
 
 def _build_stages(
     spec_definition: spec.Spec, execution_plan: execution_plan.ExecutionPlan
 ) -> list[list[DataLineageStep]]:
-    """Build typed table schemas with colors inherited from feature producers.
-
-    Args:
-        spec_definition: Declared dimensions, datasets, and column metadata.
-        execution_plan: Compiled invocations and their dependencies.
-
-    Returns:
-        Processing tables grouped by dependency stage.
-    """
-    ordered_stages = [
-        sorted(stage, key=lambda invocation: invocation.id)
-        for stage in execution_plan.execution_stages
-    ]
-    invocations = [invocation for stage in ordered_stages for invocation in stage]
-    numbers = {invocation.id: number for number, invocation in enumerate(invocations, 1)}
-    colors = {
-        invocation.id: f"hsl({(150 + number * 137) % 360}, 70%, 75%)"
-        for number, invocation in enumerate(invocations, 1)
-    }
-    producers = {
-        feature: invocation
-        for invocation in invocations
-        for feature in invocation.output_features
-        if feature not in spec_definition.dimensions
-    }
-    feature_metadata: dict[str, tuple[spec.Entity, spec.Dataset, spec.Feature]] = {
-        name: (entity, dataset, feature)
-        for entity in spec_definition.entities.values()
-        for dataset in entity.datasets.values()
-        for name, feature in dataset.features.items()
-        if name not in spec_definition.dimensions
-    }
-    compact_datasets = {
-        invocation.dataset_id
-        for invocation in invocations
-        if invocation.function_kind == functions.COLLAPSE
-    }
-    compact_datasets.update(
-        feature_metadata[name][1].id
-        for invocation in invocations
-        if invocation.function_kind == functions.EXPAND
-        for name in invocation.input_features
-        if name in feature_metadata
-    )
-    accumulated: dict[str | None, dict[str, DataLineageColumn]] = {}
-    stages: list[list[DataLineageStep]] = []
-    for stage in ordered_stages:
-        steps: list[DataLineageStep] = []
-        for invocation in stage:
-            entity = spec_definition.entities[invocation.entity_id]
-            dimensions = entity.dimension_ids
-            columns = [
-                DataLineageColumn(
-                    name,
-                    spec_definition.dimensions[name].type,
-                    "Dimension",
-                    "#93c5fd",
-                    None,
-                    spec_definition.dimensions[name].name or name,
-                )
-                for name in dimensions
-            ]
-            for role, features in (
-                (
-                    "Declared input" if invocation.function_kind == functions.ESCAPE else "Input",
-                    invocation.input_features,
-                ),
-                ("Output", invocation.output_features),
-            ):
-                for feature in features:
-                    if feature in dimensions:
-                        continue
-                    producer = producers.get(feature)
-                    metadata = feature_metadata.get(feature)
-                    dimension = spec_definition.dimensions.get(feature)
-                    data_type = (
-                        metadata[2].type or "Unspecified"
-                        if metadata
-                        else dimension.type
-                        if dimension
-                        else "Unspecified"
-                    )
-                    label = (
-                        metadata[2].name or feature
-                        if metadata
-                        else dimension.name or feature
-                        if dimension
-                        else feature
-                    )
-                    columns.append(
-                        DataLineageColumn(
-                            feature,
-                            data_type,
-                            role,
-                            colors[producer.id]
-                            if producer
-                            else "#93c5fd"
-                            if dimension
-                            else "#cbd5e1",
-                            numbers[producer.id] if producer else None,
-                            label,
-                        )
-                    )
-            dataset = entity.datasets.get(invocation.dataset_id)
-            input_tables: list[DataLineageInput] = []
-            if invocation.function_kind != functions.ESCAPE:
-                source_columns: dict[str, list[DataLineageColumn]] = {}
-                for column in columns:
-                    metadata = feature_metadata.get(column.name)
-                    if column.role == "Input" and metadata:
-                        source = metadata[1]
-                        if source.id != invocation.dataset_id:
-                            source_columns.setdefault(source.id, []).append(column)
-                for source_id, inputs in source_columns.items():
-                    source_entity, source_dataset, _ = feature_metadata[inputs[0].name]
-                    input_tables.append(
-                        DataLineageInput(
-                            dataset=source_id,
-                            dataset_label=source_dataset.name or source_id,
-                            keys=[
-                                DataLineageColumn(
-                                    name,
-                                    spec_definition.dimensions[name].type,
-                                    "Dimension",
-                                    "#93c5fd",
-                                    None,
-                                    spec_definition.dimensions[name].name or name,
-                                )
-                                for name in source_entity.dimension_ids
-                            ],
-                            columns=inputs,
-                            join_dimensions=[
-                                name for name in source_entity.dimension_ids if name in dimensions
-                            ],
-                            row_count=1 if source_id in compact_datasets else 3,
-                        )
-                    )
-            previous_columns = accumulated.setdefault(invocation.dataset_id, {})
-            function = spec_definition.functions.get(invocation.function_id)
-            main_columns = [
-                dataclasses.replace(
-                    column,
-                    role="Input" if name in invocation.input_features else "Existing",
-                )
-                for name, column in previous_columns.items()
-            ]
-            if invocation.function_kind != functions.ESCAPE:
-                for column in columns:
-                    if column.role == "Output":
-                        main_columns = [
-                            existing for existing in main_columns if existing.name != column.name
-                        ]
-                        main_columns.append(column)
-                        previous_columns[column.name] = column
-            steps.append(
-                DataLineageStep(
-                    number=numbers[invocation.id],
-                    invocation_id=invocation.id,
-                    function=invocation.function_id,
-                    function_label=(function.name or invocation.function_id)
-                    if function
-                    else invocation.function_id,
-                    action=_humanize(invocation.mapping_id),
-                    function_kind=invocation.function_kind,
-                    entity=invocation.entity_id,
-                    dataset=invocation.dataset_id,
-                    dataset_label=(
-                        entity.datasets[invocation.dataset_id].name or invocation.dataset_id
-                        if invocation.dataset_id
-                        else UNASSIGNED_DATASET_LABEL
-                    ),
-                    grain=dataset.row_scope.grain if dataset else "",
-                    color=colors[invocation.id],
-                    columns=columns,
-                    dependencies=sorted(
-                        numbers[dependency] for dependency in invocation.dependency_ids
-                    ),
-                    input_tables=input_tables,
-                    main_columns=main_columns,
-                    row_count=1 if invocation.dataset_id in compact_datasets else 3,
-                )
-            )
-        stages.append(steps)
-    return stages
+    """Build typed table schemas with colors inherited from feature producers."""
+    return _DataLineageBuilder(spec_definition, execution_plan).build()
 
 
 def build_context(

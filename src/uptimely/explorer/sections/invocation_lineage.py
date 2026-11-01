@@ -3,47 +3,48 @@
 import typing
 
 from uptimely import execution_plan, spec
+from uptimely.explorer import common
 from uptimely.spec import functions
 
 
 def invocation_lineage_payload(
     plan: execution_plan.ExecutionPlan,
     spec_definition: spec.Spec,
+    feature_labels: typing.Mapping[str, str] | None = None,
 ) -> tuple[list[dict[str, typing.Any]], list[dict[str, str]]]:
-    """Build invocation and dependency link payloads for a compiled plan."""
+    """Build invocation nodes and links for a compiled plan.
+
+    Args:
+        plan: Compiled invocations and dependency stages.
+        spec_definition: Declarations used to resolve display metadata.
+        feature_labels: Optional prebuilt feature-label index shared with plan cards.
+
+    Returns:
+        Invocation nodes and directed dependency links.
+    """
     if spec_definition is None:
         raise ValueError("spec_definition is required to render invocation lineage")
     stage_by_invocation = {
-        invocation.id: stage_number
-        for stage_number, stage in enumerate(plan.execution_stages, start=1)
-        for invocation in stage
+        invocation_id: stage_number
+        for stage_number, stage in enumerate(plan.stages, start=1)
+        for invocation_id in stage
     }
-    feature_labels = {
-        feature_id: feature.name or feature_id
-        for entity in spec_definition.entities.values()
-        for dataset in entity.datasets.values()
-        for feature_id, feature in dataset.features.items()
-    }
-    feature_labels.update(
-        {
-            dimension_id: dimension.name or dimension_id
-            for dimension_id, dimension in spec_definition.dimensions.items()
-        }
-    )
-    nodes = []
+    if feature_labels is None:
+        feature_labels = common.feature_labels(spec_definition)
+    nodes: list[dict[str, typing.Any]] = []
     for invocation in sorted(plan.invocations, key=lambda item: item.id):
         function = spec_definition.functions[invocation.function_id]
+        kind = functions.FUNCTION_KINDS[invocation.function_kind]
         entity = spec_definition.entities[invocation.entity_id]
         dataset = entity.datasets.get(invocation.dataset_id) if invocation.dataset_id else None
         function_name = function.name or invocation.function_id
-        dataset_name = (
-            dataset.name or invocation.dataset_id if dataset is not None else invocation.dataset_id
-        )
+        dataset_name = dataset.name or dataset.id if dataset is not None else invocation.dataset_id
         nodes.append(
             {
                 "id": invocation.id,
                 "node_type": "invocation",
                 "function_kind": invocation.function_kind,
+                "is_effect": kind.is_effect,
                 "stage": stage_by_invocation[invocation.id],
                 "label": function_name,
                 "label_lines": [function_name],
@@ -59,7 +60,7 @@ def invocation_lineage_payload(
                         feature_labels.get(feature, feature)
                         for feature in invocation.output_features
                     )
-                    if invocation.function_kind in {functions.ESCAPE, functions.VECTORIZE}
+                    if kind.is_effect or kind.is_transformer
                     else None
                 ),
                 "input_features": invocation.input_features,

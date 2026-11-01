@@ -153,7 +153,7 @@ def test_main_table_accumulates_only_materialized_features(
         current_outputs = [
             column.name
             for column in step.columns
-            if column.role == "Output" and step.function_kind != "escape"
+            if column.role == "Output" and not step.kind.is_effect
         ]
         expected[:] = [name for name in expected if name not in current_outputs]
         expected.extend(current_outputs)
@@ -163,7 +163,7 @@ def test_main_table_accumulates_only_materialized_features(
         )
         for source in step.input_tables:
             assert source.dataset != step.dataset
-        if step.function_kind == "vectorize":
+        if step.kind.is_transformer:
             local_inputs = {column.name for column in step.columns if column.role == "Input"} & set(
                 expected
             )
@@ -217,7 +217,8 @@ def test_data_lineage_tables_match_compiled_operations_and_producer_colors(
         step = steps[invocation.id]
         dimensions = spec_definition.entities[invocation.entity_id].dimension_ids
         assert step.dataset == invocation.dataset_id
-        assert step.function_kind == invocation.function_kind
+        assert step.kind.id == invocation.function_kind
+        assert step.kind is functions.FUNCTION_KINDS[invocation.function_kind]
         assert step.action == invocation.mapping_id.replace("_", " ").replace("-", " ").title()
         assert step.dependencies == sorted(
             numbers[identifier] for identifier in invocation.dependency_ids
@@ -247,6 +248,27 @@ def test_data_lineage_tables_match_compiled_operations_and_producer_colors(
             assert "timestamp" not in [column.name for column in step.columns]
         if invocation.function_kind == "write":
             assert not any(column.role == "Output" for column in step.columns)
+
+
+def test_data_lineage_resolves_current_global_dimension_metadata(
+    pump_bundle: project.BuildBundle,
+) -> None:
+    definition = pump_bundle.spec_definition
+    for dimension in definition.dimensions.values():
+        dimension.name = f"Updated {dimension.id}"
+        dimension.type = "string"
+
+    stages = data_lineage._build_stages(definition, pump_bundle.execution_plan)
+    dimensions = [
+        column
+        for stage in stages
+        for step in stage
+        for column in step.columns + [key for source in step.input_tables for key in source.keys]
+        if column.role == "Dimension"
+    ]
+    assert dimensions
+    assert all(column.type == "string" for column in dimensions)
+    assert all(column.label == f"Updated {column.name}" for column in dimensions)
 
 
 def test_data_lineage_exports_every_table_and_dependency(
