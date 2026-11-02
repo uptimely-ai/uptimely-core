@@ -2,6 +2,7 @@
 
 import dataclasses
 import json
+import logging
 import pathlib
 import types
 
@@ -15,6 +16,63 @@ from uptimely.spec.validation import spec as spec_validation
 from uptimely.spec.validation.rules import functions
 from uptimely.spec.validation.rules.actions import contracts as action_contracts
 from uptimely.spec.validation.rules.actions import outputs as action_outputs
+
+
+@pytest.mark.parametrize(
+    "validate",
+    [*spec_validation.VALIDATION_DEPENDENCIES, action_outputs.warn_unproduced_features],
+    ids=lambda validate: f"{validate.__module__.rsplit('.', 1)[-1]}.{validate.__name__}",
+)
+def test_each_spec_rule_logs_its_check(
+    document: spec.Spec,
+    caplog: pytest.LogCaptureFixture,
+    validate: spec_validation.Validator,
+) -> None:
+    caplog.set_level(logging.DEBUG, logger="uptimely.spec.validation")
+
+    validate(document)
+
+    assert len(caplog.records) == 1
+    assert caplog.messages[0].startswith("    - checking ")
+    assert caplog.records[0].levelno == logging.DEBUG
+    assert caplog.records[0].name == validate.__module__
+
+
+@pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
+def test_spec_validation_logs_heading_and_all_checks_only_at_debug(
+    document: spec.Spec,
+    caplog: pytest.LogCaptureFixture,
+    level: int,
+) -> None:
+    caplog.set_level(level, logger="uptimely.spec.validation")
+
+    spec_validation.validate_spec(document)
+
+    if level == logging.INFO:
+        assert not caplog.records
+        return
+    assert caplog.messages[0] == "  Semantic checks:"
+    assert len(caplog.messages) == len(spec_validation.VALIDATION_DEPENDENCIES) + 2
+    assert all(message.startswith("    - checking ") for message in caplog.messages[1:])
+    assert caplog.messages[-1] == ("    - checking declared features have producers (warning only)")
+    assert all(record.levelno == logging.DEBUG for record in caplog.records)
+
+
+def test_failed_spec_validation_logs_the_failing_check_before_stopping(
+    document: spec.Spec, caplog: pytest.LogCaptureFixture
+) -> None:
+    document.action_items[0][1].binding.function = "missing_function"
+    caplog.set_level(logging.DEBUG, logger="uptimely.spec.validation")
+
+    with pytest.raises(errors.SpecError) as error:
+        spec_validation.validate_spec(document)
+
+    assert error.value.code == "unknown_function_reference"
+    assert caplog.messages[-1] == "    - checking action function references"
+    assert (
+        "    - checking binding argument names match function declarations" not in caplog.messages
+    )
+    assert not any("warning only" in message for message in caplog.messages)
 
 
 @pytest.fixture

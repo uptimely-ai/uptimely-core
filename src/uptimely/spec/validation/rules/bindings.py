@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import logging
+
 from uptimely.spec import arg_types, selectors
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 
+logger = logging.getLogger(__name__)
+
 
 def validate_arguments(spec: spec_model.Spec) -> None:
     """Require the supplied argument names to match the function signature."""
+    logger.debug("    - checking binding argument names match function declarations")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -29,6 +34,7 @@ def validate_arguments(spec: spec_model.Spec) -> None:
 
 def validate_selector_type(spec: spec_model.Spec) -> None:
     """Require a structural selector's argument type to match its value kind."""
+    logger.debug("    - checking binding selector argument types")
     for path, value, argument_type in spec.binding_selectors_with_paths:
         if not isinstance(value, str) or not value.startswith(selectors.REFERENCE_PREFIX):
             continue

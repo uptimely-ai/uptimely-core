@@ -1,8 +1,12 @@
 """Atomic dataset-input and function-kind-specific action contract checks."""
 
+import logging
+
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
+
+logger = logging.getLogger(__name__)
 
 EXPAND_INPUT_ERROR = (
     "Expand action must reference a declared feature from a lower-dimensional foreign dataset"
@@ -11,6 +15,7 @@ EXPAND_INPUT_ERROR = (
 
 def validate_dataset_argument_reference(spec: spec_model.Spec) -> None:
     """Require each dataset argument to reference a dataset."""
+    logger.debug("    - checking dataset arguments use dataset references")
     for key, arguments in spec.actions_arguments.items():
         for name, value, _ in arguments:
             if not isinstance(value, str) or not value.startswith(selectors.DATASET_PREFIX):
@@ -23,6 +28,7 @@ def validate_dataset_argument_reference(spec: spec_model.Spec) -> None:
 
 def validate_dataset_argument_selector(spec: spec_model.Spec) -> None:
     """Reject identifier and dimension selectors for dataset arguments."""
+    logger.debug("    - checking dataset arguments select data, not IDs or dimensions")
     for key, arguments in spec.actions_arguments.items():
         for name, value, _ in arguments:
             if isinstance(value, str) and (
@@ -39,6 +45,7 @@ def validate_dataset_argument_selector(spec: spec_model.Spec) -> None:
 
 def validate_dataset_argument_source(spec: spec_model.Spec) -> None:
     """Require each dataset argument to resolve to a declared dataset."""
+    logger.debug("    - checking dataset argument sources are declared")
     for key, arguments in spec.actions_arguments.items():
         for name, _, source_id in arguments:
             if source_id not in spec.datasets:
@@ -51,6 +58,7 @@ def validate_dataset_argument_source(spec: spec_model.Spec) -> None:
 
 def validate_dataset_argument_count(spec: spec_model.Spec) -> None:
     """Require actions to consume the foreign dataset count in their kind contract."""
+    logger.debug("    - checking foreign dataset input counts match function kinds")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -72,6 +80,7 @@ def validate_dataset_argument_count(spec: spec_model.Spec) -> None:
 
 def validate_matching_keys(spec: spec_model.Spec) -> None:
     """Require explicitly selected matching keys to exist on every participating dataset."""
+    logger.debug("    - checking matching keys exist on every participating dataset")
     for key, matches in spec.matching_key_dimensions.items():
         participants = (spec.action_dataset_keys[key], *spec.dataset_argument_sources[key])
         for dimension, path in matches:
@@ -86,6 +95,7 @@ def validate_matching_keys(spec: spec_model.Spec) -> None:
 
 def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
     """Require dataset-scoped feature inputs to belong to at most one dataset."""
+    logger.debug("    - checking dataset-scoped feature inputs have at most one source")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
@@ -103,6 +113,7 @@ def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
 
 def validate_foreign_dataset_argument(spec: spec_model.Spec) -> None:
     """Reject the target dataset when a kind requires a foreign dataset input."""
+    logger.debug("    - checking foreign dataset arguments do not reference the target")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -119,6 +130,7 @@ def validate_foreign_dataset_argument(spec: spec_model.Spec) -> None:
 
 def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
     """Require a feature source to match the action's dataset input."""
+    logger.debug("    - checking feature sources match dataset arguments")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -146,6 +158,7 @@ def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
 
 def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
     """Require dataset-scoped feature inputs to belong to the action's dataset inputs."""
+    logger.debug("    - checking feature inputs belong to the dataset arguments")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
@@ -175,6 +188,7 @@ def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
 
 def validate_feature_input_scope(spec: spec_model.Spec) -> None:
     """Reject feature inputs for kinds that do not accept feature dependencies."""
+    logger.debug("    - checking function kinds permit declared feature inputs")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if (
@@ -191,6 +205,7 @@ def validate_feature_input_scope(spec: spec_model.Spec) -> None:
 
 def validate_target_dataset_input(spec: spec_model.Spec) -> None:
     """Require target-scoped actions to consume their target dataset."""
+    logger.debug("    - checking target-scoped actions consume their target dataset")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -206,6 +221,7 @@ def validate_target_dataset_input(spec: spec_model.Spec) -> None:
 
 def validate_target_dataset_only(spec: spec_model.Spec) -> None:
     """Reject foreign dataset inputs on target-scoped actions."""
+    logger.debug("    - checking target-scoped actions do not consume foreign datasets")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -225,6 +241,7 @@ def validate_target_dataset_only(spec: spec_model.Spec) -> None:
 
 def validate_dimension_source(spec: spec_model.Spec) -> None:
     """Require dimension-reducing actions to consume their inferred source."""
+    logger.debug("    - checking dimension-reducing actions consume their inferred source")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -257,6 +274,7 @@ def _dataset_input_violations(
 
 def validate_dimension_change(spec: spec_model.Spec) -> None:
     """Require dataset sources and targets to follow their declared dimension policy."""
+    logger.debug("    - checking source and target dimensions follow function-kind policies")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -294,6 +312,7 @@ def validate_dimension_change(spec: spec_model.Spec) -> None:
 
 def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
     """Require dimensional expansion to use a feature from a lower-dimensional source."""
+    logger.debug("    - checking dimensional expansion inputs come from lower-dimensional sources")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].dimension_change != "add":

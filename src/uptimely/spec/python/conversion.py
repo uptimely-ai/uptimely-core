@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import typing
 from collections import abc
 
@@ -11,6 +12,8 @@ from ..json import codec
 from . import dataset as dataset_module
 from . import dimension as dimension_module
 from . import entity as entity_module
+
+logger = logging.getLogger(__name__)
 
 type Datasets = (
     abc.Iterable[dataset_module.Dataset | spec_model.Dataset]
@@ -98,6 +101,17 @@ def to_model(
                 datasets=dataset_module.to_models(declarations),
             )
         }
+
+    if logger.isEnabledFor(logging.DEBUG):
+        action_count = sum(
+            len(declaration.producers) + len(declaration.publishers) + len(declaration.pipelines)
+            for declaration in declarations
+            if isinstance(declaration, dataset_module.Dataset)
+        )
+        logger.debug(
+            "\nPython spec validation:\n  - checked output references for %d actions",
+            action_count,
+        )
 
     if functions is None:
         functions = spec_model.FunctionCatalog(

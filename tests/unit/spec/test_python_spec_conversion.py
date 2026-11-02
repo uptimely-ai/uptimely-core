@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 from collections import abc
 
 import pytest
@@ -14,6 +15,40 @@ from uptimely.spec.python import (
     feature,
     ref,
 )
+
+
+@pytest.mark.parametrize("use_entities", [False, True])
+@pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
+def test_output_reference_logging_is_one_counted_summary(
+    caplog: pytest.LogCaptureFixture, use_entities: bool, level: int
+) -> None:
+    caplog.set_level(level, logger="uptimely.spec.python")
+    declarations = [
+        dataset.Dataset(
+            id=f"dataset_{index}",
+            producers=[
+                actions.Action(
+                    id=f"read_{action}",
+                    function=ref.function("reader:read", kind="read"),
+                    arguments={"column": ref.output(f"value_{action}")},
+                    outputs=[feature.Feature(id=f"value_{action}")],
+                )
+                for action in range(count)
+            ],
+        )
+        for index, count in enumerate([2, 1])
+    ]
+
+    if use_entities:
+        conversion.to_model(entities=iter([_entity("example", declarations)]))
+    else:
+        conversion.to_model(datasets=iter(declarations))
+
+    assert caplog.messages == (
+        ["\nPython spec validation:\n  - checked output references for 3 actions"]
+        if level == logging.DEBUG
+        else []
+    )
 
 
 def _source(

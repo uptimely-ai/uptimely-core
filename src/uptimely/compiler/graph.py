@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 
 import graphable as graphable_
 
 from uptimely import row_context, spec
 from uptimely.spec import functions
+
+logger = logging.getLogger(__name__)
 
 type GraphNode = graphable_.graphable.Graphable
 
@@ -217,11 +220,14 @@ class InvocationGraph:
 
     def topology(self) -> list[list[InvocationNode]]:
         """Return invocations grouped by dependency level (topological order)."""
+        logger.debug("  Invocation graph:")
+        logger.debug("    - checking dependency graph is acyclic and schedulable")
         levels = self.graph.parallelized_topological_order()
         return [[level_node.reference for level_node in level] for level in levels]
 
     def subset(self, features: list[str]) -> InvocationGraph:
         """Return the dependency closure needed to produce selected features."""
+        logger.debug("    - checking selected output features have producers")
         feature_producers = {
             feature: invocation
             for invocation in self.invocations

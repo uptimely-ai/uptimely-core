@@ -35,11 +35,13 @@ class Compiler:
     @functools.cached_property
     def graph(self) -> invocation_graph.InvocationGraph:
         """Build the validated invocation graph for the selected features."""
-        spec_validation.validate_spec(self.spec_definition)
         graph = invocation_graph.InvocationGraph(self.spec_definition)
         if self.features is not None:
-            logger.debug("Compiling feature subset: %s", sorted(self.features))
+            logger.debug(
+                "\nCompiler feature selection:\n  Selected features: %s", sorted(self.features)
+            )
             return graph.subset(list(dict.fromkeys(self.features)))
+        logger.debug("\nCompiler feature selection:\n  - using all features")
         return graph
 
     @functools.cached_property
@@ -51,9 +53,13 @@ class Compiler:
     def invocations(self) -> list[execution_plan.Invocation]:
         """Emit portable invocations after validating schedulability."""
         _ = self.execution_stages
+        nodes = self.graph.invocations
+        logger.debug("  Invocation checks for %d actions:", len(nodes))
+        logger.debug("    - checking functions declare entrypoints")
+        logger.debug("    - checking structural argument references resolve")
+        logger.debug("    - checking emitted invocation contracts")
         return [
-            plan_emission.emit_invocation(self.spec_definition, self.graph, node)
-            for node in self.graph.invocations
+            plan_emission.emit_invocation(self.spec_definition, self.graph, node) for node in nodes
         ]
 
     @functools.cached_property
@@ -61,6 +67,8 @@ class Compiler:
         """Parse the selected invocations' implementation locations."""
         entrypoints: dict[str, entrypoint.Entrypoint] = {}
         locations = dict.fromkeys(invocation.entrypoint for invocation in self.invocations)
+        logger.debug("  Entrypoints:")
+        logger.debug("    - checking syntax for %d unique entrypoints", len(locations))
         for location in locations:
             try:
                 entrypoints[location] = entrypoint.Entrypoint(location)
@@ -72,7 +80,12 @@ class Compiler:
     def packages(self) -> dict[str, entrypoint.PackageProvenance]:
         """Read package provenance for selected implementations."""
         packages: dict[str, entrypoint.PackageProvenance] = {}
-        for location, implementation in self.entrypoints.items():
+        implementations = self.entrypoints
+        logger.debug("  Package provenance:")
+        logger.debug(
+            "    - checking package ownership for %d unique entrypoints", len(implementations)
+        )
+        for location, implementation in implementations.items():
             try:
                 packages[location] = implementation.module.package
             except (ImportError, ValueError) as error:
@@ -86,9 +99,37 @@ class Compiler:
         """Inspect and validate each enabled function contract once."""
         _ = self.packages
         signatures: dict[str, entrypoint.Signature] = {}
-        for node in self.graph.invocations:
+        nodes = self.graph.invocations
+        selected_functions = {
+            node.function_id: self.spec_definition.functions.get(node.function_id) for node in nodes
+        }
+        enabled_count = sum(
+            function is not None and function.validate_signature
+            for function in selected_functions.values()
+        )
+        disabled_count = sum(
+            function is not None and not function.validate_signature
+            for function in selected_functions.values()
+        )
+        logger.debug(
+            "  Signature checks for %d functions:\n"
+            "    - checking callable signatures\n"
+            "    - checking implementations accept declared arguments\n"
+            "    - checking declared arguments can be passed as keywords\n"
+            "    - checking declared implementation argument annotations\n"
+            "    - checking required implementation parameters are declared\n"
+            "    - checking declared implementation return annotations",
+            enabled_count,
+        )
+        if disabled_count:
+            logger.debug("    - skipping %d functions (validate_signature=false)", disabled_count)
+        for node in nodes:
             function = self.spec_definition.functions.get(node.function_id)
-            if function is None or not function.validate_signature or function.id in signatures:
+            if function is None:
+                continue
+            if not function.validate_signature:
+                continue
+            if function.id in signatures:
                 continue
             implementation = self.entrypoints[function.entrypoint]
             try:
@@ -178,18 +219,17 @@ class Compiler:
             self.__dict__.pop(name, None)
         self._spec_definition = None
         self.features = features
+        spec_validation.validate_spec(spec_definition)
+        logger.debug("\nCompiler validation:")
         validation.validation_feature_selection(self.features)
         self._spec_definition = spec_definition
-        compiled_plan = execution_plan.ExecutionPlan(
+        resources = self.resources
+        logger.debug("  Execution plan:")
+        logger.debug("    - checking emitted invocation IDs, dependencies, and stage ordering")
+        return execution_plan.ExecutionPlan(
             plan_version=execution_plan.PLAN_VERSION,
             required_backend="polars",
-            resources=self.resources,
+            resources=resources,
             invocations=self.invocations,
             stages=self.stages,
         )
-        logger.debug(
-            "Compiled plan: %d invocations in %d stages",
-            len(self.invocations),
-            len(self.stages),
-        )
-        return compiled_plan

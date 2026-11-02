@@ -153,7 +153,7 @@ def _validate_staged_bundle(
             json.dumps(manifest.model_dump(), indent=2),
             encoding="utf-8",
         )
-        bundle.load_bundle_at(root, staging_root, validate=False)
+        bundle.load_bundle_at(root, staging_root, validate=False, log_structure=False)
     except (
         OSError,
         ValueError,
@@ -221,4 +221,6 @@ def build_project(
         finally:
             _cleanup_staging_root(staging_root)
 
-        return bundle.load_bundle_at(root, root / paths.BUILD_OUTPUT_DIR, validate=False)
+        return bundle.load_bundle_at(
+            root, root / paths.BUILD_OUTPUT_DIR, validate=False, log_structure=False
+        )

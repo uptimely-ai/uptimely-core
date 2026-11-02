@@ -1,4 +1,5 @@
 import collections
+import logging
 import math
 import pathlib
 import sys
@@ -20,7 +21,9 @@ pytestmark = pytest.mark.usefixtures("example_projects")
 
 def test_compiler_entrypoints_deduplicate_locations_without_importing(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.DEBUG, logger="uptimely.compiler")
     calls: list[str] = []
     original = shared_entrypoint.Entrypoint
 
@@ -39,9 +42,18 @@ def test_compiler_entrypoints_deduplicate_locations_without_importing(
     assert calls == locations[:2]
     assert builder.entrypoints is parsed
     assert calls == locations[:2]
+    assert caplog.messages == [
+        "  Entrypoints:",
+        "    - checking syntax for 2 unique entrypoints",
+    ]
+    caplog.clear()
     empty_builder = compiler.Compiler()
     empty_builder.__dict__["invocations"] = []
     assert empty_builder.entrypoints == {}
+    assert caplog.messages == [
+        "  Entrypoints:",
+        "    - checking syntax for 0 unique entrypoints",
+    ]
 
 
 @pytest.fixture(autouse=True)
@@ -61,12 +73,75 @@ def test_compiler_rejects_string_feature_selection() -> None:
     ("category", "function_id"),
     [("vectorize", "ratio"), ("collapse", "aggregate")],
 )
-def test_compiler_rejects_missing_function_entrypoints(category: str, function_id: str) -> None:
+def test_compiler_rejects_missing_function_entrypoints(
+    category: str, function_id: str, caplog: pytest.LogCaptureFixture
+) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     spec_definition.functions[function_id].entrypoint = ""
+    caplog.set_level(logging.DEBUG, logger="uptimely.compiler")
 
-    with pytest.raises(ValueError, match=f"Missing entrypoint for function {function_id}"):
+    with pytest.raises(
+        ValueError, match=f"Missing entrypoint for function {function_id} used by action "
+    ):
         compiler.Compiler().compile(spec_definition)
+
+    assert "  Invocation checks for 18 actions:" in caplog.messages
+    assert caplog.messages.count("    - checking functions declare entrypoints") == 1
+    assert not any(message.startswith("\nCompiler action:") for message in caplog.messages)
+
+
+@pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
+def test_compiler_summarizes_invocation_checks_once(
+    caplog: pytest.LogCaptureFixture, pump_bundle: project.BuildBundle, level: int
+) -> None:
+    caplog.set_level(level, logger="uptimely.compiler")
+    builder = compiler.Compiler()
+
+    compiled = builder.compile(pump_bundle.spec_definition)
+    assert builder.invocations is compiled.invocations
+
+    assert caplog.messages.count("\nCompiler validation:") == (1 if level == logging.DEBUG else 0)
+    summaries = [message for message in caplog.messages if "  Invocation checks for " in message]
+    assert summaries == (
+        [f"  Invocation checks for {len(compiled.invocations)} actions:"]
+        if level == logging.DEBUG
+        else []
+    )
+    for check in (
+        "    - checking functions declare entrypoints",
+        "    - checking structural argument references resolve",
+        "    - checking emitted invocation contracts",
+    ):
+        assert caplog.messages.count(check) == (1 if level == logging.DEBUG else 0)
+    assert not any(message.startswith("\nCompiler action:") for message in caplog.messages)
+    signature_summaries = [
+        message for message in caplog.messages if "  Signature checks for " in message
+    ]
+    enabled_functions = {
+        invocation.function_id
+        for invocation in compiled.invocations
+        if pump_bundle.spec_definition.functions[invocation.function_id].validate_signature
+    }
+    if level == logging.DEBUG:
+        assert len(signature_summaries) == 1
+        assert (
+            f"  Signature checks for {len(enabled_functions)} functions:" in signature_summaries[0]
+        )
+        assert signature_summaries[0].count("    - checking ") == 6
+    else:
+        assert not signature_summaries
+    assert not any(message.startswith("\nCompiler function:") for message in caplog.messages)
+    package_summaries = [
+        message for message in caplog.messages if "checking package ownership for " in message
+    ]
+    assert package_summaries == (
+        [f"    - checking package ownership for {len(builder.entrypoints)} unique entrypoints"]
+        if level == logging.DEBUG
+        else []
+    )
+    assert not any(
+        "checking entrypoint package ownership:" in message for message in caplog.messages
+    )
 
 
 def test_compiler_reports_unreadable_function_signatures() -> None:

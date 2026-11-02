@@ -5,6 +5,7 @@ from __future__ import annotations
 import collections.abc
 import graphlib
 import inspect
+import logging
 import types
 import typing
 
@@ -12,6 +13,8 @@ from uptimely import entrypoint
 from uptimely.spec import arg_types, functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
+
+logger = logging.getLogger(__name__)
 
 _KNOWN_ANNOTATION_NAMES = frozenset(
     {
@@ -73,11 +76,11 @@ def validation_argument_annotations(context: CallableValidationContext) -> None:
     """Require annotated parameters to accept their declared argument types."""
     for argument_name, argument in context.function.args.items():
         parameter = context.signature.parameters.get(argument_name)
-        if (
-            parameter is not None
-            and parameter.annotation is not inspect.Parameter.empty
-            and not _supports_argument_type(parameter.annotation, argument.type)
-        ):
+        if parameter is None:
+            continue
+        if parameter.annotation is inspect.Parameter.empty:
+            continue
+        if not _supports_argument_type(parameter.annotation, argument.type):
             raise errors.SpecError(
                 f"Implementation parameter {argument_name!r} is annotated as "
                 f"{entrypoint.TypeAnnotation.name(parameter.annotation)}, but the function "
@@ -104,7 +107,9 @@ def validation_return_annotation(context: CallableValidationContext) -> None:
     function = context.function
     annotation = context.signature.return_annotation
     returns = functions.FUNCTION_KINDS[function.kind].returns
-    if returns == "any" or annotation is inspect.Signature.empty:
+    if returns == "any":
+        return
+    if annotation is inspect.Signature.empty:
         return
 
     members = _annotation_names(annotation)
@@ -150,6 +155,8 @@ def validation_callable_signature(context: CallableValidationContext) -> None:
 
 def validation_feature_selection(features: collections.abc.Collection[str] | None) -> None:
     """Reject strings where a collection of feature identifiers is expected."""
+    logger.debug("  Feature selection:")
+    logger.debug("    - checking feature selection is a collection, not a string")
     if isinstance(features, str):
         raise ValueError("features must be a collection of feature identifiers")
 

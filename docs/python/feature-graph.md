@@ -13,6 +13,10 @@ and **Animation** (the execution walkthrough).
 dependency graph and feature subgraphs.
 Both expose `feature_nodes`, a live, ordered view of their feature metadata.
 
+`FeatureGraph(spec_definition)` validates Spec semantics by default. Use
+`FeatureGraph(spec_definition, validate=False)` only when the Spec has already
+been validated and has not changed.
+
 ::: uptimely.spec.feature_graph.feature_graph
     options:
       heading_level: 3

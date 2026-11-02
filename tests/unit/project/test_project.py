@@ -138,6 +138,41 @@ def test_load_build_bundle_validates_and_loads_all_declared_artifacts(
     assert bundle.execution_plan.invocations == []
 
 
+@pytest.mark.parametrize("validate", [True, False])
+def test_bundle_spec_semantic_validation_is_optional(
+    tmp_path: pathlib.Path, validate: bool
+) -> None:
+    root = _write_bundle(tmp_path)
+    (root / "spec.json").write_text(
+        '{"dimensions": {"child": {"type": "integer", "parent": "missing"}}}',
+        encoding="utf-8",
+    )
+
+    if validate:
+        with pytest.raises(project.BuildError, match="unknown parent"):
+            project.load_build_bundle(tmp_path)
+        with (
+            pytest.raises(project.BuildError, match="unknown parent"),
+            project.read_build_bundle(tmp_path),
+        ):
+            pytest.fail("Invalid Spec must not be yielded")
+    else:
+        assert project.load_build_bundle(tmp_path, validate=False).spec_definition
+        with project.read_build_bundle(tmp_path, validate=False) as bundle:
+            assert bundle.spec_definition.dimensions["child"].parent == "missing"
+
+
+@pytest.mark.parametrize("artifact", ["spec.json", "execution_plan.json", "build.json"])
+def test_bundle_validation_opt_out_preserves_structure_checks(
+    tmp_path: pathlib.Path, artifact: str
+) -> None:
+    root = _write_bundle(tmp_path)
+    (root / artifact).write_text('{"invalid": true}', encoding="utf-8")
+
+    with pytest.raises(project.BuildError):
+        project.load_build_bundle(tmp_path, validate=False)
+
+
 def test_load_build_bundle_reports_missing_build_with_quoted_recovery_command(
     tmp_path: pathlib.Path,
 ) -> None:

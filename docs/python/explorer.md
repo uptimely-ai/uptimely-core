@@ -23,6 +23,10 @@ all-features plan. Spec pages always describe the complete model; plan and
 execution pages describe only the supplied plan. Supply a plan built from the
 same spec document; the Explorer does not verify their correspondence.
 
+The renderer validates Spec semantics before building its feature graph by
+default. Pass `validate=False` to `Explorer` to skip this check when the Spec
+has already been validated and has not changed.
+
 Spec-definition and portable-plan JSON exports remain available through
 their respective spec and compiler APIs; the explorer writes HTML only.
 The renderer reuses its Jinja environment and compiled templates between pages
