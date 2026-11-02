@@ -10,7 +10,7 @@ Execute the plan in the project's last successful active build:
 ```console
 uptimely run \
   [PROJECT_ROOT] [--project-root PATH] [--config PATH] \
-  [--validate] [--verbose] [--preview [ROWS]]
+  [--validate] [--log-level LEVEL] [--preview [ROWS]]
 ```
 
 Give the project directory positionally after `run`, or use
@@ -23,8 +23,8 @@ directory is used. The grouped form is `uptimely engine run [PROJECT_ROOT]`.
 | `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
 | `--config PATH` | No | `config/config.json` under the project root or current working directory | Engine settings and required runtime control parameter values in JSON. |
 | `--validate` | No | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
-| `--verbose` | No | `false` | Add saved-resource statistics, execution counts, calculated features, stages, and dataset registry details. |
-| `--preview [ROWS]` | No | Disabled; 5 rows when supplied without a count | Log the first positive number of rows from each final dataset after successful execution, independently of `--verbose`. |
+| `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes execution details and validation traces. Replaces `--verbose`. |
+| `--preview [ROWS]` | No | Disabled; 5 rows when supplied without a count | Log the first positive number of rows from each final dataset after successful execution at info level. |
 
 For example, preview five rows per dataset, or request a specific row limit:
 
@@ -35,7 +35,8 @@ uptimely run --preview 10
 ```
 
 Previews show all columns and omit the Polars shape line. They are logged after
-the completion summary and any verbose details. Lazy frames are limited before
+the completion summary and any debug details. Levels above `info` hide previews
+and the completion summary. Lazy frames are limited before
 collection, but their upstream operations may still require substantial work or
 repeat computation. Execution timing excludes preview collection and display.
 Previews can expose dataset contents in logs; enable them only when appropriate.
@@ -48,7 +49,11 @@ validation is opt-in:
 
 ```console
 uptimely run examples/pump_analytics --validate
+uptimely run examples/pump_analytics --validate --log-level debug
 ```
+
+The log level applies to Uptimely loggers, not third-party dependency loggers.
+It does not enable validation; use `--validate` to run the runtime checks.
 
 Without `--validate`, the engine still binds arguments and assembles declared
 output fragments, but skips input-feature, schema/type, uniqueness, row-count,

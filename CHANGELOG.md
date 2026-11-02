@@ -31,6 +31,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** `run` and `engine run` replace `--verbose` with
+  `--log-level {debug,info,warning,error,critical}` (default: `info`).
+  Debug logging includes execution details and validation traces without
+  enabling dependency debug logs.
 - **Breaking:** Renamed `ExecutionResult.datasets` to `ExecutionResult.main_frames`.
   Values remain final dataframes keyed by dataset ID.
 - Engine runtime assembly now uses a `MainFrame` per logical dataset and

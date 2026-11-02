@@ -121,7 +121,8 @@ def test_engine_cli_reports_processed_datasets(
             "run",
             "--project-root",
             str(project_root),
-            "--verbose",
+            "--log-level",
+            "debug",
             "--preview",
             "1",
         ],
@@ -152,7 +153,15 @@ def test_engine_cli_reports_scoped_saved_build(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "engine", "run", "--project-root", str(project_root), "--verbose"],
+        [
+            "uptimely",
+            "engine",
+            "run",
+            "--project-root",
+            str(project_root),
+            "--log-level",
+            "debug",
+        ],
     )
 
     cli.main()
