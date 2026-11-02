@@ -7,6 +7,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import threading
 from collections import abc
 
 import pytest
@@ -549,6 +550,50 @@ def test_snapshot_publication_failure_preserves_previous_snapshot(
     assert project.load_build_bundle(root).manifest.build_version == project.BUILD_VERSION
     assert snapshot.read_text(encoding="utf-8") == "previous snapshot"
     assert not list(snapshot.parent.glob(f".{snapshot.name}.*.tmp"))
+
+
+def test_snapshot_readers_observe_complete_old_or_new_data(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / project.EXPLORER_DATA_FILE
+    snapshot.parent.mkdir(parents=True)
+    previous = b'{"generation":"previous"}'
+    replacement = '{"generation":"replacement"}'
+    snapshot.write_bytes(previous)
+    replacement_ready = threading.Event()
+    allow_replace = threading.Event()
+    failures: list[Exception] = []
+    original_replace = project_build.os.replace
+
+    def pause_before_replace(source: pathlib.Path, target: pathlib.Path) -> None:
+        try:
+            assert target == snapshot
+            assert source.read_bytes() == replacement.encode()
+            replacement_ready.set()
+            if not allow_replace.wait(timeout=5):
+                raise TimeoutError("Timed out waiting to replace the snapshot")
+            original_replace(source, target)
+        except Exception as error:
+            failures.append(error)
+            raise
+
+    monkeypatch.setattr(project_build.os, "replace", pause_before_replace)
+    writer = threading.Thread(
+        target=project_build._publish_explorer_snapshot,
+        args=(tmp_path, replacement),
+    )
+    writer.start()
+    try:
+        assert replacement_ready.wait(timeout=5)
+        assert snapshot.read_bytes() == previous
+    finally:
+        allow_replace.set()
+    writer.join(timeout=5)
+
+    assert not writer.is_alive()
+    assert failures == []
+    assert snapshot.read_bytes() == replacement.encode()
 
 
 @pytest.mark.parametrize("exclusive", [False, True])

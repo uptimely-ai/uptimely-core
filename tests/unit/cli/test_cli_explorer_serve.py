@@ -10,7 +10,7 @@ import zipfile
 import pytest
 from starlette.types import ASGIApp, Message, Scope
 
-from uptimely import project
+from uptimely import project, spec
 from uptimely.cli import explorer
 from uptimely.explorer import server as explorer_server
 
@@ -100,6 +100,23 @@ def test_app_serves_packaged_frontend_and_reads_fresh_snapshot(tmp_path: pathlib
 
     snapshot_path.write_text(json.dumps(_snapshot("Rebuilt project")), encoding="utf-8")
     assert json.loads(_get(app, "/api/explorer")[1])["project"]["name"] == "Rebuilt project"
+
+
+def test_api_reads_snapshot_after_project_rebuild(tmp_path: pathlib.Path) -> None:
+    project_root = tmp_path / "project"
+    spec_path = project_root / "spec.json"
+    definition = spec.Spec(name="Before rebuild")
+    spec.write_document(definition, spec_path)
+    project.build_project(project_root, json_spec=spec_path)
+    app = explorer_server.create_app(project_root)
+
+    assert json.loads(_get(app, "/api/explorer")[1])["project"]["name"] == "Before rebuild"
+
+    definition.name = "After rebuild"
+    spec.write_document(definition, spec_path)
+    project.build_project(project_root, json_spec=spec_path)
+
+    assert json.loads(_get(app, "/api/explorer")[1])["project"]["name"] == "After rebuild"
 
 
 @pytest.mark.parametrize("kind", ["missing", "corrupt", "unsupported"])
