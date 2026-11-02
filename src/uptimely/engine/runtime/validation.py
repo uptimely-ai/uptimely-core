@@ -30,7 +30,8 @@ class InvocationValidator:
 
     def validate(self, invocation: execution_plan.Invocation) -> None:
         """Require declared input features in their allowed scope."""
-        logger.debug("Action %s: checking declared input features", invocation.mapping_id)
+        logger.debug("  Inputs for action %s:", invocation.mapping_id)
+        logger.debug("    - checking declared input features")
         definition = functions.FUNCTION_KINDS[invocation.function_kind]
         if definition.dataframe_input_scope == "foreign":
             self._validate_foreign_inputs(invocation)
@@ -57,7 +58,7 @@ class InvocationValidator:
 
     def _validate_foreign_inputs(self, invocation: execution_plan.Invocation) -> None:
         """Validate declared feature inputs against the foreign source dataframe."""
-        logger.debug("Action %s: checking foreign input features", invocation.mapping_id)
+        logger.debug("    - checking foreign input features")
         arguments = [
             name
             for name, argument_type in invocation.argument_types.items()

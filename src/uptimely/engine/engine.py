@@ -86,10 +86,19 @@ class Engine:
         durations: dict[str, float] = {}
         failures: dict[str, str] = {}
 
-        logger.debug("Executing plan: %d stages", len(self.plan.execution_stages))
+        logger.debug(
+            "\nExecution plan: %d stages (runtime validation %s)",
+            len(self.plan.execution_stages),
+            "enabled" if validate else "disabled",
+        )
         for invocation in self.plan.execution_invocations:
             started = time.perf_counter()
-            logger.debug("Running %s invocation %s", invocation.function_kind, invocation.id)
+            logger.debug(
+                "\n=== %s | %s ===\n  Target dataset: %s",
+                invocation.function_kind,
+                invocation.id,
+                invocation.dataset_id,
+            )
             try:
                 invocation_executor.execute(invocation)
             except Exception as error:

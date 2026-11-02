@@ -123,6 +123,7 @@ def test_engine_cli_reports_processed_datasets(
             str(project_root),
             "--log-level",
             "debug",
+            "--validate",
             "--preview",
             "1",
         ],
@@ -138,6 +139,13 @@ def test_engine_cli_reports_processed_datasets(
         "Dataset: pump_dataset\n"
     )
     assert "shape:" not in output
+    assert "\n=== read | " in output
+    assert "\n  Fragment read_constants:\n    - checking dataframe type\n" in output
+    assert output.count("Fragment read_constants:") == 1
+    assert "\n  Accumulated dataset:\n    - checking dataframe type\n" in output
+    assert "\n  Accumulated dataset merge:\n    - checking fragment feature collisions\n" in output
+    assert "\n  Completed in " not in output
+    assert "\x1b[" not in output
 
 
 def test_engine_cli_reports_scoped_saved_build(
