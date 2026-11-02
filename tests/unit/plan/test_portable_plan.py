@@ -304,6 +304,28 @@ def test_plan_resource_indexes_traverse_invocations_once() -> None:
     assert dataclasses.asdict(plan) == dataclasses.asdict(original)
 
 
+def test_entrypoints_by_id_include_saved_package_provenance() -> None:
+    original = _sample_plan()
+    location = original.invocations[0].entrypoint
+    plan = dataclasses.replace(
+        original,
+        resources={
+            **original.resources,
+            "entrypoint_packages": {
+                location: {"distribution": "recorded-package", "version": "1.0"}
+            },
+        },
+    )
+
+    entrypoints = plan.entrypoints_by_id
+
+    assert list(entrypoints) == list(plan.entrypoints)
+    assert entrypoints[location].package is not None
+    assert entrypoints[location].package.distribution == "recorded-package"
+    assert entrypoints[location].package.version == "1.0"
+    assert plan.entrypoints_by_id is entrypoints
+
+
 def test_plan_replacement_does_not_retain_stale_indexes() -> None:
     plan = _sample_plan()
     original_index = plan.invocations_by_id

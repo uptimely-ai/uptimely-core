@@ -6,6 +6,7 @@ import dataclasses
 import functools
 import typing
 
+from uptimely import entrypoint as entrypoint_module
 from uptimely import row_context as uptimely_row_context
 from uptimely.spec import functions
 
@@ -165,6 +166,22 @@ class ExecutionPlan:
     def entrypoints(self) -> dict[str, None]:
         """Return distinct entrypoints in invocation declaration order."""
         return self._indexes.entrypoints
+
+    @functools.cached_property
+    def entrypoints_by_id(self) -> dict[str, entrypoint_module.Entrypoint]:
+        """Return parsed entrypoints with their saved package provenance."""
+        packages = self.resources.get("entrypoint_packages", {})
+        return {
+            location: entrypoint_module.Entrypoint(
+                location,
+                package=(
+                    entrypoint_module.PackageProvenance(**packages[location])
+                    if location in packages
+                    else None
+                ),
+            )
+            for location in self.entrypoints
+        }
 
     @property
     def invocations_by_kind(self) -> dict[functions.FunctionKindId, list[Invocation]]:

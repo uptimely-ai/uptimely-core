@@ -4,7 +4,6 @@ import logging
 import time
 from collections import abc
 
-from uptimely import entrypoint as entrypoint_module
 from uptimely import project_paths
 from uptimely.project.build import models as build_models
 
@@ -76,20 +75,9 @@ class Engine:
             Main dataframes, invocation statuses, durations, and failures.
         """
         state = state_module.RuntimeState()
-        packages = self.plan.resources.get("entrypoint_packages", {})
         invocation_executor = execution_module.InvocationExecutor(
             self.backend,
-            {
-                entrypoint: entrypoint_module.Entrypoint(
-                    entrypoint,
-                    package=(
-                        entrypoint_module.PackageProvenance(**packages[entrypoint])
-                        if entrypoint in packages
-                        else None
-                    ),
-                )
-                for entrypoint in self.plan.entrypoints
-            },
+            self.plan.entrypoints_by_id,
             self.parameters,
             state,
             validate=validate,
