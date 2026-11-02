@@ -1,22 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="with-navigation bg-slate-950">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <title>Analytics Explorer</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="./js/tailwind_config.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/base.css">
+    <link rel="stylesheet" href="./css/icons.css">
     <link rel="stylesheet" href="./css/explorer.css">
     <script src="./config.js"></script>
     <script type="module" src="./js/app.js"></script>
   </head>
   <body>
-    <header class="topbar">
-      <a class="brand" href="#overview">Uptimely <span>Explorer</span></a>
-      <nav id="navigation" aria-label="Explorer sections"></nav>
-      <span id="scope-badge" class="scope-badge"></span>
-    </header>
-    <div id="load-status" class="load-status" role="status">Loading Explorer data...</div>
-    <main id="content" class="content" hidden></main>
-    <div id="error-status" class="error-status" role="alert" hidden></div>
+    <div class="explorer-loading">
+      <div id="load-status" role="status">Loading Explorer data...</div>
+      <div id="error-status" class="explorer-error" role="alert" hidden></div>
+      <noscript>JavaScript is required to browse the Explorer.</noscript>
+    </div>
   </body>
 </html>

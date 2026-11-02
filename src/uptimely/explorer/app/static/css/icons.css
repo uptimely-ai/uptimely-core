@@ -1,0 +1,12 @@
+.icon--home, .icon--menu, .icon--collapse-navigation, .icon--expand-navigation, .icon--overview {
+  --icon-color: #93c5fd; --icon-tint: #1e3a8a4d;
+}
+.icon--spec { --icon-color: #67e8f9; --icon-tint: #164e634d; }
+.icon--features { --icon-color: #bef264; --icon-tint: #3653144d; }
+.icon--entities { --icon-color: #fdba74; --icon-tint: #7c2d124d; }
+.icon--datasets { --icon-color: #6ee7b7; --icon-tint: #064e3b4d; }
+.icon--dimensions, .icon--stages { --icon-color: #818cf8; --icon-tint: #312e814d; }
+.icon--plan, .icon--functions, .icon--invocations { --icon-color: #fcd34d; --icon-tint: #78350f4d; }
+.icon--feature-lineage { --icon-color: #2dd4bf; --icon-tint: #134e4a4d; }
+.icon--invocation-lineage { --icon-color: #fb923c; --icon-tint: #7c2d124d; }
+.icon--execution, .icon--data-lineage { --icon-color: #e879f9; --icon-tint: #701a754d; }
