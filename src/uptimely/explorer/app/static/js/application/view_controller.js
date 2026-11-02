@@ -14,23 +14,40 @@ const INITIALIZERS = {
   lineage: initializeFeatureLineage, topology: initializeInvocationLineage,
   animation: initializeDataLineage, highlight: initializeHighlighting,
 };
-const catalog = name => ({
-  stylesheet: "spec", catalog: true, render: data => renderCatalog(data, name),
+const initializer = (name, component = false) => ({ name, component });
+const icons = [initializer("icons")];
+const catalog = (name, highlight = false) => ({
+  stylesheet: "spec", catalog: true, highlight,
+  initialize: [initializer("catalog", true), ...icons,
+    ...(highlight ? [initializer("highlight")] : [])],
+  render: data => renderCatalog(data, name),
 });
 const content = render => data => ({ context: "", content: render(data) });
 const VIEWS = {
-  home: { stylesheet: "dashboard", render: content(dashboard) },
-  spec: { stylesheet: "spec", render: content(specOverview) },
-  plan: { stylesheet: "spec", render: content(planOverview) },
+  home: { stylesheet: "dashboard", initialize: icons, render: content(dashboard) },
+  spec: { stylesheet: "spec", initialize: icons, render: content(specOverview) },
+  plan: { stylesheet: "spec", initialize: icons, render: content(planOverview) },
   features: catalog("features"),
   entities: catalog("entities"),
   datasets: catalog("datasets"),
   dimensions: catalog("dimensions"),
-  functions: { ...catalog("functions"), highlight: true },
+  functions: catalog("functions", true),
   stages: catalog("stages"),
-  lineage: { stylesheet: "graph", graph: "feature_style", render: data => lineage(data, false) },
-  topology: { stylesheet: "graph", graph: "invocation_style", render: data => lineage(data, true) },
-  animation: { stylesheet: "data_lineage", render: animation },
+  lineage: {
+    stylesheet: "graph", graph: "feature_style",
+    initialize: [initializer("lineage"), ...icons],
+    render: data => lineage(data, false),
+  },
+  topology: {
+    stylesheet: "graph", graph: "invocation_style",
+    initialize: [initializer("topology"), ...icons],
+    render: data => lineage(data, true),
+  },
+  animation: {
+    stylesheet: "data_lineage",
+    initialize: [...icons, initializer("animation", true)],
+    render: animation,
+  },
 };
 
 export function getView(name) {
@@ -72,20 +89,18 @@ export class ViewController {
     body.innerHTML = shell(this.data, name, context, content);
   }
 
-  initializeComponents(name, view, sidebars) {
+  initializeView(view, sidebars) {
     const { signal } = this.controller;
-    const initialize = this.initializers;
-    if (view.catalog) this.component = initialize.catalog(signal);
     if (view.graph) {
       const style = this.data.graphs[view.graph];
       this.document.body.style.setProperty("--lineage-background", style.background_color);
       this.document.getElementById("action-legend")?.style.setProperty("--color", style.function_color);
-      initialize[name](signal);
     }
-    initialize.icons(signal);
+    for (const step of view.initialize) {
+      const component = this.initializers[step.name](signal);
+      if (step.component) this.component = component;
+    }
     this.restoreSidebars(sidebars);
-    if (name === "animation") this.component = initialize.animation(signal);
-    if (view.highlight) initialize.highlight();
   }
 
   focusHeading() {
@@ -103,7 +118,7 @@ export class ViewController {
     try {
       activateStyles();
       this.renderShell(name, view, markup);
-      this.initializeComponents(name, view, sidebars);
+      this.initializeView(view, sidebars);
       this.activeView = name;
       this.focusHeading();
     } catch (error) {
