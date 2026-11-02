@@ -5,7 +5,6 @@ from __future__ import annotations
 import dataclasses
 import enum
 import json
-import pathlib
 import typing
 
 from uptimely import execution_plan, spec
@@ -62,22 +61,20 @@ def build_presentation_data(
     plan: execution_plan.ExecutionPlan,
     *,
     features: list[str] | None = None,
-    output_directory: pathlib.Path = pathlib.Path("_generated/explorer"),
 ) -> ExplorerPresentationData:
-    """Prepare complete Explorer presentation data without rendering or writing files.
+    """Prepare complete Explorer presentation data without writing files.
 
     Args:
         spec_definition: Project specification used for catalog labels and metadata.
         plan: Compiled execution plan; analytical functions are not executed.
         features: Selected output features, or ``None`` for all features.
-        output_directory: Explorer output location used to resolve source links.
 
     Returns:
         Versioned JSON-ready project, catalog, graph, plan, and animation data.
     """
     spec_data = spec_section.build_context(spec_section._build_context(spec_definition, False))
     feature_data = feature_lineage.build_context(spec.FeatureGraph(spec_definition))
-    plan_data = plan_section.build_context(plan, output_directory, spec_definition)
+    plan_data = plan_section.build_context(plan, spec_definition)
     animation_data = data_lineage.build_context(spec_definition, plan)
 
     execution_scope = (

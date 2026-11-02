@@ -1,4 +1,4 @@
-"""Build spec context and render explorer HTML pages."""
+"""Prepare Explorer spec catalog data."""
 
 from __future__ import annotations
 
@@ -12,28 +12,14 @@ from importlib import util
 import docstring_parser
 
 from uptimely import entrypoint as entrypoint_module
-from uptimely.explorer import render
 from uptimely.spec import functions as function_kinds
 from uptimely.spec import model as spec_model
 from uptimely.spec import selectors
 
-SPEC_PAGES = render.WEBSITE_PAGES["spec"]
-SPEC_CONTENT_PAGES = {
-    section: filename for section, filename in SPEC_PAGES.items() if section != "feature_lineage"
-}
-SECTION = render.WebsiteSection(
-    active_page="spec",
-    pages=tuple(
-        render.WebsitePage(f"spec/{section}.html.j2", filename, active_section=section)
-        for section, filename in SPEC_CONTENT_PAGES.items()
-    ),
-)
 __all__ = [
-    "SPEC_PAGES",
     "ExplorerContext",
     "ExplorerSummary",
     "_build_context",
-    "SECTION",
     "build_context",
     "_feature_data",
 ]
@@ -57,7 +43,7 @@ class ExplorerSummary:
 
 @dataclasses.dataclass(frozen=True)
 class ExplorerContext:
-    """Complete template context for one explorer build."""
+    """Spec catalog metadata for one Explorer presentation."""
 
     configuration: dict[str, typing.Any]
     summary: ExplorerSummary
@@ -68,13 +54,13 @@ class ExplorerContext:
 def build_context(
     context: ExplorerContext,
 ) -> dict[str, object]:
-    """Prepare display data shared by the spec pages.
+    """Prepare catalog data for the Explorer presentation.
 
     Args:
-        context: Reference data shared with the website dashboard.
+        context: Reference data shared with the Explorer presentation.
 
     Returns:
-        Spec metadata and function groups for the section templates.
+        Spec metadata and function groups for the catalog views.
     """
     data = dataclasses.asdict(context)
     data["function_groups"] = {
@@ -150,7 +136,7 @@ def _format_example(example: docstring_parser.DocstringExample) -> str:
 
 
 def _parse_docstring(docstring: str) -> dict[str, typing.Any] | None:
-    """Parse a function docstring into template-ready documentation sections.
+    """Parse a function docstring into structured documentation sections.
 
     Numpy-style section headers that a Google-style linter suffixed with a
     colon are normalized back before parsing.
@@ -159,8 +145,7 @@ def _parse_docstring(docstring: str) -> dict[str, typing.Any] | None:
         docstring: Cleaned docstring text in any style docstring_parser detects.
 
     Returns:
-        Documentation sections for the function card, or None when the
-        docstring cannot be parsed.
+        Parsed documentation sections, or None when the docstring cannot be parsed.
     """
     normalized = _SECTION_HEADER_COLON.sub(r"\1\2", docstring)
     try:
@@ -184,7 +169,7 @@ def _build_context(
     spec_definition: spec_model.Spec,
     include_generated_at: bool,
 ) -> ExplorerContext:
-    """Build the typed template context from a spec document model."""
+    """Build typed Explorer catalog data from a spec document model."""
     configuration = spec_definition.model_dump(mode="json", exclude_none=True)
     entities = configuration.get("entities", {})
     dimensions = configuration.get("dimensions", {})

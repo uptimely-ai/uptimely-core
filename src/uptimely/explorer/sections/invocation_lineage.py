@@ -23,7 +23,7 @@ def invocation_lineage_payload(
         Invocation nodes and directed dependency links.
     """
     if spec_definition is None:
-        raise ValueError("spec_definition is required to render invocation lineage")
+        raise ValueError("spec_definition is required to prepare invocation lineage")
     stage_by_invocation = {
         invocation_id: stage_number
         for stage_number, stage in enumerate(plan.stages, start=1)

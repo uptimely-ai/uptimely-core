@@ -26,14 +26,11 @@ def test_default_spec_attribute() -> None:
         (project.DATA_DIR, "data"),
         (project.FUNCTIONS_DIR, "functions"),
         (project.GENERATED_DIR, "_generated"),
-        (project.EXPLORER_OUTPUT_DIR, "_generated/explorer"),
-        (project.EXPLORER_INDEX_FILE, "_generated/explorer/index.html"),
         (project.EXPLORER_DATA_FILE, "_generated/explorer.json"),
         (project.BUILD_OUTPUT_DIR, "_generated/build"),
         (project.BUILD_MANIFEST_FILE, "_generated/build/build.json"),
         (project.BUILD_SPEC_FILE, "_generated/build/spec.json"),
         (project.BUILD_EXECUTION_PLAN_FILE, "_generated/build/execution_plan.json"),
-        (project.BUILD_EXPLORER_DIR, "_generated/build/explorer"),
     ],
 )
 def test_standard_paths(path: pathlib.Path, expected: str) -> None:
@@ -73,8 +70,7 @@ def _manifest_data() -> dict[str, object]:
 
 def _write_bundle(project_root: pathlib.Path) -> pathlib.Path:
     build_root = project_root / project.BUILD_OUTPUT_DIR
-    explorer_root = build_root / "explorer"
-    (explorer_root / "assets").mkdir(parents=True)
+    build_root.mkdir(parents=True)
     (build_root / "spec.json").write_text("{}", encoding="utf-8")
     (build_root / "execution_plan.json").write_text(
         json.dumps(
@@ -88,8 +84,6 @@ def _write_bundle(project_root: pathlib.Path) -> pathlib.Path:
         ),
         encoding="utf-8",
     )
-    (explorer_root / "index.html").write_text("<html></html>", encoding="utf-8")
-    (explorer_root / "assets/app.js").write_text("", encoding="utf-8")
     (build_root / "build.json").write_text(json.dumps(_manifest_data()), encoding="utf-8")
     return build_root
 
@@ -234,11 +228,11 @@ def test_load_build_bundle_rejects_artifact_symlink_that_escapes_bundle(
         project.load_build_bundle(tmp_path)
 
 
-def test_load_build_bundle_does_not_validate_unlisted_website_files(
+def test_load_build_bundle_does_not_validate_unlisted_files(
     tmp_path: pathlib.Path,
 ) -> None:
     build_root = _write_bundle(tmp_path)
-    (build_root / "explorer/assets/app.js").unlink()
+    (build_root / "unlisted.json").write_text("{invalid", encoding="utf-8")
 
     loaded_bundle = project.load_build_bundle(tmp_path)
 

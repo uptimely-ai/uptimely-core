@@ -29,3 +29,8 @@ def serialize_graph_payload(
             "links": sorted(links, key=lambda link: (link["source"], link["target"])),
         }
     ).replace("</script>", r"<\/script>")
+
+
+def filled_fields(**fields: object) -> dict[str, typing.Any]:
+    """Return display metadata without null-valued optional fields."""
+    return {name: value for name, value in fields.items() if value is not None}

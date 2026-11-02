@@ -1,12 +1,10 @@
 import json
 import pathlib
-import re
 import shutil
 import sys
 
 import pytest
 from support import examples as example_support
-from support import rendering as rendering_support
 
 from uptimely import execution_plan, project
 from uptimely.cli import cli
@@ -121,76 +119,3 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "pump",
         "bearing_temperature_max",
     ]
-
-
-def test_execution_plan_report_shows_topology_stages(
-    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
-) -> None:
-    rendering_support.render_explorer(
-        pump_bundle.spec_definition, tmp_path / "index.html", plan=pump_bundle.execution_plan
-    )
-    report_path = tmp_path / "plan/stages.html"
-    report = report_path.read_text(encoding="utf-8")
-
-    assert "<title>Plan Stages</title>" in report
-    assert ">Stages</span></h1>" in report
-    assert "Stage 1" in report
-    assert "parallel invocations" in report
-    assert ">Function kind</dt>" in report
-    assert ">Function</dt>" in report
-    assert ">Dataset feature output</dt>" in report
-    assert ">Depends on invocations</dt>" in report
-    assert ">Returns</dt>" in report
-    assert ">Health Signal Normalized</dd>" in report
-    assert "md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]" in report
-    assert "md:col-span-4" in report
-    assert ">Aggregate</h3>" in report
-    assert "Open Python module" in report
-    assert "No invocation dependencies" in report
-    assert "Aggregate</span>" in report
-    source_match = re.search(r'href="([^"]*functions/analytics\.py)"', report)
-    assert source_match is not None
-    assert (report_path.parent / source_match.group(1)).resolve().is_file()
-
-    report = (tmp_path / "plan/invocation-lineage.html").read_text(encoding="utf-8")
-    assert 'id="invocation-lineage-graph"' in report
-    assert "3d-force-graph" in report
-    assert "Invocation details" in report
-    assert '"node_type": "invocation"' in report
-    assert '"function_kind": "read"' in report
-    assert '"function_kind": "collapse"' in report
-    assert '"function_kind": "vectorize"' in report
-    assert '"function_kind": "write"' in report
-    assert "<summary>Legend</summary>" in report
-    assert 'class="function"' not in report
-    assert (
-        '"source": "invocation:aggregate:pump:pump_dataset:bearing_temperature_by_pump"' in report
-    )
-    assert (
-        '"target": "invocation:min_max_scale:pump:pump_dataset:health_signal_normalized"' in report
-    )
-    invocation_script = (tmp_path / "js/invocation_lineage.js").read_text(encoding="utf-8")
-    shared_script = (tmp_path / "js/lineage_components.js").read_text(encoding="utf-8")
-    assert (
-        "ExplorerLineage.datasetNodeObject(node, node.function_name || node.function_id, style)"
-        in invocation_script
-    )
-    assert "SphereGeometry" in shared_script
-
-
-def test_website_exports_plan_pages_to_default_path(
-    tmp_path: pathlib.Path, monkeypatch, pump_bundle: project.BuildBundle
-) -> None:
-    spec_definition = pump_bundle.spec_definition
-    monkeypatch.chdir(tmp_path)
-
-    index = rendering_support.render_explorer(spec_definition, plan=pump_bundle.execution_plan)
-
-    assert index == pathlib.Path("_generated/explorer/index.html")
-    for filename in (
-        "plan/overview.html",
-        "plan/invocation-lineage.html",
-        "plan/stages.html",
-    ):
-        assert (index.parent / filename).is_file()
-    assert not pathlib.Path("_generated/compile").exists()

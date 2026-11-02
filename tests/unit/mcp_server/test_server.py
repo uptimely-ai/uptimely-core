@@ -14,7 +14,6 @@ fastmcp = pytest.importorskip("fastmcp", reason="fastmcp extra is not installed"
 import fastmcp as fastmcp_  # noqa: E402
 
 from uptimely import compiler  # noqa: E402
-from uptimely.explorer import explorer as explorer_module  # noqa: E402
 from uptimely.mcp import server  # noqa: E402
 from uptimely.spec import model as spec_model  # noqa: E402
 
@@ -246,22 +245,16 @@ async def test_describe_build_reports_saved_scope(state: server.ServerState) -> 
 
 
 @pytest.mark.anyio
-async def test_execute_build_runs_the_saved_plan_without_compile_or_render(
+async def test_execute_build_runs_the_saved_plan_without_compiling(
     state: server.ServerState,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """execute_build runs saved outputs and does not compile or render a new build."""
+    """execute_build runs saved outputs and does not compile a new build."""
     monkeypatch.setattr(
         compiler.Compiler,
         "compile",
         lambda *_args, **_kwargs: pytest.fail("MCP must not compile plans"),
     )
-    monkeypatch.setattr(
-        explorer_module.Explorer,
-        "create_html",
-        lambda *_args, **_kwargs: pytest.fail("MCP must not render Explorer"),
-    )
-
     payload = await _call(state, "execute_build", {"max_rows": 3})
     assert payload["status"] == "ok"
     assert payload["features"] is None

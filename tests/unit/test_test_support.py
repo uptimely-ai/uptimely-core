@@ -6,7 +6,6 @@ from concurrent import futures
 import pytest
 from support import examples as example_support
 from support import execution as execution_support
-from support import rendering as rendering_support
 
 from uptimely import compiler, execution_plan, project, spec
 
@@ -84,9 +83,6 @@ def test_example_setup_reuses_artifacts_without_building_or_compiling(
 
     assert execution_plan.to_dict(plan) == execution_plan.to_dict(bundle.execution_plan)
     assert project.load_build_bundle(copied_root).manifest == bundle.manifest
-    assert rendering_support.render_explorer(
-        bundle.spec_definition, tmp_path / "site/index.html", plan=plan
-    ).is_file()
 
 
 def test_example_objects_and_project_copies_are_independent(tmp_path: pathlib.Path) -> None:
@@ -133,43 +129,6 @@ def test_scoped_example_is_built_once_for_multiple_consumers(
     assert build_calls == 1
     assert first.execution_plan is not second.execution_plan
     assert project.load_build_bundle(copied_root).manifest.features == list(features)
-
-
-def test_render_requires_explicit_plan(
-    tmp_path: pathlib.Path,
-) -> None:
-    with pytest.raises(TypeError, match="plan"):
-        rendering_support.render_explorer(spec.Spec(), tmp_path / "index.html")  # type: ignore[call-arg]
-
-
-def test_render_uses_supplied_custom_plan_without_compiling(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    definition = spec.Spec(name="Custom rendering")
-    plan = compiler.Compiler().compile(definition)
-
-    def unexpected_compile(
-        self: compiler.Compiler,
-        spec_definition: spec.Spec,
-        features: list[str] | None = None,
-    ) -> execution_plan.ExecutionPlan:
-        pytest.fail("An explicitly supplied plan must not be compiled again")
-
-    monkeypatch.setattr(compiler.Compiler, "compile", unexpected_compile)
-    monkeypatch.setattr(
-        example_support,
-        "example_bundle",
-        lambda: pytest.fail("Rendering must not load example artifacts"),
-    )
-    monkeypatch.setattr(
-        example_support,
-        "prepare_example_projects",
-        lambda *_args: pytest.fail("Rendering must not prepare example projects"),
-    )
-
-    assert rendering_support.render_explorer(
-        definition, tmp_path / "index.html", plan=plan
-    ).is_file()
 
 
 def test_shared_examples_are_built_once_under_concurrent_requests(

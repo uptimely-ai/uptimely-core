@@ -26,7 +26,7 @@ def main() -> None:
     )
     engine.configure_run_parser(commands.add_parser("run", help="Run an analytics workflow"))
     explorer.configure_serve_parser(
-        commands.add_parser("explore", help="Serve the Analytics Explorer website")
+        commands.add_parser("explore", help="Serve the Analytics Explorer frontend")
     )
     args = parser.parse_args()
     if args.command == "examples":

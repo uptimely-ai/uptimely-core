@@ -1,41 +1,21 @@
-"""Render compiled execution-plan pages within the explorer website."""
+"""Prepare presentation data for compiled execution plans."""
 
 from __future__ import annotations
 
 import dataclasses
-import os
-import pathlib
 import typing
 
 from uptimely import execution_plan, spec
-from uptimely.explorer import common, render
+from uptimely.explorer import common
 from uptimely.explorer import graph_style as graph_style_module
 from uptimely.spec import functions
 
 from . import invocation_lineage
 
-PLAN_PAGES = render.WEBSITE_PAGES["plan"]
-SECTION = render.WebsiteSection(
-    active_page="plan",
-    pages=tuple(
-        render.WebsitePage(
-            f"plan/{section}.html.j2",
-            filename,
-            active_section=section,
-            title="Topology" if section == "invocation_lineage" else section.title(),
-        )
-        for section, filename in PLAN_PAGES.items()
-    ),
-)
-__all__ = [
-    "PLAN_PAGES",
-    "SECTION",
-    "build_context",
-    "_render_step",
-]
+__all__ = ["build_context", "_build_step"]
 
 
-def _render_step(
+def _build_step(
     position: int,
     invocation: execution_plan.Invocation,
     plan: execution_plan.ExecutionPlan,
@@ -45,7 +25,7 @@ def _render_step(
 ) -> dict[str, typing.Any]:
     """Build a plan step's display model, optionally reusing lookup indexes."""
     if spec_definition is None:
-        raise ValueError("spec_definition is required to render plan steps")
+        raise ValueError("spec_definition is required to prepare plan steps")
     if invocations_by_id is None:
         invocations_by_id = plan.invocations_by_id
     if feature_labels is None:
@@ -118,18 +98,6 @@ def _display_value(value: object) -> object:
     return value
 
 
-def _source_href(entrypoint: str, output_directory: pathlib.Path) -> str | None:
-    """Resolve a module or file entrypoint relative to the plan pages."""
-    if not entrypoint:
-        return None
-    source_path = entrypoint.partition(":")[0]
-    if not source_path:
-        return None
-    if not source_path.endswith(".py"):
-        source_path = source_path.replace(".", "/") + ".py"
-    return pathlib.Path(os.path.relpath(source_path, start=output_directory / "plan")).as_posix()
-
-
 def _step_sort_key(step: dict[str, typing.Any]) -> tuple[str, str, str, str]:
     """Keep stage cards in their existing display order."""
     return (
@@ -142,21 +110,19 @@ def _step_sort_key(step: dict[str, typing.Any]) -> tuple[str, str, str, str]:
 
 def build_context(
     plan: execution_plan.ExecutionPlan,
-    output_directory: pathlib.Path,
     spec_definition: spec.Spec,
 ) -> dict[str, object]:
-    """Prepare overview, invocation-lineage, and stage data without rendering or writing pages.
+    """Prepare overview, invocation-lineage, and stage data.
 
     Args:
-        plan: The compiled execution plan to render.
-        output_directory: Website directory used to resolve relative source links.
+        plan: The compiled execution plan.
         spec_definition: Spec model for display-name resolution.
 
     Returns:
-        Display data shared by the plan pages.
+        Plan data for the Explorer presentation.
     """
     if spec_definition is None:
-        raise ValueError("spec_definition is required to render the execution plan")
+        raise ValueError("spec_definition is required to prepare the execution plan")
     invocations_by_stage = plan.execution_stages
     invocations_by_id = plan.invocations_by_id
     feature_labels = common.feature_labels(spec_definition)
@@ -166,10 +132,9 @@ def build_context(
         steps = []
         for invocation in stage:
             position += 1
-            step = _render_step(
+            step = _build_step(
                 position, invocation, plan, spec_definition, invocations_by_id, feature_labels
             )
-            step["source_href"] = _source_href(invocation.entrypoint, output_directory)
             step["depends_on_invocations"].sort(key=lambda dependency: dependency["function"])
             steps.append(step)
         stages.append({"stage": stage_number, "steps": sorted(steps, key=_step_sort_key)})

@@ -32,9 +32,9 @@ While the version is `0.x`, minor releases may include breaking changes.
   as the function catalog `description`, with an explicit
   `ref.function(..., description=...)` override. The description is preserved
   in exported spec documents.
-- The Explorer function catalog now renders argument, return, raise, and
-  example documentation parsed from implementation docstrings when signature
-  validation is enabled.
+- Explorer function catalog presentation data includes argument, return,
+  raise, and example documentation parsed from implementation docstrings when
+  signature validation is enabled.
 - Structural dataframe validation now follows each function kind's explicit
   dimension, row-count, fragment, and key-identity policies. Vectorized results
   independently preserve target row counts and key identities; dimensional
@@ -51,6 +51,9 @@ While the version is `0.x`, minor releases may include breaking changes.
   `--log-level {debug,info,warning,error,critical}` (default: `info`).
   Debug logging includes execution details and validation traces without
   enabling dependency debug logs.
+- **Breaking:** Removed the Jinja website renderer and its `Explorer.create_html`
+  API. Project builds now publish a versioned Explorer JSON snapshot, served by
+  the packaged static frontend or exported with `uptimely explorer export`.
 - **Breaking:** Renamed `ExecutionResult.datasets` to `ExecutionResult.main_frames`.
   Values remain final dataframes keyed by dataset ID.
 - Engine runtime assembly now uses a `MainFrame` per logical dataset and

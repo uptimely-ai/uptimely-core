@@ -17,7 +17,7 @@ and return values generated from the Python source.
 | `uptimely.spec.validation` | [Spec validation](spec/validation.md) | Validate document relationships and handle structured errors. |
 | `uptimely.compiler` | <span id="compilation"></span><span id="portable-plans"></span>[Compiler and plans](compiler.md) | Compile spec and read or write portable plans. |
 | `uptimely.engine` | <span id="execution"></span>[Execution engine](engine.md) | Execute plans with configurable runtime adapters. |
-| `uptimely.explorer` | <span id="analytics-explorer"></span>[Analytics Explorer](explorer.md) | Generate an analytics website. |
+| `uptimely.explorer` | <span id="analytics-explorer"></span>[Analytics Explorer](explorer.md) | Prepare data for the static Explorer frontend. |
 | `uptimely.row_context` | [Row context](row-context.md) | Describe row windows passed to analytical functions. |
 | `uptimely.entrypoint` | [Python entrypoints](entrypoint.md) | Load Python callables and inspect their signatures. |
 | `uptimely.storage` | [Storage](storage.md) | Read local files and S3 objects through a shared interface. |
@@ -42,8 +42,8 @@ and `uptimely.engine.Engine` remain available.
 
 This reference covers public Python interfaces, including exported types,
 constants, and validation functions. Internal resolution, runtime-state, and
-rendering helpers are not included. CLI command handlers and MCP server internals
-are also outside its scope.
+presentation helpers are not included. CLI command handlers and MCP server
+internals are also outside its scope.
 
 For a runnable workflow, see the
 [repository examples](https://github.com/uptimely-ai/uptimely-core/tree/main/examples).

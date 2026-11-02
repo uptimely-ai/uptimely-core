@@ -62,8 +62,17 @@ uptimely run examples/pump_analytics
 
 ### Open the project explorer
 
+The local preview serves the packaged frontend and the current data snapshot:
+
 ```sh
 uptimely explore examples/pump_analytics
 ```
 
 Open <http://127.0.0.1:8001/> to view the Explorer.
+
+To publish the static frontend and snapshot, export them to a directory or ZIP:
+
+```sh
+uptimely explorer export examples/pump_analytics --output pump-analytics-explorer
+uptimely explorer export examples/pump_analytics --output pump-analytics-explorer.zip
+```

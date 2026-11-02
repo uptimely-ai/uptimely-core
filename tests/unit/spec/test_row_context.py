@@ -8,10 +8,10 @@ import polars as pl
 import pydantic
 import pytest
 from support import execution as execution_support
-from support import rendering as rendering_support
 
 from uptimely import compiler, row_context, spec
 from uptimely import execution_plan as uptimely_plan
+from uptimely.explorer import presentation
 from uptimely.spec import functions
 from uptimely.spec.python import (
     actions,
@@ -336,7 +336,7 @@ def test_row_context_accessors_preserve_unresolved_sources() -> None:
     assert document.get_row_context_dimensions(key) is None
 
 
-def test_spec_plan_execution_and_explorer_preserve_context(
+def test_spec_plan_execution_and_presentation_preserve_context(
     tmp_path: pathlib.Path, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     context = authoring.time(
@@ -359,9 +359,14 @@ def test_spec_plan_execution_and_explorer_preserve_context(
     assert not result.failures
     frame = result.main_frames["observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
-    rendering_support.render_explorer(restored, tmp_path / "index.html", plan=compiled)
-    assert "Row context:" not in (tmp_path / "spec/features.html").read_text()
-    assert "Row context" in (tmp_path / "plan/stages.html").read_text()
+    data = presentation.build_presentation_data(restored, compiled)
+    rendered_operation = next(
+        step
+        for stage in data["stages"]
+        for step in stage["steps"]
+        if step["function"] == "calculate"
+    )
+    assert rendered_operation["row_context"] == context.to_dict()
 
 
 @pytest.mark.parametrize("operation", ["read", "expand", "collapse", "vectorize"])
@@ -437,12 +442,14 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
         datetime.datetime(2026, 1, 1),
     ]
 
-    rendering_support.render_explorer(restored_spec, tmp_path / "index.html", plan=restored_plan)
-    features_html = (tmp_path / "spec/features.html").read_text(encoding="utf-8")
-    assert "result" in features_html
-    assert "Row context:" not in features_html
-    html = (tmp_path / "plan/stages.html").read_text(encoding="utf-8")
-    assert "Row context" in html
+    data = presentation.build_presentation_data(restored_spec, restored_plan)
+    step = next(
+        step
+        for stage in data["stages"]
+        for step in stage["steps"]
+        if step["function"] == "calculate"
+    )
+    assert step["row_context"] == context.to_dict()
 
 
 def test_plan_context_is_present_in_portable_operations() -> None:

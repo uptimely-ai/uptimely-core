@@ -2,7 +2,6 @@
 
 from uptimely.project_paths import (
     BUILD_EXECUTION_PLAN_FILE,
-    BUILD_EXPLORER_DIR,
     BUILD_MANIFEST_FILE,
     BUILD_OUTPUT_DIR,
     BUILD_SPEC_FILE,
@@ -12,8 +11,6 @@ from uptimely.project_paths import (
     DATA_DIR,
     DEFAULT_SPEC_ATTRIBUTE,
     EXPLORER_DATA_FILE,
-    EXPLORER_INDEX_FILE,
-    EXPLORER_OUTPUT_DIR,
     FUNCTIONS_DIR,
     GENERATED_DIR,
     SPEC_JSON_ENTRY_FILE,
@@ -39,7 +36,6 @@ from .build import (
 
 __all__ = [
     "BUILD_EXECUTION_PLAN_FILE",
-    "BUILD_EXPLORER_DIR",
     "BUILD_MANIFEST_FILE",
     "BUILD_OUTPUT_DIR",
     "BUILD_VERSION",
@@ -55,9 +51,7 @@ __all__ = [
     "DATA_DIR",
     "DEFAULT_SPEC_ATTRIBUTE",
     "CONFIG_FILE",
-    "EXPLORER_INDEX_FILE",
     "EXPLORER_DATA_FILE",
-    "EXPLORER_OUTPUT_DIR",
     "FUNCTIONS_DIR",
     "GENERATED_DIR",
     "SPEC_JSON_ENTRY_FILE",

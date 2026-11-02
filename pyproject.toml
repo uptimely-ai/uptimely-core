@@ -26,7 +26,6 @@ dependencies = [
   "polars>=1.0,<2.0",
   "numpy>=1.26,<3.0",
   "graphable>=0.6.1,<0.8",
-  "Jinja2>=3.1,<4.0",
   "pydantic>=2.10,<3.0",
   "docstring-parser>=0.18,<0.19",
   "uvicorn>=0.34,<1.0",

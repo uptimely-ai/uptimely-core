@@ -1,6 +1,0 @@
-{% from "graph/components.html.j2" import lineage_canvas %}
-<section id="invocation-lineage-graph">
-		{{ lineage_canvas() }}
-</section>
-<script id="graph-data" type="application/json">{{ invocation_lineage_data|safe }}</script>
-<script id="graph-style" type="application/json">{{ graph_style_data|tojson }}</script>
