@@ -31,8 +31,8 @@ class PythonSource:
         """Return whether the conventional Python spec entrypoint exists."""
         return self.path.is_file()
 
-    def load(self) -> spec.Spec:
-        """Validate and load a Python spec declaration."""
+    def load(self, *, validate: bool = True) -> spec.Spec:
+        """Load a Python spec declaration, optionally checking its semantics."""
         declaration = self.entrypoint.resolve()
         if not isinstance(declaration, python_spec_api.Spec):
             raise TypeError(
@@ -42,6 +42,7 @@ class PythonSource:
             entities=declaration.entities,
             dimensions=declaration.dimensions,
             name=declaration.name,
+            validate=validate,
         )
 
 
@@ -62,9 +63,9 @@ class JsonSource:
         """Return whether the configured JSON spec source exists."""
         return self.path.is_file()
 
-    def load(self) -> spec.Spec:
-        """Load the configured or conventional JSON spec source."""
-        return spec.load_spec(self.path)
+    def load(self, *, validate: bool = True) -> spec.Spec:
+        """Load the JSON spec source, optionally checking its semantics."""
+        return spec.load_spec(self.path, validate=validate)
 
 
 class SpecSource:
@@ -77,9 +78,11 @@ class SpecSource:
         self,
         python_spec: str | None = None,
         json_spec: JsonSourceInput = None,
+        *,
+        validate: bool = True,
     ) -> spec.Spec:
-        """Resolve and load an explicit or discovered Python or JSON spec source."""
-        return self.resolve(python_spec, json_spec).load()
+        """Load a selected source, running semantic checks unless validate is false."""
+        return self.resolve(python_spec, json_spec).load(validate=validate)
 
     def resolve(
         self,
@@ -119,6 +122,8 @@ def load_spec_source(
     python_spec: str | None,
     project_root: pathlib.Path,
     json_spec: JsonSourceInput = None,
+    *,
+    validate: bool = True,
 ) -> spec.Spec:
-    """Load an explicit or discovered Python or JSON spec source."""
-    return SpecSource(project_root).load(python_spec, json_spec)
+    """Load a source, optionally deferring semantic checks to its consumer."""
+    return SpecSource(project_root).load(python_spec, json_spec, validate=validate)

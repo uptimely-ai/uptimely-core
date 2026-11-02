@@ -79,9 +79,9 @@ def _load_spec_definition(
     python_spec: str | None,
     json_spec: build_source.JsonSourceInput,
 ) -> spec.Spec:
-    """Load the project specification and report source errors by build stage."""
+    """Parse the source, deferring semantic validation to compilation."""
     try:
-        return build_source.SpecSource(root).load(python_spec, json_spec)
+        return build_source.SpecSource(root).load(python_spec, json_spec, validate=False)
     except _SPEC_PROCESSING_ERRORS as error:
         raise errors.ProjectBuildError("source loading", str(error)) from error
 
@@ -111,6 +111,7 @@ def _generate_artifacts(
             spec_definition,
             plan=execution_plan,
             features=selected_features,
+            validate=False,
         ).create_html(staging_root / "explorer" / "index.html")
     except (
         OSError,
@@ -152,7 +153,7 @@ def _validate_staged_bundle(
             json.dumps(manifest.model_dump(), indent=2),
             encoding="utf-8",
         )
-        bundle.load_bundle_at(root, staging_root)
+        bundle.load_bundle_at(root, staging_root, validate=False)
     except (
         OSError,
         ValueError,
@@ -220,4 +221,4 @@ def build_project(
         finally:
             _cleanup_staging_root(staging_root)
 
-        return bundle.load_bundle_at(root, root / paths.BUILD_OUTPUT_DIR)
+        return bundle.load_bundle_at(root, root / paths.BUILD_OUTPUT_DIR, validate=False)
