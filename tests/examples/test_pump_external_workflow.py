@@ -48,8 +48,8 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     assert result.invocation_statuses[escape.id] == "succeeded"
     assert all(status == "succeeded" for status in result.invocation_statuses.values())
     assert result.failures == {}
-    assert len(result.datasets) == 4
-    dataset = result.datasets["pump_external_workflow_dataset"]
+    assert len(result.main_frames) == 4
+    dataset = result.main_frames["pump_external_workflow_dataset"]
     assert (
         "ratio"
         in spec_definition.entities["pump"].datasets["pump_external_workflow_dataset"].features

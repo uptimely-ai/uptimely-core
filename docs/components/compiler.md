@@ -60,6 +60,9 @@ spelling.
 | `arguments` | object | Resolved arguments passed to the function. Runtime storage placeholders remain unresolved. |
 | `input_features` | array of strings | Features declared as inputs to the operation. |
 | `output_features` | array of strings | Features produced by the operation. |
+| `id_columns` | array of strings | Target dataset identifier columns, in declaration order. |
+| `column_types` | object | Logical types for target keys and typed features, used by runtime validation. |
+| `argument_types` | object | Declared argument types used for runtime binding. |
 | `dependency_ids` | array of strings | Identifiers of invocation prerequisites. |
 | `row_context` | object or null | Input row-context requirement, when declared. |
 
@@ -135,8 +138,10 @@ format of their IDs.
 
 Version 1 and 2 plans and bundles are not supported. Rebuild from the source
 Spec with `uptimely build PROJECT_ROOT`.
+Plans lacking invocation runtime metadata (`id_columns`, `column_types`, and
+`argument_types`) must likewise be rebuilt.
 
-The engine returns results: `result.datasets` contains final datasets,
+The engine returns results: `result.main_frames` contains final datasets,
 `result.calculated_outputs` contains calculated features, and
 `result.invocation_statuses` reports whether each planned step succeeded,
 failed, or was skipped. `result.durations` and `result.failures` give more run

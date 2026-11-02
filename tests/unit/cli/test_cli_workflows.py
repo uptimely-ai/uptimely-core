@@ -93,7 +93,7 @@ def test_engine_cli_forwards_validation_flag(
     def run(self: engine_module.Engine, *, validate: bool = False) -> engine_module.ExecutionResult:
         received.append(validate)
         return engine_module.ExecutionResult(
-            datasets={},
+            main_frames={},
             calculated_outputs={},
             invocation_statuses={},
             durations={},
@@ -168,7 +168,7 @@ def test_engine_previews_final_datasets(
     ).with_columns(pl.lit(index).alias(f"c{index}") for index in range(10))
     output_frame = frame.lazy() if lazy else frame
     result = engine_module.ExecutionResult(
-        datasets={"first": output_frame, "second": output_frame},
+        main_frames={"first": output_frame, "second": output_frame},
         calculated_outputs={},
         invocation_statuses={},
         durations={},
@@ -251,7 +251,7 @@ def test_engine_preview_errors_are_reported(
     config = tmp_path / "config.json"
     config.write_text("{}", encoding="utf-8")
     result = engine_module.ExecutionResult(
-        datasets={"values": frame},
+        main_frames={"values": frame},
         calculated_outputs={},
         invocation_statuses={},
         durations={},

@@ -54,6 +54,9 @@
       "mapping_id": "reading",
       "entity_id": "asset",
       "dataset_id": "telemetry",
+      "id_columns": ["asset_id"],
+      "column_types": {"asset_id": "string"},
+      "argument_types": {"source": "string"},
       "output_features": [
         "reading"
       ],
@@ -70,6 +73,9 @@
       "mapping_id": "doubled",
       "entity_id": "asset",
       "dataset_id": "telemetry",
+      "id_columns": ["asset_id"],
+      "column_types": {"asset_id": "string"},
+      "argument_types": {"column": "string", "dataset": "dataframe"},
       "input_features": [
         "reading"
       ],
@@ -92,6 +98,9 @@
       "mapping_id": "save_doubled",
       "entity_id": "asset",
       "dataset_id": "telemetry",
+      "id_columns": ["asset_id"],
+      "column_types": {"asset_id": "string"},
+      "argument_types": {"dataset": "dataframe", "features": "array[string]"},
       "arguments": {
         "dataset": "telemetry",
         "features": [

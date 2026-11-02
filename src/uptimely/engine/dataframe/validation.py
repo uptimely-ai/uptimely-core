@@ -9,7 +9,6 @@ import graphlib
 from uptimely import execution_plan
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.spec import functions
-from uptimely.spec import model as spec_model
 
 
 @dataclasses.dataclass(frozen=True)
@@ -17,16 +16,15 @@ class FrameValidationContext:
     """One dataframe and its structural validation requirements."""
 
     backend: backend_module.DataFrameBackend
-    spec_definition: spec_model.Spec
     frame: object
     dimensions: list[str]
     description: str
     invalid_frame_message: str | None = None
     invocation: execution_plan.Invocation | None = None
     output_features: list[str] | None = None
-    dataset: spec_model.Dataset | None = None
     declared_type_columns: list[str] | None = None
     comparison_frame: object | None = None
+    column_types: dict[str, str] = dataclasses.field(default_factory=dict)
 
     @property
     def columns(self) -> set[str]:
@@ -137,10 +135,8 @@ def validate_output_columns(context: DataFrameValidationContext) -> None:
 def validate_fragment_declared_types(context: DataFrameValidationContext) -> None:
     """Check declared logical types for a returned fragment's keys and outputs."""
     frame_context = _require_frame_context(context)
-    dataset = _require_dataset(frame_context)
     _validate_declared_types(
         frame_context,
-        dataset,
         [*frame_context.dimensions, *frame_context.effective_output_features],
     )
 
@@ -148,11 +144,10 @@ def validate_fragment_declared_types(context: DataFrameValidationContext) -> Non
 def validate_dataset_declared_types(context: DataFrameValidationContext) -> None:
     """Check declared logical types for columns already present in an accumulated dataset."""
     frame_context = _require_frame_context(context)
-    dataset = _require_dataset(frame_context)
     columns = frame_context.declared_type_columns
     if columns is None:
         raise TypeError("Dataset type validation requires declared type columns")
-    _validate_declared_types(frame_context, dataset, columns)
+    _validate_declared_types(frame_context, columns)
 
 
 def validate_key_coverage(context: DataFrameValidationContext) -> None:
@@ -226,7 +221,6 @@ def validate_dataframes(
 
 def validate_frame_structure(
     backend: backend_module.DataFrameBackend,
-    spec_definition: spec_model.Spec,
     frame: object,
     dimensions: list[str],
     description: str,
@@ -236,7 +230,6 @@ def validate_frame_structure(
     validate_dataframes(
         FrameValidationContext(
             backend,
-            spec_definition,
             frame,
             dimensions,
             description,
@@ -269,32 +262,19 @@ def validate_fragment(context: FrameValidationContext) -> None:
 
 def _validate_declared_types(
     context: FrameValidationContext,
-    dataset: spec_model.Dataset,
     columns: list[str],
 ) -> None:
     """Validate logical types declared for selected dataset columns."""
-    types: dict[str, str] = {}
-    for name in dict.fromkeys(columns):
-        definition = context.spec_definition.dimensions.get(name) or dataset.features.get(name)
-        if definition is not None and definition.type is not None:
-            types[name] = definition.type
+    types = {name: context.column_types[name] for name in columns if name in context.column_types}
     context.backend.validate_types(context.frame, types)
 
 
 def _function_definition(context: FrameValidationContext) -> functions.FunctionKind:
     """Resolve the kind contract for a materialized invocation result."""
     invocation = _require_invocation(context)
-    function = context.spec_definition.functions.get(invocation.function_id)
-    if function is None:
-        raise ValueError(f"Unknown function: {invocation.function_id}")
-    if function.kind != invocation.function_kind:
-        raise ValueError(
-            f"Invocation {invocation.id} function kind {invocation.function_kind} does not match "
-            f"function {invocation.function_id} kind {function.kind}"
-        )
-    definition = functions.FUNCTION_KINDS.get(function.kind)
+    definition = functions.FUNCTION_KINDS.get(invocation.function_kind)
     if definition is None:
-        raise ValueError(f"Unknown function kind: {function.kind}")
+        raise ValueError(f"Unknown function kind: {invocation.function_kind}")
     return definition
 
 
@@ -312,9 +292,3 @@ def _require_invocation(
     if context.invocation is None:
         raise TypeError("This dataframe validator requires an invocation")
     return context.invocation
-
-
-def _require_dataset(context: FrameValidationContext) -> spec_model.Dataset:
-    if context.dataset is None:
-        raise TypeError("Declared type validation requires a dataset")
-    return context.dataset

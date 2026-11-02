@@ -28,6 +28,9 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 dataset_id="pump_dataset",
                 arguments={"dataset": {"type": "literal", "value": "pump_dataset"}},
                 dependency_ids=[],
+                id_columns=["plant", "pump"],
+                column_types={"plant": "string", "pump": "string", "pressure": "float"},
+                argument_types={"dataset": "dataframe"},
             ),
             uptimely_plan.Invocation(
                 id="opaque-collapse",
@@ -77,6 +80,22 @@ def test_plan_round_trip_preserves_function_kind_metadata() -> None:
     assert restored.invocations[0].function_id == "load"
     assert restored.invocations[0].mapping_id == "read_pressure"
     assert restored.invocations[0].dataset_id == "pump_dataset"
+    assert restored.invocations[0].id_columns == ["plant", "pump"]
+    assert restored.invocations[0].column_types == {
+        "plant": "string",
+        "pump": "string",
+        "pressure": "float",
+    }
+    assert restored.invocations[0].argument_types == {"dataset": "dataframe"}
+
+
+@pytest.mark.parametrize("field", ["id_columns", "column_types", "argument_types"])
+def test_plan_requires_runtime_metadata_in_saved_invocations(field: str) -> None:
+    payload = uptimely_plan.to_dict(_sample_plan())
+    del payload["invocations"][0][field]
+
+    with pytest.raises(ValueError, match=f"missing runtime metadata: {field}.*Recompile"):
+        uptimely_plan.from_dict(payload)
 
 
 def test_plan_stages_track_invocation_order() -> None:

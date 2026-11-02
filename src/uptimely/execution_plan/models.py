@@ -28,6 +28,9 @@ class Invocation:
     output_features: list[str] = dataclasses.field(default_factory=list)
     input_features: list[str] = dataclasses.field(default_factory=list)
     row_context: uptimely_row_context.RowContext | None = None
+    id_columns: list[str] = dataclasses.field(default_factory=list)
+    column_types: dict[str, str] = dataclasses.field(default_factory=dict)
+    argument_types: dict[str, str] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate invocation and context contracts during construction."""

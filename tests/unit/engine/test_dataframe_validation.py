@@ -7,7 +7,7 @@ import types
 import polars as pl
 import pytest
 
-from uptimely import execution_plan, spec
+from uptimely import execution_plan
 from uptimely.engine.dataframe import backend
 from uptimely.engine.dataframe import validation as dataframe_validation
 from uptimely.spec import functions
@@ -59,7 +59,6 @@ def test_dataframe_validation_stops_after_first_failed_validator(
     seen_contexts: list[dataframe_validation.DataFrameValidationContext] = []
     context = dataframe_validation.FrameValidationContext(
         backend.PolarsBackend(),
-        spec.Spec(),
         pl.DataFrame(),
         [],
         "Frame",
@@ -90,17 +89,6 @@ def test_dataframe_validation_stops_after_first_failed_validator(
 def _vectorize_frame_context(
     frame: pl.DataFrame, comparison_frame: pl.DataFrame | None
 ) -> dataframe_validation.FrameValidationContext:
-    spec_definition = spec.Spec.model_validate(
-        {
-            "functions": {
-                "calculate": {
-                    "kind": "vectorize",
-                    "returns": "dataframe",
-                    "entrypoint": "test:calculate",
-                }
-            }
-        }
-    )
     invocation = execution_plan.Invocation(
         id="invocation",
         function_kind="vectorize",
@@ -112,7 +100,6 @@ def _vectorize_frame_context(
     )
     return dataframe_validation.FrameValidationContext(
         backend.PolarsBackend(),
-        spec_definition,
         frame,
         ["key"],
         "Fragment",
@@ -174,3 +161,21 @@ def test_frame_context_output_override_preserves_empty_outputs() -> None:
     assert context.effective_output_features == ["result"]
     assert dataclasses.replace(context, output_features=[]).effective_output_features == []
     assert context.columns == {"key"}
+
+
+@pytest.mark.parametrize("value", [2, "wrong"])
+def test_frame_validation_uses_explicit_column_types_without_spec(value: int | str) -> None:
+    context = dataframe_validation.FrameValidationContext(
+        backend.PolarsBackend(),
+        pl.DataFrame({"key": ["A"], "value": [value]}),
+        ["key"],
+        "Frame",
+        declared_type_columns=["key", "value"],
+        column_types={"key": "string", "value": "integer"},
+    )
+    assert not hasattr(context, "dataset")
+    if isinstance(value, str):
+        with pytest.raises(ValueError, match="Output column value.*expected integer"):
+            dataframe_validation.validate_dataset_declared_types(context)
+    else:
+        dataframe_validation.validate_dataset_declared_types(context)

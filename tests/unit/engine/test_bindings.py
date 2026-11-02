@@ -6,20 +6,18 @@ from support import execution as execution_support
 
 from uptimely import execution_plan as plan_module
 from uptimely.engine import config as config_module
+from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
-from uptimely.spec import model as spec_model
 
 PLAN = plan_module.from_json("tests/fixtures/plans/simple_engine.json")
 
 
 def _bindings(
-    spec_definition: spec_model.Spec | None = None,
     state: state_module.RuntimeState | None = None,
     parameters: dict[str, object] | None = None,
 ) -> bindings_module.RuntimeBindings:
     return bindings_module.RuntimeBindings(
-        spec_definition or execution_support.spec_for_plan(PLAN),
         state or state_module.RuntimeState(),
         parameters or {},
     )
@@ -28,10 +26,9 @@ def _bindings(
 def test_runtime_bindings_resolve_nested_runtime_values_and_dataframe_ids() -> None:
     dataset = pl.DataFrame({"asset_id": ["A"]})
     fragment = pl.DataFrame({"reading": [2]})
-    state = state_module.RuntimeState(
-        datasets={"telemetry": dataset},
-        fragments={("telemetry", "reading"): fragment},
-    )
+    main = execution_support.main_frame(dataset)
+    main.fragments["reading"] = fragment_module.Fragment(fragment, ())
+    state = state_module.RuntimeState(main_frames={"telemetry": main})
     bindings = _bindings(
         state=state,
         parameters={"telemetry_source": "/data/telemetry.parquet", "null_value": None},
@@ -99,22 +96,21 @@ def test_parameter_config_accepts_only_flat_scalar_values() -> None:
 
 
 def test_runtime_bindings_resolve_nested_parameter_references() -> None:
-    spec_definition = execution_support.spec_for_plan(PLAN)
-    spec_definition.functions["load"].args["source"].type = "array[string]"
     read_invocation = dataclasses.replace(
-        PLAN.invocations[0], arguments={"source": ["$params.source"]}
+        PLAN.invocations[0],
+        arguments={"source": ["$params.source"]},
+        argument_types={"source": "array[string]"},
     )
     bindings = _bindings(
-        spec_definition=spec_definition,
         parameters={"source": "/override/input.parquet"},
     )
 
     assert bindings.resolve_args(read_invocation) == {"source": ["/override/input.parquet"]}
 
 
-def test_runtime_bindings_reject_function_kind_mismatch() -> None:
+def test_runtime_bindings_use_invocation_types_independently_of_function_kind() -> None:
     read_invocation = dataclasses.replace(PLAN.invocations[0], function_kind="write")
     bindings = _bindings()
 
-    with pytest.raises(ValueError, match="does not match function load kind read"):
-        bindings.resolve_args(read_invocation)
+    bindings = _bindings(parameters={"source": "input.json"})
+    assert bindings.resolve_args(read_invocation) == {"source": "input.json"}

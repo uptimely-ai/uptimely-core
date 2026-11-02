@@ -20,6 +20,14 @@ Compilation checks the Spec before creating the plan. Use
 it. Version 1 and 2 plans are not supported; rebuild the bundle from its source
 Spec.
 
+Each invocation carries the runtime contract needed without consulting the Spec:
+`id_columns` lists target keys, `column_types` maps typed target columns to logical
+types, and `argument_types` maps declared argument names to their types. The
+compiler takes key types from canonical dimension declarations, ahead of any
+local feature metadata. These fields survive plan serialization. Saved plans
+without them must be rebuilt; loading reports a recompile error rather than
+running without key or type information.
+
 Plans cache `invocations_by_id` and `execution_stages`, along with resource
 indexes: `function_ids`, `entity_ids`, `datasets` (dataset ID to entity ID),
 `arguments` (invocation ID to bound arguments), `features` (output feature ID to

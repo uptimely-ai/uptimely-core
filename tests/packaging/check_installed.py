@@ -127,7 +127,7 @@ class InstalledImportsTest(unittest.TestCase):
                 "assert not result.failures, result.failures\n"
                 "assert set(result.invocation_statuses.values()) == {'succeeded'}\n"
                 "assert sys.path == original_path\n"
-                "print(json.dumps(result.datasets['values'].to_dict(as_series=False)))\n",
+                "print(json.dumps(result.main_frames['values'].to_dict(as_series=False)))\n",
                 str(project),
             ],
             cwd=self.root,

@@ -73,13 +73,12 @@ class Engine:
                 Lazy value checks may execute upstream queries repeatedly.
 
         Returns:
-            Runtime datasets, invocation statuses, durations, and failures.
+            Main dataframes, invocation statuses, durations, and failures.
         """
         state = state_module.RuntimeState()
         packages = self.plan.resources.get("entrypoint_packages", {})
         invocation_executor = execution_module.InvocationExecutor(
             self.backend,
-            self.spec_definition,
             {
                 entrypoint: entrypoint_module.Entrypoint(
                     entrypoint,
@@ -118,7 +117,7 @@ class Engine:
             statuses.setdefault(invocation.id, result_module.INVOCATION_STATUS_SKIPPED)
 
         return result_module.ExecutionResult(
-            datasets=dict(state.datasets),
+            main_frames={key: frame.dataframe for key, frame in state.main_frames.items()},
             calculated_outputs=dict(state.calculated_outputs),
             invocation_statuses=statuses,
             durations=durations,

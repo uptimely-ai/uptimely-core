@@ -292,7 +292,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             outputs_by_dataset.items(), key=lambda item: (dataset_entities[item[0]], item[0])
         ):
             entity_id = dataset_entities[dataset_id]
-            frame = _collect_frame(result.datasets.get(dataset_id))
+            frame = _collect_frame(result.main_frames.get(dataset_id))
             if frame is None or not hasattr(frame, "to_dicts"):
                 raise TypeError(
                     f"Execution produced calculated outputs for {entity_id}.{dataset_id} "

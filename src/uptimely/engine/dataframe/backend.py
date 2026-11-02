@@ -31,6 +31,8 @@ class DataFrameBackend(typing.Protocol):
         self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "m:1"
     ) -> object: ...
 
+    def cross_join(self, left: object, right: object) -> object: ...
+
     def collect(self, frame: object) -> object: ...
 
     def is_duplicated(self, frame: object) -> bool: ...
@@ -64,14 +66,13 @@ class PolarsBackend:
     def join(
         self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "1:1"
     ) -> object:
+        """Full-join dataframes on keys, matching nulls and coalescing key columns.
+
+        With no keys, join on a temporary constant key, preserving either side
+        when the other dataframe is empty.
+        """
         if not keys:
-            if validate != "m:m":
-                for frame in (left, right):
-                    if self.row_count(frame) > 1:
-                        raise ValueError(
-                            "Dimensionless fragments must contain at most one global row"
-                        )
-            key = "__uptimely_global_key"
+            key = "__join_key"
             columns = set(self.column_names(left)) | set(self.column_names(right))
             while key in columns:
                 key += "_"
@@ -98,11 +99,7 @@ class PolarsBackend:
     def left_join(
         self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "m:1"
     ) -> object:
-        """Left-join a lower-dimensional fragment, broadcasting when it has no keys."""
-        if not keys:
-            if validate != "m:m" and self.row_count(right) > 1:
-                raise ValueError("Dimensionless fragments must contain at most one global row")
-            return left.join(right, how="cross")
+        """Left-join dataframes on keys, matching nulls and coalescing key columns."""
         return left.join(
             right,
             on=list(keys),
@@ -111,6 +108,10 @@ class PolarsBackend:
             validate=validate,
             nulls_equal=True,
         )
+
+    def cross_join(self, left: object, right: object) -> object:
+        """Return the Cartesian product of two dataframes."""
+        return left.join(right, how="cross")
 
     def collect(self, frame: object) -> object:
         return frame.collect()

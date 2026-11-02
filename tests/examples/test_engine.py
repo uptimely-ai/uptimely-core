@@ -10,7 +10,7 @@ from support import execution as execution_support
 
 from uptimely import project
 from uptimely.cli import cli
-from uptimely.engine.dataframe import dataframe as dataframe_module
+from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import state as state_module
 
 
@@ -48,14 +48,14 @@ def test_engine_returns_calculated_features_without_writing_output(
         result.calculated_outputs[("pump_dataset", "health_signal_normalized")],
         pl.LazyFrame,
     )
-    pump_frame = result.datasets["pump_dataset"].collect()
+    pump_frame = result.main_frames["pump_dataset"].collect()
     assert pump_frame.select("pump", "bearing_temperature_max", "health_signal_normalized").sort(
         "pump"
     ).rows() == [
         ("PUMP-101", 68.7, 1.0),
         ("PUMP-201", 64.5, -1.0),
     ]
-    telemetry_frame = result.datasets["pump_telemetry_dataset"].collect()
+    telemetry_frame = result.main_frames["pump_telemetry_dataset"].collect()
     assert "health_signal_normalized" not in telemetry_frame.columns
     telemetry_frame = telemetry_frame.sort("pump", "timestamp")
     assert telemetry_frame["pump"].to_list() == ["PUMP-101", "PUMP-101", "PUMP-201"]
@@ -64,7 +64,7 @@ def test_engine_returns_calculated_features_without_writing_output(
         "high_speed",
         "low_speed",
     ]
-    assert result.datasets["constants_dataset"].collect().to_dicts() == [
+    assert result.main_frames["constants_dataset"].collect().to_dicts() == [
         {"gravity": 9.81, "room_temperature": 20.0}
     ]
     assert analytics.read_constants(
@@ -209,9 +209,6 @@ def test_engine_merges_fragments_by_entity_dimensions(
     engine = engine_for_plan(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
-    dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
-    )
     existing = pl.LazyFrame(
         {
             "plant": ["PLANT-01", "PLANT-01"],
@@ -235,7 +232,16 @@ def test_engine_merges_fragments_by_entity_dimensions(
         if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
     )
     dimensions = engine.spec_definition.entities[operation.entity_id].dimension_ids
-    merged = dataframe.merge_fragment(existing, fragment, dimensions).collect()
+    main = execution_support.main_frame(
+        existing,
+        dimensions,
+        backend=engine.backend,
+    )
+    execution_support.merge_fragment(
+        main,
+        fragment_module.Fragment(fragment, tuple(dimensions)),
+    )
+    merged = main.dataframe.collect()
 
     assert merged.select("pump", "existing", "new").sort("pump").rows() == [
         ("PUMP-101", 1, 10),
@@ -253,9 +259,6 @@ def test_engine_assembly_accepts_mixed_eager_and_lazy_frames(
     engine = engine_for_plan(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
-    dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
-    )
     existing: pl.DataFrame | pl.LazyFrame = pl.DataFrame({"key": ["A"], "old": [1]})
     fragment: pl.DataFrame | pl.LazyFrame = pl.DataFrame({"key": ["B"], "new": [2]})
     if existing_lazy:
@@ -263,7 +266,13 @@ def test_engine_assembly_accepts_mixed_eager_and_lazy_frames(
     if fragment_lazy:
         fragment = fragment.lazy()
 
-    merged = dataframe.merge_fragment(existing, fragment, ["key"])
+    main = execution_support.main_frame(
+        existing,
+        ["key"],
+        backend=engine.backend,
+    )
+    main.merge(fragment_module.Fragment(fragment, ("key",)))
+    merged = main.dataframe
 
     assert isinstance(merged, pl.LazyFrame)
     assert merged.collect().sort("key").select("key", "old", "new").rows() == [
@@ -291,15 +300,18 @@ def test_engine_assembly_preserves_partial_and_disjoint_keys(
     engine = engine_for_plan(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
-    dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
-    )
     existing = pl.DataFrame({"key": existing_keys, "old": list(range(len(existing_keys)))})
     fragment = pl.DataFrame({"key": fragment_keys, "new": list(range(10, 10 + len(fragment_keys)))})
     if lazy:
         existing, fragment = existing.lazy(), fragment.lazy()
 
-    merged = dataframe.merge_fragment(existing, fragment, ["key"])
+    main = execution_support.main_frame(
+        existing,
+        ["key"],
+        backend=engine.backend,
+    )
+    main.merge(fragment_module.Fragment(fragment, ("key",)))
+    merged = main.dataframe
     if isinstance(merged, pl.LazyFrame):
         merged = merged.collect()
 
@@ -321,9 +333,6 @@ def test_engine_assembly_rejects_duplicate_keys_on_either_side(
     engine = engine_for_plan(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
-    dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
-    )
     existing = pl.DataFrame({"key": ["A", "A"], "old": [1, 2]})
     fragment = pl.DataFrame({"key": ["A"], "new": [3]})
     if duplicate_side == "fragment":
@@ -332,8 +341,13 @@ def test_engine_assembly_rejects_duplicate_keys_on_either_side(
     if lazy:
         existing, fragment = existing.lazy(), fragment.lazy()
 
+    main = execution_support.main_frame(
+        existing,
+        ["key"],
+        backend=engine.backend,
+    )
     with pytest.raises(ValueError, match="duplicate dimension keys"):
-        dataframe.merge_fragment(existing, fragment, ["key"])
+        execution_support.merge_fragment(main, fragment_module.Fragment(fragment, ("key",)))
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -346,9 +360,6 @@ def test_engine_validates_required_fragment_columns_and_types(
 ) -> None:
     engine = engine_for_plan(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
-    )
-    dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
     )
     invocation = next(
         item
@@ -372,8 +383,16 @@ def test_engine_validates_required_fragment_columns_and_types(
         "output": f"Output column {output} has type",
         "missing": f"missing output columns: {output}",
     }[invalid_column]
+    main = execution_support.main_frame(
+        None,
+        dimensions,
+        backend=engine.backend,
+    )
     with pytest.raises(ValueError, match=expected):
-        dataframe.assemble_fragment(invocation, result, None, dimensions)
+        execution_support.merge_fragment(
+            main,
+            fragment_module.Fragment(result, main.id_columns, invocation),
+        )
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -382,9 +401,6 @@ def test_engine_assembly_rejects_feature_collisions(
 ) -> None:
     engine = engine_for_plan(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
-    )
-    dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
     )
     invocation = next(
         item
@@ -399,8 +415,16 @@ def test_engine_assembly_rejects_feature_collisions(
     if lazy:
         result, existing = result.lazy(), existing.lazy()
 
+    main = execution_support.main_frame(
+        existing,
+        dimensions,
+        backend=engine.backend,
+    )
     with pytest.raises(ValueError, match=f"overlap.*{output}"):
-        dataframe.assemble_fragment(invocation, result, existing, dimensions)
+        execution_support.merge_fragment(
+            main,
+            fragment_module.Fragment(result, main.id_columns, invocation),
+        )
 
 
 @pytest.mark.parametrize(
@@ -429,30 +453,30 @@ def test_engine_rejects_invalid_fragments(
     engine = engine_for_plan(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
-    dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
-    )
     operation = next(
         operation
         for operation in engine.plan.invocations
         if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
     )
 
+    main = execution_support.main_frame(
+        None,
+        engine.spec_definition.entities[operation.entity_id].dimension_ids,
+        backend=engine.backend,
+    )
     with pytest.raises(ValueError, match=message):
-        dataframe.assemble_fragment(
-            operation,
-            fragment,
-            None,
-            engine.spec_definition.entities[operation.entity_id].dimension_ids,
+        execution_support.merge_fragment(
+            main,
+            fragment_module.Fragment(fragment, main.id_columns, operation),
         )
 
 
 def test_engine_looks_up_datasets_by_project_wide_id() -> None:
     frame = pl.LazyFrame({"id": [1]})
-    state = state_module.RuntimeState(datasets={"shared": frame})
+    state = state_module.RuntimeState(main_frames={"shared": execution_support.main_frame(frame)})
 
-    assert state.dataframe_by_id("shared") is frame
-    assert state.dataframe_by_id("missing") is None
+    assert state.resolve_main_frame_or_fragment_dataframe("shared") is frame
+    assert state.resolve_main_frame_or_fragment_dataframe("missing") is None
 
 
 def test_example_deltas_are_partitioned_and_ordered() -> None:
@@ -524,4 +548,4 @@ def test_engine_executes_requested_feature_and_its_dependencies(
 
     result = engine.run()
 
-    assert result.datasets["pump_dataset"].collect().height == 2
+    assert result.main_frames["pump_dataset"].collect().height == 2
