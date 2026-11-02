@@ -140,7 +140,8 @@ function renderCatalogs(data) {
     if (datasets.length) append(block, element("h3", "", "Datasets"), datasetList);
     return block;
   });
-  grid.append(entityCards.length ? entityCards : empty("No entities are declared."));
+  if (entityCards.length) grid.append(...entityCards);
+  else grid.append(empty("No entities are declared."));
 
   const dimensions = entries(configuration.dimensions);
   const dimensionList = element("ul", "item-list");
