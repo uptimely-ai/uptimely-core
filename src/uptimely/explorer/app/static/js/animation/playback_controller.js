@@ -16,12 +16,13 @@ export function initializeDataLineage(signal) {
   const stepLinks = Array.from(document.querySelectorAll("[data-animation-step]"));
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const datasetPicker = document.getElementById("animation-dataset");
-  const datasetGroups = Array.from(document.querySelectorAll("[data-animation-dataset]"));
+  const datasetGroups = new Map();
   const datasetSteps = new Map();
-  datasetGroups.forEach(group => {
+  document.querySelectorAll("[data-animation-dataset]").forEach(group => {
     const ordered = Array.from(group.querySelectorAll("[data-animation-step]"),
       link => document.getElementById(link.hash.slice(1)));
     ordered.forEach(step => datasetSteps.set(step, ordered));
+    datasetGroups.set(group.dataset.animationDataset, { element: group, steps: ordered });
   });
   const datasetPrompt = document.getElementById("animation-dataset-prompt");
   let index = 0;
@@ -162,10 +163,9 @@ export function initializeDataLineage(signal) {
   function chooseDataset(value) {
     pause();
     datasetPicker.value = value;
-    const group = datasetGroups.find(item => item.dataset.animationDataset === value);
-    const ids = new Set(group ? Array.from(group.querySelectorAll("a"), link => link.hash) : []);
-    steps = allSteps.filter(step => ids.has(`#${step.id}`));
-    datasetGroups.forEach(item => { item.hidden = item !== group; });
+    const group = datasetGroups.get(value);
+    steps = group?.steps || [];
+    datasetGroups.forEach(item => { item.element.hidden = item !== group; });
     index = 0;
     phase = 0;
     renderedFrame = "";
