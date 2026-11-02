@@ -5,8 +5,9 @@ from uptimely.engine.dataframe import backend
 
 
 @pytest.mark.parametrize("keys", [[], ["key"]])
-def test_disabled_lazy_validation_does_not_execute_join(
-    monkeypatch: pytest.MonkeyPatch, keys: list[str]
+@pytest.mark.parametrize("operation", ["join", "left_join"])
+def test_unvalidated_lazy_join_does_not_execute(
+    monkeypatch: pytest.MonkeyPatch, keys: list[str], operation: str
 ) -> None:
     left = pl.DataFrame({"key": ["A"], "left": [1]}).lazy()
     right = pl.DataFrame({"key": ["A"], "right": [2]}).lazy()
@@ -17,56 +18,37 @@ def test_disabled_lazy_validation_does_not_execute_join(
         pytest.fail("Lazy query executed during join construction")
 
     monkeypatch.setattr(pl.LazyFrame, "collect", unexpected_collect)
-    adapter = backend.PolarsBackend(validate_lazy_frames=False)
+    adapter = backend.PolarsBackend()
+    joined = getattr(adapter, operation)(left, right, keys, validate="m:m")
 
-    assert not adapter.should_validate_values(left)
-    assert isinstance(adapter.join(left, right, keys), pl.LazyFrame)
-
-
-@pytest.mark.parametrize("operation", ["row_count", "is_duplicated", "same_keys"])
-def test_disabled_lazy_value_queries_fail_explicitly(
-    monkeypatch: pytest.MonkeyPatch, operation: str
-) -> None:
-    adapter = backend.PolarsBackend(validate_lazy_frames=False)
-    frame = pl.DataFrame({"key": ["A"]}).lazy()
-
-    def unexpected_collect(*args: object, **kwargs: object) -> None:
-        pytest.fail("Disabled lazy query executed")
-
-    monkeypatch.setattr(pl.LazyFrame, "collect", unexpected_collect)
-    with pytest.raises(ValueError, match="Implicit lazy execution is disabled"):
-        if operation == "same_keys":
-            adapter.same_keys(frame, frame, ["key"])
-        else:
-            getattr(adapter, operation)(frame)
+    assert isinstance(joined, pl.LazyFrame)
 
 
-def test_disabled_lazy_validation_allows_explicit_collection() -> None:
-    adapter = backend.PolarsBackend(validate_lazy_frames=False)
+@pytest.mark.parametrize("lazy", [False, True])
+def test_backend_value_queries(lazy: bool) -> None:
+    adapter = backend.PolarsBackend()
     frame = pl.DataFrame({"key": ["A"]})
+    value = frame.lazy() if lazy else frame
 
     assert adapter.collect(frame.lazy()).equals(frame)
-    assert adapter.should_validate_values(frame)
-    assert adapter.row_count(frame) == 1
-    assert not adapter.is_duplicated(frame)
-    assert adapter.same_keys(frame, frame, ["key"])
+    assert adapter.row_count(value) == 1
+    assert not adapter.is_duplicated(value)
+    assert adapter.same_keys(value, value, ["key"])
 
 
-def test_disabled_lazy_validation_retains_deferred_join_validation() -> None:
-    adapter = backend.PolarsBackend(validate_lazy_frames=False)
-    left = pl.DataFrame({"left": [1, 2]}).lazy()
-    right = pl.DataFrame({"right": [3]}).lazy()
-
-    joined = adapter.join(left, right, [])
-
-    with pytest.raises(pl.exceptions.ComputeError, match="1:1"):
-        adapter.collect(joined)
-
-
-def test_disabled_lazy_validation_still_validates_eager_dimensionless_rows() -> None:
-    adapter = backend.PolarsBackend(validate_lazy_frames=False)
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("operation", ["join", "left_join"])
+def test_join_validation_is_explicit(lazy: bool, operation: str) -> None:
+    adapter = backend.PolarsBackend()
     left = pl.DataFrame({"left": [1, 2]})
-    right = pl.DataFrame({"right": [3]}).lazy()
+    right = pl.DataFrame({"right": [3, 4]})
+    if lazy:
+        left, right = left.lazy(), right.lazy()
 
     with pytest.raises(ValueError, match="at most one global row"):
-        adapter.join(left, right, [])
+        getattr(adapter, operation)(left, right, [])
+
+    result = getattr(adapter, operation)(left, right, [], validate="m:m")
+    if lazy:
+        result = result.collect()
+    assert result.height == 4

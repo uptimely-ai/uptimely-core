@@ -24,14 +24,19 @@ class InvocationExecutor:
         entrypoints: typing.Mapping[str, entrypoint_module.Entrypoint],
         parameters: typing.Mapping[str, typing.Any],
         state: state_module.RuntimeState,
+        *,
+        validate: bool = False,
     ) -> None:
-        """Create an invocation executor for one plan execution."""
+        """Create an invocation executor with opt-in per-step validation."""
         self.backend = backend
         self.spec_definition = spec_definition
         self.entrypoints = entrypoints
         self.state = state
+        self.validate = validate
         self.bindings = bindings_module.RuntimeBindings(spec_definition, state, parameters)
-        self.dataframe = dataframe_module.DataFrameExecution(backend, spec_definition, state)
+        self.dataframe = dataframe_module.DataFrameExecution(
+            backend, spec_definition, state, validate=validate
+        )
 
     def execute(self, invocation: execution_plan.Invocation) -> None:
         """Dispatch and execute one invocation."""
@@ -42,7 +47,8 @@ class InvocationExecutor:
             self._invoke(invocation)
             return
 
-        self._validate_inputs(invocation)
+        if self.validate:
+            self._validate_inputs(invocation)
         if kind_definition.is_sink:
             self._execute_sink(invocation)
         elif kind_definition.returns == arg_types.DATAFRAME:

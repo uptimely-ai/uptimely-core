@@ -210,7 +210,7 @@ def test_engine_merges_fragments_by_entity_dimensions(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
     dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState()
+        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
     )
     existing = pl.LazyFrame(
         {
@@ -254,7 +254,7 @@ def test_engine_assembly_accepts_mixed_eager_and_lazy_frames(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
     dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState()
+        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
     )
     existing: pl.DataFrame | pl.LazyFrame = pl.DataFrame({"key": ["A"], "old": [1]})
     fragment: pl.DataFrame | pl.LazyFrame = pl.DataFrame({"key": ["B"], "new": [2]})
@@ -292,7 +292,7 @@ def test_engine_assembly_preserves_partial_and_disjoint_keys(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
     dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState()
+        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
     )
     existing = pl.DataFrame({"key": existing_keys, "old": list(range(len(existing_keys)))})
     fragment = pl.DataFrame({"key": fragment_keys, "new": list(range(10, 10 + len(fragment_keys)))})
@@ -322,7 +322,7 @@ def test_engine_assembly_rejects_duplicate_keys_on_either_side(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
     dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState()
+        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
     )
     existing = pl.DataFrame({"key": ["A", "A"], "old": [1, 2]})
     fragment = pl.DataFrame({"key": ["A"], "new": [3]})
@@ -348,7 +348,7 @@ def test_engine_validates_required_fragment_columns_and_types(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
     dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState()
+        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
     )
     invocation = next(
         item
@@ -384,7 +384,7 @@ def test_engine_assembly_rejects_feature_collisions(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
     dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState()
+        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
     )
     invocation = next(
         item
@@ -430,7 +430,7 @@ def test_engine_rejects_invalid_fragments(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
     dataframe = dataframe_module.DataFrameExecution(
-        engine.backend, engine.spec_definition, state_module.RuntimeState()
+        engine.backend, engine.spec_definition, state_module.RuntimeState(), validate=True
     )
     operation = next(
         operation

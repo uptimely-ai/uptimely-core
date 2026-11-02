@@ -29,6 +29,11 @@ def configure_run_parser(parser: argparse.ArgumentParser) -> None:
         option_help="Project root containing the active build and function entrypoints",
     )
     parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Validate inputs and dataframe contracts at each execution step",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Log resource statistics, stages, and dataset details",
@@ -65,7 +70,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             settings = engine_module.Config.model_validate_json(config.read_text(encoding="utf-8"))
             engine = engine_module.Engine(bundle, settings)
             started = time.perf_counter()
-            result = engine.run()
+            result = engine.run(validate=args.validate)
             duration = time.perf_counter() - started
             if result.failures:
                 failures = "; ".join(result.failures.values())

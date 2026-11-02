@@ -84,10 +84,8 @@ def validate_dimension_columns(context: DataFrameValidationContext) -> None:
 
 
 def validate_unique_dimension_keys(context: DataFrameValidationContext) -> None:
-    """Reject duplicate observation keys when value validation is enabled."""
+    """Reject duplicate observation keys."""
     frame_context = _require_frame_context(context)
-    if not frame_context.backend.should_validate_values(frame_context.frame):
-        return
     if not frame_context.dimensions:
         return
     keys = frame_context.backend.select(frame_context.frame, frame_context.dimensions)
@@ -98,12 +96,7 @@ def validate_unique_dimension_keys(context: DataFrameValidationContext) -> None:
 def validate_row_count(context: DataFrameValidationContext) -> None:
     """Enforce dimensionless and kind-specific row-count contracts."""
     frame_context = _require_frame_context(context)
-    validate_values = frame_context.backend.should_validate_values(frame_context.frame)
-    if (
-        validate_values
-        and not frame_context.dimensions
-        and frame_context.backend.row_count(frame_context.frame) > 1
-    ):
+    if not frame_context.dimensions and frame_context.backend.row_count(frame_context.frame) > 1:
         raise ValueError(
             f"{frame_context.description} contains duplicate dimension keys "
             "(dimensionless datasets allow at most one row)"
@@ -120,8 +113,6 @@ def validate_row_count(context: DataFrameValidationContext) -> None:
             f"{invocation.function_kind.capitalize()} action {invocation.mapping_id} "
             "must preserve the accumulated dataset row count"
         )
-    if not validate_values or not frame_context.backend.should_validate_values(comparison_frame):
-        return
     if frame_context.backend.row_count(comparison_frame) != frame_context.backend.row_count(
         frame_context.frame
     ):
@@ -171,16 +162,8 @@ def validate_key_coverage(context: DataFrameValidationContext) -> None:
     if _function_definition(frame_context).key_relation != "identical":
         return
     dataframe = frame_context.comparison_frame
-    validate_coverage = (
-        dataframe is not None
-        and frame_context.backend.should_validate_values(dataframe)
-        and frame_context.backend.should_validate_values(frame_context.frame)
-    )
-    if dataframe is None or (
-        validate_coverage
-        and not frame_context.backend.same_keys(
-            dataframe, frame_context.frame, frame_context.dimensions
-        )
+    if dataframe is None or not frame_context.backend.same_keys(
+        dataframe, frame_context.frame, frame_context.dimensions
     ):
         raise ValueError(
             f"{invocation.function_kind.capitalize()} action {invocation.mapping_id} "

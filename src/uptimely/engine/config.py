@@ -17,7 +17,6 @@ class EngineBackendConfig(pydantic.BaseModel):
     type: str = "python_venv"
     definition: str | None = None
     dataframe: str = "polars"
-    validate_lazy_frames: bool = True
     evaluation: str = "eager"
     batch_size: int | str | None = None
 

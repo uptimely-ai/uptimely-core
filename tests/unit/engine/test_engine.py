@@ -12,6 +12,7 @@ from uptimely import entrypoint as entrypoint_module
 from uptimely import execution_plan as uptimely_plan
 from uptimely import spec
 from uptimely.engine.dataframe import backend as backend_module
+from uptimely.engine.dataframe import validation as dataframe_validation_module
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
@@ -45,8 +46,11 @@ def _patch_callables(monkeypatch: pytest.MonkeyPatch, callables: dict[str, objec
     monkeypatch.setattr(entrypoint_module, "Entrypoint", _TestEntrypoint)
 
 
+@pytest.mark.parametrize("validate", [False, True])
 def test_execute_runs_stages_and_returns_runtime_outputs(
-    monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
+    monkeypatch: pytest.MonkeyPatch,
+    engine_for_plan: execution_support.EngineFactory,
+    validate: bool,
 ) -> None:
     written: dict[str, object] = {}
 
@@ -64,7 +68,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
     engine = engine_for_plan(_plan(), {"source": "/tmp/telemetry.parquet"})
 
-    result = engine.run()
+    result = engine.run(validate=validate)
 
     assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert result.failures == {}
@@ -80,7 +84,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
 
 
 @pytest.mark.parametrize("dimensionless", [False, True])
-def test_engine_can_skip_lazy_value_validation(
+def test_engine_runs_lazy_invocations_without_implicit_collection_by_default(
     monkeypatch: pytest.MonkeyPatch,
     dimensionless: bool,
     bundle_for_plan: execution_support.BundleFactory,
@@ -104,9 +108,7 @@ def test_engine_can_skip_lazy_value_validation(
             entity_definition.dimensions = []
     engine = uptimely_engine.Engine(
         bundle,
-        uptimely_engine.EngineConfig(
-            backend=uptimely_engine.EngineBackendConfig(validate_lazy_frames=False),
-        ),
+        uptimely_engine.EngineConfig(),
         {"source": "/tmp/telemetry.parquet"},
     )
     monkeypatch.setattr(pl.LazyFrame, "collect", unexpected_collect)
@@ -126,7 +128,7 @@ def test_engine_can_skip_lazy_value_validation(
         ("type", "expected string"),
     ],
 )
-def test_disabled_lazy_validation_preserves_schema_checks(
+def test_validation_flag_checks_lazy_schema(
     monkeypatch: pytest.MonkeyPatch,
     invalid: str,
     message: str,
@@ -142,23 +144,100 @@ def test_disabled_lazy_validation_preserves_schema_checks(
             frame = frame.with_columns(pl.lit(1).alias("asset_id"))
         return frame
 
-    def unexpected_collect(*args: object, **kwargs: object) -> None:
-        pytest.fail("Schema validation executed a lazy query")
-
     _patch_callables(monkeypatch, {"test:read": read})
     engine = uptimely_engine.Engine(
         bundle_for_plan(_plan()),
-        uptimely_engine.EngineConfig(
-            backend=uptimely_engine.EngineBackendConfig(validate_lazy_frames=False),
-        ),
+        uptimely_engine.EngineConfig(),
         {"source": "/tmp/telemetry.parquet"},
     )
-    monkeypatch.setattr(pl.LazyFrame, "collect", unexpected_collect)
-
-    result = engine.run()
+    result = engine.run(validate=True)
 
     assert message in next(iter(result.failures.values()))
     assert not result.datasets
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("invalid", ["duplicates", "types", "row_count", "keys"])
+def test_validation_is_opt_in_for_eager_and_lazy_frames(
+    monkeypatch: pytest.MonkeyPatch,
+    engine_for_plan: execution_support.EngineFactory,
+    lazy: bool,
+    invalid: str,
+) -> None:
+    writes: list[object] = []
+
+    def read(source: str) -> pl.DataFrame | pl.LazyFrame:
+        keys: list[str] | list[int] = ["A", "A"] if invalid == "duplicates" else ["A", "B"]
+        if invalid == "types":
+            keys = [1, 2]
+        frame = pl.DataFrame({"asset_id": keys, "reading": [2, 3]})
+        return frame.lazy() if lazy else frame
+
+    def double(column: str, dataset: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.LazyFrame:
+        frame = dataset.with_columns((pl.col(column) * 2).alias("doubled"))
+        if invalid == "row_count":
+            frame = frame.head(1)
+        if invalid == "keys":
+            frame = frame.with_columns(pl.col("asset_id") + "_changed")
+        return frame
+
+    def write(dataset: object, features: list[str]) -> None:
+        writes.append(dataset)
+
+    _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
+    runtime = engine_for_plan(_plan(), {"source": "/tmp/input"})
+
+    unchecked = runtime.run()
+    assert not unchecked.failures
+    assert len(writes) == 1
+    frame = unchecked.datasets["telemetry"]
+    if lazy:
+        frame.collect()
+
+    checked = runtime.run(validate=True)
+    message = {
+        "duplicates": "duplicate dimension keys",
+        "types": "expected string",
+        "row_count": "must preserve the accumulated dataset row count",
+        "keys": "must preserve the dataset dimension keys",
+    }[invalid]
+    assert message in next(iter(checked.failures.values()))
+    assert len(writes) == 1
+    assert "skipped" in checked.invocation_statuses.values()
+
+
+def test_removed_lazy_validation_config_is_rejected() -> None:
+    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+        uptimely_engine.EngineBackendConfig.model_validate({"validate_lazy_frames": False})
+
+
+def test_default_execution_does_not_call_step_validators(
+    monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
+) -> None:
+    def unexpected_validation(*args: object, **kwargs: object) -> None:
+        pytest.fail("Default execution called a step validator")
+
+    frame = pl.DataFrame({"asset_id": ["A"], "reading": [2], "doubled": [4]})
+    _patch_callables(
+        monkeypatch,
+        {
+            "test:read": lambda **_: frame,
+            "test:double": lambda **_: frame,
+            "test:write": lambda **_: None,
+        },
+    )
+    monkeypatch.setattr(
+        execution_module.InvocationExecutor, "_validate_inputs", unexpected_validation
+    )
+    monkeypatch.setattr(dataframe_validation_module, "validate_dataframes", unexpected_validation)
+    monkeypatch.setattr(
+        dataframe_validation_module, "validate_feature_collisions", unexpected_validation
+    )
+
+    result = engine_for_plan(_plan(), {"source": "/tmp/input"}).run()
+
+    assert not result.failures
+    assert set(result.invocation_statuses.values()) == {"succeeded"}
 
 
 def test_saved_plan_executes_without_compiler(
@@ -654,7 +733,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         monkeypatch,
         {"test:read": read, "test:escape": external_action, "test:consume": consume},
     )
-    result = engine_for_plan(plan).run()
+    result = engine_for_plan(plan).run(validate=True)
 
     assert result.invocation_statuses == {
         read_id: "succeeded",
@@ -969,7 +1048,7 @@ def test_execute_rejects_scalar_calculations(
     )
     engine = engine_for_plan(_plan(), {"source": "/tmp/telemetry.parquet"})
 
-    result = engine.run()
+    result = engine.run(validate=True)
 
     assert "must return a Polars DataFrame or LazyFrame" in next(iter(result.failures.values()))
 

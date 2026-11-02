@@ -77,6 +77,43 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     assert "- Dataset: pump_dataset - 5 features" in text
 
 
+@pytest.mark.parametrize("command", [("run",), ("engine", "run")])
+@pytest.mark.parametrize("validate", [False, True])
+def test_engine_cli_forwards_validation_flag(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: tuple[str, ...],
+    validate: bool,
+) -> None:
+    _write_empty_build(tmp_path)
+    config = tmp_path / "config.json"
+    config.write_text("{}", encoding="utf-8")
+    received: list[bool] = []
+
+    def run(self: engine_module.Engine, *, validate: bool = False) -> engine_module.ExecutionResult:
+        received.append(validate)
+        return engine_module.ExecutionResult(
+            datasets={},
+            calculated_outputs={},
+            invocation_statuses={},
+            durations={},
+            failures={},
+            plan_version=3,
+        )
+
+    monkeypatch.setattr(engine_module.Engine, "run", run)
+    invoke(
+        monkeypatch,
+        *command,
+        str(tmp_path),
+        "--config",
+        str(config),
+        *(["--validate"] if validate else []),
+    )
+
+    assert received == [validate]
+
+
 @pytest.mark.parametrize("scoped", [False, True])
 def test_engine_default_logs_only_duration_and_processed_datasets(
     tmp_path: pathlib.Path,
@@ -138,7 +175,7 @@ def test_engine_previews_final_datasets(
         failures={},
         plan_version=3,
     )
-    monkeypatch.setattr(engine_module.Engine, "run", lambda self: result)
+    monkeypatch.setattr(engine_module.Engine, "run", lambda self, *, validate=False: result)
     collected_heights: list[int] = []
     original_collect = pl.LazyFrame.collect
 
@@ -221,7 +258,7 @@ def test_engine_preview_errors_are_reported(
         failures={},
         plan_version=3,
     )
-    monkeypatch.setattr(engine_module.Engine, "run", lambda self: result)
+    monkeypatch.setattr(engine_module.Engine, "run", lambda self, *, validate=False: result)
     with pytest.raises(SystemExit) as error:
         invoke(
             monkeypatch,

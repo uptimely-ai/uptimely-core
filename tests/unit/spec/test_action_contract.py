@@ -155,7 +155,7 @@ def test_dataframe_returns_are_validated(
         return 1
 
     monkeypatch.setattr(f"{__name__}.add_one", invalid)
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run(validate=True)
     assert message in next(iter(execution.failures.values()))
     assert ("observations", "result") not in execution.calculated_outputs
 
@@ -239,7 +239,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
 
     read_values_original = read_values
     monkeypatch.setattr(f"{__name__}.read_values", wrong_dimension)
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run(validate=True)
     assert "Output column id has type String; expected integer" in next(
         iter(execution.failures.values())
     )

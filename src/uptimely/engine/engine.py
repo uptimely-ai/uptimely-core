@@ -65,8 +65,16 @@ class Engine:
         """Validate that this engine can execute the plan."""
         validation_module.validate_engine(self.plan, self.backend)
 
-    def run(self) -> result_module.ExecutionResult:
-        """Execute plan stages and return explicit runtime state and statuses."""
+    def run(self, *, validate: bool = False) -> result_module.ExecutionResult:
+        """Execute plan stages and return explicit runtime state and statuses.
+
+        Args:
+            validate: Validate inputs and dataframe contracts at every step.
+                Lazy value checks may execute upstream queries repeatedly.
+
+        Returns:
+            Runtime datasets, invocation statuses, durations, and failures.
+        """
         state = state_module.RuntimeState()
         packages = self.plan.resources.get("entrypoint_packages", {})
         invocation_executor = execution_module.InvocationExecutor(
@@ -85,6 +93,7 @@ class Engine:
             },
             self.parameters,
             state,
+            validate=validate,
         )
         statuses: dict[str, result_module.InvocationStatus] = {}
         durations: dict[str, float] = {}

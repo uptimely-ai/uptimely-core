@@ -10,7 +10,7 @@ Execute the plan in the project's last successful active build:
 ```console
 uptimely run \
   [PROJECT_ROOT] [--project-root PATH] [--config PATH] \
-  [--verbose] [--preview [ROWS]]
+  [--validate] [--verbose] [--preview [ROWS]]
 ```
 
 Give the project directory positionally after `run`, or use
@@ -22,6 +22,7 @@ directory is used. The grouped form is `uptimely engine run [PROJECT_ROOT]`.
 | `PROJECT_ROOT` | No | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
 | `--config PATH` | No | `config/config.json` under the project root or current working directory | Engine settings and required runtime control parameter values in JSON. |
+| `--validate` | No | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
 | `--verbose` | No | `false` | Add saved-resource statistics, execution counts, calculated features, stages, and dataset registry details. |
 | `--preview [ROWS]` | No | Disabled; 5 rows when supplied without a count | Log the first positive number of rows from each final dataset after successful execution, independently of `--verbose`. |
 
@@ -40,8 +41,20 @@ repeat computation. Execution timing excludes preview collection and display.
 Previews can expose dataset contents in logs; enable them only when appropriate.
 
 Use `uptimely build` or the grouped `uptimely project build` command to change
-the execution plan or feature scope. Engine validates and executes the saved
-build without compiling or generating artifacts. This runs the plan's
+the execution plan or feature scope. Engine executes the saved
+build without compiling or generating artifacts. Saved-build integrity,
+configuration, and backend compatibility are always checked; per-step runtime
+validation is opt-in:
+
+```console
+uptimely run examples/pump_analytics --validate
+```
+
+Without `--validate`, the engine still binds arguments and assembles declared
+output fragments, but skips input-feature, schema/type, uniqueness, row-count,
+coverage, and feature-collision checks. Native dataframe and function errors
+can still fail execution. Skipped checks are not deferred to writes or final
+collection. This runs the plan's
 configured functions, including write sinks, and may have external side
 effects. Missing or invalid builds report a recovery command.
 

@@ -29,6 +29,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Engine per-step validation is now opt-in with `uptimely run
+  --validate` or `Engine.run(validate=True)`, for both eager and lazy frames.
+  Normal runs skip runtime contract checks and join cardinality validation,
+  avoiding repeated lazy-query execution. The `backend.validate_lazy_frames`
+  configuration option has been removed.
 - Function-kind attributes now drive dataframe and feature input-scope
   validation. Compilation also checks enabled implementation signatures for
   keyword-call compatibility and contradictions in supported argument and

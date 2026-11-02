@@ -5,6 +5,12 @@ It reads runtime declarations from the bundled Spec and uses project context
 to resolve function entrypoints. Backend settings and global parameters are
 configured separately.
 
+`engine.run()` executes without per-step runtime validation by default.
+Use `engine.run(validate=True)` to validate input features, schema/types,
+dimension-key uniqueness, row-count and key preservation, and output collisions
+at every step for eager and lazy frames. Lazy value checks may repeatedly execute
+upstream queries. Configuration and saved-build checks are always enabled.
+
 <div class="api-reference" markdown="1">
 
 ## engine
@@ -68,12 +74,11 @@ The engine selects the dataframe backend using the configured `dataframe`
 string. The built-in backend is Polars; runtime resources come from the bundled
 Spec and function entrypoints come from the plan.
 
-`PolarsBackend(validate_lazy_frames=False)` disables implicit execution for
-data-dependent lazy-frame validation. The engine exposes the same option as
-`EngineBackendConfig(validate_lazy_frames=False)`. Schema checks and deferred
-Polars join validation remain enabled; explicit `collect()` calls are allowed.
-See [runtime validation](../components/engine.md#runtime-validation) for the
-checks skipped in this mode and its limitations.
+Validation is controlled by `Engine.run(validate=True)`, not backend
+configuration. The former `validate_lazy_frames` option has been removed.
+Direct backend value queries execute lazy frames when needed; normal engine
+execution does not call these checks unless validation is enabled.
+See [runtime validation](../components/engine.md#runtime-validation) for details.
 
 ::: uptimely.engine.dataframe.backend
     options:
