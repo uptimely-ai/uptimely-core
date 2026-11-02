@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 import pathlib
 import types
 
@@ -364,7 +365,10 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
         executor._invoke(incompatible)
 
 
-def test_executor_validates_inputs_against_current_runtime_state() -> None:
+def test_executor_validates_inputs_against_current_runtime_state(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.DEBUG, logger=runtime_validation.__name__)
     runtime_state = state_module.RuntimeState(
         main_frames={
             "dataset": execution_support.main_frame(pl.DataFrame({"local": [1]})),
@@ -404,6 +408,7 @@ def test_executor_validates_inputs_against_current_runtime_state() -> None:
     runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
     invocation.input_features[:] = ["shared"]
     runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
+    assert caplog.messages == ["Action calculate: checking declared input features"] * 5
 
 
 def test_engine_entrypoints_include_saved_package_provenance(

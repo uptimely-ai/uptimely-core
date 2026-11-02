@@ -222,6 +222,12 @@ checks feature collisions separately before joining. Identifier compatibility
 and the requirement for an existing broadcast target remain mandatory assembly
 guards in `MainFrame.merge()`, even when runtime validation is disabled.
 
+Validation functions emit debug messages when checking a contract or skipping
+an inapplicable check. Enable `DEBUG` logging for the `uptimely.engine` logger
+to trace these checks. Messages describe attempted checks, not successful
+outcomes; violations still fail fast through the normal error path. No
+structured validation report is collected.
+
 | Check | Runtime requirement |
 | --- | --- |
 | Dimensions | Every fragment contains all dimensions declared by its entity; an expand fragment contains the dimensions its source can supply. |

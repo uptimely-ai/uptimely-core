@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 
 from uptimely import execution_plan
 from uptimely.engine.dataframe import backend as backend_module
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -25,6 +28,11 @@ class EngineValidator:
 
     def _validate_plan_backend(self) -> None:
         """Require the engine backend to match the saved plan."""
+        logger.debug(
+            "Checking plan backend compatibility: required=%s, configured=%s",
+            self.plan.required_backend,
+            self.backend.name,
+        )
         if self.plan.required_backend != self.backend.name:
             raise ValueError(
                 f"Unsupported plan backend: {self.plan.required_backend}. "
