@@ -112,5 +112,4 @@ class BuildBundle:
     spec_path: pathlib.Path
     spec_definition: spec_models.Spec
     execution_plan_path: pathlib.Path
-    explorer_path: pathlib.Path
     execution_plan: plan_models.ExecutionPlan

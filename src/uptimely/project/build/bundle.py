@@ -140,7 +140,6 @@ def load_bundle_at(
         spec_path=spec_path,
         spec_definition=spec_definition,
         execution_plan_path=execution_plan_path,
-        explorer_path=bundle_root / "explorer",
         execution_plan=execution_plan,
     )
 

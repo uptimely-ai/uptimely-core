@@ -196,6 +196,5 @@ def bundle_for_plan(
         spec_path=build_root / "spec.json",
         spec_definition=bundle_spec,
         execution_plan_path=build_root / "execution_plan.json",
-        explorer_path=build_root / "explorer",
         execution_plan=execution_plan,
     )

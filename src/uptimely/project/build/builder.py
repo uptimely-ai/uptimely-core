@@ -1,4 +1,4 @@
-"""Build and publish a complete active build bundle."""
+"""Build and publish the active spec, execution plan, and Explorer snapshot."""
 
 from __future__ import annotations
 
@@ -10,13 +10,11 @@ import shutil
 import tempfile
 import uuid
 
-import jinja2
 import pydantic
 
 from uptimely import compiler, spec
 from uptimely import project_paths as paths
 from uptimely.execution_plan import serialization as plan_serialization
-from uptimely.explorer import explorer as explorer_module
 from uptimely.explorer import presentation
 from uptimely.project.build import bundle, errors, locking, models
 from uptimely.project.build import features as feature_selection
@@ -105,7 +103,7 @@ def _generate_artifacts(
     staging_root: pathlib.Path,
     project_root: pathlib.Path,
 ) -> str:
-    """Write the specification, execution plan, and Explorer presentation data."""
+    """Write the spec and execution plan and prepare the Explorer snapshot."""
     try:
         spec.write_document(spec_definition, staging_root / "spec.json")
         plan_serialization.export_json(execution_plan, staging_root / "execution_plan.json")
@@ -115,14 +113,7 @@ def _generate_artifacts(
             features=selected_features,
             output_directory=project_root / paths.EXPLORER_OUTPUT_DIR,
         )
-        snapshot = presentation.serialize_presentation_data(presentation_data)
-        explorer_module.Explorer(
-            spec_definition,
-            plan=execution_plan,
-            features=selected_features,
-            validate=False,
-        ).create_html(staging_root / "explorer" / "index.html")
-        return snapshot
+        return presentation.serialize_presentation_data(presentation_data)
     except (
         OSError,
         ValueError,
@@ -130,7 +121,6 @@ def _generate_artifacts(
         AttributeError,
         TypeError,
         SyntaxError,
-        jinja2.TemplateError,
     ) as error:
         raise errors.ProjectBuildError("artifact generation", str(error)) from error
 
@@ -217,7 +207,7 @@ def build_project(
     json_spec: build_source.JsonSourceInput = None,
     features: feature_selection.FeatureSelection = None,
 ) -> models.BuildBundle:
-    """Build and publish a complete spec, execution plan, and Explorer bundle.
+    """Build and publish a spec, execution plan, and Explorer snapshot.
 
     Args:
         project_root: Root directory of the analytics project.
