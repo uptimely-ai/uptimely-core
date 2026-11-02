@@ -17,27 +17,32 @@ not both. If omitted, the current working directory is used. The grouped form
 `uptimely project build [PROJECT_ROOT]` is also available.
 
 The command validates the complete source specification, compiles one execution
-plan, and builds a complete Explorer website. It publishes all four artifacts
-as one active bundle:
+plan, and prepares a versioned Explorer data snapshot. The active build manifest
+tracks the spec and execution plan; the snapshot is published separately at
+`_generated/explorer.json`.
 
 ### Build output
 
 ```text
-_generated/build/
-├── build.json
-├── spec.json
-├── execution_plan.json
-└── explorer/
-    ├── index.html
-    └── ... website assets and pages
+_generated/
+├── build/
+│   ├── build.json
+│   ├── spec.json
+│   ├── execution_plan.json
+│   └── explorer/            # compatibility pages for `explorer serve`
+└── explorer.json
 ```
+
+The Explorer snapshot is not part of the replaceable build bundle. The
+compatibility website is not declared in the build manifest and is not required
+to load the spec or execution plan.
 
 ### Feature selection
 
 The spec export always contains the complete model. If `--features` is
 provided, the plan includes the selected outputs, their dependencies, and the
-associated dataset sinks; the Explorer renders that exact plan alongside the
-complete spec model. Omit `--features` to compile all features.
+associated dataset sinks; the Explorer snapshot contains that exact plan
+alongside the complete spec model. Omit `--features` to compile all features.
 Selections must be nonempty and valid. Duplicate names are normalized.
 
 ### Options
@@ -106,9 +111,12 @@ remains active.
 
 ### Publication and locking
 
-Artifacts are generated in a sibling staging directory, validated, then
-published in place of the previous bundle. A generation failure leaves the
-previous active bundle untouched. Builders coordinate through a project lock;
-a build fails rather than publishing while another builder or cooperating
-consumer holds the bundle lock. Publication uses rollback if replacing the
-directory fails; it does not claim a filesystem-wide atomic directory swap.
+The spec, plan, and manifest are generated in a sibling staging directory,
+validated, then published in place of the previous bundle. The Explorer
+snapshot is serialized before publication and atomically replaces the previous
+snapshot only after the build succeeds. A snapshot publication error is reported
+explicitly and leaves the previous snapshot intact. Builders coordinate through
+a project lock; a build fails rather than publishing while another builder or
+cooperating consumer holds the bundle lock. Bundle publication uses rollback if
+replacing the directory fails; it does not claim a filesystem-wide atomic
+directory swap.

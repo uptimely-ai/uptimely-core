@@ -28,6 +28,7 @@ def test_default_spec_attribute() -> None:
         (project.GENERATED_DIR, "_generated"),
         (project.EXPLORER_OUTPUT_DIR, "_generated/explorer"),
         (project.EXPLORER_INDEX_FILE, "_generated/explorer/index.html"),
+        (project.EXPLORER_DATA_FILE, "_generated/explorer.json"),
         (project.BUILD_OUTPUT_DIR, "_generated/build"),
         (project.BUILD_MANIFEST_FILE, "_generated/build/build.json"),
         (project.BUILD_SPEC_FILE, "_generated/build/spec.json"),
@@ -66,9 +67,7 @@ def _manifest_data() -> dict[str, object]:
         "artifacts": {
             "spec": "spec.json",
             "execution_plan": "execution_plan.json",
-            "explorer": "explorer",
         },
-        "explorer_files": ["assets/app.js", "index.html"],
     }
 
 
@@ -104,7 +103,7 @@ def test_build_manifest_normalizes_feature_selection() -> None:
     assert manifest.features == ["pressure", "temperature"]
 
 
-@pytest.mark.parametrize("version", [0, 2, "1", True])
+@pytest.mark.parametrize("version", [0, 3, "2", True])
 def test_build_manifest_rejects_unsupported_or_noninteger_version(version: object) -> None:
     data = _manifest_data()
     data["build_version"] = version
@@ -216,7 +215,6 @@ def test_build_manifest_rejects_paths_that_escape_the_bundle() -> None:
     manifest["artifacts"] = {
         "spec": "../spec.json",
         "execution_plan": "execution_plan.json",
-        "explorer": "explorer",
     }
 
     with pytest.raises(pydantic.ValidationError, match="stay within the build directory"):
@@ -237,14 +235,15 @@ def test_load_build_bundle_rejects_artifact_symlink_that_escapes_bundle(
         project.load_build_bundle(tmp_path)
 
 
-def test_load_build_bundle_rejects_incomplete_website_inventory(
+def test_load_build_bundle_does_not_validate_unlisted_website_files(
     tmp_path: pathlib.Path,
 ) -> None:
     build_root = _write_bundle(tmp_path)
     (build_root / "explorer/assets/app.js").unlink()
 
-    with pytest.raises(project.BuildError, match="incomplete.*website inventory mismatch"):
-        project.load_build_bundle(tmp_path)
+    loaded_bundle = project.load_build_bundle(tmp_path)
+
+    assert loaded_bundle.explorer_path == build_root / "explorer"
 
 
 def test_load_build_bundle_rejects_invalid_saved_plan(tmp_path: pathlib.Path) -> None:

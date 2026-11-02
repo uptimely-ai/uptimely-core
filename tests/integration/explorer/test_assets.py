@@ -125,8 +125,7 @@ def test_graph_style_is_passed_as_json_without_changing_shared_script(
 
 
 @pytest.mark.usefixtures("example_projects")
-def test_build_manifest_includes_all_explorer_assets() -> None:
+def test_built_explorer_contains_all_assets() -> None:
     bundle = project.load_build_bundle(example_support.EXAMPLES_ROOT / "pump_analytics")
-    assert set(bundle.manifest.explorer_files) >= ASSETS
     for filename in ASSETS:
         assert (bundle.explorer_path / filename).is_file()

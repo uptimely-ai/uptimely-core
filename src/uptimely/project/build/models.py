@@ -12,7 +12,7 @@ from uptimely.execution_plan import models as plan_models
 from uptimely.project.build import features
 from uptimely.spec import model as spec_models
 
-BUILD_VERSION = 1
+BUILD_VERSION = 2
 
 
 def validate_relative_path(value: str) -> str:
@@ -38,9 +38,8 @@ class BuildArtifactPaths(pydantic.BaseModel):
 
     spec: str
     execution_plan: str
-    explorer: str
 
-    @pydantic.field_validator("spec", "execution_plan", "explorer")
+    @pydantic.field_validator("spec", "execution_plan")
     @classmethod
     def validate_path(cls, value: str) -> str:
         """Reject paths that are not safe to resolve under the bundle root."""
@@ -52,7 +51,6 @@ class BuildArtifactPaths(pydantic.BaseModel):
         artifact_paths = {
             "spec": pathlib.PurePosixPath(self.spec),
             "execution_plan": pathlib.PurePosixPath(self.execution_plan),
-            "explorer": pathlib.PurePosixPath(self.explorer),
         }
         names = list(artifact_paths)
         for index, name in enumerate(names):
@@ -76,7 +74,6 @@ class BuildManifest(pydantic.BaseModel):
     uptimely_version: str
     features: list[str] | None
     artifacts: BuildArtifactPaths
-    explorer_files: list[str]
 
     @pydantic.field_validator("build_version")
     @classmethod
@@ -103,20 +100,6 @@ class BuildManifest(pydantic.BaseModel):
         if value is not None and not isinstance(value, list):
             raise ValueError("features must be null or a nonempty list of feature names")
         return features.normalize_features(value)
-
-    @pydantic.field_validator("explorer_files")
-    @classmethod
-    def validate_explorer_files(cls, values: list[str]) -> list[str]:
-        """Require a unique inventory of safe paths that includes the entry page."""
-        if not values:
-            raise ValueError("explorer_files must contain the complete website file inventory")
-        for value in values:
-            validate_relative_path(value)
-        if len(set(values)) != len(values):
-            raise ValueError("explorer_files must not contain duplicate paths")
-        if "index.html" not in values:
-            raise ValueError("explorer_files must include index.html")
-        return values
 
 
 @dataclasses.dataclass(frozen=True)

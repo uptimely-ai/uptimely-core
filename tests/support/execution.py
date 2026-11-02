@@ -191,9 +191,7 @@ def bundle_for_plan(
             artifacts=project_module.BuildArtifactPaths(
                 spec="spec.json",
                 execution_plan="execution_plan.json",
-                explorer="explorer",
             ),
-            explorer_files=["index.html"],
         ),
         spec_path=build_root / "spec.json",
         spec_definition=bundle_spec,
