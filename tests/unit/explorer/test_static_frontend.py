@@ -18,3 +18,6 @@ def test_static_frontend_uses_packaged_assets_and_live_api() -> None:
     assert "textContent" in script
     assert "Loading Explorer data" in index
     assert "errorStatus" in script
+    assert script.count("fetch(") == 1
+    assert "fetch(configuration.dataUrl" in script
+    assert "data/explorer.json" not in script
