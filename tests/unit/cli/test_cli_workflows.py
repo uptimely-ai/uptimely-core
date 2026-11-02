@@ -50,7 +50,8 @@ def test_feature_graph_summary_subset_and_tree(
         str(PROJECT),
         "--features",
         "health_signal_normalized",
-        "--verbose",
+        "--log-level",
+        "debug",
     )
     text = capsys.readouterr().out
     assert "Feature graph: 13 features" in text

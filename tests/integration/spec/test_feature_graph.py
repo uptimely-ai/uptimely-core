@@ -55,12 +55,12 @@ def test_graph_metadata_follows_function_capabilities(
 
 
 @pytest.mark.usefixtures("example_projects")
-@pytest.mark.parametrize("verbose", [False, True])
+@pytest.mark.parametrize("debug", [False, True])
 def test_graph_cli_inspects_without_exporting(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
-    verbose: bool,
+    debug: bool,
 ) -> None:
     arguments = [
         "uptimely",
@@ -71,8 +71,8 @@ def test_graph_cli_inspects_without_exporting(
         "--features",
         "health_signal_normalized",
     ]
-    if verbose:
-        arguments.append("--verbose")
+    if debug:
+        arguments.extend(["--log-level", "debug"])
     monkeypatch.setattr(sys, "argv", arguments)
     monkeypatch.chdir(tmp_path)
 
@@ -81,7 +81,7 @@ def test_graph_cli_inspects_without_exporting(
     output = capsys.readouterr().out
     assert "Feature graph:" in output
     assert "Selected feature subset: 2 features" in output
-    assert ("Selected feature subset\n" in output) == verbose
+    assert ("Selected feature subset\n" in output) == debug
     assert not list(tmp_path.iterdir())
 
 

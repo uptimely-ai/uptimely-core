@@ -65,7 +65,7 @@ uptimely examples
 Build the project:
 
 ```sh
-uptimely build examples/pump_analytics --verbose
+uptimely build examples/pump_analytics --log-level debug
 ```
 
 The build creates files

@@ -9,7 +9,7 @@ For the direct shortcut, use `uptimely build` with the same options.
 ```console
 uptimely build [PROJECT_ROOT] \
   [--project-root PATH] [--python-spec MODULE:ATTRIBUTE | --json-spec PATH] \
-  [--features FEATURE [FEATURE ...]] [--verbose]
+  [--features FEATURE [FEATURE ...]] [--log-level LEVEL]
 ```
 
 The project directory may be given positionally or with `--project-root`, but
@@ -49,12 +49,13 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 | `--python-spec MODULE:ATTRIBUTE` | No | Discover standard sources | Select an importable Python attribute containing a `Spec` instance. The module must already be importable; the project root is not added to `sys.path`. Mutually exclusive with `--json-spec`. |
 | `--json-spec PATH` | No | Discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Relative to the current working directory. |
 | `--features FEATURE ...` | No | All features | Select one or more output features and their required dependencies. |
-| `--verbose` | No | Disabled | Log build duration, output folder, source file, resource counts, and plan size. |
+| `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes build duration, output folder, source file, resource counts, and plan size. |
 
 ### Build logging
 
-By default, a successful build logs only `Build files created to {path}`.
-Warnings and errors remain visible. Add `--verbose` for a summary grouped into:
+By default, a successful build logs `Build files created to {path}`.
+Warnings and errors remain visible. Use `--log-level debug` for a summary
+grouped into:
 
 - **Build:** duration in seconds, output folder, and feature scope.
 - **Spec:** source file and numbers of functions, datasets, and features.
@@ -85,7 +86,7 @@ module; discovery does not make an otherwise unavailable package importable.
 
 ```console
 uptimely build examples/pump_analytics
-uptimely build examples/pump_analytics --verbose
+uptimely build examples/pump_analytics --log-level debug
 uptimely build examples/pump_analytics --features pump_health_score
 ```
 

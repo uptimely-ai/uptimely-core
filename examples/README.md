@@ -51,7 +51,7 @@ Rebuild after changing the example's source files. Older version 1 bundles are
 not supported; rebuild them from their source Specs.
 
 ```sh
-uptimely build examples/pump_analytics --verbose
+uptimely build examples/pump_analytics --log-level debug
 ```
 
 ### Run the calculations
