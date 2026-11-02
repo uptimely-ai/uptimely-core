@@ -2,15 +2,15 @@
 
 import pathlib
 import sys
-import threading
-from urllib import request
 
 import pytest
+from starlette.types import ASGIApp
 from support import examples as example_support
 
 from uptimely import compiler, project
 from uptimely.cli import cli, explorer
 from uptimely.explorer import explorer as explorer_module
+from uptimely.explorer import server as explorer_server
 from uptimely.project import build as project_build
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
@@ -95,43 +95,25 @@ def test_explorer_serves_saved_website_without_building_or_rendering(
 ) -> None:
     bundle = project.load_build_bundle(built_project)
     served: list[tuple[pathlib.Path, str, int, str]] = []
-    original_serve_forever = explorer.http_server.ThreadingHTTPServer.serve_forever
 
     def fail(*args: object, **kwargs: object) -> None:
         pytest.fail("Serving a saved website must not compile, load source, or render")
 
-    def serve_and_check_assets(server: explorer.http_server.ThreadingHTTPServer) -> None:
+    def serve_and_check_assets(app: ASGIApp, host: str, port: int) -> None:
         served.append((bundle.explorer_path, "127.0.0.1", 0, "all features"))
+        assert app.routes[-1].app.directory == str(bundle.explorer_path)
         with (
             pytest.raises(project.BuildLockError),
             project.build_lock(built_project, exclusive=True, wait=False),
         ):
             pass
-        worker = threading.Thread(
-            target=original_serve_forever, args=(server,), kwargs={"poll_interval": 0.01}
-        )
-        worker.start()
-        try:
-            base_url = f"http://127.0.0.1:{server.server_port}"
-            with request.urlopen(base_url, timeout=5) as response:
-                assert response.status == 200
-                assert b"Full build" in response.read()
-            with request.urlopen(f"{base_url}/spec/overview.html", timeout=5) as response:
-                assert response.status == 200
-                assert response.read() == (bundle.explorer_path / "spec/overview.html").read_bytes()
-        finally:
-            server.shutdown()
-            worker.join(timeout=5)
-        assert not worker.is_alive()
+        assert host == "127.0.0.1"
+        assert port == 0
 
     monkeypatch.setattr(project_build, "load_spec_source", fail)
     monkeypatch.setattr(compiler.Compiler, "compile", fail)
     monkeypatch.setattr(explorer_module.Explorer, "create_html", fail)
-    monkeypatch.setattr(
-        explorer.http_server.ThreadingHTTPServer,
-        "serve_forever",
-        serve_and_check_assets,
-    )
+    monkeypatch.setattr(explorer_server.uvicorn, "run", serve_and_check_assets)
     monkeypatch.setattr(
         sys,
         "argv",

@@ -1,13 +1,12 @@
 """Command-line tools for building and serving the analytics explorer."""
 
 import argparse
-import functools
 import logging
 import pathlib
-from http import server as http_server
 
 from uptimely import project
 from uptimely.cli import common
+from uptimely.explorer import server as explorer_server
 from uptimely.project import build as project_build
 
 logger = logging.getLogger(__name__)
@@ -33,29 +32,7 @@ def serve_explorer(
         ValueError: The port is outside the valid TCP range.
         OSError: The server cannot bind to the requested address.
     """
-    directory = directory.resolve()
-    if not directory.is_dir():
-        raise NotADirectoryError(f"Website directory does not exist: {directory}")
-    index = directory / project.EXPLORER_INDEX_FILE.name
-    if not index.is_file():
-        raise FileNotFoundError(
-            f"Website index not found: {index}. Generate it with 'uptimely project build'."
-        )
-    if not 0 <= port <= 65535:
-        raise ValueError("Port must be between 0 and 65535.")
-    handler = functools.partial(http_server.SimpleHTTPRequestHandler, directory=str(directory))
-    with http_server.ThreadingHTTPServer((host, port), handler) as server:
-        logger.info(
-            "Serving analytics explorer from %s at http://%s:%d/ (build scope: %s; Ctrl+C to stop)",
-            directory,
-            host,
-            server.server_port,
-            scope,
-        )
-        try:
-            server.serve_forever()
-        except KeyboardInterrupt:
-            logger.info("Spec explorer server stopped.")
+    explorer_server.serve_explorer(directory, host=host, port=port, scope=scope)
 
 
 def _port(value: str) -> int:
