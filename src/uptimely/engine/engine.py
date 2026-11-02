@@ -63,7 +63,7 @@ class Engine:
 
     def _validate_engine(self) -> None:
         """Validate that this engine can execute the plan."""
-        validation_module.validate_engine(self.plan, self.backend)
+        validation_module.EngineValidator(self.plan, self.backend).validate()
 
     def run(self, *, validate: bool = False) -> result_module.ExecutionResult:
         """Execute plan stages and return explicit runtime state and statuses.
