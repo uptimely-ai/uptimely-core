@@ -13,6 +13,7 @@ from uptimely.cli import common
 
 logger = logging.getLogger(__name__)
 DEFAULT_PREVIEW_ROWS = 5
+LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
@@ -34,9 +35,10 @@ def configure_run_parser(parser: argparse.ArgumentParser) -> None:
         help="Validate inputs and dataframe contracts at each execution step",
     )
     parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Log resource statistics, stages, and dataset details",
+        "--log-level",
+        choices=LOG_LEVELS,
+        default="info",
+        help="Set Uptimely logging verbosity (default: info)",
     )
     parser.add_argument(
         "--preview",
@@ -65,6 +67,9 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         parser.error("--preview must be a positive integer")
     root = common.resolve_project_root(args, parser)
     config = project.resolve_path(args.config, root, project.CONFIG_FILE)
+    uptimely_logger = logging.getLogger("uptimely")
+    previous_level = uptimely_logger.level
+    uptimely_logger.setLevel(args.log_level.upper())
     try:
         with project.read_build_bundle(root) as bundle:
             settings = engine_module.Config.model_validate_json(config.read_text(encoding="utf-8"))
@@ -75,7 +80,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             if result.failures:
                 failures = "; ".join(result.failures.values())
                 raise RuntimeError(f"Engine flow failed: {failures}")
-            _log_summary(bundle, result, duration, args.verbose)
+            _log_summary(bundle, result, duration)
             if args.preview is not None:
                 _log_previews(result, args.preview)
     except (
@@ -88,38 +93,38 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         pl.exceptions.PolarsError,
     ) as error:
         parser.exit(1, f"uptimely: error: {error}\n")
+    finally:
+        uptimely_logger.setLevel(previous_level)
 
 
 def _log_summary(
     bundle: project.BuildBundle,
     result: engine_module.ExecutionResult,
     duration: float,
-    verbose: bool,
 ) -> None:
-    """Log execution timing, dataset counts, and optional saved-build details.
+    """Log execution timing and counts, with saved-build details at debug level.
 
     Args:
         bundle: Saved build used for execution.
         result: Execution result containing the final datasets.
         duration: Execution duration in seconds.
-        verbose: Whether to include scope and dataset feature counts.
     """
     logger.info(
         "\nEngine completed in %.3f s: %d datasets processed",
         duration,
         len(result.main_frames),
     )
-    if verbose:
+    if logger.isEnabledFor(logging.DEBUG):
         scope = (
             "all features"
             if bundle.manifest.features is None
             else f"selected features: {', '.join(bundle.manifest.features)}"
         )
-        logger.info("\nScope: %s", scope)
+        logger.debug("\nScope: %s", scope)
 
-        logger.info("\nProcessed datasets:")
+        logger.debug("\nProcessed datasets:")
         for dataset_id, dataset in bundle.spec_definition.datasets.items():
-            logger.info(
+            logger.debug(
                 "- Dataset: %s - %d features",
                 dataset_id,
                 len(dataset.features),

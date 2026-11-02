@@ -75,7 +75,7 @@ project source.
 Execute the data pipeline:
 
 ```sh
-uptimely run examples/pump_analytics --verbose --preview 10
+uptimely run examples/pump_analytics --log-level debug --preview 10
 ```
 
 Output will show the materialized datasets:

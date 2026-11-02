@@ -1,6 +1,7 @@
 """Tests for spec, plan, and engine command groups."""
 
 import json
+import logging
 import pathlib
 import sys
 import types
@@ -69,7 +70,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
         pytest.fail("Engine execution must not compile")
 
     monkeypatch.setattr("uptimely.compiler.Compiler.compile", fail_compile)
-    invoke(monkeypatch, "run", str(project_root), "--verbose")
+    invoke(monkeypatch, "run", str(project_root), "--log-level", "debug")
     text = capsys.readouterr().out
     assert "Engine completed in " in text
     assert "3 datasets processed" in text
@@ -139,6 +140,73 @@ def test_engine_default_logs_only_duration_and_processed_datasets(
     ]
 
 
+@pytest.mark.parametrize("command", [("run",), ("engine", "run")])
+@pytest.mark.parametrize("level", ["debug", "info", "warning", "error", "critical"])
+@pytest.mark.parametrize("failed", [False, True])
+def test_run_log_level_filters_uptimely_only_and_restores_configuration(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    command: tuple[str, ...],
+    level: str,
+    failed: bool,
+) -> None:
+    _write_empty_build(tmp_path)
+    config = tmp_path / "config.json"
+    config.write_text("{}", encoding="utf-8")
+    uptimely_logger = logging.getLogger("uptimely")
+    previous_level = uptimely_logger.level
+    dependency_logger = logging.getLogger("test_run_dependency")
+    dependency_level = dependency_logger.level
+    runtime_logger = logging.getLogger("uptimely.engine.test")
+
+    def run(self: engine_module.Engine, *, validate: bool = False) -> engine_module.ExecutionResult:
+        assert validate
+        assert logging.getLogger().level == logging.INFO
+        assert dependency_logger.level == dependency_level
+        assert not dependency_logger.isEnabledFor(logging.DEBUG)
+        runtime_logger.debug("validation debug trace")
+        runtime_logger.info("runtime info")
+        runtime_logger.warning("runtime warning")
+        runtime_logger.error("runtime error")
+        runtime_logger.critical("runtime critical")
+        if failed:
+            raise RuntimeError("execution failed")
+        return engine_module.ExecutionResult(
+            main_frames={},
+            calculated_outputs={},
+            invocation_statuses={},
+            durations={},
+            failures={},
+            plan_version=3,
+        )
+
+    monkeypatch.setattr(engine_module.Engine, "run", run)
+    arguments = (
+        *command,
+        str(tmp_path),
+        "--config",
+        str(config),
+        "--validate",
+        "--log-level",
+        level,
+    )
+    if failed:
+        with pytest.raises(SystemExit) as error:
+            invoke(monkeypatch, *arguments)
+        assert error.value.code == 1
+    else:
+        invoke(monkeypatch, *arguments)
+    assert uptimely_logger.level == previous_level
+    output = capsys.readouterr()
+    assert ("validation debug trace" in output.out) is (level == "debug")
+    for message_level in ("info", "warning", "error", "critical"):
+        assert (f"runtime {message_level}" in output.out) is (
+            getattr(logging, message_level.upper()) >= getattr(logging, level.upper())
+        )
+    assert ("execution failed" in output.err) is failed
+
+
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("row_count", [0, 3, 15])
 @pytest.mark.parametrize(
@@ -147,7 +215,7 @@ def test_engine_default_logs_only_duration_and_processed_datasets(
         ([], None),
         (["--preview"], 5),
         (["--preview", "1"], 1),
-        (["--preview", "12", "--verbose"], 12),
+        (["--preview", "12", "--log-level", "debug"], 12),
     ],
 )
 def test_engine_previews_final_datasets(
@@ -208,7 +276,7 @@ def test_engine_previews_final_datasets(
         assert not collected_heights
     else:
         assert output.out.index("Engine completed") < output.out.index("Dataset: first")
-        if "--verbose" in arguments:
+        if "debug" in arguments:
             assert output.out.index("Processed datasets:") < output.out.index("Dataset: first")
         for dataset in ("first", "second"):
             assert f"Dataset: {dataset}\n" in output.out
@@ -277,19 +345,19 @@ def test_engine_preview_errors_are_reported(
     assert "Dataset:" not in output.out
 
 
-@pytest.mark.parametrize("verbose", [False, True])
+@pytest.mark.parametrize("debug", [False, True])
 def test_engine_empty_plan_summary(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
-    verbose: bool,
+    debug: bool,
 ) -> None:
     _write_empty_build(tmp_path)
     config = tmp_path / "config.json"
     config.write_text("{}", encoding="utf-8")
     times = iter([10.0, 10.0])
     monkeypatch.setattr(cli.engine, "time", types.SimpleNamespace(perf_counter=lambda: next(times)))
-    arguments = ["--verbose"] if verbose else []
+    arguments = ["--log-level", "debug"] if debug else []
 
     invoke(
         monkeypatch,
@@ -305,8 +373,8 @@ def test_engine_empty_plan_summary(
     result = capsys.readouterr()
     assert not result.err
     summary = "\nEngine completed in 0.000 s: 0 datasets processed\n"
-    if verbose:
-        assert result.out.startswith(summary)
+    if debug:
+        assert summary in result.out
         assert "\nScope: all features\n" in result.out
         assert "\nProcessed datasets:\n" in result.out
     else:
@@ -327,6 +395,9 @@ def test_engine_empty_plan_summary(
         ["engine", "run", "--features", "health_signal_normalized"],
         ["engine", "run", "--spec", "spec.json"],
         ["engine", "run", "--plan", "plan.json"],
+        ["engine", "run", "--verbose"],
+        ["run", "--verbose"],
+        ["run", "--log-level", "invalid"],
     ],
 )
 def test_workflow_argument_errors(monkeypatch: pytest.MonkeyPatch, arguments: list[str]) -> None:
