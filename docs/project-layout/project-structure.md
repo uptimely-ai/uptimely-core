@@ -26,7 +26,8 @@ project/
     │   ├── build.json
     │   ├── spec.json
     │   ├── execution_plan.json
-    │   └── explorer/
+    │   └── explorer/             # compatibility pages for `explorer serve`
+    ├── explorer.json
     └── runs/
         └── <run-id>/
             └── output/
@@ -40,7 +41,7 @@ project/
 | `data/output/` | Optional durable or intentionally shared results; use these when outputs are part of the project's data. |
 | `functions/` | Reusable source, calculation, and write functions. |
 | `spec/` | The project specification: either Python declarations or a JSON document. |
-| `_generated/` | Disposable generated artifacts. The active build is stored in `_generated/build/`; run results and previews can be stored under `_generated/runs/<run-id>/output/`. |
+| `_generated/` | Disposable generated artifacts. The active build is stored in `_generated/build/`, the current Explorer data snapshot in `_generated/explorer.json`, and run results under `_generated/runs/<run-id>/output/`. |
 | `config/config.json` | Engine backend settings under `engine` and required global scalar values under `params`, referenced by `$params.<name>`. |
 
 This separation keeps the project easy to reason about: specification declarations

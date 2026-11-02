@@ -121,9 +121,7 @@ def test_project_build_examples(
     assert spec.load_spec(bundle.spec_path).entities
     assert bundle.execution_plan.invocations
     assert (bundle.explorer_path / "index.html").is_file()
-    explorer_data = json.loads(
-        (bundle.explorer_path / "data" / "explorer.json").read_text(encoding="utf-8")
-    )
+    explorer_data = json.loads((root / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert explorer_data["format_version"] == 1
 
 
@@ -151,6 +149,7 @@ def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None
     assert spec.load_spec(bundle.spec_path).entities
     assert bundle.execution_plan.invocations
     assert (bundle.explorer_path / "index.html").is_file()
+    assert (root / project.EXPLORER_DATA_FILE).is_file()
 
 
 def test_project_rebuild_replaces_previous_bundle(
@@ -476,6 +475,9 @@ def test_project_build_failures_preserve_previous_bundle(
     copy_project_spec(root)
     shutil.copytree(example_support.example_bundle().root, root / project.BUILD_OUTPUT_DIR)
     old_bundle = bundle_files(root)
+    snapshot = root / project.EXPLORER_DATA_FILE
+    snapshot.parent.mkdir(parents=True, exist_ok=True)
+    snapshot.write_text("previous snapshot", encoding="utf-8")
 
     if stage == "compile":
 
@@ -515,8 +517,35 @@ def test_project_build_failures_preserve_previous_bundle(
     assert expected in result.err
     assert f"Build files created to {root / project.BUILD_OUTPUT_DIR}" not in result.out
     assert bundle_files(root) == old_bundle
+    assert snapshot.read_text(encoding="utf-8") == "previous snapshot"
     assert not list((root / project.GENERATED_DIR).glob(".build-staging-*"))
     assert not list((root / project.GENERATED_DIR).glob(".build-backup-*"))
+
+
+def test_snapshot_publication_failure_preserves_previous_snapshot(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "project"
+    copy_project_spec(root)
+    snapshot = root / project.EXPLORER_DATA_FILE
+    snapshot.parent.mkdir(parents=True, exist_ok=True)
+    snapshot.write_text("previous snapshot", encoding="utf-8")
+    original_replace = project_build.os.replace
+
+    def fail_snapshot_replace(source: pathlib.Path, target: pathlib.Path) -> None:
+        if target == snapshot:
+            raise OSError("injected snapshot failure")
+        original_replace(source, target)
+
+    monkeypatch.setattr(project_build.os, "replace", fail_snapshot_replace)
+
+    with pytest.raises(project.ProjectBuildError, match="Explorer snapshot publication failed"):
+        project_build.build_project(root)
+
+    assert project.load_build_bundle(root).manifest.build_version == project.BUILD_VERSION
+    assert snapshot.read_text(encoding="utf-8") == "previous snapshot"
+    assert not list(snapshot.parent.glob(f".{snapshot.name}.*.tmp"))
 
 
 @pytest.mark.parametrize("exclusive", [False, True])

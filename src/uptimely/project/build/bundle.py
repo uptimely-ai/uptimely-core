@@ -48,14 +48,13 @@ def _resolve_artifacts(
     bundle_root: pathlib.Path,
     manifest: models.BuildManifest,
     project_root: pathlib.Path,
-) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+) -> tuple[pathlib.Path, pathlib.Path]:
     try:
         spec_path = _resolve_bundle_path(bundle_root, manifest.artifacts.spec)
         execution_plan_path = _resolve_bundle_path(bundle_root, manifest.artifacts.execution_plan)
-        explorer_path = _resolve_bundle_path(bundle_root, manifest.artifacts.explorer)
     except ValueError as error:
         raise errors.BuildError("invalid", str(error), project_root) from error
-    return spec_path, execution_plan_path, explorer_path
+    return spec_path, execution_plan_path
 
 
 def _validate_required_artifacts(
@@ -68,43 +67,6 @@ def _validate_required_artifacts(
         if not artifact_path.is_file():
             relative_path = artifact_path.relative_to(bundle_root.resolve())
             raise errors.BuildError("incomplete", f"missing artifact {relative_path}", project_root)
-
-
-def _validate_explorer_inventory(
-    explorer_path: pathlib.Path,
-    manifest: models.BuildManifest,
-    project_root: pathlib.Path,
-) -> None:
-    if not explorer_path.is_dir():
-        raise errors.BuildError(
-            "incomplete",
-            f"missing website directory {manifest.artifacts.explorer}",
-            project_root,
-        )
-    try:
-        website_files: set[str] = set()
-        for path in explorer_path.rglob("*"):
-            if path.is_symlink():
-                raise ValueError(f"Website contains a symlink: {path.relative_to(explorer_path)}")
-            if path.is_file():
-                website_files.add(path.relative_to(explorer_path).as_posix())
-        declared_files = set(manifest.explorer_files)
-        missing_files = sorted(declared_files - website_files)
-        undeclared_files = sorted(website_files - declared_files)
-        if missing_files or undeclared_files:
-            missing = ", ".join(missing_files) if missing_files else "none"
-            undeclared = ", ".join(undeclared_files) if undeclared_files else "none"
-            raise FileNotFoundError(
-                f"website inventory mismatch (missing: {missing}; undeclared: {undeclared})"
-            )
-        for relative_path in manifest.explorer_files:
-            _resolve_bundle_path(
-                explorer_path,
-                relative_path,
-                containment_root=explorer_path,
-            )
-    except (OSError, ValueError) as error:
-        raise errors.BuildError("incomplete", str(error), project_root) from error
 
 
 def _load_execution_plan(
@@ -163,9 +125,7 @@ def load_bundle_at(
         )
 
     manifest = _load_manifest(bundle_root, project_root)
-    spec_path, execution_plan_path, explorer_path = _resolve_artifacts(
-        bundle_root, manifest, project_root
-    )
+    spec_path, execution_plan_path = _resolve_artifacts(bundle_root, manifest, project_root)
     _validate_required_artifacts(bundle_root, spec_path, execution_plan_path, project_root)
     _validate_explorer_inventory(explorer_path, manifest, project_root)
     spec_definition = _load_spec_definition(
@@ -180,7 +140,7 @@ def load_bundle_at(
         spec_path=spec_path,
         spec_definition=spec_definition,
         execution_plan_path=execution_plan_path,
-        explorer_path=explorer_path,
+        explorer_path=bundle_root / "explorer",
         execution_plan=execution_plan,
     )
 

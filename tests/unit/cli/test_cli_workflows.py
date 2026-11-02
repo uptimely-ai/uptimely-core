@@ -539,9 +539,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
         artifacts=project_module.BuildArtifactPaths(
             spec="spec.json",
             execution_plan="execution_plan.json",
-            explorer="explorer",
         ),
-        explorer_files=["index.html"],
     )
     (build_root / "build.json").write_text(json.dumps(manifest.model_dump()), encoding="utf-8")
     return build_root

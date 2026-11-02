@@ -104,7 +104,7 @@ def _generate_artifacts(
     selected_features: list[str] | None,
     staging_root: pathlib.Path,
     project_root: pathlib.Path,
-) -> None:
+) -> str:
     """Write the specification, execution plan, and Explorer presentation data."""
     try:
         spec.write_document(spec_definition, staging_root / "spec.json")
@@ -115,18 +115,14 @@ def _generate_artifacts(
             features=selected_features,
             output_directory=project_root / paths.EXPLORER_OUTPUT_DIR,
         )
-        explorer_data = staging_root / "explorer" / "data" / "explorer.json"
-        explorer_data.parent.mkdir(parents=True, exist_ok=True)
-        explorer_data.write_text(
-            json.dumps(presentation_data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        snapshot = presentation.serialize_presentation_data(presentation_data)
         explorer_module.Explorer(
             spec_definition,
             plan=execution_plan,
             features=selected_features,
             validate=False,
         ).create_html(staging_root / "explorer" / "index.html")
+        return snapshot
     except (
         OSError,
         ValueError,
@@ -144,13 +140,7 @@ def _validate_staged_bundle(
     staging_root: pathlib.Path,
     selected_features: list[str] | None,
 ) -> None:
-    """Write the bundle manifest and validate all staged artifacts."""
-    explorer_root = staging_root / "explorer"
-    explorer_files = sorted(
-        path.relative_to(explorer_root).as_posix()
-        for path in explorer_root.rglob("*")
-        if path.is_file()
-    )
+    """Write the bundle manifest and validate the staged spec and execution plan."""
     try:
         manifest = models.BuildManifest(
             build_version=models.BUILD_VERSION,
@@ -159,9 +149,7 @@ def _validate_staged_bundle(
             artifacts=models.BuildArtifactPaths(
                 spec="spec.json",
                 execution_plan="execution_plan.json",
-                explorer="explorer",
             ),
-            explorer_files=explorer_files,
         )
         (staging_root / paths.BUILD_MANIFEST_FILE.name).write_text(
             json.dumps(manifest.model_dump(), indent=2),
@@ -176,6 +164,33 @@ def _validate_staged_bundle(
         errors.BuildError,
     ) as error:
         raise errors.ProjectBuildError("bundle validation", str(error)) from error
+
+
+def _publish_explorer_snapshot(project_root: pathlib.Path, snapshot: str) -> None:
+    """Atomically replace the saved Explorer snapshot after a successful build."""
+    target = project_root / paths.EXPLORER_DATA_FILE
+    temporary_path: pathlib.Path | None = None
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix=f".{target.name}.",
+            suffix=".tmp",
+            dir=target.parent,
+            delete=False,
+        ) as temporary_file:
+            temporary_path = pathlib.Path(temporary_file.name)
+            temporary_file.write(snapshot)
+        os.replace(temporary_path, target)
+    except OSError as error:
+        detail = str(error)
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except OSError as cleanup_error:
+                detail = f"{detail}; could not remove temporary snapshot: {cleanup_error}"
+        raise errors.ProjectBuildError("Explorer snapshot publication", detail) from error
 
 
 def _create_staging_root(generated_root: pathlib.Path) -> pathlib.Path:
@@ -229,11 +244,12 @@ def build_project(
         staging_root = _create_staging_root(generated_root)
         try:
             execution_plan = _compile_plan(spec_definition, selected_features)
-            _generate_artifacts(
+            snapshot = _generate_artifacts(
                 spec_definition, execution_plan, selected_features, staging_root, root
             )
             _validate_staged_bundle(root, staging_root, selected_features)
             _publish_bundle(staging_root, root / paths.BUILD_OUTPUT_DIR)
+            _publish_explorer_snapshot(root, snapshot)
         finally:
             _cleanup_staging_root(staging_root)
 
