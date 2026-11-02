@@ -8,7 +8,7 @@ import tempfile
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 _BUILD_INSTRUCTION = "Run 'uptimely project build' to generate a valid Explorer snapshot."
 
 
-def _read_snapshot(path: pathlib.Path) -> JSONResponse:
+def _read_snapshot(path: pathlib.Path) -> Response:
     """Read and validate the Explorer snapshot without caching it in the app."""
     try:
         data: object = json.loads(path.read_text(encoding="utf-8"))
@@ -35,13 +35,15 @@ def _read_snapshot(path: pathlib.Path) -> JSONResponse:
         ) from error
 
     try:
-        data = presentation.validate_presentation_data(data)
+        content = presentation.serialize_presentation_data(
+            presentation.validate_presentation_data(data)
+        )
     except (TypeError, ValueError) as error:
         raise HTTPException(
             status_code=503,
             detail=f"Explorer data is invalid or unsupported: {error}. {_BUILD_INSTRUCTION}",
         ) from error
-    return JSONResponse(data, headers={"Cache-Control": "no-store"})
+    return Response(content, media_type="application/json", headers={"Cache-Control": "no-store"})
 
 
 def create_app(project_root: pathlib.Path) -> FastAPI:
@@ -68,7 +70,7 @@ def create_app(project_root: pathlib.Path) -> FastAPI:
     app = FastAPI()
 
     @app.get("/api/explorer", include_in_schema=False)
-    def explorer_data() -> JSONResponse:
+    def explorer_data() -> Response:
         return _read_snapshot(project_root / project_paths.EXPLORER_DATA_FILE)
 
     @app.get("/api/explorer/export", include_in_schema=False)
