@@ -10,18 +10,21 @@ from . import validation as dataframe_validation_module
 
 
 class DataFrameExecution:
-    """Validate and combine dataframe values using the configured backend."""
+    """Combine dataframe values with optional per-step contract validation."""
 
     def __init__(
         self,
         backend: backend_module.DataFrameBackend,
         spec_definition: spec_model.Spec,
         state: state_module.RuntimeState,
+        *,
+        validate: bool = False,
     ) -> None:
-        """Create dataframe operations bound to one backend and execution state."""
+        """Create dataframe operations with opt-in contract validation."""
         self.backend = backend
         self.spec_definition = spec_definition
         self.state = state
+        self.validate = validate
 
     def assemble_fragment(
         self,
@@ -30,7 +33,7 @@ class DataFrameExecution:
         dataframe: object | None,
         dimensions: list[str],
     ) -> tuple[object, object]:
-        """Validate an action result and assemble its declared fragment."""
+        """Assemble an action's declared fragment, optionally validating its contract."""
         dataset = self._dataset(invocation.dataset_id)
         output_features = [
             feature for feature in invocation.output_features if feature not in dimensions
@@ -45,26 +48,28 @@ class DataFrameExecution:
             raise ValueError(
                 f"Function kind {invocation.function_kind} does not materialize dataframe results"
             )
-        dataframe_validation_module.validate_fragment(
-            dataframe_validation_module.FrameValidationContext(
-                self.backend,
-                self.spec_definition,
-                fragment,
-                fragment_dimensions,
-                f"Fragment {invocation.function_id}",
-                invalid_frame_message=(
-                    f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
-                ),
-                invocation=invocation,
-                output_features=output_features,
-                dataset=dataset,
-                comparison_frame=dataframe,
+        if self.validate:
+            dataframe_validation_module.validate_fragment(
+                dataframe_validation_module.FrameValidationContext(
+                    self.backend,
+                    self.spec_definition,
+                    fragment,
+                    fragment_dimensions,
+                    f"Fragment {invocation.function_id}",
+                    invalid_frame_message=(
+                        f"Fragment {invocation.function_id} must return "
+                        "a Polars DataFrame or LazyFrame"
+                    ),
+                    invocation=invocation,
+                    output_features=output_features,
+                    dataset=dataset,
+                    comparison_frame=dataframe,
+                )
             )
-        )
         fragment = self.backend.select(
             fragment, list(dict.fromkeys([*fragment_dimensions, *output_features]))
         )
-        if dataframe is not None:
+        if self.validate and dataframe is not None:
             self._validate_dataframe(dataframe, dimensions, "Accumulated dataset")
             dataframe_columns = set(self.backend.column_names(dataframe))
             dataframe_validation_module.validate_dataframes(
@@ -91,21 +96,23 @@ class DataFrameExecution:
     def merge_fragment(
         self, dataframe: object | None, fragment: object, dimensions: list[str]
     ) -> object:
-        """Join unique fragments on complete keys without replacing feature columns."""
-        self._validate_dataframe(fragment, dimensions, "Fragment")
-        if dataframe is not None:
-            self._validate_dataframe(dataframe, dimensions, "Accumulated dataset")
+        """Join fragments on complete keys, optionally checking uniqueness and collisions."""
+        if self.validate:
+            self._validate_dataframe(fragment, dimensions, "Fragment")
+            if dataframe is not None:
+                self._validate_dataframe(dataframe, dimensions, "Accumulated dataset")
         return self._combine_fragment(dataframe, fragment, dimensions)
 
     def _combine_fragment(
         self, dataframe: object | None, fragment: object, dimensions: list[str]
     ) -> object:
-        """Combine a validated fragment with the accumulated dataframe."""
+        """Combine a fragment with the accumulated dataframe."""
         if dataframe is None:
             return fragment
-        dataframe_validation_module.validate_feature_collisions(
-            self.backend, dataframe, fragment, dimensions
-        )
+        if self.validate:
+            dataframe_validation_module.validate_feature_collisions(
+                self.backend, dataframe, fragment, dimensions
+            )
         return self._join_fragments(dataframe, fragment, dimensions)
 
     def _carried_dimensions(self, fragment: object, dimensions: list[str]) -> list[str]:
@@ -126,16 +133,21 @@ class DataFrameExecution:
                 f"Expand action {invocation.mapping_id} fragment carries a subset of the "
                 "dimension keys and requires the accumulated target dataset"
             )
-        dataframe_validation_module.validate_feature_collisions(
-            self.backend, dataframe, fragment, fragment_dimensions
-        )
+        if self.validate:
+            dataframe_validation_module.validate_feature_collisions(
+                self.backend, dataframe, fragment, fragment_dimensions
+            )
         left, right = self._aligned_frames(dataframe, fragment)
-        return self.backend.left_join(left, right, fragment_dimensions)
+        return self.backend.left_join(
+            left, right, fragment_dimensions, validate="m:1" if self.validate else "m:m"
+        )
 
     def _join_fragments(self, dataframe: object, fragment: object, dimensions: list[str]) -> object:
-        """Join validated frames, retaining the native eager/lazy behavior."""
+        """Join frames, retaining native eager/lazy behavior and optional cardinality checks."""
         left, right = self._aligned_frames(dataframe, fragment)
-        return self.backend.join(left, right, dimensions)
+        return self.backend.join(
+            left, right, dimensions, validate="1:1" if self.validate else "m:m"
+        )
 
     def _aligned_frames(self, dataframe: object, fragment: object) -> tuple[object, object]:
         """Return both frames, made lazy together when their types differ."""

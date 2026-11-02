@@ -495,7 +495,7 @@ def test_collapse_rejects_invalid_returns(
         return frame.drop("average") if shape == "missing" else pl.concat([frame, frame])
 
     monkeypatch.setattr(f"{__name__}.summarize", invalid)
-    result = engine_for_plan(plan, spec_definition=spec_definition).run()
+    result = engine_for_plan(plan, spec_definition=spec_definition).run(validate=True)
     assert message in next(iter(result.failures.values()))
     assert "summary" not in result.datasets
 
@@ -671,7 +671,7 @@ def test_fragment_dimension_policy_is_independent_of_expand_id(
     )
     monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
-    result = engine_for_plan(plan, spec_definition=spec_definition).run()
+    result = engine_for_plan(plan, spec_definition=spec_definition).run(validate=True)
 
     assert "missing dimension columns: id" in next(iter(result.failures.values()))
 
@@ -681,6 +681,6 @@ def test_expand_rejects_multirow_dimensionless_fragment(
 ):
     spec_definition = _broadcast_spec(read_reference_constant, inflate_reference, [], False)
     plan = compiler.Compiler().compile(spec_definition)
-    result = engine_for_plan(plan, spec_definition=spec_definition).run()
+    result = engine_for_plan(plan, spec_definition=spec_definition).run(validate=True)
 
     assert "at most one row" in next(iter(result.failures.values()))

@@ -32,7 +32,6 @@ JSON key | Type | Purpose
 `backend.type` | string | Engine type, such as `docker` or `python_venv`.
 `backend.definition` | string or `null` | Folder containing configuration files for the engine.
 `backend.dataframe` | string | Dataframe backend. The built-in engine currently supports `polars`.
-`backend.validate_lazy_frames` | boolean | Defaults to `true`. Set to `false` to skip value checks that would execute a Polars lazy query during engine validation.
 `backend.evaluation` | string | Reserved. Values such as `eager`, `lazy`, and `persist` are stored but have no effect on execution.
 `backend.batch_size` | integer, `"*"`, or `null` | Reserved. Validates positive integers, `"*"`, or `null`, but does not change how many records are read at a time.
 
@@ -184,13 +183,20 @@ source to the target dataset's row scope before returning a fragment.
 
 ## Runtime validation
 
-Before invoking a plan invocation, the engine checks that its declared feature
-inputs are materialized. Structural references have already been resolved by
-the compiler; the engine binds compiled dataframe identifiers to their runtime
-frames and substitutes `$params.<name>` references from project configuration.
-Missing inputs or parameters fail that invocation. For data-producing
-mappings, the built-in Polars backend accepts `DataFrame` and `LazyFrame`
-results. The engine then validates the returned fragment before merging it:
+Per-step runtime validation is opt-in. Use `uptimely run --validate` (also
+available as `uptimely engine run --validate`) or `Engine.run(validate=True)`
+to check declared feature inputs and returned dataframe contracts at each step.
+The same checks apply to eager and lazy frames.
+
+Without validation, the engine executes invocations, binds dataframe and
+parameter references, and assembles declared output fragments. Missing runtime
+bindings and native function or dataframe errors still fail their invocation.
+Saved-build integrity, configuration, and backend compatibility checks remain
+enabled regardless of this flag.
+
+With validation enabled, the engine checks declared feature input availability
+before invoking each non-effect action, then validates data-producing results
+before merging them:
 
 | Check | Runtime requirement |
 | --- | --- |
@@ -202,19 +208,18 @@ results. The engine then validates the returned fragment before merging it:
 | Feature collisions | Output feature columns do not replace columns already assembled. |
 | Vectorize coverage | Independently of row count, the result has exactly the accumulated target's dimension-key identities; row order may differ. |
 
-By default, checking lazy-frame key uniqueness, dimensionless row counts, and
-vectorize coverage executes queries. Set `backend.validate_lazy_frames` to
-`false` to skip these data-dependent checks for lazy frames. Required-column,
-schema/type, and feature-collision checks remain enabled, as do value checks for
-eager frames. Polars joins retain `validate="1:1"` and enforce that constraint
-when the resulting lazy query is collected. Skipped fragment checks (including
-vectorize coverage) are not otherwise deferred or guaranteed. Errors during
-later collection are not reflected in an already returned engine result.
+Checking lazy-frame key uniqueness, row counts, and vectorize coverage executes
+queries and may repeatedly recompute upstream operations. Enable validation
+when debugging or verifying action contracts; it can add substantial runtime.
+Validated joins also enforce one-to-one or many-to-one key constraints.
+Without validation, joins use unchecked many-to-many semantics and the checks
+above are skipped, not deferred to a write or final collection.
 
-This option does not prevent explicit collection by user functions, sinks, or
-`PolarsBackend.collect()`, nor does it prevent schema resolution from reading
-source metadata. Direct backend value queries such as `row_count()` on a lazy
-frame raise an error while implicit lazy execution is disabled.
+User functions, sinks, and explicit `collect()` calls can execute lazy queries
+in either mode. Fragment assembly may still resolve schemas, including source
+metadata. Errors during later collection are not reflected in an already
+returned engine result. The former `backend.validate_lazy_frames` setting has
+been removed; remove it from configuration and use the run flag instead.
 
 Logical types used for validation are:
 
@@ -235,7 +240,7 @@ repeated dimension feature metadata does not override the root type. Values
 are not automatically converted. An unknown declared type fails validation,
 while an omitted feature type skips that feature's type check.
 
-After validation, only dimension and declared output columns are merged.
+In either mode, only dimension and declared output columns are merged.
 Additional columns returned by a function are ignored, so they cannot replace
 other dataset features. Other data-producing operations may change coverage to
 create their target row scope.

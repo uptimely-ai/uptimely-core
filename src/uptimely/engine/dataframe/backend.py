@@ -15,11 +15,7 @@ class DataFrameBackend(typing.Protocol):
 
     name: str
 
-    def __init__(self, *, validate_lazy_frames: bool = True) -> None: ...
-
     def is_frame(self, value: object) -> bool: ...
-
-    def should_validate_values(self, frame: object) -> bool: ...
 
     def column_names(self, frame: object) -> list[str]: ...
 
@@ -31,7 +27,9 @@ class DataFrameBackend(typing.Protocol):
         self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "1:1"
     ) -> object: ...
 
-    def left_join(self, left: object, right: object, keys: abc.Sequence[str]) -> object: ...
+    def left_join(
+        self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "m:1"
+    ) -> object: ...
 
     def collect(self, frame: object) -> object: ...
 
@@ -49,30 +47,8 @@ class PolarsBackend:
 
     name = "polars"
 
-    def __init__(self, *, validate_lazy_frames: bool = True) -> None:
-        """Configure whether value validation may execute lazy query plans.
-
-        Args:
-            validate_lazy_frames: Execute lazy plans for data-dependent checks.
-                When false, engine validation skips these checks for LazyFrames.
-                Explicit calls to collect remain available.
-        """
-        self.validate_lazy_frames = validate_lazy_frames
-
     def is_frame(self, value: object) -> bool:
         return isinstance(value, (pl.DataFrame, pl.LazyFrame))
-
-    def should_validate_values(self, frame: object) -> bool:
-        """Allow eager validation, and lazy validation only when enabled."""
-        return self.validate_lazy_frames or not isinstance(frame, pl.LazyFrame)
-
-    def _require_value_validation(self, frame: object) -> None:
-        """Prevent direct value queries from implicitly executing disabled lazy plans."""
-        if not self.should_validate_values(frame):
-            raise ValueError(
-                "Implicit lazy execution is disabled by validate_lazy_frames=False; "
-                "collect the frame explicitly before querying its values"
-            )
 
     def column_names(self, frame: object) -> list[str]:
         if isinstance(frame, pl.LazyFrame):
@@ -89,9 +65,12 @@ class PolarsBackend:
         self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "1:1"
     ) -> object:
         if not keys:
-            for frame in (left, right):
-                if self.should_validate_values(frame) and self.row_count(frame) > 1:
-                    raise ValueError("Dimensionless fragments must contain at most one global row")
+            if validate != "m:m":
+                for frame in (left, right):
+                    if self.row_count(frame) > 1:
+                        raise ValueError(
+                            "Dimensionless fragments must contain at most one global row"
+                        )
             key = "__uptimely_global_key"
             columns = set(self.column_names(left)) | set(self.column_names(right))
             while key in columns:
@@ -116,10 +95,12 @@ class PolarsBackend:
             nulls_equal=True,
         )
 
-    def left_join(self, left: object, right: object, keys: abc.Sequence[str]) -> object:
+    def left_join(
+        self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "m:1"
+    ) -> object:
         """Left-join a lower-dimensional fragment, broadcasting when it has no keys."""
         if not keys:
-            if self.should_validate_values(right) and self.row_count(right) > 1:
+            if validate != "m:m" and self.row_count(right) > 1:
                 raise ValueError("Dimensionless fragments must contain at most one global row")
             return left.join(right, how="cross")
         return left.join(
@@ -127,7 +108,7 @@ class PolarsBackend:
             on=list(keys),
             how="left",
             coalesce=True,
-            validate="m:1",
+            validate=validate,
             nulls_equal=True,
         )
 
@@ -135,14 +116,12 @@ class PolarsBackend:
         return frame.collect()
 
     def is_duplicated(self, frame: object) -> bool:
-        self._require_value_validation(frame)
         if isinstance(frame, pl.LazyFrame):
             frame = frame.collect()
         return bool(frame.is_duplicated().any())
 
     def row_count(self, frame: object) -> int:
         """Return the row count without materializing all columns of a lazy frame."""
-        self._require_value_validation(frame)
         count = frame.select(pl.len())
         if isinstance(count, pl.LazyFrame):
             count = count.collect()
@@ -150,8 +129,6 @@ class PolarsBackend:
 
     def same_keys(self, left: object, right: object, keys: abc.Sequence[str]) -> bool:
         """Compare observation identities without assuming physical row order."""
-        self._require_value_validation(left)
-        self._require_value_validation(right)
         if not keys:
             return self.row_count(left) == self.row_count(right)
         left_keys = left.select(list(keys))
@@ -193,4 +170,4 @@ def create_backend(config: config_module.EngineBackendConfig) -> DataFrameBacken
         backend_class = DATAFRAME_BACKENDS[config.dataframe.lower()]
     except KeyError as error:
         raise ValueError(f"Unsupported dataframe backend: {config.dataframe}") from error
-    return backend_class(validate_lazy_frames=config.validate_lazy_frames)
+    return backend_class()
