@@ -1,9 +1,11 @@
 """Tests for the packaged Explorer frontend and snapshot API."""
 
 import asyncio
+import io
 import json
 import logging
 import pathlib
+import zipfile
 
 import pytest
 from starlette.types import ASGIApp, Message, Scope
@@ -112,6 +114,22 @@ def test_snapshot_api_reports_rebuild_instructions(tmp_path: pathlib.Path, kind:
 
     assert status == 503
     assert "uptimely project build" in json.loads(body)["detail"]
+
+
+def test_export_route_returns_static_zip_with_relative_data_url(
+    tmp_path: pathlib.Path,
+) -> None:
+    snapshot_path = tmp_path / project.EXPLORER_DATA_FILE
+    snapshot_path.parent.mkdir(parents=True)
+    snapshot_path.write_text(json.dumps(_snapshot()), encoding="utf-8")
+
+    status, body, headers = _get(explorer_server.create_app(tmp_path), "/api/explorer/export")
+
+    assert status == 200
+    assert headers["content-type"] == "application/zip"
+    with zipfile.ZipFile(io.BytesIO(body)) as archive:
+        assert json.loads(archive.read("data/explorer.json")) == _snapshot()
+        assert '"./data/explorer.json"' in archive.read("config.js").decode("utf-8")
 
 
 @pytest.mark.parametrize("kind", ["missing", "file"])

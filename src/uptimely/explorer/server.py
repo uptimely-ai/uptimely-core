@@ -3,13 +3,17 @@
 import json
 import logging
 import pathlib
+import shutil
+import tempfile
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 
 from uptimely import project_paths
+from uptimely.explorer import export as explorer_export
 from uptimely.explorer import presentation
 
 logger = logging.getLogger(__name__)
@@ -30,30 +34,13 @@ def _read_snapshot(path: pathlib.Path) -> JSONResponse:
             detail=f"Explorer data could not be read: {error}. {_BUILD_INSTRUCTION}",
         ) from error
 
-    required_keys = {
-        "format_version",
-        "project",
-        "scope",
-        "catalogs",
-        "graphs",
-        "plan",
-        "stages",
-        "animation",
-    }
-    if (
-        not isinstance(data, dict)
-        or data.get("format_version") != presentation.EXPLORER_FORMAT_VERSION
-        or not required_keys.issubset(data)
-        or any(
-            not isinstance(data.get(key), dict)
-            for key in ("project", "scope", "catalogs", "graphs", "plan", "animation")
-        )
-        or not isinstance(data.get("stages"), list)
-    ):
+    try:
+        data = presentation.validate_presentation_data(data)
+    except (TypeError, ValueError) as error:
         raise HTTPException(
             status_code=503,
-            detail=f"Explorer data is invalid or unsupported. {_BUILD_INSTRUCTION}",
-        )
+            detail=f"Explorer data is invalid or unsupported: {error}. {_BUILD_INSTRUCTION}",
+        ) from error
     return JSONResponse(data, headers={"Cache-Control": "no-store"})
 
 
@@ -83,6 +70,36 @@ def create_app(project_root: pathlib.Path) -> FastAPI:
     @app.get("/api/explorer", include_in_schema=False)
     def explorer_data() -> JSONResponse:
         return _read_snapshot(project_root / project_paths.EXPLORER_DATA_FILE)
+
+    @app.get("/api/explorer/export", include_in_schema=False)
+    def export_explorer() -> FileResponse:
+        temporary_root = pathlib.Path(tempfile.mkdtemp(prefix="uptimely-explorer-export-"))
+        archive = temporary_root / "uptimely-explorer.zip"
+        try:
+            explorer_export.export_static(project_root, archive)
+        except (
+            FileNotFoundError,
+            UnicodeDecodeError,
+            json.JSONDecodeError,
+            TypeError,
+            ValueError,
+        ) as error:
+            shutil.rmtree(temporary_root)
+            raise HTTPException(
+                status_code=503,
+                detail=f"Explorer export failed: {error}. {_BUILD_INSTRUCTION}",
+            ) from error
+        except OSError as error:
+            shutil.rmtree(temporary_root)
+            raise HTTPException(
+                status_code=500, detail=f"Explorer export failed: {error}"
+            ) from error
+        return FileResponse(
+            archive,
+            filename=archive.name,
+            media_type="application/zip",
+            background=BackgroundTask(shutil.rmtree, temporary_root),
+        )
 
     app.mount("/", StaticFiles(directory=str(static_root), html=True), name="explorer")
     return app

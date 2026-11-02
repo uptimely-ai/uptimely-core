@@ -3,6 +3,7 @@
 import json
 import pathlib
 import sys
+import zipfile
 
 import pytest
 from starlette.types import ASGIApp
@@ -35,6 +36,7 @@ def built_project(
         ["explorer", "serve", "--spec", str(SPEC_PATH)],
         ["explorer", "serve", "--plan", "plan.json"],
         ["explorer", "serve", "--directory", "website"],
+        ["explorer", "export"],
         ["docs"],
     ],
 )
@@ -150,6 +152,42 @@ def test_explorer_reports_selected_scope(
     assert scopes == ["selected features: pump_health_score"]
     snapshot = json.loads((built_project / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert snapshot["scope"]["label"] == "selected features: pump_health_score"
+
+
+@pytest.mark.parametrize("as_zip", [False, True])
+def test_explorer_export_command_creates_static_output(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    built_project: pathlib.Path,
+    as_zip: bool,
+) -> None:
+    output = tmp_path / "export.zip" if as_zip else tmp_path / "nested" / "static"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "uptimely",
+            "explorer",
+            "export",
+            "--project-root",
+            str(built_project),
+            "--output",
+            str(output),
+        ],
+    )
+
+    cli.main()
+
+    if as_zip:
+        with zipfile.ZipFile(output) as archive:
+            config = archive.read("config.js").decode("utf-8")
+            assert '"./data/explorer.json"' in config
+            assert "data/explorer.json" in archive.namelist()
+    else:
+        assert (output / "index.html").is_file()
+        config = (output / "config.js").read_text(encoding="utf-8")
+        assert '"./data/explorer.json"' in config
+        assert (output / "data" / "explorer.json").is_file()
 
 
 @pytest.mark.parametrize("command", ["explore", "explorer"])

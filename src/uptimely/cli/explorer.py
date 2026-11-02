@@ -6,6 +6,7 @@ import pathlib
 
 from uptimely import project
 from uptimely.cli import common
+from uptimely.explorer import export as explorer_export
 from uptimely.explorer import server as explorer_server
 from uptimely.project import build as project_build
 
@@ -51,6 +52,8 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     actions = parser.add_subparsers(dest="action", required=True)
     serve = actions.add_parser("serve", help="Serve the active build's Explorer data")
     configure_serve_parser(serve)
+    export = actions.add_parser("export", help="Export the static frontend and Explorer snapshot")
+    configure_export_parser(export)
 
 
 def configure_serve_parser(parser: argparse.ArgumentParser) -> None:
@@ -70,9 +73,31 @@ def configure_serve_parser(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def configure_export_parser(parser: argparse.ArgumentParser) -> None:
+    """Configure the static Explorer export command."""
+    common.configure_project_root_arguments(
+        parser,
+        option_help="Project root containing the Explorer snapshot",
+    )
+    parser.add_argument(
+        "--output",
+        type=pathlib.Path,
+        required=True,
+        help="Output directory or ZIP file (a .zip suffix selects ZIP output)",
+    )
+
+
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    """Serve the packaged frontend with the current generated Explorer snapshot."""
+    """Run an Explorer command."""
     project_root = common.resolve_project_root(args, parser).resolve()
+    if getattr(args, "action", "serve") == "export":
+        try:
+            output = explorer_export.export_static(project_root, args.output)
+            logger.info("Explorer export created at %s", output)
+        except (OSError, ValueError, RuntimeError) as error:
+            parser.exit(1, f"uptimely: error: {error}\n")
+        return
+
     try:
         if args.build:
             bundle = project_build.build_project(project_root)
