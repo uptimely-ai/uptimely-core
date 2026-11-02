@@ -139,11 +139,15 @@ def test_engine_cli_reports_processed_datasets(
         "Dataset: pump_dataset\n"
     )
     assert "shape:" not in output
-    assert "\n=== read | " in output
-    assert "\n  Fragment read_constants:\n    - checking dataframe type\n" in output
-    assert output.count("Fragment read_constants:") == 1
-    assert "\n  Accumulated dataset:\n    - checking dataframe type\n" in output
-    assert "\n  Accumulated dataset merge:\n    - checking fragment feature collisions\n" in output
+    assert "\nInvocation: read_constants [read]\n" in output
+    assert "  Function: read_constants\n" not in output
+    assert "\n  Fragment:\n    - checking dataframe type\n" in output
+    assert "Fragment read_constants:" not in output
+    assert "\n  Main frame:\n    - checking dataframe type\n" in output
+    assert (
+        "\n  Merge:\n    Target dataset: pump_telemetry_dataset\n"
+        "    - checking fragment feature collisions\n    - full join on "
+    ) in output
     assert "\n  Completed in " not in output
     assert "\x1b[" not in output
 

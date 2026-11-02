@@ -86,12 +86,18 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     ]
     assert written["features"] == ["doubled"]
     assert written["dataset"].select("asset_id", "doubled").rows() == [("A", 4), ("B", 6)]
-    headings = [message for message in caplog.messages if message.startswith("\n=== ")]
+    headings = [message for message in caplog.messages if message.startswith("\nInvocation: ")]
     assert headings == [
-        f"\n=== {invocation.function_kind} | {invocation.id} ===\n  Target dataset: telemetry"
+        f"\nInvocation: {invocation.mapping_id} [{invocation.function_kind}]"
         for invocation in engine.plan.execution_invocations
     ]
-    assert any(message.startswith("  Fragment ") for message in caplog.messages) is validate
+    assert caplog.messages.count("  Merge:\n    Target dataset: telemetry") == 2
+    assert [message for message in caplog.messages if message.startswith("  Function: ")] == [
+        "  Function: load",
+        "  Function: double",
+        "  Function: save",
+    ]
+    assert ("  Fragment:" in caplog.messages) is validate
 
 
 @pytest.mark.parametrize("dimensionless", [False, True])
@@ -402,24 +408,23 @@ def test_executor_validates_inputs_against_current_runtime_state(
         input_features=["local"],
     )
 
-    runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
+    validator = runtime_validation.InvocationValidator(executor.backend, executor.state, invocation)
+    validator.validate()
     invocation.input_features[:] = ["unique"]
-    runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
+    validator.validate()
     invocation.input_features[:] = ["shared"]
     with pytest.raises(ValueError, match="unavailable or ambiguous: shared"):
-        runtime_validation.InvocationValidator(executor.backend, executor.state).validate(
-            invocation
-        )
+        validator.validate()
     runtime_state.main_frames["dataset"].dataframe = pl.DataFrame({"new": [1]})
     del runtime_state.main_frames["second"]
     invocation.input_features[:] = ["new"]
-    runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
+    validator.validate()
     invocation.input_features[:] = ["shared"]
-    runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
+    validator.validate()
     assert (
         caplog.messages
         == [
-            "  Inputs for action calculate:",
+            "  Requirements:",
             "    - checking declared input features",
         ]
         * 5
@@ -1067,11 +1072,73 @@ def test_input_validation_reads_each_dataset_schema_once(
         engine.plan.invocations[1], input_features=["asset_id", "reading", "other"]
     )
 
-    runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
+    runtime_validation.InvocationValidator(executor.backend, executor.state, invocation).validate()
 
     assert len(inspected) == 2
     assert inspected[0] is state.main_frames["telemetry"].dataframe
     assert inspected[1] is state.main_frames["source"].dataframe
+
+
+@pytest.mark.parametrize(
+    ("invalid", "message", "check_count"),
+    [
+        ("no_argument", "exactly one foreign dataframe argument", 1),
+        ("multiple_arguments", "exactly one foreign dataframe argument", 1),
+        ("non_reference", "must reference a foreign source dataset", 2),
+        ("target_reference", "must reference a foreign source dataset", 2),
+        ("missing_source", "Dataset dataframe is unavailable: missing", 3),
+        ("missing_feature", "input feature is unavailable in foreign source dataset", 4),
+        (None, None, 4),
+    ],
+)
+def test_foreign_input_validation_runs_atomic_checks_in_fail_fast_order(
+    caplog: pytest.LogCaptureFixture,
+    invalid: str | None,
+    message: str | None,
+    check_count: int,
+) -> None:
+    caplog.set_level(logging.DEBUG, logger=runtime_validation.__name__)
+    invocation = dataclasses.replace(
+        _plan().invocations[1],
+        function_kind="expand",
+        argument_types={"source": "dataframe"},
+        arguments={"source": "source"},
+        input_features=["reading"],
+    )
+    if invalid == "no_argument":
+        invocation.argument_types.clear()
+    elif invalid == "multiple_arguments":
+        invocation.argument_types["other"] = "dataframe"
+    elif invalid == "non_reference":
+        invocation.arguments["source"] = 1
+    elif invalid == "target_reference":
+        invocation.arguments["source"] = invocation.dataset_id
+    elif invalid == "missing_source":
+        invocation.arguments["source"] = "missing"
+    elif invalid == "missing_feature":
+        invocation.input_features[:] = ["missing"]
+    state = state_module.RuntimeState(
+        main_frames={"source": execution_support.main_frame(pl.DataFrame({"reading": [1]}))}
+    )
+    validator = runtime_validation.InvocationValidator(
+        backend_module.PolarsBackend(), state, invocation
+    )
+
+    if message is None:
+        validator.validate()
+    else:
+        with pytest.raises(ValueError, match=message):
+            validator.validate()
+
+    assert caplog.messages == [
+        "  Requirements:",
+        *[
+            "    - checking foreign dataframe argument",
+            "    - checking foreign source reference",
+            "    - checking foreign source availability",
+            "    - checking foreign input features",
+        ][:check_count],
+    ]
 
 
 @pytest.mark.parametrize("sources", [0, 2])
@@ -1090,9 +1157,9 @@ def test_input_validation_rejects_missing_or_ambiguous_foreign_features(
     )
 
     with pytest.raises(ValueError, match="input feature is unavailable or ambiguous: reading"):
-        runtime_validation.InvocationValidator(executor.backend, executor.state).validate(
-            engine.plan.invocations[1]
-        )
+        runtime_validation.InvocationValidator(
+            executor.backend, executor.state, engine.plan.invocations[1]
+        ).validate()
 
 
 def test_runtime_state_prefers_dataset_to_fragment_lookup() -> None:

@@ -1,6 +1,7 @@
 """Invoke plan operations and commit their fragments to logical dataset main frames."""
 
 import functools
+import logging
 import typing
 
 from uptimely import entrypoint as entrypoint_module
@@ -14,6 +15,8 @@ from uptimely.spec import arg_types, functions
 from . import bindings as bindings_module
 from . import state as state_module
 from . import validation as validation_module
+
+logger = logging.getLogger(__name__)
 
 
 class InvocationExecutor:
@@ -44,7 +47,7 @@ class InvocationExecutor:
             self._invoke(invocation)
             return
         if self.validate:
-            validation_module.InvocationValidator(self.backend, self.state).validate(invocation)
+            validation_module.InvocationValidator(self.backend, self.state, invocation).validate()
         if definition.is_sink:
             if invocation.dataset_id not in self.state.main_frames:
                 raise KeyError(invocation.dataset_id)
@@ -88,6 +91,7 @@ class InvocationExecutor:
                 self.backend,
                 invocation.id_columns,
             )
+        validator = None
         if self.validate and main_frame.dataframe is not None:
             validator = dataframe_validation.MainFrameValidator(
                 self.backend,
@@ -97,6 +101,8 @@ class InvocationExecutor:
                 column_types=invocation.column_types,
             )
             validator.validate()
+        logger.debug("  Merge:\n    Target dataset: %s", dataset_id)
+        if validator is not None:
             validator.validate_merge(fragment.dataframe)
         main_frame.merge(
             fragment,

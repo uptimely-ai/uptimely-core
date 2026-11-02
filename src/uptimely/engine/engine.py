@@ -94,11 +94,12 @@ class Engine:
         for invocation in self.plan.execution_invocations:
             started = time.perf_counter()
             logger.debug(
-                "\n=== %s | %s ===\n  Target dataset: %s",
+                "\nInvocation: %s [%s]",
+                invocation.mapping_id,
                 invocation.function_kind,
-                invocation.id,
-                invocation.dataset_id,
             )
+            if invocation.function_id != invocation.mapping_id:
+                logger.debug("  Function: %s", invocation.function_id)
             try:
                 invocation_executor.execute(invocation)
             except Exception as error:

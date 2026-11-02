@@ -1,9 +1,12 @@
 """Physical dataframe accumulation using explicit identifier columns."""
 
+import logging
 from collections import abc
 
 from . import backend as backend_module
 from . import fragment as fragment_module
+
+logger = logging.getLogger(__name__)
 
 
 class MainFrame:
@@ -58,12 +61,16 @@ class MainFrame:
                     "A fragment with fewer identifier columns requires the accumulated "
                     "main dataframe"
                 )
+            logger.debug("    - initialize from fragment (no join)")
             merged = fragment.dataframe
         else:
             left, right = self.dataframe, fragment.dataframe
             if type(left) is not type(right):
                 left, right = self.backend.lazy(left), self.backend.lazy(right)
             if same_grain:
+                logger.debug(
+                    "    - full join on %s (cardinality %s)", self.id_columns, join_cardinality
+                )
                 merged = self.backend.join(
                     left,
                     right,
@@ -71,8 +78,14 @@ class MainFrame:
                     validate=join_cardinality,
                 )
             elif not fragment.dimensions:
+                logger.debug("    - cross join (dimensionless broadcast)")
                 merged = self.backend.cross_join(left, right)
             else:
+                logger.debug(
+                    "    - left join on %s (cardinality %s)",
+                    fragment.dimensions,
+                    broadcast_cardinality,
+                )
                 merged = self.backend.left_join(
                     left,
                     right,

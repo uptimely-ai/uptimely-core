@@ -54,6 +54,12 @@ uptimely run examples/pump_analytics --validate --log-level debug
 
 The log level applies to Uptimely loggers, not third-party dependency loggers.
 It does not enable validation; use `--validate` to run the runtime checks.
+Debug headings use `Invocation: read_constants [read]`, with the function ID
+below when different. Subsections are `Requirements:`, `Fragment:`,
+`Main frame:`, and `Merge:`, shown only when reached.
+The merge section shows the target dataset, join kind, keys,
+and cardinality; initial fragments are identified as initialization without a
+join. Internal invocation IDs remain unchanged.
 
 Without `--validate`, the engine still binds arguments and assembles declared
 output fragments, but skips input-feature, schema/type, uniqueness, row-count,
