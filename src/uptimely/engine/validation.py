@@ -2,47 +2,31 @@
 
 from __future__ import annotations
 
-import collections.abc
-import graphlib
+import dataclasses
 
 from uptimely import execution_plan
 from uptimely.engine.dataframe import backend as backend_module
 
-type Validator = collections.abc.Callable[
-    [execution_plan.ExecutionPlan, backend_module.DataFrameBackend], None
-]
 
+@dataclasses.dataclass(frozen=True)
+class EngineValidator:
+    """Validate a portable execution plan against the configured backend."""
 
-def validate_plan_backend(
-    plan: execution_plan.ExecutionPlan,
-    backend: backend_module.DataFrameBackend,
-) -> None:
-    """Require the engine backend to match the saved plan."""
-    if plan.required_backend != backend.name:
-        raise ValueError(
-            f"Unsupported plan backend: {plan.required_backend}. Expected {backend.name}."
-        )
+    plan: execution_plan.ExecutionPlan
+    backend: backend_module.DataFrameBackend
 
+    def validate(self) -> None:
+        """Check that the configured engine can execute the plan.
 
-ENGINE_VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
-    validate_plan_backend: (),
-}
+        Raises:
+            ValueError: The plan is incompatible with the configured backend.
+        """
+        self._validate_plan_backend()
 
-
-def validate_engine(
-    plan: execution_plan.ExecutionPlan,
-    backend: backend_module.DataFrameBackend,
-) -> None:
-    """Run engine-configuration checks in prerequisite order.
-
-    Args:
-        plan: Plan to validate against the configured backend.
-        backend: Backend selected for engine execution.
-
-    Raises:
-        ValueError: A plan is incompatible with the configured engine.
-        graphlib.CycleError: Validator dependencies contain a configuration cycle.
-    """
-    ordered = tuple(graphlib.TopologicalSorter(ENGINE_VALIDATION_DEPENDENCIES).static_order())
-    for validate in ordered:
-        validate(plan, backend)
+    def _validate_plan_backend(self) -> None:
+        """Require the engine backend to match the saved plan."""
+        if self.plan.required_backend != self.backend.name:
+            raise ValueError(
+                f"Unsupported plan backend: {self.plan.required_backend}. "
+                f"Expected {self.backend.name}."
+            )

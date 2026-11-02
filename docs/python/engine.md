@@ -10,6 +10,8 @@ Use `engine.run(validate=True)` to validate input features, schema/types,
 dimension-key uniqueness, row-count and key preservation, and output collisions
 at every step for eager and lazy frames. Lazy value checks may repeatedly execute
 upstream queries. Configuration and saved-build checks are always enabled.
+`EngineValidator` checks plan/backend compatibility during engine construction,
+independently of the run's `validate` flag.
 
 ## Main frames and fragments
 
