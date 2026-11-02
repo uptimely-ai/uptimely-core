@@ -45,20 +45,20 @@ Use one main VS Code window to manage `main` and basic tasks. For parallel
 agent-driven work, use a separate Git worktree and VS Code window for each task.
 
 From the project root inside the VS Code devcontainer, create a detached
-worktree from `main` under `/workspaces/`. This keeps the directory name
+worktree from `main` under `/home/vscode/worktrees`. This keeps the directory name
 independent of the branch name and avoids creating a branch named `worktree-a`:
 
 ```sh
-git worktree add --detach ~/worktrees/worktree-a main
+git worktree add --detach /home/vscode/worktrees/worktree-a main
 ```
 
 Create the task branch in the worktree and open it in a new VS Code window
 without changing the current directory:
 
 ```sh
-git -C ~/worktrees/worktree-a switch -c feature/tune-explorer-layout
-git -C ~/worktrees/worktree-a branch --show-current
-code --new-window ~/worktrees/worktree-a
+git -C /home/vscode/worktrees/worktree-a switch -c feature/tune-explorer-layout
+git -C /home/vscode/worktrees/worktree-a branch --show-current
+code --new-window /home/vscode/worktrees/worktree-a
 ```
 
 For an existing branch, omit `-c` from the `git -C ... switch` command.
