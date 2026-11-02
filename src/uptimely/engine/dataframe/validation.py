@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 
 from uptimely import execution_plan
 from uptimely.spec import functions
 
 from . import backend as backend_module
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -28,6 +31,7 @@ class _FrameValidator:
 
     def _validate_frame_type(self) -> None:
         """Require a dataframe before inspecting its schema."""
+        logger.debug("%s: checking dataframe type", self.description)
         if not self.backend.is_frame(self.frame):
             raise ValueError(
                 self.invalid_frame_message
@@ -36,6 +40,7 @@ class _FrameValidator:
 
     def _validate_dimension_columns(self) -> None:
         """Require all carried dimension columns."""
+        logger.debug("%s: checking required dimension columns", self.description)
         missing = sorted(set(self.dimensions) - self.columns)
         if missing:
             raise ValueError(
@@ -44,7 +49,13 @@ class _FrameValidator:
 
     def _validate_dimensionless_row_count(self) -> None:
         """Limit a dimensionless dataframe to at most one observation."""
-        if not self.dimensions and self.backend.row_count(self.frame) > 1:
+        if self.dimensions:
+            logger.debug(
+                "%s: skipping dimensionless row count (data has dimensions)", self.description
+            )
+            return
+        logger.debug("%s: checking dimensionless row count", self.description)
+        if self.backend.row_count(self.frame) > 1:
             raise ValueError(
                 f"{self.description} contains duplicate dimension keys "
                 "(dimensionless datasets allow at most one row)"
@@ -53,7 +64,9 @@ class _FrameValidator:
     def _validate_unique_dimension_keys(self) -> None:
         """Reject duplicate observation keys."""
         if not self.dimensions:
+            logger.debug("%s: skipping dimension-key uniqueness (no dimensions)", self.description)
             return
+        logger.debug("%s: checking dimension-key uniqueness", self.description)
         keys = self.backend.select(self.frame, self.dimensions)
         if self.backend.is_duplicated(keys):
             raise ValueError(f"{self.description} contains duplicate dimension keys")
@@ -61,6 +74,7 @@ class _FrameValidator:
     def _validate_column_types(self, columns: list[str]) -> None:
         """Validate logical types declared for selected columns."""
         types = {name: self.column_types[name] for name in columns if name in self.column_types}
+        logger.debug("%s: checking declared column types: %s", self.description, types)
         self.backend.validate_types(self.frame, types)
 
 
@@ -103,7 +117,9 @@ class FragmentValidator(_FrameValidator):
     def _validate_row_count(self) -> None:
         """Enforce the function kind's row-count preservation contract."""
         if self._function_definition().row_count_relation != "same":
+            logger.debug("%s: skipping row-count preservation (not required)", self.description)
             return
+        logger.debug("%s: checking row-count preservation", self.description)
         if self.comparison_frame is None or self.backend.row_count(
             self.comparison_frame
         ) != self.backend.row_count(self.frame):
@@ -114,6 +130,7 @@ class FragmentValidator(_FrameValidator):
 
     def _validate_output_columns(self) -> None:
         """Require every declared action output in the raw result."""
+        logger.debug("%s: checking declared output columns", self.description)
         missing = sorted(set(self.effective_output_features) - self.columns)
         if missing:
             raise ValueError(
@@ -123,12 +140,15 @@ class FragmentValidator(_FrameValidator):
 
     def _validate_declared_types(self) -> None:
         """Check logical types of carried dimensions and declared outputs."""
+        logger.debug("%s: checking dimension and output types", self.description)
         self._validate_column_types([*self.dimensions, *self.effective_output_features])
 
     def _validate_key_coverage(self) -> None:
         """Enforce the function kind's key-identity contract."""
         if self._function_definition().key_relation != "identical":
+            logger.debug("%s: skipping dimension-key preservation (not required)", self.description)
             return
+        logger.debug("%s: checking dimension-key preservation", self.description)
         if self.comparison_frame is None or not self.backend.same_keys(
             self.comparison_frame, self.frame, self.dimensions
         ):
@@ -163,6 +183,7 @@ class MainFrameValidator(_FrameValidator):
 
     def _validate_declared_types(self) -> None:
         """Check only declared columns already present in the accumulated frame."""
+        logger.debug("%s: checking types of present columns", self.description)
         columns = self.columns
         self._validate_column_types([name for name in self.column_types if name in columns])
 
@@ -179,6 +200,7 @@ class MainFrameValidator(_FrameValidator):
 
     def _validate_feature_collisions(self, fragment: object) -> None:
         """Reject output feature names already present in the accumulated dataset."""
+        logger.debug("%s: checking fragment feature collisions", self.description)
         fragment_columns = set(self.backend.column_names(fragment))
         collisions = sorted((fragment_columns - set(self.dimensions)) & self.columns)
         if collisions:

@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Engine validation checks now emit debug logs, including reasons for skipping
+  inapplicable dataframe checks.
 - Spec documents and execution plans now expose reusable resource indexes for
   datasets, features, actions or invocations, and arguments.
   Nested spec models also provide cached child, reference, and source views,
