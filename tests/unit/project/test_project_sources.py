@@ -176,5 +176,5 @@ def test_complete_build_validates_spec_semantics_once(
     check.assert_called_once()
     assert caplog.messages.count("\nSpec validation:\n  Document structure:") == 1
     assert bundle.spec_path.is_file()
-    assert (bundle.explorer_path / "index.html").is_file()
+    assert (tmp_path / project.EXPLORER_DATA_FILE).is_file()
     assert project.load_build_bundle(tmp_path).spec_definition == bundle.spec_definition
