@@ -25,7 +25,7 @@ available in an installed version.
 | `uptimely spec feature-graph` | [Spec feature-graph](spec.md) | Inspect feature dependencies. |
 | `uptimely engine` | [Engine](engine.md) | Run an analytics workflow. |
 | `uptimely examples` | [Examples](examples.md) | Download runnable example projects. |
-| `uptimely explorer` | [Explorer](explorer.md) | Preview the Analytics Explorer website. |
+| `uptimely explorer` | [Explorer](explorer.md) | Preview or export the Analytics Explorer. |
 | `uptimely project` | [Project](project.md) | Build and publish a complete active bundle. |
 | `uptimely build` | [Project build](project.md) | Shortcut for `uptimely project build`. |
 | `uptimely run` | [Engine run](engine.md) | Shortcut for `uptimely engine run`. |

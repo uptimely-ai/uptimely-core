@@ -28,10 +28,11 @@ jobs:
       - name: Build pump analytics demo site
         run: |
           poetry run uptimely project build --project-root examples/pump_analytics
-      - name: Add generated Explorer to the docs
+      - name: Export static Explorer to the docs
         run: |
-          mkdir -p docs/examples/pump_analytics
-          cp -R examples/pump_analytics/_generated/build/explorer/. docs/examples/pump_analytics/
+          poetry run uptimely explorer export \
+            --project-root examples/pump_analytics \
+            --output docs/examples/pump_analytics
       - run: poetry run mkdocs build --site-dir site
       - name: Upload the site for deployment
         uses: actions/upload-pages-artifact@v3

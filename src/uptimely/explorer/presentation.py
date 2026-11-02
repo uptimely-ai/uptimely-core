@@ -117,8 +117,8 @@ def build_presentation_data(
     return typing.cast(ExplorerPresentationData, _json_value(result))
 
 
-def serialize_presentation_data(data: ExplorerPresentationData) -> str:
-    """Validate and serialize an Explorer presentation snapshot."""
+def validate_presentation_data(value: object) -> ExplorerPresentationData:
+    """Validate the versioned structure expected by the Explorer frontend."""
     required_keys = {
         "format_version",
         "project",
@@ -129,11 +129,23 @@ def serialize_presentation_data(data: ExplorerPresentationData) -> str:
         "stages",
         "animation",
     }
-    if set(data) != required_keys or data["format_version"] != EXPLORER_FORMAT_VERSION:
+    if not isinstance(value, dict):
+        raise ValueError("Explorer presentation data must be an object")
+    if (
+        set(value) != required_keys
+        or type(value.get("format_version")) is not int
+        or value["format_version"] != EXPLORER_FORMAT_VERSION
+    ):
         raise ValueError("Explorer presentation data has an unsupported schema")
     for key in ("project", "scope", "catalogs", "graphs", "plan", "animation"):
-        if not isinstance(data[key], dict):
+        if not isinstance(value[key], dict):
             raise ValueError(f"Explorer presentation field {key!r} must be an object")
-    if not isinstance(data["stages"], list):
+    if not isinstance(value["stages"], list):
         raise ValueError("Explorer presentation field 'stages' must be a list")
+    return typing.cast(ExplorerPresentationData, value)
+
+
+def serialize_presentation_data(data: ExplorerPresentationData) -> str:
+    """Validate and serialize an Explorer presentation snapshot."""
+    data = validate_presentation_data(data)
     return json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False)

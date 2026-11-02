@@ -48,3 +48,34 @@ invalid snapshot is reported by the data API with the same recovery
 instruction. Scoped builds are identified in the server output and frontend;
 catalogs cover the full spec while the plan and animation reflect the selected
 outputs and their dependencies.
+
+## `explorer export`
+
+Export the packaged HTML, CSS, JavaScript, and current Explorer snapshot for
+ordinary static HTTP hosting. The output can be a directory or a ZIP file;
+`.zip` selects archive output. The generated `config.js` uses a relative URL
+for `data/explorer.json`, so the export can live beneath a documentation
+site's path prefix.
+
+```console
+uptimely explorer export [PROJECT_ROOT] --output PATH
+```
+
+The command reads and validates the saved snapshot once. It does not start
+FastAPI, compile the project, or render pages. Build the project first with
+`uptimely project build`. The same ZIP is available from the local server at
+`GET /api/explorer/export`.
+
+| Option | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `PROJECT_ROOT` | No | Current working directory | Project root containing the Explorer snapshot. |
+| `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. |
+| `--output PATH` | Yes | — | Output directory or `.zip` archive. Matching files in an existing output directory are replaced. |
+
+Example:
+
+```console
+uptimely project build examples/pump_analytics
+uptimely explorer export examples/pump_analytics --output docs/examples/pump_analytics
+uptimely explorer export examples/pump_analytics --output pump-analytics-explorer.zip
+```
