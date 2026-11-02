@@ -187,9 +187,16 @@ function loadLineageScript(context, filename) {
 	} else if (filename === 'graphs/graph_view_controller.js') {
 		source = source.replace(/^export function /gm, 'function ');
 		source += '\nglobalThis.mountLineageViews = mountLineageViews;';
-	} else {
+	} else if (filename === 'graphs/lineage_initializer.js') {
 		source = source.replace(
 			/^import \{ (?:ExplorerLineage|mountLineageViews) \} from '\.\/[^']+';\n/gm,
+			'',
+		);
+		source = source.replace(/^export function /gm, 'function ');
+		source += '\nglobalThis.initializeLineage = initializeLineage;';
+	} else {
+		source = source.replace(
+			/^import \{ (?:ExplorerLineage|initializeLineage|mountLineageViews) \} from '\.\/[^']+';\n/gm,
 			'',
 		);
 		const initializer = source.match(/export function (initialize\w+)/)?.[1];
@@ -203,7 +210,10 @@ function loadLineageScript(context, filename) {
 }
 
 function loadLineageDependencies(context) {
-	for (const script of ['graphs/graph_config.js', 'graphs/dataset_layout.js', 'graphs/graph_components.js']) {
+	for (const script of [
+		'graphs/graph_config.js', 'graphs/dataset_layout.js',
+		'graphs/graph_components.js', 'graphs/lineage_initializer.js',
+	]) {
 		loadLineageScript(context, script);
 	}
 }

@@ -1,14 +1,11 @@
 import { ExplorerLineage } from './graph_components.js';
-import { mountLineageViews } from './graph_view_controller.js';
+import { initializeLineage } from './lineage_initializer.js';
 
 export function initializeInvocationLineage(signal) {
 	const STAGE_COLUMNS = Object.freeze({
 		headerHeight: 48, background: 'rgba(143, 163, 181, .035)',
 	});
 	const { DATASET_LAYOUT } = ExplorerLineage;
-	const invocationGraphData = ExplorerLineage.readPayload('graph-data');
-	const style = ExplorerLineage.readPayload('graph-style');
-	ExplorerLineage.prepareDatasetColors(invocationGraphData, document.getElementById('dataset-legend'));
 	const invocationNodeDetails = document.getElementById('invocation-node-details');
 
 	function formatList(values) {
@@ -83,8 +80,7 @@ export function initializeInvocationLineage(signal) {
 		ctx.restore();
 	}
 
-	function createLineage3D(lineageContainer, graphData, updateSelection) {
-		const highlight = ExplorerLineage.createLineageHighlight(graphData);
+	function createLineage3D(lineageContainer, graphData, updateSelection, style, highlight) {
 		return ExplorerLineage.createLineage3D(lineageContainer, graphData, style, {
 			label: node => `${node.function_name || node.function_id}\n${node.is_effect ? 'declared outputs' : 'produces'}: ${node.feature || 'none'}`,
 			color: node => node.datasetColor,
@@ -96,8 +92,7 @@ export function initializeInvocationLineage(signal) {
 		});
 	}
 
-	function createLineage2D(lineageContainer, graphData, updateSelection) {
-		const highlight = ExplorerLineage.createLineageHighlight(graphData);
+	function createLineage2D(lineageContainer, graphData, updateSelection, style, highlight) {
 		const layout = ExplorerLineage.prepareDatasetLayout(
 			graphData, node => node.stage - 1, node => node.function_name || node.function_id);
 		if (layout.columns.length) {
@@ -113,7 +108,5 @@ export function initializeInvocationLineage(signal) {
 		});
 	}
 
-	mountLineageViews(
-		invocationGraphData, createLineage2D, createLineage3D,
-		updateInvocationDetails, signal);
+	initializeLineage(signal, updateInvocationDetails, createLineage2D, createLineage3D);
 }
