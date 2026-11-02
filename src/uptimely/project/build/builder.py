@@ -17,6 +17,7 @@ from uptimely import compiler, spec
 from uptimely import project_paths as paths
 from uptimely.execution_plan import serialization as plan_serialization
 from uptimely.explorer import explorer as explorer_module
+from uptimely.explorer import presentation
 from uptimely.project.build import bundle, errors, locking, models
 from uptimely.project.build import features as feature_selection
 from uptimely.project.build import source as build_source
@@ -102,11 +103,24 @@ def _generate_artifacts(
     execution_plan: compiler.ExecutionPlan,
     selected_features: list[str] | None,
     staging_root: pathlib.Path,
+    project_root: pathlib.Path,
 ) -> None:
-    """Write the specification, execution plan, and Explorer site."""
+    """Write the specification, execution plan, and Explorer presentation data."""
     try:
         spec.write_document(spec_definition, staging_root / "spec.json")
         plan_serialization.export_json(execution_plan, staging_root / "execution_plan.json")
+        presentation_data = presentation.build_presentation_data(
+            spec_definition,
+            execution_plan,
+            features=selected_features,
+            output_directory=project_root / paths.EXPLORER_OUTPUT_DIR,
+        )
+        explorer_data = staging_root / "explorer" / "data" / "explorer.json"
+        explorer_data.parent.mkdir(parents=True, exist_ok=True)
+        explorer_data.write_text(
+            json.dumps(presentation_data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
         explorer_module.Explorer(
             spec_definition,
             plan=execution_plan,
@@ -215,7 +229,9 @@ def build_project(
         staging_root = _create_staging_root(generated_root)
         try:
             execution_plan = _compile_plan(spec_definition, selected_features)
-            _generate_artifacts(spec_definition, execution_plan, selected_features, staging_root)
+            _generate_artifacts(
+                spec_definition, execution_plan, selected_features, staging_root, root
+            )
             _validate_staged_bundle(root, staging_root, selected_features)
             _publish_bundle(staging_root, root / paths.BUILD_OUTPUT_DIR)
         finally:
