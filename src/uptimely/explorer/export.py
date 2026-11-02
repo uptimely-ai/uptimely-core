@@ -2,13 +2,14 @@
 
 import json
 import pathlib
-import shutil
 import zipfile
 
 from uptimely import project_paths
 from uptimely.explorer import presentation
 
 _BUILD_INSTRUCTION = "Run 'uptimely project build' to generate a valid Explorer snapshot."
+_STATIC_CONFIG_FILE = pathlib.Path("config.js")
+_EXPORTED_DATA_FILE = pathlib.Path("data") / "explorer.json"
 
 
 def _read_snapshot(project_root: pathlib.Path) -> bytes:
@@ -36,6 +37,52 @@ def _static_config() -> str:
         + json.dumps({"dataUrl": "./data/explorer.json"})
         + ");\n"
     )
+
+
+def _static_asset_content(source: pathlib.Path, relative: pathlib.Path) -> bytes:
+    """Return a static asset's export content, replacing its runtime config."""
+    if relative == _STATIC_CONFIG_FILE:
+        return _static_config().encode("utf-8")
+    return source.read_bytes()
+
+
+def _write_directory_export(
+    files: list[pathlib.Path],
+    static_root: pathlib.Path,
+    output: pathlib.Path,
+    snapshot: bytes,
+) -> None:
+    """Write frontend assets and the snapshot to an export directory."""
+    output.mkdir(parents=True, exist_ok=True)
+    for source in files:
+        relative = source.relative_to(static_root)
+        target = output / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(_static_asset_content(source, relative))
+
+    data_target = output / _EXPORTED_DATA_FILE
+    data_target.parent.mkdir(parents=True, exist_ok=True)
+    data_target.write_bytes(snapshot)
+
+
+def _write_zip_export(
+    files: list[pathlib.Path],
+    static_root: pathlib.Path,
+    output: pathlib.Path,
+    snapshot: bytes,
+) -> None:
+    """Write frontend assets and the snapshot to a ZIP archive."""
+    if output.exists() and output.is_dir():
+        raise IsADirectoryError(f"ZIP destination is a directory: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for source in files:
+            relative = source.relative_to(static_root)
+            archive.writestr(
+                relative.as_posix(),
+                _static_asset_content(source, relative),
+            )
+        archive.writestr(_EXPORTED_DATA_FILE.as_posix(), snapshot)
 
 
 def export_static(
@@ -73,31 +120,7 @@ def export_static(
     snapshot = _read_snapshot(root)
     files = sorted(path for path in static_root.rglob("*") if path.is_file())
     if output.suffix.lower() == ".zip":
-        if output.exists() and output.is_dir():
-            raise IsADirectoryError(f"ZIP destination is a directory: {output}")
-        output.parent.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for source in files:
-                relative = source.relative_to(static_root).as_posix()
-                content = (
-                    _static_config().encode("utf-8")
-                    if relative == "config.js"
-                    else source.read_bytes()
-                )
-                archive.writestr(relative, content)
-            archive.writestr("data/explorer.json", snapshot)
-        return output
-
-    output.mkdir(parents=True, exist_ok=True)
-    for source in files:
-        relative = source.relative_to(static_root)
-        target = output / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        if relative.as_posix() == "config.js":
-            target.write_text(_static_config(), encoding="utf-8")
-        else:
-            shutil.copyfile(source, target)
-    data_target = output / "data" / "explorer.json"
-    data_target.parent.mkdir(parents=True, exist_ok=True)
-    data_target.write_bytes(snapshot)
+        _write_zip_export(files, static_root, output, snapshot)
+    else:
+        _write_directory_export(files, static_root, output, snapshot)
     return output
