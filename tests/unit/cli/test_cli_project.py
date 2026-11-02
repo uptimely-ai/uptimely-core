@@ -121,6 +121,10 @@ def test_project_build_examples(
     assert spec.load_spec(bundle.spec_path).entities
     assert bundle.execution_plan.invocations
     assert (bundle.explorer_path / "index.html").is_file()
+    explorer_data = json.loads(
+        (bundle.explorer_path / "data" / "explorer.json").read_text(encoding="utf-8")
+    )
+    assert explorer_data["format_version"] == 1
 
 
 def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None:
