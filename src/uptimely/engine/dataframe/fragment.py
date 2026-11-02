@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import dataclasses
-import typing
 from collections import abc
 
 from uptimely import execution_plan
@@ -11,9 +10,6 @@ from uptimely.spec import functions
 
 from . import backend as backend_module
 from . import validation as dataframe_validation
-
-if typing.TYPE_CHECKING:
-    from uptimely.engine.runtime import validation as runtime_validation
 
 
 @dataclasses.dataclass(frozen=True)
@@ -35,7 +31,7 @@ class Fragment:
         invocation: execution_plan.Invocation,
         load: abc.Callable[[], object],
         *,
-        validator: runtime_validation.ValidationPolicy,
+        validate: bool = False,
         comparison_frame: object | None = None,
     ) -> Fragment:
         """Load an invocation result and prepare a fragment for physical assembly.
@@ -44,7 +40,7 @@ class Fragment:
             backend: Dataframe operations used to inspect and project the result.
             invocation: Data-producing invocation to stage.
             load: Callable that resolves arguments and executes the invocation.
-            validator: Per-run policy for checking the raw result before projection.
+            validate: Whether to check the raw result before projection.
             comparison_frame: Current accumulated data for preservation checks.
 
         Returns:
@@ -67,8 +63,8 @@ class Fragment:
             columns = set(backend.column_names(dataframe))
             dimensions = tuple(key for key in dimensions if key in columns)
         outputs = [key for key in invocation.output_features if key not in invocation.id_columns]
-        validator.validate_fragment(
-            dataframe_validation.FrameValidationContext(
+        if validate:
+            dataframe_validation.FragmentValidator(
                 backend,
                 dataframe,
                 list(dimensions),
@@ -76,11 +72,10 @@ class Fragment:
                 invalid_frame_message=(
                     f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
                 ),
+                column_types=invocation.column_types,
                 invocation=invocation,
                 output_features=outputs,
                 comparison_frame=comparison_frame,
-                column_types=invocation.column_types,
-            )
-        )
+            ).validate()
         columns = list(dict.fromkeys([*dimensions, *outputs]))
         return cls(backend.select(dataframe, columns), dimensions, invocation)
