@@ -63,6 +63,7 @@ normalize their children:
 Raw child dictionaries such as `dataset.features`, `dataset.actions`, and
 `function.args` remain available. Bound arguments are values; catalog arguments
 are declarations. Feature and action references retain declaration order.
+
 `action.dataset_references` contains normalized dataset IDs from nested binding
 arguments, retaining duplicates and the current-dataset marker `@`. It reuses
 the binding's cached traversal and does not require a Spec.

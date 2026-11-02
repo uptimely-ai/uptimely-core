@@ -119,7 +119,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments(
     assert all("result" not in item.output_features for item in metadata.invocations)
     execution = engine_for_plan(metadata, spec_definition=spec_definition).run()
     assert not execution.failures
-    assert execution.datasets["observations"]["metadata"].to_list() == [7, 7]
+    assert execution.main_frames["observations"]["metadata"].to_list() == [7, 7]
 
 
 @pytest.mark.parametrize(
@@ -172,7 +172,9 @@ def test_returned_row_order_does_not_control_alignment(
     monkeypatch.setattr(f"{__name__}.add_one", reversed_result)
     execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
-    assert execution.datasets["observations"].sort("id").select("id", "value", "result").rows() == [
+    assert execution.main_frames["observations"].sort("id").select(
+        "id", "value", "result"
+    ).rows() == [
         (1, 10, 11),
         (2, 20, 21),
     ]
@@ -213,10 +215,11 @@ def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
 
 
 def test_nested_arguments_preserve_literals_and_resolve_dataframes() -> None:
-    spec_definition = _spec()
     frame = read_values()
-    state = state_module.RuntimeState(datasets={"observations": frame})
-    bindings = bindings_module.RuntimeBindings(spec_definition, state, {})
+    state = state_module.RuntimeState(
+        main_frames={"observations": execution_support.main_frame(frame)}
+    )
+    bindings = bindings_module.RuntimeBindings(state, {})
     assert bindings.resolve_value([None, 1]) == [None, 1]
     resolved = bindings.resolve_value({"frames": ["observations"]}, "object{str: array[dataframe]}")
     assert resolved["frames"][0] is frame
@@ -243,7 +246,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
     assert "Output column id has type String; expected integer" in next(
         iter(execution.failures.values())
     )
-    assert not execution.datasets
+    assert not execution.main_frames
 
 
 @pytest.mark.parametrize("with_sink", [False, True])
@@ -276,7 +279,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     compiled = compiler.Compiler().compile(spec_definition, features=["result"])
     execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
-    assert execution.datasets["observations"].sort("id")["result"].to_list() == [11, 21]
+    assert execution.main_frames["observations"].sort("id")["result"].to_list() == [11, 21]
 
 
 @pytest.mark.parametrize("dataframe", [False, True])

@@ -29,6 +29,21 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Renamed `ExecutionResult.datasets` to `ExecutionResult.main_frames`.
+  Values remain final dataframes keyed by dataset ID.
+- Engine runtime assembly now uses a `MainFrame` per logical dataset and
+  explicit `Fragment` contributions. Dimension-aware merge decisions and
+  runtime validation are separate from generic dataframe backend operations;
+  runtime state indexes `main_frames`, each owning its retained fragments.
+  Function arguments and execution results remain ordinary dataframes.
+- Runtime execution and validation now consume plan invocation metadata rather
+  than Spec or Dataset objects. Invocations serialize ID columns, logical column
+  types, and argument types; previously saved plans without this metadata must be
+  rebuilt. Dataset resource-binding views have been removed. Physical `MainFrame`
+  accumulators take ID column names instead of a Dataset.
+- `Fragment.stage()` replaces `Fragment.from_invocation()`: it calls an invocation
+  loader, validates the raw result when requested, and projects declared outputs,
+  returning a fragment ready to merge without accepting a preloaded result.
 - **Breaking:** Engine per-step validation is now opt-in with `uptimely run
   --validate` or `Engine.run(validate=True)`, for both eager and lazy frames.
   Normal runs skip runtime contract checks and join cardinality validation,

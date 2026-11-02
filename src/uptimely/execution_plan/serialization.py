@@ -28,6 +28,9 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
                 "dependency_ids": invocation.dependency_ids,
                 "output_features": invocation.output_features,
                 "input_features": invocation.input_features,
+                "id_columns": invocation.id_columns,
+                "column_types": invocation.column_types,
+                "argument_types": invocation.argument_types,
                 "row_context": (
                     invocation.row_context.to_dict() if invocation.row_context is not None else None
                 ),
@@ -55,7 +58,16 @@ def from_dict(payload: dict[str, typing.Any]) -> models.ExecutionPlan:
     unexpected = sorted(payload.keys() - required)
     if unexpected:
         raise ValueError("Plan contains unknown fields: " + ", ".join(unexpected))
-    invocations = [models.Invocation(**invocation) for invocation in payload["invocations"]]
+    invocations = []
+    for invocation in payload["invocations"]:
+        missing_metadata = {"id_columns", "column_types", "argument_types"} - invocation.keys()
+        if missing_metadata:
+            raise ValueError(
+                f"Invocation {invocation.get('id', '<unknown>')} is missing runtime metadata: "
+                + ", ".join(sorted(missing_metadata))
+                + ". Recompile the project build."
+            )
+        invocations.append(models.Invocation(**invocation))
     return models.ExecutionPlan(
         plan_version=payload["plan_version"],
         required_backend=payload["required_backend"],

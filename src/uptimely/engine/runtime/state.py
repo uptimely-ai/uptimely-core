@@ -2,22 +2,37 @@
 
 import dataclasses
 
+from uptimely.engine.dataframe import main_frame as main_frame_module
+
 
 @dataclasses.dataclass
 class RuntimeState:
-    """Mutable outputs and dataframe references for one plan execution."""
+    """Main frames, retained fragments, and calculated outputs for one execution."""
 
-    datasets: dict[str, object] = dataclasses.field(default_factory=dict)
-    fragments: dict[tuple[str, str], object] = dataclasses.field(default_factory=dict)
+    main_frames: dict[str, main_frame_module.MainFrame] = dataclasses.field(default_factory=dict)
     calculated_outputs: dict[tuple[str, str], object] = dataclasses.field(default_factory=dict)
 
-    def dataframe_by_id(self, identifier: str) -> object | None:
-        """Return a unique dataset or fragment, preferring datasets by ID."""
-        dataset = self.datasets.get(identifier)
-        if dataset is not None:
-            return dataset
+    def resolve_main_frame_or_fragment_dataframe(self, identifier: str) -> object | None:
+        """Resolve a main-frame dataset ID or fragment mapping ID to its dataframe.
+
+        Main-frame IDs take precedence over fragment names.
+
+        Args:
+            identifier: Dataset ID or fragment mapping ID.
+
+        Returns:
+            The underlying dataframe, or None when neither kind of reference exists.
+
+        Raises:
+            ValueError: A fragment name matches multiple main frames.
+        """
+        main_frame = self.main_frames.get(identifier)
+        if main_frame is not None:
+            return main_frame.dataframe
         matches = [
-            frame for (_, fragment_id), frame in self.fragments.items() if fragment_id == identifier
+            main.fragments[identifier].dataframe
+            for main in self.main_frames.values()
+            if identifier in main.fragments
         ]
         if len(matches) > 1:
             raise ValueError(f"Ambiguous fragment reference: {identifier}")

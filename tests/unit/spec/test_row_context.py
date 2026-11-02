@@ -357,7 +357,7 @@ def test_spec_plan_execution_and_explorer_preserve_context(
     portable = uptimely_plan.from_dict(uptimely_plan.to_dict(compiled))
     result = engine_for_plan(portable, spec_definition=restored).run()
     assert not result.failures
-    frame = result.datasets["observations"]
+    frame = result.main_frames["observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
     rendering_support.render_explorer(restored, tmp_path / "index.html", plan=compiled)
     assert "Row context:" not in (tmp_path / "spec/features.html").read_text()
@@ -430,7 +430,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     assert restored_plan == plan
     result = engine_for_plan(restored_plan, spec_definition=restored_spec).run()
     assert not result.failures
-    frame = next(iter(result.datasets.values()))
+    frame = next(iter(result.main_frames.values()))
     assert frame["result"].to_list() == [11, 21]
     assert frame["timestamp"].to_list() == [
         datetime.datetime(2026, 1, 2),
@@ -514,4 +514,4 @@ def test_collapse_functions_execute_without_row_context(
     assert restored == plan
     result = engine_for_plan(restored, spec_definition=spec_definition).run()
     assert not result.failures
-    assert result.datasets["summary"]["temperature_max"].to_list() == [20]
+    assert result.main_frames["summary"]["temperature_max"].to_list() == [20]

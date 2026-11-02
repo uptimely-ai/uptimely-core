@@ -15,6 +15,29 @@ REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 EXAMPLE_ROOT = example_support.EXAMPLES_ROOT / "pump_analytics"
 
 
+def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.BuildBundle) -> None:
+    document = pump_bundle.spec_definition
+    restored = execution_plan.from_dict(execution_plan.to_dict(pump_bundle.execution_plan))
+
+    for invocation in restored.invocations:
+        dimensions = document.dimension_ids_by_dataset[invocation.dataset_id]
+        dataset = document.datasets[invocation.dataset_id]
+        definitions = {
+            **dataset.features,
+            **{name: document.dimensions[name] for name in dimensions},
+        }
+        assert invocation.id_columns == dimensions
+        assert invocation.column_types == {
+            name: definition.type
+            for name, definition in definitions.items()
+            if definition.type is not None
+        }
+        assert invocation.argument_types == {
+            name: argument.type
+            for name, argument in document.functions[invocation.function_id].args.items()
+        }
+
+
 @pytest.mark.usefixtures("example_projects")
 def test_project_build_cli_exports_complete_bundle(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch

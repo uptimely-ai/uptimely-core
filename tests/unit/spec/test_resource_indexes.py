@@ -110,6 +110,20 @@ def test_resource_indexes_traverse_each_collection_once() -> None:
     assert "key" not in document.feature_owners
 
 
+def test_datasets_do_not_retain_bound_spec_resources() -> None:
+    document = _sample_spec()
+    first = document.datasets["first"]
+    assert not hasattr(first, "dimensions")
+    assert not hasattr(first, "functions")
+    assert not hasattr(first, "_bind_resources")
+
+    serialized = document.model_dump()
+    assert "dimensions" not in serialized["entities"]["entity"]["datasets"]["first"]
+    assert "functions" not in serialized["entities"]["entity"]["datasets"]["first"]
+    restored = model.Spec.model_validate(serialized)
+    assert restored.model_dump() == serialized
+
+
 def test_new_model_discovers_edits_without_invalidation_machinery() -> None:
     document = _sample_spec()
     previous = document.features

@@ -25,6 +25,12 @@ def emit_invocation(
         dimension_ids_by_dataset=spec_definition.dimension_ids_by_dataset,
     )
     arguments = resolver.resolve_arguments(node.arguments)
+    dataset = spec_definition.datasets[node.dataset_id]
+    id_columns = spec_definition.dimension_ids_by_dataset[node.dataset_id]
+    column_definitions = {
+        **dataset.features,
+        **{key: spec_definition.dimensions[key] for key in id_columns},
+    }
     return execution_plan.Invocation(
         id=node.node_id,
         function_kind=function.kind,
@@ -38,4 +44,11 @@ def emit_invocation(
         arguments=arguments,
         dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
         row_context=node.row_context,
+        id_columns=list(id_columns),
+        column_types={
+            key: definition.type
+            for key, definition in column_definitions.items()
+            if definition.type is not None
+        },
+        argument_types={key: argument.type for key, argument in function.args.items()},
     )

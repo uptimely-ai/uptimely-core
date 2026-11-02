@@ -10,6 +10,7 @@ from support import execution as execution_support
 from uptimely import compiler, engine, spec
 from uptimely import execution_plan as plan_module
 from uptimely.engine.dataframe import backend as backend_module
+from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import functions
@@ -235,7 +236,7 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(
     assert len(collapse.dependency_ids) == 2
     result = engine_for_plan(plan, spec_definition=spec_definition).run()
     assert not result.failures
-    frame = result.datasets["summary"]
+    frame = result.main_frames["summary"]
     if isinstance(frame, pl.LazyFrame):
         frame = frame.collect()
     assert frame.sort("group").to_dicts() == [
@@ -316,7 +317,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
 
     assert result.failures == {}
     assert set(result.invocation_statuses.values()) == {"succeeded"}
-    assert result.datasets["target"].sort("group").to_dicts() == [
+    assert result.main_frames["target"].sort("group").to_dicts() == [
         {"group": "A", "base_value": 10, "conformed_value": None},
         {"group": "B", "base_value": 20, "conformed_value": 2},
         {"group": "C", "base_value": None, "conformed_value": 3},
@@ -329,21 +330,23 @@ def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> Non
     invocation = next(item for item in plan.invocations if item.function_kind == "collapse")
     invocation = dataclasses.replace(invocation, input_features=["maximum"])
     state = state_module.RuntimeState(
-        datasets={
-            "summary": pl.DataFrame({"group": ["A"], "maximum": [4]}),
-            "observations": pl.DataFrame({"group": ["A"], "id": [1], "value": [2], "doubled": [4]}),
+        main_frames={
+            "summary": execution_support.main_frame(pl.DataFrame({"group": ["A"], "maximum": [4]})),
+            "observations": execution_support.main_frame(
+                pl.DataFrame({"group": ["A"], "id": [1], "value": [2], "doubled": [4]})
+            ),
         }
     )
     executor = execution_module.InvocationExecutor(
         backend_module.create_backend(engine.EngineConfig().backend),
-        spec_definition,
         {},
         {},
         state,
+        validate=True,
     )
 
     with pytest.raises(ValueError, match="input feature.*foreign source dataset: maximum"):
-        executor._validate_inputs(invocation)
+        executor.validator.before_invocation(invocation)
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -359,7 +362,7 @@ def test_chained_global_collapses_round_trip(
     portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
     result = engine_for_plan(portable, spec_definition=restored).run()
     assert not result.failures
-    frame = result.datasets["global"]
+    frame = result.main_frames["global"]
     if isinstance(frame, pl.LazyFrame):
         frame = frame.collect()
     assert frame.to_dicts() == [{"total": 0 if empty else 10, "global_max": None if empty else 6}]
@@ -458,7 +461,7 @@ def test_collapse_consumes_expanded_features(
         spec_definition=spec_definition,
     ).run()
     assert not result.failures
-    frame = result.datasets["summary"]
+    frame = result.main_frames["summary"]
     if isinstance(frame, pl.LazyFrame):
         frame = frame.collect()
     assert frame.sort("group").to_dicts() == [
@@ -497,7 +500,7 @@ def test_collapse_rejects_invalid_returns(
     monkeypatch.setattr(f"{__name__}.summarize", invalid)
     result = engine_for_plan(plan, spec_definition=spec_definition).run(validate=True)
     assert message in next(iter(result.failures.values()))
-    assert "summary" not in result.datasets
+    assert "summary" not in result.main_frames
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -509,7 +512,7 @@ def test_collapse_preserves_null_group_keys(lazy, engine_for_plan: execution_sup
         spec_definition=spec_definition,
     ).run()
     assert not result.failures
-    frame = result.datasets["summary"]
+    frame = result.main_frames["summary"]
     if isinstance(frame, pl.LazyFrame):
         frame = frame.collect()
     assert frame.sort("group").select("group", "maximum").rows() == [(None, 6), ("A", 4)]
@@ -523,7 +526,7 @@ def test_collapse_preserves_null_group_keys(lazy, engine_for_plan: execution_sup
 def test_dimensionless_alignment_preserves_empty_fragments_and_user_column_names(
     lazy, empty_left, empty_right
 ):
-    left = pl.DataFrame({"__uptimely_global_key": [7]})
+    left = pl.DataFrame({"__join_key": [7], "__join_key_": [9]})
     right = pl.DataFrame({"right": [8]})
     if empty_left:
         left = left.clear()
@@ -539,7 +542,8 @@ def test_dimensionless_alignment_preserves_empty_fragments_and_user_column_names
         if empty_left and empty_right
         else [
             {
-                "__uptimely_global_key": None if empty_left else 7,
+                "__join_key": None if empty_left else 7,
+                "__join_key_": None if empty_left else 9,
                 "right": None if empty_right else 8,
             }
         ]
@@ -554,8 +558,9 @@ def test_dimensionless_alignment_rejects_multiple_global_rows(lazy):
     if lazy:
         left, right = left.lazy(), right.lazy()
 
-    with pytest.raises(ValueError, match="at most one global row"):
-        engine.PolarsBackend().join(left, right, [])
+    main = execution_support.main_frame(left)
+    with pytest.raises(ValueError, match="at most one row"):
+        execution_support.merge_fragment(main, fragment_module.Fragment(right, ()))
 
 
 def _broadcast_spec(
@@ -628,7 +633,7 @@ def test_expand_broadcasts_dimensionless_fragment(
     result = engine_for_plan(plan, spec_definition=spec_definition).run()
 
     assert not result.failures
-    frame = result.datasets["observations"]
+    frame = result.main_frames["observations"]
     if isinstance(frame, pl.LazyFrame):
         frame = frame.collect()
     assert frame.sort("id").to_dicts() == [
@@ -648,7 +653,7 @@ def test_expand_left_joins_fragment_on_its_carried_dimension_keys(
     result = engine_for_plan(plan, spec_definition=spec_definition).run()
 
     assert not result.failures
-    frame = result.datasets["observations"]
+    frame = result.main_frames["observations"]
     if isinstance(frame, pl.LazyFrame):
         frame = frame.collect()
     assert frame.sort("id").select("group", "id", "reference").rows() == [

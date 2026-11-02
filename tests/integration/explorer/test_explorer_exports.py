@@ -40,7 +40,7 @@ def test_spec_json_parses_compiles_and_executes(
 
     assert len(compiled.invocations) == 2
     assert not execution.failures
-    assert execution.datasets["observations"].sort("id").select("id", "total").rows() == [
+    assert execution.main_frames["observations"].sort("id").select("id", "total").rows() == [
         (1, 3),
         (2, 7),
     ]

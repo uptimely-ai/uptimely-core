@@ -5,7 +5,6 @@ from collections import abc
 
 from uptimely import execution_plan
 from uptimely.spec import arg_types, selectors
-from uptimely.spec import model as spec_model
 
 from . import state as state_module
 
@@ -15,30 +14,17 @@ class RuntimeBindings:
 
     def __init__(
         self,
-        spec_definition: spec_model.Spec,
         state: state_module.RuntimeState,
         parameters: abc.Mapping[str, typing.Any],
     ) -> None:
         """Create a resolver for one execution's parameters and runtime state."""
-        self.spec_definition = spec_definition
         self.state = state
         self.parameters = parameters
 
     def resolve_args(self, invocation: execution_plan.Invocation) -> dict[str, object]:
         """Bind compiled argument values to runtime values using declared argument types."""
-        function = self.spec_definition.functions.get(invocation.function_id)
-        if function is None:
-            raise ValueError(f"Unknown function: {invocation.function_id}")
-        if function.kind != invocation.function_kind:
-            raise ValueError(
-                f"Invocation {invocation.id} for action {invocation.mapping_id} "
-                f"function kind {invocation.function_kind} does not match function "
-                f"{invocation.function_id} kind {function.kind}"
-            )
         return {
-            name: self.resolve_value(
-                value, function.args[name].type if name in function.args else None
-            )
+            name: self.resolve_value(value, invocation.argument_types.get(name))
             for name, value in invocation.arguments.items()
         }
 
@@ -47,7 +33,7 @@ class RuntimeBindings:
         if hasattr(value, "model_dump"):
             value = value.model_dump()
         if argument_type == arg_types.DATAFRAME and isinstance(value, str):
-            frame = self.state.dataframe_by_id(value)
+            frame = self.state.resolve_main_frame_or_fragment_dataframe(value)
             if frame is None:
                 raise ValueError(f"Dataset dataframe is unavailable: {value}")
             return frame

@@ -1,14 +1,73 @@
 """Construct test bundles and engines from hand-authored plans."""
 
+import dataclasses
 import pathlib
 import typing
 
 from uptimely import engine as engine_module
 from uptimely import execution_plan, spec
 from uptimely import project as project_module
+from uptimely.engine.dataframe import backend as backend_module
+from uptimely.engine.dataframe import fragment as fragment_module
+from uptimely.engine.dataframe import main_frame as main_frame_module
+from uptimely.engine.dataframe import validation as dataframe_validation
+from uptimely.engine.runtime import execution as execution_module
+from uptimely.engine.runtime import state as state_module
 from uptimely.spec import model as spec_model
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
+
+
+def main_frame(
+    dataframe: object | None,
+    id_columns: typing.Sequence[str] = (),
+    *,
+    backend: backend_module.DataFrameBackend | None = None,
+) -> main_frame_module.MainFrame:
+    """Create an independent physical accumulator for runtime tests."""
+    adapter = backend if backend is not None else backend_module.PolarsBackend()
+    return main_frame_module.MainFrame(adapter, id_columns, dataframe)
+
+
+def merge_fragment(
+    main: main_frame_module.MainFrame,
+    fragment: fragment_module.Fragment,
+    *,
+    dimension_types: typing.Mapping[str, str] | None = None,
+) -> fragment_module.Fragment:
+    """Exercise runtime validation and projection around a physical accumulator."""
+    invocation = fragment.invocation or execution_plan.Invocation(
+        id="standalone",
+        function_kind="read",
+        entrypoint="test:read",
+        function_id="read",
+        mapping_id="read",
+        entity_id="entity",
+        dataset_id="dataset",
+        id_columns=list(main.id_columns),
+        column_types=dict(dimension_types or {}),
+    )
+    state = state_module.RuntimeState(main_frames={invocation.dataset_id: main})
+    executor = execution_module.InvocationExecutor(main.backend, {}, {}, state, validate=True)
+    if fragment.invocation is not None:
+        fragment = fragment_module.Fragment.stage(
+            main.backend,
+            fragment.invocation,
+            lambda: fragment.dataframe,
+            validator=executor.validator,
+            comparison_frame=main.dataframe,
+        )
+    else:
+        executor.validator.validate_fragment(
+            dataframe_validation.FrameValidationContext(
+                main.backend,
+                fragment.dataframe,
+                list(fragment.dimensions),
+                "Fragment",
+                column_types=invocation.column_types,
+            )
+        )
+    return executor._merge_fragment(invocation, fragment)
 
 
 class BundleFactory(typing.Protocol):
@@ -57,7 +116,11 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
         function.setdefault("entrypoint", invocation.entrypoint)
         function.setdefault("args", {})
         entity.setdefault("name", invocation.entity_id)
-        entity.setdefault("datasets", {}).setdefault(invocation.dataset_id, {})
+        dataset = entity.setdefault("datasets", {}).setdefault(invocation.dataset_id, {})
+        dataset.setdefault("actions", {}).setdefault(
+            invocation.mapping_id,
+            {"id": invocation.mapping_id, "binding": {"function": invocation.function_id}},
+        )
 
     return spec_model.Spec.model_validate(
         {
@@ -79,6 +142,45 @@ def bundle_for_plan(
     root = (project_root or REPOSITORY_ROOT).resolve()
     build_root.mkdir(parents=True)
     bundle_spec = spec_definition or spec_for_plan(execution_plan)
+    if spec_definition is None:
+        execution_plan = dataclasses.replace(
+            execution_plan,
+            invocations=[
+                dataclasses.replace(
+                    invocation,
+                    id_columns=(
+                        invocation.id_columns
+                        or bundle_spec.dimension_ids_by_dataset[invocation.dataset_id]
+                    ),
+                    column_types={
+                        **{
+                            key: definition.type
+                            for key, definition in {
+                                **bundle_spec.datasets[invocation.dataset_id].features,
+                                **{
+                                    key: bundle_spec.dimensions[key]
+                                    for key in bundle_spec.dimension_ids_by_dataset[
+                                        invocation.dataset_id
+                                    ]
+                                },
+                            }.items()
+                            if definition.type is not None
+                        },
+                        **invocation.column_types,
+                    },
+                    argument_types={
+                        **{
+                            key: argument.type
+                            for key, argument in bundle_spec.functions[
+                                invocation.function_id
+                            ].args.items()
+                        },
+                        **invocation.argument_types,
+                    },
+                )
+                for invocation in execution_plan.invocations
+            ],
+        )
     spec.write_document(bundle_spec, build_root / "spec.json")
     return project_module.BuildBundle(
         project_root=root,

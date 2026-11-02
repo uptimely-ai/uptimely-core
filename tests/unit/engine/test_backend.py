@@ -4,8 +4,9 @@ import pytest
 from uptimely.engine.dataframe import backend
 
 
-@pytest.mark.parametrize("keys", [[], ["key"]])
-@pytest.mark.parametrize("operation", ["join", "left_join"])
+@pytest.mark.parametrize(
+    ("keys", "operation"), [([], "join"), (["key"], "join"), (["key"], "left_join")]
+)
 def test_unvalidated_lazy_join_does_not_execute(
     monkeypatch: pytest.MonkeyPatch, keys: list[str], operation: str
 ) -> None:
@@ -45,10 +46,34 @@ def test_join_validation_is_explicit(lazy: bool, operation: str) -> None:
     if lazy:
         left, right = left.lazy(), right.lazy()
 
-    with pytest.raises(ValueError, match="at most one global row"):
-        getattr(adapter, operation)(left, right, [])
+    keys = ["key"] if operation == "left_join" else []
+    if keys:
+        left = left.with_columns(pl.lit(0).alias("key"))
+        right = right.with_columns(pl.lit(0).alias("key"))
+    cardinality = "m:1" if operation == "left_join" else "1:1"
+    with pytest.raises(pl.exceptions.ComputeError, match=cardinality):
+        joined = getattr(adapter, operation)(left, right, keys)
+        if lazy:
+            joined.collect()
 
-    result = getattr(adapter, operation)(left, right, [], validate="m:m")
+    result = getattr(adapter, operation)(left, right, keys, validate="m:m")
     if lazy:
         result = result.collect()
     assert result.height == 4
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize(("left_rows", "right_rows"), [(0, 0), (0, 2), (2, 0), (2, 3)])
+def test_cross_join_is_a_generic_cartesian_product(
+    lazy: bool, left_rows: int, right_rows: int
+) -> None:
+    left = pl.DataFrame({"left": list(range(left_rows))})
+    right = pl.DataFrame({"right": list(range(right_rows))})
+    if lazy:
+        left, right = left.lazy(), right.lazy()
+
+    result = backend.PolarsBackend().cross_join(left, right)
+    if lazy:
+        result = result.collect()
+
+    assert result.height == left_rows * right_rows

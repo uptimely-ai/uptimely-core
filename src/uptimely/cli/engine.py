@@ -107,7 +107,7 @@ def _log_summary(
     logger.info(
         "\nEngine completed in %.3f s: %d datasets processed",
         duration,
-        len(result.datasets),
+        len(result.main_frames),
     )
     if verbose:
         scope = (
@@ -133,7 +133,7 @@ def _log_previews(result: engine_module.ExecutionResult, rows: int) -> None:
         result: Execution result containing the final datasets.
         rows: Positive maximum number of rows to display per dataset.
     """
-    for dataset_id, frame in result.datasets.items():
+    for dataset_id, frame in result.main_frames.items():
         if not isinstance(frame, (pl.DataFrame, pl.LazyFrame)):
             raise TypeError(
                 f"Cannot preview Dataset({dataset_id}): "

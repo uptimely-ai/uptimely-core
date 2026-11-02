@@ -43,8 +43,8 @@ Spec document.
 ## Executing a build bundle
 
 The engine accepts a validated build bundle and executes its compiled portable
-plan. It reads dimensions, entities, functions, and datasets from the bundled
-`spec.json`, which is loaded as part of the build bundle, and uses the project
+plan. It reads ID columns, column types, argument types, and function kinds from
+plan invocations, not from Spec models, and uses the project
 root to resolve function entrypoints. A plan can be compiled for selected
 output features; the compiler includes their prerequisite calculations and
 dependencies, so the engine needs no special subset logic. An exported plan is
@@ -152,9 +152,21 @@ explicitly declare and implement their ordering inputs.
 
 ## Fragment joins and row scope
 
-Fragments in a dataset are combined by the owning entity's complete dimension
-key, never by row position. The built-in Polars backend uses a full join,
-coalesces key columns, treats null keys as equal, and requires a one-to-one
+The runtime represents each logical dataset with a physical `MainFrame` holding
+its accumulated dataframe and ID column names, without a Dataset or Spec dependency.
+Each data-producing invocation contributes a `Fragment`
+containing a dataframe and its carried dimension keys. `MainFrame.merge()`
+chooses the join from those keys; the backend implements generic dataframe
+operations without knowledge of either runtime abstraction.
+The invocation executor uses `Fragment.stage()` to load invocation results,
+validate them against their invocation's compiled contracts when requested, and project
+declared outputs.
+It then checks assembly contracts and passes prepared fragments and explicit
+retention IDs to the main frame.
+
+Full-grain fragments are combined by the dataset's complete dimension key,
+never by row position. The main frame uses a full join, coalesces key columns,
+treats null keys as equal, and, with validation enabled, requires a one-to-one
 key relationship. Keys present on only one side are retained, with nulls for
 the other fragment's absent values. This supports partial and disjoint
 coverage; equal row counts or identical key sets are not required.
@@ -168,8 +180,8 @@ broadcast to all observations; assembling such a fragment requires an already
 accumulated target dataset, which the compiler guarantees by running the
 dataset's reads first.
 
-Only declared dimension keys may overlap between fragments; overlapping feature
-columns are rejected rather than silently discarded. A dimensionless fragment
+With validation enabled, only declared dimension keys may overlap between
+fragments; overlapping feature columns are rejected. A dimensionless fragment
 represents zero or one global row, and the engine uses an internal
 collision-safe join key that is not exposed in the result.
 
