@@ -31,15 +31,21 @@ The Explorer contains:
 
 | Section | What it shows |
 | --- | --- |
-| **Overview** | Project and spec versions, catalog counts, plan counts, and build scope. |
-| **Catalogs** | Entities, datasets, dimensions, and functions from the spec. |
-| **Feature lineage** | Feature and action nodes with their declared relationships. |
-| **Invocation lineage** | Compiled invocation nodes and dependency links. |
-| **Plan** | Execution stages, invocation arguments, and dependency details. |
-| **Animation** | An illustrative walkthrough of the declared execution stages and tables. |
+| **Project home** | Project identity, counts, build scope, and the spec-to-execution journey. |
+| **Spec** | Overview, separate feature/entity/dataset/dimension/function catalogs, and feature lineage. |
+| **Plan** | Overview, invocation topology, and execution stages with argument bindings. |
+| **Execution** | Dataset-specific animation of declared processing steps and illustrative tables. |
 
-The lineage views present selectable nodes and their metadata alongside the
-declared dependencies. Animation values and rows are illustrative placeholders;
+The original desktop navigation and contextual sidebars can be collapsed
+independently. On narrow screens, use the navigation menu and the page's context
+controls. Catalogs start with an overview; select an item in the contextual
+sidebar to inspect its details. Item selections support browser back/forward
+navigation and direct links.
+
+Lineage and topology offer interactive **2D** and **3D** views, zoom, reset,
+dataset legends, and selectable node details. For animation, choose a dataset
+before using **Previous**, **Play**, and **Next**.
+Animation values and rows are illustrative placeholders;
 they are not execution results. Running the project's workflow is a separate
 operation using `uptimely run`.
 
@@ -57,6 +63,11 @@ The export uses a relative URL for its JSON data, so it can be hosted beneath a
 documentation site's path prefix. Build the project again before exporting
 after source changes. The same ZIP is available from the preview server at
 `/api/explorer/export`.
+
+As in the pre-migration UI, styling, fonts, icons, syntax highlighting, and
+graph libraries load from public CDNs. Both preview and exported pages need
+network access to those services. Project snapshot data is fetched only from
+the configured preview API or exported relative JSON file.
 
 For command arguments and options, see the
 [Explorer CLI reference](../cli/explorer.md). For the presentation-data API,
