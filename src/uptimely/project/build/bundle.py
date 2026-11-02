@@ -126,15 +126,25 @@ def _load_execution_plan(
         ) from error
 
 
-def _load_spec_definition(spec_path: pathlib.Path, project_root: pathlib.Path) -> spec.Spec:
+def _load_spec_definition(
+    spec_path: pathlib.Path, project_root: pathlib.Path, *, validate: bool = True
+) -> spec.Spec:
     try:
-        return spec.load_spec(spec_path)
+        return spec.load_spec(spec_path, validate=validate)
     except (OSError, UnicodeDecodeError, ValueError, TypeError, AttributeError) as error:
         raise errors.BuildError("invalid", f"cannot load Spec: {error}", project_root) from error
 
 
-def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> models.BuildBundle:
-    """Load and validate a bundle directory while its project lock is held."""
+def load_bundle_at(
+    project_root: pathlib.Path, bundle_root: pathlib.Path, *, validate: bool = True
+) -> models.BuildBundle:
+    """Load a bundle while its project lock is held.
+
+    Args:
+        project_root: Root directory of the analytics project.
+        bundle_root: Directory containing the saved bundle.
+        validate: Run Spec semantic checks. Structural and artifact checks always run.
+    """
     bundle_root = pathlib.Path(bundle_root)
     if not bundle_root.exists():
         raise errors.BuildError("missing", "", project_root)
@@ -149,7 +159,7 @@ def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> mod
     )
     _validate_required_artifacts(bundle_root, spec_path, execution_plan_path, project_root)
     _validate_explorer_inventory(explorer_path, manifest, project_root)
-    spec_definition = _load_spec_definition(spec_path, project_root)
+    spec_definition = _load_spec_definition(spec_path, project_root, validate=validate)
     execution_plan = _load_execution_plan(execution_plan_path, project_root)
 
     return models.BuildBundle(
@@ -164,11 +174,15 @@ def load_bundle_at(project_root: pathlib.Path, bundle_root: pathlib.Path) -> mod
     )
 
 
-def load_build_bundle(project_root: str | pathlib.Path) -> models.BuildBundle:
+def load_build_bundle(
+    project_root: str | pathlib.Path, *, validate: bool = True
+) -> models.BuildBundle:
     """Load and validate the active build without compiling or regenerating artifacts.
 
     Args:
         project_root: Root directory of the analytics project.
+        validate: Run Spec semantic checks. Disable only for an already validated
+            bundle. Structural, execution plan, and artifact checks always run.
 
     Returns:
         A validated bundle containing the saved execution plan and artifact paths.
@@ -176,15 +190,25 @@ def load_build_bundle(project_root: str | pathlib.Path) -> models.BuildBundle:
     Raises:
         BuildError: If the bundle is missing, incomplete, or invalid.
     """
-    with read_build_bundle(project_root) as build_bundle:
+    with read_build_bundle(project_root, validate=validate) as build_bundle:
         return build_bundle
 
 
 @contextlib.contextmanager
 def read_build_bundle(
     project_root: str | pathlib.Path,
+    *,
+    validate: bool = True,
 ) -> typing.Generator[models.BuildBundle]:
-    """Load a validated bundle while holding a reader lock for the context lifetime."""
+    """Load a bundle while holding a reader lock for the context lifetime.
+
+    Args:
+        project_root: Root directory of the analytics project.
+        validate: Run Spec semantic checks. All other bundle checks always run.
+
+    Yields:
+        The loaded bundle, protected by the reader lock.
+    """
     project_root = pathlib.Path(project_root).resolve()
     with locking.build_lock(project_root, exclusive=False):
-        yield load_bundle_at(project_root, project_root / paths.BUILD_OUTPUT_DIR)
+        yield load_bundle_at(project_root, project_root / paths.BUILD_OUTPUT_DIR, validate=validate)

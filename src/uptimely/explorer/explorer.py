@@ -18,6 +18,8 @@ class Explorer:
         plan: Existing plan for plan and data-lineage pages. Supply a plan built
             from the same spec document.
         features: Selected output features in the plan, or ``None`` for all features.
+        validate: Run Spec semantic checks before rendering. Disable only when
+            the supplied Spec has already been validated.
     """
 
     def __init__(
@@ -26,10 +28,12 @@ class Explorer:
         *,
         plan: execution_plan.ExecutionPlan,
         features: list[str] | None = None,
+        validate: bool = True,
     ) -> None:
         self.spec = spec_definition
         self.plan = plan
         self.features = features
+        self.validate = validate
 
     def create_html(
         self,
@@ -62,7 +66,7 @@ class Explorer:
             if self.features is None
             else f"selected features: {', '.join(self.features)}"
         )
-        feature_graph = spec.FeatureGraph(self.spec)
+        feature_graph = spec.FeatureGraph(self.spec, validate=self.validate)
         context = spec_section._build_context(self.spec, include_generated_at)
         website = render.WebsiteContext(
             project_name=self.spec.name,

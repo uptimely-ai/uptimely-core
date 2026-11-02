@@ -126,9 +126,15 @@ class FeatureGraphBase:
 class FeatureGraph(FeatureGraphBase):
     """Global dependency graph built from all feature actions."""
 
-    def __init__(self, spec: spec_model.Spec) -> None:
-        """Build the complete dependency graph from spec declarations."""
-        validation.validate_spec(spec)
+    def __init__(self, spec: spec_model.Spec, *, validate: bool = True) -> None:
+        """Build the complete dependency graph from spec declarations.
+
+        Args:
+            spec: Spec document to represent.
+            validate: Run semantic checks; disable only for an already validated Spec.
+        """
+        if validate:
+            validation.validate_spec(spec)
         self.actions = spec.actions
         self.spec = spec
         self._node_index: dict[str, Node] = {}
