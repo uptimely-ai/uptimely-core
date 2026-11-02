@@ -1,8 +1,0 @@
-{% from "project_context.html.j2" import project_link %}
-<header class="site-topbar" aria-label="Project context">
-  {% if include_navigation %}
-  <button class="mobile-nav-toggle" type="button" aria-label="Open navigation"
-    aria-expanded="false" aria-controls="explorer-navigation">{{ icon("menu", "nav-icon") }}</button>
-  {% endif %}
-  {{ project_link(rel_root, index_filename, project_name, active_page) }}
-</header>

@@ -1,21 +1,20 @@
 import dataclasses
 import json
-import pathlib
 
 import graphable
 import pytest
 from graphable import views
 
 from uptimely import execution_plan, spec
-from uptimely.explorer import common, render
+from uptimely.explorer import common
 from uptimely.explorer.sections import data_lineage, feature_lineage, invocation_lineage
 from uptimely.explorer.sections import plan as plan_render
 from uptimely.spec import functions, model
 from uptimely.spec.feature_graph import feature_graph, models
 
 
-def test_render_field_filter_preserves_falsy_values() -> None:
-    assert render.filled_fields(
+def test_optional_field_filter_preserves_falsy_values() -> None:
+    assert common.filled_fields(
         absent=None, flag=False, count=0, text="", items=[], metadata={}
     ) == {"flag": False, "count": 0, "text": "", "items": [], "metadata": {}}
 
@@ -54,10 +53,10 @@ def test_feature_labels_use_ids_for_empty_names_and_prefer_global_dimensions() -
     assert common.feature_labels(definition) == {"id": "Global key", "value": "value"}
 
 
-def test_feature_render_data_preserves_empty_strings() -> None:
+def test_feature_data_preserves_empty_strings() -> None:
     node = models.FeatureNode(name="reading", data_type="", entity="asset", dataset_id="telemetry")
 
-    assert feature_lineage._node_render_data(node) == {
+    assert feature_lineage._node_data(node) == {
         "node_type": "feature",
         "is_action": False,
         "label": "reading",
@@ -68,7 +67,7 @@ def test_feature_render_data_preserves_empty_strings() -> None:
     }
 
 
-def test_action_render_data_includes_declared_function_metadata() -> None:
+def test_action_data_includes_declared_function_metadata() -> None:
     function = model.FunctionTemplate(
         id="double",
         kind="vectorize",
@@ -84,7 +83,7 @@ def test_action_render_data_includes_declared_function_metadata() -> None:
         function=function,
     )
 
-    assert feature_lineage._node_render_data(node) == {
+    assert feature_lineage._node_data(node) == {
         "node_type": "feature",
         "is_action": True,
         "label": "Double",
@@ -111,7 +110,7 @@ def test_feature_payload_preserves_graph_metadata_and_excludes_external_edges() 
     subset = feature_graph.FeatureSubGraph(graphable.graph.Graph([source], discover=False), [])
     config = views.CytoscapeStylingConfig(
         reference_fnc=lambda node: node.reference.node_id,
-        node_data_fnc=lambda node: feature_lineage._node_render_data(node.reference),
+        node_data_fnc=lambda node: feature_lineage._node_data(node.reference),
     )
     for selected in (full, subset):
         elements = json.loads(views.create_topology_cytoscape(selected.graph, config))
@@ -170,7 +169,7 @@ def test_main_columns_replace_outputs_in_order_without_materializing_escape() ->
         ("vectorize", "Value", "Value", False, 3, 3),
     ],
 )
-def test_kind_capabilities_preserve_rendering_contracts(
+def test_kind_capabilities_preserve_presentation_contracts(
     kind_id: functions.FunctionKindId,
     card_feature: str | None,
     topology_feature: str | None,
@@ -212,7 +211,7 @@ def test_kind_capabilities_preserve_rendering_contracts(
     compiled = execution_plan.ExecutionPlan(
         execution_plan.PLAN_VERSION, "polars", {}, [invocation], [["calculate"]]
     )
-    card = plan_render._render_step(1, invocation, compiled, definition)
+    card = plan_render._build_step(1, invocation, compiled, definition)
     nodes, _ = invocation_lineage.invocation_lineage_payload(compiled, definition)
     step = data_lineage._build_stages(definition, compiled)[0][0]
     assert card["feature"] == card_feature
@@ -232,8 +231,8 @@ def test_kind_capabilities_preserve_rendering_contracts(
         assert [column.name for column in step.main_columns] == ["value"]
 
 
-def test_renderers_follow_changed_capabilities_not_kind_names(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+def test_presentation_follows_changed_capabilities_not_kind_names(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     definition = spec.Spec.model_validate(
         {
@@ -271,7 +270,7 @@ def test_renderers_follow_changed_capabilities_not_kind_names(
     )
     monkeypatch.setattr(functions, "FUNCTION_KINDS", catalog)
 
-    context = plan_render.build_context(compiled, tmp_path, definition)
+    context = plan_render.build_context(compiled, definition)
     card = context["stages"][0]["steps"][0]
     node = json.loads(context["invocation_lineage_data"])["nodes"][0]
     step = data_lineage._build_stages(definition, compiled)[0][0]

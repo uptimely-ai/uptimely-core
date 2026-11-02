@@ -1,4 +1,4 @@
-"""Render processing tables and their dependencies without executing spec."""
+"""Prepare illustrative processing tables without executing the spec."""
 
 from __future__ import annotations
 
@@ -6,24 +6,13 @@ import dataclasses
 import itertools
 
 from uptimely import execution_plan, spec
-from uptimely.explorer import render
 from uptimely.spec import functions
 from uptimely.spec.model import common as spec_common
 
-SECTION = render.WebsiteSection(
-    active_page="execution",
-    pages=(
-        render.WebsitePage(
-            "execution/data_lineage.html.j2",
-            render.WEBSITE_PAGES["execution"]["data_lineage"],
-            active_section="data_lineage",
-        ),
-    ),
-)
 UNASSIGNED_DATASET_LABEL = "Unassigned"
 DIMENSION_COLOR = "#93c5fd"
 UNPRODUCED_COLOR = "#cbd5e1"
-__all__ = ["SECTION", "DataLineageColumn", "DataLineageStep", "build_context"]
+__all__ = ["DataLineageColumn", "DataLineageStep", "build_context"]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -288,7 +277,7 @@ def build_context(
     spec_definition: spec.Spec,
     execution_plan: execution_plan.ExecutionPlan,
 ) -> dict[str, object]:
-    """Prepare data-lineage display data without rendering or writing pages.
+    """Prepare data-lineage display data without writing files.
 
     Args:
         spec_definition: Spec document model.

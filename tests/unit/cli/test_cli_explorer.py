@@ -11,7 +11,6 @@ from support import examples as example_support
 
 from uptimely import compiler, project
 from uptimely.cli import cli, explorer
-from uptimely.explorer import explorer as explorer_module
 from uptimely.explorer import server as explorer_server
 from uptimely.project import build as project_build
 
@@ -92,7 +91,7 @@ def test_explorer_reports_invalid_build(
     )
 
 
-def test_explorer_serves_packaged_frontend_without_building_or_rendering(
+def test_explorer_serves_packaged_frontend_without_building(
     built_project: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -100,7 +99,7 @@ def test_explorer_serves_packaged_frontend_without_building_or_rendering(
     served: list[tuple[pathlib.Path, str, int, str]] = []
 
     def fail(*args: object, **kwargs: object) -> None:
-        pytest.fail("Serving a saved website must not compile, load source, or render")
+        pytest.fail("Serving the saved Explorer must not compile or load source")
 
     def serve_and_check_assets(app: ASGIApp, host: str, port: int) -> None:
         served.append((built_project, "127.0.0.1", 0, "all features"))
@@ -113,7 +112,6 @@ def test_explorer_serves_packaged_frontend_without_building_or_rendering(
 
     monkeypatch.setattr(project_build, "load_spec_source", fail)
     monkeypatch.setattr(compiler.Compiler, "compile", fail)
-    monkeypatch.setattr(explorer_module.Explorer, "create_html", fail)
     monkeypatch.setattr(explorer_server.uvicorn, "run", serve_and_check_assets)
     monkeypatch.setattr(
         sys,

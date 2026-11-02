@@ -275,7 +275,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     assert bundle.execution_plan.invocations
     assert (root / project.EXPLORER_DATA_FILE).is_file()
     assert not (root / "_generated/spec").exists()
-    assert not (root / project.EXPLORER_OUTPUT_DIR).exists()
+    assert (root / project.EXPLORER_DATA_FILE).is_file()
 
 
 @pytest.mark.parametrize("scoped", [False, True])
@@ -415,7 +415,7 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
     assert full_bundle.manifest.features is None
 
 
-def test_project_build_compiles_once_and_renders_the_compiled_plan(
+def test_project_build_compiles_once_and_prepares_the_compiled_plan(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -22,7 +22,7 @@ Definitions can be authored in Python and exported to JSON, or supplied directly
 
 ![Uptimely Core Demo](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-feature-lineage.png)
 
-Browset the [example project explorer](https://uptimely-ai.github.io/uptimely-core/examples/pump_analytics/).
+Browse the [example project explorer](https://uptimely-ai.github.io/uptimely-core/examples/pump_analytics/).
 
 More business benefits at [uptimely.ai website](https://uptimely.ai).
 
@@ -68,8 +68,9 @@ Build the project:
 uptimely build examples/pump_analytics --log-level debug
 ```
 
-The build creates files
-under `examples/pump_analytics/_generated/build/`. Rebuild after changing the
+The build creates the execution bundle under
+`examples/pump_analytics/_generated/build/` and the Explorer data snapshot at
+`examples/pump_analytics/_generated/explorer.json`. Rebuild after changing the
 project source.
 
 Execute the data pipeline:

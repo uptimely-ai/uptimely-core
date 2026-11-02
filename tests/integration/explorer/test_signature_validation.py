@@ -1,4 +1,4 @@
-"""Explorer behavior for functions without Python signature validation."""
+"""Explorer presentation respects disabled Python signature validation."""
 
 import pathlib
 import sys
@@ -7,14 +7,13 @@ import pytest
 from support import examples as example_support
 
 from uptimely import compiler, spec
-from uptimely.explorer import explorer
-from uptimely.explorer.sections import plan as plan_render
+from uptimely.explorer import presentation
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 
-def test_disabled_signature_renders_without_importing_module_or_parent(
+def test_disabled_signature_does_not_import_entrypoint_module(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -40,16 +39,20 @@ def test_disabled_signature_renders_without_importing_module_or_parent(
 
     compiled = compiler.Compiler().compile(definition)
     invocation = next(item for item in compiled.invocations if item.function_id == function.id)
-    step = plan_render._render_step(1, invocation, compiled, definition)
-    index = explorer.Explorer(definition, plan=compiled).create_html(tmp_path / "site/index.html")
-    functions_page = (index.parent / "spec/functions.html").read_text(encoding="utf-8")
+    data = presentation.build_presentation_data(definition, compiled)
+    function_data = data["catalogs"]["configuration"]["functions"]["ratio"]
+    step = next(
+        step
+        for stage in data["stages"]
+        for step in stage["steps"]
+        if step["function"] == function.id
+    )
 
     assert not marker.exists()
     assert "signature_validation_fixture" not in sys.modules
     assert invocation.id not in compiled.resources["signatures"]
     assert invocation.input_features
     assert step["returns"]["type"]["engine"] is None
-    assert "Python signature validation disabled" in functions_page
-    assert function.entrypoint in functions_page
-    assert "Declared arguments" in functions_page
-    assert "ratio</span>(" not in functions_page
+    assert function_data["signature_validation_disabled"]
+    assert function_data["entrypoint"] == function.entrypoint
+    assert function_data["args"]

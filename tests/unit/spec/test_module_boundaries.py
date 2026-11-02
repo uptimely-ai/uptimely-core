@@ -133,13 +133,13 @@ def test_modules_import_in_a_fresh_process(module: str) -> None:
 @pytest.mark.parametrize(
     "modules",
     [
-        ("uptimely.project", "uptimely.explorer.explorer"),
-        ("uptimely.explorer.explorer", "uptimely.project"),
-        ("uptimely.project.build.builder", "uptimely.explorer.explorer"),
-        ("uptimely.explorer.explorer", "uptimely.project.build.builder"),
+        ("uptimely.project", "uptimely.explorer.presentation"),
+        ("uptimely.explorer.presentation", "uptimely.project"),
+        ("uptimely.project.build.builder", "uptimely.explorer.presentation"),
+        ("uptimely.explorer.presentation", "uptimely.project.build.builder"),
     ],
 )
-def test_project_and_explorer_import_in_either_order_in_a_fresh_process(
+def test_project_and_explorer_presentation_import_in_either_order_in_a_fresh_process(
     modules: tuple[str, str],
 ) -> None:
     script = f"""
