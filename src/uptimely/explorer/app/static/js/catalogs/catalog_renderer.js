@@ -29,32 +29,44 @@ const subheading = title => `<h3 class="font-mono text-xs font-semibold uppercas
 const chips = values => `<div class="mt-3 flex flex-wrap gap-2">${values.map(value =>
   `<span class="rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">${escape(value)}</span>`).join("")}</div>`;
 
-export function catalogContext(data, view) {
-  const config = data.catalogs.configuration;
-  let links;
-  if (view === "features") {
+const contextLinks = {
+  features(data) {
+    const config = data.catalogs.configuration;
     const produced = features(config);
-    links = datasets(config).map(({ id, dataset }) => {
+    return datasets(config).map(({ id, dataset }) => {
       const items = produced.filter(item => item.id === id);
       return items.length ? group(label(id, dataset), items.map(item =>
-        contextLink(`feature-${id}-${item.featureId}`, label(item.featureId, item.feature), view))) : "";
+        contextLink(`feature-${id}-${item.featureId}`, label(item.featureId, item.feature), "features"))) : "";
     }).join("");
-  } else if (view === "datasets") {
-    links = Object.entries(config.entities).map(([id, entity]) => group(label(id, entity),
+  },
+  datasets(data) {
+    return Object.entries(data.catalogs.configuration.entities).map(([id, entity]) => group(label(id, entity),
       Object.entries(entity.datasets).map(([datasetId, dataset]) =>
-        contextLink(`dataset-${datasetId}`, label(datasetId, dataset), view)))).join("");
-  } else if (view === "functions") {
-    links = Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length)
+        contextLink(`dataset-${datasetId}`, label(datasetId, dataset), "datasets")))).join("");
+  },
+  functions(data) {
+    return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length)
       .map(([kind, items]) => `<div class="context-link-group">
         ${contextLink(`functions-${kind}`, kind[0].toUpperCase() + kind.slice(1), null, Object.keys(items).length, kind)}
         <div class="context-sublinks">${Object.entries(items).map(([id, item]) =>
           contextLink(`function-${id}`, label(id, item))).join("")}</div></div>`).join("");
-  } else if (view === "stages") {
-    links = data.stages.map(stage => contextLink(`stage-${stage.stage}`, `Stage ${stage.stage}`, "stages", stage.steps.length)).join("");
-  } else {
-    links = Object.entries(config[view]).map(([id, item]) =>
-      contextLink(`${view === "entities" ? "entity" : "dimension"}-${id}`, label(id, item), view)).join("");
-  }
+  },
+  stages(data) {
+    return data.stages.map(stage =>
+      contextLink(`stage-${stage.stage}`, `Stage ${stage.stage}`, "stages", stage.steps.length)).join("");
+  },
+  entities(data) {
+    return Object.entries(data.catalogs.configuration.entities).map(([id, item]) =>
+      contextLink(`entity-${id}`, label(id, item), "entities")).join("");
+  },
+  dimensions(data) {
+    return Object.entries(data.catalogs.configuration.dimensions).map(([id, item]) =>
+      contextLink(`dimension-${id}`, label(id, item), "dimensions")).join("");
+  },
+};
+
+export function catalogContext(data, view) {
+  const links = contextLinks[view](data);
   const title = view[0].toUpperCase() + view.slice(1);
   return `<aside class="site-context" id="catalog-context" aria-label="${title} context" data-context-label="${view}">
     ${contextHeader(title, view, "catalog-context")}
@@ -64,45 +76,74 @@ export function catalogContext(data, view) {
     </nav></aside>`;
 }
 
-function catalogOverview(data, view) {
-  if (view === "functions") return functionOverview(data);
-  const config = data.catalogs.configuration, summary = data.catalogs.summary;
-  const allDatasets = datasets(config);
-  const stats = [], charts = [];
-  const withDatasets = Object.values(config.entities).filter(entity => Object.keys(entity.datasets).length).length;
-  if (view === "entities") {
-    stats.push(["Entities", summary.entity_count], ["With datasets", withDatasets, "datasets"],
-      ["Datasets", summary.dataset_count], ["Dimensions", summary.dimension_count]);
+const overviewData = {
+  entities(data) {
+    const { configuration: config, summary } = data.catalogs;
+    const entities = Object.values(config.entities);
     const counts = new Map();
-    Object.values(config.entities).forEach(entity => {
+    entities.forEach(entity => {
       const key = `${entity.dimensions.length} dimensions`;
       counts.set(key, (counts.get(key) || 0) + 1);
     });
-    charts.push(distribution("Entities by dimension count", [...counts]));
-  } else if (view === "datasets") {
-    stats.push(["Datasets", summary.dataset_count], ["Owning entities", withDatasets, "entities"],
-      ["Features", allDatasets.reduce((total, { dataset }) => total + Object.keys(dataset.features).length, 0)],
-      ["Actions", summary.action_count, "invocations"]);
-    charts.push(distribution("Datasets by entity", Object.entries(config.entities).map(([id, entity]) =>
-      [id, Object.keys(entity.datasets).length])));
-  } else if (view === "features") {
+    const withDatasets = entities.filter(entity => Object.keys(entity.datasets).length).length;
+    return {
+      stats: [["Entities", summary.entity_count], ["With datasets", withDatasets, "datasets"],
+        ["Datasets", summary.dataset_count], ["Dimensions", summary.dimension_count]],
+      charts: [distribution("Entities by dimension count", [...counts])],
+    };
+  },
+  datasets(data) {
+    const { configuration: config, summary } = data.catalogs;
+    const entities = Object.entries(config.entities);
+    const withDatasets = entities.filter(([, entity]) => Object.keys(entity.datasets).length).length;
+    return {
+      stats: [["Datasets", summary.dataset_count], ["Owning entities", withDatasets, "entities"],
+        ["Features", datasets(config).reduce((total, { dataset }) => total + Object.keys(dataset.features).length, 0)],
+        ["Actions", summary.action_count, "invocations"]],
+      charts: [distribution("Datasets by entity", entities.map(([id, entity]) =>
+        [id, Object.keys(entity.datasets).length]))],
+    };
+  },
+  features(data) {
+    const config = data.catalogs.configuration;
     const produced = features(config);
-    stats.push(["Features", produced.length], ["Datasets with features", new Set(produced.map(item => item.id)).size, "datasets"]);
-    charts.push(distribution("Features by dataset", allDatasets.map(({ id, dataset }) =>
-      [id, produced.filter(item => item.id === id).length])));
-  } else if (view === "dimensions") {
+    return {
+      stats: [["Features", produced.length],
+        ["Datasets with features", new Set(produced.map(item => item.id)).size, "datasets"]],
+      charts: [distribution("Features by dataset", datasets(config).map(({ id }) =>
+        [id, produced.filter(item => item.id === id).length]))],
+    };
+  },
+  dimensions(data) {
+    const { configuration: config, summary } = data.catalogs;
+    const dimensions = Object.values(config.dimensions);
     const types = new Map();
-    Object.values(config.dimensions).forEach(item => types.set(item.type, (types.get(item.type) || 0) + 1));
-    const roots = Object.values(config.dimensions).filter(item => !item.parent).length;
-    stats.push(["Dimensions", summary.dimension_count], ["Types", types.size, "dimensions"],
-      ["Root dimensions", roots, "dimensions"], ["Child dimensions", summary.dimension_count - roots, "dimensions"]);
-    charts.push(distribution("Dimensions by type", [...types]));
-  } else {
-    stats.push(["Stages", data.plan.stage_count], ["Invocations", data.plan.invocation_count],
-      ["Max parallel invocations", data.plan.max_parallel_invocations, "stages"], ["Dependencies", data.plan.dependency_count, "invocation-lineage"]);
-    charts.push(distribution("Invocations by stage", data.stages.map(stage => [`Stage ${stage.stage}`, stage.steps.length])));
-    charts.push(distribution("Invocations by function kind", data.plan.function_kind_counts));
-  }
+    dimensions.forEach(item => types.set(item.type, (types.get(item.type) || 0) + 1));
+    const roots = dimensions.filter(item => !item.parent).length;
+    return {
+      stats: [["Dimensions", summary.dimension_count], ["Types", types.size, "dimensions"],
+        ["Root dimensions", roots, "dimensions"],
+        ["Child dimensions", summary.dimension_count - roots, "dimensions"]],
+      charts: [distribution("Dimensions by type", [...types])],
+    };
+  },
+  stages(data) {
+    return {
+      stats: [["Stages", data.plan.stage_count], ["Invocations", data.plan.invocation_count],
+        ["Max parallel invocations", data.plan.max_parallel_invocations, "stages"],
+        ["Dependencies", data.plan.dependency_count, "invocation-lineage"]],
+      charts: [
+        distribution("Invocations by stage",
+          data.stages.map(stage => [`Stage ${stage.stage}`, stage.steps.length])),
+        distribution("Invocations by function kind", data.plan.function_kind_counts),
+      ],
+    };
+  },
+};
+
+function catalogOverview(data, view) {
+  if (view === "functions") return functionOverview(data);
+  const { stats, charts } = overviewData[view](data);
   const title = view[0].toUpperCase() + view.slice(1);
   return `<section id="catalog-overview" data-context-item aria-label="${title} overview" class="mb-12">
     <h2 class="title-with-icon mb-6 font-display text-2xl font-semibold text-white">${icon("overview")}<span>${title} overview</span></h2>
