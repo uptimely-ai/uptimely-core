@@ -127,7 +127,6 @@ def load_bundle_at(
     manifest = _load_manifest(bundle_root, project_root)
     spec_path, execution_plan_path = _resolve_artifacts(bundle_root, manifest, project_root)
     _validate_required_artifacts(bundle_root, spec_path, execution_plan_path, project_root)
-    _validate_explorer_inventory(explorer_path, manifest, project_root)
     spec_definition = _load_spec_definition(
         spec_path, project_root, validate=validate, log_structure=log_structure
     )

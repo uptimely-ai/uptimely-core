@@ -110,6 +110,7 @@ def _generate_artifacts(
             spec_definition,
             execution_plan,
             features=selected_features,
+            validate_spec=False,
         )
         return presentation.serialize_presentation_data(presentation_data)
     except (

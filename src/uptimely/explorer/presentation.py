@@ -61,6 +61,7 @@ def build_presentation_data(
     plan: execution_plan.ExecutionPlan,
     *,
     features: list[str] | None = None,
+    validate_spec: bool = True,
 ) -> ExplorerPresentationData:
     """Prepare complete Explorer presentation data without writing files.
 
@@ -68,12 +69,15 @@ def build_presentation_data(
         spec_definition: Project specification used for catalog labels and metadata.
         plan: Compiled execution plan; analytical functions are not executed.
         features: Selected output features, or ``None`` for all features.
+        validate_spec: Run semantic checks when building the feature graph.
 
     Returns:
         Versioned JSON-ready project, catalog, graph, plan, and animation data.
     """
     spec_data = spec_section.build_context(spec_section._build_context(spec_definition, False))
-    feature_data = feature_lineage.build_context(spec.FeatureGraph(spec_definition))
+    feature_data = feature_lineage.build_context(
+        spec.FeatureGraph(spec_definition, validate=validate_spec)
+    )
     plan_data = plan_section.build_context(plan, spec_definition)
     animation_data = data_lineage.build_context(spec_definition, plan)
 
