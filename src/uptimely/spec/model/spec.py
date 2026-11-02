@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import functools
+import logging
 import typing
 
 import pydantic
@@ -13,6 +14,8 @@ from uptimely.spec import arg_types, functions, selectors
 from . import common
 from . import dataset as dataset_module
 from . import functions as functions_module
+
+logger = logging.getLogger(__name__)
 
 SPEC_VERSION = 3
 type DatasetKey = tuple[str, str]
@@ -364,11 +367,18 @@ class Spec(common.StrictModel):
 
     @pydantic.model_validator(mode="before")
     @classmethod
-    def normalize_document(cls, value: typing.Any) -> typing.Any:
+    def normalize_document(cls, value: typing.Any, info: pydantic.ValidationInfo) -> typing.Any:
         """Recover keyed resource IDs and resolve entity dimension references."""
+        log_structure = not isinstance(info.context, dict) or info.context.get(
+            "log_structure", True
+        )
+        if log_structure:
+            logger.debug("\nSpec validation:\n  Document structure:")
         if not isinstance(value, dict):
             return value
 
+        if log_structure and logger.isEnabledFor(logging.DEBUG):
+            cls._log_structure_checks(value)
         normalized = dict(value)
         normalized["dimensions"] = cls._with_resource_ids(normalized.get("dimensions", {}) or {})
         if "functions" in normalized:
@@ -378,6 +388,37 @@ class Spec(common.StrictModel):
                 normalized["entities"] or {}, normalized["dimensions"]
             )
         return normalized
+
+    @staticmethod
+    def _log_structure_checks(document: dict[str, typing.Any]) -> None:
+        """Summarize structural checks once instead of logging each nested resource."""
+        dataset_count = 0
+        action_count = 0
+        entities = document.get("entities", {})
+        for entity in entities.values() if isinstance(entities, dict) else ():
+            datasets = (
+                entity.get("datasets", {})
+                if isinstance(entity, dict)
+                else entity.datasets
+                if isinstance(entity, dataset_module.Entity)
+                else {}
+            )
+            if not isinstance(datasets, dict):
+                continue
+            dataset_count += len(datasets)
+            for dataset in datasets.values():
+                actions = (
+                    dataset.get("actions", {})
+                    if isinstance(dataset, dict)
+                    else dataset.actions
+                    if isinstance(dataset, dataset_module.Dataset)
+                    else {}
+                )
+                if isinstance(actions, dict):
+                    action_count += len(actions)
+        logger.debug("    - checking object keys as identifiers for %d datasets", dataset_count)
+        logger.debug("    - checking spec version is an integer")
+        logger.debug("    - checking feature references for %d actions", action_count)
 
     @classmethod
     def _normalize_functions(cls, value: typing.Any) -> typing.Any:

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import collections.abc
+import logging
 
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
+
+logger = logging.getLogger(__name__)
 
 
 def iter_parent_cycles(
@@ -25,6 +28,7 @@ def iter_parent_cycles(
 
 def validate_parent(spec: spec_model.Spec) -> None:
     """Require a dimension's parent to be declared."""
+    logger.debug("    - checking dimension parent references")
     for dimension_id, dimension in spec.dimensions.items():
         if dimension.parent is not None and dimension.parent not in spec.dimensions:
             raise ValueError(
@@ -34,6 +38,7 @@ def validate_parent(spec: spec_model.Spec) -> None:
 
 def validate_parent_cycle(spec: spec_model.Spec) -> None:
     """Reject a cycle in dimension ancestry after parent references are validated."""
+    logger.debug("    - checking dimension ancestry is acyclic")
     for dimension_id, cycle in iter_parent_cycles(spec):
         if cycle:
             raise errors.SpecError(

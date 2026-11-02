@@ -1,11 +1,41 @@
 """Check template reuse without sharing project-specific render context."""
 
 import pathlib
+from unittest import mock
 
 import jinja2
 import pytest
 
-from uptimely.explorer import render, sections
+from uptimely import compiler, spec
+from uptimely.explorer import explorer, render, sections
+from uptimely.spec import validation
+
+
+@pytest.mark.parametrize("validate", [True, False])
+def test_explorer_forwards_spec_validation_option(tmp_path: pathlib.Path, validate: bool) -> None:
+    document = spec.Spec()
+    plan = compiler.Compiler().compile(document)
+
+    with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
+        index = explorer.Explorer(document, plan=plan, validate=validate).create_html(
+            tmp_path / "index.html"
+        )
+
+    assert index.is_file()
+    assert check.call_count == int(validate)
+
+
+@pytest.mark.parametrize("validate", [True, False])
+def test_feature_graph_spec_validation_is_optional(validate: bool) -> None:
+    document = spec.Spec.model_validate(
+        {"dimensions": {"child": {"type": "integer", "parent": "missing"}}}
+    )
+
+    if validate:
+        with pytest.raises(ValueError, match="unknown parent"):
+            spec.FeatureGraph(document)
+    else:
+        assert spec.FeatureGraph(document, validate=False).spec is document
 
 
 def test_html_environment_reuses_compiled_templates() -> None:

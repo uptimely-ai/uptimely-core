@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import collections.abc
 import graphlib
+import logging
 
 from uptimely.spec import model as spec_model
 
@@ -20,6 +21,8 @@ from .rules.actions import contracts as action_contracts
 from .rules.actions import dependencies
 from .rules.actions import inputs as action_inputs
 from .rules.actions import outputs as action_outputs
+
+logger = logging.getLogger(__name__)
 
 type Validator = collections.abc.Callable[[spec_model.Spec], None]
 
@@ -167,6 +170,7 @@ def validate_spec(spec: spec_model.Spec) -> None:
         ValueError: A semantic invariant is violated.
         graphlib.CycleError: Validator dependencies contain a configuration cycle.
     """
+    logger.debug("  Semantic checks:")
     ordered = tuple(graphlib.TopologicalSorter(VALIDATION_DEPENDENCIES).static_order())
     for validate in ordered:
         validate(spec)

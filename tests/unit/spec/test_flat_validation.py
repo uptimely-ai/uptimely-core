@@ -6,10 +6,12 @@ import collections.abc
 import dataclasses
 import graphlib
 import inspect
+import json
 import pathlib
 import types
 import typing
 
+import pydantic
 import pytest
 
 from uptimely import row_context as row_context_model
@@ -714,3 +716,64 @@ def test_load_spec_still_validates(tmp_path: pathlib.Path) -> None:
     path.write_text(spec.model_dump_json())
     with pytest.raises(ValueError, match="unknown input feature: missing"):
         api.load_spec(path)
+
+
+@pytest.mark.parametrize("validate", [False, True])
+def test_load_spec_can_defer_semantic_validation(tmp_path: pathlib.Path, validate: bool) -> None:
+    document = make_spec()
+    compute(document).features.inputs.append("$features.missing")
+    path = tmp_path / "spec.json"
+    path.write_text(document.model_dump_json())
+
+    if validate:
+        with pytest.raises(ValueError, match="unknown input feature: missing"):
+            api.load_spec(path, validate=validate)
+    else:
+        loaded = api.load_spec(path, validate=validate)
+        with pytest.raises(ValueError, match="unknown input feature: missing"):
+            validation.validate_spec(loaded)
+
+
+@pytest.mark.parametrize("validate", [False, True])
+def test_load_spec_always_checks_document_structure(tmp_path: pathlib.Path, validate: bool) -> None:
+    path = tmp_path / "spec.json"
+    path.write_text(json.dumps({"spec_version": True}))
+
+    with pytest.raises(pydantic.ValidationError, match="spec_version"):
+        api.load_spec(path, validate=validate)
+
+
+@pytest.mark.parametrize("validate", [False, True])
+def test_from_python_can_defer_semantic_validation(validate: bool) -> None:
+    document = make_spec()
+    compute(document).features.inputs.append("$features.missing")
+
+    if validate:
+        with pytest.raises(ValueError, match="unknown input feature: missing"):
+            api.from_python(
+                entities=document.entities,
+                functions=document.functions,
+                dimensions=document.dimensions,
+                validate=validate,
+            )
+    else:
+        loaded = api.from_python(
+            entities=document.entities,
+            functions=document.functions,
+            dimensions=document.dimensions,
+            validate=validate,
+        )
+        with pytest.raises(ValueError, match="unknown input feature: missing"):
+            validation.validate_spec(loaded)
+
+
+@pytest.mark.parametrize("validate", [False, True])
+def test_from_python_always_checks_document_structure(validate: bool) -> None:
+    document = make_spec()
+
+    with pytest.raises(pydantic.ValidationError, match="unexpected"):
+        api.from_python(
+            entities=document.entities,
+            functions={"invalid": {"unexpected": True}},
+            validate=validate,
+        )

@@ -1,6 +1,7 @@
 """Compiler orchestration ordering and fail-fast behavior."""
 
 import functools
+import logging
 from unittest import mock
 
 import pytest
@@ -149,7 +150,9 @@ def test_compiler_rejects_string_features_and_recovers() -> None:
 
 def test_signatures_reuse_function_contracts_and_reset_on_compile(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.DEBUG, logger=compiler.__name__)
     function = spec_model.FunctionTemplate(
         id="calculate",
         kind="vectorize",
@@ -183,7 +186,61 @@ def test_signatures_reuse_function_contracts_and_reset_on_compile(
     assert builder.signatures == {node.node_id: signature for node in nodes[:2]}
     validate.assert_called_once_with(validation.CallableValidationContext(function, signature))
     assert builder.signatures[nodes[0].node_id] is builder.signatures[nodes[1].node_id]
+    assert caplog.messages == [
+        "  Signature checks for 1 functions:\n"
+        "    - checking callable signatures\n"
+        "    - checking implementations accept declared arguments\n"
+        "    - checking declared arguments can be passed as keywords\n"
+        "    - checking declared implementation argument annotations\n"
+        "    - checking required implementation parameters are declared\n"
+        "    - checking declared implementation return annotations",
+        "    - skipping 1 functions (validate_signature=false)",
+    ]
 
     builder.compile(spec.Spec())
     assert builder.function_signatures == {}
     assert builder.signatures == {}
+
+
+@pytest.mark.parametrize("features", [None, [], ["missing"], "result"])
+def test_compiler_logs_feature_and_graph_checks_before_failure(
+    caplog: pytest.LogCaptureFixture, features: list[str] | str | None
+) -> None:
+    caplog.set_level(logging.DEBUG, logger="uptimely")
+    builder = compiler.Compiler()
+    specification = spec.Spec()
+    caplog.clear()
+
+    if features:
+        with pytest.raises(ValueError):
+            builder.compile(specification, features=features)
+    else:
+        builder.compile(specification, features=features)
+
+    assert caplog.messages.count("\nCompiler validation:") == 1
+    compiler_start = caplog.messages.index("\nCompiler validation:")
+    assert caplog.messages[0] == "  Semantic checks:"
+    assert caplog.messages.index("    - checking globally unique dataset IDs") < compiler_start
+    assert caplog.messages[compiler_start : compiler_start + 3] == [
+        "\nCompiler validation:",
+        "  Feature selection:",
+        "    - checking feature selection is a collection, not a string",
+    ]
+    if isinstance(features, str):
+        assert len(caplog.messages) == compiler_start + 3
+    elif features:
+        assert caplog.messages[-1] == "    - checking selected output features have producers"
+        assert "    - checking dependency graph is acyclic and schedulable" not in caplog.messages
+    else:
+        assert "  Invocation graph:" in caplog.messages
+        assert "    - checking dependency graph is acyclic and schedulable" in caplog.messages
+        assert "  Entrypoints:" in caplog.messages
+        assert "  Package provenance:" in caplog.messages
+        assert "  Execution plan:" in caplog.messages
+        assert caplog.messages[-1] == (
+            "    - checking emitted invocation IDs, dependencies, and stage ordering"
+        )
+        assert not any("Compiled plan:" in message for message in caplog.messages)
+        caplog.clear()
+        builder.compile(specification, features=features)
+        assert caplog.messages.count("\nCompiler validation:") == 1

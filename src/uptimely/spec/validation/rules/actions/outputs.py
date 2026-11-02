@@ -1,14 +1,18 @@
 """Atomic output declaration, ownership, and producer checks."""
 
+import logging
 import warnings
 
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 
+logger = logging.getLogger(__name__)
+
 
 def validate_output_presence(spec: spec_model.Spec) -> None:
     """Require feature-producing actions to declare outputs when their kind requires them."""
+    logger.debug("    - checking required action outputs are declared")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if (
@@ -21,6 +25,7 @@ def validate_output_presence(spec: spec_model.Spec) -> None:
 
 def validate_function_id(spec: spec_model.Spec) -> None:
     """Require a calculation function ID to be nonempty."""
+    logger.debug("    - checking calculation function IDs are nonempty")
     for action in spec.actions:
         function = spec.functions.root.get(action.binding.function)
         if (
@@ -33,6 +38,7 @@ def validate_function_id(spec: spec_model.Spec) -> None:
 
 def validate_output_names(spec: spec_model.Spec) -> None:
     """Require calculated output names to be nonempty."""
+    logger.debug("    - checking calculated output names are nonempty")
     for action in spec.actions:
         function = spec.functions.root.get(action.binding.function)
         if (
@@ -45,6 +51,7 @@ def validate_output_names(spec: spec_model.Spec) -> None:
 
 def validate_dimension_collision(spec: spec_model.Spec) -> None:
     """Reject calculated feature names that collide with dimensions."""
+    logger.debug("    - checking calculated outputs do not collide with dimensions")
     for action in spec.actions:
         function = spec.functions.root.get(action.binding.function)
         collisions = set(action.output_features) & spec.dimensions.keys()
@@ -57,6 +64,7 @@ def validate_dimension_collision(spec: spec_model.Spec) -> None:
 
 def validate_function_reference(spec: spec_model.Spec) -> None:
     """Require an action's function reference to resolve in the catalog."""
+    logger.debug("    - checking action function references")
     for key, action in spec.action_items:
         function_id = action.binding.function
         if function_id not in spec.functions:
@@ -69,6 +77,7 @@ def validate_function_reference(spec: spec_model.Spec) -> None:
 
 def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
     """Reject output feature declarations on kinds that do not support them."""
+    logger.debug("    - checking nonproducing actions do not declare outputs")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if (
@@ -83,6 +92,7 @@ def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
 
 def validate_output_feature(spec: spec_model.Spec) -> None:
     """Require an output feature to be declared in the target dataset."""
+    logger.debug("    - checking action outputs are declared in the target dataset")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or not functions.FUNCTION_KINDS[function.kind].produces_features:
@@ -94,6 +104,7 @@ def validate_output_feature(spec: spec_model.Spec) -> None:
 
 def validate_unique_producer(spec: spec_model.Spec) -> None:
     """Reject multiple producers for a non-dimension feature in declaration order."""
+    logger.debug("    - checking unique producers for non-dimension features")
     producers: dict[tuple[spec_model.DatasetKey, str], str] = {}
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
@@ -113,6 +124,7 @@ def validate_unique_producer(spec: spec_model.Spec) -> None:
 
 def validate_collapse_output(spec: spec_model.Spec) -> None:
     """Require collapse to produce a non-dimension feature."""
+    logger.debug("    - checking collapse actions produce non-dimension features")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if (
@@ -125,6 +137,7 @@ def validate_collapse_output(spec: spec_model.Spec) -> None:
 
 def validate_current_feature_selector(spec: spec_model.Spec) -> None:
     """Reject ambiguous current-feature selectors on multi-output calculations."""
+    logger.debug("    - checking current-feature selectors are unambiguous")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or function.kind not in {functions.VECTORIZE, functions.COLLAPSE}:
@@ -143,6 +156,7 @@ def validate_current_feature_selector(spec: spec_model.Spec) -> None:
 
 def warn_unproduced_features(spec: spec_model.Spec) -> None:
     """Warn when declared dataset features have no action producer."""
+    logger.debug("    - checking declared features have producers (warning only)")
     for key, dataset in spec.dataset_items:
         produced = {
             feature

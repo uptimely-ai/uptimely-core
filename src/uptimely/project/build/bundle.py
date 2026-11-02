@@ -127,16 +127,24 @@ def _load_execution_plan(
 
 
 def _load_spec_definition(
-    spec_path: pathlib.Path, project_root: pathlib.Path, *, validate: bool = True
+    spec_path: pathlib.Path,
+    project_root: pathlib.Path,
+    *,
+    validate: bool = True,
+    log_structure: bool = True,
 ) -> spec.Spec:
     try:
-        return spec.load_spec(spec_path, validate=validate)
+        return spec.load_spec(spec_path, validate=validate, log_structure=log_structure)
     except (OSError, UnicodeDecodeError, ValueError, TypeError, AttributeError) as error:
         raise errors.BuildError("invalid", f"cannot load Spec: {error}", project_root) from error
 
 
 def load_bundle_at(
-    project_root: pathlib.Path, bundle_root: pathlib.Path, *, validate: bool = True
+    project_root: pathlib.Path,
+    bundle_root: pathlib.Path,
+    *,
+    validate: bool = True,
+    log_structure: bool = True,
 ) -> models.BuildBundle:
     """Load a bundle while its project lock is held.
 
@@ -144,6 +152,7 @@ def load_bundle_at(
         project_root: Root directory of the analytics project.
         bundle_root: Directory containing the saved bundle.
         validate: Run Spec semantic checks. Structural and artifact checks always run.
+        log_structure: Emit Spec structural validation debug messages.
     """
     bundle_root = pathlib.Path(bundle_root)
     if not bundle_root.exists():
@@ -159,7 +168,9 @@ def load_bundle_at(
     )
     _validate_required_artifacts(bundle_root, spec_path, execution_plan_path, project_root)
     _validate_explorer_inventory(explorer_path, manifest, project_root)
-    spec_definition = _load_spec_definition(spec_path, project_root, validate=validate)
+    spec_definition = _load_spec_definition(
+        spec_path, project_root, validate=validate, log_structure=log_structure
+    )
     execution_plan = _load_execution_plan(execution_plan_path, project_root)
 
     return models.BuildBundle(

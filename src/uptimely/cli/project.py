@@ -5,7 +5,8 @@ import logging
 import pathlib
 import time
 
-from uptimely import spec
+import polars as pl
+
 from uptimely.cli import common
 from uptimely.project import build as project_build
 from uptimely.project.build import source as build_source
@@ -56,7 +57,7 @@ def _log_build_details(
     duration: float,
 ) -> None:
     """Log build details and full-spec counts alongside the compiled plan."""
-    definition = spec.load_spec(bundle.spec_path)
+    definition = bundle.spec_definition
     source = build_source.SpecSource(root.resolve()).resolve(
         python_spec=args.python_spec, json_spec=args.json_spec
     )
@@ -67,25 +68,32 @@ def _log_build_details(
     scope = (
         "all features" if bundle.manifest.features is None else ", ".join(bundle.manifest.features)
     )
-    logger.debug("\n")
-    logger.debug("Build")
-    logger.debug("  Duration: %.3f s", duration)
-    logger.debug("  Output folder: %s", bundle.root)
-    logger.debug("  Build scope: %s", scope)
-    logger.debug("\nSpec")
-    logger.debug("  Spec source file: %s", source_file)
-    logger.debug("  Number of functions: %d", len(definition.functions))
-    logger.debug(
-        "  Number of datasets: %d",
-        len(definition.datasets),
-    )
-    logger.debug(
-        "  Number of features: %d",
-        sum(len(dataset.features) for dataset in definition.datasets.values()),
-    )
-    logger.debug("\nPlan")
-    logger.debug("  Number of stages: %d", len(bundle.execution_plan.stages))
-    logger.debug("  Number of invocations: %d", len(bundle.execution_plan.invocations))
+    rows = [
+        ("Build", "Duration", f"{duration:.3f} s"),
+        ("Build", "Output folder", str(bundle.root)),
+        ("Build", "Build scope", scope),
+        ("Spec", "Spec source file", str(source_file)),
+        ("Spec", "Number of functions", str(len(definition.functions))),
+        ("Spec", "Number of datasets", str(len(definition.datasets))),
+        (
+            "Spec",
+            "Number of features",
+            str(sum(len(dataset.features) for dataset in definition.datasets.values())),
+        ),
+        ("Plan", "Number of stages", str(len(bundle.execution_plan.stages))),
+        ("Plan", "Number of invocations", str(len(bundle.execution_plan.invocations))),
+    ]
+    table = pl.DataFrame(rows, schema=["Section", "Detail", "Value"], orient="row")
+    with pl.Config(
+        tbl_formatting="ASCII_FULL_CONDENSED",
+        tbl_hide_dataframe_shape=True,
+        tbl_hide_column_data_types=True,
+        tbl_rows=-1,
+        tbl_cols=-1,
+        tbl_width_chars=-1,
+        fmt_str_lengths=max(len(value) for row in rows for value in row),
+    ):
+        logger.debug("\nBuild summary\n%s", table)
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:

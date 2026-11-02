@@ -1,13 +1,18 @@
 """Action feature dependency cycle validation."""
 
+import logging
+
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
+
+logger = logging.getLogger(__name__)
 
 type ActionKey = tuple[str, str]
 
 
 def validate_action_cycle(spec: spec_model.Spec) -> None:
     """Reject cycles between feature-producing actions in declaration DFS order."""
+    logger.debug("    - checking action feature dependencies are acyclic")
     producers: dict[str, ActionKey] = {}
     for key, action in spec.action_items:
         if spec.functions[action.binding.function].kind == functions.WRITE:

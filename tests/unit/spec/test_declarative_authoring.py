@@ -1,13 +1,29 @@
 """Checks for class-based and programmatic Python declarations."""
 
 import dataclasses
+import logging
 import typing
 
 import pytest
 
 from uptimely.spec import functions
 from uptimely.spec import python as authoring
-from uptimely.spec.python import conversion, dimension, entity, ref, row_context
+from uptimely.spec.python import conversion, dimension, entity, ref, row_context, validation
+
+
+@pytest.mark.parametrize("declared", [False, True])
+def test_python_output_reference_validation_does_not_log_per_action(
+    caplog: pytest.LogCaptureFixture, declared: bool
+) -> None:
+    caplog.set_level(logging.DEBUG, logger="uptimely.spec.python")
+    references = [ref.output("temperature")]
+    if declared:
+        validation.validate_action_output_references("read", references, ["temperature"])
+    else:
+        with pytest.raises(ValueError, match="undeclared output 'temperature'"):
+            validation.validate_action_output_references("read", references, [])
+
+    assert not caplog.messages
 
 
 @authoring.function(kind="vectorize")

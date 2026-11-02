@@ -10,6 +10,17 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Spec and compiler validation now emit debug traces with headings and
+  indented check bullets, including reasons for skipped signature checks.
+  Document structure checks summarize dataset and action counts rather than
+  repeating messages for every resource. Python conversion also summarizes
+  action output-reference checks once instead of logging each repeated check.
+  Compiler invocation checks are grouped into one counted action summary.
+  Signature checks likewise use one function-count summary, with a separate
+  count of functions whose signature validation is disabled.
+- Explorer, feature graphs, and bundle loading accept `validate=False` to skip
+  Spec semantic checks on already validated inputs. Project builds now validate
+  Spec semantics once in the compiler; structural and artifact checks remain enabled.
 - Engine validation checks now emit debug logs, including reasons for skipping
   inapplicable dataframe checks.
 - Spec documents and execution plans now expose reusable resource indexes for
@@ -313,3 +324,6 @@ While the version is `0.x`, minor releases may include breaking changes.
 ## [0.0.1] - 2026-08-16
 
 Placholder release to reserve the package name in PyPI.
+- Spec loading and Python conversion accept `validate=False` to defer semantic
+  checks while preserving structural parsing. Project builds validate source
+  semantics in the compiler instead of repeating checks during source loading.

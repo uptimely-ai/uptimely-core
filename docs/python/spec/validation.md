@@ -6,7 +6,10 @@ validators check relationships between declarations. Neither imports executable
 function implementations or constructs compiler invocations.
 
 The public [load_spec and from_python](api.md) helpers still validate
-automatically. Call `validate_spec(document)` again after editing a model.
+automatically by default. Pass `validate=False` to defer semantic validation
+to the compiler or an explicit `validate_spec(document)` call. Structural
+parsing remains mandatory. Call `validate_spec(document)` again after editing
+a model.
 
 ## Flat atomic rules
 

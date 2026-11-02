@@ -3,6 +3,7 @@
 import functools
 import graphlib
 import inspect
+import logging
 
 import pytest
 
@@ -89,6 +90,74 @@ def _function_template(
 def _signature(name: str) -> entrypoint.Signature:
     function = entrypoint.Function(entrypoint.Module(__name__), name)
     return function.signature
+
+
+@pytest.mark.parametrize("validate", validation.VALIDATION_DEPENDENCIES, ids=lambda f: f.__name__)
+def test_callable_rules_do_not_repeat_per_function_logs(
+    caplog: pytest.LogCaptureFixture, validate: validation.Validator
+) -> None:
+    caplog.set_level(logging.DEBUG, logger=validation.__name__)
+    context = validation.CallableValidationContext(
+        _function_template(), _signature("typed_dataframe")
+    )
+
+    validate(context)
+
+    assert not caplog.records
+
+
+@pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
+def test_callable_validation_does_not_repeat_summary(
+    caplog: pytest.LogCaptureFixture, level: int
+) -> None:
+    caplog.set_level(level, logger=validation.__name__)
+
+    validation.validation_callable_signature(
+        validation.CallableValidationContext(_function_template(), _signature("typed_dataframe"))
+    )
+
+    assert not caplog.messages
+
+
+def test_failed_signature_validation_preserves_function_diagnostic(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.DEBUG, logger=validation.__name__)
+
+    with pytest.raises(errors.SpecError, match="positional-only") as error:
+        validation.validation_callable_signature(
+            validation.CallableValidationContext(
+                _function_template(), _signature("positional_only_dataframe")
+            )
+        )
+
+    assert error.value.path == ("functions", "calculate", "args", "frame")
+    assert not caplog.messages
+
+
+@pytest.mark.parametrize("implementation", ["untyped_dataframe", "accepts_kwargs"])
+def test_signature_validation_does_not_log_individual_annotation_skips(
+    caplog: pytest.LogCaptureFixture, implementation: str
+) -> None:
+    caplog.set_level(logging.DEBUG, logger=validation.__name__)
+
+    validation.validation_callable_signature(
+        validation.CallableValidationContext(_function_template(), _signature(implementation))
+    )
+
+    assert not caplog.messages
+
+
+def test_unrestricted_return_annotation_skip_is_quiet(caplog: pytest.LogCaptureFixture) -> None:
+    function = _function_template(returns="any")
+    function.kind = "escape"
+    caplog.set_level(logging.DEBUG, logger=validation.__name__)
+
+    validation.validation_return_annotation(
+        validation.CallableValidationContext(function, _signature("typed_dataframe"))
+    )
+
+    assert not caplog.messages
 
 
 def test_callable_validation_dependencies_are_acyclic() -> None:

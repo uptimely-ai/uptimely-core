@@ -1,6 +1,7 @@
 """Tests for building and publishing project bundles without executing workflows."""
 
 import json
+import logging
 import os
 import pathlib
 import shutil
@@ -82,11 +83,37 @@ def test_project_build_examples(
 
     assert not result.err
     if debug:
-        assert "\n\nBuild\n" in result.out
+        assert "\n  Semantic checks:" in result.out
+        assert "    - checking action feature dependencies are acyclic" in result.out
+        assert result.out.count("Compiler validation:") == 1
+        assert (
+            result.out.index("Document structure:")
+            < result.out.index("  Semantic checks:")
+            < result.out.index("Compiler validation:")
+        )
+        assert "  Invocation graph:" in result.out
+        assert "    - checking dependency graph is acyclic and schedulable" in result.out
+        assert "\nCompiler action: " not in result.out
+        assert "  Invocation checks for 18 actions:" in result.out
+        assert result.out.count("    - checking functions declare entrypoints") == 1
+        assert result.out.count("    - checking structural argument references resolve") == 1
+        assert result.out.count("    - checking emitted invocation contracts") == 1
+        assert "  Entrypoints:" in result.out
+        assert result.out.count("    - checking syntax for ") == 1
+        assert "    - checking entrypoint syntax: " not in result.out
+        assert "  Package provenance:" in result.out
+        assert result.out.count("    - checking package ownership for ") == 1
+        assert "    - checking entrypoint package ownership: " not in result.out
+        assert result.out.count("  Signature checks for ") == 1
+        assert "\nCompiler function:" not in result.out
+        assert result.out.index("\nBuild summary\n+") > result.out.index("  Execution plan:")
+        assert "Compiled plan:" not in result.out
+        assert result.out.count("Spec validation:") == 1
         assert result.out.endswith(f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n")
-        assert "  Build scope: all features\n" in result.out
+        assert "| Build   | Build scope" in result.out
+        assert "| all features" in result.out
         source = REPOSITORY_ROOT / "examples" / "pump_analytics" / project.SPEC_PYTHON_ENTRY_FILE
-        assert f"  Spec source file: {source}\n" in result.out
+        assert f"| {source}" in result.out
     else:
         assert result.out == f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
     bundle = project.load_build_bundle(root)
@@ -232,10 +259,15 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     assert not result.err
     if debug:
         source_file = root / "declaration.py" if source_kind != "json" else source
-        assert f"  Spec source file: {source_file}\n" in result.out
-        assert "  Number of functions: 1\n" in result.out
-        assert "  Number of datasets: 1\n" in result.out
-        assert "  Number of features: 1\n" in result.out
+        rows = [
+            [cell.strip() for cell in line.split("|")[1:-1]]
+            for line in result.out.splitlines()
+            if line.startswith("|")
+        ]
+        assert ["Spec", "Spec source file", str(source_file)] in rows
+        assert ["Spec", "Number of functions", "1"] in rows
+        assert ["Spec", "Number of datasets", "1"] in rows
+        assert ["Spec", "Number of features", "1"] in rows
     else:
         assert result.out == f"Build files created to {bundle.root}\n"
     assert spec.load_spec(bundle.spec_path).entities
@@ -268,22 +300,54 @@ def test_project_build_debug_summary(
     result = capsys.readouterr()
     scope = "pump_health_score" if scoped else "all features"
     assert not result.err
-    summary = (
-        "\n\nBuild\n"
-        "  Duration: 1.234 s\n"
-        f"  Output folder: {bundle.root}\n"
-        f"  Build scope: {scope}\n"
-        "\nSpec\n"
-        f"  Spec source file: {source}\n"
-        f"  Number of functions: {len(definition.functions)}\n"
-        f"  Number of datasets: {len(datasets)}\n"
-        f"  Number of features: {sum(len(dataset.features) for dataset in datasets)}\n"
-        "\nPlan\n"
-        f"  Number of stages: {len(bundle.execution_plan.stages)}\n"
-        f"  Number of invocations: {len(bundle.execution_plan.invocations)}\n"
-    )
-    assert summary in result.out
+    rows = [
+        [cell.strip() for cell in line.split("|")[1:-1]]
+        for line in result.out.splitlines()
+        if line.startswith("|")
+    ]
+    assert rows == [
+        ["Section", "Detail", "Value"],
+        ["Build", "Duration", "1.234 s"],
+        ["Build", "Output folder", str(bundle.root)],
+        ["Build", "Build scope", scope],
+        ["Spec", "Spec source file", str(source)],
+        ["Spec", "Number of functions", str(len(definition.functions))],
+        ["Spec", "Number of datasets", str(len(datasets))],
+        ["Spec", "Number of features", str(sum(len(dataset.features) for dataset in datasets))],
+        ["Plan", "Number of stages", str(len(bundle.execution_plan.stages))],
+        ["Plan", "Number of invocations", str(len(bundle.execution_plan.invocations))],
+    ]
+    assert result.out.index("\nBuild summary\n+") > result.out.index("  Execution plan:")
+    assert "Compiled plan:" not in result.out
+    assert result.out.index("| Plan") > result.out.index("Spec validation:")
     assert result.out.endswith(f"Build files created to {bundle.root}\n")
+
+
+def test_failed_build_prints_trace_without_summary_and_preserves_logging(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    target = logging.getLogger("uptimely")
+    handlers, propagate = target.handlers[:], target.propagate
+
+    def fail_build(*args: object, **kwargs: object) -> None:
+        logging.getLogger("uptimely.project.build").debug("attempting build")
+        logging.getLogger("uptimely.project.build").warning("build warning")
+        raise ValueError("injected failure")
+
+    monkeypatch.setattr(cli.project.project_build, "build_project", fail_build)
+
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, "--project-root", str(tmp_path), "--log-level", "debug")
+
+    result = capsys.readouterr()
+    assert error.value.code == 1
+    assert result.out == "attempting build\nbuild warning\n"
+    assert "\nBuild summary" not in result.out
+    assert "injected failure" in result.err
+    assert target.handlers == handlers
+    assert target.propagate == propagate
 
 
 def test_project_build_keeps_warnings_visible(

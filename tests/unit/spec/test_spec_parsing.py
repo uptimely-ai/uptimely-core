@@ -1,4 +1,5 @@
 import json
+import logging
 import pathlib
 
 import pydantic
@@ -11,6 +12,162 @@ from uptimely.spec.feature_graph import models
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
+
+
+def test_loading_can_suppress_structure_debug_without_disabling_checks(
+    tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG, logger="uptimely.spec")
+    path = tmp_path / "spec.json"
+    path.write_text("{}", encoding="utf-8")
+
+    spec.load_spec(path, log_structure=False)
+
+    assert not any("Document structure:" in message for message in caplog.messages)
+    assert "  Semantic checks:" in caplog.messages
+    caplog.clear()
+    path.write_text('{"spec_version": true}', encoding="utf-8")
+    with pytest.raises(ValueError, match="spec_version must be an integer"):
+        spec.load_spec(path, log_structure=False)
+    assert not caplog.records
+
+
+def test_document_structure_checks_emit_debug_bullets(caplog: pytest.LogCaptureFixture) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    datasets = [
+        dataset
+        for entity in configuration["entities"].values()
+        for dataset in entity["datasets"].values()
+    ]
+    action_count = sum(len(dataset["actions"]) for dataset in datasets)
+    caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
+
+    spec.Spec.model_validate(configuration)
+
+    assert caplog.messages == [
+        "\nSpec validation:\n  Document structure:",
+        f"    - checking object keys as identifiers for {len(datasets)} datasets",
+        "    - checking spec version is an integer",
+        f"    - checking feature references for {action_count} actions",
+    ]
+    assert all(record.levelno == logging.DEBUG for record in caplog.records)
+
+
+def test_loading_logs_one_spec_validation_heading(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.DEBUG, logger="uptimely.spec")
+
+    spec.load_spec(SPEC_PATH)
+
+    assert caplog.messages.count("\nSpec validation:\n  Document structure:") == 1
+    assert caplog.messages.count("  Semantic checks:") == 1
+    assert sum(message.count("Spec validation:") for message in caplog.messages) == 1
+    assert caplog.messages.index("  Semantic checks:") > caplog.messages.index(
+        "\nSpec validation:\n  Document structure:"
+    )
+
+
+def test_invalid_action_reference_does_not_repeat_document_checks(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
+
+    with pytest.raises(pydantic.ValidationError, match=r"\$features"):
+        model.ActionFeatures(inputs=["invalid"])
+
+    assert not caplog.messages
+
+
+@pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
+def test_structure_summary_counts_datasets_and_actions_once(
+    caplog: pytest.LogCaptureFixture, level: int
+) -> None:
+    configuration = {
+        "spec_version": 3,
+        "entities": {
+            "first": {
+                "name": "First",
+                "datasets": {
+                    f"dataset_{index}": {
+                        "actions": {
+                            f"action_{action}": {"binding": {"function": "read"}}
+                            for action in range(count)
+                        }
+                    }
+                    for index, count in enumerate([8, 7])
+                },
+            },
+            "second": {
+                "name": "Second",
+                "datasets": {
+                    "dataset_2": {
+                        "actions": {
+                            f"action_{action}": {"binding": {"function": "read"}}
+                            for action in range(5)
+                        }
+                    }
+                },
+            },
+        },
+    }
+    caplog.set_level(level, logger="uptimely.spec.model")
+
+    spec.Spec.model_validate(configuration)
+
+    assert caplog.messages == (
+        [
+            "\nSpec validation:\n  Document structure:",
+            "    - checking object keys as identifiers for 3 datasets",
+            "    - checking spec version is an integer",
+            "    - checking feature references for 20 actions",
+        ]
+        if level == logging.DEBUG
+        else []
+    )
+
+
+def test_structure_summary_counts_existing_resource_models(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    document = spec.Spec.model_validate_json(SPEC_PATH.read_text(encoding="utf-8"))
+    dataset_count = len(document.dataset_items)
+    action_count = len(document.actions)
+    caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
+
+    spec.Spec.model_validate({"entities": document.entities})
+
+    assert caplog.messages == [
+        "\nSpec validation:\n  Document structure:",
+        f"    - checking object keys as identifiers for {dataset_count} datasets",
+        "    - checking spec version is an integer",
+        f"    - checking feature references for {action_count} actions",
+    ]
+
+
+@pytest.mark.parametrize(
+    "configuration",
+    [
+        {"entities": ["invalid"]},
+        {"entities": {"entity": {"name": "Entity", "datasets": []}}},
+        {"entities": {"entity": {"name": "Entity", "datasets": {"dataset": None}}}},
+        {
+            "entities": {
+                "entity": {"name": "Entity", "datasets": {"dataset": {"actions": ["invalid"]}}}
+            }
+        },
+    ],
+)
+def test_structure_summary_preserves_invalid_document_errors(
+    caplog: pytest.LogCaptureFixture, configuration: dict[str, object]
+) -> None:
+    with pytest.raises(pydantic.ValidationError) as original:
+        spec.Spec.model_validate(configuration)
+    caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
+
+    with pytest.raises(pydantic.ValidationError) as logged:
+        spec.Spec.model_validate(configuration)
+
+    assert logged.value.errors() == original.value.errors()
+    assert len(caplog.messages) == 4
 
 
 def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str) -> pathlib.Path:

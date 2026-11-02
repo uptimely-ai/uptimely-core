@@ -54,12 +54,15 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 ### Build logging
 
 By default, a successful build logs `Build files created to {path}`.
-Warnings and errors remain visible. Use `--log-level debug` for a summary
+Warnings and errors remain visible. Use `--log-level debug` for a summary table
+printed after the build debug trace and before the final success message,
 grouped into:
 
 - **Build:** duration in seconds, output folder, and feature scope.
 - **Spec:** source file and numbers of functions, datasets, and features.
 - **Plan:** numbers of execution stages and invocations.
+
+Build logs stream as the build runs. Failed builds do not print a success summary.
 
 Duration covers building, validating, and publishing the bundle, not workflow
 execution. Spec counts cover the complete specification, including for scoped
