@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 
 import polars as pl
 import pytest
@@ -18,8 +19,9 @@ from uptimely.spec import functions
 @pytest.mark.parametrize("strict_cardinality", [False, True])
 @pytest.mark.parametrize("grain", ["same", "subset", "global"])
 def test_main_frame_selects_merge_by_fragment_dimensions(
-    lazy: bool, strict_cardinality: bool, grain: str
+    lazy: bool, strict_cardinality: bool, grain: str, caplog: pytest.LogCaptureFixture
 ) -> None:
+    caplog.set_level(logging.DEBUG, logger=main_frame_module.__name__)
     initial = pl.DataFrame({"group": ["A", "A", "B"], "id": [1, 2, 3], "value": [10, 20, 30]})
     if grain == "same":
         contribution = pl.DataFrame({"id": [2, 4], "group": ["A", "C"], "new": [2, 4]})
@@ -49,10 +51,23 @@ def test_main_frame_selects_merge_by_fragment_dimensions(
     assert result.sort("group", "id").select("group", "id", "new").rows() == expected
     assert initial.height == 3
     assert "new" not in initial.columns
+    if grain == "same":
+        expected_log = (
+            "    - full join on ('group', 'id') "
+            f"(cardinality {'1:1' if strict_cardinality else 'm:m'})"
+        )
+    elif grain == "subset":
+        expected_log = (
+            f"    - left join on ('group',) (cardinality {'m:1' if strict_cardinality else 'm:m'})"
+        )
+    else:
+        expected_log = "    - cross join (dimensionless broadcast)"
+    assert caplog.messages == [expected_log]
 
 
 @pytest.mark.parametrize("lazy", [False, True])
-def test_main_frame_adopts_first_fragment(lazy: bool) -> None:
+def test_main_frame_adopts_first_fragment(lazy: bool, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.DEBUG, logger=main_frame_module.__name__)
     data = pl.DataFrame({"id": [1], "value": [2]})
     frame = data.lazy() if lazy else data
     main = execution_support.main_frame(None, ["id"])
@@ -60,6 +75,7 @@ def test_main_frame_adopts_first_fragment(lazy: bool) -> None:
 
     assert main.merge(fragment) is fragment
     assert main.dataframe is frame
+    assert caplog.messages == ["    - initialize from fragment (no join)"]
 
 
 @pytest.mark.parametrize("dimensions", [(), ("other",)])

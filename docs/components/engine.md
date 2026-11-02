@@ -211,7 +211,10 @@ before invoking each non-effect action, then validates data-producing results
 before merging them:
 
 The executor runs validators directly only when validation is enabled.
-`InvocationValidator` checks declared feature inputs against runtime state.
+`InvocationValidator` holds its backend, runtime state, and invocation directly.
+Its `validate()` method calls private checks in fail-fast order: foreign
+dataframe argument, source reference, source availability, then source features;
+other invocation kinds check local or unambiguous cross-dataset features.
 `FragmentValidator`
 checks raw invocation results before output projection, including the function
 kind's row-count and key-preservation contracts. `MainFrameValidator` checks the

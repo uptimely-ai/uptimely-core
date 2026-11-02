@@ -280,12 +280,12 @@ def test_validation_debug_logs_identify_checks_and_inapplicable_contracts(
 
     messages = [record.getMessage() for record in caplog.records]
     assert messages[:4] == [
-        "  Frame:",
+        "  Fragment:" if fragment else "  Main frame:",
         "    - checking dataframe type",
         "    - checking required dimension columns",
         "    - skipping dimensionless row count (data has dimensions)",
     ]
-    assert messages.count("  Frame:") == 1
+    assert messages.count("  Fragment:" if fragment else "  Main frame:") == 1
     assert "    - checking dimension-key uniqueness" in messages
     assert "      Declared types: {'key': 'string'}" in messages
     if fragment:
@@ -305,7 +305,7 @@ def test_validation_failure_logs_only_attempted_checks(
     validator = _validator(backend.PolarsBackend(), object(), ["key"], fragment=True)
     with pytest.raises(ValueError, match="must be a Polars"):
         validator.validate()
-    assert caplog.messages == ["  Frame:", "    - checking dataframe type"]
+    assert caplog.messages == ["  Fragment:", "    - checking dataframe type"]
 
 
 def test_dimensionless_and_merge_validation_debug_logs(
@@ -317,13 +317,10 @@ def test_dimensionless_and_merge_validation_debug_logs(
     )
     validator.validate()
     validator.validate_merge(pl.DataFrame({"other": [2]}))
-    assert caplog.messages[0] == "  Global data:"
+    assert caplog.messages[0] == "  Main frame:"
     assert "    - checking dimensionless row count" in caplog.messages
     assert "    - skipping dimension-key uniqueness (no dimensions)" in caplog.messages
-    assert caplog.messages[-2:] == [
-        "  Global data merge:",
-        "    - checking fragment feature collisions",
-    ]
+    assert caplog.messages[-1] == "    - checking fragment feature collisions"
 
 
 def test_preservation_validation_debug_logs(caplog: pytest.LogCaptureFixture) -> None:

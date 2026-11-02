@@ -103,7 +103,7 @@ class FragmentValidator(_FrameValidator):
         Raises:
             ValueError: The fragment violates its declared dataframe contract.
         """
-        logger.debug("  %s:", self.description)
+        logger.debug("  Fragment:")
         self._validate_frame_type()
         self._validate_dimension_columns()
         self._validate_dimensionless_row_count()
@@ -174,7 +174,7 @@ class MainFrameValidator(_FrameValidator):
         Raises:
             ValueError: The main frame violates its structural or type contract.
         """
-        logger.debug("  %s:", self.description)
+        logger.debug("  Main frame:")
         self._validate_frame_type()
         self._validate_dimension_columns()
         self._validate_dimensionless_row_count()
@@ -196,7 +196,6 @@ class MainFrameValidator(_FrameValidator):
         Raises:
             ValueError: A fragment feature already exists in the main frame.
         """
-        logger.debug("  %s merge:", self.description)
         self._validate_feature_collisions(fragment)
 
     def _validate_feature_collisions(self, fragment: object) -> None:
