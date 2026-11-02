@@ -1,5 +1,5 @@
 import { ExplorerLineage } from './graph_components.js';
-import { mountLineageViews } from './graph_view_controller.js';
+import { initializeLineage } from './lineage_initializer.js';
 
 export function initializeFeatureLineage(signal) {
 	const DETAIL_VALUE_MAX_LENGTH = 220;
@@ -7,10 +7,6 @@ export function initializeFeatureLineage(signal) {
 		nodeRelativeSize: 6, functionValue: 7, featureValue: 5,
 	});
 	const { DATASET_LAYOUT } = ExplorerLineage;
-	const graphData = ExplorerLineage.readPayload('graph-data');
-	const style = ExplorerLineage.readPayload('graph-style');
-	const functionColor = style.function_color;
-	ExplorerLineage.prepareDatasetColors(graphData, document.getElementById('dataset-legend'));
 	const nodeDetails = document.getElementById('node-details');
 
 	function formatDetailValue(value) {
@@ -54,8 +50,8 @@ export function initializeFeatureLineage(signal) {
 		]);
 	}
 
-	function createLineage2D(lineageContainer, graphData, updateSelection) {
-		const highlight = ExplorerLineage.createLineageHighlight(graphData);
+	function createLineage2D(lineageContainer, graphData, updateSelection, style, highlight) {
+		const functionColor = style.function_color;
 		function rankNodes(data) {
 			const children = new Map(data.nodes.map(node => [node.id, []]));
 			const indegree = new Map(data.nodes.map(node => [node.id, 0]));
@@ -103,8 +99,8 @@ export function initializeFeatureLineage(signal) {
 		});
 	}
 
-	function createLineage3D(lineageContainer, graphData, updateSelection) {
-		const highlight = ExplorerLineage.createLineageHighlight(graphData);
+	function createLineage3D(lineageContainer, graphData, updateSelection, style, highlight) {
+		const functionColor = style.function_color;
 		return ExplorerLineage.createLineage3D(lineageContainer, graphData, style, {
 			label: node => `${node.is_action ? 'function' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`,
 			color: node => node.is_action ? functionColor : node.datasetColor,
@@ -125,5 +121,5 @@ export function initializeFeatureLineage(signal) {
 		});
 	}
 
-	mountLineageViews(graphData, createLineage2D, createLineage3D, updateDetails, signal);
+	initializeLineage(signal, updateDetails, createLineage2D, createLineage3D);
 }
