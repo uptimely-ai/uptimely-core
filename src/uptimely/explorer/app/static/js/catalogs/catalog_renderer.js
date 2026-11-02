@@ -1,4 +1,4 @@
-import { KINDS, contextHeader, contextLink, display, distribution, escape, heading, href, icon, kindIcon, miniGraphic, page, statistic } from "./ui.js";
+import { KINDS, contextHeader, contextLink, display, distribution, escape, heading, href, icon, kindIcon, miniGraphic, page, statistic } from "../rendering/shared_markup.js";
 
 export function datasets(configuration) {
   return Object.entries(configuration.entities).flatMap(([entityId, entity]) =>

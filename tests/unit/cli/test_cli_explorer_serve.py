@@ -91,7 +91,17 @@ def test_app_serves_packaged_frontend_and_reads_fresh_snapshot(tmp_path: pathlib
     assert status == 200
     assert b"Analytics Explorer" in body
     assert _get(app, "/css/explorer.css")[0] == 200
-    assert _get(app, "/js/app.js")[0] == 200
+    for path in (
+        "/js/application/bootstrap.js",
+        "/js/application/view_controller.js",
+        "/js/catalogs/catalog_renderer.js",
+        "/js/graphs/feature_graph.js",
+        "/js/animation/playback_controller.js",
+        "/js/rendering/shared_markup.js",
+        "/js/navigation/sidebar_controls.js",
+        "/js/theme/tailwind_theme.js",
+    ):
+        assert _get(app, path)[0] == 200
 
     status, body, headers = _get(app, "/api/explorer")
     assert status == 200

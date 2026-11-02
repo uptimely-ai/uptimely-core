@@ -59,9 +59,13 @@ for (const withSectionCount of [false, true]) {
 			history: { pushState(_state, _title, hash) { location.hash = hash; } },
 			window: { scrollTo() {}, addEventListener() {} },
 			requestAnimationFrame(callback) { callback(); },
+			cancelAnimationFrame() {},
+			AbortController,
 		});
 		vm.runInContext(
-			fs.readFileSync(path.join(scriptDirectory, 'catalog_context.js'), 'utf8'), context,
+			fs.readFileSync(path.join(scriptDirectory, 'catalogs/catalog_navigation.js'), 'utf8')
+				.replace('export function', 'function')
+				+ '\ninitializeCatalog(new AbortController().signal);', context,
 		);
 		const assertSelected = (item, expectedTitle) => {
 			assert.deepEqual(items.filter(candidate => !candidate.hidden), [item]);
@@ -133,9 +137,13 @@ test('feature selection displays its description in the section header', () => {
 		history: { pushState(_state, _title, hash) { location.hash = hash; } },
 		window: { scrollTo() {}, addEventListener() {} },
 		requestAnimationFrame(callback) { callback(); },
+		cancelAnimationFrame() {},
+		AbortController,
 	});
 	vm.runInContext(
-		fs.readFileSync(path.join(scriptDirectory, 'catalog_context.js'), 'utf8'), context,
+		fs.readFileSync(path.join(scriptDirectory, 'catalogs/catalog_navigation.js'), 'utf8')
+			.replace('export function', 'function')
+			+ '\ninitializeCatalog(new AbortController().signal);', context,
 	);
 	assert.equal(title.textContent, 'feature-first');
 	assert.equal(description.textContent, 'feature-first feature description');
@@ -153,30 +161,30 @@ test('feature selection displays its description in the section header', () => {
 
 function loadLineageScript(context, filename) {
 	let source = fs.readFileSync(path.join(scriptDirectory, filename), 'utf8');
-	if (filename === 'lineage_config.js') {
+	if (filename === 'graphs/graph_config.js') {
 		const exports = [...source.matchAll(/^export const (\w+)/gm)]
 			.map(([, name]) => name);
 		source = source.replace(/^export /gm, '');
 		source += `\nglobalThis.LineageConfig = { ${exports.join(', ')} };`;
-	} else if (filename === 'lineage_layout.js') {
+	} else if (filename === 'graphs/dataset_layout.js') {
 		source = source.replace(
-			/^import \{([\s\S]*?)\} from '\.\/lineage_config\.js';/m,
+			/^import \{([\s\S]*?)\} from '\.\/graph_config\.js';/m,
 			'const {$1} = globalThis.LineageConfig;',
 		);
 		source = source.replace(
 			/export \{([\s\S]*?)\};\s*$/,
 			'globalThis.LineageLayout = {$1};',
 		);
-	} else if (filename === 'lineage_components.js') {
+	} else if (filename === 'graphs/graph_components.js') {
 		source = source.replace(
-			/^import \* as LineageConfig from '\.\/lineage_config\.js';\nimport \* as LineageLayout from '\.\/lineage_layout\.js';/m,
+			/^import \* as LineageConfig from '\.\/graph_config\.js';\nimport \* as LineageLayout from '\.\/dataset_layout\.js';/m,
 			'const LineageConfig = globalThis.LineageConfig;\nconst LineageLayout = globalThis.LineageLayout;',
 		);
 		source = source.replace(
 			/export \{ ExplorerLineage \};/,
 			'globalThis.ExplorerLineage = ExplorerLineage;',
 		);
-	} else if (filename === 'lineage_view_controller.js') {
+	} else if (filename === 'graphs/graph_view_controller.js') {
 		source = source.replace(/^export function /gm, 'function ');
 		source += '\nglobalThis.mountLineageViews = mountLineageViews;';
 	} else {
@@ -184,12 +192,18 @@ function loadLineageScript(context, filename) {
 			/^import \{ (?:ExplorerLineage|mountLineageViews) \} from '\.\/[^']+';\n/gm,
 			'',
 		);
+		const initializer = source.match(/export function (initialize\w+)/)?.[1];
+		if (initializer) {
+			source = source.replace('export function', 'function');
+			source += `\n${initializer}(globalThis.viewController.signal);`;
+		}
 	}
+	if (!context.viewController) context.viewController = new AbortController();
 	vm.runInContext(`{\n${source}\n}`, context, { filename });
 }
 
 function loadLineageDependencies(context) {
-	for (const script of ['lineage_config.js', 'lineage_layout.js', 'lineage_components.js']) {
+	for (const script of ['graphs/graph_config.js', 'graphs/dataset_layout.js', 'graphs/graph_components.js']) {
 		loadLineageScript(context, script);
 	}
 }
@@ -211,6 +225,7 @@ function createGraph(dimension) {
 	const objects = new Map();
 	const fitCalls = [];
 	const forces = new Map();
+	const calls = new Map();
 	let graph;
 	const render = () => {
 		objects.clear();
@@ -218,9 +233,13 @@ function createGraph(dimension) {
 			if (dimension === '3d') objects.set(node.id, properties.get('nodeThreeObject')(node));
 		}
 	};
-	graph = new Proxy({ properties, objects, fitCalls, forces }, {
+	graph = new Proxy({ properties, objects, fitCalls, forces, calls }, {
 		get(target, key) {
 			if (key in target) return target[key];
+			if (['pauseAnimation', 'resumeAnimation', '_destructor'].includes(key)) return () => {
+				calls.set(key, (calls.get(key) || 0) + 1);
+				return graph;
+			};
 			// force-graph 1.52 has no refresh method; 3d-force-graph does.
 			if (key === 'refresh') return dimension === '3d' ? render : undefined;
 			if (key === 'zoomToFit') return (...args) => {
@@ -254,7 +273,7 @@ function createGraph(dimension) {
 	return graph;
 }
 
-for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
+for (const filename of ['graphs/feature_graph.js', 'graphs/invocation_graph.js']) {
 	test(`${filename}: 3D clicks highlight both directions after creating the 2D view`, () => {
 		const elements = new Map();
 		const element = id => {
@@ -284,13 +303,14 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			arrow_length: 4, arrow_rel_pos: 1,
 		});
 		const graphs = new Map();
+		let disconnected = false;
 		const context = vm.createContext({
 			document: {
 				getElementById: element, createElement,
 				querySelectorAll: selector => selector === '[data-dimension]' ? buttons : [],
 			},
 			window: { addEventListener() {} },
-			ResizeObserver: class { observe() {} },
+			ResizeObserver: class { observe() {} disconnect() { disconnected = true; } },
 			console,
 			SpriteText: class {
 				constructor(text) {
@@ -344,7 +364,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			},
 		});
 		loadLineageDependencies(context);
-		loadLineageScript(context, 'lineage_view_controller.js');
+		loadLineageScript(context, 'graphs/graph_view_controller.js');
 		vm.runInContext(`
 			ExplorerLineage.showDetails = (panel, title, rows) => { panel.rows = rows; };
 		`, context);
@@ -376,7 +396,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		);
 		const node = graph.properties.get('graphData').nodes[1];
 		graph.properties.get('onNodeClick')(node);
-		if (filename === 'invocation_lineage.js') {
+		if (filename === 'graphs/invocation_graph.js') {
 			assert.deepEqual(
 				Array.from(element('invocation-node-details').rows.slice(0, 2), row => Array.from(row)),
 				[['Dataset', 'Selected Dataset'], ['Dataset ID', 'selected']],
@@ -401,7 +421,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		assert.ok(nodes2D[0].x < nodes2D[1].x && nodes2D[1].x < nodes2D[2].x);
 		assert.equal(new Set(nodes2D.map(node => node.y)).size, 4);
 		assert.deepEqual(graph2D.properties.get('centerAtArguments'),
-			[0, filename === 'invocation_lineage.js' ? -24 : 0, 600]);
+			[0, filename === 'graphs/invocation_graph.js' ? -24 : 0, 600]);
 		assert.ok(graph2D.properties.get('zoom') > 0);
 		const rectangles = [];
 		const labels = [];
@@ -424,13 +444,13 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			selected2D.cardHeight,
 			12,
 		]);
-		assert.deepEqual(rectangles[1], filename === 'invocation_lineage.js'
+		assert.deepEqual(rectangles[1], filename === 'graphs/invocation_graph.js'
 			? [left + 12, selected2D.y - 6, 12, 12, 3]
 			: [left + 13, selected2D.y - 9, 4, 18, 2]);
 		const selectedColor = '#fb7185';
 		assert.deepEqual(strokes, [['#f8d66d', 3]]);
 		assert.deepEqual(fills, [
-			filename === 'invocation_lineage.js' ? '#1a2732' : '#172a35', selectedColor,
+			filename === 'graphs/invocation_graph.js' ? '#1a2732' : '#172a35', selectedColor,
 		]);
 		assert.deepEqual(labels, [[
 			'selected', left + 34, selected2D.y, 70, '#e8edf2', '600 12px "DM Sans", sans-serif',
@@ -465,7 +485,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			element('reset-lineage').listeners.click();
 			if (dimension === '2d') {
 				assert.deepEqual(activeGraph.properties.get('centerAtArguments'),
-					[0, filename === 'invocation_lineage.js' ? -24 : 0, 600]);
+					[0, filename === 'graphs/invocation_graph.js' ? -24 : 0, 600]);
 			} else {
 				assert.equal(activeGraph.fitCalls.length, fitCount + 1);
 				assert.equal(activeGraph.fitCalls.at(-1)[0], 600);
@@ -480,7 +500,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			assert.ok([...graph.objects.values()].every(object => object.scale.value === undefined));
 			assert.deepEqual([...graph.objects.values()].map(object => object.material.color.value),
 				['#2dd4bf', '#fb7185', '#ff9f43', '#a78bfa']);
-			const details = element(filename === 'feature_lineage.js'
+			const details = element(filename === 'graphs/feature_graph.js'
 				? 'node-details' : 'invocation-node-details');
 			assert.equal(details.rows.length, 0);
 			for (const node2D of nodes2D) {
@@ -492,21 +512,28 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 			buttons[1 - index].listeners.click();
 			assert.ok([...graph.objects.values()].every(object => object.scale.value === undefined));
 		}
-		node.is_action = filename === 'feature_lineage.js';
+		node.is_action = filename === 'graphs/feature_graph.js';
 		node.is_effect = true;
 		node.features = ['result'];
 		node.input_features = ['source'];
 		graph.properties.get('onNodeClick')(node);
-		const details = element(filename === 'feature_lineage.js'
+		const details = element(filename === 'graphs/feature_graph.js'
 			? 'node-details' : 'invocation-node-details');
 		assert.ok(details.rows.some(([label]) => label === (
-			filename === 'feature_lineage.js' ? 'Declared logical outputs' : 'Declared feature outputs'
+			filename === 'graphs/feature_graph.js' ? 'Declared logical outputs' : 'Declared feature outputs'
 		)));
 		node.function_kind = 'escape';
 		node.is_effect = false;
 		graph.properties.get('onNodeClick')(node);
 		assert.ok(details.rows.some(([label]) => label === 'Produces'));
 		assert.ok(!details.rows.some(([label]) => label === 'Declared inputs'));
+		context.viewController.abort();
+		assert.equal(disconnected, true);
+		assert.equal(graph.calls.get('_destructor'), 1);
+		assert.equal(graph2D.calls.get('_destructor'), 1);
+		const pauses = graph.calls.get('pauseAnimation');
+		context.viewController.abort();
+		assert.equal(graph.calls.get('pauseAnimation'), pauses);
 	});
 }
 
@@ -566,7 +593,7 @@ function datasetLayout(filename, nodes, links) {
 	};
 }
 
-for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
+for (const filename of ['graphs/feature_graph.js', 'graphs/invocation_graph.js']) {
 	test(`${filename}: dataset lanes preserve global ranks and deterministic connectivity ordering`, () => {
 		const nodes = [
 			{ id: 'a', dataset_id: 'a_source', stage: 1 },
@@ -670,7 +697,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 		const [left, top, width, height] = layout.rectangles[0];
 		const assertFits = () => {
 			const zoom = layout.graph.properties.get('zoom');
-			const headerHeight = filename === 'invocation_lineage.js' ? 48 : 0;
+			const headerHeight = filename === 'graphs/invocation_graph.js' ? 48 : 0;
 			assert.ok(zoom > 0);
 			assert.ok(width * zoom <= layout.container.clientWidth - 160);
 			assert.ok((height + headerHeight) * zoom <= layout.container.clientHeight - 160);
@@ -691,7 +718,7 @@ for (const filename of ['feature_lineage.js', 'invocation_lineage.js']) {
 }
 
 test('invocation lanes use execution stages, not inferred dependency depths', () => {
-	const layout = datasetLayout('invocation_lineage.js', [
+	const layout = datasetLayout('graphs/invocation_graph.js', [
 		{ id: 'first', function_id: 'same_function', dataset_id: 'a', stage: 1 },
 		{ id: 'later', function_id: 'same_function', dataset_id: 'b', stage: 4 },
 		{ id: 'last', function_id: 'last', dataset_id: 'a', stage: 7 },
@@ -713,7 +740,7 @@ test('invocation lanes use execution stages, not inferred dependency depths', ()
 });
 
 test('invocation stage columns span dataset rows and contain their cards', () => {
-	const layout = datasetLayout('invocation_lineage.js', [
+	const layout = datasetLayout('graphs/invocation_graph.js', [
 		{ id: 'a', function_id: 'a', dataset_id: 'first', stage: 1 },
 		{ id: 'b', function_id: 'long_function_name', dataset_id: 'second', stage: 1 },
 		{ id: 'c', function_id: 'c', dataset_id: 'second', stage: 2 },

@@ -39,6 +39,29 @@ The CI quality job skips the pytest hook to avoid running tests twice. The
 separate test job runs the Python suite with coverage and the Explorer
 JavaScript tests.
 
+### Explorer JavaScript
+
+The browser entrypoint is
+[`application/bootstrap.js`](src/uptimely/explorer/app/static/js/application/bootstrap.js).
+The frontend modules are grouped by responsibility under
+[`static/js/`](src/uptimely/explorer/app/static/js/):
+
+- `application/`: startup, asset loading, history routing, and view lifecycles.
+- `rendering/`: shared HTML helpers and overview/graph page markup.
+- `catalogs/`: catalog rendering, item navigation, and function highlighting.
+- `graphs/`: feature and invocation graphs, shared layouts, and 2D/3D controls.
+- `animation/`: animation markup, playback, table frames, connections, and viewport.
+- `navigation/`: desktop/mobile sidebar controls.
+- `theme/`: Tailwind theme configuration.
+
+Renderers produce markup; interactive controllers initialize each mounted view
+and release resources through its abort signal. Keep related modules together
+and update relative imports when moving them. Runtime snapshot configuration
+remains in `static/config.js`, which static export rewrites for its data URL.
+
+Run the frontend regression tests with
+`node --test tests/integration/explorer/*.cjs`.
+
 ## Multi-agent coding
 
 Use one main VS Code window to manage `main` and basic tasks. For parallel
