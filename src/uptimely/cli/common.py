@@ -1,7 +1,12 @@
 """Shared argument configuration for project-aware CLI commands."""
 
 import argparse
+import contextlib
+import logging
 import pathlib
+from collections.abc import Iterator
+
+LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
 
 
 def configure_project_root_arguments(parser: argparse.ArgumentParser, *, option_help: str) -> None:
@@ -30,7 +35,7 @@ def resolve_project_root(args: argparse.Namespace, parser: argparse.ArgumentPars
 
 
 def configure_project_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add spec, project-root, feature-selection, and diagnostic options."""
+    """Add spec, project-root, feature-selection, and logging options."""
     parser.add_argument(
         "--spec",
         type=pathlib.Path,
@@ -43,4 +48,26 @@ def configure_project_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--features", nargs="+", help="Select output features and their dependencies"
     )
-    parser.add_argument("--verbose", action="store_true", help="Print diagnostic details")
+    configure_log_level_argument(parser)
+
+
+def configure_log_level_argument(parser: argparse.ArgumentParser) -> None:
+    """Add the standard Uptimely log-level option."""
+    parser.add_argument(
+        "--log-level",
+        choices=LOG_LEVELS,
+        default="info",
+        help="Set Uptimely logging verbosity (default: info)",
+    )
+
+
+@contextlib.contextmanager
+def apply_log_level(level: str) -> Iterator[None]:
+    """Apply a log level to Uptimely loggers and restore it afterward."""
+    uptimely_logger = logging.getLogger("uptimely")
+    previous_level = uptimely_logger.level
+    uptimely_logger.setLevel(level.upper())
+    try:
+        yield
+    finally:
+        uptimely_logger.setLevel(previous_level)

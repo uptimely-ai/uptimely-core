@@ -479,12 +479,12 @@ def test_cli_does_not_reexport_command_helpers() -> None:
     ("arguments", "command", "expected_options"),
     [
         (
-            ["build", "project", "--features", "feature", "--verbose"],
+            ["build", "project", "--features", "feature", "--log-level", "debug"],
             "build",
             {
                 "project_root_argument": pathlib.Path("project"),
                 "features": ["feature"],
-                "verbose": True,
+                "log_level": "debug",
             },
         ),
         (

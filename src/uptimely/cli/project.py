@@ -46,9 +46,7 @@ def configure_build_parser(parser: argparse.ArgumentParser) -> None:
         metavar="FEATURE",
         help="Select output features and their dependencies",
     )
-    parser.add_argument(
-        "--verbose", action="store_true", help="Log build, specification, and plan details"
-    )
+    common.configure_log_level_argument(parser)
 
 
 def _log_build_details(
@@ -69,47 +67,47 @@ def _log_build_details(
     scope = (
         "all features" if bundle.manifest.features is None else ", ".join(bundle.manifest.features)
     )
-    logger.info("\n")
-    logger.info("Build")
-    logger.info("  Duration: %.3f s", duration)
-    logger.info("  Output folder: %s", bundle.root)
-    logger.info("  Build scope: %s", scope)
-    logger.info("\nSpec")
-    logger.info("  Spec source file: %s", source_file)
-    logger.info("  Number of functions: %d", len(definition.functions))
-    logger.info(
+    logger.debug("\n")
+    logger.debug("Build")
+    logger.debug("  Duration: %.3f s", duration)
+    logger.debug("  Output folder: %s", bundle.root)
+    logger.debug("  Build scope: %s", scope)
+    logger.debug("\nSpec")
+    logger.debug("  Spec source file: %s", source_file)
+    logger.debug("  Number of functions: %d", len(definition.functions))
+    logger.debug(
         "  Number of datasets: %d",
         len(definition.datasets),
     )
-    logger.info(
+    logger.debug(
         "  Number of features: %d",
         sum(len(dataset.features) for dataset in definition.datasets.values()),
     )
-    logger.info("\nPlan")
-    logger.info("  Number of stages: %d", len(bundle.execution_plan.stages))
-    logger.info("  Number of invocations: %d", len(bundle.execution_plan.invocations))
+    logger.debug("\nPlan")
+    logger.debug("  Number of stages: %d", len(bundle.execution_plan.stages))
+    logger.debug("  Number of invocations: %d", len(bundle.execution_plan.invocations))
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Build and publish a complete project bundle."""
     root = common.resolve_project_root(args, parser)
     started = time.perf_counter()
-    try:
-        bundle = project_build.build_project(
-            root,
-            python_spec=args.python_spec,
-            json_spec=args.json_spec,
-            features=args.features,
-        )
-        duration = time.perf_counter() - started
-        if args.verbose:
-            _log_build_details(bundle, root, args, duration)
-    except (
-        project_build.BuildLockError,
-        project_build.ProjectBuildError,
-        OSError,
-        ValueError,
-    ) as error:
-        parser.exit(1, f"uptimely: error: {error}\n")
-    if not args.verbose:
-        logger.info("Build files created to %s", bundle.root)
+    with common.apply_log_level(args.log_level):
+        try:
+            bundle = project_build.build_project(
+                root,
+                python_spec=args.python_spec,
+                json_spec=args.json_spec,
+                features=args.features,
+            )
+            duration = time.perf_counter() - started
+            if logger.isEnabledFor(logging.DEBUG):
+                _log_build_details(bundle, root, args, duration)
+            logger.info("Build files created to %s", bundle.root)
+        except (
+            project_build.BuildLockError,
+            project_build.ProjectBuildError,
+            OSError,
+            ValueError,
+        ) as error:
+            parser.exit(1, f"uptimely: error: {error}\n")

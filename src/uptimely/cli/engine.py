@@ -13,7 +13,6 @@ from uptimely.cli import common
 
 logger = logging.getLogger(__name__)
 DEFAULT_PREVIEW_ROWS = 5
-LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
@@ -34,12 +33,7 @@ def configure_run_parser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Validate inputs and dataframe contracts at each execution step",
     )
-    parser.add_argument(
-        "--log-level",
-        choices=LOG_LEVELS,
-        default="info",
-        help="Set Uptimely logging verbosity (default: info)",
-    )
+    common.configure_log_level_argument(parser)
     parser.add_argument(
         "--preview",
         nargs="?",
@@ -67,34 +61,32 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         parser.error("--preview must be a positive integer")
     root = common.resolve_project_root(args, parser)
     config = project.resolve_path(args.config, root, project.CONFIG_FILE)
-    uptimely_logger = logging.getLogger("uptimely")
-    previous_level = uptimely_logger.level
-    uptimely_logger.setLevel(args.log_level.upper())
-    try:
-        with project.read_build_bundle(root) as bundle:
-            settings = engine_module.Config.model_validate_json(config.read_text(encoding="utf-8"))
-            engine = engine_module.Engine(bundle, settings)
-            started = time.perf_counter()
-            result = engine.run(validate=args.validate)
-            duration = time.perf_counter() - started
-            if result.failures:
-                failures = "; ".join(result.failures.values())
-                raise RuntimeError(f"Engine flow failed: {failures}")
-            _log_summary(bundle, result, duration)
-            if args.preview is not None:
-                _log_previews(result, args.preview)
-    except (
-        OSError,
-        ValueError,
-        ImportError,
-        AttributeError,
-        TypeError,
-        RuntimeError,
-        pl.exceptions.PolarsError,
-    ) as error:
-        parser.exit(1, f"uptimely: error: {error}\n")
-    finally:
-        uptimely_logger.setLevel(previous_level)
+    with common.apply_log_level(args.log_level):
+        try:
+            with project.read_build_bundle(root) as bundle:
+                settings = engine_module.Config.model_validate_json(
+                    config.read_text(encoding="utf-8")
+                )
+                engine = engine_module.Engine(bundle, settings)
+                started = time.perf_counter()
+                result = engine.run(validate=args.validate)
+                duration = time.perf_counter() - started
+                if result.failures:
+                    failures = "; ".join(result.failures.values())
+                    raise RuntimeError(f"Engine flow failed: {failures}")
+                _log_summary(bundle, result, duration)
+                if args.preview is not None:
+                    _log_previews(result, args.preview)
+        except (
+            OSError,
+            ValueError,
+            ImportError,
+            AttributeError,
+            TypeError,
+            RuntimeError,
+            pl.exceptions.PolarsError,
+        ) as error:
+            parser.exit(1, f"uptimely: error: {error}\n")
 
 
 def _log_summary(
