@@ -4,7 +4,7 @@ const NODE_LABEL_SIDE = 0.5;
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
 export function createDataLineageLinks(
-  allSteps, mainTable, viewport, isPlaying,
+  allSteps, mainTable, viewport, isPlaying, signal,
 ) {
   const { minimap, anchorKeys, updateMinimap } = viewport;
   const linkLayers = new Map();
@@ -170,13 +170,14 @@ export function createDataLineageLinks(
     const observer = new ResizeObserver(() => updateLinks());
     observer.observe(mainTable);
     linkLayers.forEach((layer, step) => observer.observe(step.querySelector(".data-lineage-scene")));
+    signal.addEventListener("abort", () => observer.disconnect(), { once: true });
   }
   window.addEventListener("resize", () => {
     if (!mainTable.isConnected) return;
     anchorKeys(mainTable);
     updateMinimap();
     updateLinks();
-  });
+  }, { signal });
 
   return { buildLinks, updateLinks, layerFor: step => linkLayers.get(step) };
 }

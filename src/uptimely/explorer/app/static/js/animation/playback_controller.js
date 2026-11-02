@@ -1,8 +1,8 @@
-import { createDataLineageLinks } from "./data_lineage/links.js";
-import { createDataLineageTables } from "./data_lineage/tables.js";
-import { createDataLineageViewport } from "./data_lineage/viewport.js";
+import { createDataLineageLinks } from "./connection_renderer.js";
+import { createDataLineageTables } from "./table_frames.js";
+import { createDataLineageViewport } from "./viewport_controller.js";
 
-function initializeDataLineage() {
+export function initializeDataLineage(signal) {
   const PLAYBACK_INTERVAL_MS = 1200;
   const REDUCED_MOTION_PLAYBACK_INTERVAL_MS = 1800;
   const board = document.getElementById("data-lineage-board");
@@ -36,8 +36,12 @@ function initializeDataLineage() {
     allSteps, mainTable, reducedMotion, () => playing,
   );
   const lineageLinks = createDataLineageLinks(
-    allSteps, mainTable, viewport, () => playing,
+    allSteps, mainTable, viewport, () => playing, signal,
   );
+  signal.addEventListener("abort", () => {
+    playing = false;
+    window.clearTimeout(timer);
+  }, { once: true });
 
   function refreshMainTable() {
     viewport.anchorKeys(tables.mainTable);
@@ -213,14 +217,11 @@ function initializeDataLineage() {
     if (stepLinks.some(link => link.hash === location.hash)) selectStep(location.hash);
     else chooseDataset("");
   }
-  window.addEventListener("hashchange", followHash);
-  window.addEventListener("popstate", followHash);
-  document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
-  reducedMotion.addEventListener("change", () => { if (playing) pause(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); }, { signal });
+  reducedMotion.addEventListener("change", () => { if (playing) pause(); }, { signal });
   board.classList.add("data-lineage-enhanced");
   document.getElementById("data-lineage-toolbar").hidden = false;
   chooseDataset("");
   followHash();
+  return { update: followHash };
 }
-
-initializeDataLineage();

@@ -4,7 +4,7 @@ import {
 	LINK_ROUTE,
 	LINK_STYLE,
 	MIN_RENDER_SCALE,
-} from './lineage_config.js';
+} from './graph_config.js';
 
 function sizeCard(node, label) {
 	node.cardWidth = Math.min(CARD_STYLE.maxWidth,

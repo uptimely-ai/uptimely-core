@@ -1,5 +1,5 @@
 export function mountLineageViews(
-	sourceData, createLineage2D, createLineage3D, showDetails,
+	sourceData, createLineage2D, createLineage3D, showDetails, signal,
 ) {
 	const buttons = [...document.querySelectorAll('[data-dimension]')];
 	const errorMessage = document.getElementById('lineage-error');
@@ -57,9 +57,17 @@ export function mountLineageViews(
 	}
 	const observer = new ResizeObserver(() => views.get(activeDimension)?.resize());
 	observer.observe(document.getElementById('lineage'));
+	signal.addEventListener('abort', () => {
+		observer.disconnect();
+		for (const view of views.values()) {
+			view.forceGraph.pauseAnimation();
+			view.forceGraph._destructor();
+		}
+		views.clear();
+	}, { once: true });
 	window.addEventListener('pagehide', () => {
 		for (const view of views.values()) view.forceGraph.pauseAnimation();
-	});
-	window.addEventListener('pageshow', () => views.get(activeDimension)?.forceGraph.resumeAnimation());
+	}, { signal });
+	window.addEventListener('pageshow', () => views.get(activeDimension)?.forceGraph.resumeAnimation(), { signal });
 	showView('2d');
 }

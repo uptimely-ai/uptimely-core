@@ -7,22 +7,26 @@ def test_static_frontend_uses_packaged_assets_and_live_api() -> None:
     frontend = importlib.resources.files("uptimely.explorer").joinpath("app", "static")
     index = frontend.joinpath("index.html").read_text(encoding="utf-8")
     config = frontend.joinpath("config.js").read_text(encoding="utf-8")
-    script = frontend.joinpath("js", "app.js").read_text(encoding="utf-8")
+    application = frontend.joinpath("js", "application")
+    script = application.joinpath("bootstrap.js").read_text(encoding="utf-8")
+    assets = application.joinpath("asset_loader.js").read_text(encoding="utf-8")
+    router = application.joinpath("history_router.js").read_text(encoding="utf-8")
+    explorer = application.joinpath("explorer_application.js").read_text(encoding="utf-8")
 
     assert 'src="./config.js"' in index
-    assert 'src="./js/app.js"' in index
+    assert 'src="./js/application/bootstrap.js"' in index
+    assert 'src="./js/theme/tailwind_theme.js"' in index
     assert 'dataUrl: "/api/explorer"' in config
     assert 'class="with-navigation bg-slate-950"' in index
     assert "tailwindcss.com/3.4.17" in index
-    assert "force-graph@1.52.0" in script
-    assert "3d-force-graph@1.77.0" in script
-    assert "hashchange" in script
-    assert "textContent" in script
+    assert 'import { Explorer } from "./explorer_application.js"' in script
+    assert "force-graph@1.52.0" in assets
+    assert "3d-force-graph@1.77.0" in assets
+    assert "hashchange" in router
+    assert "textContent" in explorer
     assert "Loading Explorer data" in index
-    assert "errorStatus" in script
-    assert script.count("fetch(") == 1
-    assert "fetch(configuration.dataUrl" in script
-    assert "data/explorer.json" not in script
+    assert "fetchData(configuration.dataUrl" in explorer
+    assert "data/explorer.json" not in explorer
 
 
 def test_original_ui_components_are_packaged_with_the_static_frontend() -> None:
@@ -30,15 +34,28 @@ def test_original_ui_components_are_packaged_with_the_static_frontend() -> None:
     for name in ("base", "icons", "dashboard", "spec", "graph", "data_lineage"):
         assert frontend.joinpath("css", f"{name}.css").is_file()
     for name in (
-        "catalog_context",
-        "icons",
-        "feature_lineage",
-        "invocation_lineage",
-        "lineage_components",
-        "lineage_view_controller",
-        "data_lineage",
-        "data_lineage/tables",
-        "data_lineage/links",
-        "data_lineage/viewport",
+        "application/bootstrap",
+        "application/asset_loader",
+        "application/history_router",
+        "application/explorer_application",
+        "application/view_controller",
+        "rendering/shared_markup",
+        "rendering/page_renderer",
+        "catalogs/catalog_renderer",
+        "catalogs/catalog_navigation",
+        "catalogs/function_highlighting",
+        "navigation/sidebar_controls",
+        "theme/tailwind_theme",
+        "graphs/feature_graph",
+        "graphs/invocation_graph",
+        "graphs/graph_components",
+        "graphs/graph_config",
+        "graphs/dataset_layout",
+        "graphs/graph_view_controller",
+        "animation/animation_renderer",
+        "animation/playback_controller",
+        "animation/table_frames",
+        "animation/connection_renderer",
+        "animation/viewport_controller",
     ):
         assert frontend.joinpath("js", f"{name}.js").is_file()

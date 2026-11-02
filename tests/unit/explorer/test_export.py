@@ -38,14 +38,18 @@ def test_export_directory_uses_relative_assets_and_preserves_snapshot_bytes(
     assert exported == output.resolve()
     assert (output / "index.html").is_file()
     assert (output / "css" / "explorer.css").is_file()
-    assert (output / "js" / "app.js").is_file()
+    assert (output / "js" / "application" / "bootstrap.js").is_file()
+    assert (output / "js" / "application" / "view_controller.js").is_file()
+    assert (output / "js" / "catalogs" / "catalog_renderer.js").is_file()
+    assert (output / "js" / "graphs" / "feature_graph.js").is_file()
+    assert (output / "js" / "animation" / "playback_controller.js").is_file()
     assert (output / "data" / "explorer.json").read_bytes() == snapshot_bytes
     config = (output / "config.js").read_text(encoding="utf-8")
     assert '"./data/explorer.json"' in config
     assert "/api/explorer" not in config
     index = (output / "index.html").read_text(encoding="utf-8")
     assert 'href="./css/explorer.css"' in index
-    assert 'src="./js/app.js"' in index
+    assert 'src="./js/application/bootstrap.js"' in index
 
 
 def test_export_zip_contains_static_frontend_and_data(
@@ -65,7 +69,14 @@ def test_export_zip_contains_static_frontend_and_data(
             "index.html",
             "config.js",
             "css/explorer.css",
-            "js/app.js",
+            "js/application/bootstrap.js",
+            "js/application/view_controller.js",
+            "js/catalogs/catalog_renderer.js",
+            "js/graphs/feature_graph.js",
+            "js/animation/playback_controller.js",
+            "js/rendering/shared_markup.js",
+            "js/navigation/sidebar_controls.js",
+            "js/theme/tailwind_theme.js",
             "data/explorer.json",
         } <= set(archive.namelist())
         assert archive.read("data/explorer.json") == snapshot_path.read_bytes()

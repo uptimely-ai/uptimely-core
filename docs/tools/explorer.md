@@ -40,7 +40,10 @@ The original desktop navigation and contextual sidebars can be collapsed
 independently. On narrow screens, use the navigation menu and the page's context
 controls. Catalogs start with an overview; select an item in the contextual
 sidebar to inspect its details. Item selections support browser back/forward
-navigation and direct links.
+navigation and direct links. Menu links switch views client-side without
+reloading the document or refetching the snapshot. Refresh the browser after
+rebuilding to load updated project data. Graphs and animation playback are
+stopped when leaving their view.
 
 Lineage and topology offer interactive **2D** and **3D** views, zoom, reset,
 dataset legends, and selectable node details. For animation, choose a dataset

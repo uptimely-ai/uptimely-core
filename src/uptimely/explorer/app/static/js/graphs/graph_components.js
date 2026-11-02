@@ -1,5 +1,5 @@
-import * as LineageConfig from './lineage_config.js';
-import * as LineageLayout from './lineage_layout.js';
+import * as LineageConfig from './graph_config.js';
+import * as LineageLayout from './dataset_layout.js';
 
 function readPayload(id) {
 	return JSON.parse(document.getElementById(id).textContent);

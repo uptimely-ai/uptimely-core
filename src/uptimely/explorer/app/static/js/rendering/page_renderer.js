@@ -1,4 +1,4 @@
-import { contextHeader, contextToggle, escape, heading, href, icon, page } from "./ui.js";
+import { contextHeader, contextToggle, escape, heading, href, icon, page } from "./shared_markup.js";
 
 export function dashboard(data) {
   const summary = data.catalogs.summary;

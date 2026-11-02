@@ -1,4 +1,4 @@
-import { contextHeader, contextToggle, escape, kindIcon } from "./ui.js";
+import { contextHeader, contextToggle, escape, kindIcon } from "../rendering/shared_markup.js";
 
 const TYPE_ICONS = {
   float: "hash", integer: "hash", numeric: "hash", string: "case-sensitive",
