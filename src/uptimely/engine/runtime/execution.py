@@ -8,6 +8,7 @@ from uptimely import execution_plan
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import main_frame as main_frame_module
+from uptimely.engine.dataframe import validation as dataframe_validation
 from uptimely.spec import arg_types, functions
 
 from . import bindings as bindings_module
@@ -27,11 +28,11 @@ class InvocationExecutor:
         *,
         validate: bool = False,
     ) -> None:
-        """Create an executor with one shared validation policy."""
+        """Create an executor with optional runtime contract validation."""
         self.backend = backend
         self.entrypoints = entrypoints
         self.state = state
-        self.validator = validation_module.create_policy(validate, backend, state)
+        self.validate = validate
         self.bindings = bindings_module.RuntimeBindings(state, parameters)
 
     def execute(self, invocation: execution_plan.Invocation) -> None:
@@ -42,7 +43,8 @@ class InvocationExecutor:
         if definition.is_effect:
             self._invoke(invocation)
             return
-        self.validator.before_invocation(invocation)
+        if self.validate:
+            validation_module.InvocationValidator(self.backend, self.state).validate(invocation)
         if definition.is_sink:
             if invocation.dataset_id not in self.state.main_frames:
                 raise KeyError(invocation.dataset_id)
@@ -62,7 +64,7 @@ class InvocationExecutor:
             self.backend,
             invocation,
             functools.partial(self._invoke, invocation),
-            validator=self.validator,
+            validate=self.validate,
             comparison_frame=main_frame.dataframe if main_frame is not None else None,
         )
         fragment = self._merge_fragment(invocation, fragment)
@@ -86,16 +88,21 @@ class InvocationExecutor:
                 self.backend,
                 invocation.id_columns,
             )
-        self.validator.validate_accumulated(main_frame.dataframe, invocation)
-        if main_frame.dataframe is not None:
-            self.validator.before_join(
-                main_frame.dataframe, fragment.dataframe, list(fragment.dimensions)
+        if self.validate and main_frame.dataframe is not None:
+            validator = dataframe_validation.MainFrameValidator(
+                self.backend,
+                main_frame.dataframe,
+                invocation.id_columns,
+                "Accumulated dataset",
+                column_types=invocation.column_types,
             )
+            validator.validate()
+            validator.validate_merge(fragment.dataframe)
         main_frame.merge(
             fragment,
             fragment_id=fragment.invocation.mapping_id if fragment.invocation is not None else None,
-            join_cardinality=self.validator.join_cardinality,
-            broadcast_cardinality=self.validator.broadcast_cardinality,
+            join_cardinality="1:1" if self.validate else "m:m",
+            broadcast_cardinality="m:1" if self.validate else "m:m",
         )
         self.state.main_frames[dataset_id] = main_frame
         return fragment

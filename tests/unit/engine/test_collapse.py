@@ -346,7 +346,7 @@ def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> Non
     )
 
     with pytest.raises(ValueError, match="input feature.*foreign source dataset: maximum"):
-        executor.validator.before_invocation(invocation)
+        executor.execute(invocation)
 
 
 @pytest.mark.parametrize("lazy", [False, True])

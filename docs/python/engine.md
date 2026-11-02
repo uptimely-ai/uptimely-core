@@ -15,7 +15,7 @@ upstream queries. Configuration and saved-build checks are always enabled.
 
 Each logical dataset has one `MainFrame`, which owns its accumulated physical
 `dataframe` and explicit `id_columns`. `Fragment.stage(...)` calls an invocation
-loader, checks the raw result using the run's validation policy, derives its
+loader, checks the raw result with `FragmentValidator` when `validate=True`, derives its
 carried keys, and projects declared outputs. It returns a fragment ready to merge,
 without requiring an already-created result dataframe. Fragments describe source
 reads, foreign-dataset contributions, and same-grain calculations, retaining
@@ -52,10 +52,11 @@ dataset IDs take precedence over fragment names.
 `RuntimeState.resolve_main_frame_or_fragment_dataframe(identifier)` explicitly
 resolves either reference kind to its underlying dataframe.
 
-A run selects one validation policy used by its invocation executor.
-Normal execution uses no-op hooks. The executor checks inputs before calling
-functions, shares its policy with fragment staging for result checks before
-projection, and checks assembly contracts before joining or state updates.
+A run passes its `validate` flag to the invocation executor and fragment staging.
+When enabled, the executor calls `InvocationValidator` before invoking functions,
+staging calls `FragmentValidator` before projection, and the executor calls
+`MainFrameValidator` before joining or state updates. When disabled, these
+validators are not constructed or called; there is no policy or no-op hook layer.
 Validated execution passes explicit join cardinalities to the physical merge. User functions
 and `ExecutionResult.main_frames` continue to receive
 ordinary Polars dataframes or lazy frames, not these internal runtime wrappers.

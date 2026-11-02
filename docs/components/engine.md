@@ -210,6 +210,18 @@ With validation enabled, the engine checks declared feature input availability
 before invoking each non-effect action, then validates data-producing results
 before merging them:
 
+The executor runs validators directly only when validation is enabled.
+`InvocationValidator` checks declared feature inputs against runtime state.
+`FragmentValidator`
+checks raw invocation results before output projection, including the function
+kind's row-count and key-preservation contracts. `MainFrameValidator` checks the
+accumulated dataframe's structure and declared types of columns already present.
+Both hold their validation inputs directly and inherit shared private checks,
+called in an explicit, fail-fast order. `MainFrameValidator.validate_merge()`
+checks feature collisions separately before joining. Identifier compatibility
+and the requirement for an existing broadcast target remain mandatory assembly
+guards in `MainFrame.merge()`, even when runtime validation is disabled.
+
 | Check | Runtime requirement |
 | --- | --- |
 | Dimensions | Every fragment contains all dimensions declared by its entity; an expand fragment contains the dimensions its source can supply. |

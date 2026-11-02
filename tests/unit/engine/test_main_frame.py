@@ -11,7 +11,6 @@ from uptimely.engine.dataframe import main_frame as main_frame_module
 from uptimely.engine.dataframe import validation as dataframe_validation
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
-from uptimely.engine.runtime import validation as runtime_validation
 from uptimely.spec import functions
 
 
@@ -121,24 +120,23 @@ def test_fragment_stage_loads_once_and_returns_merge_ready_data(
     backend = backend_module.PolarsBackend()
     data = pl.DataFrame({"asset_id": ["A"], "reading": [2], "extra": [3]})
     raw = data.lazy() if lazy else data
-    validator = runtime_validation.create_policy(validate, backend, state_module.RuntimeState())
     events: list[str] = []
-    validate_fragment = validator.validate_fragment
+    validate_fragment = dataframe_validation.FragmentValidator.validate
 
     def load() -> object:
         events.append("load")
         return raw
 
-    def check_raw(context: dataframe_validation.FrameValidationContext) -> None:
+    def check_raw(fragment_validator: dataframe_validation.FragmentValidator) -> None:
         events.append("validate")
-        assert context.frame is raw
-        assert "extra" in context.columns
-        validate_fragment(context)
+        assert fragment_validator.frame is raw
+        assert "extra" in fragment_validator.columns
+        validate_fragment(fragment_validator)
 
-    monkeypatch.setattr(validator, "validate_fragment", check_raw)
-    staged = fragment_module.Fragment.stage(backend, invocation, load, validator=validator)
+    monkeypatch.setattr(dataframe_validation.FragmentValidator, "validate", check_raw)
+    staged = fragment_module.Fragment.stage(backend, invocation, load, validate=validate)
 
-    assert events == ["load", "validate"]
+    assert events == (["load", "validate"] if validate else ["load"])
     assert staged.dimensions == ("asset_id",)
     assert staged.invocation is invocation
     assert backend.column_names(staged.dataframe) == ["asset_id", "reading"]
@@ -160,7 +158,6 @@ def test_fragment_stage_propagates_loader_failure() -> None:
             backend_module.PolarsBackend(),
             plan.invocations[0],
             load,
-            validator=runtime_validation.ValidationPolicy(),
         )
 
 
@@ -179,7 +176,6 @@ def test_fragment_stage_rejects_non_dataframe_invocations_without_loading(
             backend_module.PolarsBackend(),
             invocation,
             load,
-            validator=runtime_validation.ValidationPolicy(),
         )
 
 
@@ -197,7 +193,6 @@ def test_fragment_stage_does_not_collect_lazy_result_without_validation(
         backend_module.PolarsBackend(),
         plan.invocations[0],
         lambda: raw,
-        validator=runtime_validation.ValidationPolicy(),
     )
 
     assert isinstance(staged.dataframe, pl.LazyFrame)
@@ -294,7 +289,6 @@ def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:
         backend_module.PolarsBackend(),
         invocation,
         lambda: frame,
-        validator=runtime_validation.ValidationPolicy(),
     )
 
     assert fragment.dimensions == ("group",)

@@ -54,19 +54,18 @@ def merge_fragment(
             main.backend,
             fragment.invocation,
             lambda: fragment.dataframe,
-            validator=executor.validator,
+            validate=True,
             comparison_frame=main.dataframe,
         )
     else:
-        executor.validator.validate_fragment(
-            dataframe_validation.FrameValidationContext(
-                main.backend,
-                fragment.dataframe,
-                list(fragment.dimensions),
-                "Fragment",
-                column_types=invocation.column_types,
-            )
-        )
+        dataframe_validation.FragmentValidator(
+            main.backend,
+            fragment.dataframe,
+            list(fragment.dimensions),
+            "Fragment",
+            invocation=invocation,
+            output_features=[],
+        ).validate()
     return executor._merge_fragment(invocation, fragment)
 
 

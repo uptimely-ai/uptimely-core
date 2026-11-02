@@ -236,12 +236,15 @@ def test_default_execution_does_not_call_step_validators(
             "test:write": lambda **_: None,
         },
     )
+    monkeypatch.setattr(runtime_validation.InvocationValidator, "validate", unexpected_validation)
     monkeypatch.setattr(
-        runtime_validation.StepValidation, "before_invocation", unexpected_validation
+        dataframe_validation_module.FragmentValidator, "validate", unexpected_validation
     )
-    monkeypatch.setattr(dataframe_validation_module, "validate_dataframes", unexpected_validation)
     monkeypatch.setattr(
-        dataframe_validation_module, "validate_feature_collisions", unexpected_validation
+        dataframe_validation_module.MainFrameValidator, "validate", unexpected_validation
+    )
+    monkeypatch.setattr(
+        dataframe_validation_module.MainFrameValidator, "validate_merge", unexpected_validation
     )
 
     result = engine_for_plan(_plan(), {"source": "/tmp/input"}).run()
@@ -290,7 +293,7 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
     assert "extra" in raw_source.columns
     assert state.resolve_main_frame_or_fragment_dataframe("telemetry") is main.dataframe
     assert executor.bindings.resolve_value("telemetry", "dataframe") is main.dataframe
-    assert isinstance(executor.validator, runtime_validation.StepValidation) is validate
+    assert executor.validate is validate
 
 
 def test_saved_plan_executes_without_compiler(
@@ -387,18 +390,20 @@ def test_executor_validates_inputs_against_current_runtime_state() -> None:
         input_features=["local"],
     )
 
-    executor.validator.before_invocation(invocation)
+    runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
     invocation.input_features[:] = ["unique"]
-    executor.validator.before_invocation(invocation)
+    runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
     invocation.input_features[:] = ["shared"]
     with pytest.raises(ValueError, match="unavailable or ambiguous: shared"):
-        executor.validator.before_invocation(invocation)
+        runtime_validation.InvocationValidator(executor.backend, executor.state).validate(
+            invocation
+        )
     runtime_state.main_frames["dataset"].dataframe = pl.DataFrame({"new": [1]})
     del runtime_state.main_frames["second"]
     invocation.input_features[:] = ["new"]
-    executor.validator.before_invocation(invocation)
+    runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
     invocation.input_features[:] = ["shared"]
-    executor.validator.before_invocation(invocation)
+    runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
 
 
 def test_engine_entrypoints_include_saved_package_provenance(
@@ -1042,7 +1047,7 @@ def test_input_validation_reads_each_dataset_schema_once(
         engine.plan.invocations[1], input_features=["asset_id", "reading", "other"]
     )
 
-    executor.validator.before_invocation(invocation)
+    runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
 
     assert len(inspected) == 2
     assert inspected[0] is state.main_frames["telemetry"].dataframe
@@ -1065,7 +1070,9 @@ def test_input_validation_rejects_missing_or_ambiguous_foreign_features(
     )
 
     with pytest.raises(ValueError, match="input feature is unavailable or ambiguous: reading"):
-        executor.validator.before_invocation(engine.plan.invocations[1])
+        runtime_validation.InvocationValidator(executor.backend, executor.state).validate(
+            engine.plan.invocations[1]
+        )
 
 
 def test_runtime_state_prefers_dataset_to_fragment_lookup() -> None:
