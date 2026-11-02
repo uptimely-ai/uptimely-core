@@ -34,7 +34,7 @@ available in an installed version.
 ## Typical workflow
 
 From an installed package, download examples and build the complete active
-bundle, including its spec, execution plan, and Explorer website:
+bundle, including its spec, execution plan, and Explorer data snapshot:
 
 ```console
 uptimely examples

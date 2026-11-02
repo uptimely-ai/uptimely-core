@@ -1,5 +1,6 @@
 """Tests for serving the active Explorer build from the command line."""
 
+import json
 import pathlib
 import sys
 
@@ -89,23 +90,21 @@ def test_explorer_reports_invalid_build(
     )
 
 
-def test_explorer_serves_saved_website_without_building_or_rendering(
+def test_explorer_serves_packaged_frontend_without_building_or_rendering(
     built_project: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    bundle = project.load_build_bundle(built_project)
+    project.load_build_bundle(built_project)
     served: list[tuple[pathlib.Path, str, int, str]] = []
 
     def fail(*args: object, **kwargs: object) -> None:
         pytest.fail("Serving a saved website must not compile, load source, or render")
 
     def serve_and_check_assets(app: ASGIApp, host: str, port: int) -> None:
-        served.append((bundle.explorer_path, "127.0.0.1", 0, "all features"))
-        assert app.routes[-1].app.directory == str(bundle.explorer_path)
-        with (
-            pytest.raises(project.BuildLockError),
-            project.build_lock(built_project, exclusive=True, wait=False),
-        ):
+        served.append((built_project, "127.0.0.1", 0, "all features"))
+        static_root = pathlib.Path(explorer_server.__file__).parent / "app" / "static"
+        assert app.routes[-1].app.directory == str(static_root)
+        with project.build_lock(built_project, exclusive=True, wait=False):
             pass
         assert host == "127.0.0.1"
         assert port == 0
@@ -122,7 +121,7 @@ def test_explorer_serves_saved_website_without_building_or_rendering(
 
     cli.main()
 
-    assert served == [(bundle.explorer_path, "127.0.0.1", 0, "all features")]
+    assert served == [(built_project, "127.0.0.1", 0, "all features")]
 
 
 def test_explorer_reports_selected_scope(
@@ -133,7 +132,7 @@ def test_explorer_reports_selected_scope(
     built_project = example_project_factory(
         tmp_path / "project with spaces", features=("pump_health_score",)
     )
-    bundle = project.load_build_bundle(built_project)
+    project.load_build_bundle(built_project)
     scopes: list[str] = []
 
     def record_scope(directory: pathlib.Path, host: str, port: int, scope: str) -> None:
@@ -149,9 +148,8 @@ def test_explorer_reports_selected_scope(
     cli.main()
 
     assert scopes == ["selected features: pump_health_score"]
-    home = (bundle.explorer_path / "index.html").read_text(encoding="utf-8")
-    assert "Partial build" in home
-    assert "Plan and execution: selected features: pump_health_score" in home
+    snapshot = json.loads((built_project / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
+    assert snapshot["scope"]["label"] == "selected features: pump_health_score"
 
 
 @pytest.mark.parametrize("command", ["explore", "explorer"])

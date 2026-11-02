@@ -28,14 +28,12 @@ _generated/
 ├── build/
 │   ├── build.json
 │   ├── spec.json
-│   ├── execution_plan.json
-│   └── explorer/            # compatibility pages for `explorer serve`
+│   └── execution_plan.json
 └── explorer.json
 ```
 
-The Explorer snapshot is not part of the replaceable build bundle. The
-compatibility website is not declared in the build manifest and is not required
-to load the spec or execution plan.
+The Explorer snapshot is separate from the replaceable build bundle and is
+atomically replaced only after the managed build succeeds.
 
 ### Feature selection
 

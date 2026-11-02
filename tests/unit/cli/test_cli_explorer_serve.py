@@ -1,18 +1,43 @@
-"""Tests for the local analytics explorer static-file server."""
+"""Tests for the packaged Explorer frontend and snapshot API."""
 
 import asyncio
+import json
 import logging
 import pathlib
 
 import pytest
 from starlette.types import ASGIApp, Message, Scope
 
+from uptimely import project
 from uptimely.cli import explorer
 from uptimely.explorer import server as explorer_server
 
 
-def _get(app: ASGIApp, path: str) -> tuple[int, bytes]:
-    async def request() -> tuple[int, bytes]:
+def _snapshot(name: str = "Example project") -> dict[str, object]:
+    return {
+        "format_version": 1,
+        "project": {"name": name, "spec_version": 3},
+        "scope": {"label": "all features", "features": None, "is_scoped": False},
+        "catalogs": {
+            "configuration": {},
+            "summary": {},
+            "feature_dependencies": [],
+            "function_groups": {},
+        },
+        "graphs": {
+            "feature_lineage": {"nodes": [], "links": []},
+            "feature_style": {},
+            "invocation_lineage": {"nodes": [], "links": []},
+            "invocation_style": {},
+        },
+        "plan": {"stage_count": 0, "invocation_count": 0},
+        "stages": [],
+        "animation": {"stages": []},
+    }
+
+
+def _get(app: ASGIApp, path: str) -> tuple[int, bytes, dict[str, str]]:
+    async def request() -> tuple[int, bytes, dict[str, str]]:
         messages: list[Message] = []
         request_sent = False
 
@@ -41,43 +66,89 @@ def _get(app: ASGIApp, path: str) -> tuple[int, bytes]:
             "server": ("127.0.0.1", 8001),
         }
         await app(scope, receive, send)
-        status = next(
-            message["status"] for message in messages if message["type"] == "http.response.start"
-        )
+        start = next(message for message in messages if message["type"] == "http.response.start")
+        status = start["status"]
+        headers = {key.decode().lower(): value.decode() for key, value in start.get("headers", [])}
         body = b"".join(
             message.get("body", b"")
             for message in messages
             if message["type"] == "http.response.body"
         )
-        return status, body
+        return status, body, headers
 
     return asyncio.run(request())
 
 
-def test_serve_explorer_uses_uvicorn_for_saved_static_website(
+def test_app_serves_packaged_frontend_and_reads_fresh_snapshot(tmp_path: pathlib.Path) -> None:
+    snapshot_path = tmp_path / project.EXPLORER_DATA_FILE
+    snapshot_path.parent.mkdir(parents=True)
+    snapshot_path.write_text(json.dumps(_snapshot()), encoding="utf-8")
+    app = explorer_server.create_app(tmp_path)
+
+    status, body, _ = _get(app, "/")
+    assert status == 200
+    assert b"Analytics Explorer" in body
+    assert _get(app, "/css/explorer.css")[0] == 200
+    assert _get(app, "/js/app.js")[0] == 200
+
+    status, body, headers = _get(app, "/api/explorer")
+    assert status == 200
+    assert headers["cache-control"] == "no-store"
+    assert json.loads(body)["project"]["name"] == "Example project"
+
+    snapshot_path.write_text(json.dumps(_snapshot("Rebuilt project")), encoding="utf-8")
+    assert json.loads(_get(app, "/api/explorer")[1])["project"]["name"] == "Rebuilt project"
+
+
+@pytest.mark.parametrize("kind", ["missing", "corrupt", "unsupported"])
+def test_snapshot_api_reports_rebuild_instructions(tmp_path: pathlib.Path, kind: str) -> None:
+    snapshot_path = tmp_path / project.EXPLORER_DATA_FILE
+    if kind != "missing":
+        snapshot_path.parent.mkdir(parents=True)
+        content = "not json" if kind == "corrupt" else json.dumps({"format_version": 99})
+        snapshot_path.write_text(content, encoding="utf-8")
+
+    status, body, _ = _get(explorer_server.create_app(tmp_path), "/api/explorer")
+
+    assert status == 503
+    assert "uptimely project build" in json.loads(body)["detail"]
+
+
+@pytest.mark.parametrize("kind", ["missing", "file"])
+def test_create_app_rejects_missing_project_root(tmp_path: pathlib.Path, kind: str) -> None:
+    project_root = tmp_path / "project"
+    if kind == "file":
+        project_root.write_text("not a directory", encoding="utf-8")
+
+    with pytest.raises(NotADirectoryError):
+        explorer_server.create_app(project_root)
+
+
+def test_serve_explorer_uses_uvicorn_without_a_build_lock(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    directory = tmp_path / "website"
-    directory.mkdir()
-    (directory / "index.html").write_text("<h1>Spec</h1>", encoding="utf-8")
-    (directory / "data_lineage.html").write_text("<h1>Data lineage</h1>", encoding="utf-8")
-    (tmp_path / "private.txt").write_text("not public", encoding="utf-8")
+    root = tmp_path / "project"
+    root.mkdir()
+    snapshot_path = root / project.EXPLORER_DATA_FILE
+    snapshot_path.parent.mkdir(parents=True)
+    snapshot_path.write_text(json.dumps(_snapshot()), encoding="utf-8")
     calls: list[tuple[str, int]] = []
     cwd = pathlib.Path.cwd()
 
     def run(app: ASGIApp, host: str, port: int) -> None:
         calls.append((host, port))
-        assert _get(app, "/") == (200, b"<h1>Spec</h1>")
-        assert _get(app, "/data_lineage.html") == (200, b"<h1>Data lineage</h1>")
-        assert _get(app, "/../private.txt")[0] == 404
+        assert _get(app, "/")[0] == 200
+        assert _get(app, "/api/explorer")[0] == 200
+        with project.build_lock(root, exclusive=True, wait=False):
+            pass
         raise KeyboardInterrupt
 
     monkeypatch.setattr(explorer_server.uvicorn, "run", run)
     caplog.set_level(logging.INFO, logger="uptimely.explorer.server")
 
-    explorer.serve_explorer(directory, port=0, scope="selected features: pressure")
+    explorer.serve_explorer(root, port=0, scope="selected features: pressure")
 
     assert pathlib.Path.cwd() == cwd
     assert calls == [("127.0.0.1", 0)]
@@ -86,22 +157,10 @@ def test_serve_explorer_uses_uvicorn_for_saved_static_website(
     assert "Spec explorer server stopped." in caplog.text
 
 
-@pytest.mark.parametrize("kind", ["missing", "file", "empty"])
-def test_serve_explorer_rejects_missing_index(tmp_path: pathlib.Path, kind: str) -> None:
-    directory = tmp_path / "website"
-    if kind == "file":
-        directory.write_text("not a directory", encoding="utf-8")
-    elif kind == "empty":
-        directory.mkdir()
-
-    with pytest.raises((NotADirectoryError, FileNotFoundError)):
-        explorer.serve_explorer(directory, port=0)
-
-
 def test_serve_explorer_propagates_server_errors(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    (tmp_path / "index.html").write_text("index", encoding="utf-8")
+    tmp_path.mkdir(exist_ok=True)
 
     def fail(*args: object, **kwargs: object) -> None:
         raise OSError("address already in use")

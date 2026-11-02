@@ -8,10 +8,9 @@ import shutil
 from urllib import parse
 
 import pytest
-from support import examples as example_support
 from support import rendering as rendering_support
 
-from uptimely import compiler, project, spec
+from uptimely import compiler, spec
 from uptimely.explorer import graph_style, render
 from uptimely.explorer.sections import feature_lineage
 
@@ -122,10 +121,3 @@ def test_graph_style_is_passed_as_json_without_changing_shared_script(
     assert json.loads(match.group(1)) == dataclasses.asdict(style)
     assert 'style="--lineage-background: #123456"' in document
     assert 'src="../js/feature_lineage.js"' in document
-
-
-@pytest.mark.usefixtures("example_projects")
-def test_built_explorer_contains_all_assets() -> None:
-    bundle = project.load_build_bundle(example_support.EXAMPLES_ROOT / "pump_analytics")
-    for filename in ASSETS:
-        assert (bundle.explorer_path / filename).is_file()

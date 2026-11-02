@@ -16,7 +16,6 @@ from uptimely import execution_plan as plan_module
 from uptimely import project, spec
 from uptimely.cli import cli
 from uptimely.compiler import compiler as compiler_module
-from uptimely.explorer import explorer as explorer_module
 from uptimely.project.build import builder as project_build
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
@@ -120,7 +119,7 @@ def test_project_build_examples(
     assert bundle.manifest.features is None
     assert spec.load_spec(bundle.spec_path).entities
     assert bundle.execution_plan.invocations
-    assert (bundle.explorer_path / "index.html").is_file()
+    assert set(bundle_files(root)) == {"build.json", "execution_plan.json", "spec.json"}
     explorer_data = json.loads((root / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert explorer_data["format_version"] == 1
 
@@ -148,7 +147,6 @@ def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None
     assert bundle.manifest.features is None
     assert spec.load_spec(bundle.spec_path).entities
     assert bundle.execution_plan.invocations
-    assert (bundle.explorer_path / "index.html").is_file()
     assert (root / project.EXPLORER_DATA_FILE).is_file()
 
 
@@ -161,7 +159,7 @@ def test_project_rebuild_replaces_previous_bundle(
     bundle = project.load_build_bundle(root)
     old_plan = bundle.execution_plan
     old_spec = bundle.spec_path.read_bytes()
-    stale_file = bundle.explorer_path / "stale.html"
+    stale_file = bundle.root / "stale.html"
     stale_file.write_text("stale", encoding="utf-8")
 
     invoke(monkeypatch, "--project-root", str(root))
@@ -172,7 +170,7 @@ def test_project_rebuild_replaces_previous_bundle(
         item.id: item for item in old_plan.invocations
     }
     assert len(rebuilt_bundle.execution_plan.execution_stages) == len(old_plan.execution_stages)
-    assert not (rebuilt_bundle.explorer_path / "stale.html").exists()
+    assert not (rebuilt_bundle.root / "stale.html").exists()
     assert not (root / "_generated/spec/spec.json").exists()
     assert not (root / "_generated/compile/execution_plan.json").exists()
 
@@ -275,7 +273,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
         assert result.out == f"Build files created to {bundle.root}\n"
     assert spec.load_spec(bundle.spec_path).entities
     assert bundle.execution_plan.invocations
-    assert (bundle.explorer_path / "index.html").exists()
+    assert (root / project.EXPLORER_DATA_FILE).is_file()
     assert not (root / "_generated/spec").exists()
     assert not (root / project.EXPLORER_OUTPUT_DIR).exists()
 
@@ -426,7 +424,7 @@ def test_project_build_compiles_once_and_renders_the_compiled_plan(
     plans: list[plan_module.ExecutionPlan] = []
     compiled: list[plan_module.ExecutionPlan] = []
     original_compile = project_build.compiler.Compiler.compile
-    original_create_html = explorer_module.Explorer.create_html
+    original_build_presentation = project_build.presentation.build_presentation_data
 
     def compile_once(
         self: project_build.compiler.Compiler,
@@ -437,15 +435,18 @@ def test_project_build_compiles_once_and_renders_the_compiled_plan(
         compiled.append(compiled_plan)
         return compiled_plan
 
-    def render_compiled_plan(
-        self: explorer_module.Explorer, *args: object, **kwargs: object
-    ) -> pathlib.Path:
-        assert self.plan is not None
-        plans.append(self.plan)
-        return original_create_html(self, *args, **kwargs)
+    def prepare_compiled_plan(
+        spec_definition: spec.Spec,
+        plan: plan_module.ExecutionPlan,
+        **kwargs: object,
+    ) -> project_build.presentation.ExplorerPresentationData:
+        plans.append(plan)
+        return original_build_presentation(spec_definition, plan, **kwargs)
 
     monkeypatch.setattr(project_build.compiler.Compiler, "compile", compile_once)
-    monkeypatch.setattr(explorer_module.Explorer, "create_html", render_compiled_plan)
+    monkeypatch.setattr(
+        project_build.presentation, "build_presentation_data", prepare_compiled_plan
+    )
 
     project_build.build_project(root)
 
@@ -458,7 +459,7 @@ def test_project_build_compiles_once_and_renders_the_compiled_plan(
     ("stage", "expected"),
     [
         ("compile", "Project build compilation failed"),
-        ("render", "Project build artifact generation failed"),
+        ("presentation", "Project build artifact generation failed"),
         ("publish", "Project build publication failed"),
     ],
 )
@@ -489,12 +490,14 @@ def test_project_build_failures_preserve_previous_bundle(
             raise ValueError("Injected compile failure")
 
         monkeypatch.setattr(project_build.compiler.Compiler, "compile", fail_compile)
-    elif stage == "render":
+    elif stage == "presentation":
 
-        def fail_render(self: object, *args: object, **kwargs: object) -> pathlib.Path:
-            raise OSError("Injected renderer failure")
+        def fail_presentation(*args: object, **kwargs: object) -> None:
+            raise OSError("Injected presentation failure")
 
-        monkeypatch.setattr(explorer_module.Explorer, "create_html", fail_render)
+        monkeypatch.setattr(
+            project_build.presentation, "build_presentation_data", fail_presentation
+        )
     else:
         original_replace = project_build.os.replace
         call_count = 0

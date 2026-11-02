@@ -13,26 +13,26 @@ logger = logging.getLogger(__name__)
 
 
 def serve_explorer(
-    directory: pathlib.Path,
+    project_root: pathlib.Path,
     host: str = "127.0.0.1",
     port: int = 8001,
     scope: str = "all features",
 ) -> None:
-    """Serve a saved analytics explorer website for local preview.
+    """Serve the packaged analytics explorer frontend for local preview.
 
     Args:
-        directory: Saved website directory containing an index.html file.
+        project_root: Project root containing the generated Explorer snapshot.
         host: Address to bind; defaults to localhost.
         port: TCP port; defaults to 8001. Zero selects an available port.
         scope: Human-readable scope of the saved execution plan.
 
     Raises:
-        NotADirectoryError: The website directory does not exist or is not a directory.
-        FileNotFoundError: The website index is missing.
+        NotADirectoryError: The project root does not exist or is not a directory.
+        FileNotFoundError: Packaged Explorer assets are missing.
         ValueError: The port is outside the valid TCP range.
         OSError: The server cannot bind to the requested address.
     """
-    explorer_server.serve_explorer(directory, host=host, port=port, scope=scope)
+    explorer_server.serve_explorer(project_root, host=host, port=port, scope=scope)
 
 
 def _port(value: str) -> int:
@@ -49,7 +49,7 @@ def _port(value: str) -> int:
 def configure_parser(parser: argparse.ArgumentParser) -> None:
     """Configure Explorer commands."""
     actions = parser.add_subparsers(dest="action", required=True)
-    serve = actions.add_parser("serve", help="Serve the active build's saved website")
+    serve = actions.add_parser("serve", help="Serve the active build's Explorer data")
     configure_serve_parser(serve)
 
 
@@ -62,7 +62,7 @@ def configure_serve_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--build",
         action="store_true",
-        help="Build and publish the project bundle before serving it",
+        help="Build and publish the project snapshot once before serving it",
     )
     parser.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
     parser.add_argument(
@@ -71,18 +71,18 @@ def configure_serve_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    """Serve the active build's validated, saved Explorer website."""
+    """Serve the packaged frontend with the current generated Explorer snapshot."""
     project_root = common.resolve_project_root(args, parser).resolve()
     try:
         if args.build:
             bundle = project_build.build_project(project_root)
             logger.info("Build files created to %s", bundle.root)
-        with project.read_build_bundle(project_root) as bundle:
-            scope = (
-                "all features"
-                if bundle.manifest.features is None
-                else f"selected features: {', '.join(bundle.manifest.features)}"
-            )
-            serve_explorer(bundle.explorer_path, args.host, args.port, scope)
+        bundle = project.load_build_bundle(project_root)
+        scope = (
+            "all features"
+            if bundle.manifest.features is None
+            else f"selected features: {', '.join(bundle.manifest.features)}"
+        )
+        serve_explorer(project_root, args.host, args.port, scope)
     except (OSError, ValueError, RuntimeError) as error:
         parser.exit(1, f"uptimely: error: {error}\n")

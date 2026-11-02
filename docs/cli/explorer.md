@@ -1,20 +1,21 @@
 # `uptimely explorer`
 
-Preview the saved Analytics Explorer website locally. Use
+Preview the Analytics Explorer locally. The server serves the packaged static
+frontend and reads the current JSON snapshot on each API request. Use
 [`uptimely project build`](project.md) to generate or replace the active
-project bundle before serving it.
+project bundle and snapshot before serving it.
 
-The shortcut `uptimely explore` serves the same saved website with the same
+The shortcut `uptimely explore` serves the same frontend with the same
 options as `uptimely explorer serve`.
 
 ## `explorer serve`
 
-`serve` validates and serves the website from the active build. By default, it
-does not load source files, compile, render, or modify build artifacts. Pass
-`--build` to build and publish the project bundle first; if that build fails,
-the server does not start. This is a one-time build, not a file watcher. The
-active-build read lock remains held while the server is running, so a rebuild
-cannot replace the website until the server exits.
+`serve` validates the active build and serves the packaged frontend. It does
+not load project source, compile, or prepare presentation data on requests.
+Pass `--build` to build and publish once before serving; if the build fails,
+the server does not start. This is a one-time build, not a file watcher. A
+separate build can publish a new complete snapshot while the server stays up;
+refresh the browser to load it.
 
 ```console
 uptimely explore \
@@ -42,7 +43,8 @@ uptimely explore examples/pump_analytics --build
 ```
 
 If the build is missing or invalid, the command reports the problem and the
-`uptimely project build --project-root ...` recovery command. Scoped builds are
-identified in the server output and on the website; spec pages cover the full
-model while plan and execution pages cover the selected outputs and their
-dependencies.
+`uptimely project build --project-root ...` recovery command. A missing or
+invalid snapshot is reported by the data API with the same recovery
+instruction. Scoped builds are identified in the server output and frontend;
+catalogs cover the full spec while the plan and animation reflect the selected
+outputs and their dependencies.

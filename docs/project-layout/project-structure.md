@@ -25,8 +25,7 @@ project/
     ├── build/
     │   ├── build.json
     │   ├── spec.json
-    │   ├── execution_plan.json
-    │   └── explorer/             # compatibility pages for `explorer serve`
+    │   └── execution_plan.json
     ├── explorer.json
     └── runs/
         └── <run-id>/

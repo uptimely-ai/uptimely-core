@@ -133,7 +133,6 @@ def test_load_build_bundle_validates_and_loads_all_declared_artifacts(
     assert bundle.spec_path == bundle.root / "spec.json"
     assert bundle.spec_definition.spec_version == 3
     assert bundle.execution_plan_path == bundle.root / "execution_plan.json"
-    assert bundle.explorer_path == bundle.root / "explorer"
     assert bundle.execution_plan.invocations == []
 
 
@@ -243,7 +242,7 @@ def test_load_build_bundle_does_not_validate_unlisted_website_files(
 
     loaded_bundle = project.load_build_bundle(tmp_path)
 
-    assert loaded_bundle.explorer_path == build_root / "explorer"
+    assert set(loaded_bundle.manifest.artifacts.model_dump()) == {"spec", "execution_plan"}
 
 
 def test_load_build_bundle_rejects_invalid_saved_plan(tmp_path: pathlib.Path) -> None:
