@@ -53,7 +53,9 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     monkeypatch: pytest.MonkeyPatch,
     engine_for_plan: execution_support.EngineFactory,
     validate: bool,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.DEBUG, logger="uptimely.engine")
     written: dict[str, object] = {}
 
     def read(source: str) -> pl.DataFrame:
@@ -84,6 +86,12 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     ]
     assert written["features"] == ["doubled"]
     assert written["dataset"].select("asset_id", "doubled").rows() == [("A", 4), ("B", 6)]
+    headings = [message for message in caplog.messages if message.startswith("\n=== ")]
+    assert headings == [
+        f"\n=== {invocation.function_kind} | {invocation.id} ===\n  Target dataset: telemetry"
+        for invocation in engine.plan.execution_invocations
+    ]
+    assert any(message.startswith("  Fragment ") for message in caplog.messages) is validate
 
 
 @pytest.mark.parametrize("dimensionless", [False, True])
@@ -408,7 +416,14 @@ def test_executor_validates_inputs_against_current_runtime_state(
     runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
     invocation.input_features[:] = ["shared"]
     runtime_validation.InvocationValidator(executor.backend, executor.state).validate(invocation)
-    assert caplog.messages == ["Action calculate: checking declared input features"] * 5
+    assert (
+        caplog.messages
+        == [
+            "  Inputs for action calculate:",
+            "    - checking declared input features",
+        ]
+        * 5
+    )
 
 
 def test_engine_entrypoints_include_saved_package_provenance(

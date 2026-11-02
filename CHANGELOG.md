@@ -31,6 +31,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Engine debug logs now group invocations and validation checks under headings
+  with indentation and spacing, avoiding repeated dataframe descriptions.
 - **Breaking:** `run` and `engine run` replace `--verbose` with
   `--log-level {debug,info,warning,error,critical}` (default: `info`).
   Debug logging includes execution details and validation traces without
