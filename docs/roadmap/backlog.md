@@ -184,17 +184,6 @@ Keep merge rules independent of later execution capabilities.
 |---|---|---|
 | Merge JSON specification files | No | Read multiple JSON files and recursively merge objects before existing model and semantic validation. Accept identical overlaps; report conflicts with files and JSON paths. Arrays are whole values, not concatenated or deduplicated. Set the combined spec's name and source explicitly rather than merging contributor metadata. Fragments need not be semantically valid alone. Reuse reference, contract, producer and cycle checks. Do not add repository fetching, package discovery, version resolution, automatic namespacing or identifier rewriting. |
 
-### Structured dimensional semantics
-
-**Prerequisites:** Existing specification model and semantic validation.
-
-| title | breaking | description |
-|---|---|---|
-| Define and author dataset dimensional declarations | Yes | Replace inherited dimension lists and free-text `row_scope` with an explicit dimensional declaration for each dataset. Define matching JSON and Python authoring and serialization forms, with dimensions, grain semantics and value scope as structured metadata keyed by dimension ID. Describe what each dimension means at that dataset's grain, including temporal point or interval resolution where applicable. Allow scope to identify included values, with an omitted scope meaning all values; specify whether scope is descriptive or enforced without silently filtering source data. |
-| Validate dataset dimensional declarations | No | After the declaration contract is established, validate dimension references and declaration consistency, including grain, temporal resolution and scope. Provide actionable diagnostics that identify the dataset and dimension involved, and test valid and invalid declarations. |
-| Apply dimensional semantics in compilation and execution | No | Once declarations and validation are established, carry dimensional metadata through compilation and apply the specified scope semantics at runtime. Do not silently filter source data. Cover compiled output and runtime behavior with tests. |
-| Migrate specifications and documentation to dimensional declarations | No | After the JSON and Python forms and their semantics are stable, update existing specifications, examples, fixtures and documentation to replace inherited dimensions and `row_scope`. Provide migration guidance and test authoring-to-serialization round trips. |
-
 ### Tensor features
 
 **Prerequisites:** Frame adapter contracts, including portable type and
@@ -218,16 +207,113 @@ with changes to specification and plan formats.
 | Improve build-source diagnostics | No | Distinguish malformed `module:attribute` entrypoints, missing spec sources and import failures inside otherwise valid modules. Preserve the underlying exception cause and actionable message, and offer a verbose traceback option. Cover Python and JSON source selection, project-directory discovery and nested import failures in tests; document the current CLI syntax rather than introducing a duplicate project-directory option. |
 | Align examples with the documented project layout | Maybe | Link example READMEs to the project structure guide and keep specifications in `spec/`, separate from runtime configuration. Align examples and documentation around importable implementation packages, using a `src/` layout where packaging is needed and grouping I/O and calculations consistently. Add validation folders when quality validations ship. Keep deployment assets separate from analytical functions; automatic assembly needs no user-authored merge category. Update scaffolding, entrypoints, commands and tests together. Earlier breaking releases must still migrate affected examples immediately. |
 
-## Planned release: Specification model migration
+## Planned release: Executable scopes
 
-Simplify specification concepts and make dataset grouping explicit.
+Turn profile scope from descriptive text into reusable, executable row
+selection while keeping resolution (row detail) distinct from scope (included
+rows).
 
-**Prerequisites:** Existing specification model and a documented migration path.
+**Prerequisites:** Specification model migration; Frame adapter contracts.
+
+For example, a profile can use asset/minute resolution while its scope selects
+assets by product family and limits the measurement-time range. A reusable
+scope can declare filters directly or compute them through an action. This
+illustrative JSON uses the proposed profile terminology; exact reference
+syntax is established by the specification-contract work above.
+
+```json
+{
+  "dimensions": {
+    "operating_unit": {
+      "type": "hierarchy",
+      "resolutions": ["fleet", "product_group", "asset"]
+    },
+    "measurement_time": {
+      "type": "datetime",
+      "resolutions": ["day", "hour", "minute"]
+    }
+  },
+  "scopes": {
+    "families_a_and_b": {
+      "name": "Assets in product families A and B",
+      "filters": {
+        "product_family": {"in": ["A", "B"]},
+        "measurement_timestamp": {
+          "range": {
+            "gte": "2026-01-01T00:00:00Z",
+            "lt": "2026-02-01T00:00:00Z"
+          }
+        }
+      }
+    },
+    "custom_north_scope": {
+      "name": "Custom North operations scope",
+      "action": {
+        "function": "$functions.select_north_scope",
+        "args": {}
+      }
+    }
+  },
+  "profiles": {
+    "asset_minute": {
+      "grain": [
+        "$dimensions.operating_unit.resolutions.asset",
+        "$dimensions.measurement_time.resolutions.minute"
+      ],
+      "scope": "$scopes.families_a_and_b"
+    },
+    "north_hourly": {
+      "grain": [
+        "$dimensions.operating_unit.resolutions.product_group",
+        "$dimensions.measurement_time.resolutions.hour"
+      ],
+      "scope": "$scopes.custom_north_scope"
+    }
+  }
+}
+```
+
+An action returns a `filters` mapping in the same form as the static scope.
+For example, it could return `{"region": {"in": ["North"]}}`; it need not
+enumerate every matching profile key. The filter column names and dimension
+reference syntax above are illustrative, not a finalized schema contract.
+
+The corresponding Python authoring API could use declarative `Scope` classes:
+
+```python
+class FamiliesAAndB(Scope):
+    name = "Assets in product families A and B"
+    filters = {
+        "product_family": {"in": ["A", "B"]},
+        "measurement_timestamp": {
+            "range": {
+                "gte": "2026-01-01T00:00:00Z",
+                "lt": "2026-02-01T00:00:00Z",
+            }
+        },
+    }
+
+
+class CustomNorthScope(Scope):
+    name = "Custom North operations scope"
+    action = {
+        "function": "functions.select_north_scope",
+        "args": {},
+    }
+```
+
+This class-based syntax is illustrative; the authoring contract should define
+whether scope declarations are classes, instances, or both, and how action
+references are expressed.
 
 | title | breaking | description |
 |---|---|---|
-| Remove entities and categorize datasets | Yes | Remove the `entity` concept from specification documents, Python authoring APIs, validation and compiler models, serialized plans, CLI and Explorer surfaces, examples, and documentation. Add a dataset `category` attribute for logical grouping, without giving categories implicit execution or data-filtering semantics. Provide migration guidance for moving existing entity-based groupings to dataset categories, and update fixtures and generated artifacts consistently. |
-| Rename datasets to profiles | Yes | Replace `dataset` with `profile` in specification documents, Python authoring APIs, validation and compiler models, serialized plans, CLI and Explorer surfaces, examples, and documentation. Preserve current relationships and execution semantics; this is a terminology migration, not a change to data behavior. Provide a clear migration guide and actionable diagnostics for the old name, and update fixtures and generated artifacts consistently. This task does not change dataset categories. |
+| Define reusable scope declarations and filter semantics | Yes | Replace descriptive profile scope text with references to reusable named scopes. Define each scope's `name` and exactly one of static `filters` or an `action`; define filter keys as dataset columns and the supported list and range forms, including empty selections, null handling, type compatibility, bound inclusivity, and how multiple filters combine. Define whether filters may refer to dimensions, features, or other columns, and how a scope can express custom reusable logic that is not a simple dimension/feature selection. Specify how a scope is interpreted at the profile's grain and resolution. |
+| Validate and normalize static scope filters | No | Validate scope references, filter structure, column references, value types, range bounds, and operator semantics against profile schemas and grain. Normalize valid filters into a deterministic internal representation and report errors with scope, profile, column, and source-path context. Do not silently ignore unsupported or inapplicable filters. |
+| Define and validate scope action contracts | No | Allow a scope to use an `action` bound to reusable project logic. Specify its arguments, dependencies, execution phase, purity and I/O expectations, and exact return contract. Require action-produced selections to use the same filter representation as static scopes, with an explicit extension point or diagnostic for custom selections that cannot be represented by lists or ranges. Validate bindings and return values without treating scope output as feature data or a dataframe fragment. |
+| Compile scope dependencies and execution | No | Carry scope references, static filters, action bindings, and required inputs through compilation and portable plans. Schedule scope actions before every invocation that relies on their result, include dependencies in cycle and invocation validation, and keep scope execution distinct from feature-producing actions. Fail preflight on missing scope actions or unavailable required capabilities before workflow data I/O. |
+| Apply scope consistently during execution | No | Apply resolved scope selections to profile observations at a defined engine boundary so all data-producing fragments and downstream calculations obey the same included-row semantics. Preserve eager/lazy behavior through the adapter contract, handle empty selections and range boundaries deterministically, and fail explicitly when a scope cannot be applied to a representation. Do not interpret descriptive text as executable or silently widen/narrow a scope. |
+| Test, document, and migrate executable scopes | No | Add unit, integration, and adapter conformance coverage for static and action-produced scopes, list and range filters, independent time dimensions, hierarchical resolutions, empty results, invalid columns and types, lazy execution, and custom-scope limitations. Update authoring, Python, CLI, engine, Explorer, examples, generated artifacts, and migration documentation to distinguish resolution from included-row scope. |
 
 ## Planned release: Themes
 
