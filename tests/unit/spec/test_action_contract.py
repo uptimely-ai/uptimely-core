@@ -56,11 +56,15 @@ def dataset_identifier(
 
 
 def _spec() -> spec.Spec:
+    identifier = dimension.Dimension(
+        id="id",
+        resolutions=[dimension.Resolution(id="id", key="id", type="integer")],
+    )
     return spec.from_python(
         profiles=[
             profile.Profile(
                 id="observations",
-                dimensions=[dimension.Dimension(id="id", type="integer")],
+                grain=[profile.Grain(identifier, "id")],
                 producers=[
                     actions.Action(
                         id="read_values",
@@ -77,7 +81,7 @@ def _spec() -> spec.Spec:
                         inputs=[ref.feature("value")],
                         function=ref.function(add_one, kind="vectorize"),
                         arguments={
-                            "dataset": ref.current_dataset().dataframe,
+                            "dataset": ref.current_profile().dataframe,
                             "output": ref.feature("result").id,
                         },
                         outputs=[feature.Feature(id="result", type="integer")],
@@ -87,15 +91,14 @@ def _spec() -> spec.Spec:
                         inputs=[],
                         function=ref.function(metadata_only, kind="vectorize"),
                         arguments={
-                            "dataset": ref.current_dataset().dataframe,
+                            "dataset": ref.current_profile().dataframe,
                             "identifier": ref.feature("result").id,
                         },
                         outputs=[feature.Feature(id="metadata", type="integer")],
                     ),
                 ],
             )
-        ],
-        dimensions=[dimension.Dimension(id="id", type="integer")],
+        ]
     )
 
 
@@ -268,7 +271,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
             "features": {"inputs": ["$features.id"], "outputs": []},
             "binding": {
                 "function": "write_ids",
-                "args": {"dataset": "$datasets.@.dataframe", "column": "$dimensions.id.id"},
+                "args": {"dataset": "$profiles.@.dataframe", "column": "$features.id.id"},
             },
         }
     path.write_text(json.dumps(configuration))
@@ -283,16 +286,20 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
 def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
     dataframe: bool,
 ) -> None:
-    source_reference = ref.dataset("source")
+    source_reference = ref.profile("source")
+    identifier = dimension.Dimension(
+        id="id",
+        resolutions=[dimension.Resolution(id="id", key="id", type="integer")],
+    )
+    region = dimension.Dimension(
+        id="region",
+        resolutions=[dimension.Resolution(id="region", key="region", type="string")],
+    )
     spec_definition = spec.from_python(
-        dimensions=[
-            dimension.Dimension(id="id", type="integer"),
-            dimension.Dimension(id="region", type="string"),
-        ],
         profiles=[
             profile.Profile(
                 id="source",
-                dimensions=[dimension.Dimension(id="id", type="integer")],
+                grain=[profile.Grain(identifier, "id")],
                 producers=[
                     actions.Action(
                         id="read_lower_grain",
@@ -305,9 +312,9 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
             ),
             profile.Profile(
                 id="target",
-                dimensions=[
-                    dimension.Dimension(id="id", type="integer"),
-                    dimension.Dimension(id="region", type="string"),
+                grain=[
+                    profile.Grain(identifier, "id"),
+                    profile.Grain(region, "region"),
                 ],
                 producers=[
                     actions.Action(

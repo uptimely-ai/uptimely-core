@@ -29,14 +29,29 @@ class SpecSource(StrictModel):
     generated: bool
 
 
-class Dimension(StrictModel):
-    """A globally defined grain under `dimensions`."""
+class Resolution(StrictModel):
+    """A keyed resolution of a dimension."""
 
     id: str = pydantic.Field(exclude=True)
+    key: str
     type: str
-    description: str | None = None
     parent: str | None = None
+
+
+class Dimension(StrictModel):
+    """A globally defined observation dimension."""
+
+    id: str = pydantic.Field(exclude=True)
+    resolutions: dict[str, Resolution]
+    description: str | None = None
     name: str | None = None
+
+    @pydantic.model_validator(mode="after")
+    def require_resolutions(self) -> typing.Self:
+        """Require a dimension to expose at least one usable resolution."""
+        if not self.resolutions:
+            raise ValueError("A dimension must declare at least one resolution")
+        return self
 
     @pydantic.model_validator(mode="after")
     def generate_name(self) -> typing.Self:
@@ -72,13 +87,13 @@ class Binding(StrictModel):
     def dataset_input_references(self) -> tuple[str, ...]:
         """Return dataset data references in order, retaining duplicates and ``@``."""
         return tuple(
-            selectors.structural_identifier(value, selectors.DATASET_PREFIX)
+            selectors.structural_identifier(value, selectors.PROFILE_PREFIX)
             for value, _ in self.values_with_paths
             if (
                 isinstance(value, str)
-                and value.startswith(selectors.DATASET_PREFIX)
+                and value.startswith(selectors.PROFILE_PREFIX)
                 and not value.endswith(selectors.ID_SELECTOR)
-                and not value.endswith(selectors.DIMENSION_IDS_SELECTOR)
+                and not value.endswith(selectors.PROFILE_GRAIN_IDS_SELECTOR)
             )
         )
 
@@ -93,15 +108,15 @@ class Binding(StrictModel):
 
     def resolve_args(
         self,
-        dataset_id: str,
+        profile_id: str,
         feature_id: str | None = None,
-        dimension_ids_by_dataset: typing.Mapping[str, typing.Sequence[str]] | None = None,
+        grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]] | None = None,
     ) -> dict[str, typing.Any]:
         """Resolve structural references in these arguments for an invocation."""
         resolver = BindingArgumentResolver(
-            current_dataset_id=dataset_id,
+            current_profile_id=profile_id,
             feature_id=feature_id,
-            dimension_ids_by_dataset=dimension_ids_by_dataset,
+            grain_keys_by_profile=grain_keys_by_profile,
         )
         return resolver.resolve_arguments(self.args)
 
@@ -142,9 +157,9 @@ def _binding_values(
 class BindingArgumentResolver:
     """Resolve nested binding values using invocation-specific selector context."""
 
-    current_dataset_id: str
+    current_profile_id: str
     feature_id: str | None
-    dimension_ids_by_dataset: typing.Mapping[str, typing.Sequence[str]] | None
+    grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]] | None
 
     def resolve_arguments(self, arguments: typing.Mapping[str, object]) -> dict[str, typing.Any]:
         """Resolve every binding argument using this invocation's context."""
@@ -174,28 +189,28 @@ class BindingArgumentResolver:
             if not value.startswith(prefix):
                 continue
             identifier = value.removeprefix(prefix)
-            if prefix == selectors.DATASET_PREFIX:
-                if identifier.endswith(selectors.DIMENSION_IDS_SELECTOR):
-                    identifier = identifier.removesuffix(selectors.DIMENSION_IDS_SELECTOR)
-                    dataset_id = (
-                        self.current_dataset_id
+            if prefix == selectors.PROFILE_PREFIX:
+                if identifier.endswith(selectors.PROFILE_GRAIN_IDS_SELECTOR):
+                    identifier = identifier.removesuffix(selectors.PROFILE_GRAIN_IDS_SELECTOR)
+                    profile_id = (
+                        self.current_profile_id
                         if identifier == selectors.CURRENT_ID
                         else identifier
                     )
                     if (
-                        self.dimension_ids_by_dataset is None
-                        or dataset_id not in self.dimension_ids_by_dataset
+                        self.grain_keys_by_profile is None
+                        or profile_id not in self.grain_keys_by_profile
                     ):
-                        raise ValueError(f"Cannot resolve dimension IDs for dataset {dataset_id}")
-                    return list(self.dimension_ids_by_dataset[dataset_id])
+                        raise ValueError(f"Cannot resolve grain keys for profile {profile_id}")
+                    return list(self.grain_keys_by_profile[profile_id])
                 identifier = identifier.removesuffix(selectors.DATAFRAME_SELECTOR).removesuffix(
                     selectors.ID_SELECTOR
                 )
             else:
                 identifier = identifier.removesuffix(selectors.ID_SELECTOR)
             return (
-                self.current_dataset_id
-                if prefix == selectors.DATASET_PREFIX and identifier == selectors.CURRENT_ID
+                self.current_profile_id
+                if prefix == selectors.PROFILE_PREFIX and identifier == selectors.CURRENT_ID
                 else identifier
             )
         return value

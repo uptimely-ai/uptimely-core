@@ -79,7 +79,7 @@ class InvocationGraph:
                     (
                         feature
                         for feature in outputs
-                        if feature not in self.spec.dimensions_by_profile[profile_id]
+                        if feature not in self.spec.grain_keys_by_profile[profile_id]
                     ),
                     None,
                 )
@@ -106,7 +106,7 @@ class InvocationGraph:
             if function_definition.is_transformer:
                 dataset_transformers.setdefault(profile.id, []).append(invocation)
             for feature in outputs:
-                if feature not in self.spec.dimensions:
+                if feature not in self.spec.grain_key_ids:
                     feature_producers[feature] = invocation
 
         graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
@@ -230,7 +230,7 @@ class InvocationGraph:
             feature: invocation
             for invocation in self.invocations
             for feature in invocation.output_features
-            if feature not in self.spec.dimensions
+            if feature not in self.spec.grain_key_ids
         }
         missing = sorted(set(features) - set(feature_producers))
         if missing:

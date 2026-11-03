@@ -41,7 +41,7 @@ def validate_dimension(spec: spec_model.Spec) -> None:
 def validate_dimension_type(spec: spec_model.Spec) -> None:
     """Require the context dimension type to match the requested measure."""
     logger.debug("    - checking row-context dimension types match requested measures")
-    for action in spec.actions:
+    for key, action in spec.action_items:
         declaration = action.row_context
         if declaration is None or declaration.dimension is None:
             continue
@@ -53,13 +53,15 @@ def validate_dimension_type(spec: spec_model.Spec) -> None:
         }
         expected_type = ("datetime" if "time" in measures else "integer") if measures else None
         dimension_id = declaration.dimension.removeprefix(selectors.DIMENSION_PREFIX)
-        dimension = spec.dimensions.get(dimension_id)
+        resolution = spec.get_row_context_resolution(key, dimension_id)
         if (
             expected_type is not None
-            and dimension is not None
-            and (dimension.type != expected_type)
+            and resolution is not None
+            and resolution.type != expected_type
         ):
-            raise ValueError(f"Action {action.id} context dimension must have type {expected_type}")
+            raise ValueError(
+                f"Action {action.id} context dimension resolution must have type {expected_type}"
+            )
 
 
 def validate_dimension_order(spec: spec_model.Spec) -> None:

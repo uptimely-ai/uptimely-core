@@ -6,16 +6,16 @@ import typing
 
 REFERENCE_PREFIX: typing.Final[str] = "$"
 FEATURE_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}features."
-DATASET_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}datasets."
+PROFILE_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}profiles."
 DIMENSION_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}dimensions."
 PARAMS_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}params."
 CURRENT_ID: typing.Final[str] = "@"
 ID_SELECTOR: typing.Final[str] = ".id"
 DATAFRAME_SELECTOR: typing.Final[str] = ".dataframe"
-DIMENSION_IDS_SELECTOR: typing.Final[str] = ".dimensions.ids"
+PROFILE_GRAIN_IDS_SELECTOR: typing.Final[str] = ".grain.ids"
 STRUCTURAL_PREFIXES: typing.Final[tuple[str, ...]] = (
     FEATURE_PREFIX,
-    DATASET_PREFIX,
+    PROFILE_PREFIX,
     DIMENSION_PREFIX,
 )
 
@@ -23,9 +23,9 @@ STRUCTURAL_PREFIXES: typing.Final[tuple[str, ...]] = (
 def structural_identifier(value: str, prefix: str) -> str:
     """Return a structural reference's resource ID without its selector suffix."""
     identifier = value.removeprefix(prefix)
-    if prefix == DATASET_PREFIX:
+    if prefix == PROFILE_PREFIX:
         return (
-            identifier.removesuffix(DIMENSION_IDS_SELECTOR)
+            identifier.removesuffix(PROFILE_GRAIN_IDS_SELECTOR)
             .removesuffix(DATAFRAME_SELECTOR)
             .removesuffix(ID_SELECTOR)
         )
@@ -35,8 +35,8 @@ def structural_identifier(value: str, prefix: str) -> str:
 __all__ = [
     "CURRENT_ID",
     "DATAFRAME_SELECTOR",
-    "DATASET_PREFIX",
-    "DIMENSION_IDS_SELECTOR",
+    "PROFILE_PREFIX",
+    "PROFILE_GRAIN_IDS_SELECTOR",
     "DIMENSION_PREFIX",
     "PARAMS_PREFIX",
     "FEATURE_PREFIX",

@@ -20,13 +20,21 @@ function sampleData() {
       configuration: {
         profiles: {
           readings: {
-            name: "Readings", dimensions: ["id"],
-            features: { value: { name: "<Value>", type: "float" } },
+            name: "Readings", grain: [{ dimension: "machine", resolution: "machine" }],
+            features: {
+              id: { name: "Machine ID", type: "string" },
+              value: { name: "<Value>", type: "float" },
+            },
             actions: { calculate: { binding: { function: "calculate", args: {} }, features: { inputs: [], outputs: ["$features.value"] } } },
-            row_scope: { grain: "one row" },
+            row_scope: { filtering: "one row per machine" },
           },
         },
-        dimensions: { id: { name: "Asset ID", type: "string" } },
+        dimensions: {
+          machine: {
+            name: "Machine",
+            resolutions: { machine: { key: "id", type: "string" } },
+          },
+        },
         functions: { calculate: fn },
       },
       summary: { profile_count: 1, action_count: 1, dimension_count: 1,

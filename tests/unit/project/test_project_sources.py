@@ -98,7 +98,7 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
         "from uptimely.spec.python.spec import Spec\n"
         "class Values(Profile):\n"
         "    id = 'values'\n"
-        f"python_spec = Spec(dimensions=[], profiles=[Values], "
+        f"python_spec = Spec(profiles=[Values], "
         f"name={dependency_name}.VALUE)\n",
         encoding="utf-8",
     )
@@ -131,7 +131,7 @@ def test_build_defers_source_semantic_validation_to_compiler(
     (tmp_path / f"{module_name}.py").write_text(
         "from uptimely.spec.python import Spec, Profile\n"
         "values = Profile(id='values')\n"
-        "python_spec = Spec(dimensions=[], profiles=[values])\n",
+        "python_spec = Spec(profiles=[values])\n",
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(tmp_path))
@@ -150,7 +150,10 @@ def test_build_defers_source_semantic_validation_to_compiler(
 def test_build_reports_deferred_semantic_error_at_compilation(tmp_path: pathlib.Path) -> None:
     path = tmp_path / "spec.json"
     path.write_text(
-        '{"dimensions": {"child": {"type": "integer", "parent": "missing"}}}',
+        (
+            '{"dimensions": {"child": {"resolutions": {"default": '
+            '{"key": "child", "type": "integer", "parent": "missing"}}}}}'
+        ),
         encoding="utf-8",
     )
     document = builder._load_spec_definition(tmp_path, None, path)

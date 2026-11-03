@@ -132,10 +132,10 @@ def test_engine_cli_reports_processed_datasets(
 
     output = capsys.readouterr().out
     assert "Scope: all features" in output
-    assert "- Dataset: pump_dataset - 5 features" in output
+    assert "- Dataset: pump_dataset - 3 features" in output
     assert "Dataset: pump_dataset\n" in output
     assert "Dataset: pump_telemetry_dataset\n" in output
-    assert output.index("- Dataset: pump_dataset - 5 features") < output.index(
+    assert output.index("- Dataset: pump_dataset - 3 features") < output.index(
         "Dataset: pump_dataset\n"
     )
     assert "shape:" not in output
@@ -180,7 +180,7 @@ def test_engine_cli_reports_scoped_saved_build(
 
     output = capsys.readouterr().out
     assert "Scope: selected features: health_signal_normalized" in output
-    assert "- Dataset: pump_dataset - 5 features" in output
+    assert "- Dataset: pump_dataset - 3 features" in output
 
 
 def test_engine_rejects_missing_parameter(
@@ -224,7 +224,7 @@ def test_engine_rejects_non_scalar_parameter_value(
         )
 
 
-def test_engine_merges_fragments_by_entity_dimensions(
+def test_engine_merges_fragments_by_profile_grain_keys(
     pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     engine = engine_for_plan(
@@ -232,16 +232,12 @@ def test_engine_merges_fragments_by_entity_dimensions(
     )
     existing = pl.LazyFrame(
         {
-            "plant": ["PLANT-01", "PLANT-01"],
-            "production_line": ["LINE-A", "LINE-B"],
             "pump": ["PUMP-101", "PUMP-201"],
             "existing": [1, 2],
         }
     )
     fragment = pl.LazyFrame(
         {
-            "plant": ["PLANT-01", "PLANT-01"],
-            "production_line": ["LINE-B", "LINE-A"],
             "pump": ["PUMP-201", "PUMP-101"],
             "new": [20, 10],
         }
@@ -250,15 +246,15 @@ def test_engine_merges_fragments_by_entity_dimensions(
     operation = next(
         operation for operation in engine.plan.invocations if operation.dataset_id == "pump_dataset"
     )
-    dimensions = engine.spec_definition.profiles[operation.dataset_id].dimension_ids
+    grain_keys = engine.spec_definition.grain_keys_by_profile[operation.dataset_id]
     main = execution_support.main_frame(
         existing,
-        dimensions,
+        grain_keys,
         backend=engine.backend,
     )
     execution_support.merge_fragment(
         main,
-        fragment_module.Fragment(fragment, tuple(dimensions)),
+        fragment_module.Fragment(fragment, tuple(grain_keys)),
     )
     merged = main.dataframe.collect()
 
@@ -385,12 +381,12 @@ def test_engine_validates_required_fragment_columns_and_types(
         for item in engine.plan.invocations
         if item.dataset_id == "pump_dataset" and item.function_kind == "collapse"
     )
-    dimensions = engine.spec_definition.profiles[invocation.dataset_id].dimension_ids
-    output = next(name for name in invocation.output_features if name not in dimensions)
-    columns: dict[str, list[object]] = {name: [f"{name}-1"] for name in dimensions}
+    grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.dataset_id]
+    output = next(name for name in invocation.output_features if name not in grain_keys)
+    columns: dict[str, list[object]] = {name: [f"{name}-1"] for name in grain_keys}
     columns[output] = ["wrong type" if invalid_column == "output" else 1.5]
     if invalid_column == "key":
-        columns[dimensions[0]] = [1]
+        columns[grain_keys[0]] = [1]
     if invalid_column == "missing":
         columns.pop(output)
     result: pl.DataFrame | pl.LazyFrame = pl.DataFrame(columns)
@@ -398,13 +394,13 @@ def test_engine_validates_required_fragment_columns_and_types(
         result = result.lazy()
 
     expected = {
-        "key": f"Output column {dimensions[0]} has type",
+        "key": f"Output column {grain_keys[0]} has type",
         "output": f"Output column {output} has type",
         "missing": f"missing output columns: {output}",
     }[invalid_column]
     main = execution_support.main_frame(
         None,
-        dimensions,
+        grain_keys,
         backend=engine.backend,
     )
     with pytest.raises(ValueError, match=expected):
@@ -426,9 +422,9 @@ def test_engine_assembly_rejects_feature_collisions(
         for item in engine.plan.invocations
         if item.dataset_id == "pump_dataset" and item.function_kind == "collapse"
     )
-    dimensions = engine.spec_definition.profiles[invocation.dataset_id].dimension_ids
-    output = next(name for name in invocation.output_features if name not in dimensions)
-    keys = {name: [f"{name}-1"] for name in dimensions}
+    grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.dataset_id]
+    output = next(name for name in invocation.output_features if name not in grain_keys)
+    keys = {name: [f"{name}-1"] for name in grain_keys}
     result = pl.DataFrame({**keys, output: [1.5]})
     existing = pl.DataFrame({**keys, output: [2.5]})
     if lazy:
@@ -436,7 +432,7 @@ def test_engine_assembly_rejects_feature_collisions(
 
     main = execution_support.main_frame(
         existing,
-        dimensions,
+        grain_keys,
         backend=engine.backend,
     )
     with pytest.raises(ValueError, match=f"overlap.*{output}"):
@@ -450,15 +446,9 @@ def test_engine_assembly_rejects_feature_collisions(
     ("fragment", "message"),
     [
         (None, "must return a Polars DataFrame or LazyFrame"),
-        (pl.LazyFrame({"pump": ["PUMP-101"]}), "missing dimension columns"),
+        (pl.LazyFrame({"plant": ["PLANT-01"]}), "missing dimension columns"),
         (
-            pl.LazyFrame(
-                {
-                    "plant": ["PLANT-01", "PLANT-01"],
-                    "production_line": ["LINE-A", "LINE-A"],
-                    "pump": ["PUMP-101", "PUMP-101"],
-                }
-            ),
+            pl.LazyFrame({"pump": ["PUMP-101", "PUMP-101"]}),
             "duplicate dimension keys",
         ),
     ],
@@ -478,7 +468,7 @@ def test_engine_rejects_invalid_fragments(
 
     main = execution_support.main_frame(
         None,
-        engine.spec_definition.profiles[operation.dataset_id].dimension_ids,
+        engine.spec_definition.grain_keys_by_profile[operation.dataset_id],
         backend=engine.backend,
     )
     with pytest.raises(ValueError, match=message):

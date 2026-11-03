@@ -247,13 +247,16 @@ def test_validation_does_not_mutate_the_document() -> None:
 def test_python_dictionary_and_json_export_share_the_same_encoding(
     tmp_path: pathlib.Path,
 ) -> None:
-    pump = dimension.Dimension(id="pump", type="string")
+    pump = dimension.Dimension(
+        id="pump",
+        resolutions=[dimension.Resolution(id="machine", key="pump_id", type="string")],
+    )
 
     class Readings(profile.Profile):
         id = "readings"
-        dimensions = [pump]
+        grain = [profile.Grain(pump, "machine")]
 
-    declaration = uptimely.Spec(dimensions=[pump], profiles=[Readings])
+    declaration = uptimely.Spec(profiles=[Readings])
     document = declaration.to_model()
     path = tmp_path / "spec.json"
     codec.write_document(document, path)

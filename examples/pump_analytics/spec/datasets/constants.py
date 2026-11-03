@@ -2,7 +2,7 @@
 
 from examples.pump_analytics.functions import analytics
 
-from uptimely import Action, Feature, Profile, RowScope, ref
+from uptimely import Action, Feature, Profile, ref
 
 
 class Constants(Profile):
@@ -12,8 +12,6 @@ class Constants(Profile):
     name = "Project Constants"
     description = "Physical constants used by pump analytics."
     category = "configuration"
-    row_scope = RowScope(grain="One row per project")
-
     producers = [
         Action(
             id="read_constants",

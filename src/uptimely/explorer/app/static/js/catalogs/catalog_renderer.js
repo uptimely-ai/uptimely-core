@@ -6,13 +6,17 @@ export function profiles(configuration) {
   }));
 }
 
+const profileGrainKeys = (configuration, profile) => profile.grain.map(({ dimension, resolution }) =>
+  configuration.dimensions[dimension]?.resolutions[resolution]?.key).filter(Boolean);
+
 export function features(configuration) {
   return profiles(configuration).flatMap(item => {
     const produced = new Map();
+    const grainKeys = new Set(profileGrainKeys(configuration, item.profile));
     for (const [actionId, action] of Object.entries(item.profile.actions)) {
       for (const reference of action.features.outputs) {
         const id = reference.replace(/^\$features\./, "");
-        if (!item.profile.dimensions.includes(id)) {
+        if (!grainKeys.has(id)) {
           produced.set(id, { ...item, featureId: id, feature: item.profile.features[id], actionId, action });
         }
       }
@@ -100,14 +104,15 @@ const overviewData = {
   dimensions(data) {
     const { configuration: config, summary } = data.catalogs;
     const dimensions = Object.values(config.dimensions);
+    const resolutions = dimensions.flatMap(item => Object.values(item.resolutions));
     const types = new Map();
-    dimensions.forEach(item => types.set(item.type, (types.get(item.type) || 0) + 1));
-    const roots = dimensions.filter(item => !item.parent).length;
+    resolutions.forEach(item => types.set(item.type, (types.get(item.type) || 0) + 1));
+    const roots = resolutions.filter(item => !item.parent).length;
     return {
-      stats: [["Dimensions", summary.dimension_count], ["Types", types.size, "dimensions"],
-        ["Root dimensions", roots, "dimensions"],
-        ["Child dimensions", summary.dimension_count - roots, "dimensions"]],
-      charts: [distribution("Dimensions by type", [...types])],
+      stats: [["Dimensions", summary.dimension_count], ["Resolutions", resolutions.length],
+        ["Types", types.size, "resolutions"], ["Root resolutions", roots, "resolutions"],
+        ["Child resolutions", resolutions.length - roots, "resolutions"]],
+      charts: [distribution("Resolutions by type", [...types])],
     };
   },
   stages(data) {
@@ -182,11 +187,15 @@ function featureCards(config) {
 
 function dimensionCards(config) {
   return Object.entries(config.dimensions).map(([id, item]) => `<article id="dimension-${escape(id)}" data-context-item class="min-w-0">
-    ${itemTitle(id, item, "h2", "text-lg")}${chips([item.type, ...(item.parent ? [`child of ${config.dimensions[item.parent].name || item.parent}`] : [])])}
+    ${itemTitle(id, item, "h2", "text-lg")}
+    <div class="mt-3 space-y-3">${Object.entries(item.resolutions).map(([resolutionId, resolution]) => `<div>
+      ${subheading(resolutionId)}${chips([resolution.key, resolution.type, ...(resolution.parent ? [`child of ${resolution.parent}`] : [])])}
+    </div>`).join("")}</div>
     ${description(item.description)}</article>`).join("");
 }
 
 export function schemaColumns(config, profile) {
+  const grainKeys = new Set(profileGrainKeys(config, profile));
   const producers = new Map();
   for (const action of Object.values(profile.actions)) {
     const kind = config.functions[action.binding.function]?.kind;
@@ -196,8 +205,8 @@ export function schemaColumns(config, profile) {
     }
   }
   return [
-    ...profile.dimensions.map(id => ({ id, ...config.dimensions[id], role: "Dimension", color: "dimension" })),
-    ...Object.entries(profile.features).filter(([id]) => !profile.dimensions.includes(id)).map(([id, feature]) => {
+    ...[...grainKeys].map(id => ({ id, ...profile.features[id], role: "Dimension", color: "dimension" })),
+    ...Object.entries(profile.features).filter(([id]) => !grainKeys.has(id)).map(([id, feature]) => {
       const color = producers.get(id) || "neutral";
       return { id, ...feature, color, role: color === "teal" ? "Raw" : color === "escape" ? "External" : "Feature" };
     }),
@@ -212,6 +221,11 @@ function profileCards(config) {
   };
   return profiles(config).map(({ id, profile }) => {
     const columns = schemaColumns(config, profile);
+    const grain = profile.grain.map(({ dimension, resolution }) => {
+      const dimensionDefinition = config.dimensions[dimension];
+      const resolutionDefinition = dimensionDefinition?.resolutions[resolution];
+      return `${dimensionDefinition?.name || dimension} · ${resolutionDefinition?.key || resolution}`;
+    });
     const actions = Object.entries(profile.actions).filter(([, action]) => config.functions[action.binding.function]?.kind !== "vectorize");
     return `<article id="profile-${escape(id)}" data-context-item>
       <header class="flex flex-wrap items-start justify-between gap-4"><div>
@@ -220,17 +234,21 @@ function profileCards(config) {
       <section class="mt-5 border-t border-slate-800 pt-5" aria-label="Profile details">
         <h3 class="font-display text-lg font-semibold text-white">Profile details</h3>
         <div class="mt-5 space-y-6">${profile.description ? description(profile.description) : ""}
-          ${profile.dimensions.length ? `<div>${subheading("Dimensions")}${chips(profile.dimensions.map(key => config.dimensions[key]?.name || key))}</div>` : ""}
+          ${grain.length ? `<div>${subheading("Grain")}${chips(grain)}</div>` : ""}
           <dl class="grid gap-6 sm:grid-cols-2">${["filtering", "coverage"].filter(key => profile.row_scope?.[key]).map(key => `<div>
             <dt class="font-mono text-xs uppercase tracking-wider text-slate-400">${key}</dt>
             <dd class="mt-2 text-sm leading-6 text-slate-300">${escape(profile.row_scope[key])}</dd></div>`).join("")}</dl>
-          ${profile.order?.length ? `<div>${subheading("Logical order")}<p class="mt-2 text-xs text-slate-500">Not a physical row-order guarantee.</p>${chips(profile.order.map(key =>
-            `${config.dimensions[key.dimension.replace(/^\$dimensions\./, "")]?.name || key.dimension} ${key.direction}`))}</div>` : ""}
+          ${profile.order?.length ? `<div>${subheading("Logical order")}<p class="mt-2 text-xs text-slate-500">Not a physical row-order guarantee.</p>${chips(profile.order.map(key => {
+            const dimensionId = key.dimension;
+            const dimension = config.dimensions[dimensionId];
+            const resolution = dimension?.resolutions[key.resolution];
+            return `${dimension?.name || dimensionId} · ${resolution?.key || key.resolution} ${key.direction}`;
+          }))}</div>` : ""}
           ${actions.length ? `<div>${subheading("Actions")}<div class="mt-3 divide-y divide-slate-800">${actions.map(([key, action]) => {
             const fn = config.functions[action.binding.function] || {};
             return `<div class="space-y-2 py-3"><p class="font-mono text-sm text-slate-300">${escape(fn.kind)} · ${escape(fn.name || action.binding.function)}</p>
               <p class="font-mono text-xs text-slate-500">${escape(key)} · ${escape(action.binding.function)}</p>
-              ${fn.kind === "collapse" ? `<p class="font-mono text-xs text-slate-400">Input dataset inferred from bound features · Group by profile dimensions: ${display(profile.dimensions)}<br>${escape(fn.name || action.binding.function)}(${display(action.binding.args)})</p>` : ""}
+              ${fn.kind === "collapse" ? `<p class="font-mono text-xs text-slate-400">Input profile inferred from bound features · Group by grain keys: ${display(profileGrainKeys(config, profile))}<br>${escape(fn.name || action.binding.function)}(${display(action.binding.args)})</p>` : ""}
               ${fn.kind === "escape" ? '<p class="text-xs leading-5 text-violet-300">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</p>' : ""}</div>`;
           }).join("")}</div></div>` : ""}
         </div></section>
@@ -305,7 +323,7 @@ export function renderCatalog(data, view) {
   const title = view[0].toUpperCase() + view.slice(1);
   const descriptions = {
     functions: "Browse the function catalog, argument types, return signatures, and source entrypoints.",
-    dimensions: "Inspect the dimensions that define data grain and their parent relationships.",
+    dimensions: "Inspect dimension resolutions, dataframe keys, and their parent relationships.",
     features: "",
   };
   return {

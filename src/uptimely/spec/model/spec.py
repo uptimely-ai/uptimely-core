@@ -48,7 +48,8 @@ class _ResourceIndex:
     actions_by_function: dict[str, list[ActionKey]] = dataclasses.field(default_factory=dict)
     feature_producers: dict[str, list[ActionKey]] = dataclasses.field(default_factory=dict)
     dimensions: dict[ProfileKey, frozenset[str]] = dataclasses.field(default_factory=dict)
-    dimension_ids: dict[ProfileKey, list[str]] = dataclasses.field(default_factory=dict)
+    grain_keys: dict[ProfileKey, list[str]] = dataclasses.field(default_factory=dict)
+    grain_key_types: dict[ProfileKey, dict[str, str]] = dataclasses.field(default_factory=dict)
     action_paths: dict[ActionKey, SpecPath] = dataclasses.field(default_factory=dict)
     declaration_paths: dict[ActionKey, SpecPath] = dataclasses.field(default_factory=dict)
 
@@ -70,16 +71,36 @@ class Spec(common.StrictModel):
     @functools.cached_property
     def _indexes(self) -> _ResourceIndex:
         indexes = _ResourceIndex()
-        for profile_id, profile in self.profiles.items():
+        profile_items = list(self.profiles.items())
+        all_grain_keys: set[str] = set()
+        for profile_id, profile in profile_items:
+            dimension_ids: set[str] = set()
+            keys: list[str] = []
+            key_types: dict[str, str] = {}
+            for reference in profile.grain:
+                dimension_ids.add(reference.dimension)
+                dimension = self.dimensions.get(reference.dimension)
+                resolution = (
+                    dimension.resolutions.get(reference.resolution)
+                    if dimension is not None
+                    else None
+                )
+                if resolution is not None:
+                    keys.append(resolution.key)
+                    key_types[resolution.key] = resolution.type
+                    all_grain_keys.add(resolution.key)
+            indexes.dimensions[profile_id] = frozenset(dimension_ids)
+            indexes.grain_keys[profile_id] = keys
+            indexes.grain_key_types[profile_id] = key_types
+
+        for profile_id, profile in profile_items:
             indexes.profile_items.append((profile_id, profile))
             indexes.profiles[profile.id] = profile
             indexes.profiles_by_key[profile_id] = profile
             indexes.profile_keys[profile.id] = profile_id
-            indexes.dimensions[profile_id] = profile.dimension_id_set
-            indexes.dimension_ids[profile_id] = profile.dimension_ids
             for feature_id, feature in profile.features.items():
                 indexes.features[feature_id] = feature
-                if feature_id not in self.dimensions:
+                if feature_id not in all_grain_keys:
                     indexes.feature_owners.setdefault(feature_id, []).append(profile_id)
             for action_id, action in profile.actions.items():
                 key = (profile_id, action_id)
@@ -167,6 +188,44 @@ class Spec(common.StrictModel):
         source = self._row_context_profile_key(key)
         return self.dimensions_by_profile[source] if source is not None else None
 
+    def get_row_context_resolution(
+        self, key: ActionKey, dimension_id: str
+    ) -> common.Resolution | None:
+        """Return the selected context resolution, or None when it is unavailable."""
+        profile = self.get_row_context_profile(key)
+        if profile is None:
+            return None
+        grain = next((item for item in profile.grain if item.dimension == dimension_id), None)
+        if grain is None:
+            return None
+        dimension = self.dimensions.get(dimension_id)
+        return dimension.resolutions.get(grain.resolution) if dimension is not None else None
+
+    def grain_refines(self, coarser_profile: ProfileKey, finer_profile: ProfileKey) -> bool:
+        """Return whether the finer profile selects descendants of every coarser key."""
+        coarse = {
+            reference.dimension: reference.resolution
+            for reference in self.profiles_by_key[coarser_profile].grain
+        }
+        fine = {
+            reference.dimension: reference.resolution
+            for reference in self.profiles_by_key[finer_profile].grain
+        }
+        for dimension_id, coarse_resolution in coarse.items():
+            finer_resolution = fine.get(dimension_id)
+            if finer_resolution is None:
+                return False
+            dimension = self.dimensions.get(dimension_id)
+            if dimension is None:
+                return False
+            current: str | None = finer_resolution
+            while current is not None and current != coarse_resolution:
+                resolution = dimension.resolutions.get(current)
+                current = resolution.parent if resolution is not None else None
+            if current != coarse_resolution:
+                return False
+        return True
+
     @property
     def arguments(self) -> dict[tuple[str, str], common.Argument]:
         """Return function argument declarations keyed by function and argument."""
@@ -198,9 +257,21 @@ class Spec(common.StrictModel):
         return self._indexes.dimensions
 
     @property
-    def dimension_ids_by_profile(self) -> dict[str, list[str]]:
-        """Return profile dimension IDs keyed by global profile ID."""
-        return self._indexes.dimension_ids
+    def grain_keys_by_profile(self) -> dict[ProfileKey, list[str]]:
+        """Return dataframe key column names in profile grain order."""
+        return self._indexes.grain_keys
+
+    @property
+    def grain_key_types_by_profile(self) -> dict[ProfileKey, dict[str, str]]:
+        """Return logical types for dataframe key columns in each profile."""
+        return self._indexes.grain_key_types
+
+    @functools.cached_property
+    def grain_key_ids(self) -> frozenset[str]:
+        """Return all dataframe key column names selected by profile grains."""
+        return frozenset(
+            key_id for key_ids in self.grain_keys_by_profile.values() for key_id in key_ids
+        )
 
     @property
     def action_paths(self) -> dict[ActionKey, SpecPath]:
@@ -214,9 +285,9 @@ class Spec(common.StrictModel):
 
     @functools.cached_property
     def local_features(self) -> dict[ProfileKey, frozenset[str]]:
-        """Return feature IDs available in each profile, including dimensions."""
+        """Return feature IDs available in each profile, including grain keys."""
         return {
-            key: frozenset(profile.features) | self.dimensions_by_profile[key]
+            key: frozenset(profile.features) | frozenset(self.grain_keys_by_profile[key])
             for key, profile in self.profile_items
         }
 
@@ -227,7 +298,7 @@ class Spec(common.StrictModel):
             key: tuple(
                 (feature, self.feature_owners.get(feature, []))
                 for feature in action.input_features
-                if feature != selectors.CURRENT_ID and feature not in self.dimensions
+                if feature != selectors.CURRENT_ID and feature not in self.grain_key_ids
             )
             for key, action in self.action_items
         }
@@ -256,8 +327,8 @@ class Spec(common.StrictModel):
                 for name in function.arguments_by_type.get(arg_types.DATAFRAME, {}):
                     value = action.arguments.get(name)
                     source_id = None
-                    if isinstance(value, str) and value.startswith(selectors.DATASET_PREFIX):
-                        reference = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
+                    if isinstance(value, str) and value.startswith(selectors.PROFILE_PREFIX):
+                        reference = value.removeprefix(selectors.PROFILE_PREFIX).removesuffix(
                             selectors.DATAFRAME_SELECTOR
                         )
                         source_id = key[0] if reference == selectors.CURRENT_ID else reference
@@ -283,10 +354,10 @@ class Spec(common.StrictModel):
         return {key: frozenset(sources) for key, sources in self.dataset_argument_sources.items()}
 
     @functools.cached_property
-    def dataset_argument_dimensions(self) -> dict[ActionKey, frozenset[str]]:
-        """Return dimensions available across each action's dataset arguments."""
+    def dataset_argument_grain_keys(self) -> dict[ActionKey, frozenset[str]]:
+        """Return dataframe keys available across each action's dataset arguments."""
         return {
-            key: frozenset().union(*(self.dimensions_by_profile[source] for source in sources))
+            key: frozenset().union(*(self.grain_keys_by_profile[source] for source in sources))
             for key, sources in self.dataset_argument_sources.items()
         }
 
@@ -324,30 +395,30 @@ class Spec(common.StrictModel):
         )
 
     @functools.cached_property
-    def matching_key_dimensions(self) -> dict[ActionKey, tuple[tuple[str, SpecPath], ...]]:
-        """Return selected matching dimensions and their declaration paths."""
+    def matching_profile_keys(self) -> dict[ActionKey, tuple[tuple[str, SpecPath], ...]]:
+        """Return selected matching profile keys and their declaration paths."""
         result: dict[ActionKey, tuple[tuple[str, SpecPath], ...]] = {}
         for key, action in self.action_items:
             matches: list[tuple[str, SpecPath]] = []
             for value, path in action.binding.values_with_paths:
                 if not (
                     isinstance(value, str)
-                    and value.startswith(selectors.DATASET_PREFIX)
-                    and value.endswith(selectors.DIMENSION_IDS_SELECTOR)
+                    and value.startswith(selectors.PROFILE_PREFIX)
+                    and value.endswith(selectors.PROFILE_GRAIN_IDS_SELECTOR)
                 ):
                     continue
-                dataset_id = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
-                    selectors.DIMENSION_IDS_SELECTOR
+                profile_id = value.removeprefix(selectors.PROFILE_PREFIX).removesuffix(
+                    selectors.PROFILE_GRAIN_IDS_SELECTOR
                 )
-                if dataset_id == selectors.CURRENT_ID:
+                if profile_id == selectors.CURRENT_ID:
                     profile_key = self.action_profile_keys[key]
                 else:
-                    profile_key = self.profile_keys.get(dataset_id)
+                    profile_key = self.profile_keys.get(profile_id)
                 if profile_key is None:
                     continue
                 matches.extend(
-                    (dimension, (*self.declaration_paths[key], "binding", "args", *path))
-                    for dimension in self.profiles_by_key[profile_key].dimension_ids
+                    (grain_key, (*self.declaration_paths[key], "binding", "args", *path))
+                    for grain_key in self.grain_keys_by_profile[profile_key]
                 )
             result[key] = tuple(matches)
         return result
@@ -375,21 +446,34 @@ class Spec(common.StrictModel):
         if log_structure and logger.isEnabledFor(logging.DEBUG):
             cls._log_structure_checks(value)
         normalized = dict(value)
-        normalized["dimensions"] = cls._with_resource_ids(normalized.get("dimensions", {}) or {})
+        normalized["dimensions"] = cls._normalize_dimensions(cls.get_dimensions(normalized))
         if "functions" in normalized:
-            normalized["functions"] = cls._normalize_functions(normalized["functions"] or {})
+            normalized["functions"] = cls._normalize_functions(cls.get_functions(normalized))
         if "profiles" in normalized:
-            normalized["profiles"] = cls._normalize_profiles(
-                normalized["profiles"], normalized["dimensions"]
-            )
+            normalized["profiles"] = cls._normalize_profiles(cls.get_profiles(normalized))
         return normalized
 
-    @staticmethod
-    def _log_structure_checks(document: dict[str, typing.Any]) -> None:
+    @classmethod
+    def get_dimensions(cls, document: dict[str, typing.Any]) -> typing.Any:
+        """Return raw dimension declarations from a document."""
+        return document.get("dimensions", {}) or {}
+
+    @classmethod
+    def get_functions(cls, document: dict[str, typing.Any]) -> typing.Any:
+        """Return raw function declarations from a document."""
+        return document.get("functions") or {}
+
+    @classmethod
+    def get_profiles(cls, document: dict[str, typing.Any]) -> typing.Any:
+        """Return raw profile declarations from a document."""
+        return document.get("profiles", {})
+
+    @classmethod
+    def _log_structure_checks(cls, document: dict[str, typing.Any]) -> None:
         """Summarize structural checks once instead of logging each nested resource."""
         dataset_count = 0
         action_count = 0
-        profiles = document.get("profiles", {})
+        profiles = cls.get_profiles(document)
         for profile in profiles.values() if isinstance(profiles, dict) else ():
             actions = (
                 profile.get("actions", {})
@@ -417,8 +501,20 @@ class Spec(common.StrictModel):
         return functions
 
     @classmethod
-    def _normalize_profiles(cls, value: typing.Any, dimensions: typing.Any) -> typing.Any:
-        """Recover profile IDs and normalize their dimensions, features, and actions."""
+    def _normalize_dimensions(cls, value: typing.Any) -> typing.Any:
+        """Recover dimension and resolution IDs from their object keys."""
+        dimensions = cls._with_resource_ids(value)
+        if isinstance(dimensions, dict):
+            for dimension in dimensions.values():
+                if isinstance(dimension, dict):
+                    dimension["resolutions"] = cls._with_resource_ids(
+                        dimension.get("resolutions", {}) or {}
+                    )
+        return dimensions
+
+    @classmethod
+    def _normalize_profiles(cls, value: typing.Any) -> typing.Any:
+        """Recover profile IDs and normalize their features and actions."""
         if isinstance(value, dict):
             for profile_id, profile in value.items():
                 if isinstance(profile, dict) and "id" in profile:
@@ -431,14 +527,6 @@ class Spec(common.StrictModel):
             for profile in profiles.values():
                 if not isinstance(profile, dict):
                     continue
-                profile["dimensions"] = [
-                    (
-                        dimensions.get(dimension, dimension)
-                        if isinstance(dimension, str)
-                        else dimension
-                    )
-                    for dimension in profile.get("dimensions", []) or []
-                ]
                 profile["features"] = cls._with_resource_ids(profile.get("features", {}) or {})
                 profile["actions"] = cls._with_resource_ids(profile.get("actions", {}) or {})
         return profiles

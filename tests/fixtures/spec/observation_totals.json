@@ -3,7 +3,9 @@
   "spec_version": 4,
   "dimensions": {
     "id": {
-      "type": "integer"
+      "resolutions": {
+        "id": {"key": "id", "type": "integer"}
+      }
     }
   },
   "functions": {
@@ -27,7 +29,7 @@
   "profiles": {
     "observations": {
       "name": "Observations",
-      "dimensions": ["id"],
+      "grain": [{"dimension": "id", "resolution": "id"}],
       "features": {
         "id": {"type": "integer"},
         "input_1": {"type": "integer"},
@@ -54,7 +56,7 @@
               "left_feature": "$features.input_1",
               "right_feature": "$features.input_2",
               "output": "$features.total",
-              "dataset": "$datasets.@.dataframe"
+              "dataset": "$profiles.@.dataframe"
             }
           },
           "features": {

@@ -112,8 +112,8 @@ runtime control parameter map under `params`. Programmatic users can construct
 
 ## Fragments
 
-A fragment is a subset of a dataset's columns, keyed by the owning entity's
-dimensions. It contains those dimension columns and the feature columns declared
+A fragment is a subset of a profile's columns, keyed by the selected grain.
+It contains those grain-key columns and the feature columns declared
 as outputs by one data-producing action. The engine adds validated fragments
 to an accumulated dataset; it does not keep a separate dataset for each
 feature.
@@ -121,9 +121,9 @@ feature.
 Data-producing actions are declared under `read`, `conform`, `expand`, and
 `collapse`. Each produces a fragment for the dataset that declares it.
 `conform`, `expand`, and `collapse` take exactly one foreign/source dataframe
-through a `$datasets.<id>.dataframe` binding reference. The engine does not
+through a `$profiles.<id>.dataframe` binding reference. The engine does not
 pass the accumulated target frame to these functions; each function transforms
-its foreign input into a fragment for the target dataset. `read` takes no
+its foreign input into a fragment for the target profile. `read` takes no
 dataframe argument. Vectorize operations consume features from their own
 dataset. The engine never joins another dataset implicitly.
 
@@ -134,14 +134,14 @@ dataset. The engine never joins another dataset implicitly.
 | `expand` | Uses another dataset to produce a fragment with expanded dimensional coverage. |
 | `conform` | Reconciles data from a same-dimension foreign dataset to the target row scope. |
 
-`conform` requires source and target datasets to declare the same dimensions,
-but they may belong to different entities. `collapse` requires the source to
-have a strict superset of the target dimensions; `expand` requires a strict
-subset. Each dimensional action explicitly supplies its target dimension IDs
-as matching keys, for example with
-`ref.current_dataset().dimensions.ids`. A dimension reference used for
-grouping or ordering does not implicitly select a join key. Combining sources
-requires an explicit dimensional operation; same-dataset fragment assembly is
+`conform` requires source and target profiles to declare the same grain.
+`collapse` requires a strictly coarser target grain; `expand` requires a
+strictly finer target grain. Parent links between resolutions describe valid
+coarsening and refinement. Each dimensional action explicitly supplies its
+target grain keys as matching keys, for example with
+`ref.current_profile().grain.ids`. A dimension reference used for grouping or
+ordering does not implicitly select a join key. Combining sources requires an
+explicit dimensional operation; same-profile fragment assembly is
 not a cross-dataset reconciliation. Functions are responsible for grouping,
 matching, output names, and constructing literal values.
 

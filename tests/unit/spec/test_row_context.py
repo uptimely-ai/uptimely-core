@@ -45,12 +45,22 @@ def maximum(dataset: pl.DataFrame, column: str, output: str) -> pl.DataFrame:
 
 
 def _spec(context=None, *, ordered=True, dimension_type="datetime"):
+    timestamp = dimension.Dimension(
+        id="timestamp",
+        resolutions=[
+            dimension.Resolution(
+                id="timestamp",
+                key="timestamp",
+                type=dimension_type,
+            )
+        ],
+    )
     return spec.from_python(
         profiles=[
             profile.Profile(
                 id="observations",
-                dimensions=[dimension.Dimension(id="timestamp", type=dimension_type)],
-                order=[profile.Order(ref.dimension("timestamp"), "asc")] if ordered else [],
+                grain=[profile.Grain(timestamp, "timestamp")],
+                order=[profile.Order(timestamp, "timestamp", "asc")] if ordered else [],
                 producers=[
                     actions.Action(
                         id="read_observations",
@@ -68,7 +78,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                         row_context=context,
                         function=ref.function(calculate, kind="vectorize"),
                         arguments={
-                            "dataset": ref.current_dataset().dataframe,
+                            "dataset": ref.current_profile().dataframe,
                             "column": ref.feature("temperature").id,
                             "output": ref.feature("result").id,
                             "configuration": {"windows": ["8h", "24h"]},
@@ -77,8 +87,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                     ),
                 ],
             )
-        ],
-        dimensions=[dimension.Dimension(id="timestamp", type=dimension_type)],
+        ]
     )
 
 
@@ -292,7 +301,7 @@ def test_row_context_dataset_selection_follows_dimension_contract(
     ).row_context.to_dict()
     configuration["profiles"]["summary"] = {
         "name": "Summary",
-        "dimensions": [],
+        "grain": [],
         "features": {"result": output},
         "actions": {"result": action},
     }
@@ -419,7 +428,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
         "configuration": {"windows": ["8h", "24h"]},
     }
     assert spec_definition.profiles["observations"].order == [
-        spec.Order(dimension="$dimensions.timestamp", direction="asc")
+        spec.Order(dimension="timestamp", resolution="timestamp", direction="asc")
     ]
     plan_path = uptimely_plan.export_json(plan, tmp_path / "plan.json")
     restored_plan = uptimely_plan.from_json(plan_path)
@@ -475,7 +484,7 @@ def test_collapse_functions_execute_without_row_context(
                 inputs=[ref.feature("temperature")],
                 function=ref.function(maximum, kind="collapse"),
                 arguments={
-                    "dataset": ref.dataset("observations").dataframe,
+                    "dataset": ref.profile("observations").dataframe,
                     "column": ref.feature("temperature").id,
                     "output": ref.feature("temperature_max").id,
                 },
@@ -483,21 +492,22 @@ def test_collapse_functions_execute_without_row_context(
             )
         ],
     )
-    timestamp = dimension.Dimension(id="timestamp", type="datetime")
+    timestamp = dimension.Dimension(
+        id="timestamp",
+        resolutions=[dimension.Resolution(id="timestamp", key="timestamp", type="datetime")],
+    )
     spec_definition = spec.from_python(
         profiles=[
             profile.Profile(
                 id=source.id,
-                dimensions=[timestamp],
+                grain=[profile.Grain(timestamp, "timestamp")],
                 producers=source.producers,
             ),
             profile.Profile(
                 id=summary.id,
-                dimensions=[],
                 producers=summary.producers,
             ),
-        ],
-        dimensions=[timestamp],
+        ]
     )
     plan = compiler.Compiler().compile(spec_definition)
     operation = next(item for item in plan.invocations if item.function_kind == "collapse")

@@ -238,7 +238,7 @@ def test_generic_mapping_exports_function_kind_without_importing(
             id="calculate",
             inputs=[],
             function=ref.function("unavailable_package.functions:calculate", kind=kind),
-            arguments={"dataset": ref.current_dataset().dataframe},
+            arguments={"dataset": ref.current_profile().dataframe},
             outputs=[],
             function_id="calculate",
         ),

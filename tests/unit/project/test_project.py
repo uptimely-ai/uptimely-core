@@ -136,22 +136,25 @@ def test_bundle_spec_semantic_validation_is_optional(
 ) -> None:
     root = _write_bundle(tmp_path)
     (root / "spec.json").write_text(
-        '{"dimensions": {"child": {"type": "integer", "parent": "missing"}}}',
+        '{"dimensions": {"child": {"resolutions": {"child": '
+        '{"key": "child", "type": "integer", "parent": "missing"}}}}}',
         encoding="utf-8",
     )
 
     if validate:
-        with pytest.raises(project.BuildError, match="unknown parent"):
+        with pytest.raises(project.BuildError, match="unknown parent resolution"):
             project.load_build_bundle(tmp_path)
         with (
-            pytest.raises(project.BuildError, match="unknown parent"),
+            pytest.raises(project.BuildError, match="unknown parent resolution"),
             project.read_build_bundle(tmp_path),
         ):
             pytest.fail("Invalid Spec must not be yielded")
     else:
         assert project.load_build_bundle(tmp_path, validate=False).spec_definition
         with project.read_build_bundle(tmp_path, validate=False) as bundle:
-            assert bundle.spec_definition.dimensions["child"].parent == "missing"
+            assert (
+                bundle.spec_definition.dimensions["child"].resolutions["child"].parent == "missing"
+            )
 
 
 @pytest.mark.parametrize("artifact", ["spec.json", "execution_plan.json", "build.json"])

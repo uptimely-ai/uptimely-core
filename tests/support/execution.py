@@ -94,23 +94,33 @@ class EngineFactory(typing.Protocol):
 def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Spec:
     """Create a minimal runtime spec for tests using hand-authored plans."""
     resources = execution_plan.resources
-    dimensions = {
-        identifier: definition or {"type": "string"}
-        for identifier, definition in resources.get("dimensions", {}).items()
+    dimensions = dict(resources.get("dimensions", {}))
+    profiles = {
+        profile_id: dict(profile) for profile_id, profile in resources.get("profiles", {}).items()
     }
-    profiles = dict(resources.get("profiles", {}))
-    for entity in resources.get("entities", {}).values():
-        for profile_id, profile in entity.get("datasets", {}).items():
-            profiles.setdefault(
-                profile_id,
-                {"dimensions": entity.get("dimensions", []), **profile},
-            )
     functions = dict(resources.get("functions", {}))
 
     for invocation in execution_plan.invocations:
-        profile = profiles.setdefault(invocation.dataset_id, {"dimensions": []})
-        for dimension_id in profile.get("dimensions", []):
-            dimensions.setdefault(dimension_id, {"type": "string"})
+        if invocation.dataset_id is None:
+            continue
+        profile = profiles.setdefault(invocation.dataset_id, {"grain": []})
+        if not profile.get("grain") and invocation.id_columns:
+            profile["grain"] = []
+            for key in invocation.id_columns:
+                dimension_id = key
+                resolution_id = key
+                dimensions.setdefault(
+                    dimension_id,
+                    {
+                        "resolutions": {
+                            resolution_id: {
+                                "key": key,
+                                "type": invocation.column_types.get(key, "string"),
+                            }
+                        }
+                    },
+                )
+                profile["grain"].append({"dimension": dimension_id, "resolution": resolution_id})
         function = functions.setdefault(invocation.function_id, {})
         function.setdefault("kind", invocation.function_kind)
         function.setdefault(
@@ -120,9 +130,22 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
         function.setdefault("entrypoint", invocation.entrypoint)
         function.setdefault("args", {})
         profile.setdefault("name", invocation.dataset_id)
+        features = profile.setdefault("features", {})
+        for feature in invocation.output_features:
+            features.setdefault(
+                feature,
+                {"type": invocation.column_types.get(feature)},
+            )
         profile.setdefault("actions", {}).setdefault(
             invocation.mapping_id,
-            {"id": invocation.mapping_id, "binding": {"function": invocation.function_id}},
+            {
+                "id": invocation.mapping_id,
+                "binding": {"function": invocation.function_id},
+                "features": {
+                    "inputs": [f"$features.{name}" for name in invocation.input_features],
+                    "outputs": [f"$features.{name}" for name in invocation.output_features],
+                },
+            },
         )
 
     return spec_model.Spec.model_validate(
@@ -153,22 +176,17 @@ def bundle_for_plan(
                     invocation,
                     id_columns=(
                         invocation.id_columns
-                        or bundle_spec.dimension_ids_by_profile[invocation.dataset_id]
+                        or bundle_spec.grain_keys_by_profile[invocation.dataset_id]
                     ),
                     column_types={
                         **{
-                            key: definition.type
-                            for key, definition in {
-                                **bundle_spec.profiles[invocation.dataset_id].features,
-                                **{
-                                    key: bundle_spec.dimensions[key]
-                                    for key in bundle_spec.dimension_ids_by_profile[
-                                        invocation.dataset_id
-                                    ]
-                                },
-                            }.items()
-                            if definition.type is not None
+                            key: feature.type
+                            for key, feature in bundle_spec.profiles[
+                                invocation.dataset_id
+                            ].features.items()
+                            if feature.type is not None
                         },
+                        **bundle_spec.grain_key_types_by_profile[invocation.dataset_id],
                         **invocation.column_types,
                     },
                     argument_types={

@@ -1,29 +1,21 @@
 """Dimension declarations for the pump analytics project."""
 
-from uptimely import Dimension
+from uptimely import Dimension, Resolution
 
-PLANT = Dimension(
-    id="plant",
-    type="string",
-    description="Manufacturing plant identifier",
-)
-
-PRODUCTION_LINE = Dimension(
-    id="production_line",
-    type="string",
-    description="Production line identifier",
-    parent=PLANT.id,
-)
-
-PUMP = Dimension(
-    id="pump",
-    type="string",
-    description="Centrifugal pump asset identifier",
-    parent=PRODUCTION_LINE.id,
+MACHINE = Dimension(
+    id="machine",
+    description="Centrifugal machine and its parent production groupings",
+    resolutions=[
+        Resolution(id="machine", key="pump", type="string", parent="production_line"),
+        Resolution(id="production_line", key="production_line", type="string", parent="plant"),
+        Resolution(id="plant", key="plant", type="string"),
+    ],
 )
 
 TIMESTAMP = Dimension(
     id="timestamp",
-    type="datetime",
     description="UTC timestamp of pump telemetry at one-minute grain",
+    resolutions=[
+        Resolution(id="timestamp", key="timestamp", type="datetime"),
+    ],
 )

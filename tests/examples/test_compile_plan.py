@@ -18,17 +18,16 @@ def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.Bui
     restored = execution_plan.from_dict(execution_plan.to_dict(pump_bundle.execution_plan))
 
     for invocation in restored.invocations:
-        dimensions = document.dimension_ids_by_profile[invocation.dataset_id]
+        grain_keys = document.grain_keys_by_profile[invocation.dataset_id]
         profile = document.profiles[invocation.dataset_id]
-        definitions = {
-            **profile.features,
-            **{name: document.dimensions[name] for name in dimensions},
-        }
-        assert invocation.id_columns == dimensions
+        assert invocation.id_columns == grain_keys
         assert invocation.column_types == {
-            name: definition.type
-            for name, definition in definitions.items()
-            if definition.type is not None
+            **{
+                name: feature.type
+                for name, feature in profile.features.items()
+                if feature.type is not None
+            },
+            **document.grain_key_types_by_profile[invocation.dataset_id],
         }
         assert invocation.argument_types == {
             name: argument.type
@@ -110,12 +109,7 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "feature": "bearing_temperature",
         "method": "max",
         "dataset": "pump_telemetry_dataset",
-        "dimensions": ["plant", "production_line", "pump"],
+        "dimensions": ["pump"],
         "output": "bearing_temperature_max",
     }
-    assert collapse_invocation["output_features"] == [
-        "plant",
-        "production_line",
-        "pump",
-        "bearing_temperature_max",
-    ]
+    assert collapse_invocation["output_features"] == ["pump", "bearing_temperature_max"]

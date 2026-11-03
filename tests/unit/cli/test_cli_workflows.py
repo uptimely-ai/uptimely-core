@@ -76,7 +76,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     assert "Engine completed in " in text
     assert "3 datasets processed" in text
     assert "Scope: selected features: health_signal_normalized" in text
-    assert "- Dataset: pump_dataset - 5 features" in text
+    assert "- Dataset: pump_dataset - 3 features" in text
 
 
 @pytest.mark.parametrize("command", [("run",), ("engine", "run")])

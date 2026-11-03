@@ -12,8 +12,9 @@ def feature_labels(spec_definition: spec.Spec) -> dict[str, str]:
         feature.id: feature.name or feature.id for feature in spec_definition.features.values()
     }
     labels.update(
-        (dimension.id, dimension.name or dimension.id)
+        (resolution.key, dimension.name or resolution.key)
         for dimension in spec_definition.dimensions.values()
+        for resolution in dimension.resolutions.values()
     )
     return labels
 

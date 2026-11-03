@@ -40,7 +40,6 @@ class PythonSource:
             )
         return spec.from_python(
             profiles=declaration.profiles,
-            dimensions=declaration.dimensions,
             name=declaration.name,
             validate=validate,
         )

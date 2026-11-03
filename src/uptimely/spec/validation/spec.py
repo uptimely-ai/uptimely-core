@@ -31,8 +31,11 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     features.validate_feature_ownership: (),
     dimensions.validate_parent: (),
     dimensions.validate_parent_cycle: (dimensions.validate_parent,),
-    profiles.validate_profile_dimensions: (),
-    datasets.validate_order_dimension: (profiles.validate_profile_dimensions,),
+    profiles.validate_grain_dimensions: (),
+    profiles.validate_unique_grain_dimensions: (),
+    profiles.validate_grain_resolutions: (profiles.validate_grain_dimensions,),
+    profiles.validate_unique_grain_keys: (profiles.validate_grain_resolutions,),
+    datasets.validate_order_dimension: (profiles.validate_unique_grain_keys,),
     datasets.validate_unique_order_dimension: (),
     functions.validate_return_kind: (),
     functions.validate_dataframe_count: (),
@@ -79,7 +82,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     action_inputs.validate_source_target: (action_inputs.validate_source_count,),
     action_inputs.validate_grouping_dimensions: (
         action_inputs.validate_source_count,
-        profiles.validate_profile_dimensions,
+        profiles.validate_unique_grain_keys,
     ),
     action_inputs.validate_source_features: (action_inputs.validate_source_count,),
     action_inputs.validate_source_dimensions: (
@@ -93,7 +96,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     ),
     row_context.validate_dimension: (
         action_inputs.validate_source_count,
-        profiles.validate_profile_dimensions,
+        profiles.validate_unique_grain_keys,
     ),
     row_context.validate_dimension_type: (row_context.validate_dimension,),
     row_context.validate_dimension_order: (
@@ -115,7 +118,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     action_contracts.validate_matching_keys: (
         action_contracts.validate_dataset_argument_source,
         action_inputs.validate_dataset_reference,
-        profiles.validate_profile_dimensions,
+        profiles.validate_unique_grain_keys,
     ),
     action_contracts.validate_input_feature_source_count: (
         action_outputs.validate_function_reference,
@@ -131,7 +134,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     ),
     action_contracts.validate_dataset_argument_features: (
         action_contracts.validate_dataset_argument_feature_source,
-        profiles.validate_profile_dimensions,
+        profiles.validate_unique_grain_keys,
     ),
     action_contracts.validate_feature_input_scope: (action_outputs.validate_function_reference,),
     action_contracts.validate_target_dataset_input: (
@@ -146,11 +149,11 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     ),
     action_contracts.validate_dimension_change: (
         action_contracts.validate_dataset_argument_source,
-        profiles.validate_profile_dimensions,
+        profiles.validate_unique_grain_keys,
     ),
     action_contracts.validate_dimension_expansion_input: (
         action_contracts.validate_dataset_argument_feature_source,
-        profiles.validate_profile_dimensions,
+        profiles.validate_unique_grain_keys,
     ),
     dependencies.validate_action_cycle: (
         datasets.validate_profile_ids,

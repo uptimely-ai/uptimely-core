@@ -38,12 +38,12 @@ def validate_selector_type(spec: spec_model.Spec) -> None:
     for path, value, argument_type in spec.binding_selectors_with_paths:
         if not isinstance(value, str) or not value.startswith(selectors.REFERENCE_PREFIX):
             continue
-        if value.startswith(selectors.DATASET_PREFIX) and value.endswith(
+        if value.startswith(selectors.PROFILE_PREFIX) and value.endswith(
             selectors.DATAFRAME_SELECTOR
         ):
             expected = arg_types.DATAFRAME
-        elif value.startswith(selectors.DATASET_PREFIX) and value.endswith(
-            selectors.DIMENSION_IDS_SELECTOR
+        elif value.startswith(selectors.PROFILE_PREFIX) and value.endswith(
+            selectors.PROFILE_GRAIN_IDS_SELECTOR
         ):
             expected = arg_types.array_of(arg_types.STRING)
         elif value.endswith(selectors.ID_SELECTOR):

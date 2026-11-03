@@ -292,18 +292,16 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                     f"Execution produced calculated outputs for profile {dataset_id} "
                     "without a serializable dataset"
                 )
-            profile = snapshot.spec.profiles.get(dataset_id)
-            columns = [
-                name
-                for name in [*(profile.dimension_ids if profile else []), *features]
-                if name in frame.columns
-            ]
+            profile_key = snapshot.spec.profile_keys.get(dataset_id)
+            grain_keys = (
+                snapshot.spec.grain_keys_by_profile[profile_key] if profile_key is not None else []
+            )
+            columns = [name for name in [*grain_keys, *features] if name in frame.columns]
             view = frame.select(columns) if columns else frame
             rows = view.head(max_rows).to_dicts()
             datasets.append(
                 {
                     "profile": dataset_id,
-                    "dataset": dataset_id,
                     "features": features,
                     "columns": view.columns,
                     "row_count": len(rows),

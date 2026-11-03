@@ -11,9 +11,12 @@ The compiler constructs executable invocations from these declarations.
 The document model indexes profiles, features, actions, and arguments once, on
 the first index access. Use `document.profiles["telemetry"]` or
 `document.features["pressure"]` rather than repeatedly traversing the document.
-These dictionaries reference the original declarations, not copies. Profile
-dimension features are included in `features`; the top-level dimension catalog
-remains `document.dimensions`.
+These dictionaries reference the original declarations, not copies. Selected
+grain-key features are included in `features`; the top-level dimension catalog
+remains `document.dimensions`, where each dimension exposes its resolutions.
+Use `document.grain_keys_by_profile` and
+`document.grain_key_types_by_profile` for the dataframe keys and types selected
+by each profile.
 
 `document.actions` is an ordered list of the original canonical `Action` objects.
 Use `for action in document.actions` to traverse it. Action IDs are profile-scoped,
@@ -79,7 +82,7 @@ only the binding argument mapping.
 Context-dependent views live on the Spec rather than wrapper objects:
 `dimensions_by_profile` uses profile keys;
 `input_candidates`, `input_sources`, `actions_arguments`, `dataset_argument_sources`,
-`dataset_argument_ids`, `dataset_argument_dimensions`, `matching_key_dimensions`, and
+`dataset_argument_ids`, `dataset_argument_grain_keys`, `matching_profile_keys`, and
 `binding_selectors` use action keys. Unresolved and ambiguous resources remain
 visible to validators. `declaration_paths` preserves action dictionary keys for
 binding diagnostics; `action_paths` preserves model IDs for contract diagnostics.

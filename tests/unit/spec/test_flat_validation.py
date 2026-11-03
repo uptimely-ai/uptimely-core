@@ -16,6 +16,10 @@ import pytest
 
 from uptimely import row_context as row_context_model
 from uptimely.spec import api, functions, model
+from uptimely.spec.python import actions as python_actions
+from uptimely.spec.python import feature as python_feature
+from uptimely.spec.python import profile as python_profile
+from uptimely.spec.python import ref as python_ref
 from uptimely.spec.validation import spec as validation
 from uptimely.spec.validation.rules import (
     bindings,
@@ -38,12 +42,26 @@ type Mutation = collections.abc.Callable[[model.Spec], object]
 
 def make_spec(kind: functions.FunctionKindId = "vectorize") -> model.Spec:
     """Build a valid document without invoking semantic validation."""
-    source_dimensions = ["machine"] if kind == "expand" else ["machine", "time"]
-    target_dimensions = ["machine"] if kind == "collapse" else ["machine", "time"]
+    source_grain = (
+        [{"dimension": "machine", "resolution": "machine"}]
+        if kind == "expand"
+        else [
+            {"dimension": "machine", "resolution": "machine"},
+            {"dimension": "time", "resolution": "time"},
+        ]
+    )
+    target_grain = (
+        [{"dimension": "machine", "resolution": "machine"}]
+        if kind == "collapse"
+        else [
+            {"dimension": "machine", "resolution": "machine"},
+            {"dimension": "time", "resolution": "time"},
+        ]
+    )
     args = {} if kind in {"read", "escape"} else {"data": {"type": "dataframe"}}
     input_dataset = "source" if kind in {"collapse", "conform", "expand"} else "target"
     binding_args = (
-        {} if kind in {"read", "escape"} else {"data": f"$datasets.{input_dataset}.dataframe"}
+        {} if kind in {"read", "escape"} else {"data": f"$profiles.{input_dataset}.dataframe"}
     )
     inputs = (
         []
@@ -53,7 +71,10 @@ def make_spec(kind: functions.FunctionKindId = "vectorize") -> model.Spec:
         else ["$features.x"]
     )
     document: dict[str, typing.Any] = {
-        "dimensions": {"machine": {"type": "integer"}, "time": {"type": "datetime"}},
+        "dimensions": {
+            "machine": {"resolutions": {"machine": {"key": "machine", "type": "integer"}}},
+            "time": {"resolutions": {"time": {"key": "time", "type": "datetime"}}},
+        },
         "functions": {
             "read": {
                 "kind": "read",
@@ -67,58 +88,59 @@ def make_spec(kind: functions.FunctionKindId = "vectorize") -> model.Spec:
                 "args": args,
             },
         },
-        "entities": {
-            "source_entity": {
-                "name": "Source",
-                "dimensions": source_dimensions,
-                "datasets": {
-                    "source": {
-                        "features": {"s": {}},
-                        "order": [{"dimension": "$dimensions.machine", "direction": "asc"}],
-                        "actions": {
-                            "read_source": {
-                                "binding": {"function": "read"},
-                                "features": {"outputs": ["$features.s"]},
-                            }
+        "profiles": {
+            "source": {
+                "grain": source_grain,
+                "features": {
+                    "machine": {},
+                    **({"time": {}} if len(source_grain) > 1 else {}),
+                    "s": {},
+                },
+                "order": [{"dimension": "machine", "resolution": "machine", "direction": "asc"}],
+                "actions": {
+                    "read_source": {
+                        "binding": {"function": "read"},
+                        "features": {
+                            "outputs": [
+                                "$features.machine",
+                                *(["$features.time"] if len(source_grain) > 1 else []),
+                                "$features.s",
+                            ]
                         },
                     }
                 },
             },
-            "target_entity": {
-                "name": "Target",
-                "dimensions": target_dimensions,
-                "datasets": {
-                    "target": {
-                        "features": (
-                            {"x": {}} if kind in {"write", "escape"} else {"x": {}, "y": {}}
-                        ),
-                        "order": [{"dimension": "$dimensions.machine", "direction": "asc"}],
-                        "actions": {
-                            "read_base": {
-                                "binding": {"function": "read"},
-                                "features": {"outputs": ["$features.x"]},
-                            },
-                            "compute": {
-                                "binding": {"function": "compute", "args": binding_args},
-                                "features": {
-                                    "inputs": inputs,
-                                    "outputs": (
-                                        [] if kind in {"write", "escape"} else ["$features.y"]
-                                    ),
-                                },
-                            },
+            "target": {
+                "grain": target_grain,
+                "features": {
+                    "machine": {},
+                    **({"time": {}} if len(target_grain) > 1 else {}),
+                    "x": {},
+                    **({} if kind in {"write", "escape"} else {"y": {}}),
+                },
+                "order": [{"dimension": "machine", "resolution": "machine", "direction": "asc"}],
+                "actions": {
+                    "read_base": {
+                        "binding": {"function": "read"},
+                        "features": {
+                            "outputs": [
+                                "$features.machine",
+                                *(["$features.time"] if len(target_grain) > 1 else []),
+                                "$features.x",
+                            ]
                         },
-                    }
+                    },
+                    "compute": {
+                        "binding": {"function": "compute", "args": binding_args},
+                        "features": {
+                            "inputs": inputs,
+                            "outputs": ([] if kind in {"write", "escape"} else ["$features.y"]),
+                        },
+                    },
                 },
             },
         },
     }
-    entities = document.pop("entities")
-    document["profiles"] = {}
-    for entity in entities.values():
-        for profile_id, profile in entity["datasets"].items():
-            profile["dimensions"] = entity["dimensions"]
-            document["profiles"][profile_id] = profile
     return model.Spec.model_validate(document)
 
 
@@ -134,8 +156,11 @@ def test_dimension_change_uses_dimension_identities_not_cardinality(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     spec = make_spec("conform")
-    spec.dimensions["other"] = model.Dimension(id="other", type="integer")
-    spec.profiles["source"].dimensions[1] = spec.dimensions["other"]
+    spec.dimensions["other"] = model.Dimension(
+        id="other",
+        resolutions={"other": model.Resolution(id="other", key="other", type="integer")},
+    )
+    spec.profiles["source"].grain[1] = model.Grain(dimension="other", resolution="other")
     assert len(spec.profiles["source"].dimension_ids) == len(spec.profiles["target"].dimension_ids)
 
     with pytest.raises(ValueError, match="preserve target dimensionality"):
@@ -203,7 +228,7 @@ def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
     before = spec.model_dump()
     key = ("target", "compute")
     assert [feature for feature, _ in spec.input_candidates[key]] == [
-        feature for feature in inputs if feature not in spec.dimensions
+        feature for feature in inputs if feature not in spec.grain_key_ids
     ]
     assert spec.input_sources[key] is None
     assert spec.model_dump() == before
@@ -320,13 +345,13 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             dimensions.validate_parent,
             "read",
-            lambda s: setattr(s.dimensions["machine"], "parent", "missing"),
+            lambda s: setattr(s.dimensions["machine"].resolutions["machine"], "parent", "missing"),
             "unknown parent",
         ),
         (
             dimensions.validate_parent_cycle,
             "read",
-            lambda s: setattr(s.dimensions["machine"], "parent", "machine"),
+            lambda s: setattr(s.dimensions["machine"].resolutions["machine"], "parent", "machine"),
             "parent cycle",
         ),
         (
@@ -451,7 +476,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             action_inputs.validate_dataset_reference,
             "vectorize",
-            lambda s: compute(s).binding.args.update({"data": "$datasets.missing.dataframe"}),
+            lambda s: compute(s).binding.args.update({"data": "$profiles.missing.dataframe"}),
             "unknown dataset",
         ),
         (
@@ -469,7 +494,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             bindings.validate_selector_type,
             "vectorize",
-            lambda s: compute(s).binding.args.update({"data": "$datasets.target.id"}),
+            lambda s: compute(s).binding.args.update({"data": "$profiles.target.id"}),
             "requires argument type",
         ),
         (
@@ -499,15 +524,16 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             action_inputs.validate_grouping_dimensions,
             "collapse",
-            lambda s: s.profiles["source"].dimensions.clear(),
-            "grouping dimensions",
+            lambda s: s.profiles["source"].grain.clear(),
+            "grouping keys",
         ),
         (
             action_inputs.validate_source_features,
             "collapse",
             lambda s: (
-                s.dimensions.update({"other": model.Dimension(id="other", type="integer")}),
+                s.profiles["target"].features.update({"other": model.Feature(id="other")}),
                 compute(s).features.inputs.append("$features.other"),
+                s.input_sources.__setitem__(("target", "compute"), "source"),
             ),
             "outside source",
         ),
@@ -515,7 +541,16 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             action_inputs.validate_source_dimensions,
             "collapse",
             lambda s: (
-                s.dimensions.update({"other": model.Dimension(id="other", type="integer")}),
+                s.dimensions.update(
+                    {
+                        "other": model.Dimension(
+                            id="other",
+                            resolutions={
+                                "other": model.Resolution(id="other", key="other", type="integer")
+                            },
+                        )
+                    }
+                ),
                 compute(s).binding.args.update({"extra": "$dimensions.other.id"}),
             ),
             "unknown source dimensions",
@@ -529,13 +564,13 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             action_contracts.validate_dataset_argument_selector,
             "vectorize",
-            lambda s: compute(s).binding.args.update({"data": "$datasets.target.id"}),
+            lambda s: compute(s).binding.args.update({"data": "$profiles.target.id"}),
             "must select dataset data",
         ),
         (
             action_contracts.validate_dataset_argument_source,
             "vectorize",
-            lambda s: compute(s).binding.args.update({"data": "$datasets.missing.dataframe"}),
+            lambda s: compute(s).binding.args.update({"data": "$profiles.missing.dataframe"}),
             "unknown dataset",
         ),
         (
@@ -547,7 +582,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             action_contracts.validate_foreign_dataset_argument,
             "collapse",
-            lambda s: compute(s).binding.args.update({"data": "$datasets.target.dataframe"}),
+            lambda s: compute(s).binding.args.update({"data": "$profiles.target.dataframe"}),
             "foreign source",
         ),
         (
@@ -559,7 +594,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             action_contracts.validate_dataset_argument_feature_source,
             "conform",
-            lambda s: compute(s).binding.args.update({"data": "$datasets.target.dataframe"}),
+            lambda s: compute(s).binding.args.update({"data": "$profiles.target.dataframe"}),
             "foreign source dataset source",
         ),
         (
@@ -577,43 +612,47 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             action_contracts.validate_target_dataset_input,
             "vectorize",
-            lambda s: compute(s).binding.args.update({"data": "$datasets.source.dataframe"}),
+            lambda s: compute(s).binding.args.update({"data": "$profiles.source.dataframe"}),
             "consume its target",
         ),
         (
             action_contracts.validate_target_dataset_only,
             "write",
-            lambda s: compute(s).binding.args.update({"data": "$datasets.source.dataframe"}),
+            lambda s: compute(s).binding.args.update({"data": "$profiles.source.dataframe"}),
             "publish a foreign",
         ),
         (
             action_contracts.validate_dimension_source,
             "collapse",
-            lambda s: compute(s).binding.args.update({"data": "$datasets.target.dataframe"}),
+            lambda s: compute(s).binding.args.update({"data": "$profiles.target.dataframe"}),
             "consume its source",
         ),
         (
             action_contracts.validate_dimension_change,
             "collapse",
-            lambda s: s.profiles["target"].dimensions.append(s.dimensions["time"]),
+            lambda s: s.profiles["target"].grain.append(
+                model.Grain(dimension="time", resolution="time")
+            ),
             "strictly higher",
         ),
         (
             action_contracts.validate_dimension_change,
             "conform",
-            lambda s: s.profiles["target"].dimensions.pop(),
+            lambda s: s.profiles["target"].grain.pop(),
             "preserve target",
         ),
         (
             action_contracts.validate_dimension_expansion_input,
             "expand",
-            lambda s: s.profiles["source"].dimensions.append(s.dimensions["time"]),
+            lambda s: s.profiles["source"].grain.append(
+                model.Grain(dimension="time", resolution="time")
+            ),
             "lower-dimensional",
         ),
         (
             action_contracts.validate_matching_keys,
             "expand",
-            lambda s: compute(s).binding.args.update({"keys": "$datasets.target.dimensions.ids"}),
+            lambda s: compute(s).binding.args.update({"keys": "$profiles.target.grain.ids"}),
             "Matching key",
         ),
         (
@@ -678,8 +717,8 @@ def test_row_context_rules(
 
 def test_reference_failure_blocks_cycle_check() -> None:
     spec = make_spec()
-    spec.dimensions["machine"].parent = "missing"
-    with pytest.raises(ValueError, match="unknown parent: missing"):
+    spec.dimensions["machine"].resolutions["machine"].parent = "missing"
+    with pytest.raises(ValueError, match="unknown parent resolution: missing"):
         validation.validate_spec(spec)
 
 
@@ -740,24 +779,34 @@ def test_load_spec_always_checks_document_structure(tmp_path: pathlib.Path, vali
         api.load_spec(path, validate=validate)
 
 
+def _python_profile_with_missing_input() -> python_profile.Profile:
+    return python_profile.Profile(
+        id="source",
+        producers=[
+            python_actions.Action(
+                id="compute",
+                function=python_ref.function("external:compute", kind="vectorize"),
+                arguments={"data": python_ref.current_profile().dataframe},
+                inputs=[python_ref.feature("missing")],
+                outputs=[python_feature.Feature(id="result")],
+            )
+        ],
+    )
+
+
 @pytest.mark.parametrize("validate", [False, True])
 def test_from_python_can_defer_semantic_validation(validate: bool) -> None:
-    document = make_spec()
-    compute(document).features.inputs.append("$features.missing")
+    profile = _python_profile_with_missing_input()
 
     if validate:
         with pytest.raises(ValueError, match="unknown input feature: missing"):
             api.from_python(
-                profiles=document.profiles,
-                functions=document.functions,
-                dimensions=document.dimensions,
+                profiles=[profile],
                 validate=validate,
             )
     else:
         loaded = api.from_python(
-            profiles=document.profiles,
-            functions=document.functions,
-            dimensions=document.dimensions,
+            profiles=[profile],
             validate=validate,
         )
         with pytest.raises(ValueError, match="unknown input feature: missing"):
@@ -766,11 +815,9 @@ def test_from_python_can_defer_semantic_validation(validate: bool) -> None:
 
 @pytest.mark.parametrize("validate", [False, True])
 def test_from_python_always_checks_document_structure(validate: bool) -> None:
-    document = make_spec()
-
     with pytest.raises(pydantic.ValidationError, match="unexpected"):
         api.from_python(
-            profiles=document.profiles,
+            profiles=[python_profile.Profile(id="source")],
             functions={"invalid": {"unexpected": True}},
             validate=validate,
         )

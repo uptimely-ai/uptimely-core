@@ -89,11 +89,13 @@ def test_collapse_rules_report_their_own_fault_without_validating_bindings(
 
 def test_independent_rules_report_grouping_and_dimension_reference_faults() -> None:
     configuration = _configuration()
-    configuration["profiles"]["pump_telemetry_dataset"]["dimensions"].remove("pump")
+    configuration["profiles"]["pump_telemetry_dataset"]["grain"].remove(
+        {"dimension": "machine", "resolution": "machine"}
+    )
     action = configuration["profiles"]["pump_dataset"]["actions"]["bearing_temperature_by_pump"]
     action["binding"]["args"]["unexpected"] = "$dimensions.missing"
     document = spec.Spec.model_validate(configuration)
-    with pytest.raises(ValueError, match="grouping dimensions must exist in source"):
+    with pytest.raises(ValueError, match="grouping keys must exist in source"):
         action_inputs.validate_grouping_dimensions(document)
     with pytest.raises(validation.SpecError, match="unknown dimension: missing"):
         action_inputs.validate_dimension_reference(document)
@@ -115,7 +117,7 @@ def test_binding_and_contract_paths_keep_their_existing_action_identifiers(
     else:
         function = document.functions[action.binding.function]
         argument = next(name for name, arg in function.args.items() if arg.type == "dataframe")
-        action.binding.args[argument] = "$datasets.pump_dataset.dataframe"
+        action.binding.args[argument] = "$profiles.pump_dataset.dataframe"
         expected_id = action.id
         expected_code = "invalid_mapping_dataset_input"
         validate = contracts_validation.validate_target_dataset_input
@@ -181,10 +183,10 @@ def test_document_validation_rejects_duplicate_output_producers() -> None:
 @pytest.mark.parametrize(
     ("argument_type", "argument_value"),
     [
-        ("array[string]", ["$features.discharge_pressure", "$datasets.@.dataframe"]),
+        ("array[string]", ["$features.discharge_pressure", "$profiles.@.dataframe"]),
         (
             "object{str: string}",
-            {"nested": ["$features.discharge_pressure", "$datasets.@.dataframe"]},
+            {"nested": ["$features.discharge_pressure", "$profiles.@.dataframe"]},
         ),
     ],
 )
@@ -205,7 +207,7 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
 
     assert str(error.value) == (
         "profiles.pump_telemetry_dataset.actions."
-        "pressure_flow_efficiency.binding.args: Reference $datasets.@.dataframe "
+        "pressure_flow_efficiency.binding.args: Reference $profiles.@.dataframe "
         "requires argument type dataframe, got string"
     )
     assert error.value.code == "invalid_binding_reference_type"
@@ -310,7 +312,7 @@ def test_document_validation_rejects_blank_calculated_output() -> None:
 
 def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> None:
     document = spec.Spec.model_validate(_configuration())
-    document.dimensions["plant"].parent = "plant"
+    document.dimensions["machine"].resolutions["plant"].parent = "plant"
     dataset = document.profiles["pump_dataset"]
     dataset.actions["bearing_temperature_by_pump"].features.inputs = ["$features.missing"]
     other = document.profiles["pump_telemetry_dataset"]
@@ -339,7 +341,11 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
 def test_duplicate_feature_ownership_retains_all_candidates() -> None:
     document = spec.Spec.model_validate(_configuration())
     dataset = document.profiles["pump_dataset"]
-    first, second = [f for f in dataset.features if f not in document.dimensions][:2]
+    grain_keys = {
+        document.dimensions[reference.dimension].resolutions[reference.resolution].key
+        for reference in dataset.grain
+    }
+    first, second = [feature for feature in dataset.features if feature not in grain_keys][:2]
     duplicate = dataset.model_copy(deep=True)
     duplicate.id = "another_dataset"
     duplicate.features = {

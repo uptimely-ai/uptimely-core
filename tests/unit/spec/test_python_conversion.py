@@ -1,7 +1,7 @@
 import pytest
 
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions, conversion, dimension, profile, ref
+from uptimely.spec.python import actions, conversion, profile, ref
 
 
 def _source(path: str, columns: list[str]) -> None:
@@ -34,16 +34,13 @@ def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
 @pytest.mark.parametrize("keyed", [False, True])
 def test_auto_catalog_converts_profile_sequences_and_mappings(keyed: bool) -> None:
     declarations = [_profile("first"), _profile("second")]
-    pump = dimension.Dimension(id="pump", type="string")
-    for declaration in declarations:
-        declaration.dimensions = [pump]
     inputs = {resource.id: resource for resource in declarations} if keyed else declarations
 
-    payload = conversion.to_dict(profiles=inputs, dimensions=[pump])
+    payload = conversion.to_dict(profiles=inputs)
 
     assert payload["name"] is None
     assert list(payload["profiles"]) == ["first", "second"]
-    assert all(item["dimensions"] == ["pump"] for item in payload["profiles"].values())
+    assert all(item["grain"] == [] for item in payload["profiles"].values())
     assert payload["functions"] == {
         "source": {
             "name": "Source",
@@ -101,14 +98,10 @@ def test_explicit_catalog_preserves_argument_metadata(
         "dict": catalog.model_dump(),
         "dict_of_models": {"source": catalog["source"]},
     }[catalog_form]
-    pump = dimension.Dimension(id="pump", type="string")
-    declaration.dimensions = [pump]
-
     payload = conversion.to_dict(
         profiles=[declaration.to_model() if canonical_profile else declaration],
         functions=functions,
         name="Readings",
-        dimensions={"pump": pump.to_model()},
     )
 
     assert payload["functions"]["source"] == {
@@ -124,9 +117,9 @@ def test_explicit_catalog_preserves_argument_metadata(
         },
     }
     assert payload["profiles"]["readings"]["name"] == "Readings"
-    assert payload["profiles"]["readings"]["dimensions"] == ["pump"]
+    assert payload["profiles"]["readings"]["grain"] == []
     assert "id" not in payload["profiles"]["readings"]
-    assert payload["dimensions"] == {"pump": pump.to_model().model_dump()}
+    assert payload["dimensions"] == {}
 
 
 def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_functions() -> None:
@@ -161,9 +154,9 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
         ({"profiles": {}}, ValueError, "At least one profile is required"),
         ({}, ValueError, "At least one profile is required"),
         (
-            {"profiles": [_profile("readings")], "dimensions": [object()]},
+            {"profiles": [_profile("readings")], "dimensions": []},
             TypeError,
-            "dimensions must contain Dimension",
+            "unexpected keyword argument 'dimensions'",
         ),
         (
             {"profiles": [_profile("readings")], "functions": object()},

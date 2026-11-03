@@ -15,11 +15,11 @@ from . import functions as function_semantics
 __all__ = [
     "Reference",
     "OutputReference",
-    "DatasetDimensionsReference",
+    "ProfileGrainReference",
     "FunctionReference",
     "function",
-    "current_dataset",
-    "dataset",
+    "current_profile",
+    "profile",
     "source",
     "sink",
     "feature",
@@ -150,28 +150,28 @@ class Reference:
 
     @property
     def dataframe(self) -> Reference:
-        """Pass a dataset's materialized dataframe as an argument."""
-        if self.type != "dataset":
-            raise ValueError("Only dataset references have a dataframe selector")
-        return Reference(type="dataset", value=f"{self.value}{selectors.DATAFRAME_SELECTOR}")
+        """Pass a profile's materialized dataframe as an argument."""
+        if self.type != "profile":
+            raise ValueError("Only profile references have a dataframe selector")
+        return Reference(type="profile", value=f"{self.value}{selectors.DATAFRAME_SELECTOR}")
 
     @property
-    def dimensions(self) -> DatasetDimensionsReference:
-        """Select dimension metadata from a dataset reference."""
-        if self.type != "dataset":
-            raise ValueError("Only dataset references have dimension selectors")
-        return DatasetDimensionsReference(value=f"{self.value}.dimensions")
+    def grain(self) -> ProfileGrainReference:
+        """Select grain metadata from a profile reference."""
+        if self.type != "profile":
+            raise ValueError("Only profile references have grain selectors")
+        return ProfileGrainReference(value=f"{self.value}.grain")
 
 
 @dataclasses.dataclass(frozen=True)
-class DatasetDimensionsReference:
-    """Dimension selectors available on a dataset reference."""
+class ProfileGrainReference:
+    """Grain selectors available on a profile reference."""
 
     value: str
 
     @property
     def ids(self) -> Reference:
-        """Pass the dataset's dimension identifiers as an array of strings."""
+        """Pass the profile's dataframe key names in grain order."""
         return Reference(
             type=arg_types.array_of(arg_types.STRING),
             value=f"{self.value}.ids",
@@ -189,12 +189,12 @@ def dataframe(name: str | None = None) -> Reference:
     """Reference a dataframe without loading or constructing it.
 
     Args:
-        name: Dataset identifier, or None for the current dataset.
+        name: Profile identifier, or None for the current profile.
 
     Returns:
-        A deferred reference to the dataset's materialized dataframe.
+        A deferred reference to the profile's materialized dataframe.
     """
-    return (current_dataset() if name is None else dataset(name)).dataframe
+    return (current_profile() if name is None else profile(name)).dataframe
 
 
 def column(name: str) -> Reference:
@@ -215,14 +215,14 @@ def output(name: str) -> OutputReference:
     return OutputReference(type=identifier.type, value=identifier.value, name=name)
 
 
-def current_dataset() -> Reference:
-    """Reference the dataset currently being evaluated."""
-    return Reference(type="dataset", value=f"{selectors.DATASET_PREFIX}{selectors.CURRENT_ID}")
+def current_profile() -> Reference:
+    """Reference the profile currently being evaluated."""
+    return Reference(type="profile", value=f"{selectors.PROFILE_PREFIX}{selectors.CURRENT_ID}")
 
 
-def dataset(name: str) -> Reference:
-    """Reference a dataset by name."""
-    return Reference(type="dataset", value=f"{selectors.DATASET_PREFIX}{name}")
+def profile(name: str) -> Reference:
+    """Reference a profile by name."""
+    return Reference(type="profile", value=f"{selectors.PROFILE_PREFIX}{name}")
 
 
 def source(name: str, attribute: str = "path") -> str:

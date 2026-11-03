@@ -204,16 +204,17 @@ def test_spec_rejects_unsupported_version(tmp_path: pathlib.Path, version: objec
 
 def test_spec_rejects_dimension_parent_cycles(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["dimensions"]["plant"]["parent"] = "pump"
+    configuration["dimensions"]["machine"]["resolutions"]["plant"]["parent"] = "machine"
 
     with pytest.raises(validation.SpecError) as error:
         spec.load_spec(_write_configuration(tmp_path, configuration, "cycle.json"))
 
     assert str(error.value) == (
-        "dimensions.plant.parent: Dimension parent cycle: plant -> pump -> production_line -> plant"
+        "dimensions.machine.resolutions.machine.parent: Dimension resolution parent cycle: "
+        "machine.machine -> machine.production_line -> machine.plant -> machine.machine"
     )
-    assert error.value.code == "dimension_parent_cycle"
-    assert error.value.path == ("dimensions", "plant", "parent")
+    assert error.value.code == "dimension_resolution_parent_cycle"
+    assert error.value.path == ("dimensions", "machine", "resolutions", "machine", "parent")
 
 
 def test_spec_errors_expose_stable_profile_identity_code_and_path() -> None:
@@ -277,8 +278,8 @@ def test_feature_placeholder_resolves_to_bound_feature_id() -> None:
 
 def test_structural_references_compile_to_identifiers() -> None:
     args = {
-        "current": "$datasets.@",
-        "specific": "$datasets.pump_units",
+        "current": "$profiles.@",
+        "specific": "$profiles.pump_units",
         "dimension": "$dimensions.pump",
     }
 
@@ -293,8 +294,8 @@ def test_structural_references_compile_to_identifiers() -> None:
 def test_nested_selectors_resolve_without_changing_literal_values() -> None:
     args = {
         "nested": [
-            "$datasets.@.dataframe",
-            {"dataset": "$datasets.other.id", "feature": "$features.@.id"},
+            "$profiles.@.dataframe",
+            {"dataset": "$profiles.other.id", "feature": "$features.@.id"},
             "$dimensions.pump.id",
             "ordinary.id",
             0,
@@ -335,19 +336,19 @@ def test_resolve_args_defaults_to_empty_dictionary() -> None:
 
 def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> None:
     args = {
-        "host_keys": "$datasets.@.dimensions.ids",
-        "source_keys": "$datasets.source.dimensions.ids",
-        "source": "$datasets.source.dataframe",
+        "host_keys": "$profiles.@.grain.ids",
+        "source_keys": "$profiles.source.grain.ids",
+        "source": "$profiles.source.dataframe",
     }
-    dimension_ids = {"telemetry": ["pump", "timestamp"], "source": ["pump"]}
+    grain_keys = {"telemetry": ["pump", "timestamp"], "source": ["pump"]}
 
     binding = model.Binding(function="read", args=args)
-    assert [identifier for identifier, _ in binding.references_by_prefix["$datasets."]] == [
+    assert [identifier for identifier, _ in binding.references_by_prefix["$profiles."]] == [
         "@",
         "source",
         "source",
     ]
-    assert binding.resolve_args("telemetry", dimension_ids_by_dataset=dimension_ids) == {
+    assert binding.resolve_args("telemetry", grain_keys_by_profile=grain_keys) == {
         "host_keys": ["pump", "timestamp"],
         "source_keys": ["pump"],
         "source": "source",
@@ -419,7 +420,7 @@ def test_spec_validation_rejects_duplicate_feature_names(tmp_path: pathlib.Path)
     duplicate = profile["actions"]["pressure_flow_efficiency"]
     configuration["profiles"]["duplicate_dataset"] = {
         "name": "Duplicate profile",
-        "dimensions": ["pump"],
+        "grain": profile["grain"],
         "features": {"pressure_flow_efficiency": profile["features"]["pressure_flow_efficiency"]},
         "actions": {"pressure_flow_efficiency": duplicate},
     }
@@ -455,7 +456,7 @@ def test_dimension_outputs_are_implicit_in_mapping(
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["profiles"]["pump_telemetry_dataset"]["actions"]["read_pump_telemetry"][
         "features"
-    ]["outputs"].remove("$features.plant")
+    ]["outputs"].remove("$features.pump")
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -494,7 +495,7 @@ def test_spec_validation_rejects_feature_dimension_name_collision(
 
     with pytest.raises(
         ValueError,
-        match="Calculated feature names cannot duplicate profile dimensions: pump",
+        match="Calculated feature names cannot duplicate profile grain keys: pump",
     ):
         spec.load_spec(spec_path)
 
@@ -512,7 +513,7 @@ def test_spec_validation_rejects_cross_dataset_feature_dependency(
     ]
     configuration["profiles"]["pump_copy_dataset"] = {
         "name": "Pump copy",
-        "dimensions": ["pump"],
+        "grain": configuration["profiles"]["pump_dataset"]["grain"],
         "features": {"health_signal_normalized_copy": copied_feature},
         "actions": {"health_signal_normalized_copy": calculation},
     }
