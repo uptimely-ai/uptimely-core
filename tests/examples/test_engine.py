@@ -49,16 +49,16 @@ def test_engine_returns_calculated_features_without_writing_output(
         pl.LazyFrame,
     )
     pump_frame = result.main_frames["pump_profile"].collect()
-    assert pump_frame.select("pump", "bearing_temperature_max", "health_signal_normalized").sort(
-        "pump"
+    assert pump_frame.select("pump_id", "bearing_temperature_max", "health_signal_normalized").sort(
+        "pump_id"
     ).rows() == [
         ("PUMP-101", 68.7, 1.0),
         ("PUMP-201", 64.5, -1.0),
     ]
     telemetry_frame = result.main_frames["pump_telemetry"].collect()
     assert "health_signal_normalized" not in telemetry_frame.columns
-    telemetry_frame = telemetry_frame.sort("pump", "timestamp")
-    assert telemetry_frame["pump"].to_list() == ["PUMP-101", "PUMP-101", "PUMP-201"]
+    telemetry_frame = telemetry_frame.sort("pump_id", "timestamp")
+    assert telemetry_frame["pump_id"].to_list() == ["PUMP-101", "PUMP-101", "PUMP-201"]
     assert telemetry_frame["operation_mode"].to_list() == [
         "low_speed",
         "high_speed",
@@ -232,13 +232,13 @@ def test_engine_merges_fragments_by_profile_grain_keys(
     )
     existing = pl.LazyFrame(
         {
-            "pump": ["PUMP-101", "PUMP-201"],
+            "pump_id": ["PUMP-101", "PUMP-201"],
             "existing": [1, 2],
         }
     )
     fragment = pl.LazyFrame(
         {
-            "pump": ["PUMP-201", "PUMP-101"],
+            "pump_id": ["PUMP-201", "PUMP-101"],
             "new": [20, 10],
         }
     )
@@ -258,7 +258,7 @@ def test_engine_merges_fragments_by_profile_grain_keys(
     )
     merged = main.dataframe.collect()
 
-    assert merged.select("pump", "existing", "new").sort("pump").rows() == [
+    assert merged.select("pump_id", "existing", "new").sort("pump_id").rows() == [
         ("PUMP-101", 1, 10),
         ("PUMP-201", 2, 20),
     ]
@@ -448,7 +448,7 @@ def test_engine_assembly_rejects_feature_collisions(
         (None, "must return a Polars DataFrame or LazyFrame"),
         (pl.LazyFrame({"plant": ["PLANT-01"]}), "missing dimension columns"),
         (
-            pl.LazyFrame({"pump": ["PUMP-101", "PUMP-101"]}),
+            pl.LazyFrame({"pump_id": ["PUMP-101", "PUMP-101"]}),
             "duplicate dimension keys",
         ),
     ],

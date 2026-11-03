@@ -1,4 +1,4 @@
-import { KINDS, contextHeader, contextLink, display, distribution, escape, heading, href, icon, kindIcon, miniGraphic, page, statistic } from "../rendering/shared_markup.js";
+import { KINDS, contextHeader, contextLink, dataTypeIcon, display, distribution, escape, heading, href, icon, kindIcon, miniGraphic, page, statistic } from "../rendering/shared_markup.js";
 
 export function profiles(configuration) {
   return Object.entries(configuration.profiles).map(([id, profile]) => ({
@@ -30,9 +30,17 @@ const group = (title, items) => `<div class="context-link-group">
   <p class="context-group-label"><span>${escape(title)}</span><span class="context-link-count">${items.length}</span></p>${items.join("")}</div>`;
 const description = value => `<p class="mt-4 text-sm leading-6 text-slate-400">${escape(value || "No description provided.")}</p>`;
 const itemTitle = (id, item, tag = "h2", size = "text-2xl") => `<${tag} class="break-words font-display ${size} font-semibold text-white">${escape(label(id, item))}</${tag}>${item.name ? `<p class="mt-1 font-mono text-xs text-slate-500">${escape(id)}</p>` : ""}`;
-const subheading = title => `<h3 class="font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">${escape(title)}</h3>`;
+const subheading = (title, lucideIcon = null) => `<h3 class="flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-[.16em] text-slate-300">${lucideIcon ? `<i data-lucide="${escape(lucideIcon)}" class="h-4 w-4 text-slate-400" aria-hidden="true"></i>` : ""}${escape(title)}</h3>`;
+const chip = (value, isType = false) => `<span class="inline-flex items-center gap-1.5 rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">${isType ? dataTypeIcon(value, "h-3.5 w-3.5 opacity-70") : ""}${escape(value)}</span>`;
 const chips = values => `<div class="mt-3 flex flex-wrap gap-2">${values.map(value =>
-  `<span class="rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">${escape(value)}</span>`).join("")}</div>`;
+  chip(value)).join("")}</div>`;
+const profileSchemaType = type => {
+  const value = type || "unspecified";
+  const typeIcon = dataTypeIcon(value, "profile-schema-type-icon");
+  return typeIcon
+    ? `${typeIcon}<span class="sr-only">${escape(value)}</span>`
+    : escape(value);
+};
 
 const contextLinks = {
   features(data) {
@@ -45,8 +53,13 @@ const contextLinks = {
     }).join("");
   },
   profiles(data) {
-    return Object.entries(data.catalogs.configuration.profiles).map(([id, profile]) =>
-      contextLink(`profile-${id}`, label(id, profile), "profiles")).join("");
+    const categories = new Map();
+    for (const [id, profile] of Object.entries(data.catalogs.configuration.profiles)) {
+      const category = profile.category || "Uncategorized";
+      if (!categories.has(category)) categories.set(category, []);
+      categories.get(category).push(contextLink(`profile-${id}`, label(id, profile), "profiles"));
+    }
+    return [...categories].map(([category, links]) => group(category, links)).join("");
   },
   functions(data) {
     return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length)
@@ -60,8 +73,10 @@ const contextLinks = {
       contextLink(`stage-${stage.stage}`, `Stage ${stage.stage}`, "stages", stage.steps.length)).join("");
   },
   dimensions(data) {
-    return Object.entries(data.catalogs.configuration.dimensions).map(([id, item]) =>
-      contextLink(`dimension-${id}`, label(id, item), "dimensions")).join("");
+    return Object.entries(data.catalogs.configuration.dimensions).map(([key, item]) => {
+      const id = item.id ?? key;
+      return contextLink(`dimension-${id}`, label(id, item), "dimensions");
+    }).join("");
   },
 };
 
@@ -185,13 +200,60 @@ function featureCards(config) {
   }).join("");
 }
 
+function resolutionHierarchy(resolutions) {
+  const nodes = Object.entries(resolutions).map(([key, resolution]) => ({
+    id: resolution.id ?? key,
+    resolution,
+    children: [],
+  }));
+  const nodesById = new Map(nodes.map(node => [node.id, node]));
+  const roots = [];
+  for (const node of nodes) {
+    const parent = nodesById.get(node.resolution.parent);
+    if (parent && parent !== node) parent.children.push(node);
+    else roots.push(node);
+  }
+
+  const rendered = new Set();
+  const renderNode = node => {
+    if (rendered.has(node)) return "";
+    rendered.add(node);
+    const { resolution } = node;
+    return `<li data-resolution-id="${escape(node.id)}" data-parent-resolution="${escape(resolution.parent || "")}">
+      <article class="dimension-resolution-card">
+        <header class="dimension-resolution-heading">
+          <span class="dimension-resolution-symbol"><i data-lucide="layers-3" aria-hidden="true"></i></span>
+          <div class="min-w-0">
+            <span class="dimension-resolution-label">Resolution ID</span>
+            <h3 class="dimension-resolution-id">${escape(node.id)}</h3>
+          </div>
+          <span class="dimension-resolution-level">${resolution.parent ? `Parent · ${escape(resolution.parent)}` : "Top level"}</span>
+        </header>
+        <dl class="dimension-resolution-fields">
+          <div class="dimension-resolution-field">
+            <dt><i data-lucide="key-round" aria-hidden="true"></i>Data key</dt>
+            <dd><code>${escape(resolution.key)}</code></dd>
+          </div>
+          <div class="dimension-resolution-field">
+            <dt><i data-lucide="braces" aria-hidden="true"></i>Data type</dt>
+            <dd>${dataTypeIcon(resolution.type, "dimension-resolution-type-icon")}<code>${escape(resolution.type)}</code></dd>
+          </div>
+        </dl>
+      </article>
+      ${node.children.length ? `<ul class="dimension-resolution-children">${node.children.map(renderNode).join("")}</ul>` : ""}
+    </li>`;
+  };
+  return `<ul aria-label="Resolution hierarchy" class="dimension-resolution-tree">${[...roots, ...nodes].map(renderNode).join("")}</ul>`;
+}
+
 function dimensionCards(config) {
-  return Object.entries(config.dimensions).map(([id, item]) => `<article id="dimension-${escape(id)}" data-context-item class="min-w-0">
+  return Object.entries(config.dimensions).map(([key, item]) => {
+    const id = item.id ?? key;
+    return `<article id="dimension-${escape(id)}" data-context-item class="min-w-0">
     ${itemTitle(id, item, "h2", "text-lg")}
-    <div class="mt-3 space-y-3">${Object.entries(item.resolutions).map(([resolutionId, resolution]) => `<div>
-      ${subheading(resolutionId)}${chips([resolution.key, resolution.type, ...(resolution.parent ? [`child of ${resolution.parent}`] : [])])}
-    </div>`).join("")}</div>
-    ${description(item.description)}</article>`).join("");
+    <div class="mt-3">${resolutionHierarchy(item.resolutions)}</div>
+    <p data-dimension-description class="mt-4 text-sm leading-6 text-slate-400">${escape(item.description || "No description provided.")}</p></article>`;
+  }).join("");
 }
 
 export function schemaColumns(config, profile) {
@@ -213,6 +275,65 @@ export function schemaColumns(config, profile) {
   ];
 }
 
+function grainCards(config, grain) {
+  return grain.map(({ dimension, resolution }) => {
+    const dimensionDefinition = config.dimensions[dimension];
+    const resolutionDefinition = dimensionDefinition?.resolutions[resolution];
+    const resolutionId = resolutionDefinition?.id ?? resolution;
+    return `<li class="profile-grain-card" data-grain-dimension="${escape(dimension)}" data-grain-resolution="${escape(resolutionId)}">
+      <header class="profile-grain-heading">
+        <span class="profile-grain-icon"><i data-lucide="axis-3d" aria-hidden="true"></i></span>
+        <div class="min-w-0">
+          <span class="profile-grain-label">Dimension</span>
+          <h4>${escape(dimensionDefinition?.name || dimension)}</h4>
+        </div>
+      </header>
+      <div class="profile-grain-branch">
+        <section class="profile-grain-resolution" aria-label="Selected resolution">
+          <header><span class="profile-grain-label">Resolution</span><h5><code>${escape(resolutionId)}</code></h5></header>
+          <dl class="profile-grain-fields">
+            <div><dt>Data key</dt><dd><code>${escape(resolutionDefinition?.key || resolution)}</code></dd></div>
+            <div><dt>Data type</dt><dd>${dataTypeIcon(resolutionDefinition?.type, "profile-grain-type-icon")}<code>${escape(resolutionDefinition?.type || "unspecified")}</code></dd></div>
+          </dl>
+        </section>
+      </div>
+    </li>`;
+  }).join("");
+}
+
+function profileActionCards(config, profile, actions) {
+  const featureList = references => references.length
+    ? references.map(reference => `<code>${escape(reference.replace(/^\$features\./, ""))}</code>`).join("")
+    : '<span class="profile-action-empty">None declared</span>';
+  return `<div class="profile-actions">${actions.map(([id, action]) => {
+    const functionId = action.binding.function;
+    const fn = config.functions[functionId] || {};
+    const args = Object.entries(action.binding.args || {});
+    return `<article class="profile-action" data-profile-action="${escape(id)}" data-action-kind="${escape(fn.kind)}">
+      <header class="profile-action-header">
+        <span class="profile-action-symbol">${kindIcon(fn.kind, "profile-action-icon")}</span>
+        <div class="profile-action-identity"><span class="profile-action-label">Action ID</span><h4>${escape(id)}</h4></div>
+        <span class="profile-action-kind">${escape(fn.kind || "Unspecified")}</span>
+      </header>
+      ${args.length ? `<details class="profile-action-bindings"><summary>Argument bindings <span>${args.length}</span></summary>
+        <div class="profile-action-table-scroll"><table><caption class="sr-only">Argument bindings for ${escape(id)}</caption>
+          <thead><tr><th scope="col">Argument</th><th scope="col">Binding</th></tr></thead>
+          <tbody>${args.map(([name, value]) => `<tr><th scope="row">${escape(name)}</th><td><code>${display(value)}</code></td></tr>`).join("")}</tbody>
+        </table></div></details>` : ""}
+      <div class="profile-action-function"><span class="profile-action-label">Function</span>
+        <a href="${href("functions", `function-${functionId}`)}">${escape(fn.name || functionId)}</a>
+        ${fn.name && fn.name !== functionId ? `<code>${escape(functionId)}</code>` : ""}
+      </div>
+      <dl class="profile-action-contract">
+        <div><dt>Input features</dt><dd>${featureList(action.features.inputs)}</dd></div>
+        <div><dt>Output features${fn.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(action.features.outputs)}</dd></div>
+      </dl>
+      ${fn.kind === "collapse" ? `<div class="profile-action-note">Input profile inferred from bound features · Group by grain keys: <code>${display(profileGrainKeys(config, profile))}</code></div>` : ""}
+      ${fn.kind === "escape" ? '<div class="profile-action-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</div>' : ""}
+    </article>`;
+  }).join("")}</div>`;
+}
+
 function profileCards(config) {
   const colors = {
     dimension: "bg-[#172b46] text-[#b5d4f8]", teal: "bg-[#15352e] text-[#a5dfca]",
@@ -221,43 +342,34 @@ function profileCards(config) {
   };
   return profiles(config).map(({ id, profile }) => {
     const columns = schemaColumns(config, profile);
-    const grain = profile.grain.map(({ dimension, resolution }) => {
-      const dimensionDefinition = config.dimensions[dimension];
-      const resolutionDefinition = dimensionDefinition?.resolutions[resolution];
-      return `${dimensionDefinition?.name || dimension} · ${resolutionDefinition?.key || resolution}`;
-    });
+    const grain = profile.grain;
     const actions = Object.entries(profile.actions).filter(([, action]) => config.functions[action.binding.function]?.kind !== "vectorize");
     return `<article id="profile-${escape(id)}" data-context-item>
-      <header class="flex flex-wrap items-start justify-between gap-4"><div>
-        ${profile.category ? `<p class="font-mono text-[10px] uppercase tracking-wider text-cyan-300">${escape(profile.category)}</p>` : ""}
-        ${itemTitle(id, profile, "h2", "text-xl")}</div><span class="rounded-full bg-slate-800/70 px-3 py-1 font-mono text-[10px] text-slate-400">${columns.length} columns</span></header>
-      <section class="mt-5 border-t border-slate-800 pt-5" aria-label="Profile details">
-        <h3 class="font-display text-lg font-semibold text-white">Profile details</h3>
-        <div class="mt-5 space-y-6">${profile.description ? description(profile.description) : ""}
-          ${grain.length ? `<div>${subheading("Grain")}${chips(grain)}</div>` : ""}
-          ${profile.scope ? `<div>${subheading("Scope")}${description(profile.scope)}</div>` : ""}
-          ${profile.order?.length ? `<div>${subheading("Logical order")}<p class="mt-2 text-xs text-slate-500">Not a physical row-order guarantee.</p>${chips(profile.order.map(key => {
+      <div hidden>
+        <h2>${escape(label(id, profile))}</h2>
+        ${profile.description ? `<p data-profile-description>${escape(profile.description)}</p>` : ""}
+      </div>
+      <section aria-label="Profile details">
+        <div class="space-y-6">
+          ${grain.length ? `<div>${subheading("Grain", "axis-3d")}<ul class="profile-grain-grid">${grainCards(config, grain)}</ul></div>` : ""}
+          ${profile.scope || profile.order?.length ? `<div class="grid gap-6 ${profile.scope && profile.order?.length ? "md:grid-cols-2" : ""}" data-profile-context>
+          ${profile.scope ? `<div class="min-w-0">${subheading("Scope", "scan")}${description(profile.scope)}</div>` : ""}
+          ${profile.order?.length ? `<div class="min-w-0">${subheading("Logical order", "list-ordered")}<p class="mt-2 text-xs text-slate-500">Not a physical row-order guarantee.</p>${chips(profile.order.map(key => {
             const dimensionId = key.dimension;
             const dimension = config.dimensions[dimensionId];
             const resolution = dimension?.resolutions[key.resolution];
             return `${dimension?.name || dimensionId} · ${resolution?.key || key.resolution} ${key.direction}`;
-          }))}</div>` : ""}
-          ${actions.length ? `<div>${subheading("Actions")}<div class="mt-3 divide-y divide-slate-800">${actions.map(([key, action]) => {
-            const fn = config.functions[action.binding.function] || {};
-            return `<div class="space-y-2 py-3"><p class="font-mono text-sm text-slate-300">${escape(fn.kind)} · ${escape(fn.name || action.binding.function)}</p>
-              <p class="font-mono text-xs text-slate-500">${escape(key)} · ${escape(action.binding.function)}</p>
-              ${fn.kind === "collapse" ? `<p class="font-mono text-xs text-slate-400">Input profile inferred from bound features · Group by grain keys: ${display(profileGrainKeys(config, profile))}<br>${escape(fn.name || action.binding.function)}(${display(action.binding.args)})</p>` : ""}
-              ${fn.kind === "escape" ? '<p class="text-xs leading-5 text-violet-300">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</p>' : ""}</div>`;
-          }).join("")}</div></div>` : ""}
-        </div></section>
-      <div class="mt-6"><div class="dataset-table-scroll overflow-x-auto rounded-xl border border-slate-700/60">
+          }))}</div>` : ""}</div>` : ""}
+          <div>${subheading("Produced dataset", "table-2")}<div class="dataset-table-scroll mt-3 overflow-x-auto rounded-xl border border-slate-700/60">
         <table data-dataset-schema="${escape(id)}" class="w-full min-w-max border-collapse text-left font-mono text-xs">
           <caption class="sr-only">Declared column types and units for ${escape(label(id, profile))}; schema only, no sample records.</caption>
           <thead><tr>${columns.map(column => `<th scope="col" class="border-b border-slate-700/50 px-4 py-4 ${colors[column.color]}">${escape(label(column.id, column))}
             <span class="mt-2 block text-[10px] font-normal">${column.role}</span><span class="mt-1 block text-[9px] font-normal text-slate-500">${escape(column.id)}</span></th>`).join("")}</tr></thead>
-          <tbody><tr>${columns.map(column => `<td class="border-b border-slate-800/60 px-4 py-3 text-lime-300">${escape(column.type || "unspecified")}</td>`).join("")}</tr>
+          <tbody><tr>${columns.map(column => `<td class="border-b border-slate-800/60 px-4 py-3 text-lime-300"><span class="inline-flex items-center gap-1.5">${profileSchemaType(column.type)}</span></td>`).join("")}</tr>
             <tr>${columns.map(column => `<td class="px-4 py-3 text-slate-400">${escape(column.unit || "—")}</td>`).join("")}</tr></tbody>
-        </table></div></div></article>`;
+        </table></div></div>
+          ${actions.length ? `<div>${subheading("Actions", "square-function")}${profileActionCards(config, profile, actions)}</div>` : ""}
+        </div></section></article>`;
   }).join("");
 }
 
@@ -322,6 +434,7 @@ export function renderCatalog(data, view) {
     functions: "Browse the function catalog, argument types, return signatures, and source entrypoints.",
     dimensions: "Inspect dimension resolutions, dataframe keys, and their parent relationships.",
     features: "",
+    profiles: "",
   };
   return {
     context: catalogContext(data, view),

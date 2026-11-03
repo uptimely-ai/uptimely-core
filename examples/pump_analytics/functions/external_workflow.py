@@ -43,4 +43,4 @@ def process_pump_external_workflow() -> None:
         (pl.col("measurement") / pl.col("reference_value")).alias("ratio")
     )
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    result.select("plant", "production_line", "pump", "ratio").write_csv(OUTPUT_PATH)
+    result.select("plant_id", "production_line_id", "pump_id", "ratio").write_csv(OUTPUT_PATH)

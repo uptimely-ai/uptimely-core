@@ -12,15 +12,27 @@ const ICONS = {
   home: "house", menu: "menu", "collapse-navigation": "panel-left-close",
   "expand-navigation": "panel-left-open", spec: "book-open", plan: "list-tree",
   execution: "play", overview: "layout-dashboard", features: "sigma",
-  profiles: "boxes", dimensions: "layers-3", functions: "braces",
-  invocations: "braces", "feature-lineage": "network", "invocation-lineage": "workflow",
-  "data-lineage": "database-zap", stages: "list-ordered",
+  profiles: "layers-2", dimensions: "axis-3d", resolutions: "layers-3", functions: "square-function",
+  invocations: "square-function", "feature-lineage": "network", "invocation-lineage": "git-branch",
+  "data-lineage": "monitor-play", stages: "list-ordered",
+};
+
+const TYPE_ICONS = {
+  float: "hash", integer: "hash", numeric: "hash", string: "case-sensitive",
+  datetime: "calendar-clock", date: "calendar", boolean: "toggle-left", object: "braces", array: "brackets",
 };
 
 export function escape(value) {
   return String(value ?? "").replace(/[&<>"']/g, character => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   })[character]);
+}
+
+export function dataTypeIcon(type, className) {
+  const lucideIcon = Object.hasOwn(TYPE_ICONS, type) ? TYPE_ICONS[type] : null;
+  return lucideIcon
+    ? `<i data-lucide="${lucideIcon}" class="${className}" data-type="${escape(type)}" aria-hidden="true"></i>`
+    : "";
 }
 
 export function display(value) {
@@ -102,9 +114,9 @@ export function shell(data, view, context, content) {
   const projectLink = `<a class="site-product" href="${href("home")}" title="${projectName}" aria-label="${projectName}"${view === "home" ? ' aria-current="page"' : ""}>${icon("home")}<span>${projectName}</span></a>`;
   const navigationGroups = [
     ["spec", "Spec", [
-      ["spec", "Overview", "overview"], ["features", "Features", "features"],
-      ["profiles", "Profiles", "profiles"],
-      ["dimensions", "Dimensions", "dimensions"], ["functions", "Functions", "functions"],
+      ["spec", "Overview", "overview"], ["profiles", "Profiles", "profiles"],
+      ["features", "Features", "features"], ["functions", "Functions", "functions"],
+      ["dimensions", "Dimensions", "dimensions"],
       ["lineage", "Lineage", "feature-lineage"],
     ]],
     ["plan", "Plan", [

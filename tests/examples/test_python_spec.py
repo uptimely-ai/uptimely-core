@@ -56,6 +56,9 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
         constants.Constants,
     ]
 
+    assert [
+        profile.category for profile in pump_telemetry_spec.python_spec.to_model().profiles.values()
+    ] == ["Telemetry", "Machines", "Machines", "Configuration"]
     assert [type(profile) for profile in pump_telemetry_spec.python_spec.profiles] == expected
     assert [profile.id for profile in pump_telemetry_spec.python_spec.profiles] == [
         "pump_telemetry",
@@ -115,7 +118,7 @@ def test_example_manifest_parses_complete_spec() -> None:
         ("timestamp", "timestamp"),
     }
     assert spec_definition.grain_keys_by_profile["pump_telemetry"] == [
-        "pump",
+        "pump_id",
         "timestamp",
     ]
     assert isinstance(spec_definition, spec.Spec)

@@ -17,7 +17,7 @@ pytestmark = pytest.mark.usefixtures("example_projects")
     ("inputs", "message"),
     [
         ([], "must reference a source feature"),
-        (["$features.pump"], "must reference a source feature"),
+        (["$features.pump_id"], "must reference a source feature"),
         (["$features.missing"], "unknown input feature"),
         (
             ["$features.bearing_temperature", "$features.health_signal_normalized"],

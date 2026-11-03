@@ -11,7 +11,7 @@ class Constants(Profile):
     id = "constants"
     name = "Project Constants"
     description = "Physical constants used by pump analytics."
-    category = "configuration"
+    category = "Configuration"
     producers = [
         Action(
             id="read_constants",

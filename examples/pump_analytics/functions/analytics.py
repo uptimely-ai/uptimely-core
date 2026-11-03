@@ -60,12 +60,12 @@ def read_pump_telemetry(
     pump_assets = (
         pl.read_json(pump_assets_source)
         .lazy()
-        .select("plant", "production_line", "pump", "rated_flow_rate")
+        .select("plant_id", "production_line_id", "pump_id", "rated_flow_rate")
     )
     data_read = (
         telemetry.join(
             pump_assets,
-            on=["plant", "production_line", "pump"],
+            on=["plant_id", "production_line_id", "pump_id"],
             how="left",
             validate="m:1",
         )
@@ -78,7 +78,7 @@ def read_pump_telemetry(
         .drop("rated_flow_rate")
     )
     if production_line:
-        data_read = data_read.filter(pl.col("production_line") == production_line)
+        data_read = data_read.filter(pl.col("production_line_id") == production_line)
     return data_read
 
 
@@ -198,8 +198,8 @@ def delta(
 
     Examples:
     --------
-    >>> frame = pl.LazyFrame({"pump": ["p1", "p1"], "ts": [1, 2], "temp": [60.0, 61.5]})
-    >>> delta(frame, "temp", ["pump"], "ts", "temp_delta").collect()["temp_delta"].to_list()
+    >>> frame = pl.LazyFrame({"pump_id": ["p1", "p1"], "ts": [1, 2], "temp": [60.0, 61.5]})
+    >>> delta(frame, "temp", ["pump_id"], "ts", "temp_delta").collect()["temp_delta"].to_list()
     [None, 1.5]
     """
     data_vectorized = dataset.with_columns(

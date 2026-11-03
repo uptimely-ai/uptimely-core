@@ -12,7 +12,7 @@ class PumpExternalWorkflow(Profile):
     id = "pump_external_workflow"
     name = "Pump External Workflow"
     description = "Pump-level inputs and outputs for an uncontrolled local workflow."
-    category = "assets"
+    category = "Machines"
     grain = [Grain(dimension.MACHINE, "machine")]
 
     producers = [

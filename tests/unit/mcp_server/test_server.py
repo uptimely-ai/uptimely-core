@@ -263,11 +263,11 @@ async def test_execute_build_runs_the_saved_plan_without_compiling(
     assert telemetry["profile"] == "pump_telemetry"
     assert telemetry["row_count"] == 3
     assert {
-        "pump",
+        "pump_id",
         "timestamp",
         "pump_health_score",
     } <= set(telemetry["columns"])
-    assert {"pump", "pump_health_score"} <= set(telemetry["rows"][0])
+    assert {"pump_id", "pump_health_score"} <= set(telemetry["rows"][0])
     assert (await _call(state, "reload_build"))["features"] is None
 
 

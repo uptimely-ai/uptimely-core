@@ -12,7 +12,7 @@ class Pump(Profile):
     id = "pump_profile"
     name = "Pump Summary"
     description = "One row per pump with collapsed condition information."
-    category = "assets"
+    category = "Machines"
     grain = [Grain(dimension.MACHINE, "machine")]
     scope = "Telemetry available to the source profile"
 

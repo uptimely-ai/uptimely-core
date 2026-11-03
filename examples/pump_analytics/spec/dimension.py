@@ -6,9 +6,9 @@ MACHINE = Dimension(
     id="machine",
     description="Centrifugal machine and its parent production groupings",
     resolutions=[
-        Resolution(id="machine", key="pump", type="string", parent="production_line"),
-        Resolution(id="production_line", key="production_line", type="string", parent="plant"),
-        Resolution(id="plant", key="plant", type="string"),
+        Resolution(id="machine", key="pump_id", type="string", parent="production_line"),
+        Resolution(id="production_line", key="production_line_id", type="string", parent="plant"),
+        Resolution(id="plant", key="plant_id", type="string"),
     ],
 )
 

@@ -1,9 +1,5 @@
-import { contextHeader, contextToggle, escape, kindIcon } from "../rendering/shared_markup.js";
+import { contextHeader, contextToggle, dataTypeIcon, escape, kindIcon } from "../rendering/shared_markup.js";
 
-const TYPE_ICONS = {
-  float: "hash", integer: "hash", numeric: "hash", string: "case-sensitive",
-  datetime: "calendar-clock", date: "calendar", boolean: "toggle-left", object: "braces", array: "brackets",
-};
 const PLACEHOLDERS = {
   float: ["1.23", "4.56", "7.89"], numeric: ["1.23", "4.56", "7.89"], integer: ["12", "45", "78"],
   object: ["{}"], array: ["[]"], list: ["[]"],
@@ -28,8 +24,8 @@ export function sampleTable(columns, keys, label, side, rowCount, aggregate, pro
   return `<div class="data-lineage-table-scroll" tabindex="0" role="region" aria-label="${escape(label ? `${label}: ${profile}` : `${profile} main`)} illustrative table">
     <table class="data-lineage-table" data-side="${side}"><thead><tr>${all.map(column =>
       `<th scope="col" ${attributes(column)} title="${escape(`${column.label || column.name} (${column.name}, ${column.type})`)}">
-        <span class="data-lineage-cell">${TYPE_ICONS[column.type] ? `<i data-lucide="${TYPE_ICONS[column.type]}" class="data-lineage-type-icon" data-type="${escape(column.type)}" aria-hidden="true"></i>` : ""}
-        ${escape(column.label || column.name)}${TYPE_ICONS[column.type] ? `<span class="sr-only"> (${escape(column.type)})</span>` : `<small>${escape(column.type)}</small>`}</span></th>`).join("")}</tr></thead>
+        <span class="data-lineage-cell">${dataTypeIcon(column.type, "data-lineage-type-icon")}
+        ${escape(column.label || column.name)}${dataTypeIcon(column.type, "data-lineage-type-icon") ? `<span class="sr-only"> (${escape(column.type)})</span>` : `<small>${escape(column.type)}</small>`}</span></th>`).join("")}</tr></thead>
       <tbody>${Array.from({ length: rowCount }, (_, row) => `<tr>${all.map(column =>
         `<td ${attributes(column)}><span class="data-lineage-cell">${escape(placeholder(column, column.role === "Dimension" && aggregate && joins.includes(column.name) ? 0 : row, side))}</span></td>`).join("")}</tr>`).join("")}</tbody>
     </table></div>`;

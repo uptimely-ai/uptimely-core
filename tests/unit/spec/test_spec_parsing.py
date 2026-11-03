@@ -454,7 +454,7 @@ def test_dimension_outputs_are_implicit_in_mapping(
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["profiles"]["pump_telemetry"]["actions"]["read_pump_telemetry"]["features"][
         "outputs"
-    ].remove("$features.pump")
+    ].remove("$features.pump_id")
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -486,14 +486,14 @@ def test_spec_validation_rejects_feature_dimension_name_collision(
     collision = json.loads(json.dumps(profile["actions"]["converged"]))
     profile["actions"]["pump_collision"] = {
         **collision,
-        "features": {"inputs": [], "outputs": ["$features.pump"]},
+        "features": {"inputs": [], "outputs": ["$features.pump_id"]},
     }
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
     with pytest.raises(
         ValueError,
-        match="Calculated feature names cannot duplicate profile grain keys: pump",
+        match="Calculated feature names cannot duplicate profile grain keys: pump_id",
     ):
         spec.load_spec(spec_path)
 
