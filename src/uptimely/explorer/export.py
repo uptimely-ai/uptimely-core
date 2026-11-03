@@ -6,10 +6,39 @@ import zipfile
 
 from uptimely import project_paths
 from uptimely.explorer import presentation
+from uptimely.run import store as run_store
 
 _BUILD_INSTRUCTION = "Run 'uptimely project build' to generate a valid Explorer snapshot."
 _STATIC_CONFIG_FILE = pathlib.Path("config.js")
 _EXPORTED_DATA_FILE = pathlib.Path("data") / "explorer.json"
+_EXPORTED_RUN_FILE = pathlib.Path("data") / "run.json"
+_LOG_PAGE_SIZE = 1000
+
+
+def _read_run_snapshot(project_root: pathlib.Path) -> bytes:
+    """Validate and combine the latest run for API-free static hosting."""
+    runs = run_store.RunStore(project_root)
+    try:
+        manifest = runs.read_manifest()
+    except run_store.RunNotFoundError:
+        return b'{"run": null, "logs": [], "previews": {}}\n'
+
+    previews = {
+        profile_id: runs.read_preview(profile_id, run_id=manifest.run_id).model_dump(mode="json")
+        for profile_id in manifest.profiles
+    }
+    logs = []
+    while True:
+        entries = runs.read_logs(run_id=manifest.run_id, offset=len(logs), limit=_LOG_PAGE_SIZE)
+        logs.extend(entry.model_dump(mode="json") for entry in entries)
+        if len(entries) < _LOG_PAGE_SIZE:
+            break
+    if runs.read_manifest().run_id != manifest.run_id:
+        raise run_store.RunChangedError("The latest run changed. Export the Explorer again.")
+    return json.dumps(
+        {"run": manifest.model_dump(mode="json"), "logs": logs, "previews": previews},
+        allow_nan=False,
+    ).encode("utf-8")
 
 
 def _read_snapshot(project_root: pathlib.Path) -> bytes:
@@ -34,7 +63,7 @@ def _static_config() -> str:
     """Return a static-host data configuration with a relative URL."""
     return (
         "window.UTIMELY_EXPLORER_CONFIG = Object.freeze("
-        + json.dumps({"dataUrl": "./data/explorer.json"})
+        + json.dumps({"dataUrl": "./data/explorer.json", "runDataUrl": "./data/run.json"})
         + ");\n"
     )
 
@@ -51,6 +80,7 @@ def _write_directory_export(
     static_root: pathlib.Path,
     output: pathlib.Path,
     snapshot: bytes,
+    run_snapshot: bytes,
 ) -> None:
     """Write frontend assets and the snapshot to an export directory."""
     output.mkdir(parents=True, exist_ok=True)
@@ -63,6 +93,7 @@ def _write_directory_export(
     data_target = output / _EXPORTED_DATA_FILE
     data_target.parent.mkdir(parents=True, exist_ok=True)
     data_target.write_bytes(snapshot)
+    (output / _EXPORTED_RUN_FILE).write_bytes(run_snapshot)
 
 
 def _write_zip_export(
@@ -70,6 +101,7 @@ def _write_zip_export(
     static_root: pathlib.Path,
     output: pathlib.Path,
     snapshot: bytes,
+    run_snapshot: bytes,
 ) -> None:
     """Write frontend assets and the snapshot to a ZIP archive."""
     if output.exists() and output.is_dir():
@@ -83,13 +115,14 @@ def _write_zip_export(
                 _static_asset_content(source, relative),
             )
         archive.writestr(_EXPORTED_DATA_FILE.as_posix(), snapshot)
+        archive.writestr(_EXPORTED_RUN_FILE.as_posix(), run_snapshot)
 
 
 def export_static(
     project_root: str | pathlib.Path,
     output_path: str | pathlib.Path,
 ) -> pathlib.Path:
-    """Export the static frontend and current snapshot to a directory or ZIP.
+    """Export the frontend, project snapshot, and latest run to a directory or ZIP.
 
     A ``.zip`` output path creates an archive. Any other output path is treated
     as a directory; existing files with matching names are replaced.
@@ -104,7 +137,7 @@ def export_static(
     Raises:
         NotADirectoryError: The project root is not a directory.
         FileNotFoundError: The snapshot or packaged frontend is missing.
-        ValueError: The snapshot is invalid or output overlaps packaged assets.
+        ValueError: A snapshot is invalid, the run changes, or output overlaps packaged assets.
         OSError: Reading or writing an export artifact fails.
     """
     root = pathlib.Path(project_root).resolve()
@@ -118,9 +151,10 @@ def export_static(
         raise ValueError("Explorer export destination cannot be inside packaged frontend assets")
 
     snapshot = _read_snapshot(root)
+    run_snapshot = _read_run_snapshot(root)
     files = sorted(path for path in static_root.rglob("*") if path.is_file())
     if output.suffix.lower() == ".zip":
-        _write_zip_export(files, static_root, output, snapshot)
+        _write_zip_export(files, static_root, output, snapshot, run_snapshot)
     else:
-        _write_directory_export(files, static_root, output, snapshot)
+        _write_directory_export(files, static_root, output, snapshot, run_snapshot)
     return output

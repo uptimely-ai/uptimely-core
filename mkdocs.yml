@@ -58,7 +58,7 @@ validation:
 nav:
   - Home: index.md
   - Getting started:
-      - "Demo: Pump Analytics": examples/pump_analytics/index.html
+      - "Pump analytics explorer": examples/pump_analytics/index.html
       - The problem: overview/problem.md
       - Architecture: overview/architecture.md
       - Spec infographic: overview/spec.md

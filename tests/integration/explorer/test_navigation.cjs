@@ -21,6 +21,46 @@ test("boots from configurable live or nested-export data URLs without changing t
   }
 });
 
+test("nested static exports navigate run pages without contacting live APIs", async () => {
+  const { Explorer } = await moduleAt("application/explorer_application.js");
+  const data = sampleData();
+  const app = new BrowserHarness({ data, dataUrl: "./data/explorer.json" });
+  const snapshot = {
+    run: {
+      run_id: "static-demo", status: "succeeded", duration_seconds: 0.1,
+      build: { fingerprint: "demo", manifest: { features: null } },
+      profiles: { readings: {} },
+    },
+    logs: [{ level: "debug", logger: "demo", message: "Saved debug event", timestamp: "" }],
+    previews: {
+      readings: {
+        status: "succeeded", columns: [{ name: "value", dtype: "Int64" }], rows: [[42]],
+      },
+    },
+  };
+  app.browser.UTIMELY_EXPLORER_CONFIG.runDataUrl = "./data/run.json";
+  app.browser.document.querySelectorAll = () => [];
+  app.browser.fetch = async (url, options) => {
+    assert.ok(["./data/explorer.json", "./data/run.json"].includes(url), url);
+    app.fetched.push([url, options.cache]);
+    return { ok: true, json: async () => url === "./data/run.json" ? snapshot : data };
+  };
+  app.explorer = new Explorer(app.browser, app.initializers);
+  await app.explorer.start();
+
+  for (const [view, expected] of [
+    ["info", /static-demo/], ["logs", /Saved debug event/], ["preview", />42<\/td>/],
+  ]) {
+    assert.equal(await app.click(`?view=${view}`), true);
+    assert.equal(app.explorer.views.activeView, view);
+    assert.match(app.body.innerHTML, expected);
+  }
+  assert.deepEqual(app.fetched, [
+    ["./data/explorer.json", "no-store"], ...Array(3).fill(["./data/run.json", "no-store"]),
+  ]);
+  assert.deepEqual(app.errors, []);
+});
+
 test("preserves migrated hash bookmarks and reports missing, incompatible or unknown data explicitly", async () => {
   const legacy = await boot({ hash: "#feature-lineage" });
   assert.equal(legacy.location.href, "https://example.test/docs/explorer/?view=lineage");

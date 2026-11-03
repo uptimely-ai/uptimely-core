@@ -51,11 +51,13 @@ outputs and their dependencies.
 
 ## `explorer export`
 
-Export the packaged HTML, CSS, JavaScript, and current Explorer snapshot for
+Export the packaged HTML, CSS, JavaScript, current Explorer snapshot, and latest run for
 ordinary static HTTP hosting. The output can be a directory or a ZIP file;
 `.zip` selects archive output. The generated `config.js` uses a relative URL
 for `data/explorer.json`, so the export can live beneath a documentation
-site's path prefix.
+site's path prefix. Run information, logs, and profile previews are saved in
+`data/run.json` and loaded through a relative URL, without live API endpoints.
+Exports made before the first run show an explicit "No saved run" state.
 
 ```console
 uptimely explorer export [PROJECT_ROOT] --output PATH
@@ -76,6 +78,12 @@ Example:
 
 ```console
 uptimely project build examples/pump_analytics
+uptimely run examples/pump_analytics --preview 10 --log-level debug
 uptimely explorer export examples/pump_analytics --output docs/examples/pump_analytics
 uptimely explorer export examples/pump_analytics --output pump-analytics-explorer.zip
 ```
+
+Export includes the complete saved log and bounded previews. These artifacts may
+contain sensitive data; review them before publishing. Re-export after running
+the project again to update the hosted results. Invalid or incomplete saved run
+artifacts cause export to fail rather than silently omit results.
