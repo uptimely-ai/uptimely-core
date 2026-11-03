@@ -8,14 +8,16 @@ under `uptimely.spec.python`; the reference sections below follow those modules.
 For a runnable example, see the
 [analytics project structure](../project-layout/project-structure.md).
 
-## Declarative datasets
+## Declarative profiles
 
 ```python
 import polars as pl
 import uptimely as up
 
-pump_dimension = up.Dimension(id="pump", type="string")
-assets = up.Entity(id="assets", name="Assets", dimensions=[pump_dimension])
+machine = up.Dimension(
+    id="machine",
+    resolutions=[up.Resolution(id="machine", key="machine", type="string")],
+)
 
 
 @up.function(kind="collapse")
@@ -24,11 +26,11 @@ def maximum(
 ) -> pl.LazyFrame: ...
 
 
-class Pump(up.Dataset):
+class Pump(up.Profile):
     id = "pump_summary"
     name = "Pump Summary"
     description = "Maximum bearing temperature per pump."
-    entity = assets
+    grain = [up.Grain(machine, "machine")]
 
     producers = [
         up.Action(
@@ -37,7 +39,7 @@ class Pump(up.Dataset):
             arguments=dict(
                 dataset=up.ref.dataframe("telemetry"),
                 feature=up.ref.column("bearing_temperature"),
-                dimensions=["pump"],
+                dimensions=up.ref.current_profile().grain.ids,
                 output=up.ref.output("bearing_temperature_max"),
             ),
             outputs=[
@@ -59,24 +61,21 @@ by humanizing the ID (for example, `bearing_temperature_max` becomes
 
 ```python
 python_spec = up.Spec(
-    dimensions=[pump_dimension],
-    entities=[assets],
-    datasets=[Pump],
+    profiles=[Pump],
     name="Pump analytics",
 )
 ```
 
-Root-level `Spec`, `Dataset`, `Action`, `Dimension`, `Entity`, and `Feature` are Python
-authoring classes. Document-model classes remain under `uptimely.spec.model`
-and the existing `uptimely.spec` exports. In particular, root-level `Spec`,
-`Dimension`, and `Entity` now refer to authoring declarations rather than document
-models. The authoring class is defined as `uptimely.spec.python.spec.Spec` and
-exported as `up.Spec` and `uptimely.spec.python.Spec`. The former `PythonSpec`
-name is removed.
+Root-level `Spec`, `Profile`, `Action`, `Dimension`, `Resolution`, `Grain`, and
+`Feature` are Python authoring classes. Document-model classes remain under
+`uptimely.spec.model` and the existing `uptimely.spec` exports. The authoring
+`Spec` is defined as `uptimely.spec.python.spec.Spec` and exported as `up.Spec`
+and `uptimely.spec.python.Spec`.
 
-Dimensions have stable `id` values used in entity grain and feature references.
-Their optional `name` is a human-readable display label, generated from the ID
-when omitted (for example, `production_line` becomes `Production Line`).
+Dimensions have stable IDs and declare one or more keyed resolutions. A profile's
+`grain` selects one resolution per dimension; the selected resolution's key is
+the dataframe column used by that profile. Optional dimension names are
+human-readable labels generated from IDs when omitted.
 
 `up.Spec` requires explicit `dimensions`, `entities`, and `datasets` sequences,
 including empty sequences when appropriate. It instantiates dataset classes and
@@ -124,17 +123,18 @@ external = ref.function("third_party.analytics:maximum", kind="collapse")
 ```
 `read` functions take no dataframe arguments. `conform`, `collapse`, and
 `expand` each take only their foreign/source dataframe; the engine supplies and
-reconciles the target dataset separately. `conform` sources and targets have
-the same dimensions, `collapse` sources have a strict superset of the target
-dimensions, and `expand` sources have a strict subset.
+reconciles the target profile separately. `conform` sources and targets have
+the same grain. `collapse` moves to a coarser grain, and `expand` moves to a
+finer grain; parent links between resolutions describe valid coarsening and
+refinement.
 Declare dimensional matching keys explicitly with
-`ref.current_dataset().dimensions.ids` (or a dataset-specific
-`.dimensions.ids` selector where appropriate). Grouping and ordering
-references do not implicitly select matching keys. Data-producing functions
-return Polars `DataFrame` or `LazyFrame` fragments; other dataframe types and
-custom adapters are not currently supported. The engine assembles fragments
-for the same dataset by complete keys with a full outer join, preserving
-partial coverage while rejecting duplicate keys and feature collisions. An
+`ref.current_profile().grain.ids` (or a named profile's `.grain.ids` selector).
+Grouping and ordering references do not implicitly select matching keys.
+Data-producing functions return Polars `DataFrame` or `LazyFrame` fragments;
+other dataframe types and custom adapters are not currently supported. The
+engine assembles fragments for the same profile by complete keys with a full
+outer join, preserving partial coverage while rejecting duplicate keys and
+feature collisions. An
 `expand` fragment may omit dimension keys its lower-dimensional source cannot
 supply; the engine left-joins such a fragment onto the accumulated dataset by
 the keys it carries, broadcasting a dimensionless fragment to every
@@ -295,15 +295,15 @@ references to functions and spec objects. It does not construct or load data.
 
 | Helper | Meaning |
 | --- | --- |
-| `up.ref.dataframe()` | Current dataset's dataframe. |
-| `up.ref.dataframe("telemetry")` | Named dataset's dataframe. |
+| `up.ref.dataframe()` | Current profile's dataframe. |
+| `up.ref.dataframe("telemetry")` | Named profile's dataframe. |
 | `up.ref.column("temperature")` | Input feature column; infers a dependency unless `inputs` is explicit. |
 | `up.ref.output("maximum")` | Identifier of a feature in the containing action's `outputs`; no input dependency. |
 
 `ref.output()` does not declare a feature. An undeclared output name raises
 `ValueError`, including references nested in lists, dictionaries, and bindings.
-The existing `ref.current_dataset().dataframe`, `ref.dataset(name).dataframe`,
-`ref.feature(name)`, and `ref.feature(name).id` forms remain supported.
+Use `ref.current_profile().dataframe`, `ref.profile(name).dataframe`,
+`ref.feature(name)`, and `ref.feature(name).id` to create deferred references.
 The general `.id` selector does not require the feature to be an action output.
 
 Function references accept `validate_signature`, defaulting to `True`.

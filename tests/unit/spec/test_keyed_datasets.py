@@ -24,7 +24,7 @@ def test_keyed_profiles_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
                 "name": "First Profile",
                 "description": "First profile",
                 "category": "telemetry",
-                "row_scope": {"grain": "One row per asset"},
+                "row_scope": {"coverage": "One row per machine"},
             },
             "second": {},
         }
@@ -43,7 +43,7 @@ def test_keyed_profiles_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
     assert model.profiles["second"].name == "Second"
     assert payload["profiles"]["first"]["description"] == "First profile"
     assert payload["profiles"]["first"]["category"] == "telemetry"
-    assert payload["profiles"]["first"]["row_scope"]["grain"] == "One row per asset"
+    assert payload["profiles"]["first"]["row_scope"]["coverage"] == "One row per machine"
     assert payload == model.model_dump(exclude_none=False)
     assert payload["spec_version"] == 4
     assert "actions" in payload["profiles"]["first"]

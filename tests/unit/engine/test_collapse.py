@@ -138,11 +138,17 @@ def nested_maximum(
 
 
 def _spec(*, lazy=False, empty=False):
-    group = dimension.Dimension(id="group", type="string")
-    identifier = dimension.Dimension(id="id", type="integer")
+    group = dimension.Dimension(
+        id="group",
+        resolutions=[dimension.Resolution(id="group", key="group", type="string")],
+    )
+    identifier = dimension.Dimension(
+        id="id",
+        resolutions=[dimension.Resolution(id="id", key="id", type="integer")],
+    )
     source = profile.Profile(
         id="observations",
-        dimensions=[group, identifier],
+        grain=[profile.Grain(group, "group"), profile.Grain(identifier, "id")],
         producers=[
             actions.Action(
                 id="read_values",
@@ -156,7 +162,7 @@ def _spec(*, lazy=False, empty=False):
                 inputs=[ref.feature("value")],
                 function=ref.function(double, kind="vectorize"),
                 arguments={
-                    "dataset": ref.current_dataset().dataframe,
+                    "dataset": ref.current_profile().dataframe,
                     "column": ref.feature("value").id,
                     "output": ref.feature("doubled").id,
                 },
@@ -167,7 +173,7 @@ def _spec(*, lazy=False, empty=False):
                 inputs=[ref.feature("value")],
                 function=ref.function(double, kind="vectorize"),
                 arguments={
-                    "dataset": ref.current_dataset().dataframe,
+                    "dataset": ref.current_profile().dataframe,
                     "column": ref.feature("value").id,
                     "output": ref.feature("unneeded").id,
                 },
@@ -177,14 +183,14 @@ def _spec(*, lazy=False, empty=False):
     )
     summary = profile.Profile(
         id="summary",
-        dimensions=[group],
+        grain=[profile.Grain(group, "group")],
         producers=[
             actions.Action(
                 id="group_summary",
                 inputs=[ref.feature("value"), ref.feature("doubled")],
                 function=ref.function(summarize, kind="collapse"),
                 arguments={
-                    "dataset": ref.dataset("observations").dataframe,
+                    "dataset": ref.profile("observations").dataframe,
                     "column": ref.feature("value").id,
                     "calculated": ref.feature("doubled").id,
                 },
@@ -199,21 +205,20 @@ def _spec(*, lazy=False, empty=False):
                 id="global_total",
                 inputs=[ref.feature("maximum")],
                 function=ref.function(total, kind="collapse"),
-                arguments={"dataset": ref.dataset("summary").dataframe},
+                arguments={"dataset": ref.profile("summary").dataframe},
                 outputs=[feature.Feature(id="total")],
             ),
             actions.Action(
                 id="global_maximum",
                 inputs=[ref.feature("maximum")],
                 function=ref.function(maximum, kind="collapse"),
-                arguments={"dataset": ref.dataset("summary").dataframe},
+                arguments={"dataset": ref.profile("summary").dataframe},
                 outputs=[feature.Feature(id="global_max")],
             ),
         ],
     )
     return spec.from_python(
         profiles=[source, summary, global_summary],
-        dimensions=[group, identifier],
     )
 
 
@@ -241,10 +246,13 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(
 def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
-    group = dimension.Dimension(id="group", type="string")
+    group = dimension.Dimension(
+        id="group",
+        resolutions=[dimension.Resolution(id="group", key="group", type="string")],
+    )
     target = profile.Profile(
         id="target",
-        dimensions=[group],
+        grain=[profile.Grain(group, "group")],
         producers=[
             actions.Action(
                 id="read_target",
@@ -258,8 +266,8 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                 inputs=[ref.feature("source_value")],
                 function=ref.function(conform_source, kind="conform"),
                 arguments={
-                    "source": ref.dataset("foreign").dataframe,
-                    "matching_keys": ref.current_dataset().dimensions.ids,
+                    "source": ref.profile("foreign").dataframe,
+                    "matching_keys": ref.current_profile().grain.ids,
                 },
                 outputs=[feature.Feature(id="conformed_value")],
             ),
@@ -267,7 +275,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     )
     foreign = profile.Profile(
         id="foreign",
-        dimensions=[group],
+        grain=[profile.Grain(group, "group")],
         producers=[
             actions.Action(
                 id="read_source",
@@ -278,10 +286,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
             )
         ],
     )
-    spec_definition = spec.from_python(
-        profiles=[target, foreign],
-        dimensions=[group],
-    )
+    spec_definition = spec.from_python(profiles=[target, foreign])
     plan = compiler.Compiler().compile(spec_definition, features=["conformed_value"])
     portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
     conform_invocation = next(
@@ -378,7 +383,7 @@ def test_collapse_consumes_expanded_features(
             )
         },
     )
-    auxiliary.dimensions = [spec_definition.dimensions["group"]]
+    auxiliary.grain = [spec_model.Grain(dimension="group", resolution="group")]
     spec_definition.profiles[auxiliary.id] = auxiliary
     spec_definition.functions.root["read_expansion_input"] = spec_model.FunctionTemplate(
         id="read_expansion_input",
@@ -392,7 +397,7 @@ def test_collapse_consumes_expanded_features(
         binding=spec_model.Binding(
             function="expanded_values",
             args={
-                "dataset": "$datasets.expansion_input.dataframe",
+                "dataset": "$profiles.expansion_input.dataframe",
                 "observation_ids_by_group": {"A": [1, 2], "B": [3, 4]},
             },
         ),
@@ -421,7 +426,7 @@ def test_collapse_consumes_expanded_features(
             binding=spec_model.Binding(
                 function="nested_maximum",
                 args={
-                    "dataset": "$datasets.observations.dataframe",
+                    "dataset": "$profiles.observations.dataframe",
                     "columns": ["$features.value.id", "$features.expanded.id"],
                 },
             ),
@@ -553,12 +558,18 @@ def _broadcast_spec(
     reader: object, expand_function: object, source_dimension_ids: list[str], lazy: bool
 ) -> spec.Spec:
     """Build a two-entity spec expanding a lower-dimensional source feature."""
-    group = dimension.Dimension(id="group", type="string")
-    identifier = dimension.Dimension(id="id", type="integer")
+    group = dimension.Dimension(
+        id="group",
+        resolutions=[dimension.Resolution(id="group", key="group", type="string")],
+    )
+    identifier = dimension.Dimension(
+        id="id",
+        resolutions=[dimension.Resolution(id="id", key="id", type="integer")],
+    )
     dimensions = {"group": group, "id": identifier}
     observations = profile.Profile(
         id="observations",
-        dimensions=[group, identifier],
+        grain=[profile.Grain(group, "group"), profile.Grain(identifier, "id")],
         producers=[
             actions.Action(
                 id="read_values",
@@ -572,7 +583,7 @@ def _broadcast_spec(
                 inputs=[ref.feature("source_value")],
                 function=ref.function(expand_function, kind="expand"),
                 arguments={
-                    "source": ref.dataset("reference_source").dataframe,
+                    "source": ref.profile("reference_source").dataframe,
                     "feature": ref.feature("source_value").id,
                     "output": ref.feature("reference").id,
                 },
@@ -582,7 +593,7 @@ def _broadcast_spec(
     )
     source = profile.Profile(
         id="reference_source",
-        dimensions=[dimensions[name] for name in source_dimension_ids],
+        grain=[profile.Grain(dimensions[name], name) for name in source_dimension_ids],
         producers=[
             actions.Action(
                 id="read_reference",
@@ -593,10 +604,7 @@ def _broadcast_spec(
             )
         ],
     )
-    return spec.from_python(
-        profiles=[observations, source],
-        dimensions=[group, identifier],
-    )
+    return spec.from_python(profiles=[observations, source])
 
 
 @pytest.mark.parametrize("lazy", [False, True])

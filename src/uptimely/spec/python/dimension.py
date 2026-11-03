@@ -1,25 +1,45 @@
-"""Python-friendly dimension declaration."""
+"""Python-friendly dimension and resolution declarations."""
 
 from __future__ import annotations
 
 import dataclasses
+from collections import abc
 
 from uptimely.spec import model as spec_model
 from uptimely.spec.model import common as spec_common
 
 __all__ = [
     "Dimension",
+    "Resolution",
 ]
 
 
 @dataclasses.dataclass(frozen=True)
-class Dimension:
-    """A reusable dataset-grain identifier."""
+class Resolution:
+    """A dataframe key resolution within a dimension."""
 
     id: str
+    key: str
     type: str
-    description: str | None = None
     parent: str | None = None
+
+    def to_model(self) -> spec_model.Resolution:
+        """Convert this resolution declaration to its document model."""
+        return spec_model.Resolution(
+            id=self.id,
+            key=self.key,
+            type=self.type,
+            parent=self.parent,
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class Dimension:
+    """A logical dimension with its available dataframe-key resolutions."""
+
+    id: str
+    resolutions: abc.Sequence[Resolution]
+    description: str | None = None
     name: str | None = None
 
     def __post_init__(self) -> None:
@@ -29,10 +49,18 @@ class Dimension:
 
     def to_model(self) -> spec_model.Dimension:
         """Convert this dimension declaration to its JSON model."""
+        resolutions: dict[str, spec_model.Resolution] = {}
+        for resolution in self.resolutions:
+            if not isinstance(resolution, Resolution):
+                raise TypeError("Dimension resolutions must contain Resolution declarations")
+            if resolution.id in resolutions:
+                raise ValueError(
+                    f"Dimension '{self.id}' has duplicate resolution id '{resolution.id}'"
+                )
+            resolutions[resolution.id] = resolution.to_model()
         return spec_model.Dimension(
             id=self.id,
             name=self.name,
-            type=self.type,
             description=self.description,
-            parent=self.parent,
+            resolutions=resolutions,
         )

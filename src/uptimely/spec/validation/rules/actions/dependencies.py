@@ -18,10 +18,10 @@ def validate_action_cycle(spec: spec_model.Spec) -> None:
         if spec.functions[action.binding.function].kind == functions.WRITE:
             continue
         profile_id = spec.action_profile_keys[key]
-        dimensions = spec.dimensions_by_profile[profile_id]
+        grain_keys = spec.grain_keys_by_profile[profile_id]
         action_key = key
         for feature in action.output_features:
-            if feature not in dimensions and feature not in spec.dimensions:
+            if feature not in grain_keys and feature not in spec.grain_key_ids:
                 producers[feature] = action_key
 
     dependencies: dict[ActionKey, tuple[ActionKey, ...]] = {}

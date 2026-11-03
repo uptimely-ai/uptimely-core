@@ -29,26 +29,28 @@ def validate_profile_ids(spec: spec_model.Spec) -> None:
 
 
 def validate_order_dimension(spec: spec_model.Spec) -> None:
-    """Require each order dimension to be declared by its profile."""
-    logger.debug("    - checking profile order dimensions are declared by each profile")
-    for profile_id, profile in spec.profile_items:
-        for index, (dimension, _) in enumerate(profile.order_dimensions):
-            if dimension not in spec.dimensions_by_profile[profile_id]:
+    """Require each order resolution to be selected by the profile grain."""
+    logger.debug("    - checking profile order resolutions are selected by each profile")
+    for _, profile in spec.profile_items:
+        for index, order in enumerate(profile.order):
+            if (order.dimension, order.resolution) not in profile.grain_reference_set:
                 raise errors.SpecError(
-                    f"Profile {profile.id} order references an undeclared dimension: {dimension}",
-                    code="invalid_order_dimension",
-                    path=("profiles", profile.id, "order", index, "dimension"),
+                    f"Profile {profile.id} order references a resolution not selected "
+                    "by its grain: "
+                    f"{order.dimension}.{order.resolution}",
+                    code="invalid_order_resolution",
+                    path=("profiles", profile.id, "order", index),
                 )
 
 
 def validate_unique_order_dimension(spec: spec_model.Spec) -> None:
-    """Reject a repeated order dimension."""
-    logger.debug("    - checking dataset order dimensions are unique")
+    """Reject repeated profile order resolutions."""
+    logger.debug("    - checking profile order resolutions are unique")
     for profile_id, profile in spec.profile_items:
         for index, (dimension, preceding) in enumerate(profile.order_dimensions):
             if dimension in preceding:
                 raise errors.SpecError(
                     f"Profile {profile.id} order repeats dimension: {dimension}",
-                    code="duplicate_order_dimension",
-                    path=("profiles", profile_id, "order", index, "dimension"),
+                    code="duplicate_order_resolution",
+                    path=("profiles", profile_id, "order", index),
                 )

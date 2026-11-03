@@ -1,9 +1,8 @@
-"""Profile and entity models for spec documents."""
+"""Profile models for spec documents."""
 
 from __future__ import annotations
 
 import functools
-import re
 import typing
 
 import pydantic
@@ -91,7 +90,7 @@ class Action(common.StrictModel):
     def dataset_references(self) -> tuple[str, ...]:
         """Return normalized binding dataset IDs in reference order, retaining duplicates."""
         return tuple(
-            dataset for dataset, _ in self.binding.references_by_prefix[selectors.DATASET_PREFIX]
+            dataset for dataset, _ in self.binding.references_by_prefix[selectors.PROFILE_PREFIX]
         )
 
     @functools.cached_property
@@ -112,17 +111,22 @@ class Action(common.StrictModel):
         return tuple(dimension for dimension, _ in self.dimension_reference_paths)
 
 
-class Order(common.StrictModel):
+class Grain(common.StrictModel):
+    """A selected resolution that contributes keys to a profile's grain."""
+
+    dimension: str
+    resolution: str
+
+
+class Order(Grain):
     """One logical profile ordering key, without a physical row-order guarantee."""
 
-    dimension: str = pydantic.Field(pattern=rf"^{re.escape(selectors.DIMENSION_PREFIX)}.+$")
     direction: typing.Literal["asc", "desc"]
 
 
 class RowScope(common.StrictModel):
-    """The conceptual row subset represented by a profile."""
+    """Descriptive filtering and coverage metadata for a profile."""
 
-    grain: str = ""
     filtering: str = ""
     coverage: str = ""
 
@@ -134,7 +138,7 @@ class Profile(common.StrictModel):
     name: str | None = None
     description: str | None = None
     category: str | None = None
-    dimensions: list[common.Dimension] = pydantic.Field(default_factory=list)
+    grain: list[Grain] = pydantic.Field(default_factory=list)
     row_scope: RowScope = pydantic.Field(default_factory=RowScope)
     features: dict[str, Feature] = pydantic.Field(default_factory=dict)
     actions: dict[str, Action] = pydantic.Field(default_factory=dict)
@@ -142,8 +146,8 @@ class Profile(common.StrictModel):
 
     @functools.cached_property
     def dimension_ids(self) -> list[str]:
-        """Return the identifiers of dimensions declared by this profile."""
-        return [dimension.id for dimension in self.dimensions]
+        """Return dimension identifiers in profile key order."""
+        return [reference.dimension for reference in self.grain]
 
     @functools.cached_property
     def dimension_id_set(self) -> frozenset[str]:
@@ -186,7 +190,7 @@ class Profile(common.StrictModel):
         preceding: set[str] = set()
         items = []
         for key in self.order:
-            dimension_id = key.dimension.removeprefix(selectors.DIMENSION_PREFIX)
+            dimension_id = key.dimension
             items.append((dimension_id, frozenset(preceding)))
             preceding.add(dimension_id)
         return tuple(items)
@@ -199,7 +203,7 @@ class Profile(common.StrictModel):
             for dimension_id, _ in self.order_dimensions
         )
 
-    @pydantic.field_serializer("dimensions")
-    def serialize_dimensions(self, dimensions: list[common.Dimension]) -> list[str]:
-        """Serialize profile dimensions as references in the spec document."""
-        return [dimension.id for dimension in dimensions]
+    @functools.cached_property
+    def grain_reference_set(self) -> frozenset[tuple[str, str]]:
+        """Return selected dimension-resolution identities."""
+        return frozenset((item.dimension, item.resolution) for item in self.grain)

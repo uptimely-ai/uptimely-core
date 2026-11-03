@@ -93,7 +93,7 @@ def test_traversal_retains_duplicate_declarations_and_feature_owners() -> None:
     locations = model.profile_items
     assert sum(item.id.startswith("pump_dataset") for _, item in locations) == 2
     feature_id = next(
-        feature_id for feature_id in pump_dataset.features if feature_id not in model.dimensions
+        feature_id for feature_id in pump_dataset.features if feature_id not in model.grain_key_ids
     )
     assert len(model.feature_owners[feature_id]) == 2
 
@@ -102,7 +102,11 @@ def test_location_indexes_describe_original_objects() -> None:
     model = spec_model.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     profile_id = next(iter(model.profiles))
     profile = model.profiles[profile_id]
-    profile.dimensions.append(spec_model.Dimension(id="new_dimension", type="integer"))
+    profile.grain.append(spec_model.Grain(dimension="new_dimension", resolution="default"))
+    model.dimensions["new_dimension"] = spec_model.Dimension(
+        id="new_dimension",
+        resolutions={"default": spec_model.Resolution(id="default", key="new_key", type="integer")},
+    )
     item = next(iter(profile.actions.values()))
     item.features.inputs = ["$features.new_input"]
     item.features.outputs = ["$features.new_output"]
@@ -133,7 +137,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         "binding": {
             "function": "expand_telemetry",
             "args": {
-                "source": "$datasets.pump_dataset.dataframe",
+                "source": "$profiles.pump_dataset.dataframe",
             },
         },
         "features": {
@@ -330,7 +334,7 @@ def test_expand_rejects_higher_dimensional_source(tmp_path: pathlib.Path) -> Non
         "binding": {
             "function": "expand_telemetry",
             "args": {
-                "source": "$datasets.pump_telemetry_dataset.dataframe",
+                "source": "$profiles.pump_telemetry_dataset.dataframe",
             },
         },
         "features": {
@@ -361,7 +365,7 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
         "binding": {
             "function": "conform_telemetry",
             "args": {
-                "source": "$datasets.pump_telemetry_dataset.dataframe",
+                "source": "$profiles.pump_telemetry_dataset.dataframe",
             },
         },
         "features": {
@@ -390,14 +394,14 @@ def _matching_key_configuration(key_selector: object, *, key_type: str = "array[
     }
     target = configuration["profiles"]
     target["conformed_dataset"] = {
-        "dimensions": target["pump_dataset"]["dimensions"],
+        "grain": target["pump_dataset"]["grain"],
         "features": {"conformed_value": {"type": "float"}},
         "actions": {
             "conform_values": {
                 "binding": {
                     "function": "conform_with_keys",
                     "args": {
-                        "source": "$datasets.pump_dataset.dataframe",
+                        "source": "$profiles.pump_dataset.dataframe",
                         "on": key_selector,
                     },
                 },
@@ -410,7 +414,10 @@ def _matching_key_configuration(key_selector: object, *, key_type: str = "array[
     }
     configuration["profiles"]["other_keys"] = {
         "name": "Other keys",
-        "dimensions": ["plant", "timestamp"],
+        "grain": [
+            {"dimension": "machine", "resolution": "plant"},
+            {"dimension": "timestamp", "resolution": "timestamp"},
+        ],
     }
     return configuration
 
@@ -418,9 +425,8 @@ def _matching_key_configuration(key_selector: object, *, key_type: str = "array[
 @pytest.mark.parametrize(
     "key_selector",
     [
-        "$datasets.@.dimensions.ids",
-        "$datasets.pump_dataset.dimensions.ids",
-        ["$dimensions.plant.id", "$dimensions.pump.id"],
+        "$profiles.@.grain.ids",
+        "$profiles.pump_dataset.grain.ids",
     ],
 )
 def test_matching_key_selectors_validate_on_target_and_source(
@@ -433,7 +439,7 @@ def test_matching_key_selectors_validate_on_target_and_source(
     assert action_contracts.validate_matching_keys(spec_definition) is None
 
 
-def test_grouping_dimension_references_are_not_matching_key_declarations() -> None:
+def test_grain_key_selector_is_a_matching_key_declaration() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     key, action = next(
         (key, action)
@@ -441,12 +447,8 @@ def test_grouping_dimension_references_are_not_matching_key_declarations() -> No
         if key[1] == "bearing_temperature_by_pump"
     )
 
-    assert [dimension for dimension, _ in action.binding.references_by_prefix["$dimensions."]] == [
-        "plant",
-        "production_line",
-        "pump",
-    ]
-    assert spec_definition.matching_key_dimensions[key] == ()
+    assert action.binding.args["dimensions"] == "$profiles.@.grain.ids"
+    assert [grain_key for grain_key, _ in spec_definition.matching_profile_keys[key]] == ["pump"]
     assert action_contracts.validate_matching_keys(spec_definition) is None
 
 
@@ -454,9 +456,9 @@ def test_grouping_dimension_references_are_not_matching_key_declarations() -> No
     ("key_selector", "expected_code", "expected_dimension", "expected_index"),
     [
         (
-            "$datasets.other_keys.dimensions.ids",
+            "$profiles.other_keys.grain.ids",
             "invalid_mapping_matching_key",
-            "timestamp",
+            "plant",
             None,
         ),
         (["$dimensions.missing.id"], "unknown_dimension_reference", "missing", 0),
@@ -490,7 +492,7 @@ def test_matching_key_errors_point_to_the_declared_key(
 
 def test_escape_accepts_explicit_dataframe_arguments(tmp_path: pathlib.Path) -> None:
     configuration = _matching_key_configuration(
-        "$datasets.pump_dataset.dataframe", key_type="dataframe"
+        "$profiles.pump_dataset.dataframe", key_type="dataframe"
     )
     function = configuration["functions"]["conform_with_keys"]
     function["kind"] = "escape"
@@ -516,7 +518,7 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
     target["actions"]["conform_op"] = {
         "binding": {
             "function": "conform_telemetry",
-            "args": {"source": "$datasets.@.dataframe"},
+            "args": {"source": "$profiles.@.dataframe"},
         },
         "features": {
             "inputs": ["$features.bearing_temperature"],
@@ -534,7 +536,7 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
 def test_action_rejects_explicit_source(tmp_path: pathlib.Path, action_id: str) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["profiles"]["pump_dataset"]["actions"][action_id]["source"] = (
-        "$datasets.pump_telemetry_dataset"
+        "$profiles.pump_telemetry_dataset"
     )
     invalid_operation_path = tmp_path / "invalid_aggregation_operation.json"
     invalid_operation_path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -552,7 +554,7 @@ def test_action_rejects_explicit_source(tmp_path: pathlib.Path, action_id: str) 
             "features",
             {
                 "inputs": ["$features.bearing_temperature"],
-                "outputs": ["$features.plant", "$features.production_line", "$features.pump"],
+                "outputs": ["$features.pump"],
             },
             "must produce a non-dimension feature",
         ),
@@ -577,7 +579,7 @@ def test_collapse_validates_source_grouping_and_output_contract(
         ([], "must reference a source feature"),
         (["$features.local_source"], "target dataset"),
         (["$features.missing"], "unknown input feature"),
-        (["$datasets.pump_telemetry_dataset"], "Action features must use"),
+        (["$profiles.pump_telemetry_dataset"], "Action features must use"),
     ],
 )
 def test_collapse_validates_explicit_inputs(
@@ -595,10 +597,14 @@ def test_collapse_validates_explicit_inputs(
 
 def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_telemetry_dataset"]["dimensions"].remove("pump")
+    configuration["profiles"]["pump_telemetry_dataset"]["grain"] = [
+        item
+        for item in configuration["profiles"]["pump_telemetry_dataset"]["grain"]
+        if item["dimension"] != "machine"
+    ]
     path = tmp_path / "invalid_dimensions.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    with pytest.raises(ValueError, match="grouping dimensions must exist in source"):
+    with pytest.raises(ValueError, match="grouping keys must exist in source"):
         spec.load_spec(path)
 
 

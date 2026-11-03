@@ -30,7 +30,7 @@ def test_graph_metadata_follows_function_capabilities(
             continue
         checked.add(kind)
         for name in action.output_features:
-            if name in graph.spec.dimensions:
+            if name in graph.spec.grain_key_ids:
                 continue
             assert changed[name].is_source_input is not original[name].is_source_input
     assert checked == {"read", "collapse"}

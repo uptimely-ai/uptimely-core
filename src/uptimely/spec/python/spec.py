@@ -10,7 +10,7 @@ from collections import abc
 from uptimely.spec import catalog as function_catalog
 from uptimely.spec import model as spec_model
 
-from . import conversion, dimension
+from . import conversion
 from . import profile as profile_module
 
 __all__ = [
@@ -20,11 +20,10 @@ __all__ = [
 
 @dataclasses.dataclass(frozen=True)
 class Spec:
-    """Build a spec from explicitly registered dimensions and profiles.
+    """Build a spec by inferring dimensions from profile grain declarations.
 
     Args:
         profiles: Profile classes or declarations with globally unique IDs.
-        dimensions: Shared dimensions referenced by profile declarations.
         name: Optional spec display name.
     """
 
@@ -32,33 +31,14 @@ class Spec:
     _profile_sources: abc.Sequence[type[profile_module.Profile] | profile_module.Profile] = (
         dataclasses.field(init=False, repr=False)
     )
-    _dimension_sources: abc.Sequence[dimension.Dimension] = dataclasses.field(
-        init=False, repr=False
-    )
 
     def __init__(
         self,
         profiles: abc.Sequence[type[profile_module.Profile] | profile_module.Profile],
-        dimensions: abc.Sequence[dimension.Dimension] = (),
         name: str | None = None,
     ) -> None:
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "_profile_sources", profiles)
-        object.__setattr__(self, "_dimension_sources", dimensions)
-
-    @functools.cached_property
-    def dimensions(self) -> list[dimension.Dimension]:
-        """Return explicitly registered dimensions, rejecting duplicate IDs."""
-        if not isinstance(self._dimension_sources, abc.Sequence):
-            raise TypeError("dimensions must be a sequence of Dimension declarations")
-        registered: dict[str, dimension.Dimension] = {}
-        for item in self._dimension_sources:
-            if not isinstance(item, dimension.Dimension):
-                raise TypeError("dimensions must contain Dimension declarations")
-            if item.id in registered:
-                raise ValueError(f"Duplicate dimension id {item.id}")
-            registered[item.id] = item
-        return list(registered.values())
 
     @functools.cached_property
     def profiles(self) -> tuple[profile_module.Profile, ...]:
@@ -93,7 +73,6 @@ class Spec:
             profiles=self.profiles,
             functions=self.function_catalog(),
             name=self.name,
-            dimensions=self.dimensions,
         )
 
     def to_dict(self) -> dict[str, typing.Any]:
@@ -102,5 +81,4 @@ class Spec:
             profiles=self.profiles,
             functions=self.function_catalog(),
             name=self.name,
-            dimensions=self.dimensions,
         )

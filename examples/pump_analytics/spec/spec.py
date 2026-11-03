@@ -2,14 +2,12 @@
 
 from uptimely import Spec
 
-from . import dimension
 from .datasets.constants import Constants
 from .datasets.external_workflow import PumpExternalWorkflow
 from .datasets.pump import Pump
 from .datasets.telemetry import Telemetry
 
 python_spec = Spec(
-    dimensions=[dimension.PLANT, dimension.PRODUCTION_LINE, dimension.PUMP, dimension.TIMESTAMP],
     profiles=[Telemetry, Pump, PumpExternalWorkflow, Constants],
     name="Pump analytics",
 )

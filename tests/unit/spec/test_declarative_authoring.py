@@ -166,11 +166,10 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
     assert message in str(error.value)
 
 
-@pytest.mark.parametrize("identifier", ["result", "asset"])
+@pytest.mark.parametrize("identifier", ["result", "machine"])
 def test_duplicate_producers_are_rejected(identifier: str) -> None:
     class Example(authoring.Profile):
         id = "example"
-        keys = (dimension.Dimension(id="asset", type="string"),)
         producers = [
             authoring.Action(
                 id="first",
@@ -233,12 +232,16 @@ def test_dataset_requires_identifier() -> None:
         authoring.Profile().to_model()
 
 
-def test_profile_dimensions_supply_dimension_metadata() -> None:
-    identifier = dimension.Dimension(id="asset", type="string", description="Asset key")
+def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
+    identifier = dimension.Dimension(
+        id="machine",
+        description="Machine key",
+        resolutions=[dimension.Resolution(id="machine", key="machine_id", type="string")],
+    )
 
     class Example(authoring.Profile):
         id = "example"
-        dimensions = [identifier]
+        grain = [authoring.Grain(identifier, "machine")]
         producers = [
             authoring.Action(
                 id="values",
@@ -248,11 +251,11 @@ def test_profile_dimensions_supply_dimension_metadata() -> None:
             )
         ]
 
-    model = Example().to_model(dimensions=[identifier])
+    model = Example().to_model()
 
-    assert model.features["asset"].type == "string"
-    assert model.features["asset"].description == "Asset key"
-    assert model.actions["values"].output_features == ["asset", "value"]
+    assert model.features["machine_id"].type == "string"
+    assert model.features["machine_id"].description == "Machine key"
+    assert model.actions["values"].output_features == ["machine_id", "value"]
 
 
 def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
@@ -267,7 +270,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
                     ref.feature("first"),
                 ],
                 "output": ref.feature("result").id,
-                "key": ref.dimension("asset").id,
+                "key": ref.current_profile().grain.ids,
             }
         },
         outputs=[authoring.Feature(id="result", type="float")],
@@ -279,7 +282,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
     assert model.binding.args["configuration"] == {
         "columns": ["$features.first", "$features.second", "$features.first"],
         "output": "$features.result.id",
-        "key": "$dimensions.asset.id",
+        "key": "$profiles.@.grain.ids",
     }
 
 
@@ -302,17 +305,21 @@ def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -
     assert set(declaration.function_catalog()) == {"custom"}
 
 
-def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> None:
-    identifier = dimension.Dimension(id="asset", type="string")
+def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None:
+    identifier = dimension.Dimension(
+        id="machine",
+        resolutions=[dimension.Resolution(id="machine", key="machine_id", type="string")],
+    )
     declaration = authoring.Profile(
         id="example",
+        grain=[authoring.Grain(identifier, "machine")],
         producers=[
             authoring.Action(
                 id="read",
                 function=ref.function("reader:read", kind="read"),
                 arguments={
-                    "keys": ref.current_dataset().dimensions.ids,
-                    "source_keys": ref.dataset("source").dimensions.ids,
+                    "keys": ref.current_profile().grain.ids,
+                    "source_keys": ref.profile("source").grain.ids,
                 },
                 outputs=[authoring.Feature(id="value", type="float")],
             )
@@ -321,16 +328,15 @@ def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> 
 
     model = declaration.to_model()
     catalog = declaration.function_catalog()
-    assert model.actions["read"].binding.args["keys"] == "$datasets.@.dimensions.ids"
-    assert model.actions["read"].binding.args["source_keys"] == "$datasets.source.dimensions.ids"
+    assert model.actions["read"].binding.args["keys"] == "$profiles.@.grain.ids"
+    assert model.actions["read"].binding.args["source_keys"] == "$profiles.source.grain.ids"
     assert catalog["read"].args["keys"].type == "array[string]"
     assert catalog["read"].args["source_keys"].type == "array[string]"
 
-    declaration.dimensions = [identifier]
-    payload = conversion.to_dict(profiles=[declaration], dimensions=[identifier])
+    payload = conversion.to_dict(profiles=[declaration])
     assert (
         payload["profiles"]["example"]["actions"]["read"]["binding"]["args"]["keys"]
-        == "$datasets.@.dimensions.ids"
+        == "$profiles.@.grain.ids"
     )
     assert payload["functions"]["read"]["args"]["keys"]["type"] == "array[string]"
 

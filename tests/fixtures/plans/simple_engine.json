@@ -2,10 +2,23 @@
   "plan_version": 4,
   "required_backend": "polars",
   "resources": {
+    "dimensions": {
+      "asset_id": {
+        "resolutions": {
+          "asset_id": {
+            "key": "asset_id",
+            "type": "string"
+          }
+        }
+      }
+    },
     "profiles": {
       "telemetry": {
-        "dimensions": [
-          "asset_id"
+        "grain": [
+          {
+            "dimension": "asset_id",
+            "resolution": "asset_id"
+          }
         ]
       }
     },

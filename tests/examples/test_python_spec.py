@@ -36,16 +36,16 @@ def test_aggregate_executes_independently() -> None:
 
 
 def test_pump_dimensions_are_declared_in_spec_order() -> None:
-    expected = [
-        pump_dimensions.PLANT,
-        pump_dimensions.PRODUCTION_LINE,
-        pump_dimensions.PUMP,
-        pump_dimensions.TIMESTAMP,
-    ]
+    inferred = pump_telemetry_spec.python_spec.to_model().dimensions
 
-    assert pump_telemetry_spec.python_spec.dimensions == expected
-    assert pump_dimensions.PRODUCTION_LINE.parent == pump_dimensions.PLANT.id
-    assert pump_dimensions.PUMP.parent == pump_dimensions.PRODUCTION_LINE.id
+    assert list(inferred) == ["machine", "timestamp"]
+    assert list(inferred["machine"].resolutions) == [
+        "machine",
+        "production_line",
+        "plant",
+    ]
+    assert inferred["machine"].resolutions["machine"].parent == "production_line"
+    assert inferred["machine"].resolutions["production_line"].parent == "plant"
 
 
 def test_pump_profiles_are_declared_in_spec_order() -> None:
@@ -63,16 +63,12 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
         "pump_external_workflow_dataset",
         "constants_dataset",
     ]
-    assert telemetry.Telemetry.dimensions == [
-        pump_dimensions.PLANT,
-        pump_dimensions.PRODUCTION_LINE,
-        pump_dimensions.PUMP,
-        pump_dimensions.TIMESTAMP,
+    assert telemetry.Telemetry.grain == [
+        python_spec.Grain(pump_dimensions.MACHINE, "machine"),
+        python_spec.Grain(pump_dimensions.TIMESTAMP, "timestamp"),
     ]
-    assert pump.Pump.dimensions == [
-        pump_dimensions.PLANT,
-        pump_dimensions.PRODUCTION_LINE,
-        pump_dimensions.PUMP,
+    assert pump.Pump.grain == [
+        python_spec.Grain(pump_dimensions.MACHINE, "machine"),
     ]
 
 
@@ -101,7 +97,9 @@ def test_example_manifest_parses_complete_spec() -> None:
     spec_from_directory = spec.load_spec(SPEC_PATH.parent)
 
     assert spec_from_directory == spec_definition
-    assert spec_definition.dimensions["pump"].parent == "production_line"
+    assert spec_definition.dimensions["machine"].resolutions["machine"].parent == (
+        "production_line"
+    )
     assert set(spec_definition.profiles) == {
         "pump_telemetry_dataset",
         "pump_dataset",
@@ -109,14 +107,16 @@ def test_example_manifest_parses_complete_spec() -> None:
         "constants_dataset",
     }
     assert spec_definition.profiles["pump_telemetry_dataset"].dimension_ids == [
-        "plant",
-        "production_line",
-        "pump",
+        "machine",
         "timestamp",
     ]
-    assert spec_definition.profiles["pump_telemetry_dataset"].dimensions == [
-        spec_definition.dimensions[identifier]
-        for identifier in ("plant", "production_line", "pump", "timestamp")
+    assert spec_definition.profiles["pump_telemetry_dataset"].grain_reference_set == {
+        ("machine", "machine"),
+        ("timestamp", "timestamp"),
+    }
+    assert spec_definition.grain_keys_by_profile["pump_telemetry_dataset"] == [
+        "pump",
+        "timestamp",
     ]
     assert isinstance(spec_definition, spec.Spec)
     assert spec_definition.source.name == "python_api"
@@ -142,7 +142,6 @@ def test_example_manifest_parses_complete_spec() -> None:
 def test_spec_from_profiles_python_api() -> None:
     spec_definition = spec.from_python(
         profiles=pump_telemetry_spec.python_spec.profiles,
-        dimensions=pump_telemetry_spec.python_spec.dimensions,
         name=pump_telemetry_spec.python_spec.name,
     )
 
@@ -161,10 +160,9 @@ def test_spec_from_profiles_python_api() -> None:
 def test_example_timestamp_order_matches_python_declaration() -> None:
     authored = spec.from_python(
         profiles=pump_telemetry_spec.python_spec.profiles,
-        dimensions=pump_telemetry_spec.python_spec.dimensions,
     )
     exported = spec.load_spec(SPEC_PATH)
-    expected = [{"dimension": "$dimensions.timestamp", "direction": "asc"}]
+    expected = [{"dimension": "timestamp", "resolution": "timestamp", "direction": "asc"}]
     for spec_definition in (authored, exported):
         assert [
             key.model_dump() for key in spec_definition.profiles["pump_telemetry_dataset"].order
@@ -173,11 +171,17 @@ def test_example_timestamp_order_matches_python_declaration() -> None:
 
 
 def test_sources_and_transforms_python_spec() -> None:
-    id_dimension = python_spec.dimension.Dimension(id="id", type="integer")
-    region_dimension = python_spec.dimension.Dimension(id="region", type="string")
+    id_dimension = python_spec.dimension.Dimension(
+        id="id",
+        resolutions=[python_spec.dimension.Resolution(id="id", key="id", type="integer")],
+    )
+    region_dimension = python_spec.dimension.Dimension(
+        id="region",
+        resolutions=[python_spec.dimension.Resolution(id="region", key="region", type="string")],
+    )
     source = python_spec.profile.Profile(
         id="transformed_dataset",
-        dimensions=[id_dimension],
+        grain=[python_spec.Grain(id_dimension, "id")],
         producers=[
             python_spec.actions.Action(
                 id="read",
@@ -190,7 +194,10 @@ def test_sources_and_transforms_python_spec() -> None:
     )
     target = python_spec.profile.Profile(
         id="target",
-        dimensions=[id_dimension, region_dimension],
+        grain=[
+            python_spec.Grain(id_dimension, "id"),
+            python_spec.Grain(region_dimension, "region"),
+        ],
         producers=[
             python_spec.actions.Action(
                 id="read",
@@ -204,7 +211,7 @@ def test_sources_and_transforms_python_spec() -> None:
                 inputs=[python_spec.ref.feature("input_1")],
                 function=python_spec.ref.function(expand_data, kind="expand"),
                 arguments={
-                    "source": python_spec.ref.dataset("transformed_dataset").dataframe,
+                    "source": python_spec.ref.profile("transformed_dataset").dataframe,
                 },
                 outputs=[python_spec.feature.Feature(id="input_2")],
             ),
@@ -212,16 +219,16 @@ def test_sources_and_transforms_python_spec() -> None:
     )
     summary = python_spec.profile.Profile(
         id="summary",
-        dimensions=[id_dimension],
+        grain=[python_spec.Grain(id_dimension, "id")],
         producers=[
             python_spec.actions.Action(
                 id="collapse_data",
                 inputs=[python_spec.ref.feature("input_2")],
                 function=python_spec.ref.function(analytics.aggregate, kind="collapse"),
                 arguments={
-                    "dataset": python_spec.ref.dataset("target").dataframe,
+                    "dataset": python_spec.ref.profile("target").dataframe,
                     "feature": python_spec.ref.feature("input_2").id,
-                    "group_by": [python_spec.ref.dimension("id").id],
+                    "group_by": python_spec.ref.current_profile().grain.ids,
                     "output": python_spec.ref.feature("collapsed_feature").id,
                 },
                 outputs=[python_spec.feature.Feature(id="collapsed_feature")],
@@ -230,7 +237,6 @@ def test_sources_and_transforms_python_spec() -> None:
     )
     spec_definition = spec.from_python(
         profiles=[source, target, summary],
-        dimensions=[id_dimension, region_dimension],
         name="transforms_test",
     )
 
@@ -240,15 +246,15 @@ def test_sources_and_transforms_python_spec() -> None:
     expand = ds_model.actions["expand_data"]
     assert expand.binding.function == "expand_data"
     assert expand.binding.args == {
-        "source": "$datasets.transformed_dataset.dataframe",
+        "source": "$profiles.transformed_dataset.dataframe",
     }
     assert expand.input_features == ["input_1"]
     collapse = spec_definition.profiles["summary"].actions["collapse_data"]
     assert collapse.binding.function == "aggregate"
     assert collapse.binding.args == {
-        "dataset": "$datasets.target.dataframe",
+        "dataset": "$profiles.target.dataframe",
         "feature": "$features.input_2.id",
-        "group_by": ["$dimensions.id.id"],
+        "group_by": "$profiles.@.grain.ids",
         "output": "$features.collapsed_feature.id",
     }
     assert collapse.output_features == ["id", "collapsed_feature"]

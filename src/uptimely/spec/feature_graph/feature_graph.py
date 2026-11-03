@@ -155,7 +155,7 @@ class FeatureGraph(FeatureGraphBase):
                 data_type = feature.type
                 if (
                     data_type is None
-                    and name not in self.spec.dimensions
+                    and name not in self.spec.grain_key_ids
                     and not kind.is_effect
                     and not kind.is_transformer
                 ):
@@ -189,7 +189,7 @@ class FeatureGraph(FeatureGraphBase):
         graph = graphable_.graph.Graph()
         nodes: dict[str, Node] = {}
         output_names = {
-            name for name in self.spec.feature_producers if name not in self.spec.dimensions
+            name for name in self.spec.feature_producers if name not in self.spec.grain_key_ids
         }
         dependency_names = {
             name for _, action in self.spec.action_items for name in action.input_features
@@ -209,8 +209,17 @@ class FeatureGraph(FeatureGraphBase):
             metadata = feature_metadata.get(name, models.FeatureNode(name=name))
             display_name = metadata.display_name
             if not display_name:
-                dimension = self.spec.dimensions.get(name)
-                display_name = dimension.name if dimension is not None else name
+                dimension_name = next(
+                    (
+                        dimension.name
+                        for dimension in self.spec.dimensions.values()
+                        if any(
+                            resolution.key == name for resolution in dimension.resolutions.values()
+                        )
+                    ),
+                    None,
+                )
+                display_name = dimension_name or name
             return dataclasses.replace(
                 metadata,
                 data_type=(
@@ -228,7 +237,9 @@ class FeatureGraph(FeatureGraphBase):
         for key, action in self.spec.action_items:
             profile = self.spec.action_profiles[key]
             profile_id = self.spec.action_profile_keys[key]
-            outputs = [name for name in action.output_features if name not in self.spec.dimensions]
+            outputs = [
+                name for name in action.output_features if name not in self.spec.grain_key_ids
+            ]
             action_metadata = models.ActionNode(
                 action_id=action.id,
                 features=tuple(sorted(outputs)),

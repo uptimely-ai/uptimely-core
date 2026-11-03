@@ -2,16 +2,18 @@
 
 from . import ref
 from .actions import Action
-from .dimension import Dimension
+from .dimension import Dimension, Resolution
 from .feature import Feature
 from .functions import function
-from .profile import Order, Profile, ProfileRegistry, RowScope
+from .profile import Grain, Order, Profile, ProfileRegistry, RowScope
 from .spec import Spec
 
 __all__ = [
     "Action",
     "Profile",
     "Dimension",
+    "Resolution",
+    "Grain",
     "Feature",
     "ProfileRegistry",
     "Order",

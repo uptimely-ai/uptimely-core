@@ -23,12 +23,25 @@ For example, dimensions and profiles use their identifiers as object keys:
 ```json
 {
   "dimensions": {
-    "pump_id": {"type": "string"}
+    "machine": {
+      "resolutions": {
+        "pump": {"key": "pump_id", "type": "string"},
+        "fleet": {"key": "fleet_id", "type": "string"}
+      }
+    },
+    "measurement_time": {
+      "resolutions": {
+        "timestamp": {"key": "timestamp", "type": "datetime"}
+      }
+    }
   },
   "profiles": {
     "pump_telemetry": {
       "name": "Pump Telemetry",
-      "dimensions": ["pump_id"]
+      "grain": [
+        {"dimension": "machine", "resolution": "pump"},
+        {"dimension": "measurement_time", "resolution": "timestamp"}
+      ]
     }
   }
 }
@@ -57,74 +70,113 @@ can identify their generator in `name` and set `generated` to `true`.
 {
   "name": "Pump analytics",
   "dimensions": {
-    "pump_id": {"type": "string"}
+    "machine": {
+      "resolutions": {
+        "pump": {"key": "pump_id", "type": "string"}
+      }
+    }
   },
-  "profiles": {}
+  "profiles": {
+    "pump_telemetry": {
+      "grain": [{"dimension": "machine", "resolution": "pump"}]
+    }
+  }
 }
 ```
 
 ## Dimensions
 
-A dimension identifies observations, such as a pump identifier or timestamp.
-Each dimension declares `type`, optional `description`, and optional `parent`.
-Parents must reference declared dimensions and must not form cycles.
+A dimension identifies an observation axis and declares one or more keyed
+resolutions. Each resolution names a dataframe `key`, its logical `type`, and
+optionally a parent resolution from the same dimension. Parent links describe
+hierarchy and must not form cycles.
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
-| `type` | string | Yes | N/A | Logical key type, such as `string`, `integer`, or `datetime`. |
+| `resolutions` | object | Yes | N/A | Available resolutions keyed by resolution identifier. |
 | `name` | string or null | No | Generated from the dimension identifier | Human-readable display name. |
 | `description` | string or null | No | `null` | Explanation of the dimension. |
-| `parent` | string or null | No | `null` | Bare identifier of a declared parent dimension. |
 
-Parent metadata describes a hierarchy. It does not automatically add parent
-columns to a profile, group calculations, or expand observations.
+Each resolution has the following fields:
 
-```json
-"dimensions": {
-  "pump_id": {"type": "string", "name": "Pump ID"},
-  "timestamp": {"type": "datetime", "name": "Timestamp"}
-}
-```
+| Field | JSON type | Required | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `key` | string | Yes | N/A | Dataframe column used for this resolution. |
+| `type` | string | Yes | N/A | Logical key type, such as `string`, `integer`, or `datetime`. |
+| `parent` | string or null | No | `null` | Identifier of a parent resolution in this dimension. |
+
+Resolution IDs are local to their dimension; the identity of a resolution is
+the pair of dimension and resolution IDs. A parent link does not add a parent
+key to a profile or expand its observations.
 
 ## Profiles
 
 A profile describes observations, their dimensions, features, actions, and
 optional metadata. Profiles are top-level and identified by a globally unique
-object key; attributes must not include `id`. A profile's dimension list is its
-own observation key.
+object key; attributes must not include `id`. Its ordered `grain` selects one
+resolution per dimension and defines the dataframe key order. An empty grain
+represents a dimensionless profile.
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | Generated from the profile identifier | Human-readable display name. |
 | `description` | string or null | No | `null` | Explanation of the profile. |
 | `category` | string or null | No | `null` | Optional free-form grouping label. |
-| `dimensions` | array of strings | No | `[]` | Bare identifiers from the root dimension registry. |
-| `row_scope` | object | No | Empty descriptions | Observation grain, filtering, and coverage. |
-| `order` | array of objects | No | `[]` | Logical ordering by profile dimensions. |
+| `grain` | array of objects | No | `[]` | Ordered dimension-resolution references defining row detail. |
+| `row_scope` | object | No | Empty descriptions | Descriptive filtering and coverage. |
+| `order` | array of objects | No | `[]` | Logical ordering by selected grain references. |
 | `features` | object | No | `{}` | Feature metadata keyed by identifier. |
 | `actions` | object | No | `{}` | Function bindings keyed by identifier, unique within this profile. |
 
+Each grain reference contains a bare `dimension` identifier and a `resolution`
+identifier from that dimension. A profile cannot select multiple resolutions
+of one dimension, and selected dataframe keys must be distinct. Different
+dimensions remain independent axes, so a profile may select separate sales
+time and measurement time dimensions. The dimension registry describes what
+is available; a profile's grain declares what that profile actually selects.
+
 ```json
+"dimensions": {
+  "machine": {
+    "resolutions": {
+      "pump": {"key": "pump_id", "type": "string", "parent": "fleet"},
+      "fleet": {"key": "fleet_id", "type": "string"}
+    }
+  },
+  "sales_time": {
+    "resolutions": {"day": {"key": "sales_date", "type": "datetime"}}
+  },
+  "measurement_time": {
+    "resolutions": {"timestamp": {"key": "timestamp", "type": "datetime"}}
+  }
+},
 "profiles": {
   "pump_telemetry": {
-    "name": "Pump Telemetry",
-    "category": "telemetry",
-    "dimensions": ["pump_id"],
-    "row_scope": {"grain": "One row per pump and timestamp"},
-    "order": [
-      {"dimension": "$dimensions.timestamp", "direction": "asc"}
+    "grain": [
+      {"dimension": "machine", "resolution": "pump"},
+      {"dimension": "sales_time", "resolution": "day"},
+      {"dimension": "measurement_time", "resolution": "timestamp"}
     ],
-    "actions": {}
+    "order": [
+      {
+        "dimension": "measurement_time",
+        "resolution": "timestamp",
+        "direction": "asc"
+      }
+    ]
+  },
+  "fleet_summary": {
+    "grain": [{"dimension": "machine", "resolution": "fleet"}]
   }
 }
 ```
 
 Version 4 replaces the entity-owned `datasets` structure with top-level
-`profiles`. To migrate, move each dataset declaration under `profiles` using
-its dataset ID as the profile key, copy the owning entity's dimensions to each
-profile, and remove the `entities` object. The optional `category` field does
-not affect validation or execution. Rebuild generated project artifacts after
-migration; earlier spec versions are not supported.
+`profiles`. Dimensions declare available resolutions; each profile must select
+its own grain explicitly. Entity-owned dimensions and descriptive
+`row_scope.grain` text do not determine the selected grain. The optional
+`category` field does not affect validation or execution. Rebuild generated
+project artifacts after migration; earlier spec versions are not supported.
 
 ### Feature and Action Identifiers
 
@@ -140,7 +192,6 @@ arguments. Serialized action entries include an `id` matching their key.
 
 | Field | Required | Default | Description |
 | --- | --- | --- | --- |
-| `grain` | No | `""` | What one observation represents. |
 | `filtering` | No | `""` | Which observations belong to the dataset. |
 | `coverage` | No | `""` | Expected completeness across dimension keys. |
 
@@ -151,12 +202,15 @@ Each field must be a string when supplied.
 
 | Field | JSON type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `dimension` | string | Yes | N/A | Reference to a dimension of the owning profile. |
+| `dimension` | string | Yes | N/A | Dimension ID selected by the profile grain. |
+| `resolution` | string | Yes | N/A | Resolution ID selected for that dimension. |
 | `direction` | string | Yes | N/A | Sort direction: `asc` or `desc`. |
 
-Order keys must be distinct dimensions of the owning profile. Array position
+Order references must be distinct members of the profile grain. Array position
 determines key precedence. Omission means no declared order. Null placement,
-collation, and ties are not specified.
+collation, and ties are not specified. Time-based row context requires the
+selected resolution to have type `datetime`; step-based row context requires
+type `integer`.
 
 Order is a logical convention, not a physical sort or partition guarantee.
 Functions implement sorting and grouping themselves. Action context inherits
@@ -380,7 +434,7 @@ An action separates analytical requirements from the implementation binding:
   "binding": {
     "function": "rolling_mean",
     "args": {
-      "dataset": "$datasets.@.dataframe",
+      "dataset": "$profiles.@.dataframe",
       "column": "$features.bearing_temperature.id",
       "window": "8h",
       "output": "$features.temperature_mean.id"
@@ -432,22 +486,22 @@ details.
 | --- | --- | --- |
 | `$features.<id>.id` | `string` | Feature identifier string. |
 | `$dimensions.<id>.id` | `string` | Dimension identifier string. |
-| `$datasets.<id>.dimensions.ids` | `array[string]` | Dimension identifiers declared by that profile. |
-| `$datasets.@.dimensions.ids` | `array[string]` | Dimension identifiers declared by the action's target profile. |
-| `$datasets.<id>.dataframe` | `dataframe` | Materialized table for that dataset. |
-| `$datasets.@.dataframe` | `dataframe` | Current dataset's input-ready table. |
-| `$datasets.<id>.id` | `string` | Dataset identifier string. |
+| `$profiles.<id>.grain.ids` | `array[string]` | Dataframe key names selected by that profile's grain. |
+| `$profiles.@.grain.ids` | `array[string]` | Dataframe key names selected by the action's target profile. |
+| `$profiles.<id>.dataframe` | `dataframe` | Materialized table for that profile. |
+| `$profiles.@.dataframe` | `dataframe` | Current profile's input-ready table. |
+| `$profiles.<id>.id` | `string` | Profile identifier string. |
 | `$features.@.id` | `string` | The sole vectorize output, or sole non-dimension collapse output. |
 
 Unsuffixed references remain supported; their template argument type determines
 whether a dataset identifier is resolved to data. Prefer explicit selectors
 when writing new declarations. `.id` arguments require `string`, and
-`.dataframe` arguments require `dataframe`. Dimension-key selectors require
-`array[string]`; their keys must be dimensions of the target and every
-referenced dataframe dataset. Use only the reference forms above.
+`.dataframe` arguments require `dataframe`. Grain-key selectors require
+`array[string]`; their keys must be selected by the target and every referenced
+dataframe profile. Use only the reference forms above.
 
-In Python declarations, use `ref.current_dataset().dimensions.ids` or
-`ref.dataset("source").dimensions.ids` for the corresponding selector. Key
+In Python declarations, use `ref.current_profile().grain.ids` or
+`ref.profile("source").grain.ids` for the corresponding selector. Grain-key
 selectors are explicit binding values; grouping, ordering, and other dimension
 references do not implicitly declare matching keys. For a dimensional
 operation, pass the selected target keys as its explicit matching-key argument;

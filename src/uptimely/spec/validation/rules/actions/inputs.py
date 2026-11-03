@@ -72,11 +72,9 @@ def validate_grouping_dimensions(spec: spec_model.Spec) -> None:
             continue
         source = spec.input_sources[key]
         if source is not None and not (
-            spec.dimensions_by_profile[key[0]] <= spec.dimensions_by_profile[source]
+            set(spec.grain_keys_by_profile[key[0]]) <= set(spec.grain_keys_by_profile[source])
         ):
-            raise ValueError(
-                f"Collapse {action.id} grouping dimensions must exist in source {source}"
-            )
+            raise ValueError(f"Collapse {action.id} grouping keys must exist in source {source}")
 
 
 def validate_source_features(spec: spec_model.Spec) -> None:
@@ -118,7 +116,7 @@ def validate_source_dimensions(spec: spec_model.Spec) -> None:
 def validate_input_feature(spec: spec_model.Spec) -> None:
     """Require an explicit input feature to be declared."""
     logger.debug("    - checking action input feature declarations")
-    feature_names = spec.dimensions.keys() | spec.feature_owners.keys()
+    feature_names = spec.grain_key_ids | spec.feature_owners.keys()
     for action in spec.actions:
         for feature in action.input_features:
             if feature not in feature_names:
@@ -145,7 +143,7 @@ def validate_input_scope(spec: spec_model.Spec) -> None:
 def validate_feature_reference(spec: spec_model.Spec) -> None:
     """Require a structural feature reference to be declared."""
     logger.debug("    - checking structural feature references")
-    feature_names = spec.dimensions.keys() | spec.feature_owners.keys()
+    feature_names = spec.grain_key_ids | spec.feature_owners.keys()
     for action in spec.actions:
         for feature in action.feature_selectors:
             if feature != selectors.CURRENT_ID and feature not in feature_names:

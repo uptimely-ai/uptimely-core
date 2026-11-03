@@ -73,18 +73,19 @@ class _FeatureSource:
 def _dimension_columns(
     profile: spec.Profile, dimensions: dict[str, spec.Dimension]
 ) -> list[DataLineageColumn]:
-    """Resolve profile dimensions from the canonical global declarations."""
+    """Resolve selected profile grain keys from canonical dimension declarations."""
     columns = []
-    for name in profile.dimension_ids:
-        dimension = dimensions[name]
+    for reference in profile.grain:
+        dimension = dimensions[reference.dimension]
+        resolution = dimension.resolutions[reference.resolution]
         columns.append(
             DataLineageColumn(
-                name=dimension.id,
-                type=dimension.type,
+                name=resolution.key,
+                type=resolution.type,
                 role="Dimension",
                 color=DIMENSION_COLOR,
                 producer=None,
-                label=dimension.name or dimension.id,
+                label=dimension.name or resolution.key,
             )
         )
     return columns
@@ -112,11 +113,11 @@ class _DataLineageBuilder:
         self.producers = {
             feature: max(producers, key=lambda item: self.numbers[item.id])
             for feature, producers in plan.features.items()
-            if feature not in definition.dimensions
+            if feature not in definition.grain_key_ids
         }
         self.features: dict[str, _FeatureSource] = {}
         for feature_id, feature in definition.features.items():
-            if feature_id in definition.dimensions:
+            if feature_id in definition.grain_key_ids:
                 continue
             owner = definition.feature_owners[feature_id][-1]
             self.features[feature_id] = _FeatureSource(
@@ -145,19 +146,38 @@ class _DataLineageBuilder:
     def _feature_column(self, name: str, role: str) -> DataLineageColumn:
         """Resolve a feature's label, type, and producer color."""
         source = self.features.get(name)
-        dimension = self.definition.dimensions.get(name)
-        declaration = source.feature if source is not None else dimension
+        key_dimension = None
+        for _, profile in self.definition.profile_items:
+            for reference in profile.grain:
+                dimension = self.definition.dimensions[reference.dimension]
+                resolution = dimension.resolutions[reference.resolution]
+                if resolution.key == name:
+                    key_dimension = (dimension, resolution)
+                    break
+            if key_dimension is not None:
+                break
+        declaration = source.feature if source is not None else None
         producer = self.producers.get(name)
-        color = DIMENSION_COLOR if dimension is not None else UNPRODUCED_COLOR
+        color = DIMENSION_COLOR if key_dimension is not None else UNPRODUCED_COLOR
         if producer is not None:
             color = self.colors[producer.id]
+        key_type = key_dimension[1].type if key_dimension is not None else None
+        label = (
+            key_dimension[0].name or name
+            if key_dimension is not None
+            else declaration.name or name
+            if declaration is not None
+            else name
+        )
         return DataLineageColumn(
             name=name,
-            type=declaration.type or "Unspecified" if declaration is not None else "Unspecified",
+            type=declaration.type or "Unspecified"
+            if declaration is not None
+            else key_type or "Unspecified",
             role=role,
             color=color,
             producer=self.numbers[producer.id] if producer is not None else None,
-            label=declaration.name or name if declaration is not None else name,
+            label=label,
         )
 
     def _input_tables(
@@ -180,7 +200,8 @@ class _DataLineageBuilder:
                 source_columns.setdefault(source.dataset.id, []).append(column)
 
         tables = []
-        target_dimensions = set(profile.dimension_ids)
+        profile_key = self.definition.profile_keys[profile.id]
+        target_keys = set(self.definition.grain_keys_by_profile[profile_key])
         for source_id, inputs in source_columns.items():
             source = self.features[inputs[0].name]
             tables.append(
@@ -190,9 +211,11 @@ class _DataLineageBuilder:
                     keys=_dimension_columns(source.profile, self.definition.dimensions),
                     columns=inputs,
                     join_dimensions=[
-                        dimension.id
-                        for dimension in source.profile.dimensions
-                        if dimension.id in target_dimensions
+                        key
+                        for key in self.definition.grain_keys_by_profile[
+                            self.definition.profile_keys[source.profile.id]
+                        ]
+                        if key in target_keys
                     ],
                     row_count=1 if source_id in self.compact_datasets else 3,
                 )
@@ -224,7 +247,9 @@ class _DataLineageBuilder:
         dataset = (
             self.definition.profiles.get(invocation.dataset_id) if invocation.dataset_id else None
         )
-        dimensions = set(profile.dimension_ids)
+        grain_keys = set(
+            self.definition.grain_keys_by_profile[self.definition.profile_keys[profile.id]]
+        )
         input_role = "Declared input" if kind.is_effect else "Input"
         columns = _dimension_columns(profile, self.definition.dimensions)
         columns.extend(
@@ -234,7 +259,7 @@ class _DataLineageBuilder:
                 ("Output", invocation.output_features),
             )
             for name in names
-            if name not in dimensions
+            if name not in grain_keys
         )
         function = self.definition.functions.get(invocation.function_id)
         dataset_label = UNASSIGNED_DATASET_LABEL
@@ -254,7 +279,9 @@ class _DataLineageBuilder:
             profile=profile.id,
             dataset=invocation.dataset_id,
             dataset_label=dataset_label,
-            grain=dataset.row_scope.grain if dataset is not None else "",
+            grain=", ".join(
+                self.definition.grain_keys_by_profile[self.definition.profile_keys[profile.id]]
+            ),
             color=self.colors[invocation.id],
             columns=columns,
             dependencies=sorted(

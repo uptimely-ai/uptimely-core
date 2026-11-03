@@ -9,7 +9,7 @@ from uptimely.spec import model, validation
 def _sample_spec() -> model.Spec:
     return model.Spec.model_validate(
         {
-            "dimensions": {"key": {"type": "integer"}},
+            "dimensions": {"key": {"resolutions": {"key": {"key": "key", "type": "integer"}}}},
             "functions": {
                 name: {
                     "kind": "read",
@@ -21,7 +21,7 @@ def _sample_spec() -> model.Spec:
             },
             "profiles": {
                 profile: {
-                    "dimensions": ["key"],
+                    "grain": [{"dimension": "key", "resolution": "key"}],
                     "features": {"key": {}, feature: {}},
                     "actions": {
                         "read": {
@@ -75,7 +75,7 @@ def test_resource_indexes_traverse_each_collection_once() -> None:
             ("second", "read"): document.profiles_by_key["second"],
         }
         assert list(document.arguments) == [("load", "path"), ("other", "path")]
-        assert document.dimension_ids_by_profile == {"first": ["key"], "second": ["key"]}
+        assert document.grain_keys_by_profile == {"first": ["key"], "second": ["key"]}
         assert len(document.actions) == 2
         assert len(document.profile_items) == 2
         assert document.actions_by_function["load"] == [("first", "read")]
@@ -98,7 +98,7 @@ def test_profiles_keep_only_their_own_dimension_context() -> None:
     assert not hasattr(first, "_bind_resources")
 
     serialized = document.model_dump()
-    assert serialized["profiles"]["first"]["dimensions"] == ["key"]
+    assert serialized["profiles"]["first"]["grain"] == [{"dimension": "key", "resolution": "key"}]
     assert "functions" not in serialized["profiles"]["first"]
     restored = model.Spec.model_validate(serialized)
     assert restored.model_dump() == serialized
@@ -139,14 +139,14 @@ def test_indexes_preserve_action_aliases_and_diagnostic_paths() -> None:
 def test_nested_models_expose_cached_children_and_normalized_ids() -> None:
     document = _sample_spec()
     profile = document.profiles["first"]
-    profile.dimensions = _CountingList(profile.dimensions)
+    profile.grain = _CountingList(profile.grain)
     action = profile.actions["read"]
     action.features.inputs = _CountingList(["$features.another"])
     action.features.outputs = _CountingList(action.features.outputs)
     profile.order = _CountingList(
         [
-            model.Order(dimension="$dimensions.key", direction="asc"),
-            model.Order(dimension="$dimensions.key", direction="desc"),
+            model.Order(dimension="key", resolution="key", direction="asc"),
+            model.Order(dimension="key", resolution="key", direction="desc"),
         ]
     )
     document.functions["load"].args = _CountingDict(document.functions["load"].args)
@@ -168,7 +168,7 @@ def test_nested_models_expose_cached_children_and_normalized_ids() -> None:
         assert action.dataset_references == ()
         assert action.feature_selectors == ()
         assert action.dimensions_references == ()
-    assert profile.dimensions.traversals == 1
+    assert profile.grain.traversals == 1
     assert action.features.inputs.traversals == 1
     assert action.features.outputs.traversals == 1
     assert profile.order.traversals == 1

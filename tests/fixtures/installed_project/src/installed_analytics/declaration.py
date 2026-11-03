@@ -3,26 +3,25 @@
 from uptimely.spec.python import (
     Action,
     Dimension,
-    Entity,
     Feature,
+    Grain,
     Profile,
+    Resolution,
     Spec,
     ref,
 )
 
 from . import functions
 
-row = Dimension(id="row", type="integer")
-sample = Entity(
-    id="sample",
-    name="Sample",
-    dimensions=[row],
+row = Dimension(
+    id="row",
+    resolutions=[Resolution(id="row", key="row", type="integer")],
 )
 
 
 class Values(Profile):
     id = "values"
-    entity = sample
+    grain = [Grain(row, "row")]
 
     producers = [
         Action(
@@ -34,6 +33,4 @@ class Values(Profile):
     ]
 
 
-python_spec = Spec(
-    dimensions=[row], entities=[sample], name="Installed analytics", datasets=[Values]
-)
+python_spec = Spec(profiles=[Values], name="Installed analytics")

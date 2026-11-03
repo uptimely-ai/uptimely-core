@@ -23,7 +23,15 @@ def test_root_authoring_api_compiles_and_executes(
 ) -> None:
     class CalculatedData(up.Profile):
         id = "calculated_dataset"
-        dimensions = ["id"]
+        grain = [
+            up.Grain(
+                up.Dimension(
+                    id="id",
+                    resolutions=[up.Resolution(id="id", key="id", type="integer")],
+                ),
+                "id",
+            )
+        ]
         producers = [
             up.Action(
                 id="read",
@@ -43,16 +51,13 @@ def test_root_authoring_api_compiles_and_executes(
             ),
         ]
 
-    declaration = up.Spec(
-        profiles=[CalculatedData],
-        dimensions=[up.Dimension(id="id", type="integer")],
-    )
+    declaration = up.Spec(profiles=[CalculatedData])
     model = declaration.to_model()
     action = model.profiles["calculated_dataset"].actions["double"]
     assert action.input_features == ["value"]
     assert action.output_features == ["doubled"]
     assert action.binding.args == {
-        "dataset": "$datasets.@.dataframe",
+        "dataset": "$profiles.@.dataframe",
         "value": "$features.value",
         "output": "$features.doubled.id",
     }
@@ -69,7 +74,7 @@ def test_root_authoring_api_compiles_and_executes(
 
 @pytest.mark.parametrize("name", [None, "telemetry"])
 def test_dataframe_helper_matches_existing_selectors(name: str | None) -> None:
-    expected = ref.current_dataset() if name is None else ref.dataset(name)
+    expected = ref.current_profile() if name is None else ref.profile(name)
     assert up.ref.dataframe(name) == expected.dataframe
     assert binding_conversion.argument_definition(up.ref.dataframe(name)) == {"type": "dataframe"}
 

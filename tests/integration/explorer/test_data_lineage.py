@@ -23,10 +23,16 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
 ) -> None:
     definition = spec.Spec.model_validate(
         {
-            "dimensions": {"id": {"type": "integer"}, "time": {"type": "integer"}},
+            "dimensions": {
+                dimension: {"resolutions": {dimension: {"key": dimension, "type": "integer"}}}
+                for dimension in ("id", "time")
+            },
             "profiles": {
                 name: {
-                    "dimensions": dimensions,
+                    "grain": [
+                        {"dimension": dimension, "resolution": dimension}
+                        for dimension in dimensions
+                    ],
                     "features": {feature: {"type": "float"}},
                 }
                 for name, dimensions, feature in (

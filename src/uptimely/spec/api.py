@@ -38,7 +38,6 @@ def from_python(
     profiles: conversion.Profiles | None = None,
     functions: conversion.Functions | None = None,
     name: str | None = None,
-    dimensions: conversion.Dimensions | None = None,
     *,
     validate: bool = True,
 ) -> model.Spec:
@@ -48,7 +47,6 @@ def from_python(
         profiles: Profile declarations keyed by their globally unique IDs.
         functions: Explicit catalog, or infer it from Python declarations.
         name: Optional spec name.
-        dimensions: Global dimension declarations.
         validate: Run semantic checks. Declaration and structural checks always run.
 
     Returns:
@@ -62,7 +60,6 @@ def from_python(
         profiles=profiles,
         functions=functions,
         name=name,
-        dimensions=dimensions,
     )
     if validate:
         validation.validate_spec(document)

@@ -26,8 +26,8 @@ def _sum_order_features(
 
 
 ORDER = [
-    {"dimension": "$dimensions.machine", "direction": "asc"},
-    {"dimension": "$dimensions.timestamp", "direction": "desc"},
+    {"dimension": "machine", "resolution": "machine", "direction": "asc"},
+    {"dimension": "timestamp", "resolution": "timestamp", "direction": "desc"},
 ]
 
 
@@ -35,15 +35,18 @@ def _configuration() -> dict[str, typing.Any]:
     return {
         "spec_version": 4,
         "dimensions": {
-            "machine": {"type": "string"},
-            "timestamp": {"type": "datetime"},
-            "external": {"type": "string"},
+            "machine": {"resolutions": {"machine": {"key": "machine_id", "type": "string"}}},
+            "timestamp": {"resolutions": {"timestamp": {"key": "timestamp", "type": "datetime"}}},
+            "external": {"resolutions": {"external": {"key": "external_id", "type": "string"}}},
         },
         "functions": {},
         "profiles": {
             "observations": {
                 "name": "Observations",
-                "dimensions": ["machine", "timestamp"],
+                "grain": [
+                    {"dimension": "machine", "resolution": "machine"},
+                    {"dimension": "timestamp", "resolution": "timestamp"},
+                ],
                 "order": ORDER,
             }
         },
@@ -96,17 +99,21 @@ def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.
     [
         None,
         {},
-        ["$dimensions.machine"],
-        [{"dimension": "$dimensions.machine"}],
-        [{"direction": "asc"}],
-        [{"dimension": "$dimensions.machine", "direction": "ASC"}],
-        [{"dimension": "$dimensions.machine", "direction": "descending"}],
-        [{"dimension": "$dimensions.machine", "direction": None}],
+        ["machine"],
         [{"dimension": "machine", "direction": "asc"}],
-        [{"dimension": "$features.machine", "direction": "asc"}],
-        [{"dimension": "$dimensions.", "direction": "asc"}],
-        [{"dimension": 1, "direction": "asc"}],
-        [{"dimension": "$dimensions.machine", "direction": "asc", "nulls": "first"}],
+        [{"direction": "asc"}],
+        [{"dimension": "machine", "resolution": "machine", "direction": "ASC"}],
+        [{"dimension": "machine", "resolution": "machine", "direction": "descending"}],
+        [{"dimension": "machine", "resolution": "machine", "direction": None}],
+        [{"dimension": "machine", "resolution": "machine", "direction": "asc", "extra": True}],
+        [
+            {
+                "dimension": "machine",
+                "resolution": "machine",
+                "direction": "asc",
+                "nulls": "first",
+            }
+        ],
     ],
 )
 def test_dataset_order_rejects_invalid_structure(tmp_path: pathlib.Path, order: object) -> None:
@@ -115,63 +122,77 @@ def test_dataset_order_rejects_invalid_structure(tmp_path: pathlib.Path, order: 
 
 
 @pytest.mark.parametrize("identifier", ["missing", "external", "@"])
-def test_dataset_order_requires_declared_profile_dimensions(
+def test_dataset_order_requires_selected_profile_resolutions(
     tmp_path: pathlib.Path, identifier: str
 ) -> None:
     with pytest.raises(validation.SpecError) as error:
-        _parse(tmp_path, [{"dimension": f"$dimensions.{identifier}", "direction": "asc"}])
+        _parse(
+            tmp_path,
+            [{"dimension": identifier, "resolution": "unknown", "direction": "asc"}],
+        )
 
-    assert error.value.code == "invalid_order_dimension"
+    assert error.value.code == "invalid_order_resolution"
     assert error.value.path == (
         "profiles",
         "observations",
         "order",
         0,
-        "dimension",
     )
 
 
 @pytest.mark.parametrize("direction", ["asc", "desc"])
 def test_dataset_order_rejects_repeated_dimensions(tmp_path: pathlib.Path, direction: str) -> None:
     with pytest.raises(validation.SpecError) as error:
-        _parse(tmp_path, [ORDER[0], {"dimension": "$dimensions.machine", "direction": direction}])
+        _parse(
+            tmp_path,
+            [ORDER[0], {"dimension": "machine", "resolution": "machine", "direction": direction}],
+        )
 
-    assert error.value.code == "duplicate_order_dimension"
-    assert error.value.path[-3:] == ("order", 1, "dimension")
+    assert error.value.code == "duplicate_order_resolution"
+    assert error.value.path[-2:] == ("order", 1)
 
 
 def test_dataset_order_reports_first_invalid_key_in_sequence(tmp_path: pathlib.Path) -> None:
     order = [
         ORDER[0],
-        {"dimension": "$dimensions.machine", "direction": "desc"},
-        {"dimension": "$dimensions.external", "direction": "asc"},
+        {"dimension": "machine", "resolution": "machine", "direction": "desc"},
+        {"dimension": "external", "resolution": "external", "direction": "asc"},
     ]
 
     with pytest.raises(validation.SpecError) as error:
         _parse(tmp_path, order)
 
-    assert error.value.code == "duplicate_order_dimension"
-    assert error.value.path[-3:] == ("order", 1, "dimension")
+    assert error.value.code == "duplicate_order_resolution"
+    assert error.value.path[-2:] == ("order", 1)
 
 
 def test_dataset_order_python_authoring_matches_json(tmp_path: pathlib.Path) -> None:
+    dimensions = [
+        python_spec.dimension.Dimension(
+            id="machine",
+            resolutions=[
+                python_spec.dimension.Resolution(id="machine", key="machine_id", type="string")
+            ],
+        ),
+        python_spec.dimension.Dimension(
+            id="timestamp",
+            resolutions=[
+                python_spec.dimension.Resolution(id="timestamp", key="timestamp", type="datetime")
+            ],
+        ),
+    ]
     declaration = python_spec.profile.Profile(
         id="observations",
+        grain=[
+            python_spec.profile.Grain(dimensions[0], "machine"),
+            python_spec.profile.Grain(dimensions[1], "timestamp"),
+        ],
         order=[
-            python_spec.profile.Order(
-                dimension=python_spec.ref.dimension("machine"), direction="asc"
-            ),
-            python_spec.profile.Order(dimension="$dimensions.timestamp", direction="desc"),
+            python_spec.profile.Order(dimensions[0], "machine", direction="asc"),
+            python_spec.profile.Order(dimensions[1], "timestamp", direction="desc"),
         ],
     )
-    dimensions = [
-        python_spec.dimension.Dimension(id="machine", type="string"),
-        python_spec.dimension.Dimension(id="timestamp", type="datetime"),
-    ]
-    declaration.dimensions = [item.id for item in dimensions]
-    spec_definition = spec.from_python(
-        profiles=[declaration], dimensions=dimensions, name="telemetry"
-    )
+    spec_definition = spec.from_python(profiles=[declaration], name="telemetry")
     assert spec_definition.profiles["observations"].order == (
         _parse(tmp_path, ORDER).profiles["observations"].order
     )
@@ -183,22 +204,20 @@ def test_dataset_order_python_authoring_matches_json(tmp_path: pathlib.Path) -> 
 
 
 def test_dataset_order_python_authoring_validates_references() -> None:
-    with pytest.raises(pydantic.ValidationError):
-        python_spec.profile.Order(
-            dimension=python_spec.ref.feature("machine"), direction="asc"
-        ).to_model()
-
-    with pytest.raises(validation.SpecError, match="undeclared dimension"):
+    machine = python_spec.dimension.Dimension(
+        id="machine",
+        resolutions=[
+            python_spec.dimension.Resolution(id="machine", key="machine_id", type="string"),
+            python_spec.dimension.Resolution(id="fleet", key="fleet_id", type="string"),
+        ],
+    )
+    with pytest.raises(validation.SpecError, match="order references a resolution"):
         spec.from_python(
             profiles=[
                 python_spec.profile.Profile(
                     id="observations",
-                    order=[
-                        python_spec.profile.Order(
-                            dimension=python_spec.ref.dimension("missing"),
-                            direction="asc",
-                        )
-                    ],
+                    grain=[python_spec.profile.Grain(machine, "machine")],
+                    order=[python_spec.profile.Order(machine, "fleet", direction="asc")],
                 )
             ]
         )
@@ -207,9 +226,13 @@ def test_dataset_order_python_authoring_validates_references() -> None:
 def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
-    identifier = python_spec.dimension.Dimension(id="id", type="integer")
+    identifier = python_spec.dimension.Dimension(
+        id="id",
+        resolutions=[python_spec.dimension.Resolution(id="id", key="id", type="integer")],
+    )
     declaration = python_spec.profile.Profile(
         id="ordered_values",
+        grain=[python_spec.profile.Grain(identifier, "id")],
         producers=[
             python_spec.actions.Action(
                 id="read",
@@ -230,28 +253,22 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
                     "left_feature": python_spec.ref.feature("input_1"),
                     "right_feature": python_spec.ref.feature("input_2"),
                     "output": "sum",
-                    "dataset": python_spec.ref.current_dataset().dataframe,
+                    "dataset": python_spec.ref.current_profile().dataframe,
                 },
                 outputs=[python_spec.feature.Feature(id="sum")],
             ),
         ],
     )
-    declaration.dimensions = [identifier]
-    unordered = spec.from_python(profiles=[declaration], dimensions=[identifier])
+    unordered = spec.from_python(profiles=[declaration])
     ordered = spec.from_python(
         profiles=[
             python_spec.profile.Profile(
                 id=declaration.id,
                 producers=declaration.producers,
-                dimensions=[identifier],
-                order=[
-                    python_spec.profile.Order(
-                        dimension=python_spec.ref.dimension("id"), direction="desc"
-                    )
-                ],
+                grain=[python_spec.profile.Grain(identifier, "id")],
+                order=[python_spec.profile.Order(identifier, "id", direction="desc")],
             )
-        ],
-        dimensions=[identifier],
+        ]
     )
     assert (
         compiler.Compiler().compile(ordered).invocations

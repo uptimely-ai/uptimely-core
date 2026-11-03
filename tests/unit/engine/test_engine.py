@@ -542,7 +542,7 @@ def test_escape_ignores_any_return_without_materializing_features(
         plan_version=4,
         required_backend="polars",
         resources={
-            "entities": {"asset": {"dimensions": []}},
+            "profiles": {"external": {"grain": []}},
             "functions": {
                 "external_action": {
                     "kind": "escape",
@@ -605,7 +605,7 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
         plan_version=4,
         required_backend="polars",
         resources={
-            "entities": {"asset": {"dimensions": []}},
+            "profiles": {"external": {"grain": []}},
             "functions": {
                 function_id: {"kind": "escape", "returns": "any", "args": {}}
                 for function_id in ("first", "second")
@@ -644,7 +644,7 @@ def test_escape_resolves_literal_and_runtime_arguments(
         plan_version=4,
         required_backend="polars",
         resources={
-            "entities": {"asset": {"dimensions": []}},
+            "profiles": {"external": {"grain": []}},
             "functions": {
                 "external_action": {
                     "kind": "escape",
@@ -701,7 +701,7 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         plan_version=4,
         required_backend="polars",
         resources={
-            "entities": {"asset": {"dimensions": []}},
+            "profiles": {"external": {"grain": []}},
             "functions": {
                 function_id: {
                     "kind": "escape",
@@ -776,7 +776,12 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         plan_version=4,
         required_backend="polars",
         resources={
-            "entities": {"asset": {"dimensions": ["asset_id"]}},
+            "dimensions": {
+                "asset_id": {"resolutions": {"asset_id": {"key": "asset_id", "type": "string"}}}
+            },
+            "profiles": {
+                "telemetry": {"grain": [{"dimension": "asset_id", "resolution": "asset_id"}]}
+            },
             "functions": {
                 "load": {"kind": "read", "returns": "dataframe", "args": {}},
                 "external_action": {
@@ -839,7 +844,7 @@ def test_escape_exception_fails_and_skips_downstream(
         plan_version=4,
         required_backend="polars",
         resources={
-            "entities": {"asset": {"dimensions": []}},
+            "profiles": {"external": {"grain": []}},
             "functions": {
                 function_id: {"kind": "escape", "returns": "any", "args": {}}
                 for function_id in ("first", "second")
@@ -885,6 +890,15 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
     monkeypatch.syspath_prepend(str(tmp_path))
     declaration = profile.Profile(
         id="external",
+        grain=[
+            profile.Grain(
+                dimension.Dimension(
+                    id="asset",
+                    resolutions=[dimension.Resolution(id="asset", key="asset_id", type="string")],
+                ),
+                "asset",
+            )
+        ],
         pipelines=[
             actions.Action(
                 id="external_action",
@@ -895,10 +909,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
             )
         ],
     )
-    spec_definition = spec.from_python(
-        profiles=[declaration],
-        dimensions=[dimension.Dimension(id="asset_id", type="string")],
-    )
+    spec_definition = spec.from_python(profiles=[declaration])
 
     compiled = uptimely_compiler.Compiler().compile(spec_definition)
     plan_serialization.export_json(compiled, plan_path)
@@ -1252,7 +1263,12 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         plan_version=4,
         required_backend="polars",
         resources={
-            "entities": {"asset": {"dimensions": ["asset_id"]}},
+            "dimensions": {
+                "asset_id": {"resolutions": {"asset_id": {"key": "asset_id", "type": "string"}}}
+            },
+            "profiles": {
+                "telemetry": {"grain": [{"dimension": "asset_id", "resolution": "asset_id"}]}
+            },
             "functions": {
                 "load": {"kind": "read", "args": {}},
                 "calculate": {"kind": "vectorize", "args": {}},

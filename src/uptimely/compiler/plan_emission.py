@@ -20,17 +20,19 @@ def emit_invocation(
             f"Missing entrypoint for function {node.function_id} used by action {node.action_id}"
         )
     resolver = spec_model.BindingArgumentResolver(
-        current_dataset_id=node.dataset_id,
+        current_profile_id=node.dataset_id,
         feature_id=node.feature_id,
-        dimension_ids_by_dataset=spec_definition.dimension_ids_by_profile,
+        grain_keys_by_profile=spec_definition.grain_keys_by_profile,
     )
     arguments = resolver.resolve_arguments(node.arguments)
-    dataset = spec_definition.profiles[node.dataset_id]
-    id_columns = spec_definition.dimension_ids_by_profile[node.dataset_id]
-    column_definitions = {
-        **dataset.features,
-        **{key: spec_definition.dimensions[key] for key in id_columns},
-    }
+    profile_key = spec_definition.profile_keys[node.dataset_id]
+    id_columns = spec_definition.grain_keys_by_profile[profile_key]
+    profile = spec_definition.profiles[node.dataset_id]
+    column_types = {
+        feature_id: feature.type
+        for feature_id, feature in profile.features.items()
+        if feature.type is not None
+    } | spec_definition.grain_key_types_by_profile[profile_key]
     return execution_plan.Invocation(
         id=node.node_id,
         function_kind=function.kind,
@@ -44,10 +46,6 @@ def emit_invocation(
         dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
         row_context=node.row_context,
         id_columns=list(id_columns),
-        column_types={
-            key: definition.type
-            for key, definition in column_definitions.items()
-            if definition.type is not None
-        },
+        column_types=column_types,
         argument_types={key: argument.type for key, argument in function.args.items()},
     )

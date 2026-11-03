@@ -3,17 +3,15 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Action, Feature, Order, Profile, RowScope, ref
+from uptimely import Action, Feature, Grain, Order, Profile, RowScope, ref
 from uptimely.spec.python import row_context
 
 HYDRAULIC_POWER_SCALE = 1.0 / 36.0
 """Converts bar * m3/h into kW for the hydraulic-power numerator."""
 
-TELEMETRY_DIMENSIONS = [
-    dimension.PLANT,
-    dimension.PRODUCTION_LINE,
-    dimension.PUMP,
-    dimension.TIMESTAMP,
+TELEMETRY_GRAIN = [
+    Grain(dimension.MACHINE, "machine"),
+    Grain(dimension.TIMESTAMP, "timestamp"),
 ]
 
 
@@ -24,12 +22,11 @@ class Telemetry(Profile):
     name = "Pump Telemetry"
     description = "Pump process and condition readings sampled at one-minute intervals."
     category = "telemetry"
-    dimensions = TELEMETRY_DIMENSIONS
+    grain = TELEMETRY_GRAIN
     row_scope = RowScope(
-        grain="One row per pump and timestamp",
         filtering="Development telemetry selected by the read function",
     )
-    order = (Order(dimension=ref.dimension(dimension.TIMESTAMP.id), direction="asc"),)
+    order = (Order(dimension.TIMESTAMP, "timestamp", direction="asc"),)
 
     producers = [
         Action(
@@ -212,8 +209,8 @@ class Telemetry(Profile):
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
                 feature=ref.column("bearing_temperature"),
-                partition_by=[ref.dimension(key.id) for key in TELEMETRY_DIMENSIONS[:-1]],
-                order_by=ref.dimension(dimension.TIMESTAMP.id),
+                partition_by=[ref.feature("pump").id],
+                order_by=ref.feature("timestamp").id,
                 output=ref.output("bearing_temperature_delta"),
             ),
             outputs=[
@@ -232,8 +229,8 @@ class Telemetry(Profile):
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
                 feature=ref.column("vibration_rms"),
-                partition_by=[ref.dimension(key.id) for key in TELEMETRY_DIMENSIONS[:-1]],
-                order_by=ref.dimension(dimension.TIMESTAMP.id),
+                partition_by=[ref.feature("pump").id],
+                order_by=ref.feature("timestamp").id,
                 output=ref.output("vibration_delta"),
             ),
             outputs=[
@@ -297,7 +294,7 @@ class Telemetry(Profile):
             id="write_pump_telemetry",
             function=analytics.write_pump_telemetry,
             arguments=dict(  # noqa: C408
-                dataset=ref.current_dataset(),
+                dataset=ref.current_profile(),
                 features=[
                     ref.column("recommended_flow_rate"),
                     ref.column("recommended_discharge_pressure"),

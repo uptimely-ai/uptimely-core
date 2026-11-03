@@ -76,13 +76,13 @@ def _declaration(
             function=ref.function(function, kind=category),
             arguments={
                 **(
-                    {"dataset": ref.current_dataset().dataframe}
+                    {"dataset": ref.current_profile().dataframe}
                     if category in {"write", "vectorize", "collapse"}
                     else {}
                 ),
                 **(
                     {
-                        "dataset": ref.dataset(
+                        "dataset": ref.profile(
                             "shared_source" if is_expand else f"{identifier}_source"
                         ).dataframe,
                     }
@@ -104,23 +104,12 @@ def _declaration(
 
 
 def _python_spec(profiles: list[profile.Profile], name: str | None = None) -> Spec:
-    dimensions = {
-        item.id: item
-        for declaration in profiles
-        for item in declaration.dimensions
-        if isinstance(item, dimension.Dimension)
-    }
-    return Spec(
-        profiles=profiles,
-        dimensions=list(dimensions.values()),
-        name=name,
-    )
+    return Spec(profiles=profiles, name=name)
 
 
-def _mapping_source(dimensions: list[dimension.Dimension]) -> profile.Profile:
+def _mapping_source() -> profile.Profile:
     return profile.Profile(
         id="shared_source",
-        dimensions=dimensions,
         producers=[
             actions.Action(
                 id="_other_source",
@@ -149,7 +138,7 @@ def _conform_source(identifier: str) -> profile.Profile:
 
 
 def test_empty_spec_has_no_profiles_or_functions() -> None:
-    spec_definition = Spec(profiles=[], dimensions=[])
+    spec_definition = Spec(profiles=[])
 
     assert spec_definition.profiles == ()
     assert spec_definition.function_catalog() == spec_model.FunctionCatalog()
@@ -172,50 +161,64 @@ def test_profile_registry_preserves_registration_order() -> None:
     assert list(spec_definition.profiles) == [first, second, third]
 
 
-def test_python_spec_accepts_profile_classes_with_profile_dimensions() -> None:
-    pump = dimension.Dimension(id="pump", type="string")
+def test_python_spec_accepts_profile_classes_with_profile_grain() -> None:
+    pump = dimension.Dimension(
+        id="pump",
+        resolutions=[dimension.Resolution(id="machine", key="pump_id", type="string")],
+    )
 
     class Readings(profile.Profile):
         id = "readings"
-        dimensions = [pump]
+        grain = [profile.Grain(pump, "machine")]
 
     class Summary(profile.Profile):
         id = "summary"
-        dimensions = [pump]
+        grain = [profile.Grain(pump, "machine")]
 
-    spec_definition = Spec(profiles=[Readings, Summary], dimensions=[pump])
+    spec_definition = Spec(profiles=[Readings, Summary])
 
     assert [item.id for item in spec_definition.profiles] == ["readings", "summary"]
-    assert [item.id for item in spec_definition.to_model().profiles["readings"].dimensions] == [
-        "pump"
-    ]
+    assert spec_definition.to_model().profiles["readings"].grain[0].dimension == "pump"
+    assert list(spec_definition.to_model().dimensions["pump"].resolutions) == ["machine"]
 
 
-@pytest.mark.parametrize("dimension_id", [False, True])
-def test_python_spec_resolves_registered_ids_and_objects_without_mutation(
-    dimension_id: bool,
-) -> None:
-    pump = dimension.Dimension(id="pump", type="string", description="Pump identifier")
+def test_python_spec_infers_selected_key_and_available_resolutions() -> None:
+    pump = dimension.Dimension(
+        id="machine",
+        description="Machine identifier",
+        resolutions=[
+            dimension.Resolution(id="machine", key="pump", type="string"),
+            dimension.Resolution(id="fleet", key="fleet", type="string"),
+        ],
+    )
     readings = _declaration("readings", "read")
-    readings.dimensions = ["pump" if dimension_id else pump]
-    definition = Spec(profiles=[readings], dimensions=[pump])
+    readings.grain = [profile.Grain(pump, "machine")]
+    definition = Spec(profiles=[readings])
 
     document = definition.to_model()
     payload = definition.to_dict()
 
-    assert document.profiles["readings"].dimensions[0].id == "pump"
-    assert payload["profiles"]["readings"]["dimensions"] == ["pump"]
-    assert payload["dimensions"]["pump"]["description"] == "Pump identifier"
+    assert document.profiles["readings"].grain[0].resolution == "machine"
+    assert payload["profiles"]["readings"]["grain"] == [
+        {"dimension": "machine", "resolution": "machine"}
+    ]
+    assert payload["dimensions"]["machine"]["description"] == "Machine identifier"
+    assert list(payload["dimensions"]["machine"]["resolutions"]) == ["machine", "fleet"]
     canonical = document.profiles["readings"]
     assert canonical.features["pump"].type == "string"
     assert canonical.actions["readings_mapping"].features.outputs == ["$features.pump"]
-    assert readings.dimensions == (["pump"] if dimension_id else [pump])
+    assert readings.grain == [profile.Grain(pump, "machine")]
 
 
 def test_dimension_name_defaults_to_humanized_id_and_can_be_overridden() -> None:
-    default_dimension = dimension.Dimension(id="production_line", type="string")
+    default_dimension = dimension.Dimension(
+        id="production_line",
+        resolutions=[dimension.Resolution(id="line", key="production_line", type="string")],
+    )
     named_dimension = dimension.Dimension(
-        id="production_line", type="string", name="Production Line Name"
+        id="production_line",
+        resolutions=[dimension.Resolution(id="line", key="production_line", type="string")],
+        name="Production Line Name",
     )
 
     assert default_dimension.name == "Production Line"
@@ -228,51 +231,79 @@ def test_python_spec_requires_a_profile_registry() -> None:
         Spec()
 
 
-@pytest.mark.parametrize("object_reference", [False, True])
-def test_python_spec_rejects_undeclared_references(object_reference: bool) -> None:
-    pump = dimension.Dimension(id="pump", type="string")
-    readings = profile.Profile(id="readings", dimensions=[pump if object_reference else "pump"])
-    with pytest.raises(ValueError, match="undeclared dimension 'pump'"):
-        Spec(dimensions=[], profiles=[readings]).to_model()
+def test_python_spec_rejects_unresolved_grain_resolutions() -> None:
+    machine = dimension.Dimension(
+        id="machine",
+        resolutions=[dimension.Resolution(id="machine", key="pump", type="string")],
+    )
+    readings = profile.Profile(id="readings", grain=[profile.Grain(machine, "fleet")])
+    with pytest.raises(ValueError, match="does not declare resolution 'fleet'"):
+        Spec(profiles=[readings]).to_model()
 
 
-def test_python_spec_rejects_duplicate_registrations_and_conflicting_metadata() -> None:
-    pump = dimension.Dimension(id="pump", type="string")
-    readings = profile.Profile(id="readings", dimensions=[pump])
-    with pytest.raises(ValueError, match="Duplicate dimension id pump"):
-        Spec(dimensions=[pump, pump], profiles=[readings]).to_model()
+def test_python_spec_rejects_duplicate_profiles_and_conflicting_metadata() -> None:
+    pump = dimension.Dimension(
+        id="pump",
+        resolutions=[dimension.Resolution(id="machine", key="pump", type="string")],
+    )
+    readings = profile.Profile(id="readings", grain=[profile.Grain(pump, "machine")])
     with pytest.raises(ValueError, match="Duplicate profile id readings"):
-        Spec(dimensions=[pump], profiles=[readings, readings]).to_model()
+        Spec(profiles=[readings, readings]).to_model()
     with pytest.raises(ValueError, match="Conflicting metadata for dimension 'pump'"):
         Spec(
-            dimensions=[dimension.Dimension(id="pump", type="integer")],
-            profiles=[readings],
+            profiles=[
+                readings,
+                profile.Profile(
+                    id="summary",
+                    grain=[
+                        profile.Grain(
+                            dimension.Dimension(
+                                id="pump",
+                                resolutions=[
+                                    dimension.Resolution(
+                                        id="machine", key="pump_id", type="integer"
+                                    )
+                                ],
+                            ),
+                            "machine",
+                        )
+                    ],
+                ),
+            ],
         ).to_model()
 
 
-def test_python_spec_preserves_unused_registrations_without_inferring_profiles() -> None:
-    pump = dimension.Dimension(id="pump", type="string")
+def test_python_spec_infers_no_unused_dimension_registrations() -> None:
     readings = profile.Profile(id="readings")
-    definition = Spec(dimensions=[pump], profiles=[readings])
+    definition = Spec(profiles=[readings])
 
     payload = definition.to_dict()
 
-    assert list(payload["dimensions"]) == ["pump"]
-    assert payload["profiles"]["readings"]["dimensions"] == []
+    assert payload["dimensions"] == {}
+    assert payload["profiles"]["readings"]["grain"] == []
     assert [item.id for item in definition.profiles] == ["readings"]
 
 
-def test_python_spec_resolves_mixed_dimension_references_in_declared_order() -> None:
-    pump = dimension.Dimension(id="pump", type="string")
-    timestamp = dimension.Dimension(id="timestamp", type="datetime")
-    readings = profile.Profile(id="readings", dimensions=["timestamp", pump])
-    definition = Spec(dimensions=[pump, timestamp], profiles=[readings])
+def test_python_spec_infers_dimensions_in_profile_grain_order() -> None:
+    pump = dimension.Dimension(
+        id="machine",
+        resolutions=[dimension.Resolution(id="machine", key="pump", type="string")],
+    )
+    timestamp = dimension.Dimension(
+        id="timestamp",
+        resolutions=[dimension.Resolution(id="timestamp", key="timestamp", type="datetime")],
+    )
+    readings = profile.Profile(
+        id="readings",
+        grain=[profile.Grain(timestamp, "timestamp"), profile.Grain(pump, "machine")],
+    )
+    definition = Spec(profiles=[readings])
 
-    assert definition.to_dict()["profiles"]["readings"]["dimensions"] == [
-        "timestamp",
-        "pump",
+    assert definition.to_dict()["profiles"]["readings"]["grain"] == [
+        {"dimension": "timestamp", "resolution": "timestamp"},
+        {"dimension": "machine", "resolution": "machine"},
     ]
-    assert [item.id for item in definition.dimensions] == ["pump", "timestamp"]
+    assert list(definition.to_model().dimensions) == ["timestamp", "machine"]
 
 
 def test_function_catalog_keeps_distinct_functions_and_kinds() -> None:
@@ -315,7 +346,7 @@ def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> No
         profiles.append(_conform_source("first"))
         profiles.append(_conform_source("second"))
     if category == "expand":
-        profiles.insert(0, _mapping_source([]))
+        profiles.insert(0, _mapping_source())
     spec_definition = _python_spec(profiles)
 
     catalog = spec_definition.function_catalog()
@@ -361,7 +392,7 @@ def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> No
             if category == "conform"
             else "@"
         )
-        expected_args["dataset"] = f"$datasets.{source_id}.dataframe"
+        expected_args["dataset"] = f"$profiles.{source_id}.dataframe"
     assert payload["profiles"]["first"]["actions"]["first_mapping"]["binding"] == {
         "function": function_id,
         "args": expected_args,
@@ -379,7 +410,7 @@ def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None
     if category == "conform":
         profiles.extend([_conform_source("first"), _conform_source("second")])
     if category == "expand":
-        profiles.insert(0, _mapping_source([]))
+        profiles.insert(0, _mapping_source())
     spec_definition = _python_spec(profiles)
 
     with pytest.raises(
@@ -433,36 +464,50 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
         combined.function_catalog()
 
 
-def test_to_dict_preserves_name_dimensions_and_profile_metadata() -> None:
-    pump = dimension.Dimension(id="pump", type="string", description="Asset ID")
+def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
+    pump = dimension.Dimension(
+        id="machine",
+        description="Machine ID",
+        resolutions=[dimension.Resolution(id="machine", key="pump", type="string")],
+    )
 
     class Telemetry(profile.Profile):
         id = "telemetry"
         name = "Pump Telemetry"
         description = "Telemetry readings"
-        dimensions = [pump]
+        grain = [profile.Grain(pump, "machine")]
         category = "telemetry"
-        order = [profile.Order(dimension=ref.dimension("pump"), direction="desc")]
+        order = [profile.Order(pump, "machine", direction="desc")]
 
     spec_definition = Spec(
-        dimensions=[pump],
         profiles=[Telemetry],
         name="Pump analytics",
     )
 
     payload = spec_definition.to_dict()
 
-    assert dimension.Dimension(id="pump", type="string").name == "Pump"
-    assert pump.to_model().name == "Pump"
+    assert (
+        dimension.Dimension(
+            id="machine",
+            resolutions=[dimension.Resolution(id="machine", key="pump", type="string")],
+        ).name
+        == "Machine"
+    )
+    assert pump.to_model().name == "Machine"
     assert payload["name"] == "Pump analytics"
     assert payload["spec_version"] == 4
     assert payload["source"] == {"name": "python_api", "generated": True}
     assert payload["dimensions"] == {
-        "pump": {
-            "type": "string",
-            "name": "Pump",
-            "description": "Asset ID",
-            "parent": None,
+        "machine": {
+            "resolutions": {
+                "machine": {
+                    "key": "pump",
+                    "type": "string",
+                    "parent": None,
+                }
+            },
+            "name": "Machine",
+            "description": "Machine ID",
         }
     }
     assert payload["profiles"] == {
@@ -470,9 +515,9 @@ def test_to_dict_preserves_name_dimensions_and_profile_metadata() -> None:
             "name": "Pump Telemetry",
             "description": "Telemetry readings",
             "category": "telemetry",
-            "dimensions": ["pump"],
-            "row_scope": {"grain": "", "filtering": "", "coverage": ""},
-            "order": [{"dimension": "$dimensions.pump", "direction": "desc"}],
+            "grain": [{"dimension": "machine", "resolution": "machine"}],
+            "row_scope": {"filtering": "", "coverage": ""},
+            "order": [{"dimension": "machine", "resolution": "machine", "direction": "desc"}],
             "features": {},
             "actions": {},
         }

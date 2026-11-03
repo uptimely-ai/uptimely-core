@@ -92,9 +92,15 @@ def print_results(dataset: pl.DataFrame) -> None:
     print(dataset)
 
 
-class CalculatedData(up.Dataset):
+measurement_id = up.Dimension(
+    id="measurement_id",
+    resolutions=[up.Resolution(id="measurement_id", key="id", type="integer")],
+)
+
+
+class CalculatedData(up.Profile):
     id = "calculated_dataset"
-    entity = "measurements"
+    grain = [up.Grain(measurement_id, "measurement_id")]
 
     producers = [
         up.Action(
@@ -135,15 +141,7 @@ class CalculatedData(up.Dataset):
 
 
 python_spec = up.Spec(
-    dimensions=[up.Dimension(id="id", type="integer")],
-    entities=[
-        up.Entity(
-            id="measurements",
-            name="Measurements",
-            dimensions=["id"],
-        )
-    ],
-    datasets=[CalculatedData],
+    profiles=[CalculatedData],
     name="Analytics Specification",
 )
 ```

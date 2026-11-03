@@ -119,8 +119,8 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     dataset = configuration["profiles"]["pump_telemetry_dataset"]
     dataset["actions"]["read_pump_telemetry"]["binding"]["args"].update(
         {
-            "keys": "$datasets.@.dimensions.ids",
-            "source_keys": "$datasets.pump_dataset.dimensions.ids",
+            "keys": "$profiles.@.grain.ids",
+            "source_keys": "$profiles.pump_dataset.grain.ids",
         }
     )
     path = tmp_path / "dimension_keys.json"
@@ -131,8 +131,8 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     invocation = next(
         item for item in plan.invocations if item.function_id == "read_pump_telemetry"
     )
-    expected = definition.dimension_ids_by_profile["pump_telemetry_dataset"]
-    expected_source = definition.dimension_ids_by_profile["pump_dataset"]
+    expected = definition.grain_keys_by_profile["pump_telemetry_dataset"]
+    expected_source = definition.grain_keys_by_profile["pump_dataset"]
 
     assert invocation.arguments["keys"] == expected
     assert invocation.arguments["source_keys"] == expected_source
@@ -189,7 +189,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
 
     definition.profiles["auxiliary_dataset"] = spec_model.Profile(
         id="auxiliary_dataset",
-        dimensions=list(pump_profile.dimensions),
+        grain=list(pump_profile.grain),
         features={"auxiliary_value": spec_model.Feature(id="auxiliary_value")},
         actions={
             "read_auxiliary": spec_model.Action(
@@ -208,7 +208,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         binding=spec_model.Binding(
             function="conform_auxiliary",
             args={
-                "source": "$datasets.auxiliary_dataset.dataframe",
+                "source": "$profiles.auxiliary_dataset.dataframe",
             },
         ),
         features=spec_model.ActionFeatures(

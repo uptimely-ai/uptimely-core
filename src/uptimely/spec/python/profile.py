@@ -11,12 +11,13 @@ from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 from uptimely.spec.model import common as spec_common
 
-from . import actions, ref
+from . import actions
 from . import dimension as dimension_module
 
 __all__ = [
     "Profile",
     "ProfileRegistry",
+    "Grain",
     "Order",
     "RowScope",
 ]
@@ -36,42 +37,49 @@ _ACTION_KINDS: typing.Final[dict[str, tuple[functions.FunctionKindId, ...]]] = {
 
 @dataclasses.dataclass(frozen=True)
 class RowScope:
-    """The conceptual row subset represented by a profile."""
+    """Descriptive filtering and coverage metadata for a profile."""
 
-    grain: str = ""
     filtering: str = ""
     coverage: str = ""
 
     def to_model(self) -> spec_model.RowScope:
         """Convert this row scope definition to its document model."""
         return spec_model.RowScope(
-            grain=self.grain,
             filtering=self.filtering,
             coverage=self.coverage,
         )
 
 
 @dataclasses.dataclass(frozen=True)
-class Order:
-    """Declare a logical profile ordering key, not a required physical sort.
+class Grain:
+    """Select a resolution from a declared dimension for a profile's grain."""
 
-    Args:
-        dimension: A dimension reference created by ``ref.dimension`` or its
-            ``$dimensions.<id>`` reference string used in spec documents.
-        direction: Ascending (``asc``) or descending (``desc``) order.
-    """
+    dimension: dimension_module.Dimension
+    resolution: str
 
-    dimension: ref.Reference | str
+    def to_model(self) -> spec_model.Grain:
+        """Convert this selected resolution to its document reference."""
+        if not isinstance(self.dimension, dimension_module.Dimension):
+            raise TypeError("Profile grain entries must reference Dimension declarations")
+        dimension = self.dimension.to_model()
+        if self.resolution not in dimension.resolutions:
+            raise ValueError(
+                f"Dimension '{self.dimension.id}' does not declare resolution '{self.resolution}'"
+            )
+        return spec_model.Grain(dimension=self.dimension.id, resolution=self.resolution)
+
+
+@dataclasses.dataclass(frozen=True)
+class Order(Grain):
+    """Declare a logical profile ordering key, not a required physical sort."""
+
     direction: typing.Literal["asc", "desc"]
 
     def to_model(self) -> spec_model.Order:
         """Convert this ordering key to its document model."""
         return spec_model.Order(
-            dimension=(
-                self.dimension.to_model()
-                if isinstance(self.dimension, ref.Reference)
-                else self.dimension
-            ),
+            dimension=self.dimension.id,
+            resolution=self.resolution,
             direction=self.direction,
         )
 
@@ -88,7 +96,7 @@ class Profile:
     name: str | None = None
     description: str | None = None
     category: str | None = None
-    dimensions: abc.Sequence[str | dimension_module.Dimension] = ()
+    grain: abc.Sequence[Grain] = ()
     row_scope = RowScope()
     order: abc.Sequence[Order] = ()
     producers: abc.Sequence[actions.Action] = ()
@@ -105,7 +113,7 @@ class Profile:
         name: str | None = None,
         description: str | None = None,
         category: str | None = None,
-        dimensions: abc.Sequence[str | dimension_module.Dimension] | None = None,
+        grain: abc.Sequence[Grain] | None = None,
         row_scope: RowScope | None = None,
         order: abc.Sequence[Order] | None = None,
     ) -> None:
@@ -123,10 +131,12 @@ class Profile:
             if not isinstance(category, str):
                 raise TypeError("Profile category must be a string or None")
             self.category = category
-        if dimensions is not None:
-            if not isinstance(dimensions, abc.Sequence) or isinstance(dimensions, (str, bytes)):
-                raise TypeError("Profile dimensions must be a sequence")
-            self.dimensions = tuple(dimensions)
+        if grain is not None:
+            if not isinstance(grain, abc.Sequence) or isinstance(grain, (str, bytes)):
+                raise TypeError("Profile grain must be a sequence")
+            if any(not isinstance(item, Grain) for item in grain):
+                raise TypeError("Profile grain must contain Grain declarations")
+            self.grain = tuple(grain)
         if row_scope is not None:
             self.row_scope = row_scope
         if order is not None:
@@ -177,36 +187,50 @@ class Profile:
             raise TypeError(f"Profile '{self.id}' {group_name} must contain Actions")
         return list(group_actions)
 
-    def to_model(
-        self, *, dimensions: abc.Sequence[dimension_module.Dimension] | None = None
-    ) -> spec_model.Profile:
+    def to_model(self) -> spec_model.Profile:
         """Build the canonical profile, rejecting duplicate feature producers."""
-        resolved_dimensions = tuple(dimensions) if dimensions is not None else self._dimensions()
+        grain = self._grain()
+        selected_resolutions = [
+            item.dimension.to_model().resolutions[item.resolution] for item in self.grain
+        ]
         return spec_model.Profile(
             id=self.id,
             name=self.name,
             description=self.description,
             category=self.category,
-            dimensions=[item.to_model() for item in resolved_dimensions],
+            grain=grain,
             row_scope=self.row_scope.to_model(),
             order=[key.to_model() for key in self.order],
-            features=self._feature_metadata(resolved_dimensions),
-            actions=self._action_models(resolved_dimensions),
+            features=self._feature_metadata(self.grain),
+            actions=self._action_models(selected_resolutions),
         )
 
-    def _dimensions(self) -> tuple[dimension_module.Dimension, ...]:
-        """Return declared dimensions, rejecting unresolved IDs outside a Spec."""
-        resolved: list[dimension_module.Dimension] = []
-        for key in self.dimensions:
-            if isinstance(key, str):
-                raise ValueError("Resolve dimension IDs through Spec before converting a profile")
-            if not isinstance(key, dimension_module.Dimension):
-                raise TypeError("profile dimensions must contain Dimension declarations")
-            resolved.append(key)
-        return tuple(resolved)
+    def _grain(self) -> list[spec_model.Grain]:
+        """Convert and validate selected dimensional resolutions."""
+        references: list[spec_model.Grain] = []
+        dimensions: set[str] = set()
+        keys: set[str] = set()
+        for item in self.grain:
+            if not isinstance(item, Grain):
+                raise TypeError("Profile grain must contain Grain declarations")
+            reference = item.to_model()
+            resolution = item.dimension.to_model().resolutions[item.resolution]
+            if reference.dimension in dimensions:
+                raise ValueError(
+                    f"Profile '{self.id}' selects multiple resolutions for dimension "
+                    f"'{reference.dimension}'"
+                )
+            if resolution.key in keys:
+                raise ValueError(
+                    f"Profile '{self.id}' grain repeats dataframe key '{resolution.key}'"
+                )
+            dimensions.add(reference.dimension)
+            keys.add(resolution.key)
+            references.append(reference)
+        return references
 
     def _action_models(
-        self, dimensions: abc.Sequence[dimension_module.Dimension]
+        self, resolutions: abc.Sequence[spec_model.Resolution]
     ) -> dict[str, spec_model.Action]:
         """Convert actions and add profile-key outputs to source actions."""
         actions_by_id: dict[str, spec_model.Action] = {}
@@ -214,18 +238,17 @@ class Profile:
             action_model = self._action_model(name, declaration)
             if declaration.kind in {functions.READ, functions.COLLAPSE}:
                 key_outputs = [
-                    f"{selectors.FEATURE_PREFIX}{key.id}"
-                    for key in dimensions
-                    if f"{selectors.FEATURE_PREFIX}{key.id}" not in action_model.features.outputs
+                    f"{selectors.FEATURE_PREFIX}{resolution.key}"
+                    for resolution in resolutions
+                    if f"{selectors.FEATURE_PREFIX}{resolution.key}"
+                    not in action_model.features.outputs
                 ]
                 action_model.features.outputs[:0] = key_outputs
             actions_by_id[name] = action_model
         return actions_by_id
 
-    def _feature_metadata(
-        self, dimensions: abc.Sequence[dimension_module.Dimension]
-    ) -> dict[str, spec_model.Feature]:
-        """Collect output metadata and profile dimensions, rejecting duplicate producers."""
+    def _feature_metadata(self, grain: abc.Sequence[Grain]) -> dict[str, spec_model.Feature]:
+        """Collect output metadata and selected grain keys, rejecting duplicate producers."""
         features: dict[str, spec_model.Feature] = {}
         producers: dict[str, str] = {}
         for name, declaration in self.actions.items():
@@ -239,13 +262,14 @@ class Profile:
                 producers[identifier] = name
                 features[identifier] = metadata.to_model()
             if declaration.kind in {functions.READ, functions.COLLAPSE}:
-                for key in dimensions:
-                    if key.id not in features:
-                        features[key.id] = spec_model.Feature(
-                            id=key.id,
-                            name=spec_common.humanize_identifier(key.id),
-                            type=key.type,
-                            description=key.description,
+                for item in grain:
+                    resolution = item.dimension.to_model().resolutions[item.resolution]
+                    if resolution.key not in features:
+                        features[resolution.key] = spec_model.Feature(
+                            id=resolution.key,
+                            name=spec_common.humanize_identifier(resolution.key),
+                            type=resolution.type,
+                            description=item.dimension.description,
                         )
         return features
 

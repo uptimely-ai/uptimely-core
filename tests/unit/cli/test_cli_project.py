@@ -238,7 +238,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             "        arguments={},\n"
             "        outputs=[Feature(id='value')],\n"
             "    )]\n"
-            "definition = api.Spec(dimensions=[], profiles=[Values])\n",
+            "definition = api.Spec(profiles=[Values])\n",
             encoding="utf-8",
         )
         arguments = ["--python-spec", "declaration:definition"]
@@ -391,9 +391,7 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
     produced_features = {
         feature for invocation in plan_invocations for feature in invocation.output_features
     }
-    dimensions = set(source_spec.dimensions)
-    for profile in source_spec.profiles.values():
-        dimensions.update(profile.dimension_ids)
+    dimensions = set(source_spec.grain_key_ids)
     for invocation in plan_invocations:
         assert set(invocation.dependency_ids) <= plan_ids
     for sink in sinks:

@@ -31,7 +31,7 @@ def argument_definition(value: typing.Any) -> dict[str, str]:
     if isinstance(value, row_context.RowContextBinding):
         return argument_definition(value.value)
     if isinstance(value, ref.Reference):
-        if value.type == "dataset":
+        if value.type == "profile":
             return {"type": arg_types.DATAFRAME}
         if value.type == arg_types.array_of(arg_types.STRING):
             return {"type": value.type}

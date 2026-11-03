@@ -42,6 +42,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Dimensions now declare keyed resolutions, and profiles select
+  their row detail with an ordered `grain` of dimension-resolution references.
+  Resolution parent links are local to their dimension, order keys must be
+  selected by the grain, and descriptive `row_scope.grain` has been removed.
 - **Breaking:** Replaced entity-owned datasets with globally keyed top-level
   `profiles` in spec version 4. Profile declarations now own their dimensions
   and may declare an optional `category`; removed the Entity model and authoring

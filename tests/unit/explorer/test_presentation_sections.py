@@ -34,7 +34,12 @@ def test_graph_payload_serialization_is_stable_and_script_safe() -> None:
 def test_feature_labels_use_ids_for_empty_names_and_prefer_global_dimensions() -> None:
     definition = spec.Spec.model_validate(
         {
-            "dimensions": {"id": {"name": "Global key", "type": "integer"}},
+            "dimensions": {
+                "id": {
+                    "name": "Global key",
+                    "resolutions": {"default": {"key": "id", "type": "integer"}},
+                }
+            },
             "profiles": {
                 "data": {
                     "features": {

@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import external_workflow
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Action, Feature, Profile, RowScope, ref
+from uptimely import Action, Feature, Grain, Profile, ref
 
 
 class PumpExternalWorkflow(Profile):
@@ -13,8 +13,7 @@ class PumpExternalWorkflow(Profile):
     name = "Pump External Workflow"
     description = "Pump-level inputs and outputs for an uncontrolled local workflow."
     category = "assets"
-    dimensions = [dimension.PLANT, dimension.PRODUCTION_LINE, dimension.PUMP]
-    row_scope = RowScope(grain="One row per pump")
+    grain = [Grain(dimension.MACHINE, "machine")]
 
     producers = [
         Action(

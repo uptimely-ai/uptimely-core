@@ -50,14 +50,14 @@ def validate_output_names(spec: spec_model.Spec) -> None:
 
 
 def validate_dimension_collision(spec: spec_model.Spec) -> None:
-    """Reject calculated feature names that collide with dimensions."""
+    """Reject calculated feature names that collide with selected grain keys."""
     logger.debug("    - checking calculated outputs do not collide with dimensions")
     for action in spec.actions:
         function = spec.functions.root.get(action.binding.function)
-        collisions = set(action.output_features) & spec.dimensions.keys()
+        collisions = set(action.output_features) & spec.grain_key_ids
         if function is not None and function.kind == functions.VECTORIZE and collisions:
             raise ValueError(
-                "Calculated feature names cannot duplicate profile dimensions: "
+                "Calculated feature names cannot duplicate profile grain keys: "
                 + ", ".join(sorted(collisions))
             )
 
@@ -98,7 +98,10 @@ def validate_output_feature(spec: spec_model.Spec) -> None:
         if function is None or not functions.FUNCTION_KINDS[function.kind].produces_features:
             continue
         for feature in action.output_features:
-            if feature not in spec.profiles_by_key[key[0]].features:
+            if (
+                feature not in spec.profiles_by_key[key[0]].features
+                and feature not in spec.grain_keys_by_profile[key[0]]
+            ):
                 raise ValueError(f"Action {key[1]} references unknown feature: {feature}")
 
 
@@ -111,7 +114,7 @@ def validate_unique_producer(spec: spec_model.Spec) -> None:
         if function is None or not functions.FUNCTION_KINDS[function.kind].produces_features:
             continue
         for feature in action.output_features:
-            if feature in spec.dimensions_by_profile[key[0]]:
+            if feature in spec.grain_keys_by_profile[key[0]]:
                 continue
             producer_key = (key[0], feature)
             previous = producers.get(producer_key)
@@ -130,7 +133,7 @@ def validate_collapse_output(spec: spec_model.Spec) -> None:
         if (
             function is not None
             and function.kind == functions.COLLAPSE
-            and not (set(action.output_features) - spec.dimensions_by_profile[key[0]])
+            and not (set(action.output_features) - set(spec.grain_keys_by_profile[key[0]]))
         ):
             raise ValueError(f"Collapse action {key[1]} must produce a non-dimension feature")
 
@@ -143,7 +146,7 @@ def validate_current_feature_selector(spec: spec_model.Spec) -> None:
         if function is None or function.kind not in {functions.VECTORIZE, functions.COLLAPSE}:
             continue
         count = (
-            len(set(action.output_features) - spec.dimensions_by_profile[key[0]])
+            len(set(action.output_features) - set(spec.grain_keys_by_profile[key[0]]))
             if function.kind == functions.COLLAPSE
             else len(action.output_features)
         )
@@ -167,7 +170,7 @@ def warn_unproduced_features(spec: spec_model.Spec) -> None:
                 for _, action in producers
             )
         }
-        missing = sorted(profile.features.keys() - produced - spec.dimensions_by_profile[key])
+        missing = sorted(profile.features.keys() - produced - set(spec.grain_keys_by_profile[key]))
         if missing:
             warnings.warn(
                 f"profiles.{key}.features: Features have no producer action: " + ", ".join(missing),

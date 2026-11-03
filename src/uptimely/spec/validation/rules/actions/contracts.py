@@ -18,7 +18,7 @@ def validate_dataset_argument_reference(spec: spec_model.Spec) -> None:
     logger.debug("    - checking dataset arguments use dataset references")
     for key, arguments in spec.actions_arguments.items():
         for name, value, _ in arguments:
-            if not isinstance(value, str) or not value.startswith(selectors.DATASET_PREFIX):
+            if not isinstance(value, str) or not value.startswith(selectors.PROFILE_PREFIX):
                 raise errors.SpecError(
                     f"Dataset argument {name} must reference a dataset",
                     code="invalid_mapping_dataset_input",
@@ -33,7 +33,7 @@ def validate_dataset_argument_selector(spec: spec_model.Spec) -> None:
         for name, value, _ in arguments:
             if isinstance(value, str) and (
                 value.endswith(selectors.ID_SELECTOR)
-                or value.endswith(selectors.DIMENSION_IDS_SELECTOR)
+                or value.endswith(selectors.PROFILE_GRAIN_IDS_SELECTOR)
             ):
                 raise errors.SpecError(
                     f"Dataset argument {name} must select dataset data, not an identifier "
@@ -81,13 +81,13 @@ def validate_dataset_argument_count(spec: spec_model.Spec) -> None:
 def validate_matching_keys(spec: spec_model.Spec) -> None:
     """Require explicitly selected matching keys to exist on every participating dataset."""
     logger.debug("    - checking matching keys exist on every participating dataset")
-    for key, matches in spec.matching_key_dimensions.items():
+    for key, matches in spec.matching_profile_keys.items():
         participants = (spec.action_profile_keys[key], *spec.dataset_argument_sources[key])
-        for dimension, path in matches:
+        for grain_key, path in matches:
             for participant in participants:
-                if dimension not in spec.dimensions_by_profile[participant]:
+                if grain_key not in spec.grain_keys_by_profile[participant]:
                     raise errors.SpecError(
-                        f"Matching key {dimension} is not a dimension of profile {participant}",
+                        f"Matching key {grain_key} is not in the grain of profile {participant}",
                         code="invalid_mapping_matching_key",
                         path=path,
                     )
@@ -169,8 +169,8 @@ def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
             feature
             for feature in action.input_features
             if (
-                feature not in spec.dataset_argument_dimensions[key]
-                if feature in spec.dimensions
+                feature not in spec.dataset_argument_grain_keys[key]
+                if feature in spec.grain_key_ids
                 else not any(
                     owner in spec.dataset_argument_ids[key]
                     for owner in spec.feature_owners.get(feature, [])
@@ -273,7 +273,7 @@ def _dataset_input_violations(
 
 
 def validate_dimension_change(spec: spec_model.Spec) -> None:
-    """Require dataset sources and targets to follow their declared dimension policy."""
+    """Require profile sources and targets to follow their declared grain policy."""
     logger.debug("    - checking source and target dimensions follow function-kind policies")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
@@ -282,13 +282,18 @@ def validate_dimension_change(spec: spec_model.Spec) -> None:
         change = functions.FUNCTION_KINDS[function.kind].dimension_change
         if change == "unrestricted":
             continue
-        target = spec.dimensions_by_profile[spec.action_profile_keys[key]]
+        target_profile = spec.action_profile_keys[key]
+        target = spec.profiles_by_key[target_profile].grain_reference_set
         for source_key in spec.dataset_argument_sources[key]:
-            source = spec.dimensions_by_profile[source_key]
+            source = spec.profiles_by_key[source_key].grain_reference_set
             valid = (
                 source == target
                 if change == "preserve"
-                else (source < target if change == "add" else target < source)
+                else (
+                    spec.grain_refines(source_key, target_profile) and source != target
+                    if change == "add"
+                    else spec.grain_refines(target_profile, source_key) and target != source
+                )
             )
             if valid:
                 continue
@@ -321,8 +326,9 @@ def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
             source
             for source in spec.dataset_argument_sources[key]
             if (
-                spec.dimensions_by_profile[source]
-                < spec.dimensions_by_profile[spec.action_profile_keys[key]]
+                spec.grain_refines(source, spec.action_profile_keys[key])
+                and spec.profiles_by_key[source].grain_reference_set
+                != spec.profiles_by_key[spec.action_profile_keys[key]].grain_reference_set
             )
         }
         if not any(
