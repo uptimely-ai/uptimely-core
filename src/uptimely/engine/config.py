@@ -8,6 +8,8 @@ import typing
 
 import pydantic
 
+DEFAULT_PREVIEW_ROWS = 5
+
 
 class EngineBackendConfig(pydantic.BaseModel):
     """Backend options used by an execution engine."""

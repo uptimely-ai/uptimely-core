@@ -37,6 +37,9 @@ GENERATED_DIR: typing.Final = pathlib.Path("_generated")
 
 EXPLORER_DATA_FILE: typing.Final = GENERATED_DIR / "explorer.json"
 
+RUN_OUTPUT_DIR: typing.Final = GENERATED_DIR / "run"
+RUN_MANIFEST_FILE: typing.Final = RUN_OUTPUT_DIR / "run.json"
+
 BUILD_OUTPUT_DIR: typing.Final = GENERATED_DIR / "build"
 BUILD_MANIFEST_FILE: typing.Final = BUILD_OUTPUT_DIR / "build.json"
 BUILD_SPEC_FILE: typing.Final = BUILD_OUTPUT_DIR / "spec.json"

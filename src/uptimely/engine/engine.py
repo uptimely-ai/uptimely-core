@@ -6,6 +6,7 @@ from collections import abc
 
 from uptimely import project_paths
 from uptimely.project.build import models as build_models
+from uptimely.run import recording
 
 from . import config as config_module
 from . import validation as validation_module
@@ -64,16 +65,32 @@ class Engine:
         """Validate that this engine can execute the plan."""
         validation_module.EngineValidator(self.plan, self.backend).validate()
 
-    def run(self, *, validate: bool = False) -> result_module.ExecutionResult:
-        """Execute plan stages and return explicit runtime state and statuses.
+    def run(
+        self, *, validate: bool = False, preview_rows: int = config_module.DEFAULT_PREVIEW_ROWS
+    ) -> result_module.ExecutionResult:
+        """Execute the plan and overwrite the project's latest-run artifacts.
 
         Args:
             validate: Validate inputs and dataframe contracts at every step.
                 Lazy value checks may execute upstream queries repeatedly.
+            preview_rows: Positive maximum sample size per profile. Lazy previews
+                execute bounded queries after execution; timing excludes previews.
 
         Returns:
-            Main dataframes, invocation statuses, durations, and failures.
+            Main dataframes, invocation results, execution duration, collected
+            preview frames, and separately reported preview failures.
+
+        Raises:
+            OSError: Run artifacts cannot be persisted.
+            ValueError: The preview row limit is invalid.
         """
+        with recording.RunRecorder(
+            self.bundle, self.config, validate=validate, preview_rows=preview_rows
+        ) as recorder:
+            return recorder.finish(self._execute(validate=validate))
+
+    def _execute(self, *, validate: bool) -> result_module.ExecutionResult:
+        """Execute invocations without coupling runtime state to artifact storage."""
         state = state_module.RuntimeState()
         invocation_executor = execution_module.InvocationExecutor(
             self.backend,
@@ -97,6 +114,7 @@ class Engine:
                 "\nInvocation: %s [%s]",
                 invocation.mapping_id,
                 invocation.function_kind,
+                extra={"invocation_id": invocation.id, "profile_id": invocation.dataset_id},
             )
             if invocation.function_id != invocation.mapping_id:
                 logger.debug("  Function: %s", invocation.function_id)
@@ -106,7 +124,13 @@ class Engine:
                 statuses[invocation.id] = result_module.INVOCATION_STATUS_FAILED
                 failures[invocation.id] = str(error)
                 durations[invocation.id] = time.perf_counter() - started
-                logger.warning("Invocation %s failed: %s", invocation.id, error)
+                logger.warning(
+                    "Invocation %s failed: %s",
+                    invocation.id,
+                    error,
+                    exc_info=True,
+                    extra={"invocation_id": invocation.id, "profile_id": invocation.dataset_id},
+                )
                 break
             statuses[invocation.id] = result_module.INVOCATION_STATUS_SUCCEEDED
             durations[invocation.id] = time.perf_counter() - started

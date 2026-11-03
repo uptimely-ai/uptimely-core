@@ -83,6 +83,11 @@ Output will show the materialized profile frames:
 
 ![Uptimely run preview](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-run-preview.png)
 
+Each execution replaces `_generated/run/` with run metadata, JSONL logs, and
+bounded profile previews. Five preview rows are saved by default, including
+for lazy frames; `--preview 10` saves and displays up to ten rows per profile.
+This is a latest-run diagnostic snapshot, not a durable output store.
+
 ## Explore the resources
 
 Use the project explorer to inspect a project visually:

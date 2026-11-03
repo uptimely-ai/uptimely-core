@@ -102,11 +102,61 @@ in the bundled Spec and plan invocations.
 failed, or was skipped. `result.durations` and `result.failures` give the
 duration and any error for each step.
 
+Every `Engine.run()` overwrites the latest snapshot under `_generated/run/`.
+`engine.run(preview_rows=10)` changes the default five-row sample size.
+Previews collect bounded lazy queries after execution while returned main
+frames remain lazy. `result.duration_seconds` excludes preview collection and
+publication. `result.preview_frames` contains the already-collected samples;
+`result.preview_failures` reports unavailable samples separately from invocation
+failures.
+
+The snapshot contains `run.json`, structured `log.jsonl`, and one
+`preview/<profile>.json` per available profile. It is not a full output store
+and retains no history. Persistence errors propagate rather than returning an
+apparently successful result without saved artifacts.
+
 ::: uptimely.engine.runtime.result
     options:
       heading_level: 3
       show_root_heading: false
       members: [ExecutionResult]
+
+## Saved runs
+
+Use the shared `RunStore` reader without importing project functions or running
+analytics:
+
+```python
+import pathlib
+from uptimely import run
+
+store = run.RunStore(pathlib.Path("examples/pump_analytics"))
+manifest = store.read_manifest()
+sample = store.read_preview("pump_profile", run_id=manifest.run_id)
+events = store.read_logs(run_id=manifest.run_id, offset=0, limit=100)
+```
+
+An optional `run_id` is a consistency token, not a history selector. If another
+execution replaces the snapshot, readers raise `RunChangedError`; reload the
+manifest before retrying. Run storage does not use locks. Concurrent runs and
+reads during publication are not coordinated; callers should read after a run
+finishes. Staging keeps the previous run available during execution and preview
+collection, but the directory may be briefly unavailable during replacement.
+
+Preview JSON contains ordered `columns` with physical dtype strings and
+positional `rows`, a `head` sampling label, requested row limit, status, and
+optional error. Empty frames retain their column schema. Dates and times use
+ISO strings, decimals use strings, durations use Python timedelta strings, and
+binary values use base64. Integers outside JavaScript's safe integer range are
+strings. Non-finite floats use `"NaN"`, `"Infinity"`, or `"-Infinity"`; lists and
+structs are encoded recursively. Unsupported values produce an explicit failed
+preview, not silently altered data.
+
+::: uptimely.run.store
+    options:
+      heading_level: 3
+      show_root_heading: false
+      members: [RunStore, RunChangedError, RunNotFoundError]
 
 ## runtime frames
 

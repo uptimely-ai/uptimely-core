@@ -5,14 +5,17 @@ import io
 import json
 import logging
 import pathlib
+import urllib.parse
 import zipfile
 
+import polars as pl
 import pytest
 from starlette.types import ASGIApp, Message, Scope
 
-from uptimely import project, spec
+from uptimely import engine, project, spec
 from uptimely.cli import explorer
 from uptimely.explorer import server as explorer_server
+from uptimely.run import store as run_store
 
 
 def _snapshot(name: str = "Example project") -> dict[str, object]:
@@ -53,15 +56,16 @@ def _get(app: ASGIApp, path: str) -> tuple[int, bytes, dict[str, str]]:
         async def send(message: Message) -> None:
             messages.append(message)
 
+        url = urllib.parse.urlsplit(path)
         scope: Scope = {
             "type": "http",
             "asgi": {"version": "3.0", "spec_version": "2.3"},
             "http_version": "1.1",
             "method": "GET",
             "scheme": "http",
-            "path": path,
-            "raw_path": path.encode(),
-            "query_string": b"",
+            "path": url.path,
+            "raw_path": url.path.encode(),
+            "query_string": url.query.encode(),
             "root_path": "",
             "headers": [],
             "client": ("127.0.0.1", 1234),
@@ -79,6 +83,84 @@ def _get(app: ASGIApp, path: str) -> tuple[int, bytes, dict[str, str]]:
         return status, body, headers
 
     return asyncio.run(request())
+
+
+def _saved_run(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> engine.Engine:
+    source = tmp_path / "spec.json"
+    spec.write_document(spec.Spec(), source)
+    bundle = project.build_project(tmp_path, json_spec=source)
+    runtime = engine.Engine(bundle, engine.EngineConfig())
+
+    def execute(**kwargs: object) -> engine.ExecutionResult:
+        logging.getLogger("uptimely.engine").warning("saved message")
+        return engine.ExecutionResult(
+            main_frames={"sample": pl.DataFrame({"value": [1, 2, 3]})},
+            calculated_outputs={},
+            invocation_statuses={},
+            durations={},
+            failures={},
+            plan_version=4,
+        )
+
+    monkeypatch.setattr(runtime, "_execute", execute)
+    runtime.run(preview_rows=2)
+    return runtime
+
+
+def test_run_api_reads_fresh_metadata_previews_and_logs(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app = explorer_server.create_app(tmp_path)
+    assert _get(app, "/api/run")[0] == 404
+    runtime = _saved_run(tmp_path, monkeypatch)
+
+    status, body, headers = _get(app, "/api/run")
+    assert status == 200
+    assert headers["cache-control"] == "no-store"
+    manifest = json.loads(body)
+    run_id = manifest["run_id"]
+    assert manifest["status"] == "succeeded"
+    assert "format_version" not in manifest
+
+    status, body, headers = _get(app, f"/api/run/preview/sample?run_id={run_id}")
+    assert status == 200
+    assert headers["cache-control"] == "no-store"
+    assert json.loads(body)["rows"] == [[1], [2]]
+    status, body, _ = _get(app, f"/api/run/logs?run_id={run_id}&offset=0&limit=1")
+    assert status == 200
+    assert json.loads(body)[0]["message"] == "saved message"
+    assert _get(app, "/api/run/preview/missing")[0] == 404
+    for query in ("offset=-1", "limit=0", "limit=1001", "limit=invalid"):
+        assert _get(app, f"/api/run/logs?{query}")[0] == 422
+
+    runtime.run()
+    assert json.loads(_get(app, "/api/run")[1])["run_id"] != run_id
+    assert _get(app, f"/api/run/preview/sample?run_id={run_id}")[0] == 409
+    assert _get(app, f"/api/run/logs?run_id={run_id}")[0] == 409
+
+
+@pytest.mark.parametrize("artifact", ["run.json", "preview/sample.json", "log.jsonl"])
+@pytest.mark.parametrize("damage", ["missing", "corrupt"])
+def test_run_api_reports_invalid_or_missing_artifacts(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, artifact: str, damage: str
+) -> None:
+    _saved_run(tmp_path, monkeypatch)
+    saved = run_store.RunStore(tmp_path)
+    path = saved.root / artifact
+    if damage == "missing":
+        path.unlink()
+    else:
+        path.write_text("{", encoding="utf-8")
+    endpoint = {
+        "run.json": "/api/run",
+        "preview/sample.json": "/api/run/preview/sample",
+        "log.jsonl": "/api/run/logs",
+    }[artifact]
+
+    status, body, _ = _get(explorer_server.create_app(tmp_path), endpoint)
+
+    assert status == (404 if artifact == "run.json" and damage == "missing" else 503)
+    assert json.loads(body)["detail"]
 
 
 def test_app_serves_packaged_frontend_and_reads_fresh_snapshot(tmp_path: pathlib.Path) -> None:

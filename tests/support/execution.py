@@ -15,8 +15,6 @@ from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import model as spec_model
 
-REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-
 
 def main_frame(
     dataframe: object | None,
@@ -165,7 +163,7 @@ def bundle_for_plan(
     build_root: pathlib.Path,
 ) -> project_module.BuildBundle:
     """Wrap a plan in a test bundle for engine execution."""
-    root = (project_root or REPOSITORY_ROOT).resolve()
+    root = (project_root or build_root.parent).resolve()
     build_root.mkdir(parents=True)
     bundle_spec = spec_definition or spec_for_plan(execution_plan)
     if spec_definition is None:

@@ -5,7 +5,10 @@ import logging
 import pathlib
 import shutil
 import tempfile
+import typing
+from collections import abc
 
+import fastapi
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
@@ -15,9 +18,27 @@ from starlette.background import BackgroundTask
 from uptimely import project_paths
 from uptimely.explorer import export as explorer_export
 from uptimely.explorer import presentation
+from uptimely.run import store as run_store
 
 logger = logging.getLogger(__name__)
 _BUILD_INSTRUCTION = "Run 'uptimely project build' to generate a valid Explorer snapshot."
+
+
+def _read_run(load: abc.Callable[[], str]) -> Response:
+    """Map run-storage errors to explicit API errors without caching snapshots."""
+    try:
+        content = load()
+    except run_store.RunNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except run_store.RunChangedError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (OSError, UnicodeDecodeError, ValueError) as error:
+        raise HTTPException(
+            status_code=503, detail=f"Saved run could not be read: {error}"
+        ) from error
+    return Response(content, media_type="application/json", headers={"Cache-Control": "no-store"})
 
 
 def _read_snapshot(path: pathlib.Path) -> Response:
@@ -68,10 +89,34 @@ def create_app(project_root: pathlib.Path) -> FastAPI:
         raise FileNotFoundError(f"Packaged Explorer frontend is missing: {static_root}")
 
     app = FastAPI()
+    runs = run_store.RunStore(project_root)
 
     @app.get("/api/explorer", include_in_schema=False)
     def explorer_data() -> Response:
         return _read_snapshot(project_root / project_paths.EXPLORER_DATA_FILE)
+
+    @app.get("/api/run", include_in_schema=False)
+    def run_data() -> Response:
+        return _read_run(lambda: runs.read_manifest().model_dump_json())
+
+    @app.get("/api/run/preview/{profile_id}", include_in_schema=False)
+    def run_preview(profile_id: str, run_id: str | None = None) -> Response:
+        return _read_run(lambda: runs.read_preview(profile_id, run_id=run_id).model_dump_json())
+
+    @app.get("/api/run/logs", include_in_schema=False)
+    def run_logs(
+        run_id: str | None = None,
+        offset: typing.Annotated[int, fastapi.Query(ge=0)] = 0,
+        limit: typing.Annotated[int, fastapi.Query(ge=1, le=1000)] = 1000,
+    ) -> Response:
+        return _read_run(
+            lambda: json.dumps(
+                [
+                    entry.model_dump(mode="json")
+                    for entry in runs.read_logs(run_id=run_id, offset=offset, limit=limit)
+                ]
+            )
+        )
 
     @app.get("/api/explorer/export", include_in_schema=False)
     def export_explorer() -> FileResponse:
