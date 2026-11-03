@@ -8,11 +8,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
-### Fixed
-
-- The GitHub Pages pump analytics demo now includes engine run information,
-  debug logs, and ten-row profile previews. Static Explorer exports include the
-  latest run and display results without requiring live API endpoints.
+## [0.9.0] - 2026-11-03
 
 ### Added
 
@@ -112,6 +108,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Fixed
 
+- The GitHub Pages pump analytics demo now includes engine run information,
+  debug logs, and ten-row profile previews. Static Explorer exports include the
+  latest run and display results without requiring live API endpoints.
 - Restored documentation builds by updating engine API module references and
   corrected broken links on the documentation homepage.
 
