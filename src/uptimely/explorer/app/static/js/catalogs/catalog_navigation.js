@@ -33,9 +33,13 @@ export function initializeCatalog(signal) {
     const itemHeading = selected.querySelector("h2, h3");
     const title = isOverview ? catalogSectionTitle : itemHeading.textContent.trim();
     catalogTitle.textContent = title;
-    if (["functions", "features"].includes(catalogPanel.dataset.contextLabel) && catalogDescription) {
-      const descriptionSelector = catalogPanel.dataset.contextLabel === "functions"
-        ? "[data-function-description]" : "[data-feature-description]";
+    if (["functions", "features", "dimensions", "profiles"].includes(catalogPanel.dataset.contextLabel) && catalogDescription) {
+      const descriptionSelector = {
+        functions: "[data-function-description]",
+        features: "[data-feature-description]",
+        dimensions: "[data-dimension-description]",
+        profiles: "[data-profile-description]",
+      }[catalogPanel.dataset.contextLabel];
       const description = selected.querySelector(descriptionSelector);
       catalogDescription.textContent = isOverview
         ? catalogSectionDescription : description?.textContent || "";

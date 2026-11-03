@@ -38,7 +38,7 @@ def _escape_configuration() -> dict:
             "inputs": [
                 "$features.bearing_temperature",
                 "$features.health_signal_normalized",
-                "$features.pump",
+                "$features.pump_id",
             ],
             "outputs": [],
         },
@@ -226,7 +226,7 @@ def test_escape_mappings_preserve_logical_inputs_and_outputs(
     assert actions["escape_first"].input_features == [
         "bearing_temperature",
         "health_signal_normalized",
-        "pump",
+        "pump_id",
     ]
     assert actions["escape_first"].output_features == ["external_result"]
     assert actions["escape_second"].input_features == []
@@ -445,7 +445,7 @@ def test_grain_key_selector_is_a_matching_key_declaration() -> None:
     )
 
     assert action.binding.args["dimensions"] == "$profiles.@.grain.ids"
-    assert [grain_key for grain_key, _ in spec_definition.matching_profile_keys[key]] == ["pump"]
+    assert [grain_key for grain_key, _ in spec_definition.matching_profile_keys[key]] == ["pump_id"]
     assert action_contracts.validate_matching_keys(spec_definition) is None
 
 
@@ -551,7 +551,7 @@ def test_action_rejects_explicit_source(tmp_path: pathlib.Path, action_id: str) 
             "features",
             {
                 "inputs": ["$features.bearing_temperature"],
-                "outputs": ["$features.pump"],
+                "outputs": ["$features.pump_id"],
             },
             "must produce a non-dimension feature",
         ),
@@ -675,7 +675,7 @@ def test_collapse_dimensions_alone_do_not_identify_input_dataset(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     collapse = configuration["profiles"]["pump_profile"]["actions"]["bearing_temperature_by_pump"]
-    collapse["features"]["inputs"] = ["$features.pump"]
+    collapse["features"]["inputs"] = ["$features.pump_id"]
     path = tmp_path / "dimension_input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     with pytest.raises(ValueError, match="must reference a source feature"):

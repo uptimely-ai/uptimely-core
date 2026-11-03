@@ -32,7 +32,7 @@ The Explorer contains:
 | Section | What it shows |
 | --- | --- |
 | **Project home** | Project identity, counts, build scope, and the spec-to-execution journey. |
-| **Spec** | Overview, separate profile/feature/dimension/function catalogs, and feature lineage. |
+| **Spec** | Overview, separate profile/feature/dimension/function catalogs, dimension resolution hierarchies, and feature lineage. |
 | **Plan** | Overview, invocation topology, and execution stages with argument bindings. |
 | **Execution** | Profile-specific animation of declared processing steps and illustrative tables. |
 

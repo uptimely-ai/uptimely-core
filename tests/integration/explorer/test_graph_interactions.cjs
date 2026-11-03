@@ -90,7 +90,9 @@ for (const withSectionCount of [false, true]) {
 	});
 }
 
-test('feature selection displays its description in the section header', () => {
+for (const catalog of ['features', 'profiles']) {
+test(`${catalog} selection displays its description in the section header`, () => {
+	const resource = catalog === 'profiles' ? 'profile' : 'feature';
 	const overview = { ...createElement(), id: 'catalog-overview' };
 	const first = { ...createElement(), id: 'feature-first' };
 	const second = { ...createElement(), id: 'feature-second' };
@@ -99,7 +101,7 @@ test('feature selection displays its description in the section header', () => {
 		const heading = { ...createElement(), textContent: item.id };
 		item.description = item === overview
 			? null : { ...createElement(), textContent: `${item.id} feature description` };
-		item.querySelector = selector => selector === '[data-feature-description]'
+		item.querySelector = selector => selector === `[data-${resource}-description]`
 			? item.description : heading;
 		item.contains = candidate => candidate === item;
 	}
@@ -108,7 +110,7 @@ test('feature selection displays its description in the section header', () => {
 		removeAttribute(name) { delete this.attributes[name]; },
 	}));
 	const panel = {
-		dataset: { contextLabel: 'features' },
+		dataset: { contextLabel: catalog },
 		querySelectorAll: () => links,
 	};
 	const title = { ...createElement(), textContent: 'Features' };
@@ -157,6 +159,69 @@ test('feature selection displays its description in the section header', () => {
 	links[0].listeners.click({ button: 0, preventDefault() {} });
 	assert.equal(title.textContent, 'Features');
 	assert.equal(description.textContent.trim(), '');
+});
+}
+
+test('dimension selection displays its description in the section header', () => {
+	const overview = { ...createElement(), id: 'catalog-overview' };
+	const dimension = { ...createElement(), id: 'dimension-machine' };
+	const items = [overview, dimension];
+	const dimensionDescription = { ...createElement(), textContent: 'Machine and production hierarchy' };
+	for (const item of items) {
+		const heading = { ...createElement(), textContent: item.id };
+		item.querySelector = selector => selector === '[data-dimension-description]'
+			? (item === overview ? null : dimensionDescription) : heading;
+		item.contains = candidate => candidate === item;
+	}
+	const links = items.map(item => ({
+		...createElement(), hash: `#${item.id}`,
+		removeAttribute(name) { delete this.attributes[name]; },
+	}));
+	const panel = {
+		dataset: { contextLabel: 'dimensions' },
+		querySelectorAll: () => links,
+	};
+	const title = { ...createElement(), textContent: 'Dimensions' };
+	const heading = { ...createElement(), focus() {} };
+	const description = { ...createElement(), textContent: 'Inspect dimension resolutions, dataframe keys, and their parent relationships.' };
+	const document = {
+		title: 'Spec dimensions',
+		getElementById: id => items.find(item => item.id === id)
+			|| (id === 'catalog-context' ? panel : null),
+		querySelector(selector) {
+			if (selector === 'main h1 span') return title;
+			if (selector === 'main h1') return heading;
+			if (selector === '[data-section-count]') return null;
+			if (selector === '[data-section-description]') return description;
+			throw new Error(`Unexpected selector: ${selector}`);
+		},
+		querySelectorAll(selector) {
+			if (selector === 'main [data-context-item]') return items;
+			if (selector === 'main [data-function-group]') return [];
+			return links;
+		},
+	};
+	const location = { hash: '#dimension-machine' };
+	const context = vm.createContext({
+		document, location,
+		history: { pushState(_state, _title, hash) { location.hash = hash; } },
+		window: { scrollTo() {}, addEventListener() {} },
+		requestAnimationFrame(callback) { callback(); },
+		cancelAnimationFrame() {},
+		AbortController,
+	});
+	vm.runInContext(
+		fs.readFileSync(path.join(scriptDirectory, 'catalogs/catalog_navigation.js'), 'utf8')
+			.replace('export function', 'function')
+			+ '\ninitializeCatalog(new AbortController().signal);', context,
+	);
+	assert.equal(title.textContent, 'dimension-machine');
+	assert.equal(description.textContent, 'Machine and production hierarchy');
+	assert.equal(dimensionDescription.hidden, true);
+
+	links[0].listeners.click({ button: 0, preventDefault() {} });
+	assert.equal(title.textContent, 'Dimensions');
+	assert.equal(description.textContent, 'Inspect dimension resolutions, dataframe keys, and their parent relationships.');
 });
 
 function loadLineageScript(context, filename) {

@@ -21,7 +21,7 @@ class Telemetry(Profile):
     id = "pump_telemetry"
     name = "Pump Telemetry"
     description = "Pump process and condition readings sampled at one-minute intervals."
-    category = "telemetry"
+    category = "Telemetry"
     grain = TELEMETRY_GRAIN
     scope = "Development telemetry selected by the read function"
     order = (Order(dimension.TIMESTAMP, "timestamp", direction="asc"),)
@@ -207,7 +207,7 @@ class Telemetry(Profile):
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
                 feature=ref.column("bearing_temperature"),
-                partition_by=[ref.feature("pump").id],
+                partition_by=[ref.feature("pump_id").id],
                 order_by=ref.feature("timestamp").id,
                 output=ref.output("bearing_temperature_delta"),
             ),
@@ -227,7 +227,7 @@ class Telemetry(Profile):
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
                 feature=ref.column("vibration_rms"),
-                partition_by=[ref.feature("pump").id],
+                partition_by=[ref.feature("pump_id").id],
                 order_by=ref.feature("timestamp").id,
                 output=ref.output("vibration_delta"),
             ),

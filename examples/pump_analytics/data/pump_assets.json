@@ -1,14 +1,14 @@
 [
   {
-    "plant": "PLANT-01",
-    "production_line": "LINE-A",
-    "pump": "PUMP-101",
+    "plant_id": "PLANT-01",
+    "production_line_id": "LINE-A",
+    "pump_id": "PUMP-101",
     "rated_flow_rate": 119.0
   },
   {
-    "plant": "PLANT-01",
-    "production_line": "LINE-B",
-    "pump": "PUMP-201",
+    "plant_id": "PLANT-01",
+    "production_line_id": "LINE-B",
+    "pump_id": "PUMP-201",
     "rated_flow_rate": 85.0
   }
 ]
