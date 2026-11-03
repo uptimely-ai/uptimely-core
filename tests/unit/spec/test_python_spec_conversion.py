@@ -9,10 +9,10 @@ from uptimely.spec.python import (
     Spec,
     actions,
     conversion,
-    dataset,
     dimension,
     entity,
     feature,
+    profile,
     ref,
 )
 
@@ -24,7 +24,7 @@ def test_output_reference_logging_is_one_counted_summary(
 ) -> None:
     caplog.set_level(level, logger="uptimely.spec.python")
     declarations = [
-        dataset.Dataset(
+        profile.Profile(
             id=f"dataset_{index}",
             producers=[
                 actions.Action(
@@ -71,7 +71,7 @@ def _other_source(
 
 def _declaration(
     identifier: str, category: str, function: abc.Callable[..., object] = _source
-) -> dataset.Dataset:
+) -> profile.Profile:
     is_expand = category == "expand"
     is_dimensional = category in {"conform", "expand"}
     declarations = [
@@ -100,7 +100,7 @@ def _declaration(
             function_id=f"{category}_shared",
         )
     ]
-    return dataset.Dataset(
+    return profile.Profile(
         id=identifier,
         producers=declarations if category not in {"write", "escape"} else [],
         publishers=declarations if category == "write" else [],
@@ -108,7 +108,7 @@ def _declaration(
     )
 
 
-def _entity(identifier: str, datasets: list[dataset.Dataset]) -> entity.Entity:
+def _entity(identifier: str, datasets: list[profile.Profile]) -> entity.Entity:
     return entity.Entity(
         id=identifier,
         name=identifier.title(),
@@ -118,7 +118,7 @@ def _entity(identifier: str, datasets: list[dataset.Dataset]) -> entity.Entity:
 
 
 def _python_spec(entities: list[entity.Entity], name: str | None = None) -> Spec:
-    declarations: list[dataset.Dataset] = []
+    declarations: list[profile.Profile] = []
     for owner in entities:
         for declaration in owner.datasets:
             declaration.entity = owner
@@ -139,7 +139,7 @@ def _mapping_source(dimensions: list[dimension.Dimension]) -> entity.Entity:
         name="Source",
         dimensions=dimensions,
         datasets=[
-            dataset.Dataset(
+            profile.Profile(
                 id="shared_source",
                 producers=[
                     actions.Action(
@@ -155,8 +155,8 @@ def _mapping_source(dimensions: list[dimension.Dimension]) -> entity.Entity:
     )
 
 
-def _conform_source(identifier: str) -> dataset.Dataset:
-    return dataset.Dataset(
+def _conform_source(identifier: str) -> profile.Profile:
+    return profile.Profile(
         id=f"{identifier}_source",
         producers=[
             actions.Action(
@@ -182,14 +182,14 @@ def test_empty_spec_has_no_datasets_or_functions() -> None:
 def test_python_spec_requires_a_sequence_and_dataset_entities() -> None:
     with pytest.raises(TypeError, match="datasets must be a sequence"):
         tuple(Spec(dimensions=[], entities=[], datasets={}).datasets)
-    with pytest.raises(ValueError, match="Dataset 'readings' must declare an entity"):
-        tuple(Spec(dimensions=[], entities=[], datasets=[dataset.Dataset(id="readings")]).datasets)
+    with pytest.raises(ValueError, match="Profile 'readings' must declare an entity"):
+        tuple(Spec(dimensions=[], entities=[], datasets=[profile.Profile(id="readings")]).datasets)
 
 
 def test_iter_datasets_preserves_entity_and_dataset_order() -> None:
-    first = dataset.Dataset(id="first")
-    second = dataset.Dataset(id="second")
-    third = dataset.Dataset(id="third")
+    first = profile.Profile(id="first")
+    second = profile.Profile(id="second")
+    third = profile.Profile(id="third")
     spec_definition = _python_spec([_entity("one", [first, second]), _entity("two", [third])])
 
     assert spec_definition.iter_datasets() == [first, second, third]
@@ -206,11 +206,11 @@ def test_python_spec_associates_dataset_classes_with_registered_entity() -> None
         dimensions=[pump],
     )
 
-    class Readings(dataset.Dataset):
+    class Readings(profile.Profile):
         id = "readings"
         entity = owner
 
-    class Summary(dataset.Dataset):
+    class Summary(profile.Profile):
         id = "summary"
         entity = owner
 
@@ -273,7 +273,7 @@ def test_python_spec_rejects_undeclared_references(object_reference: bool) -> No
     owner = entity.Entity(
         id="assets", name="Assets", dimensions=[pump if object_reference else "pump"]
     )
-    readings = dataset.Dataset(id="readings", entity=owner if object_reference else "assets")
+    readings = profile.Profile(id="readings", entity=owner if object_reference else "assets")
     with pytest.raises(ValueError, match="undeclared entity 'assets'"):
         Spec(dimensions=[pump], entities=[], datasets=[readings]).to_model()
     with pytest.raises(ValueError, match="undeclared dimension 'pump'"):
@@ -283,7 +283,7 @@ def test_python_spec_rejects_undeclared_references(object_reference: bool) -> No
 def test_python_spec_rejects_duplicate_registrations_and_conflicting_metadata() -> None:
     pump = dimension.Dimension(id="pump", type="string")
     owner = entity.Entity(id="assets", name="Assets", dimensions=[pump])
-    readings = dataset.Dataset(id="readings", entity=owner)
+    readings = profile.Profile(id="readings", entity=owner)
     with pytest.raises(ValueError, match="Duplicate dimension id pump"):
         Spec(dimensions=[pump, pump], entities=[owner], datasets=[readings]).to_model()
     with pytest.raises(ValueError, match="Duplicate entity id assets"):
@@ -304,7 +304,7 @@ def test_python_spec_rejects_duplicate_registrations_and_conflicting_metadata() 
 def test_python_spec_preserves_unused_registrations_without_inferring_datasets() -> None:
     pump = dimension.Dimension(id="pump", type="string")
     owner = entity.Entity(
-        id="assets", name="Assets", dimensions=[], datasets=[dataset.Dataset(id="implicit")]
+        id="assets", name="Assets", dimensions=[], datasets=[profile.Profile(id="implicit")]
     )
     definition = Spec(dimensions=[pump], entities=[owner], datasets=[])
 
@@ -319,7 +319,7 @@ def test_python_spec_resolves_mixed_dimension_references_in_declared_order() -> 
     pump = dimension.Dimension(id="pump", type="string")
     timestamp = dimension.Dimension(id="timestamp", type="datetime")
     owner = entity.Entity(id="assets", name="Assets", dimensions=["timestamp", pump])
-    readings = dataset.Dataset(id="readings", entity="assets")
+    readings = profile.Profile(id="readings", entity="assets")
     definition = Spec(dimensions=[pump, timestamp], entities=[owner], datasets=[readings])
 
     assert definition.to_dict()["entities"]["assets"]["dimensions"] == ["timestamp", "pump"]
@@ -327,7 +327,7 @@ def test_python_spec_resolves_mixed_dimension_references_in_declared_order() -> 
 
 
 def test_function_catalog_keeps_distinct_functions_and_kinds() -> None:
-    additional = dataset.Dataset(
+    additional = profile.Profile(
         id="additional",
         producers=[
             actions.Action(
@@ -443,7 +443,7 @@ def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None
 
 
 def test_catalog_conflicts_are_rejected_consistently() -> None:
-    first = dataset.Dataset(
+    first = profile.Profile(
         id="first",
         producers=[
             actions.Action(
@@ -456,7 +456,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
             )
         ],
     )
-    second = dataset.Dataset(
+    second = profile.Profile(
         id="second",
         producers=[
             actions.Action(
@@ -476,7 +476,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
     with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):
         conversion.to_dict(datasets=[first, second])
 
-    combined = dataset.Dataset(
+    combined = profile.Profile(
         id="combined",
         producers=[
             dataclasses.replace(first.producers[0], id="first"),
@@ -495,13 +495,13 @@ def test_to_dict_preserves_name_dimensions_and_dataset_metadata() -> None:
         dimensions=[pump],
     )
 
-    class Telemetry(dataset.Dataset):
+    class Telemetry(profile.Profile):
         id = "telemetry"
         name = "Pump Telemetry"
         description = "Telemetry readings"
         entity = owner
-        row_scope = dataset.RowScope(grain="One row per pump", coverage="All pumps")
-        order = [dataset.Order(dimension=ref.dimension("pump"), direction="desc")]
+        row_scope = profile.RowScope(grain="One row per pump", coverage="All pumps")
+        order = [profile.Order(dimension=ref.dimension("pump"), direction="desc")]
 
     spec_definition = Spec(
         dimensions=[pump],

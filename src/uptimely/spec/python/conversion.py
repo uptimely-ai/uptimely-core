@@ -9,15 +9,15 @@ from collections import abc
 from .. import catalog
 from .. import model as spec_model
 from ..json import codec
-from . import dataset as dataset_module
 from . import dimension as dimension_module
 from . import entity as entity_module
+from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
 
 type Datasets = (
-    abc.Iterable[dataset_module.Dataset | spec_model.Dataset]
-    | abc.Mapping[str, dataset_module.Dataset | spec_model.Dataset]
+    abc.Iterable[profile_module.Profile | spec_model.Profile]
+    | abc.Mapping[str, profile_module.Profile | spec_model.Profile]
 )
 type Entities = (
     abc.Iterable[entity_module.Entity | spec_model.Entity]
@@ -73,7 +73,7 @@ def to_model(
     if datasets is not None and entities is not None:
         raise ValueError("Use either 'datasets' or 'entities', not both.")
     dimension_values = _dimensions(dimensions)
-    declarations: list[dataset_module.Dataset | spec_model.Dataset] = []
+    declarations: list[profile_module.Profile | spec_model.Profile] = []
     if entities is not None:
         entity_values: dict[str, spec_model.Entity] = {}
         for entity in _values(entities):
@@ -98,7 +98,7 @@ def to_model(
                 id=entity_id,
                 name=entity_id,
                 dimensions=list(dimension_values.values()),
-                datasets=dataset_module.to_models(declarations),
+                datasets=profile_module.to_models(declarations),
             )
         }
 
@@ -106,7 +106,7 @@ def to_model(
         action_count = sum(
             len(declaration.producers) + len(declaration.publishers) + len(declaration.pipelines)
             for declaration in declarations
-            if isinstance(declaration, dataset_module.Dataset)
+            if isinstance(declaration, profile_module.Profile)
         )
         logger.debug(
             "\nPython spec validation:\n  - checked output references for %d actions",
@@ -118,7 +118,7 @@ def to_model(
             root=catalog.merge_function_catalogs(
                 declaration.function_catalog()
                 for declaration in declarations
-                if isinstance(declaration, dataset_module.Dataset)
+                if isinstance(declaration, profile_module.Profile)
             )
         )
     elif not isinstance(functions, (spec_model.FunctionCatalog, dict)):

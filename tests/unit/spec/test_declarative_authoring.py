@@ -45,14 +45,14 @@ def test_action_is_the_only_public_work_declaration_name() -> None:
 
 
 def test_dataset_name_defaults_to_humanized_id() -> None:
-    declaration = authoring.Dataset(id="pump_telemetry-dataset")
+    declaration = authoring.Profile(id="pump_telemetry-dataset")
 
     assert declaration.name == "Pump Telemetry Dataset"
     assert declaration.to_model().name == "Pump Telemetry Dataset"
 
 
 def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
-    declaration = authoring.Dataset(
+    declaration = authoring.Profile(
         id="example",
         producers=[
             authoring.Action(
@@ -107,7 +107,7 @@ def test_mapping_rejects_duplicate_output_ids() -> None:
 
 
 def test_assembly_collects_inputs_without_executing_implementation() -> None:
-    class Example(authoring.Dataset):
+    class Example(authoring.Profile):
         id = "example"
         producers = [
             authoring.Action(
@@ -150,7 +150,7 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
     def implementation(feature: str) -> None:
         pass
 
-    class Example(authoring.Dataset):
+    class Example(authoring.Profile):
         id = "example"
         publishers = [
             authoring.Action(
@@ -161,14 +161,14 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
             )
         ]
 
-    with pytest.raises(TypeError, match="Dataset 'example', action 'invalid'") as error:
+    with pytest.raises(TypeError, match="Profile 'example', action 'invalid'") as error:
         Example().to_model()
     assert message in str(error.value)
 
 
 @pytest.mark.parametrize("identifier", ["result", "asset"])
 def test_duplicate_producers_are_rejected(identifier: str) -> None:
-    class Example(authoring.Dataset):
+    class Example(authoring.Profile):
         id = "example"
         keys = (dimension.Dimension(id="asset", type="string"),)
         producers = [
@@ -207,7 +207,7 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
         outputs=[],
     )
 
-    class Base(authoring.Dataset):
+    class Base(authoring.Profile):
         id = "base"
         description = "Inherited metadata"
         producers = [first]
@@ -230,7 +230,7 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
 
 def test_dataset_requires_identifier() -> None:
     with pytest.raises((TypeError, ValueError), match="id"):
-        authoring.Dataset().to_model()
+        authoring.Profile().to_model()
 
 
 def test_dataset_entity_supplies_dimension_metadata() -> None:
@@ -241,7 +241,7 @@ def test_dataset_entity_supplies_dimension_metadata() -> None:
         dimensions=[identifier],
     )
 
-    class Example(authoring.Dataset):
+    class Example(authoring.Profile):
         id = "example"
         entity = owner
         producers = [
@@ -297,7 +297,7 @@ def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -
         inputs=[ref.feature("explicit")],
         outputs=[authoring.Feature(id="result", type="float")],
     )
-    declaration = authoring.Dataset(id="example", producers=[action])
+    declaration = authoring.Profile(id="example", producers=[action])
 
     assert declaration.producers == [action]
     assert action.reference.entrypoint == "calculation:calculate"
@@ -309,7 +309,7 @@ def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -
 
 def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> None:
     identifier = dimension.Dimension(id="asset", type="string")
-    declaration = authoring.Dataset(
+    declaration = authoring.Profile(
         id="example",
         producers=[
             authoring.Action(
@@ -415,10 +415,10 @@ def test_action_collection_enforces_function_kind(
     expected_collection = {"write": "publishers", "escape": "pipelines"}.get(kind, "producers")
     if collection != expected_collection:
         with pytest.raises(ValueError, match=f"kind '{kind}' is not allowed in {collection}"):
-            authoring.Dataset(id="example", **declarations)
+            authoring.Profile(id="example", **declarations)
         return
 
-    declaration = authoring.Dataset(id="example", **declarations)
+    declaration = authoring.Profile(id="example", **declarations)
     assert declaration.to_model().actions["work"] == action.to_model()
     assert declaration.function_catalog()["work"].kind == kind
 
@@ -427,7 +427,7 @@ def test_action_collection_enforces_function_kind(
 @pytest.mark.parametrize("invalid", [{}, "invalid", [object()], [None]])
 def test_action_collections_reject_invalid_values(collection: str, invalid: typing.Any) -> None:
     with pytest.raises(TypeError, match=f"{collection} must (be a sequence of|contain) Actions"):
-        authoring.Dataset(id="example", **{collection: invalid})
+        authoring.Profile(id="example", **{collection: invalid})
 
 
 @pytest.mark.parametrize("second_kind", ["read", "write", "escape"])
@@ -441,8 +441,8 @@ def test_action_ids_are_unique_across_collections(second_kind: functions.Functio
     second = dataclasses.replace(
         first, function=ref.function("implementation:work", kind=second_kind)
     )
-    with pytest.raises(ValueError, match="Dataset 'example' has duplicate action ID 'duplicate'"):
-        authoring.Dataset(
+    with pytest.raises(ValueError, match="Profile 'example' has duplicate action ID 'duplicate'"):
+        authoring.Profile(
             id="example",
             producers=[first, second] if second_kind == "read" else [first],
             publishers=[second] if second_kind == "write" else [],
@@ -458,7 +458,7 @@ def test_collection_defaults_and_inherited_lists_are_not_shared_between_instance
         outputs=[],
     )
 
-    class Base(authoring.Dataset):
+    class Base(authoring.Profile):
         id = "base"
         producers = [read]
 
@@ -474,7 +474,7 @@ def test_collection_defaults_and_inherited_lists_are_not_shared_between_instance
     assert Base(producers=[]).producers == []
 
     supplied = [read]
-    constructed = authoring.Dataset(id="constructed", producers=supplied)
+    constructed = authoring.Profile(id="constructed", producers=supplied)
     supplied.clear()
     assert constructed.producers == [read]
 
@@ -487,7 +487,7 @@ def test_subclasses_can_explicitly_extend_or_clear_inherited_collections() -> No
         outputs=[],
     )
 
-    class Base(authoring.Dataset):
+    class Base(authoring.Profile):
         id = "base"
         producers = [read]
 
@@ -503,7 +503,7 @@ def test_subclasses_can_explicitly_extend_or_clear_inherited_collections() -> No
 
 
 def test_conversion_revalidates_modified_action_collections() -> None:
-    declaration = authoring.Dataset(id="example")
+    declaration = authoring.Profile(id="example")
     declaration.producers = [
         authoring.Action(
             id="write",
@@ -519,7 +519,7 @@ def test_conversion_revalidates_modified_action_collections() -> None:
 
 
 def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> None:
-    class Example(authoring.Dataset):
+    class Example(authoring.Profile):
         id = "example"
         producers = [
             authoring.Action(
@@ -564,13 +564,13 @@ def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> No
 
 
 def test_dataset_registry_collects_dataset_classes_in_order() -> None:
-    class First(authoring.Dataset):
+    class First(authoring.Profile):
         id = "first"
 
-    class Second(authoring.Dataset):
+    class Second(authoring.Profile):
         id = "second"
 
-    declarations = authoring.DatasetRegistry(datasets=[First, Second]).to_declarations()
+    declarations = authoring.ProfileRegistry(profiles=[First, Second]).to_declarations()
     assert list(declarations) == ["first", "second"]
     assert isinstance(declarations["first"], First)
     assert isinstance(declarations["second"], Second)

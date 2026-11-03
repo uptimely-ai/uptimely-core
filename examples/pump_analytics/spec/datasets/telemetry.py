@@ -3,14 +3,14 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension, entity
 
-from uptimely import Action, Dataset, Feature, Order, RowScope, ref
+from uptimely import Action, Feature, Order, Profile, RowScope, ref
 from uptimely.spec.python import row_context
 
 HYDRAULIC_POWER_SCALE = 1.0 / 36.0
 """Converts bar * m3/h into kW for the hydraulic-power numerator."""
 
 
-class Telemetry(Dataset):
+class Telemetry(Profile):
     """Process and condition readings at pump-and-timestamp grain."""
 
     id = "pump_telemetry_dataset"

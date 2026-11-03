@@ -233,10 +233,10 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     if source_kind != "json":
         (root / "declaration.py").write_text(
             "from uptimely.spec import python as api\n"
-            "from uptimely.spec.python import Dataset, Entity, Feature, Action\n"
+            "from uptimely.spec.python import Profile, Entity, Feature, Action\n"
             "import build_functions\n"
             "example = Entity(id='example', name='Example', dimensions=[])\n"
-            "class Values(Dataset):\n"
+            "class Values(Profile):\n"
             "    id = 'values'\n"
             "    entity = example\n"
             "    producers = [Action(\n"

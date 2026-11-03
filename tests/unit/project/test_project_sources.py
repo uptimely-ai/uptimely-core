@@ -94,10 +94,10 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
     )
     (tmp_path / f"{module_name}.py").write_text(
         f"import {dependency_name}\n"
-        "from uptimely.spec.python import Dataset, Entity\n"
+        "from uptimely.spec.python import Profile, Entity\n"
         "from uptimely.spec.python.spec import Spec\n"
         "assets = Entity(id='assets', name='Assets', dimensions=[])\n"
-        "class Values(Dataset):\n"
+        "class Values(Profile):\n"
         "    id = 'values'\n"
         "    entity = assets\n"
         f"python_spec = Spec(dimensions=[], entities=[assets], "
@@ -132,9 +132,9 @@ def test_build_defers_source_semantic_validation_to_compiler(
 ) -> None:
     module_name = f"deferred_validation_{tmp_path.name.replace('-', '_')}"
     (tmp_path / f"{module_name}.py").write_text(
-        "from uptimely.spec.python import Spec, Entity, Dataset\n"
+        "from uptimely.spec.python import Spec, Entity, Profile\n"
         "owner = Entity(id='example', name='Example', dimensions=[])\n"
-        "values = Dataset(id='values', entity=owner)\n"
+        "values = Profile(id='values', entity=owner)\n"
         "python_spec = Spec(dimensions=[], entities=[owner], datasets=[values])\n",
         encoding="utf-8",
     )

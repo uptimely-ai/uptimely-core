@@ -2,10 +2,10 @@
 
 from uptimely.spec.python import (
     Action,
-    Dataset,
     Dimension,
     Entity,
     Feature,
+    Profile,
     Spec,
     ref,
 )
@@ -20,7 +20,7 @@ sample = Entity(
 )
 
 
-class Values(Dataset):
+class Values(Profile):
     id = "values"
     entity = sample
 

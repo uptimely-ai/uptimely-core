@@ -116,7 +116,7 @@ def make_spec(kind: functions.FunctionKindId = "vectorize") -> model.Spec:
     return model.Spec.model_validate(document)
 
 
-def target(spec: model.Spec) -> model.Dataset:
+def target(spec: model.Spec) -> model.Profile:
     return spec.entities["target_entity"].datasets["target"]
 
 

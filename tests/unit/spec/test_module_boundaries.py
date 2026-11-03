@@ -13,7 +13,7 @@ from uptimely.compiler import compiler
 from uptimely.execution_plan import models as execution_plan_models
 from uptimely.spec import model, validation
 from uptimely.spec.json import codec
-from uptimely.spec.python import conversion, dataset, dimension, entity
+from uptimely.spec.python import conversion, dimension, entity, profile
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
@@ -265,7 +265,7 @@ def test_python_dictionary_and_json_export_share_the_same_encoding(
     pump = dimension.Dimension(id="pump", type="string")
     assets = entity.Entity(id="assets", name="Assets", dimensions=[pump])
 
-    class Readings(dataset.Dataset):
+    class Readings(profile.Profile):
         id = "readings"
         entity = assets
 

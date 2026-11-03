@@ -8,7 +8,7 @@ from support import execution as execution_support
 from uptimely import compiler, spec
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
-from uptimely.spec.python import actions, dataset, dimension, entity, feature, ref
+from uptimely.spec.python import actions, dimension, entity, feature, profile, ref
 
 
 def read_values() -> pl.DataFrame:
@@ -58,7 +58,7 @@ def dataset_identifier(
 def _spec() -> spec.Spec:
     return spec.from_python(
         datasets=[
-            dataset.Dataset(
+            profile.Profile(
                 id="observations",
                 producers=[
                     actions.Action(
@@ -298,7 +298,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                 name="Source",
                 dimensions=[dimension.Dimension(id="id", type="integer")],
                 datasets=[
-                    dataset.Dataset(
+                    profile.Profile(
                         id="source",
                         producers=[
                             actions.Action(
@@ -320,7 +320,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                     dimension.Dimension(id="region", type="string"),
                 ],
                 datasets=[
-                    dataset.Dataset(
+                    profile.Profile(
                         id="target",
                         producers=[
                             actions.Action(

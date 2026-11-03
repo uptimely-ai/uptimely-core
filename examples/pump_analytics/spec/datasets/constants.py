@@ -3,10 +3,10 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import entity
 
-from uptimely import Action, Dataset, Feature, RowScope, ref
+from uptimely import Action, Feature, Profile, RowScope, ref
 
 
-class Constants(Dataset):
+class Constants(Profile):
     """One row containing project-wide physical constants."""
 
     id = "constants_dataset"

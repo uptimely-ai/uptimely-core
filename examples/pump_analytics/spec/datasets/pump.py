@@ -3,10 +3,10 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import entity
 
-from uptimely import Action, Dataset, Feature, RowScope, ref
+from uptimely import Action, Feature, Profile, RowScope, ref
 
 
-class Pump(Dataset):
+class Pump(Profile):
     """One observation per pump, derived from timestamped telemetry."""
 
     id = "pump_dataset"

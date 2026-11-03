@@ -78,12 +78,12 @@ def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.
     path.write_text(json.dumps(configuration), encoding="utf-8")
     assert spec.load_spec(path).entities["telemetry"].datasets["observations"].order == []
 
-    first = spec.Dataset(id="first")
-    second = spec.Dataset(id="second")
+    first = spec.Profile(id="first")
+    second = spec.Profile(id="second")
     first.order.append(spec.Order(**ORDER[0]))
     assert second.order == []
-    authored_first = python_spec.dataset.Dataset(id="first")
-    authored_second = python_spec.dataset.Dataset(id="second")
+    authored_first = python_spec.profile.Profile(id="first")
+    authored_second = python_spec.profile.Profile(id="second")
     first_model = authored_first.to_model()
     first_model.order.append(spec.Order(**ORDER[0]))
     assert not authored_first.order
@@ -160,13 +160,13 @@ def test_dataset_order_reports_first_invalid_key_in_sequence(tmp_path: pathlib.P
 def test_dataset_order_python_authoring_matches_json(
     tmp_path: pathlib.Path, use_entities: bool
 ) -> None:
-    declaration = python_spec.dataset.Dataset(
+    declaration = python_spec.profile.Profile(
         id="observations",
         order=[
-            python_spec.dataset.Order(
+            python_spec.profile.Order(
                 dimension=python_spec.ref.dimension("machine"), direction="asc"
             ),
-            python_spec.dataset.Order(dimension="$dimensions.timestamp", direction="desc"),
+            python_spec.profile.Order(dimension="$dimensions.timestamp", direction="desc"),
         ],
     )
     dimensions = [
@@ -201,17 +201,17 @@ def test_dataset_order_python_authoring_matches_json(
 
 def test_dataset_order_python_authoring_validates_references() -> None:
     with pytest.raises(pydantic.ValidationError):
-        python_spec.dataset.Order(
+        python_spec.profile.Order(
             dimension=python_spec.ref.feature("machine"), direction="asc"
         ).to_model()
 
     with pytest.raises(validation.SpecError, match="not declared by entity"):
         spec.from_python(
             datasets=[
-                python_spec.dataset.Dataset(
+                python_spec.profile.Profile(
                     id="observations",
                     order=[
-                        python_spec.dataset.Order(
+                        python_spec.profile.Order(
                             dimension=python_spec.ref.dimension("missing"),
                             direction="asc",
                         )
@@ -225,7 +225,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     identifier = python_spec.dimension.Dimension(id="id", type="integer")
-    declaration = python_spec.dataset.Dataset(
+    declaration = python_spec.profile.Profile(
         id="ordered_values",
         producers=[
             python_spec.actions.Action(
@@ -267,11 +267,11 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
                 name=entity.name,
                 dimensions=[identifier],
                 datasets=[
-                    python_spec.dataset.Dataset(
+                    python_spec.profile.Profile(
                         id=declaration.id,
                         producers=declaration.producers,
                         order=[
-                            python_spec.dataset.Order(
+                            python_spec.profile.Order(
                                 dimension=python_spec.ref.dimension("id"), direction="desc"
                             )
                         ],

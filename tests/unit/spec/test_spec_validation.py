@@ -6,7 +6,7 @@ from support import examples as example_support
 
 from uptimely import spec
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions, conversion, dataset, feature, ref
+from uptimely.spec.python import actions, conversion, feature, profile, ref
 from uptimely.spec.validation import errors as validation_errors
 from uptimely.spec.validation.rules.actions import contracts as action_contracts
 
@@ -288,7 +288,7 @@ def test_escape_mappings_validate_declared_input_references(
 def test_python_conversion_and_json_loading_accept_output_only_escape_actions(
     tmp_path: pathlib.Path,
 ) -> None:
-    declaration = dataset.Dataset(
+    declaration = profile.Profile(
         id="observations",
         pipelines=[
             actions.Action(
@@ -313,7 +313,7 @@ def test_python_conversion_and_json_loading_accept_output_only_escape_actions(
 
 
 def test_python_dataset_accepts_escape_feature_outputs() -> None:
-    declaration = dataset.Dataset(
+    declaration = profile.Profile(
         id="observations",
         pipelines=[
             actions.Action(

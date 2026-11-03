@@ -1,4 +1,4 @@
-"""Python-friendly dataset declaration."""
+"""Python-friendly profile declaration."""
 
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ if TYPE_CHECKING:
     from .entity import Entity
 
 __all__ = [
-    "Dataset",
-    "DatasetRegistry",
+    "Profile",
+    "ProfileRegistry",
     "Order",
     "RowScope",
 ]
@@ -40,7 +40,7 @@ _ACTION_KINDS: typing.Final[dict[str, tuple[functions.FunctionKindId, ...]]] = {
 
 @dataclasses.dataclass(frozen=True)
 class RowScope:
-    """The conceptual row subset represented by a dataset."""
+    """The conceptual row subset represented by a profile."""
 
     grain: str = ""
     filtering: str = ""
@@ -57,7 +57,7 @@ class RowScope:
 
 @dataclasses.dataclass(frozen=True)
 class Order:
-    """Declare a logical ordering key, not a required physical sort.
+    """Declare a logical profile ordering key, not a required physical sort.
 
     Args:
         dimension: A dimension reference created by ``ref.dimension`` or its
@@ -80,10 +80,10 @@ class Order:
         )
 
 
-class Dataset:
-    """Observation scope with declarative producers, publishers, and pipelines.
+class Profile:
+    """Observation profile with declarative producers, publishers, and pipelines.
 
-    Each collection contains Actions with IDs unique across the dataset.
+    Each collection contains Actions with IDs unique across the profile.
     Subclasses inherit collections normally; assigning a collection replaces it.
     Feature metadata belongs to each action's outputs, not a separate inventory.
     """
@@ -114,7 +114,7 @@ class Dataset:
         if id is not None:
             self.id = id
         if not isinstance(getattr(self, "id", None), str) or not self.id.strip():
-            raise ValueError("Dataset requires a non-empty id")
+            raise ValueError("Profile requires a non-empty id")
         if name is not None:
             self.name = name
         elif self.name is None:
@@ -145,17 +145,17 @@ class Dataset:
             for action in group_actions:
                 if action.kind not in allowed_kinds:
                     raise ValueError(
-                        f"Dataset '{self.id}', action '{action.id}': "
+                        f"Profile '{self.id}', action '{action.id}': "
                         f"kind '{action.kind}' is not allowed in {group_name}; "
                         f"expected {', '.join(allowed_kinds)}"
                     )
                 if action.outputs and not functions.FUNCTION_KINDS[action.kind].produces_features:
                     raise ValueError(
-                        f"Dataset '{self.id}', action '{action.id}': "
+                        f"Profile '{self.id}', action '{action.id}': "
                         f"{action.kind.capitalize()} action cannot produce features"
                     )
                 if action.id in collected:
-                    raise ValueError(f"Dataset '{self.id}' has duplicate action ID '{action.id}'")
+                    raise ValueError(f"Profile '{self.id}' has duplicate action ID '{action.id}'")
                 collected[action.id] = action
         return collected
 
@@ -168,14 +168,14 @@ class Dataset:
         """Validate and copy one producer, publisher, or pipeline action group."""
         group_actions = provided_actions if provided_actions is not None else inherited_actions
         if not isinstance(group_actions, abc.Sequence) or isinstance(group_actions, (str, bytes)):
-            raise TypeError(f"Dataset '{self.id}' {group_name} must be a sequence of Actions")
+            raise TypeError(f"Profile '{self.id}' {group_name} must be a sequence of Actions")
         if any(not isinstance(action, actions.Action) for action in group_actions):
-            raise TypeError(f"Dataset '{self.id}' {group_name} must contain Actions")
+            raise TypeError(f"Profile '{self.id}' {group_name} must contain Actions")
         return list(group_actions)
 
-    def to_model(self) -> spec_model.Dataset:
-        """Build the canonical dataset, rejecting duplicate feature producers."""
-        return spec_model.Dataset(
+    def to_model(self) -> spec_model.Profile:
+        """Build the canonical profile, rejecting duplicate feature producers."""
+        return spec_model.Profile(
             id=self.id,
             name=self.name,
             description=self.description,
@@ -189,14 +189,14 @@ class Dataset:
     def _entity_dimensions(self) -> tuple[dimension_module.Dimension, ...]:
         """Resolve the owning entity's dimension declarations."""
         if isinstance(self.entity, str):
-            raise ValueError("Resolve entity IDs through Spec before converting a dataset")
+            raise ValueError("Resolve entity IDs through Spec before converting a profile")
         dimensions = self.entity.dimensions if self.entity is not None else ()
         resolved: list[dimension_module.Dimension] = []
         for key in dimensions:
             if isinstance(key, str):
-                raise ValueError("Resolve dimension IDs through Spec before converting a dataset")
+                raise ValueError("Resolve dimension IDs through Spec before converting a profile")
             if not isinstance(key, dimension_module.Dimension):
-                raise TypeError("dataset dimensions must contain Dimension declarations")
+                raise TypeError("profile dimensions must contain Dimension declarations")
             resolved.append(key)
         return tuple(resolved)
 
@@ -227,7 +227,7 @@ class Dataset:
                 identifier = metadata.id
                 if identifier in producers:
                     raise ValueError(
-                        f"Dataset '{self.id}' feature '{identifier}' has duplicate producers: "
+                        f"Profile '{self.id}' feature '{identifier}' has duplicate producers: "
                         f"'{producers[identifier]}' and '{name}'"
                     )
                 producers[identifier] = name
@@ -248,9 +248,9 @@ class Dataset:
         try:
             return declaration.to_model()
         except TypeError as error:
-            raise TypeError(f"Dataset '{self.id}', action '{name}': {error}") from error
+            raise TypeError(f"Profile '{self.id}', action '{name}': {error}") from error
         except ValueError as error:
-            raise ValueError(f"Dataset '{self.id}', action '{name}': {error}") from error
+            raise ValueError(f"Profile '{self.id}', action '{name}': {error}") from error
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Collect reusable function contracts without executing implementations."""
@@ -261,35 +261,35 @@ class Dataset:
         return spec_model.FunctionCatalog(root=function_catalog.merge_function_catalogs(catalogs))
 
 
-class DatasetRegistry:
-    """Register dataset classes and instantiate their declarations without execution."""
+class ProfileRegistry:
+    """Register profile classes and instantiate their declarations without execution."""
 
-    def __init__(self, datasets: abc.Sequence[type[Dataset]]) -> None:
-        self.datasets: dict[str, Dataset] = {}
-        for declaration in datasets:
+    def __init__(self, profiles: abc.Sequence[type[Profile]]) -> None:
+        self.profiles: dict[str, Profile] = {}
+        for declaration in profiles:
             instance = declaration()
-            if instance.id in self.datasets:
-                raise ValueError(f"Duplicate dataset ID: {instance.id}")
-            self.datasets[instance.id] = instance
+            if instance.id in self.profiles:
+                raise ValueError(f"Duplicate profile ID: {instance.id}")
+            self.profiles[instance.id] = instance
 
-    def to_declarations(self) -> dict[str, Dataset]:
-        """Return registered dataset declarations in composition order."""
-        return self.datasets.copy()
+    def to_declarations(self) -> dict[str, Profile]:
+        """Return registered profile declarations in composition order."""
+        return self.profiles.copy()
 
 
 def to_models(
-    declarations: abc.Iterable[Dataset | spec_model.Dataset],
-) -> dict[str, spec_model.Dataset]:
-    """Convert datasets to an ID-keyed registry without overwriting duplicates."""
-    models: dict[str, spec_model.Dataset] = {}
+    declarations: abc.Iterable[Profile | spec_model.Profile],
+) -> dict[str, spec_model.Profile]:
+    """Convert profiles to an ID-keyed registry without overwriting duplicates."""
+    models: dict[str, spec_model.Profile] = {}
     for declaration in declarations:
-        if isinstance(declaration, Dataset):
+        if isinstance(declaration, Profile):
             model = declaration.to_model()
-        elif isinstance(declaration, spec_model.Dataset):
+        elif isinstance(declaration, spec_model.Profile):
             model = declaration
         else:
-            raise TypeError("datasets must contain Dataset declarations or canonical models")
+            raise TypeError("datasets must contain Profile declarations or canonical models")
         if model.id in models:
-            raise ValueError(f"Duplicate dataset id {model.id}")
+            raise ValueError(f"Duplicate profile id {model.id}")
         models[model.id] = model
     return models

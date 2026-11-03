@@ -9,16 +9,16 @@ from .common import (
     SpecSource,
     StrictModel,
 )
-from .dataset import (
+from .functions import FunctionCatalog, FunctionTemplate
+from .profile import (
     Action,
     ActionFeatures,
-    Dataset,
     Entity,
     Feature,
     Order,
+    Profile,
     RowScope,
 )
-from .functions import FunctionCatalog, FunctionTemplate
 from .spec import SPEC_VERSION, ActionKey, DatasetKey, Spec
 
 __all__ = [
@@ -29,7 +29,7 @@ __all__ = [
     "Binding",
     "BindingArgumentResolver",
     "BindingArgument",
-    "Dataset",
+    "Profile",
     "Dimension",
     "Entity",
     "Feature",

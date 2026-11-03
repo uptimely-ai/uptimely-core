@@ -10,7 +10,7 @@ from .spec import (  # noqa: I001
 )
 from .spec.python import (
     Action,
-    Dataset,
+    Profile,
     Dimension,
     Entity,
     Feature,
@@ -27,7 +27,7 @@ from .engine import Engine
 __all__ = [
     "Spec",
     "Action",
-    "Dataset",
+    "Profile",
     "Feature",
     "Order",
     "RowScope",

@@ -21,7 +21,7 @@ def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
 def test_root_authoring_api_compiles_and_executes(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
-    class CalculatedData(up.Dataset):
+    class CalculatedData(up.Profile):
         id = "calculated_dataset"
         entity = "measurements"
         producers = [

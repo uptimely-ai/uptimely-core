@@ -12,8 +12,8 @@ from uptimely.spec import catalog as function_catalog
 from uptimely.spec import model as spec_model
 
 from . import conversion, dimension
-from . import dataset as dataset_module
 from . import entity as entity_module
+from . import profile as profile_module
 
 __all__ = [
     "Spec",
@@ -22,17 +22,17 @@ __all__ = [
 
 @dataclasses.dataclass(frozen=True)
 class Spec:
-    """Build a spec from explicitly registered dimensions, entities, and datasets.
+    """Build a spec from explicitly registered dimensions, entities, and profiles.
 
     Args:
         dimensions: Shared dimensions, including those referenced as objects.
         entities: Entity metadata with dimension IDs or Dimension objects.
-        datasets: Dataset classes or instances with entity IDs or Entity objects.
+        datasets: Profile classes or instances with entity IDs or Entity objects.
         name: Optional spec display name.
     """
 
     name: str | None = None
-    _dataset_sources: abc.Sequence[type[dataset_module.Dataset] | dataset_module.Dataset] = (
+    _dataset_sources: abc.Sequence[type[profile_module.Profile] | profile_module.Profile] = (
         dataclasses.field(init=False, repr=False)
     )
     _dimension_sources: abc.Sequence[dimension.Dimension] = dataclasses.field(
@@ -44,7 +44,7 @@ class Spec:
         self,
         dimensions: abc.Sequence[dimension.Dimension],
         entities: abc.Sequence[entity_module.Entity],
-        datasets: abc.Sequence[type[dataset_module.Dataset] | dataset_module.Dataset],
+        datasets: abc.Sequence[type[profile_module.Profile] | profile_module.Profile],
         name: str | None = None,
     ) -> None:
         object.__setattr__(self, "name", name)
@@ -96,26 +96,26 @@ class Spec:
         return dataclasses.replace(owner, dimensions=resolved, datasets=[])
 
     @functools.cached_property
-    def datasets(self) -> tuple[dataset_module.Dataset, ...]:
+    def datasets(self) -> tuple[profile_module.Profile, ...]:
         """Instantiate dataset classes and validate their owning entities."""
-        declarations: list[dataset_module.Dataset] = []
+        declarations: list[profile_module.Profile] = []
         if not isinstance(self._dataset_sources, abc.Sequence):
-            raise TypeError("datasets must be a sequence of Dataset classes or declarations")
+            raise TypeError("datasets must be a sequence of Profile classes or declarations")
         identifiers: set[str] = set()
         for item in self._dataset_sources:
-            if isinstance(item, type) and issubclass(item, dataset_module.Dataset):
+            if isinstance(item, type) and issubclass(item, profile_module.Profile):
                 declaration = item()
-            elif isinstance(item, dataset_module.Dataset):
+            elif isinstance(item, profile_module.Profile):
                 declaration = item
             else:
-                raise TypeError("datasets must contain Dataset classes or declarations")
+                raise TypeError("datasets must contain Profile classes or declarations")
             owner = declaration.entity
             if not isinstance(owner, (str, entity_module.Entity)):
-                raise ValueError(f"Dataset '{declaration.id}' must declare an entity")
+                raise ValueError(f"Profile '{declaration.id}' must declare an entity")
             identifier = owner if isinstance(owner, str) else owner.id
             if identifier not in self._registered_entities:
                 raise ValueError(
-                    f"Dataset '{declaration.id}' references undeclared entity '{identifier}'"
+                    f"Profile '{declaration.id}' references undeclared entity '{identifier}'"
                 )
             if (
                 not isinstance(owner, str)
@@ -131,13 +131,13 @@ class Spec:
     @property
     def entities(self) -> list[entity_module.Entity]:
         """Resolve registered entities and associate explicitly registered datasets."""
-        grouped: dict[str, list[dataset_module.Dataset]] = {
+        grouped: dict[str, list[profile_module.Profile]] = {
             identifier: [] for identifier in self._registered_entities
         }
         for declaration in self.datasets:
             owner = declaration.entity
             if not isinstance(owner, (str, entity_module.Entity)):
-                raise ValueError(f"Dataset '{declaration.id}' must declare an entity")
+                raise ValueError(f"Profile '{declaration.id}' must declare an entity")
             identifier = owner if isinstance(owner, str) else owner.id
             resolved = copy.copy(declaration)
             resolved.entity = self._registered_entities[identifier]
@@ -147,14 +147,14 @@ class Spec:
             for identifier, owner in self._registered_entities.items()
         ]
 
-    def iter_datasets(self) -> list[dataset_module.Dataset]:
+    def iter_datasets(self) -> list[profile_module.Profile]:
         """Return datasets in explicit registration order."""
         return list(self.datasets)
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Collect and merge the function catalog across all datasets."""
         functions = function_catalog.merge_function_catalogs(
-            (dataset.function_catalog() for dataset in self.iter_datasets()),
+            (profile.function_catalog() for profile in self.iter_datasets()),
         )
         return spec_model.FunctionCatalog(root=functions)
 

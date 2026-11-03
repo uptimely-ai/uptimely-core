@@ -1,4 +1,4 @@
-"""Dataset and entity models for spec documents."""
+"""Profile and entity models for spec documents."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from . import common
 
 
 class Feature(common.StrictModel):
-    """A dataset feature's logical metadata."""
+    """A profile feature's logical metadata."""
 
     id: str = pydantic.Field(exclude=True)
     name: str | None = None
@@ -113,21 +113,21 @@ class Action(common.StrictModel):
 
 
 class Order(common.StrictModel):
-    """One logical dataset ordering key, without a physical row-order guarantee."""
+    """One logical profile ordering key, without a physical row-order guarantee."""
 
     dimension: str = pydantic.Field(pattern=rf"^{re.escape(selectors.DIMENSION_PREFIX)}.+$")
     direction: typing.Literal["asc", "desc"]
 
 
 class RowScope(common.StrictModel):
-    """The conceptual row subset represented by a dataset."""
+    """The conceptual row subset represented by a profile."""
 
     grain: str = ""
     filtering: str = ""
     coverage: str = ""
 
 
-class Dataset(common.StrictModel):
+class Profile(common.StrictModel):
     """An entry under an entity's ID-keyed `datasets` object."""
 
     id: str = pydantic.Field(exclude=True)
@@ -140,14 +140,14 @@ class Dataset(common.StrictModel):
 
     @pydantic.model_validator(mode="after")
     def generate_name(self) -> typing.Self:
-        """Generate a display name from the dataset ID when one is not supplied."""
+        """Generate a display name from the profile ID when one is not supplied."""
         if self.name is None:
             self.name = common.humanize_identifier(self.id)
         return self
 
     @property
     def all_features(self) -> dict[str, Feature]:
-        """Return the declared feature metadata for this dataset."""
+        """Return the declared feature metadata for this profile."""
         return self.features
 
     @functools.cached_property
@@ -195,7 +195,7 @@ class Entity(common.StrictModel):
     name: str
     description: str | None = None
     dimensions: list[common.Dimension] = pydantic.Field(default_factory=list)
-    datasets: dict[str, Dataset] = pydantic.Field(default_factory=dict)
+    datasets: dict[str, Profile] = pydantic.Field(default_factory=dict)
 
     @functools.cached_property
     def dimension_ids(self) -> list[str]:
