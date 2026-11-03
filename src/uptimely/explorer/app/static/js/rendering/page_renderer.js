@@ -5,7 +5,7 @@ export function dashboard(data) {
   return `<main class="dashboard">
     <header class="dashboard-hero"><div>
       <p class="eyebrow">Project explorer</p>
-      <h1 class="title-with-icon">${icon("home", "title-icon")}<span>${escape(data.project.name || "Untitled analytics project")}</span></h1>
+      <h1><span>${escape(data.project.name || "Untitled analytics project")}</span></h1>
       <p class="dashboard-intro">From declared data to a dependency-aware plan.
         Explore what this analytics project defines, how its plan is compiled,
         and how its data flows through execution.</p>

@@ -111,7 +111,7 @@ export function contextLink(target, label, key, count = null, kind = null) {
 
 export function shell(data, view, context, content) {
   const projectName = escape(data.project.name || "Untitled analytics project");
-  const projectLink = `<a class="site-product" href="${href("home")}" title="${projectName}" aria-label="${projectName}"${view === "home" ? ' aria-current="page"' : ""}>${icon("home")}<span>${projectName}</span></a>`;
+  const projectLink = `<a class="site-product" href="${href("home")}" title="${projectName}" aria-label="${projectName}"${view === "home" ? ' aria-current="page"' : ""}><span>${projectName}</span></a>`;
   const navigationGroups = [
     ["spec", "Spec", [
       ["spec", "Overview", "overview"], ["profiles", "Profiles", "profiles"],

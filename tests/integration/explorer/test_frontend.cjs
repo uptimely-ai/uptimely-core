@@ -18,6 +18,7 @@ test("restores the original navigation hierarchy, project identity and build bad
   assert.match(specNavigation, /icon--functions[^>]*data-lucide="square-function"/);
   assert.match(html, /icon--invocation-lineage[^>]*data-lucide="git-branch"/);
   assert.match(html, /icon--data-lineage[^>]*data-lucide="monitor-play"/);
+  assert.doesNotMatch(html, /icon--home/);
   assert.match(html, /&lt;Test project&gt;/);
   assert.match(html, /Full build/);
   data.scope.is_scoped = true;
@@ -184,7 +185,10 @@ test("dimension catalog renders resolutions as a parent-linked hierarchy", async
 test("dashboard, spec and plan retain original visual components and counts", async () => {
   const { dashboard, specOverview, planOverview } = await moduleAt("rendering/page_renderer.js");
   const data = sampleData();
-  assert.match(dashboard(data), /dashboard-hero/);
+  const dashboardHtml = dashboard(data);
+  assert.match(dashboardHtml, /dashboard-hero/);
+  assert.match(dashboardHtml, /<h1><span>&lt;Test project&gt;<\/span><\/h1>/);
+  assert.doesNotMatch(dashboardHtml, /<h1 class="title-with-icon">/);
   assert.match(dashboard(data), /dashboard-art/);
   assert.match(dashboard(data), /spec-journey/);
   assert.equal((dashboard(data).match(/data-stat=/g) || []).length, 5);
