@@ -1,4 +1,4 @@
-import { contextHeader, contextLink, dataTypeIcon, escape, heading, icon, page } from "./rendering/shared_markup.js";
+import { badge, contextGroup, contextHeader, contextLink, dataTypeIcon, escape, heading, icon, page } from "./rendering/shared_markup.js";
 
 const LOG_PAGE_SIZE = 1000;
 const PREVIEW_TYPE_CATEGORIES = {
@@ -68,8 +68,8 @@ export async function loadPreviews(fetchData) {
   return { run, previews: Object.fromEntries(profiles) };
 }
 
-const panel = (title, content) => `<section class="engine-panel">
-  <h2 class="engine-panel-title">${escape(title)}</h2>${content}</section>`;
+const panel = (title, content) => `<section class="ui-panel engine-panel">
+  <h2 class="ui-section-title">${escape(title)}</h2>${content}</section>`;
 const field = (label, value) => `<div class="engine-field"><dt>${escape(label)}</dt><dd>${escape(value ?? "—")}</dd></div>`;
 const formatValue = value => value == null ? "null"
   : typeof value === "object" ? JSON.stringify(value) : String(value);
@@ -100,27 +100,26 @@ export function infoPage({ run }) {
   if (!run) {
     return {
       context: "",
-      content: page(heading("Info", "Information about the latest Engine run.") + `
-        <section class="engine-empty" id="run-overview">
-          ${icon("info", "engine-empty-icon")}
-          <h2>No saved run</h2><p>Run the project with <code>uptimely run</code> to create Engine run information and profile previews.</p>
+      content: page(heading("Info", "Information about the latest saved run.") + `
+        <section class="ui-panel engine-empty" id="run-overview">
+          <h2>No saved run</h2><p>Run the project with <code>uptimely run</code> to save run information and profile previews.</p>
         </section>`),
     };
   }
 
   const statusClass = `engine-status-${escape(run.status)}`;
-  const runDetails = `<div class="engine-fields">
+  const runDetails = `<dl class="engine-fields">
       ${field("Status", run.status)}${field("Started", run.started_at)}
       ${field("Finished", run.finished_at)}${field("Duration", `${run.duration_seconds.toFixed(3)} s`)}
       ${field("Uptimely version", run.uptimely_version)}${field("Runtime validation", run.runtime_validation)}
       ${field("Preview row limit", run.preview_rows)}${field("Run ID", run.run_id)}
       ${field("Build fingerprint", run.build.fingerprint)}
       ${field("Built feature scope", run.build.manifest.features?.join(", ") || "All features")}
-    </div>
+    </dl>
     <div class="engine-run-error">${run.error ? `<p class="engine-error-text">${escape(run.error)}</p>` : ""}</div>`;
   return {
     context: "",
-    content: page(`<section id="run-overview">${heading("Info", "Information about the latest Engine run.")}
+    content: page(`<section id="run-overview">${heading("Info", "Information about the latest saved run.")}
         <section class="engine-run-banner ${statusClass}"><span>Latest run</span><strong>${escape(run.status)}</strong></section>
         ${panel("Run details", runDetails)}
       </section>`),
@@ -135,14 +134,13 @@ export function logsPage({ run, logs }) {
   const logError = '<p class="engine-error-text" id="run-log-error" role="alert" hidden></p>';
   return {
     context: "",
-    content: page(`${heading("Log", "Structured log events from the latest Engine run.", "logs", logs.length)}
+    content: page(`${heading("Log", "Log events from the latest saved run.", "logs")}
       ${run ? `<section id="run-logs">
         <div class="engine-log-editor" id="run-log-entries" data-log-count="${logs.length}" aria-label="Run log events">
           ${logList || '<p class="engine-log-empty">No log events were recorded.</p>'}</div>
         ${logError}${logMore}
-      </section>` : `<section class="engine-empty">
-        ${icon("logs", "engine-empty-icon")}
-        <h2>No saved run</h2><p>Run the project with <code>uptimely run</code> to create an Engine log.</p>
+      </section>` : `<section class="ui-panel engine-empty">
+        <h2>No saved run</h2><p>Run the project with <code>uptimely run</code> to save a run log.</p>
       </section>`}`),
   };
 }
@@ -159,8 +157,8 @@ function previewTable(preview, label) {
   }).join("");
   const rows = preview.rows.map(row => `<tr>${row.map(value =>
     `<td${value === null ? ' class="is-null"' : typeof value === "number" ? ' class="is-number"' : ""}>${escape(formatValue(value))}</td>`).join("")}</tr>`).join("");
-  return `<div class="engine-table-scroll engine-preview-surface" tabindex="0" role="region" aria-label="${escape(label)} preview table">
-    <table class="engine-table engine-preview-table">
+  return `<div class="ui-table-scroll engine-preview-surface" tabindex="0" role="region" aria-label="${escape(label)} preview table">
+    <table class="ui-table engine-preview-table">
       <caption class="sr-only">${escape(label)} saved profile preview</caption>
       <thead><tr>${headers || "<th>No columns</th>"}</tr></thead>
       <tbody>${rows || `<tr><td colspan="${Math.max(preview.columns.length, 1)}">No rows in this preview.</td></tr>`}</tbody>
@@ -171,20 +169,26 @@ export function previewPage(data, { run, previews }) {
   if (!run) {
     return {
       context: "",
-      content: page(heading("Preview", "Saved output samples for each profile from the latest Engine run.") + `
-        <section class="engine-empty">
-          ${icon("preview", "engine-empty-icon")}
+      content: page(heading("Preview", "Saved output samples from the latest run.") + `
+        <section class="ui-panel engine-empty">
           <h2>No saved previews</h2><p>Run the project with <code>uptimely run</code> to save a preview for each profile.</p>
         </section>`),
     };
   }
 
   const entries = Object.entries(run.profiles);
-  const links = entries.map(([id]) => {
-    const label = data.catalogs.configuration.profiles[id]?.name || id;
+  const profiles = data.catalogs.configuration.profiles;
+  const grouped = entries.some(([id]) => profiles[id]?.category);
+  const groups = new Map();
+  for (const [id] of entries) {
+    const category = profiles[id]?.category || "Uncategorized";
+    if (!groups.has(category)) groups.set(category, []);
+    const label = profiles[id]?.name || id;
     const target = `profile-${encodeURIComponent(id)}`;
-    return contextLink(target, label, "datasets");
-  }).join("");
+    groups.get(category).push(contextLink(target, label, "datasets"));
+  }
+  const links = [...groups].map(([category, items]) =>
+    grouped ? contextGroup(category, items) : items.join("")).join("");
   const context = entries.length > 1
     ? `<aside class="site-context" id="preview-context" aria-label="Preview context" data-context-label="Preview">
         ${contextHeader("Preview", "preview", "preview-context", "Preview")}
@@ -200,7 +204,7 @@ export function previewPage(data, { run, previews }) {
         <h1 class="title-with-icon">${icon("datasets", "title-icon")}<span>${escape(label)}</span></h1>
         <p class="engine-profile-description">Dataset produced from the profile</p>
       </div>
-        <span class="engine-preview-status ${preview.status === "succeeded" ? "is-success" : "is-failed"}">${escape(preview.status)}</span>
+        ${badge(preview.status, preview.status === "succeeded" ? "green" : "red")}
       </header>
       ${previewTable(preview, label)}
     </section>`;
@@ -261,8 +265,6 @@ export function initializeLogs(browser, signal) {
         entries.map((entry, index) => logEntry(entry, offset + index + 1)).join(""),
       );
       logEntries.dataset.logCount = String(offset + entries.length);
-      const count = browser.document.querySelector("main [data-section-count]");
-      if (count) count.textContent = `${offset + entries.length} log`;
       button.dataset.offset = String(offset + entries.length);
       button.hidden = entries.length < LOG_PAGE_SIZE;
     } catch (reason) {

@@ -2,21 +2,21 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { sampleData, moduleAt } = require("./helpers/frontend.cjs");
 
-test("restores the original navigation hierarchy, project identity and build badge", async () => {
+test("navigation shows model, plan and run results with project identity and build badge", async () => {
   const { shell } = await moduleAt("rendering/shared_markup.js");
   const data = sampleData();
   const html = shell(data, "functions", "", "");
-  for (const section of ["Spec sections", "Plan sections", "Execution sections"]) assert.ok(html.includes(section));
+  for (const section of ["Analytical model sections", "Execution plan sections", "Run results sections"]) assert.ok(html.includes(section));
   assert.match(html, /id="explorer-navigation"/);
   assert.match(html, /nav-label-toggle/);
   assert.match(html, /href="\?view=functions" aria-current="page"/);
-  const specNavigation = html.match(/aria-label="Spec sections">([^]*?)<\/div>/)[1];
+  const specNavigation = html.match(/aria-label="Analytical model sections">([^]*?)<\/div>/)[1];
   assert.deepEqual([...specNavigation.matchAll(/<span>([^<]+)<\/span>/g)].map(match => match[1]),
-    ["Overview", "Profiles", "Features", "Functions", "Dimensions", "Lineage"]);
+    ["Profiles", "Features", "Functions", "Dimensions", "Lineage"]);
   assert.match(specNavigation, /icon--profiles[^>]*data-lucide="layers-2"/);
   assert.match(specNavigation, /icon--dimensions[^>]*data-lucide="axis-3d"/);
   assert.match(specNavigation, /icon--functions[^>]*data-lucide="square-function"/);
-  assert.match(html, /icon--invocation-lineage[^>]*data-lucide="git-branch"/);
+  assert.match(html, /icon--invocation-lineage[^>]*data-lucide="layout-arrow-right"/);
   assert.match(html, /icon--data-lineage[^>]*data-lucide="monitor-play"/);
   assert.doesNotMatch(html, /icon--home/);
   assert.match(html, /&lt;Test project&gt;/);
@@ -51,15 +51,15 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.ok(!profiles.includes("2 columns"));
   assert.equal((profiles.match(/Pump readings per machine\./g) || []).length, 1);
   assert.doesNotMatch(profiles, />Profile details</);
-  assert.match(profiles, /data-lucide="axis-3d"[^>]*><\/i>Grain<\/h3>/);
-  assert.match(profiles, /data-lucide="scan"[^>]*><\/i>Scope<\/h3>/);
+  assert.match(profiles, /class="ui-section-title">Grain<\/h3>/);
+  assert.match(profiles, /class="ui-section-title">Scope<\/h3>/);
   assert.match(profiles, /data-grain-dimension="machine" data-grain-resolution="machine"/);
   assert.match(profiles, /profile-grain-label">Dimension<\/span>\s*<h4>Machine<\/h4>/);
-  assert.match(profiles, /class="profile-grain-branch">\s*<section class="profile-grain-resolution" aria-label="Selected resolution">\s*<header><span class="profile-grain-label">Resolution<\/span><h5><code>machine<\/code><\/h5><\/header>\s*<dl class="profile-grain-fields">/);
+  assert.match(profiles, /<dl class="profile-grain-fields">\s*<div><dt>Resolution<\/dt><dd><code>machine<\/code>/);
   assert.match(profiles, /Data key<\/dt><dd><code>id<\/code>/);
-  assert.match(profiles, /data-lucide="case-sensitive" class="profile-grain-type-icon" data-type="string"/);
+  assert.match(profiles, /Data type<\/dt><dd><code>string<\/code>/);
   assert.match(profiles, /data-lucide="hash" class="profile-schema-type-icon" data-type="float"/);
-  assert.match(profiles, /<span class="sr-only">float<\/span>/);
+  assert.match(profiles, /<span>float<\/span>/);
   assert.ok(!profiles.includes("one row per machine <source>"));
   assert.ok(!profiles.includes("Filtering"));
   assert.ok(!profiles.includes("Coverage"));
@@ -135,7 +135,7 @@ test("profile scope and logical order share a responsive row only when both exis
   const html = renderCatalog(data, "profiles").content;
   assert.match(html, /class="grid gap-6 md:grid-cols-2" data-profile-context/);
   assert.match(html, /Logical order/);
-  assert.match(html, /data-lucide="list-ordered"[^>]*><\/i>Logical order<\/h3>/);
+  assert.match(html, /class="ui-section-title">Logical order<\/h3>/);
   assert.match(html, /Machine · id asc/);
   delete profile.scope;
   assert.doesNotMatch(renderCatalog(data, "profiles").content, /gap-6 md:grid-cols-2" data-profile-context/);
@@ -158,22 +158,22 @@ test("profile actions expose engineering contracts and inspectable bindings", as
     features: { inputs: [], outputs: ["$features.<logical>"] },
   };
   const html = renderCatalog(data, "profiles").content;
-  assert.ok(html.indexOf("Produced dataset</h3>") < html.indexOf("Actions</h3>"));
-  assert.match(html, /Produced dataset<\/h3><div class="dataset-table-scroll/);
-  assert.match(html, /data-lucide="table-2"[^>]*><\/i>Produced dataset<\/h3>/);
-  assert.match(html, /data-lucide="square-function"[^>]*><\/i>Actions<\/h3>/);
+  assert.ok(html.indexOf("Produced schema</h3>") < html.indexOf("Actions</h3>"));
+  assert.match(html, /Produced schema<\/h3><div class="ui-table-scroll profile-schema-scroll/);
+  assert.match(html, /class="ui-section-title">Actions<\/h3>/);
   assert.match(html, /data-profile-action="aggregate" data-action-kind="collapse"/);
   assert.match(html, /href="\?view=functions#function-aggregate">Maximum &lt;reading&gt;<\/a>/);
   assert.match(html, /Input features<\/dt><dd><code>raw<\/code>/);
   assert.match(html, /Output features<\/dt><dd><code>value<\/code>/);
   assert.match(html, /<details class="profile-action-bindings"><summary>Argument bindings <span>2<\/span>/);
-  assert.match(html, /<span class="profile-action-kind">collapse<\/span>\s*<\/header>\s*<details class="profile-action-bindings">/);
+  assert.match(html, /<span class="ui-badge ui-badge--neutral">collapse<\/span>\s*<\/header>\s*<details class="profile-action-bindings">/);
   assert.match(html, /<th scope="row">options<\/th><td><code>\{&quot;method&quot;:&quot;&lt;max&gt;&quot;\}/);
   assert.match(html, /Group by grain keys:/);
   assert.match(html, /Output features \(logical\)<\/dt><dd><code>&lt;logical&gt;<\/code>/);
   assert.match(html, /None declared/);
   assert.match(html, /escape outputs are not materialized/);
-  assert.ok(!html.includes('data-profile-action="calculate"'));
+  assert.match(html, /data-profile-action="calculate" data-action-kind="vectorize"/);
+  assert.match(html, /data-lucide="table-properties"/);
   assert.ok(!html.includes("<max>"));
 });
 
@@ -202,26 +202,24 @@ test("dimension catalog renders resolutions as a parent-linked hierarchy", async
   };
 
   const html = renderCatalog(data, "dimensions").content;
-  assert.match(html, /icon--resolutions[^>]*data-lucide="layers-3"/);
-  assert.doesNotMatch(html, /icon--resolutions[^>]*data-lucide="braces"/);
-  assert.match(html, /aria-label="Resolution hierarchy"/);
+  assert.match(html, /aria-label="Resolution levels"/);
   assert.match(html, /dimension-resolution-id">plant<\/h3>/);
-  assert.match(html, /<dt><i data-lucide="key-round"[^>]*><\/i>Data key<\/dt>\s*<dd><code>plant_id<\/code>/);
-  assert.match(html, /<dt><i data-lucide="braces"[^>]*><\/i>Data type<\/dt>\s*<dd>[^]*?<code>string<\/code>/);
-  assert.match(html, /dimension-resolution-level">Top level<\/span>/);
+  assert.match(html, /<code>plant_id<\/code>/);
+  assert.match(html, /<span class="sr-only">string<\/span>/);
+  assert.doesNotMatch(html, /dimension-resolution-level|dimension-resolution-fields/);
   assert.match(
     html,
     /data-resolution-id="plant"[^]*?<ul class="dimension-resolution-children"[^>]*><li data-resolution-id="production_line"[^]*?<ul class="dimension-resolution-children"[^>]*><li data-resolution-id="machine"/,
   );
-  assert.match(html, /dimension-resolution-level">Parent · plant<\/span>/);
   assert.match(html, /data-parent-resolution="production_line"/);
   assert.match(html, /data-parent-resolution="plant"/);
   assert.match(html, /data-lucide="case-sensitive" class="dimension-resolution-type-icon" data-type="string"/);
   assert.match(html, /data-dimension-description[^>]*>No description provided\./);
 });
 
-test("dashboard, spec and plan retain original visual components and counts", async () => {
-  const { dashboard, specOverview, planOverview } = await moduleAt("rendering/page_renderer.js");
+test("dashboard, Features stats and plan show visual components and counts", async () => {
+  const { dashboard, planOverview } = await moduleAt("rendering/page_renderer.js");
+  const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
   const data = sampleData();
   const dashboardHtml = dashboard(data);
   assert.match(dashboardHtml, /dashboard-hero/);
@@ -230,8 +228,9 @@ test("dashboard, spec and plan retain original visual components and counts", as
   assert.match(dashboard(data), /dashboard-art/);
   assert.match(dashboard(data), /spec-journey/);
   assert.equal((dashboard(data).match(/data-stat=/g) || []).length, 5);
-  assert.match(specOverview(data), /Spec profile/);
-  assert.match(specOverview(data), /data-generated="false"/);
+  const features = renderCatalog(data, "features").content;
+  assert.match(features, /Features by role/);
+  assert.match(features, /data-category="output" data-count="1"/);
   assert.match(planOverview(data), /Max parallel invocations/);
 });
 

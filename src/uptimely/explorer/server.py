@@ -9,10 +9,12 @@ import typing
 from collections import abc
 
 import fastapi
+import fastapi.responses
+import fastapi.staticfiles
+import starlette.types
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
-from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
 from uptimely import project_paths
@@ -22,6 +24,17 @@ from uptimely.run import store as run_store
 
 logger = logging.getLogger(__name__)
 _BUILD_INSTRUCTION = "Run 'uptimely project build' to generate a valid Explorer snapshot."
+
+
+class _FrontendFiles(fastapi.staticfiles.StaticFiles):
+    """Require browsers to revalidate the unversioned frontend assets."""
+
+    async def get_response(
+        self, path: str, scope: starlette.types.Scope
+    ) -> fastapi.responses.Response:
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
 
 
 def _read_run(load: abc.Callable[[], str]) -> Response:
@@ -148,7 +161,7 @@ def create_app(project_root: pathlib.Path) -> FastAPI:
             background=BackgroundTask(shutil.rmtree, temporary_root),
         )
 
-    app.mount("/", StaticFiles(directory=str(static_root), html=True), name="explorer")
+    app.mount("/", _FrontendFiles(directory=str(static_root), html=True), name="explorer")
     return app
 
 

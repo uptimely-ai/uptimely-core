@@ -1,6 +1,6 @@
 import { renderCatalog } from "../catalogs/catalog_renderer.js";
 import { animation } from "../animation/animation_renderer.js";
-import { dashboard, lineage, planOverview, specOverview } from "../rendering/page_renderer.js";
+import { dashboard, lineage, planOverview } from "../rendering/page_renderer.js";
 import { shell } from "../rendering/shared_markup.js";
 import { initializeCatalog } from "../catalogs/catalog_navigation.js";
 import { initializeIcons } from "../navigation/sidebar_controls.js";
@@ -29,7 +29,6 @@ const catalog = (name, highlight = false) => ({
 const content = render => data => ({ context: "", content: render(data) });
 const VIEWS = {
   home: { stylesheet: "dashboard", initialize: icons, render: content(dashboard) },
-  spec: { stylesheet: "spec", initialize: icons, render: content(specOverview) },
   plan: { stylesheet: "spec", initialize: icons, render: content(planOverview) },
   features: catalog("features"),
   profiles: catalog("profiles"),

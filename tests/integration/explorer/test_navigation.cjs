@@ -110,7 +110,7 @@ test("failed dependencies report an error and allow returning to the active page
   failedResources.length = 0;
   await app.click("?view=functions");
   assert.equal(app.elements["error-status"], undefined);
-  assert.match(app.body.innerHTML, /Functions overview/);
+  assert.match(app.body.innerHTML, /Functions stats/);
   assert.equal(app.scripts.filter(url => url.includes("highlight.min.js")).length, 2);
   assert.equal(app.fetched.length, 1);
 });

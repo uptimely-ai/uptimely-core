@@ -60,7 +60,7 @@ and update relative imports when moving them. Runtime snapshot configuration
 remains in `static/config.js`, which static export rewrites for its data URL.
 
 Run the frontend regression tests with
-`node --test tests/integration/explorer/*.cjs`.
+`node --test tests/integration/explorer/*.cjs tests/unit/explorer/*.mjs`.
 
 ## Multi-agent coding
 
@@ -123,7 +123,7 @@ do not normally need an entry.
 Node tests can be ran by:
 
 ```sh
-node --test tests/integration/explorer/*.cjs
+node --test tests/integration/explorer/*.cjs tests/unit/explorer/*.mjs
 ```
 
 ## Branching and releases

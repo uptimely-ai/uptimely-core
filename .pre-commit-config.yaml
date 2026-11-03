@@ -32,8 +32,8 @@ repos:
         pass_filenames: false
       - id: javascript-tests
         name: Explorer JavaScript tests
-        entry: node --test tests/integration/explorer/*.cjs
+        entry: node --test tests/integration/explorer/*.cjs tests/unit/explorer/*.mjs
         language: system
         stages: [pre-commit]
-        files: '^(src/uptimely/explorer/app/static/js/.*\.js|tests/integration/explorer/.*\.cjs)$'
+        files: '^(src/uptimely/explorer/app/static/js/.*\.js|tests/integration/explorer/.*\.cjs|tests/unit/explorer/.*\.mjs)$'
         pass_filenames: false

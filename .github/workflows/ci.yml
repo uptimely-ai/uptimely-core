@@ -37,7 +37,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-      - run: node --test tests/integration/explorer/*.cjs
+      - run: node --test tests/integration/explorer/*.cjs tests/unit/explorer/*.mjs
       - run: pipx install poetry
       - name: Set up Python
         uses: actions/setup-python@v6

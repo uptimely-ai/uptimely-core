@@ -107,6 +107,16 @@ def _saved_run(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> engin
     return runtime
 
 
+@pytest.mark.parametrize("path", ["/", "/css/spec.css", "/js/catalogs/catalog_renderer.js"])
+def test_frontend_assets_require_cache_revalidation(tmp_path: pathlib.Path, path: str) -> None:
+    app = explorer_server.create_app(tmp_path)
+    status, body, headers = _get(app, path)
+    assert status == 200
+    assert body
+    assert headers["cache-control"] == "no-cache"
+    assert "etag" in headers
+
+
 def test_run_api_reads_fresh_metadata_previews_and_logs(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
