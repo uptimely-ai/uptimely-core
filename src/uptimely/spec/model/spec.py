@@ -12,8 +12,8 @@ import pydantic
 from uptimely.spec import arg_types, functions, selectors
 
 from . import common
-from . import dataset as dataset_module
 from . import functions as functions_module
+from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
 
@@ -26,22 +26,22 @@ type DatasetArgument = tuple[str, object, str | None]
 
 @dataclasses.dataclass
 class _ResourceIndex:
-    dataset_items: list[tuple[DatasetKey, dataset_module.Dataset]] = dataclasses.field(
+    dataset_items: list[tuple[DatasetKey, profile_module.Profile]] = dataclasses.field(
         default_factory=list
     )
-    action_items: list[tuple[ActionKey, dataset_module.Action]] = dataclasses.field(
+    action_items: list[tuple[ActionKey, profile_module.Action]] = dataclasses.field(
         default_factory=list
     )
-    datasets: dict[str, dataset_module.Dataset] = dataclasses.field(default_factory=dict)
-    datasets_by_key: dict[DatasetKey, dataset_module.Dataset] = dataclasses.field(
+    datasets: dict[str, profile_module.Profile] = dataclasses.field(default_factory=dict)
+    datasets_by_key: dict[DatasetKey, profile_module.Profile] = dataclasses.field(
         default_factory=dict
     )
     dataset_keys: dict[str, DatasetKey] = dataclasses.field(default_factory=dict)
-    features: dict[str, dataset_module.Feature] = dataclasses.field(default_factory=dict)
-    actions: list[dataset_module.Action] = dataclasses.field(default_factory=list)
-    actions_by_key: dict[ActionKey, dataset_module.Action] = dataclasses.field(default_factory=dict)
+    features: dict[str, profile_module.Feature] = dataclasses.field(default_factory=dict)
+    actions: list[profile_module.Action] = dataclasses.field(default_factory=list)
+    actions_by_key: dict[ActionKey, profile_module.Action] = dataclasses.field(default_factory=dict)
     action_dataset_keys: dict[ActionKey, DatasetKey] = dataclasses.field(default_factory=dict)
-    action_datasets: dict[ActionKey, dataset_module.Dataset] = dataclasses.field(
+    action_datasets: dict[ActionKey, profile_module.Profile] = dataclasses.field(
         default_factory=dict
     )
     feature_owners: dict[str, list[DatasetKey]] = dataclasses.field(default_factory=dict)
@@ -65,7 +65,7 @@ class Spec(common.StrictModel):
     functions: functions_module.FunctionCatalog = pydantic.Field(
         default_factory=functions_module.FunctionCatalog
     )
-    entities: dict[str, dataset_module.Entity] = pydantic.Field(default_factory=dict)
+    entities: dict[str, profile_module.Entity] = pydantic.Field(default_factory=dict)
 
     @functools.cached_property
     def _indexes(self) -> _ResourceIndex:
@@ -99,17 +99,17 @@ class Spec(common.StrictModel):
         return indexes
 
     @property
-    def datasets(self) -> dict[str, dataset_module.Dataset]:
+    def datasets(self) -> dict[str, profile_module.Profile]:
         """Return original dataset objects keyed by globally unique ID."""
         return self._indexes.datasets
 
     @property
-    def dataset_items(self) -> list[tuple[DatasetKey, dataset_module.Dataset]]:
+    def dataset_items(self) -> list[tuple[DatasetKey, profile_module.Profile]]:
         """Return dataset occurrences with entity/ID keys, retaining duplicates."""
         return self._indexes.dataset_items
 
     @property
-    def datasets_by_key(self) -> dict[DatasetKey, dataset_module.Dataset]:
+    def datasets_by_key(self) -> dict[DatasetKey, profile_module.Profile]:
         """Return datasets keyed by entity ID and dataset ID."""
         return self._indexes.datasets_by_key
 
@@ -119,22 +119,22 @@ class Spec(common.StrictModel):
         return self._indexes.dataset_keys
 
     @property
-    def features(self) -> dict[str, dataset_module.Feature]:
+    def features(self) -> dict[str, profile_module.Feature]:
         """Return original feature metadata keyed by ID, including dimensions."""
         return self._indexes.features
 
     @property
-    def actions(self) -> list[dataset_module.Action]:
+    def actions(self) -> list[profile_module.Action]:
         """Return original Action objects in declaration order, retaining aliases."""
         return self._indexes.actions
 
     @property
-    def action_items(self) -> list[tuple[ActionKey, dataset_module.Action]]:
+    def action_items(self) -> list[tuple[ActionKey, profile_module.Action]]:
         """Return action occurrences with entity/dataset/dictionary keys."""
         return self._indexes.action_items
 
     @property
-    def actions_by_key(self) -> dict[ActionKey, dataset_module.Action]:
+    def actions_by_key(self) -> dict[ActionKey, profile_module.Action]:
         """Return original actions keyed by their declaration locations."""
         return self._indexes.actions_by_key
 
@@ -144,7 +144,7 @@ class Spec(common.StrictModel):
         return self._indexes.action_dataset_keys
 
     @property
-    def action_datasets(self) -> dict[ActionKey, dataset_module.Dataset]:
+    def action_datasets(self) -> dict[ActionKey, profile_module.Profile]:
         """Return each action's owning dataset occurrence."""
         return self._indexes.action_datasets
 
@@ -159,7 +159,7 @@ class Spec(common.StrictModel):
             else self.action_dataset_keys[key]
         )
 
-    def get_row_context_dataset(self, key: ActionKey) -> dataset_module.Dataset | None:
+    def get_row_context_dataset(self, key: ActionKey) -> profile_module.Profile | None:
         """Return the context dataset, or None when its source is unresolved."""
         source = self._row_context_dataset_key(key)
         return self.datasets_by_key[source] if source is not None else None
@@ -400,7 +400,7 @@ class Spec(common.StrictModel):
                 entity.get("datasets", {})
                 if isinstance(entity, dict)
                 else entity.datasets
-                if isinstance(entity, dataset_module.Entity)
+                if isinstance(entity, profile_module.Entity)
                 else {}
             )
             if not isinstance(datasets, dict):
@@ -411,7 +411,7 @@ class Spec(common.StrictModel):
                     dataset.get("actions", {})
                     if isinstance(dataset, dict)
                     else dataset.actions
-                    if isinstance(dataset, dataset_module.Dataset)
+                    if isinstance(dataset, profile_module.Profile)
                     else {}
                 )
                 if isinstance(actions, dict):
@@ -453,7 +453,7 @@ class Spec(common.StrictModel):
         for dataset_id, dataset in datasets.items():
             if isinstance(dataset, dict) and "id" in dataset:
                 raise ValueError(
-                    f"Dataset {dataset_id} must use its object key as identifier, "
+                    f"Profile {dataset_id} must use its object key as identifier, "
                     "not an 'id' attribute"
                 )
         entity["datasets"] = cls._normalize_datasets(datasets)

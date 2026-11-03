@@ -7,12 +7,12 @@ from .model import (
     Action,
     Argument,
     Binding,
-    Dataset,
     Dimension,
     Entity,
     Feature,
     FunctionCatalog,
     Order,
+    Profile,
     RowScope,
     Spec,
 )
@@ -20,7 +20,7 @@ from .model import (
 __all__ = [
     "Argument",
     "Binding",
-    "Dataset",
+    "Profile",
     "Dimension",
     "Entity",
     "Feature",

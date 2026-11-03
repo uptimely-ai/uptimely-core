@@ -69,7 +69,7 @@ def validate_function_reference(spec: spec_model.Spec) -> None:
         function_id = action.binding.function
         if function_id not in spec.functions:
             raise errors.SpecError(
-                f"Dataset {key[1]} actions reference unknown functions: {function_id}",
+                f"Profile {key[1]} actions reference unknown functions: {function_id}",
                 code="unknown_function_reference",
                 path=(*spec.declaration_paths[key], "binding", "function"),
             )

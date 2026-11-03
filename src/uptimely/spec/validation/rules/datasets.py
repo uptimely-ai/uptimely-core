@@ -30,7 +30,7 @@ def validate_order_dimension(spec: spec_model.Spec) -> None:
         for index, (dimension, _) in enumerate(dataset.order_dimensions):
             if dimension not in spec.dimensions_by_dataset[key]:
                 raise errors.SpecError(
-                    f"Dataset {dataset.id} order references a dimension not declared "
+                    f"Profile {dataset.id} order references a dimension not declared "
                     f"by entity {key[0]}: {dimension}",
                     code="invalid_order_dimension",
                     path=("entities", key[0], "datasets", dataset.id, "order", index, "dimension"),
@@ -44,7 +44,7 @@ def validate_unique_order_dimension(spec: spec_model.Spec) -> None:
         for index, (dimension, preceding) in enumerate(dataset.order_dimensions):
             if dimension in preceding:
                 raise errors.SpecError(
-                    f"Dataset {dataset.id} order repeats dimension: {dimension}",
+                    f"Profile {dataset.id} order repeats dimension: {dimension}",
                     code="duplicate_order_dimension",
                     path=("entities", key[0], "datasets", dataset.id, "order", index, "dimension"),
                 )

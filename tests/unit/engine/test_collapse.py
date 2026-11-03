@@ -15,7 +15,7 @@ from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions, dataset, dimension, entity, feature, ref
+from uptimely.spec.python import actions, dimension, entity, feature, profile, ref
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -138,7 +138,7 @@ def nested_maximum(
 
 
 def _spec(*, lazy=False, empty=False):
-    source = dataset.Dataset(
+    source = profile.Profile(
         id="observations",
         producers=[
             actions.Action(
@@ -172,7 +172,7 @@ def _spec(*, lazy=False, empty=False):
             ),
         ],
     )
-    summary = dataset.Dataset(
+    summary = profile.Profile(
         id="summary",
         producers=[
             actions.Action(
@@ -188,7 +188,7 @@ def _spec(*, lazy=False, empty=False):
             )
         ],
     )
-    global_summary = dataset.Dataset(
+    global_summary = profile.Profile(
         id="global",
         producers=[
             actions.Action(
@@ -249,7 +249,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     group = dimension.Dimension(id="group", type="string")
-    target = dataset.Dataset(
+    target = profile.Profile(
         id="target",
         producers=[
             actions.Action(
@@ -271,7 +271,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
             ),
         ],
     )
-    foreign = dataset.Dataset(
+    foreign = profile.Profile(
         id="foreign",
         producers=[
             actions.Action(
@@ -377,7 +377,7 @@ def test_collapse_consumes_expanded_features(
     spec_definition.entities.pop("global")
     source = spec_definition.entities["observation"].datasets["observations"]
     source.features["expanded"] = spec.Feature(id="expanded")
-    auxiliary = spec_model.Dataset(
+    auxiliary = spec_model.Profile(
         id="expansion_input",
         features={"expansion_value": spec_model.Feature(id="expansion_value")},
         actions={
@@ -570,7 +570,7 @@ def _broadcast_spec(
     group = dimension.Dimension(id="group", type="string")
     identifier = dimension.Dimension(id="id", type="integer")
     dimensions = {"group": group, "id": identifier}
-    observations = dataset.Dataset(
+    observations = profile.Profile(
         id="observations",
         producers=[
             actions.Action(
@@ -593,7 +593,7 @@ def _broadcast_spec(
             ),
         ],
     )
-    source = dataset.Dataset(
+    source = profile.Profile(
         id="reference_source",
         producers=[
             actions.Action(

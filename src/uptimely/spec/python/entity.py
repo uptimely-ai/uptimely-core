@@ -6,8 +6,8 @@ import dataclasses
 
 from uptimely.spec import model as spec_model
 
-from . import dataset as dataset_module
 from . import dimension as dimension_module
+from . import profile as profile_module
 
 __all__ = [
     "Entity",
@@ -21,7 +21,7 @@ class Entity:
     id: str
     name: str
     dimensions: list[str | dimension_module.Dimension]
-    datasets: list[dataset_module.Dataset] = dataclasses.field(default_factory=list)
+    datasets: list[profile_module.Profile] = dataclasses.field(default_factory=list)
     description: str | None = None
 
     def __hash__(self) -> int:
@@ -40,5 +40,5 @@ class Entity:
             name=self.name,
             description=self.description,
             dimensions=dimensions,
-            datasets=dataset_module.to_models(self.datasets),
+            datasets=profile_module.to_models(self.datasets),
         )

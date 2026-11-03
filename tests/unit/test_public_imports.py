@@ -25,11 +25,15 @@ from uptimely.spec.feature_graph import (
 from uptimely.spec.feature_graph import models as feature_graph_models
 from uptimely.spec.feature_graph.models import ActionNode, FeatureNode
 from uptimely.spec.model import BindingArgumentResolver
+from uptimely.spec.model import Profile as ProfileModel
 from uptimely.spec.model import Spec as SpecModel
 
 
 def test_canonical_package_exports_preserve_object_identity() -> None:
     assert spec.Spec is SpecModel
+    assert spec.Profile is ProfileModel
+    assert spec.model.Profile is ProfileModel
+    assert not hasattr(spec.model, "Dataset")
     assert spec.model.BindingArgumentResolver is BindingArgumentResolver
     assert uptimely.load_spec is spec.load_spec
     assert uptimely.from_python is spec.from_python
@@ -59,7 +63,11 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
 def test_root_authoring_exports_preserve_object_identity() -> None:
     assert uptimely.Spec is python_spec.Spec
     assert uptimely.Action is python_spec.Action
-    assert uptimely.Dataset is python_spec.Dataset
+    assert uptimely.Profile is python_spec.Profile
+    assert not hasattr(uptimely, "Dataset")
+    assert not hasattr(python_spec, "Dataset")
+    assert not hasattr(python_spec, "DatasetRegistry")
+    assert python_spec.ProfileRegistry is python_spec.profile.ProfileRegistry
     assert uptimely.Feature is python_spec.Feature
     assert uptimely.Order is python_spec.Order
     assert uptimely.RowScope is python_spec.RowScope

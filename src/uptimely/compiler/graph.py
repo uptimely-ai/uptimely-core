@@ -210,13 +210,13 @@ class InvocationGraph:
                 for invocation in dependencies:
                     graph.add_edge(nodes[invocation.node_id], sink_node)
 
-    def dataset_for(self, node: InvocationNode) -> spec.Dataset:
-        """Return a node's dataset directly from its declaring entity."""
+    def profile_for(self, node: InvocationNode) -> spec.Profile:
+        """Return a node's profile directly from its declaring entity."""
         return self.spec.entities[node.entity_id].datasets[node.dataset_id]
 
     def action_for(self, node: InvocationNode) -> spec.Action:
         """Return the declaration that produced an invocation node."""
-        return self.dataset_for(node).actions[node.action_id]
+        return self.profile_for(node).actions[node.action_id]
 
     def topology(self) -> list[list[InvocationNode]]:
         """Return invocations grouped by dependency level (topological order)."""

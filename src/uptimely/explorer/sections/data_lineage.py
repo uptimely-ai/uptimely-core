@@ -66,7 +66,7 @@ class _FeatureSource:
     """A feature declaration together with its owning table and entity."""
 
     entity: spec.Entity
-    dataset: spec.Dataset
+    dataset: spec.Profile
     feature: spec.Feature
 
 

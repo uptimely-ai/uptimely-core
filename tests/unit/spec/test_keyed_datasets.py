@@ -113,7 +113,7 @@ def test_dataset_defaults_are_empty_independent_dictionaries() -> None:
     assert omitted == explicit
     first = omitted.entities["asset"].datasets
     second = explicit.entities["asset"].datasets
-    first["new"] = spec.Dataset(id="new")
+    first["new"] = spec.Profile(id="new")
     assert second == {}
 
 
@@ -122,8 +122,8 @@ def test_dataset_defaults_are_empty_independent_dictionaries() -> None:
 def test_python_conversion_rejects_duplicate_dataset_ids(
     explicit_entity: bool, canonical: bool
 ) -> None:
-    declaration = python_spec.dataset.Dataset(id="duplicate")
-    with pytest.raises(ValueError, match="Duplicate dataset id duplicate"):
+    declaration = python_spec.profile.Profile(id="duplicate")
+    with pytest.raises(ValueError, match="Duplicate profile id duplicate"):
         if explicit_entity:
             conversion.to_model(
                 entities=[

@@ -46,7 +46,7 @@ def from_python(
     """Convert Python declarations, optionally validating the model's semantics.
 
     Args:
-        datasets: Dataset declarations wrapped in a single entity.
+        datasets: Profile declarations wrapped in a single entity.
         functions: Explicit catalog, or infer it from Python declarations.
         name: Optional spec name and synthetic entity identifier.
         dimensions: Global dimension declarations.

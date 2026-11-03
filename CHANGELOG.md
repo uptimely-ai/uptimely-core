@@ -42,6 +42,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Renamed the spec model and Python authoring API `Dataset` to
+  `Profile` and `DatasetRegistry` to `ProfileRegistry`, including their public
+  imports. Serialized documents retain the existing entity-owned `datasets`
+  structure in this step.
 - **Breaking:** Project builds and feature-graph inspection replace `--verbose`
   with `--log-level {debug,info,warning,error,critical}` (default: `info`).
   Debug logging includes detailed build summaries and feature graph trees.

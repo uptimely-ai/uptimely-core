@@ -16,10 +16,10 @@ from uptimely.spec import functions
 from uptimely.spec.python import (
     actions,
     binding_conversion,
-    dataset,
     dimension,
     entity,
     feature,
+    profile,
     ref,
 )
 from uptimely.spec.python import row_context as authoring
@@ -48,9 +48,9 @@ def maximum(dataset: pl.DataFrame, column: str, output: str) -> pl.DataFrame:
 def _spec(context=None, *, ordered=True, dimension_type="datetime"):
     return spec.from_python(
         datasets=[
-            dataset.Dataset(
+            profile.Profile(
                 id="observations",
-                order=[dataset.Order(ref.dimension("timestamp"), "asc")] if ordered else [],
+                order=[profile.Order(ref.dimension("timestamp"), "asc")] if ordered else [],
                 producers=[
                     actions.Action(
                         id="read_observations",
@@ -461,7 +461,7 @@ def test_plan_context_is_present_in_portable_operations() -> None:
 def test_collapse_functions_execute_without_row_context(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
-    source = dataset.Dataset(
+    source = profile.Profile(
         id="observations",
         producers=[
             actions.Action(
@@ -476,7 +476,7 @@ def test_collapse_functions_execute_without_row_context(
             )
         ],
     )
-    summary = dataset.Dataset(
+    summary = profile.Profile(
         id="summary",
         producers=[
             actions.Action(

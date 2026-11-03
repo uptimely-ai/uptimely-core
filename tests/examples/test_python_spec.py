@@ -178,7 +178,7 @@ def test_sources_and_transforms_python_spec() -> None:
         name="Source",
         dimensions=[id_dimension],
         datasets=[
-            python_spec.dataset.Dataset(
+            python_spec.profile.Profile(
                 id="transformed_dataset",
                 producers=[
                     python_spec.actions.Action(
@@ -197,7 +197,7 @@ def test_sources_and_transforms_python_spec() -> None:
         name="Transforms test",
         dimensions=[id_dimension, region_dimension],
         datasets=[
-            python_spec.dataset.Dataset(
+            python_spec.profile.Profile(
                 id="target",
                 producers=[
                     python_spec.actions.Action(
@@ -225,7 +225,7 @@ def test_sources_and_transforms_python_spec() -> None:
         name="Summary",
         dimensions=[id_dimension],
         datasets=[
-            python_spec.dataset.Dataset(
+            python_spec.profile.Profile(
                 id="summary",
                 producers=[
                     python_spec.actions.Action(

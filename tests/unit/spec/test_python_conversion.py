@@ -1,7 +1,7 @@
 import pytest
 
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions, conversion, dataset, dimension, entity, ref
+from uptimely.spec.python import actions, conversion, dimension, entity, profile, ref
 
 
 def _source(path: str, columns: list[str]) -> None:
@@ -12,8 +12,8 @@ def _other_source(path: str, columns: list[str]) -> None:
     pass
 
 
-def _dataset(identifier: str, conflicting: bool = False) -> dataset.Dataset:
-    return dataset.Dataset(
+def _dataset(identifier: str, conflicting: bool = False) -> profile.Profile:
+    return profile.Profile(
         id=identifier,
         producers=[
             actions.Action(
@@ -74,7 +74,7 @@ def test_entities_cannot_be_passed_as_datasets() -> None:
         entity.Entity(id="assets", name="Assets", dimensions=[], datasets=[_dataset("readings")])
     ]
 
-    with pytest.raises(TypeError, match="datasets must contain Dataset"):
+    with pytest.raises(TypeError, match="datasets must contain Profile"):
         conversion.to_dict(datasets=declarations)
 
 
@@ -178,7 +178,7 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
         ({"datasets": []}, ValueError, "At least one dataset is required"),
         ({"datasets": {}}, ValueError, "At least one dataset is required"),
         ({}, ValueError, "At least one dataset is required"),
-        ({"datasets": [object()]}, TypeError, "datasets must contain Dataset"),
+        ({"datasets": [object()]}, TypeError, "datasets must contain Profile"),
         (
             {"entities": [object()]},
             TypeError,

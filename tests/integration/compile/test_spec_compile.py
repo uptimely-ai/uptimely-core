@@ -200,7 +200,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         name="Auxiliary",
         dimensions=pump_entity.dimensions,
         datasets={
-            "auxiliary_dataset": spec_model.Dataset(
+            "auxiliary_dataset": spec_model.Profile(
                 id="auxiliary_dataset",
                 features={"auxiliary_value": spec_model.Feature(id="auxiliary_value")},
                 actions={
@@ -515,16 +515,16 @@ def test_compiled_inputs_match_each_entity_dataset_mapping() -> None:
         assert invocation.output_features == action.output_features
 
 
-def test_graph_subset_retains_dataset_mapping_lookups() -> None:
+def test_graph_subset_retains_profile_mapping_lookups() -> None:
     document = spec.load_spec(SPEC_PATH)
     graph = compiler.InvocationGraph(document)
     subset = graph.subset(["health_signal_normalized"])
 
     for node in subset.invocations:
         assert (
-            graph.dataset_for(node) is document.entities[node.entity_id].datasets[node.dataset_id]
+            graph.profile_for(node) is document.entities[node.entity_id].datasets[node.dataset_id]
         )
-        assert subset.dataset_for(node) is graph.dataset_for(node)
+        assert subset.profile_for(node) is graph.profile_for(node)
         assert subset.action_for(node) is graph.action_for(node)
         assert {dependency.node_id for dependency in subset.dependencies(node)} == {
             dependency.node_id for dependency in graph.dependencies(node)

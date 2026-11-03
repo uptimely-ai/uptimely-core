@@ -3,10 +3,10 @@
 from examples.pump_analytics.functions import external_workflow
 from examples.pump_analytics.spec import entity
 
-from uptimely import Action, Dataset, Feature, RowScope, ref
+from uptimely import Action, Feature, Profile, RowScope, ref
 
 
-class PumpExternalWorkflow(Dataset):
+class PumpExternalWorkflow(Profile):
     """Declare the logical inputs and output of a workflow that owns its I/O."""
 
     id = "pump_external_workflow_dataset"
