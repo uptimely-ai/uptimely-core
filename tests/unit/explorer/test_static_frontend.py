@@ -12,6 +12,11 @@ def test_static_frontend_uses_packaged_assets_and_live_api() -> None:
     assets = application.joinpath("asset_loader.js").read_text(encoding="utf-8")
     router = application.joinpath("history_router.js").read_text(encoding="utf-8")
     explorer = application.joinpath("explorer_application.js").read_text(encoding="utf-8")
+    views = application.joinpath("view_controller.js").read_text(encoding="utf-8")
+    engine_pages = frontend.joinpath("js", "engine_pages.js").read_text(encoding="utf-8")
+    navigation = frontend.joinpath("js", "rendering", "shared_markup.js").read_text(
+        encoding="utf-8"
+    )
 
     assert 'src="./config.js"' in index
     assert 'src="./js/application/bootstrap.js"' in index
@@ -27,11 +32,18 @@ def test_static_frontend_uses_packaged_assets_and_live_api() -> None:
     assert "Loading Explorer data" in index
     assert "fetchData(configuration.dataUrl" in explorer
     assert "data/explorer.json" not in explorer
+    assert '["logs", "Log", "logs"]' in navigation
+    assert "logs: {" in views
+    assert "export function logsPage" in engine_pages
+    assert "export function infoPage" in engine_pages
+    assert "engine-log-gutter" in engine_pages
+    assert "engine-log-level" in engine_pages
+    assert "engine-log-editor" in engine_pages
 
 
 def test_original_ui_components_are_packaged_with_the_static_frontend() -> None:
     frontend = importlib.resources.files("uptimely.explorer").joinpath("app", "static")
-    for name in ("base", "icons", "dashboard", "spec", "graph", "data_lineage"):
+    for name in ("base", "icons", "dashboard", "spec", "graph", "data_lineage", "engine"):
         assert frontend.joinpath("css", f"{name}.css").is_file()
     for name in (
         "application/bootstrap",
@@ -39,6 +51,7 @@ def test_original_ui_components_are_packaged_with_the_static_frontend() -> None:
         "application/history_router",
         "application/explorer_application",
         "application/view_controller",
+        "engine_pages",
         "rendering/shared_markup",
         "rendering/page_renderer",
         "catalogs/catalog_renderer",

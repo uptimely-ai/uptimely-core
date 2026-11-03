@@ -11,8 +11,10 @@ export const KINDS = {
 const ICONS = {
   home: "house", menu: "menu", "collapse-navigation": "panel-left-close",
   "expand-navigation": "panel-left-open", spec: "book-open", plan: "list-tree",
-  execution: "play", overview: "layout-dashboard", features: "sigma",
-  profiles: "layers-2", dimensions: "axis-3d", resolutions: "layers-3", functions: "square-function",
+  execution: "play", info: "info", logs: "scroll-text", preview: "table-properties",
+  overview: "layout-dashboard", features: "sigma",
+  profiles: "layers-2", datasets: "table-2",
+  dimensions: "axis-3d", resolutions: "layers-3", functions: "square-function",
   invocations: "square-function", "feature-lineage": "network", "invocation-lineage": "git-branch",
   "data-lineage": "monitor-play", stages: "list-ordered",
 };
@@ -122,7 +124,11 @@ export function shell(data, view, context, content) {
       ["plan", "Overview", "overview"], ["topology", "Topology", "invocation-lineage"],
       ["stages", "Stages", "stages"],
     ]],
-    ["execution", "Execution", [["animation", "Animation", "data-lineage"]]],
+    ["execution", "Execution", [
+      ["info", "Info", "info"], ["logs", "Log", "logs"],
+      ["preview", "Preview", "preview"],
+      ["animation", "Animation", "data-lineage"],
+    ]],
   ];
   return `<header class="site-topbar" aria-label="Project context">
       <button class="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="explorer-navigation">${icon("menu")}</button>${projectLink}
