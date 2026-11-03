@@ -58,7 +58,9 @@ export class Explorer {
       const stylesheets = await this.assets.prepare(view);
       // Ignore dependencies that finish after a newer navigation request.
       if (version !== this.navigation) return;
-      this.views.mount(name, view, () => this.assets.activate(stylesheets));
+      const pageData = view.load ? await view.load(this.browser.fetch.bind(this.browser)) : null;
+      if (version !== this.navigation) return;
+      this.views.mount(name, view, () => this.assets.activate(stylesheets), pageData);
     } catch (error) {
       if (version === this.navigation) this.showError(error);
     }

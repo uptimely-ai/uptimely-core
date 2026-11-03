@@ -8,6 +8,10 @@ import { initializeFeatureLineage } from "../graphs/feature_graph.js";
 import { initializeInvocationLineage } from "../graphs/invocation_graph.js";
 import { initializeDataLineage } from "../animation/playback_controller.js";
 import { initializeHighlighting } from "../catalogs/function_highlighting.js";
+import {
+  infoPage, initializeLogs, initializePreview, loadInfo, loadLogs, loadPreviews, logsPage,
+  previewPage,
+} from "../engine_pages.js";
 
 const INITIALIZERS = {
   catalog: initializeCatalog, icons: initializeIcons,
@@ -47,6 +51,20 @@ const VIEWS = {
     initialize: [...icons, initializer("animation", true)],
     render: animation,
   },
+  info: {
+    stylesheet: "engine", engine: true, initialize: icons, load: loadInfo,
+    render: (data, runData) => infoPage(runData),
+  },
+  logs: {
+    stylesheet: "engine", engine: true, initialize: icons, load: loadLogs,
+    initializePage: initializeLogs,
+    render: (data, runData) => logsPage(runData),
+  },
+  preview: {
+    stylesheet: "engine", engine: true, initialize: icons, load: loadPreviews,
+    initializePage: initializePreview,
+    render: (data, runData) => previewPage(data, runData),
+  },
 };
 
 export function getView(name) {
@@ -82,7 +100,8 @@ export class ViewController {
   renderShell(name, view, { context, content }) {
     this.document.title = `${name === "home" ? this.data.project.name || "Analytics project" : name[0].toUpperCase() + name.slice(1)} | Explorer`;
     const { body } = this.document;
-    body.className = view.catalog ? "catalog-context-page" : "";
+    body.className = [view.catalog && "catalog-context-page", view.engine && "engine-page"]
+      .filter(Boolean).join(" ");
     body.style.removeProperty("--lineage-background");
     if (view.graph) body.classList.add("lineage-page");
     body.innerHTML = shell(this.data, name, context, content);
@@ -109,8 +128,8 @@ export class ViewController {
     heading?.focus({ preventScroll: true });
   }
 
-  mount(name, view, activateStyles) {
-    const markup = view.render(this.data);
+  mount(name, view, activateStyles, pageData) {
+    const markup = view.render(this.data, pageData);
     const sidebars = this.sidebarState();
     this.dispose();
     this.controller = new AbortController();
@@ -118,6 +137,7 @@ export class ViewController {
       activateStyles();
       this.renderShell(name, view, markup);
       this.initializeView(view, sidebars);
+      view.initializePage?.(this.browser, this.controller.signal);
       this.activeView = name;
       this.focusHeading();
     } catch (error) {

@@ -34,7 +34,7 @@ The Explorer contains:
 | **Project home** | Project identity, counts, build scope, and the spec-to-execution journey. |
 | **Spec** | Overview, separate profile/feature/dimension/function catalogs, dimension resolution hierarchies, and feature lineage. |
 | **Plan** | Overview, invocation topology, and execution stages with argument bindings. |
-| **Execution** | Profile-specific animation of declared processing steps and illustrative tables. |
+| **Execution** | Profile-specific animation, latest-run information, run logs, and saved previews for each profile. |
 
 The original desktop navigation and contextual sidebars can be collapsed
 independently. On narrow screens, the hamburger button opens project navigation.
@@ -83,9 +83,13 @@ briefly unavailable while the directory is replaced.
 Runs overwrite `_generated/run/` completely; there is no history or run
 format-version field. Their build fingerprint describes the loaded build at
 execution time, so consumers must not assume a run belongs to a subsequently
-rebuilt project. These endpoints prepare access for execution-data views;
-the current animation still uses illustrative data. Static export continues
-to include only the build presentation snapshot, not run previews or logs.
+rebuilt project. The **Info** page shows the latest run manifest, the **Log**
+page shows its structured events in an editor-style, syntax-highlighted view,
+and the **Preview** page displays one saved
+profile sample at a time, titled with the selected profile's name, with a
+context menu when there are multiple profiles.
+Static export continues to include only the build presentation snapshot, not
+run previews or logs, so these pages require the live Explorer API.
 
 ## Export for static hosting
 
