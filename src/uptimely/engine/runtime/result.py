@@ -22,3 +22,6 @@ class ExecutionResult:
     durations: dict[str, float]
     failures: dict[str, str]
     plan_version: int
+    duration_seconds: float | None = None
+    preview_frames: dict[str, object] = dataclasses.field(default_factory=dict)
+    preview_failures: dict[str, str] = dataclasses.field(default_factory=dict)

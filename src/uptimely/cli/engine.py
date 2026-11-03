@@ -69,8 +69,14 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
                 )
                 engine = engine_module.Engine(bundle, settings)
                 started = time.perf_counter()
-                result = engine.run(validate=args.validate)
-                duration = time.perf_counter() - started
+                if args.preview is None:
+                    result = engine.run(validate=args.validate)
+                else:
+                    result = engine.run(validate=args.validate, preview_rows=args.preview)
+                elapsed = time.perf_counter() - started
+                duration = (
+                    result.duration_seconds if result.duration_seconds is not None else elapsed
+                )
                 if result.failures:
                     failures = "; ".join(result.failures.values())
                     raise RuntimeError(f"Engine flow failed: {failures}")
@@ -131,6 +137,11 @@ def _log_previews(result: engine_module.ExecutionResult, rows: int) -> None:
         rows: Positive maximum number of rows to display per profile.
     """
     for profile_id, frame in result.main_frames.items():
+        if profile_id in result.preview_failures:
+            raise RuntimeError(
+                f"Cannot preview Profile({profile_id}): {result.preview_failures[profile_id]}"
+            )
+        frame = result.preview_frames.get(profile_id, frame)
         if not isinstance(frame, (pl.DataFrame, pl.LazyFrame)):
             raise TypeError(
                 f"Cannot preview Profile({profile_id}): "

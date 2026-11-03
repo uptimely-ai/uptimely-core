@@ -10,6 +10,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Every engine execution now replaces `_generated/run/` with latest-run
+  metadata, structured JSONL logs, invocation outcomes, and bounded profile
+  previews, including partial results after failure. Previews collect lazy
+  queries by default and report sampling errors separately. Explorer provides
+  fresh read APIs for these artifacts, with run-ID consistency checks.
 - Spec and compiler validation now emit debug traces with headings and
   indented check bullets, including reasons for skipped signature checks.
   Document structure checks summarize profile and action counts rather than

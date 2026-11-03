@@ -59,6 +59,34 @@ Animation values and rows are illustrative placeholders;
 they are not execution results. Running the project's workflow is a separate
 operation using `uptimely run`.
 
+## Saved-run API
+
+The server can read the latest execution artifacts independently of the build
+presentation snapshot:
+
+| Endpoint | Response |
+| --- | --- |
+| `GET /api/run` | Latest run manifest, including its build fingerprint, invocation outcomes, and profile preview index. |
+| `GET /api/run/preview/{profile_id}` | One profile's saved preview, including its schema and sample rows or explicit preview error. |
+| `GET /api/run/logs?offset=0&limit=100` | A page of structured log events; maximum page size is 1,000. |
+
+Pass `?run_id=<manifest.run_id>` to preview and log requests to detect
+replacement since the manifest was read. A replaced run returns
+HTTP 409; reload the manifest before retrying. Missing runs or unknown profiles
+return 404, and invalid or unreadable artifacts return 503. Responses are not
+cached. No API request executes analytics.
+
+Run storage does not use locking. Read after execution finishes; simultaneous
+runs and reads during publication are not coordinated, and artifacts can be
+briefly unavailable while the directory is replaced.
+
+Runs overwrite `_generated/run/` completely; there is no history or run
+format-version field. Their build fingerprint describes the loaded build at
+execution time, so consumers must not assume a run belongs to a subsequently
+rebuilt project. These endpoints prepare access for execution-data views;
+the current animation still uses illustrative data. Static export continues
+to include only the build presentation snapshot, not run previews or logs.
+
 ## Export for static hosting
 
 Export the packaged HTML, CSS, JavaScript, and current snapshot to a directory

@@ -101,7 +101,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
 
 
 @pytest.mark.parametrize("dimensionless", [False, True])
-def test_engine_runs_lazy_invocations_without_implicit_collection_by_default(
+def test_engine_preserves_lazy_outputs_and_collects_bounded_previews(
     monkeypatch: pytest.MonkeyPatch,
     dimensionless: bool,
     bundle_for_plan: execution_support.BundleFactory,
@@ -115,8 +115,13 @@ def test_engine_runs_lazy_invocations_without_implicit_collection_by_default(
     def write(dataset: pl.LazyFrame, features: list[str]) -> None:
         assert isinstance(dataset, pl.LazyFrame)
 
-    def unexpected_collect(*args: object, **kwargs: object) -> None:
-        pytest.fail("Engine executed a LazyFrame with lazy validation disabled")
+    collected_heights: list[int] = []
+    original_collect = pl.LazyFrame.collect
+
+    def collect(frame: pl.LazyFrame, *args: object, **kwargs: object) -> pl.DataFrame:
+        sample = original_collect(frame, *args, **kwargs)
+        collected_heights.append(sample.height)
+        return sample
 
     _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
     bundle = bundle_for_plan(_plan())
@@ -136,13 +141,15 @@ def test_engine_runs_lazy_invocations_without_implicit_collection_by_default(
         uptimely_engine.EngineConfig(),
         {"source": "/tmp/telemetry.parquet"},
     )
-    monkeypatch.setattr(pl.LazyFrame, "collect", unexpected_collect)
+    monkeypatch.setattr(pl.LazyFrame, "collect", collect)
 
     result = engine.run()
 
     assert not result.failures
     assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert isinstance(result.main_frames["telemetry"], pl.LazyFrame)
+    assert collected_heights == [1]
+    assert result.preview_frames["telemetry"].height == 1
 
 
 @pytest.mark.parametrize(

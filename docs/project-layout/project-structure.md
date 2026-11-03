@@ -26,9 +26,11 @@ project/
     │   ├── spec.json
     │   └── execution_plan.json
     ├── explorer.json
-    └── runs/
-        └── <run-id>/
-            └── output/
+    └── run/
+        ├── run.json
+        ├── log.jsonl
+        └── preview/
+            └── <profile>.json
 ```
 
 ## Folder responsibilities
@@ -39,7 +41,7 @@ project/
 | `data/output/` | Optional durable or intentionally shared results; use these when outputs are part of the project's data. |
 | `functions/` | Reusable source, calculation, and write functions. |
 | `spec/` | The project specification: either Python declarations or a JSON document. |
-| `_generated/` | Disposable generated artifacts. The active build is stored in `_generated/build/`, the current Explorer data snapshot in `_generated/explorer.json`, and run results under `_generated/runs/<run-id>/output/`. |
+| `_generated/` | Disposable generated artifacts. The active build is stored in `_generated/build/`, the current Explorer data snapshot in `_generated/explorer.json`, and the latest run's metadata, logs, and profile previews under `_generated/run/`. Each run replaces that entire directory; no history is retained. |
 | `config/config.json` | Engine backend settings under `engine` and required global scalar values under `params`, referenced by `$params.<name>`. |
 
 This separation keeps the project easy to reason about: specification declarations

@@ -13,6 +13,7 @@ from support import examples as example_support
 from uptimely import engine as engine_module
 from uptimely import project as project_module
 from uptimely.cli import cli
+from uptimely.run import recording
 
 PROJECT = example_support.EXAMPLES_ROOT / "pump_analytics"
 SPEC_PATH = PROJECT / "_generated/build/spec.json"
@@ -128,6 +129,10 @@ def test_engine_default_logs_only_duration_and_processed_profiles(
     )
     times = iter([10.0, 11.234])
     monkeypatch.setattr(cli.engine, "time", types.SimpleNamespace(perf_counter=lambda: next(times)))
+    run_times = iter([10.0, 11.234])
+    monkeypatch.setattr(
+        recording, "time", types.SimpleNamespace(perf_counter=lambda: next(run_times))
+    )
     capsys.readouterr()
 
     invoke(monkeypatch, "engine", "run", "--project-root", str(project_root))
@@ -244,7 +249,9 @@ def test_engine_previews_final_profiles(
         failures={},
         plan_version=4,
     )
-    monkeypatch.setattr(engine_module.Engine, "run", lambda self, *, validate=False: result)
+    monkeypatch.setattr(
+        engine_module.Engine, "run", lambda self, *, validate=False, preview_rows=5: result
+    )
     collected_heights: list[int] = []
     original_collect = pl.LazyFrame.collect
 
@@ -327,7 +334,9 @@ def test_engine_preview_errors_are_reported(
         failures={},
         plan_version=4,
     )
-    monkeypatch.setattr(engine_module.Engine, "run", lambda self, *, validate=False: result)
+    monkeypatch.setattr(
+        engine_module.Engine, "run", lambda self, *, validate=False, preview_rows=5: result
+    )
     with pytest.raises(SystemExit) as error:
         invoke(
             monkeypatch,
@@ -358,6 +367,10 @@ def test_engine_empty_plan_summary(
     config.write_text("{}", encoding="utf-8")
     times = iter([10.0, 10.0])
     monkeypatch.setattr(cli.engine, "time", types.SimpleNamespace(perf_counter=lambda: next(times)))
+    run_times = iter([10.0, 10.0])
+    monkeypatch.setattr(
+        recording, "time", types.SimpleNamespace(perf_counter=lambda: next(run_times))
+    )
     arguments = ["--log-level", "debug"] if debug else []
 
     invoke(

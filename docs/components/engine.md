@@ -54,6 +54,13 @@ Execution returns profile frames, calculated outputs, per-invocation statuses an
 durations, failures, and the plan version. A failed invocation is reported in
 the result, and execution stops; invocations that did not run are marked skipped.
 
+Each execution also replaces the latest diagnostic snapshot in
+`_generated/run/`: metadata, JSONL logs, and bounded profile previews.
+Previews collect lazy queries after execution without changing the returned
+lazy frames. Preview failures are separate from invocation failures.
+See [latest-run artifacts](../cli/engine.md#latest-run-artifacts) for the stored
+data and [saved-run readers](../python/engine.md#saved-runs) for programmatic access.
+
 ### Row-context metadata
 
 Operations can carry `row_context` requirements independently of their primitive

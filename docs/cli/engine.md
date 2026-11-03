@@ -24,7 +24,7 @@ directory is used. The grouped form is `uptimely engine run [PROJECT_ROOT]`.
 | `--config PATH` | No | `config/config.json` under the project root or current working directory | Engine settings and required runtime control parameter values in JSON. |
 | `--validate` | No | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
 | `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes execution details and validation traces. Replaces `--verbose`. |
-| `--preview [ROWS]` | No | Disabled; 5 rows when supplied without a count | Log the first positive number of rows from each final profile after successful execution at info level. |
+| `--preview [ROWS]` | No | Console display disabled; 5 rows when supplied without a count | Set the saved preview row limit and log those rows from each final profile after successful execution at info level. Without this option, five rows per profile are still saved. |
 
 For example, preview five rows per profile, or request a specific row limit:
 
@@ -38,12 +38,13 @@ Previews show all columns and omit the Polars shape line. They are logged after
 the completion summary and any debug details. Levels above `info` hide previews
 and the completion summary. Lazy frames are limited before
 collection, but their upstream operations may still require substantial work or
-repeat computation. Execution timing excludes preview collection and display.
-Previews can expose profile contents in logs; enable them only when appropriate.
+repeat computation. Execution timing excludes preview collection, artifact
+publication, and display. Console display reuses the saved sample rather than
+executing the lazy query again.
 
 Use `uptimely build` or the grouped `uptimely project build` command to change
 the execution plan or feature scope. Engine executes the saved
-build without compiling or generating artifacts. Saved-build integrity,
+build without compiling or rebuilding it. Saved-build integrity,
 configuration, and backend compatibility are always checked; per-step runtime
 validation is opt-in:
 
@@ -60,6 +61,40 @@ below when different. Subsections are `Requirements:`, `Fragment:`,
 The merge section shows the target profile, join kind, keys,
 and cardinality; initial fragments are identified as initialization without a
 join. Internal invocation IDs remain unchanged.
+
+## Latest-run artifacts
+
+Every execution saves `_generated/run/run.json`, `log.jsonl`, and
+`preview/<profile>.json`. This replaces the previous run completely, including
+previews for profiles that no longer appear. There is no run history or run
+format-version field.
+
+The manifest records UTC timestamps, execution duration, overall status, build
+fingerprint and scope, engine settings, runtime-validation mode, per-invocation
+statuses/timings/errors, and profile statistics and preview paths. Failed
+invocations still produce a saved run with any available partial profile
+results. Invalid configuration or build errors before execution do not
+replace the previous run.
+
+Previews are collected automatically, including for lazy frames, even without
+`--preview`. Lazy queries are limited before collection, but this may still
+perform expensive upstream work. Exact full-profile row counts are recorded
+only for eager frames; lazy counts are `null`. Preview failures are recorded
+separately and do not change the execution status. When console previews are
+requested, an unavailable preview is also reported as a CLI error.
+
+Logs use UTF-8 JSON Lines: one event per line with timestamp, severity, logger,
+message, optional invocation/profile IDs, and exception details. Capture follows
+configured logging levels and includes Python logs from the execution thread;
+it does not redirect stdout/stderr or capture other threads' logs.
+
+Saved samples and logs may contain sensitive project data. Parameter values
+and environment variables are not copied into the manifest, but functions can
+still include them in logs or outputs. Keep credentials out of engine settings
+and log messages. Use `data/output/` for intentionally retained analytical data;
+the generated run is a disposable diagnostic snapshot.
+
+## Runtime validation and configuration
 
 Without `--validate`, the engine still binds arguments and assembles declared
 output fragments, but skips input-feature, schema/type, uniqueness, row-count,
