@@ -9,7 +9,7 @@ const moduleSource = source.replace(
   "./rendering/shared_markup.js",
   `data:text/javascript;base64,${Buffer.from(shared).toString("base64")}`,
 );
-const { previewPage, initializePreview } = await import(
+const { previewPage, initializePreview, infoPage, logsPage } = await import(
   `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`
 );
 
@@ -73,6 +73,54 @@ test("profile switching reveals the selected title and table and preserves histo
   browser.location.hash = "#profile-first";
   listeners.hashchange();
   assert.deepEqual(sections.map(section => section.hidden), [false, true]);
+});
+
+test("preview context groups run datasets by available profile categories", () => {
+  const categorized = { catalogs: { configuration: { profiles: {
+    first: { name: "Pump readings", category: "Telemetry <raw>" },
+    second: { name: "Daily totals", category: "Reports" },
+    third: { category: "Telemetry <raw>" },
+  } } } };
+  const run = { profiles: { first: {}, second: {}, third: {}, unknown: {} } };
+  const { context } = previewPage(categorized, {
+    run, previews: Object.fromEntries(Object.keys(run.profiles).map(id => [id, preview])),
+  });
+  const groups = [...context.matchAll(/<div class="context-link-group">([\s\S]*?)<\/div>/g)];
+  assert.equal(groups.length, 3);
+  assert.match(groups[0][1], /Telemetry &lt;raw&gt;/);
+  assert.match(groups[0][1], /context-link-count">2</);
+  assert.match(groups[0][1], /profile-first/);
+  assert.match(groups[0][1], /profile-third/);
+  assert.match(groups[1][1], /Reports/);
+  assert.match(groups[2][1], /Uncategorized/);
+  assert.match(groups[2][1], /profile-unknown/);
+  assert.equal((context.match(/data-lucide="table-2"/g) || []).length, 4);
+});
+
+test("preview context stays flat when no profile categories are available", () => {
+  const { context } = previewPage(data, {
+    run: { profiles: { first: {}, second: {} } }, previews: { first: preview, second: preview },
+  });
+  assert.doesNotMatch(context, /context-link-group/);
+});
+
+test("run pages use shared panels and avoid duplicate empty-state icons or misleading log counts", () => {
+  for (const result of [
+    infoPage({ run: null }),
+    logsPage({ run: null, logs: [] }),
+    previewPage(data, { run: null, previews: {} }),
+  ]) {
+    assert.match(result.content, /class="ui-panel engine-empty"/);
+    assert.doesNotMatch(result.content, /engine-empty-icon|Engine run/);
+  }
+  const { content } = logsPage({ run: { run_id: "one" }, logs: [] });
+  assert.match(content, /No log events were recorded/);
+  assert.doesNotMatch(content, /data-section-count/);
+  const rendered = previewPage(data, {
+    run: { profiles: { first: {} } }, previews: { first: preview },
+  }).content;
+  assert.match(rendered, /class="ui-table engine-preview-table"/);
+  assert.match(rendered, /class="ui-badge ui-badge--green">succeeded/);
 });
 
 test("single-profile previews have no context menu and failed previews remain explicit", () => {

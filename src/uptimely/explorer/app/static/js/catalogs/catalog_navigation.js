@@ -27,6 +27,8 @@ export function initializeCatalog(signal) {
     const target = document.getElementById(decodeURIComponent(link.hash.slice(1)));
     const selected = catalogItems.find(item => item === target || target.contains(item));
     const isOverview = selected.id === "catalog-overview";
+    const dimensionLabel = document.querySelector("[data-dimension-label]");
+    if (dimensionLabel) dimensionLabel.hidden = isOverview;
     if (catalogSectionCount) {
       catalogSectionCount.hidden = !isOverview;
     }
@@ -43,6 +45,7 @@ export function initializeCatalog(signal) {
       const description = selected.querySelector(descriptionSelector);
       catalogDescription.textContent = isOverview
         ? catalogSectionDescription : description?.textContent || "";
+      catalogDescription.hidden = !catalogDescription.textContent.trim();
       if (description && !isOverview) description.hidden = true;
     }
     document.title = isOverview ? catalogDocumentTitle : `${title} · ${catalogSectionTitle}`;

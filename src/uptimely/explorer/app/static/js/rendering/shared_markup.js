@@ -3,7 +3,7 @@ export const KINDS = {
   conform: { icon: "shuffle", label: "Conform" },
   expand: { icon: "expand", label: "Expand" },
   collapse: { icon: "combine", label: "Collapse" },
-  vectorize: { icon: "wand-sparkles", label: "Vectorize" },
+  vectorize: { icon: "table-properties", label: "Vectorize" },
   write: { icon: "send", label: "Write" },
   escape: { icon: "arrow-up-right", label: "Escape" },
 };
@@ -12,10 +12,10 @@ const ICONS = {
   home: "house", menu: "menu", "collapse-navigation": "panel-left-close",
   "expand-navigation": "panel-left-open", spec: "book-open", plan: "list-tree",
   execution: "play", info: "info", logs: "scroll-text", preview: "table-properties",
-  overview: "layout-dashboard", features: "sigma",
+  overview: "layout-dashboard", stats: "chart-bar-increasing", features: "sigma",
   profiles: "layers-2", datasets: "table-2",
-  dimensions: "axis-3d", resolutions: "layers-3", functions: "square-function",
-  invocations: "square-function", "feature-lineage": "network", "invocation-lineage": "git-branch",
+  dimensions: "axis-3d", resolutions: "scan-square", functions: "square-function",
+  invocations: "square-function", "feature-lineage": "diagram-flow-horizontal", "invocation-lineage": "layout-arrow-right",
   "data-lineage": "monitor-play", stages: "list-ordered",
 };
 
@@ -57,31 +57,38 @@ export function heading(title, description = null, key = title.toLowerCase(), co
   return `<header class="mb-8 border-b border-slate-800 pb-6">
     <div class="flex flex-wrap items-center gap-3">
       <h1 class="title-with-icon font-display text-3xl font-semibold tracking-tight text-white">${icon(key, "title-icon")}<span>${escape(title)}</span></h1>
-      ${count === null ? "" : `<span data-section-count class="rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1 font-mono text-xs text-slate-400">${escape(count)} ${escape(title.toLowerCase())}</span>`}
+      ${count === null ? "" : `<span data-section-count class="ui-badge">${escape(count)} ${escape(title.toLowerCase())}</span>`}
     </div>
-    ${description === null ? "" : `<p data-section-description class="mt-3 max-w-3xl text-sm leading-6 text-slate-400">${escape(description)}</p>`}
+    ${description === null ? "" : `<p data-section-description class="mt-3 max-w-3xl text-sm leading-6 text-slate-400"${description ? "" : " hidden"}>${escape(description)}</p>`}
   </header>`;
 }
 
-export function statistic(label, value, key = label.toLowerCase()) {
-  return `<div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5" data-stat="${escape(label)}">
-    <div class="flex items-center justify-between gap-3"><span class="text-xs text-slate-400">${escape(label)}</span>${icon(key)}</div>
+export function badge(label, tone = "neutral") {
+  return `<span class="ui-badge ui-badge--${escape(tone)}">${escape(label)}</span>`;
+}
+
+export function statistic(label, value) {
+  return `<div class="ui-panel" data-stat="${escape(label)}">
+    <span class="text-xs text-slate-400">${escape(label)}</span>
     <p class="mt-4 font-display text-3xl font-semibold text-white" data-value="${escape(value ?? 0)}">${escape(value ?? 0)}</p>
   </div>`;
 }
 
-export function distribution(title, counts) {
+export function distribution(title, counts, { total = null, note = null } = {}) {
   const maximum = Math.max(0, ...counts.map(([, value]) => Number(value)));
-  return `<div class="mt-6 rounded-2xl border border-slate-800 bg-slate-900/75 p-5">
-    <h3 class="mb-5 font-display text-lg font-semibold text-white">${escape(title)}</h3>
-    <div class="space-y-4">${counts.map(([label, value]) => {
-      return `<div class="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_3rem] items-center gap-3" data-category="${escape(label)}" data-count="${escape(value)}">
+  return `<section class="ui-panel ui-chart">
+    <div class="ui-panel-heading"><h3>${escape(title)}</h3>
+      ${total === null ? "" : `<span class="ui-panel-meta">total ${escape(total)}</span>`}</div>
+    ${note ? `<p class="ui-panel-description">${escape(note)}</p>` : ""}
+    <div class="space-y-4">${counts.map(([label, value, target]) => {
+      const tag = target ? "a" : "div";
+      return `<${tag}${target ? ` href="${escape(target)}"` : ""} class="ui-chart-row" data-category="${escape(label)}" data-count="${escape(value)}">
         <span class="break-words font-mono text-xs text-slate-400">${escape(label)}</span>
         <div class="h-2 overflow-hidden rounded-full bg-slate-800" aria-hidden="true"><div class="h-full rounded-full ${label === "escape" ? "bg-violet-400" : "bg-cyan-400"}" style="width:${maximum ? Number(value) / maximum * 100 : 0}%"></div></div>
         <span class="text-right font-mono text-xs text-white">${escape(value)}</span>
-      </div>`;
+      </${tag}>`;
     }).join("") || '<p class="text-sm text-slate-400">No categories to display.</p>'}</div>
-  </div>`;
+  </section>`;
 }
 
 export function page(content) {
@@ -90,7 +97,7 @@ export function page(content) {
 }
 
 export function contextHeader(title, key, id, label = title.toLowerCase()) {
-  const tag = id === "catalog-context" ? "h2" : "h1";
+  const tag = ["catalog-context", "preview-context"].includes(id) ? "h2" : "h1";
   return `<div class="context-header">
     <div class="context-heading site-nav-heading">
     <${tag} class="title-with-icon" title="${escape(title)}">${icon(key)}<span>${escape(title)}</span></${tag}>
@@ -98,6 +105,11 @@ export function contextHeader(title, key, id, label = title.toLowerCase()) {
       aria-pressed="false" aria-controls="${id}" title="Collapse ${escape(label)} context">${icon("collapse-navigation")}${icon("expand-navigation")}</button>
     <button class="ui-button context-sheet-close" type="button" aria-label="Close ${escape(label)} menu">Close</button>
     </div></div>`;
+}
+
+export function contextGroup(title, items) {
+  return `<div class="context-link-group">
+  <p class="context-group-label"><span>${escape(title)}</span><span class="context-link-count">${items.length}</span></p>${items.join("")}</div>`;
 }
 
 export function contextLink(target, label, key, count = null, kind = null) {
@@ -114,17 +126,17 @@ export function shell(data, view, context, content) {
     : view === "animation" ? "Animation steps" : view[0].toUpperCase() + view.slice(1);
   const projectLink = `<a class="site-product" href="${href("home")}" title="${projectName}" aria-label="${projectName}"${view === "home" ? ' aria-current="page"' : ""}><span>${projectName}</span></a>`;
   const navigationGroups = [
-    ["spec", "Spec", [
-      ["spec", "Overview", "overview"], ["profiles", "Profiles", "profiles"],
+    ["spec", "Analytical model", [
+      ["profiles", "Profiles", "profiles"],
       ["features", "Features", "features"], ["functions", "Functions", "functions"],
       ["dimensions", "Dimensions", "dimensions"],
       ["lineage", "Lineage", "feature-lineage"],
     ]],
-    ["plan", "Plan", [
-      ["plan", "Overview", "overview"], ["topology", "Topology", "invocation-lineage"],
+    ["plan", "Execution plan", [
+      ["plan", "Stats", "stats"], ["topology", "Topology", "invocation-lineage"],
       ["stages", "Stages", "stages"],
     ]],
-    ["execution", "Execution", [
+    ["execution", "Run results", [
       ["info", "Info", "info"], ["logs", "Log", "logs"],
       ["preview", "Preview", "preview"],
       ["animation", "Animation", "data-lineage"],
@@ -144,9 +156,10 @@ export function shell(data, view, context, content) {
         <button class="nav-label-toggle" type="button" aria-label="Hide navigation labels" aria-pressed="false" aria-controls="explorer-navigation" title="Hide navigation labels">${icon("collapse-navigation")}${icon("expand-navigation")}</button>
       </div></div>
       <div class="site-nav-pages">${navigationGroups.map(([key, title, sections]) => `
-        <a aria-label="${title}" title="${title}" href="${href(sections[0][0])}">${icon(key)}<span>${title}</span></a>
+        <section class="site-nav-group" aria-labelledby="nav-group-${key}">
+        <h2 class="site-nav-group-title" id="nav-group-${key}">${title}</h2>
         <div class="site-subnav" role="group" aria-label="${title} sections">${sections.map(([route, label, glyph]) => `
-          <a aria-label="${label}" title="${label}" href="${href(route)}"${view === route ? ' aria-current="page"' : ""}>${icon(glyph)}<span>${label}</span></a>`).join("")}</div>`).join("")}</div>
+          <a aria-label="${label}" title="${label}" href="${href(route)}"${view === route ? ' aria-current="page"' : ""}>${icon(glyph)}<span>${label}</span></a>`).join("")}</div></section>`).join("")}</div>
       <span id="scope-badge" class="build-badge${data.scope.is_scoped ? " build-badge-partial" : ""}"
         title="Spec: complete model. Plan and execution: ${escape(data.scope.label)}"
         aria-label="Build coverage: ${data.scope.is_scoped ? "Partial" : "Full"} build. Spec: complete model. Plan and execution: ${escape(data.scope.label)}">${data.scope.is_scoped ? "Partial" : "Full"} build</span>

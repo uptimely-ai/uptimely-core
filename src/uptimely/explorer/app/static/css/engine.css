@@ -1,11 +1,7 @@
 .engine-page main { min-height: 100vh; padding-bottom: 48px; }
 .engine-page main [id] { scroll-margin-top: 20px; }
-.engine-panel, .engine-empty {
-  margin: 20px 0; padding: 20px; border: 1px solid #1e293b;
-  border-radius: 16px; background: rgb(15 23 42 / 0.88);
-}
-.engine-panel-title { margin: 0 0 16px; color: #f8fafc;
-  font: 600 18px "Space Grotesk", sans-serif; }
+.engine-panel, .engine-empty { margin: 20px 0; }
+.engine-panel > .ui-section-title { margin-bottom: 16px; }
 .engine-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 10px; margin: 0; }
 .engine-field { min-width: 0; padding: 12px; border: 1px solid #1e293b; border-radius: 10px; }
@@ -19,33 +15,12 @@
 .engine-status-failed, .engine-status-interrupted { border-color: #7f1d1d; background: #450a0a; color: #fecaca; }
 .engine-run-error:empty { display: none; }
 .engine-error-text { color: #fca5a5 !important; overflow-wrap: anywhere; }
-.engine-counts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-.engine-count { padding: 6px 10px; border: 1px solid #334155; border-radius: 999px;
-  color: #94a3b8; font: 11px "JetBrains Mono", monospace; text-transform: capitalize; }
-.engine-count strong { margin-left: 5px; color: #f8fafc; }
-.engine-table-scroll { width: 100%; overflow-x: auto; }
-.engine-table { width: 100%; border-collapse: collapse; text-align: left; }
-.engine-table th, .engine-table td { min-width: 100px; padding: 10px 12px;
-  border-bottom: 1px solid #1e293b; vertical-align: top; }
-.engine-table th { color: #94a3b8; font: 10px "JetBrains Mono", monospace;
-  letter-spacing: .06em; text-transform: uppercase; }
-.engine-table td { color: #cbd5e1; font-size: 12px; overflow-wrap: anywhere; }
-.engine-table code, .engine-profile-heading code { color: #a5b4fc; font: 11px "JetBrains Mono", monospace; }
-.engine-table th span { display: block; margin-top: 4px; color: #64748b; font-weight: 400; text-transform: none; }
-.engine-preview-table th { min-width: 100px; padding: 14px 16px;
-  color: #f8fafc; font: 600 15px "Space Grotesk", sans-serif; letter-spacing: .02em;
-  text-transform: none; }
-.engine-preview-table th span { color: #94a3b8; font: 10px "JetBrains Mono", monospace; }
+.engine-preview-table th { min-width: 100px; }
+.engine-preview-table thead th { font-size: 15px; }
+.engine-preview-table th span { display: block; margin-top: 8px; color: #94a3b8; font: 10px var(--font-mono); }
 .engine-preview-type-icon { display: block; width: 16px; height: 16px;
-  margin: 8px 0 0; color: #a5dfca; }
-.engine-preview-surface { border: 1px solid #334155; border-radius: 12px;
-  background: #0b1220; box-shadow: 0 12px 32px rgb(2 6 23 / .2); }
-.engine-preview-table th { padding: 16px; border-bottom: 1px solid #475569; }
-.engine-preview-table th span { margin-top: 8px; }
-.engine-preview-table td { padding: 16px; font: 12px/1.6 "JetBrains Mono", monospace; }
-.engine-preview-table tbody tr:nth-child(even) { background: rgb(148 163 184 / .025); }
-.engine-preview-table tbody tr:hover { background: rgb(103 232 249 / .045); }
-.engine-preview-table tbody tr:last-child td { border-bottom: 0; }
+  margin: 8px 0 0; color: var(--color-muted); }
+.engine-preview-table td { min-width: 100px; vertical-align: top; font: 12px/1.6 var(--font-mono); }
 .engine-preview-table td.is-number { font-variant-numeric: tabular-nums; }
 .engine-preview-table td.is-null { color: #64748b; font-style: italic; }
 .engine-log-editor { overflow-x: auto; border: 1px solid #1e293b; border-radius: 10px;
@@ -79,13 +54,7 @@
 .engine-profile-heading h1 span { min-width: 0; }
 .engine-profile-heading .engine-kicker { margin: 0; }
 .engine-profile-description { margin: 12px 0 0; color: #94a3b8; font-size: 13px; line-height: 1.6; }
-.engine-preview-status { flex: 0 0 auto; padding: 6px 9px; border: 1px solid #334155;
-  border-radius: 999px; color: #cbd5e1; font: 10px "JetBrains Mono", monospace; text-transform: uppercase; }
-.engine-preview-status.is-success { border-color: #065f46; color: #a7f3d0; }
-.engine-preview-status.is-failed { border-color: #7f1d1d; color: #fecaca; }
-.engine-profile-preview > .engine-fields { margin-bottom: 16px; }
 .engine-empty { display: grid; justify-items: start; gap: 10px; }
-.engine-empty-icon { width: 28px; height: 28px; color: #67e8f9; }
 .engine-empty h2, .engine-empty p { margin: 0; }
 .engine-empty h2 { color: #f8fafc; font: 600 20px "Space Grotesk", sans-serif; }
 .engine-empty p { color: #94a3b8; line-height: 1.6; }

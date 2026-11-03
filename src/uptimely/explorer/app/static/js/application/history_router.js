@@ -19,6 +19,11 @@ export class Router {
       url.hash = "";
       this.browser.history.replaceState(null, "", url);
     }
+    if (url.searchParams.get("view") === "spec") {
+      url.searchParams.set("view", "features");
+      url.hash = "";
+      this.browser.history.replaceState(null, "", url);
+    }
     return url.searchParams.get("view") || "home";
   }
 

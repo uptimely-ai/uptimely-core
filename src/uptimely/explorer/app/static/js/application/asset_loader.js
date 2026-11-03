@@ -1,4 +1,4 @@
-const ICON_SCRIPT = "https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js";
+const ICON_SCRIPT = "https://unpkg.com/lucide@1.67.0/dist/umd/lucide.min.js";
 const GRAPH_SCRIPTS = [
   "https://unpkg.com/force-graph@1.52.0/dist/force-graph.min.js",
   "https://unpkg.com/three@0.160.0/build/three.min.js",

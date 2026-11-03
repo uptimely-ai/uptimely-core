@@ -19,6 +19,9 @@ serves the packaged frontend and reads the current snapshot from
 `_generated/explorer.json` on each API request. It does not watch for source
 changes. Rebuild the project and refresh the browser to view an updated
 snapshot; an already-running server can pick up the replacement snapshot.
+Frontend assets are revalidated on reload so browsers pick up updated styles and
+scripts together. After upgrading from a version that allowed browser caching,
+perform a hard refresh once to clear previously cached assets.
 
 Use `uptimely explore --build` to build once before serving. A missing or
 invalid snapshot is reported with a project-build recovery command. Scoped
@@ -32,11 +35,13 @@ The Explorer contains:
 | Section | What it shows |
 | --- | --- |
 | **Project home** | Project identity, counts, build scope, and the spec-to-execution journey. |
-| **Spec** | Overview, separate profile/feature/dimension/function catalogs, dimension resolution hierarchies, and feature lineage. |
-| **Plan** | Overview, invocation topology, and execution stages with argument bindings. |
-| **Execution** | Profile-specific animation, latest-run information, run logs, and saved previews for each profile. |
+| **Analytical model** | Profile/feature/dimension/function catalogs, feature counts by role in Features stats, dimension resolution hierarchies, and feature lineage. |
+| **Execution plan** | Stats, invocation topology, and execution stages with argument bindings. |
+| **Run results** | Profile-specific animation, latest-run information, run logs, and saved previews for each profile. |
 
-The original desktop navigation and contextual sidebars can be collapsed
+The main menu groups equally aligned links under non-clickable section labels,
+with subtle separators and a highlighted current page. Desktop navigation has a
+stable width and collapses to an icon rail; the contextual sidebar collapses
 independently. On narrow screens, the hamburger button opens project navigation.
 A persistent bar below the header provides access to the page's context menu;
 tap it to open a centered dialog with item navigation, legends, and details.
@@ -45,12 +50,35 @@ the graph controls remain separate below it.
 Close the dialog with its **Close** button, the backdrop, or **Escape**.
 Graph view and zoom controls, and animation profile and playback controls,
 remain accessible in the bar without opening the dialog.
-Catalogs start with an overview; select an item in the contextual
+Stats pages share count cards and distribution charts. Schema, argument bindings,
+and saved previews share table styling, with badges for roles and run status.
+Navigation and data-type icons identify content; section headings and count
+cards avoid repeating those icons.
+Navigation and content icons use neutral colors matching their labels. A single
+cyan accent marks selection and interactive emphasis. Status badges, data-role
+badges, graph legends, and log syntax retain semantic colors; labels and shapes
+also convey their meaning without relying on color alone.
+Catalogs start with Stats; select an item in the contextual
 sidebar to inspect its details. Item selections support browser back/forward
 navigation and direct links. Menu links switch views client-side without
 reloading the document or refetching the snapshot. Refresh the browser after
 rebuilding to load updated project data. Graphs and animation playback are
 stopped when leaving their view.
+
+Dimension details label the selected dimension above its title. The Resolution
+levels section uses compact cards connected by tree branches. Each card shows
+the resolution ID and its data key with a data-type icon (or type text when no
+icon is available).
+
+Profile details show a Produced schema table with one row per declared column, listing
+its role, data type, unit, and producing action from top to bottom. Features
+without a declared producer show "None declared"; multiple producers are listed.
+The Actions section lists every declared action, including vectorized
+transformations, with its function, argument bindings, and input/output features.
+
+The Preview context menu groups datasets by profile category when categories are
+available. Profiles without a category appear under Uncategorized; without any
+categories, the menu remains a flat list.
 
 Lineage and topology offer interactive **2D** and **3D** views, zoom, reset,
 profile legends, and selectable node details. For animation, choose a profile

@@ -45,6 +45,7 @@ for (const withSectionCount of [false, true]) {
 				if (selector === 'main h1') return heading;
 				if (selector === '[data-section-count]') return count;
 				if (selector === '[data-section-description]') return description;
+				if (selector === '[data-dimension-label]') return null;
 				throw new Error(`Unexpected selector: ${selector}`);
 			},
 			querySelectorAll(selector) {
@@ -125,6 +126,7 @@ test(`${catalog} selection displays its description in the section header`, () =
 			if (selector === 'main h1') return heading;
 			if (selector === '[data-section-count]') return null;
 			if (selector === '[data-section-description]') return description;
+			if (selector === '[data-dimension-label]') return null;
 			throw new Error(`Unexpected selector: ${selector}`);
 		},
 		querySelectorAll(selector) {
@@ -159,6 +161,7 @@ test(`${catalog} selection displays its description in the section header`, () =
 	links[0].listeners.click({ button: 0, preventDefault() {} });
 	assert.equal(title.textContent, 'Features');
 	assert.equal(description.textContent.trim(), '');
+	assert.equal(description.hidden, true);
 });
 }
 
@@ -184,6 +187,7 @@ test('dimension selection displays its description in the section header', () =>
 	const title = { ...createElement(), textContent: 'Dimensions' };
 	const heading = { ...createElement(), focus() {} };
 	const description = { ...createElement(), textContent: 'Inspect dimension resolutions, dataframe keys, and their parent relationships.' };
+	const dimensionLabel = createElement();
 	const document = {
 		title: 'Spec dimensions',
 		getElementById: id => items.find(item => item.id === id)
@@ -193,6 +197,7 @@ test('dimension selection displays its description in the section header', () =>
 			if (selector === 'main h1') return heading;
 			if (selector === '[data-section-count]') return null;
 			if (selector === '[data-section-description]') return description;
+			if (selector === '[data-dimension-label]') return dimensionLabel;
 			throw new Error(`Unexpected selector: ${selector}`);
 		},
 		querySelectorAll(selector) {
@@ -218,9 +223,11 @@ test('dimension selection displays its description in the section header', () =>
 	assert.equal(title.textContent, 'dimension-machine');
 	assert.equal(description.textContent, 'Machine and production hierarchy');
 	assert.equal(dimensionDescription.hidden, true);
+	assert.equal(dimensionLabel.hidden, false);
 
 	links[0].listeners.click({ button: 0, preventDefault() {} });
 	assert.equal(title.textContent, 'Dimensions');
+	assert.equal(dimensionLabel.hidden, true);
 	assert.equal(description.textContent, 'Inspect dimension resolutions, dataframe keys, and their parent relationships.');
 });
 
