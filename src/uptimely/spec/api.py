@@ -35,22 +35,20 @@ def load_spec(
 
 
 def from_python(
-    datasets: conversion.Datasets | None = None,
+    profiles: conversion.Profiles | None = None,
     functions: conversion.Functions | None = None,
     name: str | None = None,
     dimensions: conversion.Dimensions | None = None,
     *,
-    entities: conversion.Entities | None = None,
     validate: bool = True,
 ) -> model.Spec:
     """Convert Python declarations, optionally validating the model's semantics.
 
     Args:
-        datasets: Profile declarations wrapped in a single entity.
+        profiles: Profile declarations keyed by their globally unique IDs.
         functions: Explicit catalog, or infer it from Python declarations.
-        name: Optional spec name and synthetic entity identifier.
+        name: Optional spec name.
         dimensions: Global dimension declarations.
-        entities: Explicit entity declarations, mutually exclusive with datasets.
         validate: Run semantic checks. Declaration and structural checks always run.
 
     Returns:
@@ -61,11 +59,10 @@ def from_python(
         ValueError: Declarations conflict or spec semantics are invalid.
     """
     document = conversion.to_model(
-        datasets=datasets,
+        profiles=profiles,
         functions=functions,
         name=name,
         dimensions=dimensions,
-        entities=entities,
     )
     if validate:
         validation.validate_spec(document)

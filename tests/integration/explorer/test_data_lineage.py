@@ -24,11 +24,10 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
     definition = spec.Spec.model_validate(
         {
             "dimensions": {"id": {"type": "integer"}, "time": {"type": "integer"}},
-            "entities": {
+            "profiles": {
                 name: {
-                    "name": name,
                     "dimensions": dimensions,
-                    "datasets": {name: {"features": {feature: {"type": "float"}}}},
+                    "features": {feature: {"type": "float"}},
                 }
                 for name, dimensions, feature in (
                     ("source", source_dimensions, "input_value"),
@@ -43,7 +42,6 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
         entrypoint="example:transfer",
         function_id="transfer",
         mapping_id="transfer_source-values",
-        entity_id="target",
         dataset_id="target",
         input_features=["input_value"],
         output_features=["result"],

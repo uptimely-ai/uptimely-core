@@ -248,11 +248,9 @@ def test_engine_merges_fragments_by_entity_dimensions(
     )
 
     operation = next(
-        operation
-        for operation in engine.plan.invocations
-        if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
+        operation for operation in engine.plan.invocations if operation.dataset_id == "pump_dataset"
     )
-    dimensions = engine.spec_definition.entities[operation.entity_id].dimension_ids
+    dimensions = engine.spec_definition.profiles[operation.dataset_id].dimension_ids
     main = execution_support.main_frame(
         existing,
         dimensions,
@@ -387,7 +385,7 @@ def test_engine_validates_required_fragment_columns_and_types(
         for item in engine.plan.invocations
         if item.dataset_id == "pump_dataset" and item.function_kind == "collapse"
     )
-    dimensions = engine.spec_definition.entities[invocation.entity_id].dimension_ids
+    dimensions = engine.spec_definition.profiles[invocation.dataset_id].dimension_ids
     output = next(name for name in invocation.output_features if name not in dimensions)
     columns: dict[str, list[object]] = {name: [f"{name}-1"] for name in dimensions}
     columns[output] = ["wrong type" if invalid_column == "output" else 1.5]
@@ -428,7 +426,7 @@ def test_engine_assembly_rejects_feature_collisions(
         for item in engine.plan.invocations
         if item.dataset_id == "pump_dataset" and item.function_kind == "collapse"
     )
-    dimensions = engine.spec_definition.entities[invocation.entity_id].dimension_ids
+    dimensions = engine.spec_definition.profiles[invocation.dataset_id].dimension_ids
     output = next(name for name in invocation.output_features if name not in dimensions)
     keys = {name: [f"{name}-1"] for name in dimensions}
     result = pl.DataFrame({**keys, output: [1.5]})
@@ -475,14 +473,12 @@ def test_engine_rejects_invalid_fragments(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
     operation = next(
-        operation
-        for operation in engine.plan.invocations
-        if operation.entity_id == "pump" and operation.dataset_id == "pump_dataset"
+        operation for operation in engine.plan.invocations if operation.dataset_id == "pump_dataset"
     )
 
     main = execution_support.main_frame(
         None,
-        engine.spec_definition.entities[operation.entity_id].dimension_ids,
+        engine.spec_definition.profiles[operation.dataset_id].dimension_ids,
         backend=engine.backend,
     )
     with pytest.raises(ValueError, match=message):

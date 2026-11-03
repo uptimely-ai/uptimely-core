@@ -42,7 +42,6 @@ def merge_fragment(
         entrypoint="test:read",
         function_id="read",
         mapping_id="read",
-        entity_id="entity",
         dataset_id="dataset",
         id_columns=list(main.id_columns),
         column_types=dict(dimension_types or {}),
@@ -99,12 +98,18 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
         identifier: definition or {"type": "string"}
         for identifier, definition in resources.get("dimensions", {}).items()
     }
-    entities = dict(resources.get("entities", {}))
+    profiles = dict(resources.get("profiles", {}))
+    for entity in resources.get("entities", {}).values():
+        for profile_id, profile in entity.get("datasets", {}).items():
+            profiles.setdefault(
+                profile_id,
+                {"dimensions": entity.get("dimensions", []), **profile},
+            )
     functions = dict(resources.get("functions", {}))
 
     for invocation in execution_plan.invocations:
-        entity = entities.setdefault(invocation.entity_id, {"dimensions": []})
-        for dimension_id in entity.get("dimensions", []):
+        profile = profiles.setdefault(invocation.dataset_id, {"dimensions": []})
+        for dimension_id in profile.get("dimensions", []):
             dimensions.setdefault(dimension_id, {"type": "string"})
         function = functions.setdefault(invocation.function_id, {})
         function.setdefault("kind", invocation.function_kind)
@@ -114,9 +119,8 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
         )
         function.setdefault("entrypoint", invocation.entrypoint)
         function.setdefault("args", {})
-        entity.setdefault("name", invocation.entity_id)
-        dataset = entity.setdefault("datasets", {}).setdefault(invocation.dataset_id, {})
-        dataset.setdefault("actions", {}).setdefault(
+        profile.setdefault("name", invocation.dataset_id)
+        profile.setdefault("actions", {}).setdefault(
             invocation.mapping_id,
             {"id": invocation.mapping_id, "binding": {"function": invocation.function_id}},
         )
@@ -125,7 +129,7 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
         {
             "dimensions": dimensions,
             "functions": functions,
-            "entities": entities,
+            "profiles": profiles,
         }
     )
 
@@ -149,16 +153,16 @@ def bundle_for_plan(
                     invocation,
                     id_columns=(
                         invocation.id_columns
-                        or bundle_spec.dimension_ids_by_dataset[invocation.dataset_id]
+                        or bundle_spec.dimension_ids_by_profile[invocation.dataset_id]
                     ),
                     column_types={
                         **{
                             key: definition.type
                             for key, definition in {
-                                **bundle_spec.datasets[invocation.dataset_id].features,
+                                **bundle_spec.profiles[invocation.dataset_id].features,
                                 **{
                                     key: bundle_spec.dimensions[key]
-                                    for key in bundle_spec.dimension_ids_by_dataset[
+                                    for key in bundle_spec.dimension_ids_by_profile[
                                         invocation.dataset_id
                                     ]
                                 },

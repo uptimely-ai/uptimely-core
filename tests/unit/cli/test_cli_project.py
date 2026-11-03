@@ -118,7 +118,7 @@ def test_project_build_examples(
         assert result.out == f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
     bundle = project.load_build_bundle(root)
     assert bundle.manifest.features is None
-    assert spec.load_spec(bundle.spec_path).entities
+    assert spec.load_spec(bundle.spec_path).profiles
     assert bundle.execution_plan.invocations
     assert set(bundle_files(root)) == {"build.json", "execution_plan.json", "spec.json"}
     explorer_data = json.loads((root / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
@@ -146,7 +146,7 @@ def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None
     assert result.stdout == f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
     bundle = project.load_build_bundle(root)
     assert bundle.manifest.features is None
-    assert spec.load_spec(bundle.spec_path).entities
+    assert spec.load_spec(bundle.spec_path).profiles
     assert bundle.execution_plan.invocations
     assert (root / project.EXPLORER_DATA_FILE).is_file()
 
@@ -201,7 +201,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     source.write_text(
         json.dumps(
             {
-                "spec_version": 3,
+                "spec_version": 4,
                 "name": "Build-only test",
                 "functions": {
                     "read": {
@@ -210,18 +210,13 @@ def test_project_build_explicit_source_does_not_execute_workflow(
                         "returns": "dataframe",
                     }
                 },
-                "entities": {
-                    "example": {
-                        "name": "Example",
-                        "datasets": {
-                            "values": {
-                                "features": {"value": {}},
-                                "actions": {
-                                    "read": {
-                                        "binding": {"function": "read"},
-                                        "features": {"outputs": ["$features.value"]},
-                                    }
-                                },
+                "profiles": {
+                    "values": {
+                        "features": {"value": {}},
+                        "actions": {
+                            "read": {
+                                "binding": {"function": "read"},
+                                "features": {"outputs": ["$features.value"]},
                             }
                         },
                     }
@@ -233,19 +228,17 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     if source_kind != "json":
         (root / "declaration.py").write_text(
             "from uptimely.spec import python as api\n"
-            "from uptimely.spec.python import Profile, Entity, Feature, Action\n"
+            "from uptimely.spec.python import Profile, Feature, Action\n"
             "import build_functions\n"
-            "example = Entity(id='example', name='Example', dimensions=[])\n"
             "class Values(Profile):\n"
             "    id = 'values'\n"
-            "    entity = example\n"
             "    producers = [Action(\n"
             "        id='read',\n"
             "        function=api.ref.function(build_functions.read, kind='read'),\n"
             "        arguments={},\n"
             "        outputs=[Feature(id='value')],\n"
             "    )]\n"
-            "definition = api.Spec(dimensions=[], entities=[example], datasets=[Values])\n",
+            "definition = api.Spec(dimensions=[], profiles=[Values])\n",
             encoding="utf-8",
         )
         arguments = ["--python-spec", "declaration:definition"]
@@ -268,11 +261,11 @@ def test_project_build_explicit_source_does_not_execute_workflow(
         ]
         assert ["Spec", "Spec source file", str(source_file)] in rows
         assert ["Spec", "Number of functions", "1"] in rows
-        assert ["Spec", "Number of datasets", "1"] in rows
+        assert ["Spec", "Number of profiles", "1"] in rows
         assert ["Spec", "Number of features", "1"] in rows
     else:
         assert result.out == f"Build files created to {bundle.root}\n"
-    assert spec.load_spec(bundle.spec_path).entities
+    assert spec.load_spec(bundle.spec_path).profiles
     assert bundle.execution_plan.invocations
     assert (root / project.EXPLORER_DATA_FILE).is_file()
     assert not (root / "_generated/spec").exists()
@@ -289,9 +282,7 @@ def test_project_build_debug_summary(
     root = tmp_path / "project"
     source = copy_project_spec(root)
     definition = spec.load_spec(source)
-    datasets = [
-        dataset for entity in definition.entities.values() for dataset in entity.datasets.values()
-    ]
+    profiles = list(definition.profiles.values())
     times = iter([10.0, 11.234])
     monkeypatch.setattr(cli.project.time, "perf_counter", lambda: next(times))
     arguments = ["--features", "pump_health_score"] if scoped else []
@@ -314,8 +305,8 @@ def test_project_build_debug_summary(
         ["Build", "Build scope", scope],
         ["Spec", "Spec source file", str(source)],
         ["Spec", "Number of functions", str(len(definition.functions))],
-        ["Spec", "Number of datasets", str(len(datasets))],
-        ["Spec", "Number of features", str(sum(len(dataset.features) for dataset in datasets))],
+        ["Spec", "Number of profiles", str(len(profiles))],
+        ["Spec", "Number of features", str(sum(len(profile.features) for profile in profiles))],
         ["Plan", "Number of stages", str(len(bundle.execution_plan.stages))],
         ["Plan", "Number of invocations", str(len(bundle.execution_plan.invocations))],
     ]
@@ -401,8 +392,8 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
         feature for invocation in plan_invocations for feature in invocation.output_features
     }
     dimensions = set(source_spec.dimensions)
-    for entity in source_spec.entities.values():
-        dimensions.update(entity.dimension_ids)
+    for profile in source_spec.profiles.values():
+        dimensions.update(profile.dimension_ids)
     for invocation in plan_invocations:
         assert set(invocation.dependency_ids) <= plan_ids
     for sink in sinks:

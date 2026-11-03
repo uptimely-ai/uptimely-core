@@ -13,7 +13,7 @@ from uptimely.compiler import compiler
 from uptimely.execution_plan import models as execution_plan_models
 from uptimely.spec import model, validation
 from uptimely.spec.json import codec
-from uptimely.spec.python import conversion, dimension, entity, profile
+from uptimely.spec.python import conversion, dimension, profile
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
@@ -186,7 +186,7 @@ def test_json_round_trip_preserves_the_document_and_compiled_plan(
     assert [set(stage) for stage in first.stages] == [set(stage) for stage in second.stages]
 
 
-def test_codec_preserves_function_descriptions_and_dataset_ids() -> None:
+def test_codec_preserves_function_descriptions_and_profile_ids() -> None:
     document = model.Spec.model_validate(
         {
             "functions": {
@@ -197,23 +197,15 @@ def test_codec_preserves_function_descriptions_and_dataset_ids() -> None:
                     "args": {"dataset": {"type": "dataframe"}},
                 },
             },
-            "entities": {
-                "assets": {
-                    "name": "Assets",
-                    "datasets": {"first": {}, "second": {}},
-                }
-            },
+            "profiles": {"first": {}, "second": {}},
         }
     )
 
     payload = codec.to_document(document)
 
     assert payload["functions"]["collapse"]["description"] is None
-    assert list(payload["entities"]["assets"]["datasets"]) == [
-        "first",
-        "second",
-    ]
-    assert "id" not in payload["entities"]["assets"]
+    assert list(payload["profiles"]) == ["first", "second"]
+    assert all("id" not in profile for profile in payload["profiles"].values())
     assert "id" not in payload["functions"]["collapse"]["args"]["dataset"]
     assert model.Spec.model_validate(payload) == document
 
@@ -230,19 +222,12 @@ def test_structural_operations_do_not_inspect_python_entrypoints(
     document = model.Spec.model_validate(payload)
 
     assert codec.to_document(document) == payload
-    converted = conversion.to_model(
-        entities=[entity.Entity(id="assets", name="Assets", dimensions=[], datasets=[])]
-    )
-    assert converted.entities["assets"].name == "Assets"
+    converted = conversion.to_model(profiles=[profile.Profile(id="assets")])
+    assert converted.profiles["assets"].name == "Assets"
     validation.validate_spec(document)
     graph = spec.FeatureGraph(document)
     assert graph.feature_names
-    expected_actions = [
-        action
-        for entity in document.entities.values()
-        for dataset in entity.datasets.values()
-        for action in dataset.actions.values()
-    ]
+    expected_actions = list(document.actions)
     assert all(
         actual is expected for actual, expected in zip(graph.actions, expected_actions, strict=True)
     )
@@ -263,17 +248,16 @@ def test_python_dictionary_and_json_export_share_the_same_encoding(
     tmp_path: pathlib.Path,
 ) -> None:
     pump = dimension.Dimension(id="pump", type="string")
-    assets = entity.Entity(id="assets", name="Assets", dimensions=[pump])
 
     class Readings(profile.Profile):
         id = "readings"
-        entity = assets
+        dimensions = [pump]
 
-    declaration = uptimely.Spec(dimensions=[pump], entities=[assets], datasets=[Readings])
+    declaration = uptimely.Spec(dimensions=[pump], profiles=[Readings])
     document = declaration.to_model()
     path = tmp_path / "spec.json"
     codec.write_document(document, path)
 
     assert declaration.to_dict() == codec.to_document(document) == codec.load_document(path)
     assert declaration.to_dict()["name"] is None
-    assert "id" not in declaration.to_dict()["entities"]["assets"]
+    assert "id" not in declaration.to_dict()["profiles"]["readings"]

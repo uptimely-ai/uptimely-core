@@ -48,7 +48,7 @@ def validate_dataset_argument_source(spec: spec_model.Spec) -> None:
     logger.debug("    - checking dataset argument sources are declared")
     for key, arguments in spec.actions_arguments.items():
         for name, _, source_id in arguments:
-            if source_id not in spec.datasets:
+            if source_id not in spec.profiles:
                 raise errors.SpecError(
                     f"Dataset argument {name} references unknown dataset {source_id}",
                     code="invalid_mapping_dataset_input",
@@ -82,12 +82,12 @@ def validate_matching_keys(spec: spec_model.Spec) -> None:
     """Require explicitly selected matching keys to exist on every participating dataset."""
     logger.debug("    - checking matching keys exist on every participating dataset")
     for key, matches in spec.matching_key_dimensions.items():
-        participants = (spec.action_dataset_keys[key], *spec.dataset_argument_sources[key])
+        participants = (spec.action_profile_keys[key], *spec.dataset_argument_sources[key])
         for dimension, path in matches:
             for participant in participants:
-                if dimension not in spec.dimensions_by_dataset[participant]:
+                if dimension not in spec.dimensions_by_profile[participant]:
                     raise errors.SpecError(
-                        f"Matching key {dimension} is not a dimension of dataset {participant[1]}",
+                        f"Matching key {dimension} is not a dimension of profile {participant}",
                         code="invalid_mapping_matching_key",
                         path=path,
                     )
@@ -102,7 +102,7 @@ def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
             "dataframe"
         ):
             continue
-        dataset_ids = {owner[1] for _, owners in spec.input_candidates[key] for owner in owners}
+        dataset_ids = {owner for _, owners in spec.input_candidates[key] for owner in owners}
         if len(dataset_ids) > 1:
             raise errors.SpecError(
                 f"{function.kind.capitalize()} action inputs must belong to one source dataset",
@@ -147,10 +147,10 @@ def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
         ):
             continue
         name, _, source_id = arguments[0]
-        if source_id in spec.datasets and source_id != source[1]:
+        if source_id in spec.profiles and source_id != source:
             raise errors.SpecError(
                 f"{function.kind.capitalize()} action must reference its foreign source dataset "
-                f"{source[1]}",
+                f"{source}",
                 code="invalid_mapping_dataset_input",
                 path=(*spec.action_paths[key], "binding", "args", name),
             )
@@ -172,7 +172,7 @@ def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
                 feature not in spec.dataset_argument_dimensions[key]
                 if feature in spec.dimensions
                 else not any(
-                    owner[1] in spec.dataset_argument_ids[key]
+                    owner in spec.dataset_argument_ids[key]
                     for owner in spec.feature_owners.get(feature, [])
                 )
             )
@@ -229,7 +229,7 @@ def validate_target_dataset_only(spec: spec_model.Spec) -> None:
         definition = functions.FUNCTION_KINDS[function.kind]
         if "foreign_target_input" not in _dataset_input_violations(spec, key, definition):
             continue
-        foreign = sorted(spec.dataset_argument_ids[key] - {spec.action_dataset_keys[key][1]})
+        foreign = sorted(spec.dataset_argument_ids[key] - {spec.action_profile_keys[key]})
         if foreign:
             raise errors.SpecError(
                 f"{function.kind.capitalize()} action cannot publish a foreign dataset: "
@@ -252,7 +252,7 @@ def validate_dimension_source(spec: spec_model.Spec) -> None:
             spec, key, definition
         ):
             raise errors.SpecError(
-                f"{function.kind.capitalize()} action must consume its source dataset {source[1]}",
+                f"{function.kind.capitalize()} action must consume its source dataset {source}",
                 code="invalid_mapping_dataset_input",
                 path=(*spec.action_paths[key], "binding", "args"),
             )
@@ -265,10 +265,10 @@ def _dataset_input_violations(
 ) -> tuple[functions.DatasetInputViolation, ...]:
     source = spec.input_sources[key]
     return definition.dataset_input_violations(
-        target_dataset_id=spec.action_dataset_keys[key][1],
+        target_dataset_id=spec.action_profile_keys[key],
         argument_dataset_ids=tuple(source_id for _, _, source_id in spec.actions_arguments[key]),
         resolved_dataset_ids=spec.dataset_argument_ids[key],
-        inferred_source_id=source[1] if source is not None else None,
+        inferred_source_id=source,
     )
 
 
@@ -282,9 +282,9 @@ def validate_dimension_change(spec: spec_model.Spec) -> None:
         change = functions.FUNCTION_KINDS[function.kind].dimension_change
         if change == "unrestricted":
             continue
-        target = spec.dimensions_by_dataset[spec.action_dataset_keys[key]]
+        target = spec.dimensions_by_profile[spec.action_profile_keys[key]]
         for source_key in spec.dataset_argument_sources[key]:
-            source = spec.dimensions_by_dataset[source_key]
+            source = spec.dimensions_by_profile[source_key]
             valid = (
                 source == target
                 if change == "preserve"
@@ -318,15 +318,15 @@ def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
         if function is None or functions.FUNCTION_KINDS[function.kind].dimension_change != "add":
             continue
         lower = {
-            source[1]
+            source
             for source in spec.dataset_argument_sources[key]
             if (
-                spec.dimensions_by_dataset[source]
-                < spec.dimensions_by_dataset[spec.action_dataset_keys[key]]
+                spec.dimensions_by_profile[source]
+                < spec.dimensions_by_profile[spec.action_profile_keys[key]]
             )
         }
         if not any(
-            owner[1] in lower
+            owner in lower
             for feature in action.input_features
             for owner in spec.feature_owners.get(feature, [])
         ):

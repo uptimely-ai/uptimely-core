@@ -115,7 +115,7 @@ def _log_summary(
         logger.debug("\nScope: %s", scope)
 
         logger.debug("\nProcessed datasets:")
-        for dataset_id, dataset in bundle.spec_definition.datasets.items():
+        for dataset_id, dataset in bundle.spec_definition.profiles.items():
             logger.debug(
                 "- Dataset: %s - %d features",
                 dataset_id,

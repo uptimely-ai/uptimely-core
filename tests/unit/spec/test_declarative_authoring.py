@@ -8,7 +8,7 @@ import pytest
 
 from uptimely.spec import functions
 from uptimely.spec import python as authoring
-from uptimely.spec.python import conversion, dimension, entity, ref, row_context, validation
+from uptimely.spec.python import conversion, dimension, ref, row_context, validation
 
 
 @pytest.mark.parametrize("declared", [False, True])
@@ -79,8 +79,8 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     assert canonical.features["temperature"].name == "Ambient Temperature"
     assert canonical.features["pump"].name == "Pump"
     assert canonical.actions["read"].output_features == ["temperature", "pump"]
-    payload = conversion.to_dict(datasets=[declaration])
-    exported = payload["entities"]["entity"]["datasets"]["example"]
+    payload = conversion.to_dict(profiles=[declaration])
+    exported = payload["profiles"]["example"]
     assert exported["features"]["temperature"] == {
         "name": "Ambient Temperature",
         "type": "float",
@@ -233,17 +233,12 @@ def test_dataset_requires_identifier() -> None:
         authoring.Profile().to_model()
 
 
-def test_dataset_entity_supplies_dimension_metadata() -> None:
+def test_profile_dimensions_supply_dimension_metadata() -> None:
     identifier = dimension.Dimension(id="asset", type="string", description="Asset key")
-    owner = entity.Entity(
-        id="assets",
-        name="Assets",
-        dimensions=[identifier],
-    )
 
     class Example(authoring.Profile):
         id = "example"
-        entity = owner
+        dimensions = [identifier]
         producers = [
             authoring.Action(
                 id="values",
@@ -253,7 +248,7 @@ def test_dataset_entity_supplies_dimension_metadata() -> None:
             )
         ]
 
-    model = Example().to_model()
+    model = Example().to_model(dimensions=[identifier])
 
     assert model.features["asset"].type == "string"
     assert model.features["asset"].description == "Asset key"
@@ -331,17 +326,10 @@ def test_dataset_dimension_selector_is_preserved_and_typed_in_python_specs() -> 
     assert catalog["read"].args["keys"].type == "array[string]"
     assert catalog["read"].args["source_keys"].type == "array[string]"
 
-    owner = entity.Entity(
-        id="entity",
-        name="Entity",
-        dimensions=[identifier],
-        datasets=[declaration],
-    )
-    payload = conversion.to_dict(entities=[owner])
+    declaration.dimensions = [identifier]
+    payload = conversion.to_dict(profiles=[declaration], dimensions=[identifier])
     assert (
-        payload["entities"]["entity"]["datasets"]["example"]["actions"]["read"]["binding"]["args"][
-            "keys"
-        ]
+        payload["profiles"]["example"]["actions"]["read"]["binding"]["args"]["keys"]
         == "$datasets.@.dimensions.ids"
     )
     assert payload["functions"]["read"]["args"]["keys"]["type"] == "array[string]"
@@ -554,8 +542,8 @@ def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> No
     assert model.actions["calculate"].input_features == ["pipeline_result"]
     assert model.actions["publish"].input_features == ["result"]
     assert model.actions["custom_work"].input_features == ["external_input"]
-    payload = conversion.to_dict(datasets=[declaration])
-    exported = payload["entities"]["entity"]["datasets"]["example"]
+    payload = conversion.to_dict(profiles=[declaration])
+    exported = payload["profiles"]["example"]
     assert "producers" not in exported
     assert "publishers" not in exported
     assert "pipelines" not in exported

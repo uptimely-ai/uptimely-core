@@ -50,10 +50,7 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     assert result.failures == {}
     assert len(result.main_frames) == 4
     dataset = result.main_frames["pump_external_workflow_dataset"]
-    assert (
-        "ratio"
-        in spec_definition.entities["pump"].datasets["pump_external_workflow_dataset"].features
-    )
+    assert "ratio" in spec_definition.profiles["pump_external_workflow_dataset"].features
     assert "ratio" not in dataset.columns
     assert ("pump_external_workflow_dataset", "ratio") not in result.calculated_outputs
     assert pl.read_csv(output_path).select("pump", "ratio").rows() == [

@@ -13,13 +13,12 @@ from .functions import FunctionCatalog, FunctionTemplate
 from .profile import (
     Action,
     ActionFeatures,
-    Entity,
     Feature,
     Order,
     Profile,
     RowScope,
 )
-from .spec import SPEC_VERSION, ActionKey, DatasetKey, Spec
+from .spec import SPEC_VERSION, ActionKey, ProfileKey, Spec
 
 __all__ = [
     "SPEC_VERSION",
@@ -31,7 +30,6 @@ __all__ = [
     "BindingArgument",
     "Profile",
     "Dimension",
-    "Entity",
     "Feature",
     "FunctionCatalog",
     "FunctionTemplate",
@@ -41,5 +39,5 @@ __all__ = [
     "RowScope",
     "StrictModel",
     "ActionKey",
-    "DatasetKey",
+    "ProfileKey",
 ]

@@ -76,7 +76,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
 
     assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert result.failures == {}
-    assert result.plan_version == 3
+    assert result.plan_version == 4
     assert not hasattr(result, "datasets")
     assert isinstance(result.calculated_outputs["telemetry", "doubled"], pl.DataFrame)
     assert set(result.main_frames) == {"telemetry"}
@@ -403,7 +403,6 @@ def test_executor_validates_inputs_against_current_runtime_state(
         entrypoint="test:calculate",
         function_id="calculate",
         mapping_id="calculate",
-        entity_id="entity",
         dataset_id="dataset",
         input_features=["local"],
     )
@@ -500,8 +499,8 @@ def test_execute_stops_after_a_failed_operation(
 
     result = engine.run()
 
-    read_id = "invocation:read:load:asset:telemetry:reading"
-    write_id = "invocation:write:save:asset:telemetry:doubled"
+    read_id = "invocation:read:load:telemetry:reading"
+    write_id = "invocation:write:save:telemetry:doubled"
     assert result.invocation_statuses[read_id] == "failed"
     assert "source unavailable" in result.failures[read_id]
     assert result.invocation_statuses[write_id] == "skipped"
@@ -535,13 +534,12 @@ def test_escape_ignores_any_return_without_materializing_features(
         entrypoint="test:escape",
         function_id="external_action",
         mapping_id="action",
-        entity_id="asset",
         dataset_id="external",
         output_features=[],
         input_features=["external_input"],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=3,
+        plan_version=4,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -588,7 +586,6 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
         entrypoint="test:first",
         function_id="first",
         mapping_id="first",
-        entity_id="asset",
         dataset_id="external",
         output_features=["first_output"],
         input_features=["external_input"],
@@ -599,14 +596,13 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
         entrypoint="test:second",
         function_id="second",
         mapping_id="second",
-        entity_id="asset",
         dataset_id="external",
         output_features=[],
         input_features=["first_output"],
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=3,
+        plan_version=4,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -639,14 +635,13 @@ def test_escape_resolves_literal_and_runtime_arguments(
         entrypoint="test:escape",
         function_id="external_action",
         mapping_id="action",
-        entity_id="asset",
         dataset_id="external",
         output_features=[],
         input_features=["external_input"],
         arguments={"path": "$params.output", "mode": "replace"},
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=3,
+        plan_version=4,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -688,7 +683,6 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         entrypoint="test:first",
         function_id="first",
         mapping_id="first",
-        entity_id="asset",
         dataset_id="external",
         output_features=[],
         input_features=["external_input"],
@@ -704,7 +698,7 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=3,
+        plan_version=4,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -752,7 +746,6 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         entrypoint="test:read",
         function_id="load",
         mapping_id="load",
-        entity_id="asset",
         dataset_id="telemetry",
         output_features=["asset_id", "reading"],
     )
@@ -762,7 +755,6 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         entrypoint="test:escape",
         function_id="external_action",
         mapping_id="external_result",
-        entity_id="asset",
         dataset_id="telemetry",
         output_features=["external_result"],
         input_features=["reading"],
@@ -775,14 +767,13 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         entrypoint="test:consume",
         function_id="consume",
         mapping_id="consume",
-        entity_id="asset",
         dataset_id="telemetry",
         output_features=["processed"],
         input_features=["external_result"],
         dependency_ids=[escape_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=3,
+        plan_version=4,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": ["asset_id"]}},
@@ -831,7 +822,6 @@ def test_escape_exception_fails_and_skips_downstream(
         entrypoint="test:first",
         function_id="first",
         mapping_id="first",
-        entity_id="asset",
         dataset_id="external",
         output_features=[],
         input_features=["external_input"],
@@ -846,7 +836,7 @@ def test_escape_exception_fails_and_skips_downstream(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=3,
+        plan_version=4,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": []}},
@@ -906,7 +896,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
         ],
     )
     spec_definition = spec.from_python(
-        datasets=[declaration],
+        profiles=[declaration],
         dimensions=[dimension.Dimension(id="asset_id", type="string")],
     )
 
@@ -1245,7 +1235,6 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         entrypoint="test:read",
         function_id="load",
         mapping_id="load",
-        entity_id="asset",
         dataset_id="telemetry",
         output_features=["asset_id", "reading"],
     )
@@ -1255,13 +1244,12 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         entrypoint="test:calculate",
         function_id="calculate",
         mapping_id="reading_plus_one",
-        entity_id="asset",
         dataset_id="telemetry",
         output_features=["reading_plus_one", "reading_times_two"],
         dependency_ids=[read_invocation.id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=3,
+        plan_version=4,
         required_backend="polars",
         resources={
             "entities": {"asset": {"dimensions": ["asset_id"]}},

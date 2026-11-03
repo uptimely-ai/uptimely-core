@@ -31,18 +31,18 @@ def test_collapse_source_discovery_retains_invalid_candidates(
     inputs: list[str], message: str | None, ambiguous: bool
 ) -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
-    action = (
-        document.entities["pump"].datasets["pump_dataset"].actions["bearing_temperature_by_pump"]
-    )
+    action = document.profiles["pump_dataset"].actions["bearing_temperature_by_pump"]
     action.features.inputs = inputs
     if ambiguous:
-        dataset = document.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
-        document.entities["pump"].datasets[dataset.id] = dataset.model_copy(deep=True)
+        source_profile = document.profiles["pump_telemetry_dataset"]
+        document.profiles["pump_telemetry_copy"] = source_profile.model_copy(
+            update={"id": "pump_telemetry_copy"}, deep=True
+        )
         if "$features.bearing_temperature" in inputs:
             message = "ambiguous input feature"
     original = document.model_copy(deep=True)
     facts = document.input_sources
-    key = ("pump", "pump_dataset", "bearing_temperature_by_pump")
+    key = ("pump_dataset", "bearing_temperature_by_pump")
     source = facts[key]
 
     def validate_source() -> None:
@@ -66,19 +66,17 @@ def test_collapse_source_discovery_retains_invalid_candidates(
 def test_new_document_rediscovers_collapse_sources_after_edits() -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     validation.validate_spec(document)
-    action = (
-        document.entities["pump"].datasets["pump_dataset"].actions["bearing_temperature_by_pump"]
-    )
-    key = ("pump", "pump_dataset", "bearing_temperature_by_pump")
+    action = document.profiles["pump_dataset"].actions["bearing_temperature_by_pump"]
+    key = ("pump_dataset", "bearing_temperature_by_pump")
     first = document.input_sources[key]
     assert first is not None
-    assert first[1] == "pump_telemetry_dataset"
-    target = document.entities["pump"].datasets["pump_dataset"]
+    assert first == "pump_telemetry_dataset"
+    target = document.profiles["pump_dataset"]
     target.features["local_source"] = spec.Feature(id="local_source")
     action.features.inputs = ["$features.local_source"]
     document = spec.Spec.model_validate(document.model_dump())
     second = document.input_sources[key]
     assert second is not None
-    assert second[1] == "pump_dataset"
+    assert second == "pump_dataset"
     with pytest.raises(ValueError, match="cannot use its target dataset as source"):
         validation.validate_spec(document)

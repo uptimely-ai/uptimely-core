@@ -1,7 +1,7 @@
 """Pump-level observation scope and declarative dataframe transformations."""
 
 from examples.pump_analytics.functions import analytics
-from examples.pump_analytics.spec import entity
+from examples.pump_analytics.spec import dimension
 
 from uptimely import Action, Feature, Profile, RowScope, ref
 
@@ -12,7 +12,8 @@ class Pump(Profile):
     id = "pump_dataset"
     name = "Pump Summary"
     description = "One row per pump with collapsed condition information."
-    entity = entity.PUMP
+    category = "assets"
+    dimensions = [dimension.PLANT, dimension.PRODUCTION_LINE, dimension.PUMP]
     row_scope = RowScope(
         grain="One row per pump",
         filtering="Telemetry available to the source dataset",
@@ -26,7 +27,10 @@ class Pump(Profile):
                 dataset=ref.dataframe("pump_telemetry_dataset"),
                 feature=ref.column("bearing_temperature"),
                 method="max",
-                dimensions=[ref.dimension(key.id).id for key in entity.dimensions],
+                dimensions=[
+                    ref.dimension(key.id).id
+                    for key in (dimension.PLANT, dimension.PRODUCTION_LINE, dimension.PUMP)
+                ],
                 output=ref.output("bearing_temperature_max"),
             ),
             outputs=[

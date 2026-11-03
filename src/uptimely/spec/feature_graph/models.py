@@ -9,7 +9,7 @@ class ActionNode:
 
     action_id: str
     features: tuple[str, ...]
-    entity: str | None
+    profile_id: str
     dataset_id: str
     function: model.FunctionTemplate = dataclasses.field(compare=False, hash=False)
     dataset_name: str | None = None
@@ -18,8 +18,7 @@ class ActionNode:
     @property
     def node_id(self) -> str:
         """Stable graph identifier for this action in its dataset."""
-        entity = self.entity or ""
-        return f"action:{entity}:{self.dataset_id}:{self.action_id}"
+        return f"action:{self.profile_id}:{self.action_id}"
 
     def __str__(self) -> str:
         return self.action_id
@@ -34,7 +33,7 @@ class FeatureNode:
 
     name: str
     data_type: str | None = None
-    entity: str | None = None
+    profile_id: str | None = None
     dataset_id: str | None = None
     display_name: str | None = None
     dataset_name: str | None = None

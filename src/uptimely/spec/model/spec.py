@@ -17,38 +17,38 @@ from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
 
-SPEC_VERSION = 3
-type DatasetKey = tuple[str, str]
-type ActionKey = tuple[str, str, str]
+SPEC_VERSION = 4
+type ProfileKey = str
+type ActionKey = tuple[ProfileKey, str]
 type SpecPath = tuple[str | int, ...]
 type DatasetArgument = tuple[str, object, str | None]
 
 
 @dataclasses.dataclass
 class _ResourceIndex:
-    dataset_items: list[tuple[DatasetKey, profile_module.Profile]] = dataclasses.field(
+    profile_items: list[tuple[ProfileKey, profile_module.Profile]] = dataclasses.field(
         default_factory=list
     )
     action_items: list[tuple[ActionKey, profile_module.Action]] = dataclasses.field(
         default_factory=list
     )
-    datasets: dict[str, profile_module.Profile] = dataclasses.field(default_factory=dict)
-    datasets_by_key: dict[DatasetKey, profile_module.Profile] = dataclasses.field(
+    profiles: dict[str, profile_module.Profile] = dataclasses.field(default_factory=dict)
+    profiles_by_key: dict[ProfileKey, profile_module.Profile] = dataclasses.field(
         default_factory=dict
     )
-    dataset_keys: dict[str, DatasetKey] = dataclasses.field(default_factory=dict)
+    profile_keys: dict[str, ProfileKey] = dataclasses.field(default_factory=dict)
     features: dict[str, profile_module.Feature] = dataclasses.field(default_factory=dict)
     actions: list[profile_module.Action] = dataclasses.field(default_factory=list)
     actions_by_key: dict[ActionKey, profile_module.Action] = dataclasses.field(default_factory=dict)
-    action_dataset_keys: dict[ActionKey, DatasetKey] = dataclasses.field(default_factory=dict)
-    action_datasets: dict[ActionKey, profile_module.Profile] = dataclasses.field(
+    action_profile_keys: dict[ActionKey, ProfileKey] = dataclasses.field(default_factory=dict)
+    action_profiles: dict[ActionKey, profile_module.Profile] = dataclasses.field(
         default_factory=dict
     )
-    feature_owners: dict[str, list[DatasetKey]] = dataclasses.field(default_factory=dict)
+    feature_owners: dict[str, list[ProfileKey]] = dataclasses.field(default_factory=dict)
     actions_by_function: dict[str, list[ActionKey]] = dataclasses.field(default_factory=dict)
     feature_producers: dict[str, list[ActionKey]] = dataclasses.field(default_factory=dict)
-    dimensions: dict[DatasetKey, frozenset[str]] = dataclasses.field(default_factory=dict)
-    dimension_ids: dict[str, list[str]] = dataclasses.field(default_factory=dict)
+    dimensions: dict[ProfileKey, frozenset[str]] = dataclasses.field(default_factory=dict)
+    dimension_ids: dict[ProfileKey, list[str]] = dataclasses.field(default_factory=dict)
     action_paths: dict[ActionKey, SpecPath] = dataclasses.field(default_factory=dict)
     declaration_paths: dict[ActionKey, SpecPath] = dataclasses.field(default_factory=dict)
 
@@ -57,7 +57,7 @@ class Spec(common.StrictModel):
     """The complete JSON document; cached views assume declarations are unchanged."""
 
     name: str | None = None
-    spec_version: typing.Literal[3] = SPEC_VERSION
+    spec_version: typing.Literal[4] = SPEC_VERSION
     source: common.SpecSource = pydantic.Field(
         default_factory=lambda: common.SpecSource(name="manual", generated=False)
     )
@@ -65,58 +65,56 @@ class Spec(common.StrictModel):
     functions: functions_module.FunctionCatalog = pydantic.Field(
         default_factory=functions_module.FunctionCatalog
     )
-    entities: dict[str, profile_module.Entity] = pydantic.Field(default_factory=dict)
+    profiles: dict[str, profile_module.Profile] = pydantic.Field(default_factory=dict)
 
     @functools.cached_property
     def _indexes(self) -> _ResourceIndex:
         indexes = _ResourceIndex()
-        for entity_id, entity in self.entities.items():
-            for dataset in entity.datasets.values():
-                dataset_key = (entity_id, dataset.id)
-                indexes.dataset_items.append((dataset_key, dataset))
-                indexes.datasets[dataset.id] = dataset
-                indexes.datasets_by_key[dataset_key] = dataset
-                indexes.dataset_keys[dataset.id] = dataset_key
-                indexes.dimensions[dataset_key] = entity.dimension_id_set
-                indexes.dimension_ids[dataset.id] = entity.dimension_ids
-                for feature_id, feature in dataset.features.items():
-                    indexes.features[feature_id] = feature
-                    if feature_id not in self.dimensions:
-                        indexes.feature_owners.setdefault(feature_id, []).append(dataset_key)
-                for action_id, action in dataset.actions.items():
-                    key = (*dataset_key, action_id)
-                    indexes.action_items.append((key, action))
-                    indexes.actions.append(action)
-                    indexes.actions_by_key[key] = action
-                    indexes.action_dataset_keys[key] = dataset_key
-                    indexes.action_datasets[key] = dataset
-                    base = ("entities", entity_id, "datasets", dataset.id, "actions")
-                    indexes.action_paths[key] = (*base, action.id)
-                    indexes.declaration_paths[key] = (*base, action_id)
-                    indexes.actions_by_function.setdefault(action.binding.function, []).append(key)
-                    for feature_id in action.output_features:
-                        indexes.feature_producers.setdefault(feature_id, []).append(key)
+        for profile_id, profile in self.profiles.items():
+            indexes.profile_items.append((profile_id, profile))
+            indexes.profiles[profile.id] = profile
+            indexes.profiles_by_key[profile_id] = profile
+            indexes.profile_keys[profile.id] = profile_id
+            indexes.dimensions[profile_id] = profile.dimension_id_set
+            indexes.dimension_ids[profile_id] = profile.dimension_ids
+            for feature_id, feature in profile.features.items():
+                indexes.features[feature_id] = feature
+                if feature_id not in self.dimensions:
+                    indexes.feature_owners.setdefault(feature_id, []).append(profile_id)
+            for action_id, action in profile.actions.items():
+                key = (profile_id, action_id)
+                indexes.action_items.append((key, action))
+                indexes.actions.append(action)
+                indexes.actions_by_key[key] = action
+                indexes.action_profile_keys[key] = profile_id
+                indexes.action_profiles[key] = profile
+                base = ("profiles", profile.id, "actions")
+                indexes.action_paths[key] = (*base, action.id)
+                indexes.declaration_paths[key] = (*base, action_id)
+                indexes.actions_by_function.setdefault(action.binding.function, []).append(key)
+                for feature_id in action.output_features:
+                    indexes.feature_producers.setdefault(feature_id, []).append(key)
         return indexes
 
     @property
-    def datasets(self) -> dict[str, profile_module.Profile]:
-        """Return original dataset objects keyed by globally unique ID."""
-        return self._indexes.datasets
+    def profile_items(self) -> list[tuple[ProfileKey, profile_module.Profile]]:
+        """Return profiles with their global IDs in declaration order."""
+        return self._indexes.profile_items
 
     @property
-    def dataset_items(self) -> list[tuple[DatasetKey, profile_module.Profile]]:
-        """Return dataset occurrences with entity/ID keys, retaining duplicates."""
-        return self._indexes.dataset_items
+    def profiles_by_key(self) -> dict[ProfileKey, profile_module.Profile]:
+        """Return profiles keyed by their globally unique IDs."""
+        return self._indexes.profiles_by_key
 
     @property
-    def datasets_by_key(self) -> dict[DatasetKey, profile_module.Profile]:
-        """Return datasets keyed by entity ID and dataset ID."""
-        return self._indexes.datasets_by_key
+    def profile_keys(self) -> dict[str, ProfileKey]:
+        """Return each global profile ID's index key."""
+        return self._indexes.profile_keys
 
     @property
-    def dataset_keys(self) -> dict[str, DatasetKey]:
-        """Return each global dataset ID's owning occurrence key."""
-        return self._indexes.dataset_keys
+    def profiles_by_id(self) -> dict[str, profile_module.Profile]:
+        """Return original profile objects keyed by globally unique ID."""
+        return self._indexes.profiles
 
     @property
     def features(self) -> dict[str, profile_module.Feature]:
@@ -130,7 +128,7 @@ class Spec(common.StrictModel):
 
     @property
     def action_items(self) -> list[tuple[ActionKey, profile_module.Action]]:
-        """Return action occurrences with entity/dataset/dictionary keys."""
+        """Return action occurrences with profile and dictionary keys."""
         return self._indexes.action_items
 
     @property
@@ -139,35 +137,35 @@ class Spec(common.StrictModel):
         return self._indexes.actions_by_key
 
     @property
-    def action_dataset_keys(self) -> dict[ActionKey, DatasetKey]:
-        """Return each action's owning dataset occurrence key."""
-        return self._indexes.action_dataset_keys
+    def action_profile_keys(self) -> dict[ActionKey, ProfileKey]:
+        """Return each action's owning profile ID."""
+        return self._indexes.action_profile_keys
 
     @property
-    def action_datasets(self) -> dict[ActionKey, profile_module.Profile]:
-        """Return each action's owning dataset occurrence."""
-        return self._indexes.action_datasets
+    def action_profiles(self) -> dict[ActionKey, profile_module.Profile]:
+        """Return each action's owning profile."""
+        return self._indexes.action_profiles
 
-    def _row_context_dataset_key(self, key: ActionKey) -> DatasetKey | None:
-        """Resolve the dataset whose observations an action's context describes."""
+    def _row_context_profile_key(self, key: ActionKey) -> ProfileKey | None:
+        """Resolve the profile whose observations an action's context describes."""
         action = self.actions_by_key[key]
         function = self.functions[action.binding.function]
         definition = functions.FUNCTION_KINDS[function.kind]
         return (
             self.input_sources[key]
             if definition.dimension_change == "remove"
-            else self.action_dataset_keys[key]
+            else self.action_profile_keys[key]
         )
 
-    def get_row_context_dataset(self, key: ActionKey) -> profile_module.Profile | None:
-        """Return the context dataset, or None when its source is unresolved."""
-        source = self._row_context_dataset_key(key)
-        return self.datasets_by_key[source] if source is not None else None
+    def get_row_context_profile(self, key: ActionKey) -> profile_module.Profile | None:
+        """Return the context profile, or None when its source is unresolved."""
+        source = self._row_context_profile_key(key)
+        return self.profiles_by_key[source] if source is not None else None
 
     def get_row_context_dimensions(self, key: ActionKey) -> frozenset[str] | None:
-        """Return context entity dimension IDs, or None for an unresolved source."""
-        source = self._row_context_dataset_key(key)
-        return self.dimensions_by_dataset[source] if source is not None else None
+        """Return context profile dimension IDs, or None for an unresolved source."""
+        source = self._row_context_profile_key(key)
+        return self.dimensions_by_profile[source] if source is not None else None
 
     @property
     def arguments(self) -> dict[tuple[str, str], common.Argument]:
@@ -180,7 +178,7 @@ class Spec(common.StrictModel):
         return list(dict.fromkeys(function.entrypoint for function in self.functions.root.values()))
 
     @property
-    def feature_owners(self) -> dict[str, list[DatasetKey]]:
+    def feature_owners(self) -> dict[str, list[ProfileKey]]:
         """Return all occurrence keys owning each non-dimension feature."""
         return self._indexes.feature_owners
 
@@ -195,13 +193,13 @@ class Spec(common.StrictModel):
         return self._indexes.feature_producers
 
     @property
-    def dimensions_by_dataset(self) -> dict[DatasetKey, frozenset[str]]:
-        """Return owning entity dimensions keyed by dataset occurrence."""
+    def dimensions_by_profile(self) -> dict[ProfileKey, frozenset[str]]:
+        """Return each profile's dimension IDs."""
         return self._indexes.dimensions
 
     @property
-    def dimension_ids_by_dataset(self) -> dict[str, list[str]]:
-        """Return owning entity dimension IDs keyed by global dataset ID."""
+    def dimension_ids_by_profile(self) -> dict[str, list[str]]:
+        """Return profile dimension IDs keyed by global profile ID."""
         return self._indexes.dimension_ids
 
     @property
@@ -215,15 +213,15 @@ class Spec(common.StrictModel):
         return self._indexes.declaration_paths
 
     @functools.cached_property
-    def local_features(self) -> dict[DatasetKey, frozenset[str]]:
-        """Return feature IDs available in each dataset, including dimensions."""
+    def local_features(self) -> dict[ProfileKey, frozenset[str]]:
+        """Return feature IDs available in each profile, including dimensions."""
         return {
-            key: frozenset(dataset.features) | self.dimensions_by_dataset[key]
-            for key, dataset in self.dataset_items
+            key: frozenset(profile.features) | self.dimensions_by_profile[key]
+            for key, profile in self.profile_items
         }
 
     @functools.cached_property
-    def input_candidates(self) -> dict[ActionKey, tuple[tuple[str, list[DatasetKey]], ...]]:
+    def input_candidates(self) -> dict[ActionKey, tuple[tuple[str, list[ProfileKey]], ...]]:
         """Return ordered input feature owners, preserving unresolved and ambiguous inputs."""
         return {
             key: tuple(
@@ -235,11 +233,11 @@ class Spec(common.StrictModel):
         }
 
     @functools.cached_property
-    def input_sources(self) -> dict[ActionKey, DatasetKey | None]:
+    def input_sources(self) -> dict[ActionKey, ProfileKey | None]:
         """Return the unique source occurrence for each action, or None when unresolved."""
-        result: dict[ActionKey, DatasetKey | None] = {}
+        result: dict[ActionKey, ProfileKey | None] = {}
         for key, candidates in self.input_candidates.items():
-            sources = {owners[0][1]: owners[0] for _, owners in candidates if len(owners) == 1}
+            sources = {owners[0]: owners[0] for _, owners in candidates if len(owners) == 1}
             result[key] = (
                 next(iter(sources.values()))
                 if len(sources) == 1 and all(len(owners) == 1 for _, owners in candidates)
@@ -262,19 +260,19 @@ class Spec(common.StrictModel):
                         reference = value.removeprefix(selectors.DATASET_PREFIX).removesuffix(
                             selectors.DATAFRAME_SELECTOR
                         )
-                        source_id = key[1] if reference == selectors.CURRENT_ID else reference
+                        source_id = key[0] if reference == selectors.CURRENT_ID else reference
                     arguments.append((name, value, source_id))
             result[key] = tuple(arguments)
         return result
 
     @functools.cached_property
-    def dataset_argument_sources(self) -> dict[ActionKey, tuple[DatasetKey, ...]]:
-        """Return resolved dataset argument occurrences in argument order."""
+    def dataset_argument_sources(self) -> dict[ActionKey, tuple[ProfileKey, ...]]:
+        """Return resolved profile IDs for dataset arguments in argument order."""
         return {
             key: tuple(
-                self.dataset_keys[source_id]
+                self.profile_keys[source_id]
                 for _, _, source_id in arguments
-                if source_id is not None and source_id in self.dataset_keys
+                if source_id is not None and source_id in self.profile_keys
             )
             for key, arguments in self.actions_arguments.items()
         }
@@ -282,16 +280,13 @@ class Spec(common.StrictModel):
     @functools.cached_property
     def dataset_argument_ids(self) -> dict[ActionKey, frozenset[str]]:
         """Return distinct resolved dataset argument IDs per action."""
-        return {
-            key: frozenset(source[1] for source in sources)
-            for key, sources in self.dataset_argument_sources.items()
-        }
+        return {key: frozenset(sources) for key, sources in self.dataset_argument_sources.items()}
 
     @functools.cached_property
     def dataset_argument_dimensions(self) -> dict[ActionKey, frozenset[str]]:
         """Return dimensions available across each action's dataset arguments."""
         return {
-            key: frozenset().union(*(self.dimensions_by_dataset[source] for source in sources))
+            key: frozenset().union(*(self.dimensions_by_profile[source] for source in sources))
             for key, sources in self.dataset_argument_sources.items()
         }
 
@@ -345,14 +340,14 @@ class Spec(common.StrictModel):
                     selectors.DIMENSION_IDS_SELECTOR
                 )
                 if dataset_id == selectors.CURRENT_ID:
-                    dataset_key = self.action_dataset_keys[key]
+                    profile_key = self.action_profile_keys[key]
                 else:
-                    dataset_key = self.dataset_keys.get(dataset_id)
-                if dataset_key is None:
+                    profile_key = self.profile_keys.get(dataset_id)
+                if profile_key is None:
                     continue
                 matches.extend(
                     (dimension, (*self.declaration_paths[key], "binding", "args", *path))
-                    for dimension in self.entities[dataset_key[0]].dimension_ids
+                    for dimension in self.profiles_by_key[profile_key].dimension_ids
                 )
             result[key] = tuple(matches)
         return result
@@ -368,7 +363,7 @@ class Spec(common.StrictModel):
     @pydantic.model_validator(mode="before")
     @classmethod
     def normalize_document(cls, value: typing.Any, info: pydantic.ValidationInfo) -> typing.Any:
-        """Recover keyed resource IDs and resolve entity dimension references."""
+        """Recover keyed resource IDs and resolve profile dimension references."""
         log_structure = not isinstance(info.context, dict) or info.context.get(
             "log_structure", True
         )
@@ -383,9 +378,9 @@ class Spec(common.StrictModel):
         normalized["dimensions"] = cls._with_resource_ids(normalized.get("dimensions", {}) or {})
         if "functions" in normalized:
             normalized["functions"] = cls._normalize_functions(normalized["functions"] or {})
-        if "entities" in normalized:
-            normalized["entities"] = cls._normalize_entities(
-                normalized["entities"] or {}, normalized["dimensions"]
+        if "profiles" in normalized:
+            normalized["profiles"] = cls._normalize_profiles(
+                normalized["profiles"], normalized["dimensions"]
             )
         return normalized
 
@@ -394,29 +389,20 @@ class Spec(common.StrictModel):
         """Summarize structural checks once instead of logging each nested resource."""
         dataset_count = 0
         action_count = 0
-        entities = document.get("entities", {})
-        for entity in entities.values() if isinstance(entities, dict) else ():
-            datasets = (
-                entity.get("datasets", {})
-                if isinstance(entity, dict)
-                else entity.datasets
-                if isinstance(entity, profile_module.Entity)
+        profiles = document.get("profiles", {})
+        for profile in profiles.values() if isinstance(profiles, dict) else ():
+            actions = (
+                profile.get("actions", {})
+                if isinstance(profile, dict)
+                else profile.actions
+                if isinstance(profile, profile_module.Profile)
                 else {}
             )
-            if not isinstance(datasets, dict):
+            if not isinstance(actions, dict):
                 continue
-            dataset_count += len(datasets)
-            for dataset in datasets.values():
-                actions = (
-                    dataset.get("actions", {})
-                    if isinstance(dataset, dict)
-                    else dataset.actions
-                    if isinstance(dataset, profile_module.Profile)
-                    else {}
-                )
-                if isinstance(actions, dict):
-                    action_count += len(actions)
-        logger.debug("    - checking object keys as identifiers for %d datasets", dataset_count)
+            dataset_count += 1
+            action_count += len(actions)
+        logger.debug("    - checking object keys as identifiers for %d profiles", dataset_count)
         logger.debug("    - checking spec version is an integer")
         logger.debug("    - checking feature references for %d actions", action_count)
 
@@ -431,42 +417,31 @@ class Spec(common.StrictModel):
         return functions
 
     @classmethod
-    def _normalize_entities(cls, value: typing.Any, dimensions: typing.Any) -> typing.Any:
-        """Recover entity IDs and normalize each entity's dimensions and datasets."""
-        entities = cls._with_resource_ids(value)
-        if isinstance(entities, dict):
-            for entity in entities.values():
-                if isinstance(entity, dict):
-                    cls._normalize_entity(entity, dimensions)
-        return entities
-
-    @classmethod
-    def _normalize_entity(cls, entity: dict[str, typing.Any], dimensions: typing.Any) -> None:
-        """Resolve dimension IDs and recover the entity's nested dataset IDs."""
-        entity["dimensions"] = [
-            dimensions.get(dimension, dimension) if isinstance(dimension, str) else dimension
-            for dimension in entity.get("dimensions", []) or []
-        ]
-        datasets = entity.get("datasets", {})
-        if not isinstance(datasets, dict):
-            return
-        for dataset_id, dataset in datasets.items():
-            if isinstance(dataset, dict) and "id" in dataset:
-                raise ValueError(
-                    f"Profile {dataset_id} must use its object key as identifier, "
-                    "not an 'id' attribute"
-                )
-        entity["datasets"] = cls._normalize_datasets(datasets)
-
-    @classmethod
-    def _normalize_datasets(cls, value: dict[str, typing.Any]) -> dict[str, typing.Any]:
-        """Recover dataset, feature, and action IDs from their object keys."""
-        datasets = cls._with_resource_ids(value)
-        for dataset in datasets.values():
-            if isinstance(dataset, dict):
-                dataset["features"] = cls._with_resource_ids(dataset.get("features", {}) or {})
-                dataset["actions"] = cls._with_resource_ids(dataset.get("actions", {}) or {})
-        return datasets
+    def _normalize_profiles(cls, value: typing.Any, dimensions: typing.Any) -> typing.Any:
+        """Recover profile IDs and normalize their dimensions, features, and actions."""
+        if isinstance(value, dict):
+            for profile_id, profile in value.items():
+                if isinstance(profile, dict) and "id" in profile:
+                    raise ValueError(
+                        f"Profile {profile_id} must use its object key as identifier, "
+                        "not an 'id' attribute"
+                    )
+        profiles = cls._with_resource_ids(value)
+        if isinstance(profiles, dict):
+            for profile in profiles.values():
+                if not isinstance(profile, dict):
+                    continue
+                profile["dimensions"] = [
+                    (
+                        dimensions.get(dimension, dimension)
+                        if isinstance(dimension, str)
+                        else dimension
+                    )
+                    for dimension in profile.get("dimensions", []) or []
+                ]
+                profile["features"] = cls._with_resource_ids(profile.get("features", {}) or {})
+                profile["actions"] = cls._with_resource_ids(profile.get("actions", {}) or {})
+        return profiles
 
     @staticmethod
     def _with_resource_ids(value: typing.Any) -> typing.Any:

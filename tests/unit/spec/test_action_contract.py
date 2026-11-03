@@ -8,7 +8,7 @@ from support import execution as execution_support
 from uptimely import compiler, spec
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
-from uptimely.spec.python import actions, dimension, entity, feature, profile, ref
+from uptimely.spec.python import actions, dimension, feature, profile, ref
 
 
 def read_values() -> pl.DataFrame:
@@ -57,9 +57,10 @@ def dataset_identifier(
 
 def _spec() -> spec.Spec:
     return spec.from_python(
-        datasets=[
+        profiles=[
             profile.Profile(
                 id="observations",
+                dimensions=[dimension.Dimension(id="id", type="integer")],
                 producers=[
                     actions.Action(
                         id="read_values",
@@ -102,7 +103,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     spec_definition = _spec()
-    dataset_model = spec_definition.entities["entity"].datasets["observations"]
+    dataset_model = spec_definition.profiles["observations"]
     assert dataset_model.actions["metadata"].input_features == []
     assert dataset_model.actions["metadata"].output_features == ["metadata"]
     assert dataset_model.actions["metadata"].binding.args["identifier"] == "$features.result.id"
@@ -195,9 +196,7 @@ def test_invalid_input_contracts_are_rejected(
     path = tmp_path / "spec.json"
     spec.write_document(_spec(), path)
     configuration = json.loads(path.read_text())
-    configuration["entities"]["entity"]["datasets"]["observations"]["actions"]["result"][
-        "features"
-    ]["inputs"] = inputs
+    configuration["profiles"]["observations"]["actions"]["result"]["features"]["inputs"] = inputs
     path.write_text(json.dumps(configuration))
     with pytest.raises(ValueError, match=message):
         spec.load_spec(path)
@@ -231,9 +230,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     spec_definition = _spec()
-    source = next(
-        iter(spec_definition.entities["entity"].datasets["observations"].actions.values())
-    )
+    source = next(iter(spec_definition.profiles["observations"].actions.values()))
     source.features.outputs = ["$features.value"]
     compiled = compiler.Compiler().compile(spec_definition, features=["result"])
 
@@ -256,7 +253,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     path = tmp_path / "spec.json"
     spec.write_document(_spec(), path)
     configuration = json.loads(path.read_text())
-    dataset = configuration["entities"]["entity"]["datasets"]["observations"]
+    dataset = configuration["profiles"]["observations"]
     del dataset["features"]["id"]
     dataset["actions"]["read_values"]["features"]["outputs"] = ["$features.value"]
     dataset["actions"]["result"]["features"]["inputs"].append("$features.id")
@@ -292,64 +289,50 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
             dimension.Dimension(id="id", type="integer"),
             dimension.Dimension(id="region", type="string"),
         ],
-        entities=[
-            entity.Entity(
-                id="source_entity",
-                name="Source",
+        profiles=[
+            profile.Profile(
+                id="source",
                 dimensions=[dimension.Dimension(id="id", type="integer")],
-                datasets=[
-                    profile.Profile(
-                        id="source",
-                        producers=[
-                            actions.Action(
-                                id="read_lower_grain",
-                                inputs=[],
-                                function=ref.function(read_lower_grain, kind="read"),
-                                arguments={},
-                                outputs=[feature.Feature(id="value", type="integer")],
-                            )
-                        ],
+                producers=[
+                    actions.Action(
+                        id="read_lower_grain",
+                        inputs=[],
+                        function=ref.function(read_lower_grain, kind="read"),
+                        arguments={},
+                        outputs=[feature.Feature(id="value", type="integer")],
                     )
                 ],
             ),
-            entity.Entity(
-                id="target_entity",
-                name="Target",
+            profile.Profile(
+                id="target",
                 dimensions=[
                     dimension.Dimension(id="id", type="integer"),
                     dimension.Dimension(id="region", type="string"),
                 ],
-                datasets=[
-                    profile.Profile(
-                        id="target",
-                        producers=[
-                            actions.Action(
-                                id="read_target_grain",
-                                inputs=[],
-                                function=ref.function(read_target_grain, kind="read"),
-                                arguments={"include_second": dataframe},
-                                outputs=[feature.Feature(id="target_value", type="integer")],
-                            ),
-                            actions.Action(
-                                id="copied",
-                                inputs=[ref.feature("value")],
-                                outputs=[
-                                    feature.Feature(
-                                        id="copied", type="integer" if dataframe else "string"
-                                    )
-                                ],
-                                function=ref.function(
-                                    copy_values if dataframe else dataset_identifier,
-                                    kind="expand",
-                                ),
-                                arguments={
-                                    "dataset": source_reference.dataframe,
-                                    "output": ref.feature("copied").id,
-                                    **({} if dataframe else {"identifier": source_reference.id}),
-                                },
-                            ),
+                producers=[
+                    actions.Action(
+                        id="read_target_grain",
+                        inputs=[],
+                        function=ref.function(read_target_grain, kind="read"),
+                        arguments={"include_second": dataframe},
+                        outputs=[feature.Feature(id="target_value", type="integer")],
+                    ),
+                    actions.Action(
+                        id="copied",
+                        inputs=[ref.feature("value")],
+                        outputs=[
+                            feature.Feature(id="copied", type="integer" if dataframe else "string")
                         ],
-                    )
+                        function=ref.function(
+                            copy_values if dataframe else dataset_identifier,
+                            kind="expand",
+                        ),
+                        arguments={
+                            "dataset": source_reference.dataframe,
+                            "output": ref.feature("copied").id,
+                            **({} if dataframe else {"identifier": source_reference.id}),
+                        },
+                    ),
                 ],
             ),
         ],

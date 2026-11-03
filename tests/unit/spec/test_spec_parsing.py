@@ -34,19 +34,15 @@ def test_loading_can_suppress_structure_debug_without_disabling_checks(
 
 def test_document_structure_checks_emit_debug_bullets(caplog: pytest.LogCaptureFixture) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    datasets = [
-        dataset
-        for entity in configuration["entities"].values()
-        for dataset in entity["datasets"].values()
-    ]
-    action_count = sum(len(dataset["actions"]) for dataset in datasets)
+    profiles = list(configuration["profiles"].values())
+    action_count = sum(len(profile["actions"]) for profile in profiles)
     caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
 
     spec.Spec.model_validate(configuration)
 
     assert caplog.messages == [
         "\nSpec validation:\n  Document structure:",
-        f"    - checking object keys as identifiers for {len(datasets)} datasets",
+        f"    - checking object keys as identifiers for {len(profiles)} profiles",
         "    - checking spec version is an integer",
         f"    - checking feature references for {action_count} actions",
     ]
@@ -78,33 +74,28 @@ def test_invalid_action_reference_does_not_repeat_document_checks(
 
 
 @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
-def test_structure_summary_counts_datasets_and_actions_once(
+def test_structure_summary_counts_profiles_and_actions_once(
     caplog: pytest.LogCaptureFixture, level: int
 ) -> None:
     configuration = {
-        "spec_version": 3,
-        "entities": {
-            "first": {
+        "spec_version": 4,
+        "profiles": {
+            "profile_1": {
                 "name": "First",
-                "datasets": {
-                    f"dataset_{index}": {
-                        "actions": {
-                            f"action_{action}": {"binding": {"function": "read"}}
-                            for action in range(count)
-                        }
-                    }
-                    for index, count in enumerate([8, 7])
+                "actions": {
+                    f"action_{action}": {"binding": {"function": "read"}} for action in range(8)
                 },
             },
-            "second": {
+            "profile_2": {
                 "name": "Second",
-                "datasets": {
-                    "dataset_2": {
-                        "actions": {
-                            f"action_{action}": {"binding": {"function": "read"}}
-                            for action in range(5)
-                        }
-                    }
+                "actions": {
+                    f"action_{action}": {"binding": {"function": "read"}} for action in range(5)
+                },
+            },
+            "profile_3": {
+                "name": "Third",
+                "actions": {
+                    f"action_{action}": {"binding": {"function": "read"}} for action in range(7)
                 },
             },
         },
@@ -116,7 +107,7 @@ def test_structure_summary_counts_datasets_and_actions_once(
     assert caplog.messages == (
         [
             "\nSpec validation:\n  Document structure:",
-            "    - checking object keys as identifiers for 3 datasets",
+            "    - checking object keys as identifiers for 3 profiles",
             "    - checking spec version is an integer",
             "    - checking feature references for 20 actions",
         ]
@@ -129,15 +120,15 @@ def test_structure_summary_counts_existing_resource_models(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     document = spec.Spec.model_validate_json(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset_count = len(document.dataset_items)
+    profile_count = len(document.profile_items)
     action_count = len(document.actions)
     caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
 
-    spec.Spec.model_validate({"entities": document.entities})
+    spec.Spec.model_validate({"profiles": document.profiles})
 
     assert caplog.messages == [
         "\nSpec validation:\n  Document structure:",
-        f"    - checking object keys as identifiers for {dataset_count} datasets",
+        f"    - checking object keys as identifiers for {profile_count} profiles",
         "    - checking spec version is an integer",
         f"    - checking feature references for {action_count} actions",
     ]
@@ -146,14 +137,10 @@ def test_structure_summary_counts_existing_resource_models(
 @pytest.mark.parametrize(
     "configuration",
     [
-        {"entities": ["invalid"]},
-        {"entities": {"entity": {"name": "Entity", "datasets": []}}},
-        {"entities": {"entity": {"name": "Entity", "datasets": {"dataset": None}}}},
-        {
-            "entities": {
-                "entity": {"name": "Entity", "datasets": {"dataset": {"actions": ["invalid"]}}}
-            }
-        },
+        {"profiles": ["invalid"]},
+        {"profiles": {"profile": None}},
+        {"profiles": {"profile": {"unknown": True}}},
+        {"profiles": {"profile": {"actions": {"action": ["invalid"]}}}},
     ],
 )
 def test_structure_summary_preserves_invalid_document_errors(
@@ -206,7 +193,7 @@ def test_canonical_model_rejects_file_loading_arguments() -> None:
         spec.Spec.model_validate({"json": str(SPEC_PATH)})
 
 
-@pytest.mark.parametrize("version", [0, 1, 2, "3", True])
+@pytest.mark.parametrize("version", [0, 1, 2, 3, "4", True])
 def test_spec_rejects_unsupported_version(tmp_path: pathlib.Path, version: object) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["spec_version"] = version
@@ -229,45 +216,24 @@ def test_spec_rejects_dimension_parent_cycles(tmp_path: pathlib.Path) -> None:
     assert error.value.path == ("dimensions", "plant", "parent")
 
 
-def test_spec_errors_expose_stable_code_and_path(tmp_path: pathlib.Path) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    duplicate = dict(configuration["entities"]["pump"]["datasets"]["pump_dataset"])
-    configuration["entities"]["pump_telemetry"]["datasets"]["pump_dataset"] = duplicate
+def test_spec_errors_expose_stable_profile_identity_code_and_path() -> None:
+    document = spec.Spec.model_validate_json(SPEC_PATH.read_text(encoding="utf-8"))
+    document.profiles["wrong"] = model.Profile(id="different")
 
     with pytest.raises(validation.SpecError) as error:
-        spec.load_spec(_write_configuration(tmp_path, configuration, "datasets.json"))
+        validation.validate_spec(document)
 
-    assert error.value.code == "duplicate_dataset_id"
-    assert error.value.path == ("entities", "pump", "datasets", "pump_dataset")
+    assert error.value.code == "invalid_profile_id"
+    assert error.value.path == ("profiles", "wrong")
     assert str(error.value) == (
-        "entities.pump.datasets.pump_dataset: Duplicate dataset id pump_dataset; "
-        "already declared by entity pump_telemetry"
-    )
-
-
-def test_validation_reports_duplicate_dataset_before_invalid_dimension_parent(
-    tmp_path: pathlib.Path,
-) -> None:
-    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    duplicate = dict(configuration["entities"]["pump"]["datasets"]["pump_dataset"])
-    configuration["entities"]["pump_telemetry"]["datasets"]["pump_dataset"] = duplicate
-    configuration["dimensions"]["plant"]["parent"] = "missing_dimension"
-
-    with pytest.raises(validation.SpecError) as error:
-        spec.load_spec(_write_configuration(tmp_path, configuration, "multiple_errors.json"))
-
-    assert error.value.code == "duplicate_dataset_id"
-    assert error.value.path == ("entities", "pump", "datasets", "pump_dataset")
-    assert str(error.value) == (
-        "entities.pump.datasets.pump_dataset: Duplicate dataset id pump_dataset; "
-        "already declared by entity pump_telemetry"
+        "profiles.wrong: Profile key wrong does not match profile id different"
     )
 
 
 def test_spec_rejects_unknown_write_function(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
-    dataset["actions"]["write_pump_telemetry"]["binding"]["function"] = "missing_write"
+    profile = configuration["profiles"]["pump_telemetry_dataset"]
+    profile["actions"]["write_pump_telemetry"]["binding"]["function"] = "missing_write"
 
     with pytest.raises(ValueError, match="actions reference unknown functions: missing_write"):
         spec.load_spec(_write_configuration(tmp_path, configuration, "write.json"))
@@ -275,9 +241,9 @@ def test_spec_rejects_unknown_write_function(tmp_path: pathlib.Path) -> None:
 
 def test_spec_rejects_undeclared_binding_arguments(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    binding_args = configuration["entities"]["pump_telemetry"]["datasets"][
-        "pump_telemetry_dataset"
-    ]["actions"]["read_pump_telemetry"]["binding"]["args"]
+    binding_args = configuration["profiles"]["pump_telemetry_dataset"]["actions"][
+        "read_pump_telemetry"
+    ]["binding"]["args"]
     binding_args["unexpected"] = "value"
 
     with pytest.raises(
@@ -395,11 +361,7 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     assert len(spec_definition.functions.by_kind("vectorize")) == 7
-    collapse = (
-        spec_definition.entities["pump"]
-        .datasets["pump_dataset"]
-        .actions["bearing_temperature_by_pump"]
-    )
+    collapse = spec_definition.profiles["pump_dataset"].actions["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.binding.function == "aggregate"
     assert collapse.binding.args["feature"] == "$features.bearing_temperature"
@@ -439,9 +401,9 @@ def test_system_and_subset_support_multiple_variables() -> None:
 
 def test_spec_validation_rejects_missing_output_variables() -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    action = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "actions"
-    ]["pressure_flow_efficiency"]
+    action = configuration["profiles"]["pump_telemetry_dataset"]["actions"][
+        "pressure_flow_efficiency"
+    ]
     action["features"]["outputs"] = []
     document = spec.Spec.model_validate(configuration)
 
@@ -453,20 +415,13 @@ def test_spec_validation_rejects_missing_output_variables() -> None:
 
 def test_spec_validation_rejects_duplicate_feature_names(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
-    duplicate = dataset["actions"]["pressure_flow_efficiency"]
-    configuration["entities"]["duplicate"] = {
-        "name": "Duplicate feature owner",
+    profile = configuration["profiles"]["pump_telemetry_dataset"]
+    duplicate = profile["actions"]["pressure_flow_efficiency"]
+    configuration["profiles"]["duplicate_dataset"] = {
+        "name": "Duplicate profile",
         "dimensions": ["pump"],
-        "datasets": {
-            "duplicate_dataset": {
-                "row_scope": {"grain": "", "filtering": "", "coverage": ""},
-                "features": {
-                    "pressure_flow_efficiency": dataset["features"]["pressure_flow_efficiency"]
-                },
-                "actions": {"pressure_flow_efficiency": duplicate},
-            }
-        },
+        "features": {"pressure_flow_efficiency": profile["features"]["pressure_flow_efficiency"]},
+        "actions": {"pressure_flow_efficiency": duplicate},
     }
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -479,9 +434,9 @@ def test_spec_validation_rejects_duplicate_fragment_input_names(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
-    dataset["actions"]["duplicate_input"] = {
-        "binding": dataset["actions"]["read_pump_telemetry"]["binding"],
+    profile = configuration["profiles"]["pump_telemetry_dataset"]
+    profile["actions"]["duplicate_input"] = {
+        "binding": profile["actions"]["read_pump_telemetry"]["binding"],
         "features": {"inputs": [], "outputs": ["$features.bearing_temperature"]},
     }
     spec_path = tmp_path / "spec.json"
@@ -498,9 +453,9 @@ def test_dimension_outputs_are_implicit_in_mapping(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]["actions"][
-        "read_pump_telemetry"
-    ]["features"]["outputs"].remove("$features.plant")
+    configuration["profiles"]["pump_telemetry_dataset"]["actions"]["read_pump_telemetry"][
+        "features"
+    ]["outputs"].remove("$features.plant")
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -511,9 +466,9 @@ def test_spec_validation_rejects_unknown_vectorize_template(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]["actions"][
-        "recommended_flow_rate"
-    ]["binding"]["function"] = "missing_vectorize_template"
+    configuration["profiles"]["pump_telemetry_dataset"]["actions"]["recommended_flow_rate"][
+        "binding"
+    ]["function"] = "missing_vectorize_template"
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -528,9 +483,9 @@ def test_spec_validation_rejects_feature_dimension_name_collision(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
-    collision = json.loads(json.dumps(dataset["actions"]["converged"]))
-    dataset["actions"]["pump_collision"] = {
+    profile = configuration["profiles"]["pump_telemetry_dataset"]
+    collision = json.loads(json.dumps(profile["actions"]["converged"]))
+    profile["actions"]["pump_collision"] = {
         **collision,
         "features": {"inputs": [], "outputs": ["$features.pump"]},
     }
@@ -539,7 +494,7 @@ def test_spec_validation_rejects_feature_dimension_name_collision(
 
     with pytest.raises(
         ValueError,
-        match="Calculated feature names cannot duplicate entity dimensions: pump",
+        match="Calculated feature names cannot duplicate profile dimensions: pump",
     ):
         spec.load_spec(spec_path)
 
@@ -549,26 +504,17 @@ def test_spec_validation_rejects_cross_dataset_feature_dependency(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     calculation = json.loads(
-        json.dumps(
-            configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
-                "health_signal_normalized"
-            ]
-        )
+        json.dumps(configuration["profiles"]["pump_dataset"]["actions"]["health_signal_normalized"])
     )
     calculation["features"]["outputs"] = ["$features.health_signal_normalized_copy"]
-    copied_feature = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["features"][
+    copied_feature = configuration["profiles"]["pump_dataset"]["features"][
         "health_signal_normalized"
     ]
-    configuration["entities"]["pump_copy"] = {
+    configuration["profiles"]["pump_copy_dataset"] = {
         "name": "Pump copy",
         "dimensions": ["pump"],
-        "datasets": {
-            "pump_copy_dataset": {
-                "row_scope": {"grain": "", "filtering": "", "coverage": ""},
-                "features": {"health_signal_normalized_copy": copied_feature},
-                "actions": {"health_signal_normalized_copy": calculation},
-            }
-        },
+        "features": {"health_signal_normalized_copy": copied_feature},
+        "actions": {"health_signal_normalized_copy": calculation},
     }
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")

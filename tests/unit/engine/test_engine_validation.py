@@ -11,7 +11,7 @@ from uptimely.engine.dataframe import backend
 
 def test_engine_validator_accepts_matching_backend(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG, logger=validation.__name__)
-    plan = execution_plan.ExecutionPlan(3, "polars", {}, [], [])
+    plan = execution_plan.ExecutionPlan(execution_plan.PLAN_VERSION, "polars", {}, [], [])
     polars_backend = backend.PolarsBackend()
     validator = validation.EngineValidator(plan, polars_backend)
 
@@ -24,7 +24,7 @@ def test_engine_validator_accepts_matching_backend(caplog: pytest.LogCaptureFixt
 
 
 def test_engine_validator_rejects_mismatched_backend() -> None:
-    plan = execution_plan.ExecutionPlan(3, "pandas", {}, [], [])
+    plan = execution_plan.ExecutionPlan(execution_plan.PLAN_VERSION, "pandas", {}, [], [])
     validator = validation.EngineValidator(plan, backend.PolarsBackend())
 
     with pytest.raises(ValueError, match=r"Unsupported plan backend: pandas\. Expected polars\."):

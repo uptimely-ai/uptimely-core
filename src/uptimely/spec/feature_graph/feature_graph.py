@@ -145,13 +145,13 @@ class FeatureGraph(FeatureGraphBase):
         """Resolve output metadata directly from action and dataset declarations."""
         feature_metadata: dict[str, models.FeatureNode] = {}
         for key, action in self.spec.action_items:
-            dataset = self.spec.action_datasets[key]
-            entity_id, _ = self.spec.action_dataset_keys[key]
+            profile = self.spec.action_profiles[key]
+            profile_id = self.spec.action_profile_keys[key]
             function = self.spec.functions[action.binding.function]
             kind = functions.FUNCTION_KINDS[function.kind]
             is_source_input = kind.is_source and kind.dimension_change != "remove"
             for name in action.output_features:
-                feature = dataset.all_features[name]
+                feature = profile.all_features[name]
                 data_type = feature.type
                 if (
                     data_type is None
@@ -163,10 +163,10 @@ class FeatureGraph(FeatureGraphBase):
                 reference = models.FeatureNode(
                     name=name,
                     data_type=data_type,
-                    entity=entity_id,
-                    dataset_id=dataset.id,
+                    profile_id=profile_id,
+                    dataset_id=profile.id,
                     display_name=feature.name,
-                    dataset_name=dataset.name,
+                    dataset_name=profile.name,
                     is_source_input=is_source_input,
                 )
                 existing = feature_metadata.get(name)
@@ -219,22 +219,22 @@ class FeatureGraph(FeatureGraphBase):
                     and functions.FUNCTION_KINDS[action.function.kind].is_transformer
                     else metadata.data_type
                 ),
-                entity=action.entity if action is not None else metadata.entity,
+                profile_id=action.profile_id if action is not None else metadata.profile_id,
                 display_name=display_name,
                 is_input=name in dependency_names,
                 is_output=name in output_names,
             )
 
         for key, action in self.spec.action_items:
-            dataset = self.spec.action_datasets[key]
-            entity_id, _ = self.spec.action_dataset_keys[key]
+            profile = self.spec.action_profiles[key]
+            profile_id = self.spec.action_profile_keys[key]
             outputs = [name for name in action.output_features if name not in self.spec.dimensions]
             action_metadata = models.ActionNode(
                 action_id=action.id,
                 features=tuple(sorted(outputs)),
-                entity=entity_id,
-                dataset_id=dataset.id,
-                dataset_name=dataset.name,
+                profile_id=profile_id,
+                dataset_id=profile.id,
+                dataset_name=profile.name,
                 action=action,
                 function=self.spec.functions[action.binding.function],
             )

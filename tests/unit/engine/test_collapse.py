@@ -15,7 +15,7 @@ from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions, dimension, entity, feature, profile, ref
+from uptimely.spec.python import actions, dimension, feature, profile, ref
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -138,8 +138,11 @@ def nested_maximum(
 
 
 def _spec(*, lazy=False, empty=False):
+    group = dimension.Dimension(id="group", type="string")
+    identifier = dimension.Dimension(id="id", type="integer")
     source = profile.Profile(
         id="observations",
+        dimensions=[group, identifier],
         producers=[
             actions.Action(
                 id="read_values",
@@ -174,6 +177,7 @@ def _spec(*, lazy=False, empty=False):
     )
     summary = profile.Profile(
         id="summary",
+        dimensions=[group],
         producers=[
             actions.Action(
                 id="group_summary",
@@ -207,19 +211,8 @@ def _spec(*, lazy=False, empty=False):
             ),
         ],
     )
-    group = dimension.Dimension(id="group", type="string")
-    identifier = dimension.Dimension(id="id", type="integer")
     return spec.from_python(
-        entities=[
-            entity.Entity(
-                id="observation",
-                name="Observation",
-                dimensions=[group, identifier],
-                datasets=[source],
-            ),
-            entity.Entity(id="group", name="Group", dimensions=[group], datasets=[summary]),
-            entity.Entity(id="global", name="Global", dimensions=[], datasets=[global_summary]),
-        ],
+        profiles=[source, summary, global_summary],
         dimensions=[group, identifier],
     )
 
@@ -251,6 +244,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     group = dimension.Dimension(id="group", type="string")
     target = profile.Profile(
         id="target",
+        dimensions=[group],
         producers=[
             actions.Action(
                 id="read_target",
@@ -273,6 +267,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     )
     foreign = profile.Profile(
         id="foreign",
+        dimensions=[group],
         producers=[
             actions.Action(
                 id="read_source",
@@ -284,12 +279,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
         ],
     )
     spec_definition = spec.from_python(
-        entities=[
-            entity.Entity(id="target_entity", name="Target", dimensions=[group], datasets=[target]),
-            entity.Entity(
-                id="foreign_entity", name="Foreign", dimensions=[group], datasets=[foreign]
-            ),
-        ],
+        profiles=[target, foreign],
         dimensions=[group],
     )
     plan = compiler.Compiler().compile(spec_definition, features=["conformed_value"])
@@ -374,8 +364,8 @@ def test_collapse_consumes_expanded_features(
     lazy, engine_for_plan: execution_support.EngineFactory
 ):
     spec_definition = _spec(lazy=lazy)
-    spec_definition.entities.pop("global")
-    source = spec_definition.entities["observation"].datasets["observations"]
+    spec_definition.profiles.pop("global")
+    source = spec_definition.profiles["observations"]
     source.features["expanded"] = spec.Feature(id="expanded")
     auxiliary = spec_model.Profile(
         id="expansion_input",
@@ -388,12 +378,8 @@ def test_collapse_consumes_expanded_features(
             )
         },
     )
-    spec_definition.entities["expansion"] = spec_model.Entity(
-        id="expansion",
-        name="Expansion",
-        dimensions=[spec_definition.dimensions["group"]],
-        datasets={auxiliary.id: auxiliary},
-    )
+    auxiliary.dimensions = [spec_definition.dimensions["group"]]
+    spec_definition.profiles[auxiliary.id] = auxiliary
     spec_definition.functions.root["read_expansion_input"] = spec_model.FunctionTemplate(
         id="read_expansion_input",
         kind="read",
@@ -427,7 +413,7 @@ def test_collapse_consumes_expanded_features(
             ),
         },
     )
-    summary = spec_definition.entities["group"].datasets["summary"]
+    summary = spec_definition.profiles["summary"]
     summary.features = {"combined_maximum": spec.Feature(id="combined_maximum")}
     summary.actions = {
         "nested": spec_model.Action(
@@ -572,6 +558,7 @@ def _broadcast_spec(
     dimensions = {"group": group, "id": identifier}
     observations = profile.Profile(
         id="observations",
+        dimensions=[group, identifier],
         producers=[
             actions.Action(
                 id="read_values",
@@ -595,6 +582,7 @@ def _broadcast_spec(
     )
     source = profile.Profile(
         id="reference_source",
+        dimensions=[dimensions[name] for name in source_dimension_ids],
         producers=[
             actions.Action(
                 id="read_reference",
@@ -606,20 +594,7 @@ def _broadcast_spec(
         ],
     )
     return spec.from_python(
-        entities=[
-            entity.Entity(
-                id="observation",
-                name="Observation",
-                dimensions=[group, identifier],
-                datasets=[observations],
-            ),
-            entity.Entity(
-                id="reference",
-                name="Reference",
-                dimensions=[dimensions[name] for name in source_dimension_ids],
-                datasets=[source],
-            ),
-        ],
+        profiles=[observations, source],
         dimensions=[group, identifier],
     )
 

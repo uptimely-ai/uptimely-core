@@ -17,20 +17,20 @@ A plan is one JSON object. Its root fields are:
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
-| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `3`. |
+| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `4`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
 | `resources` | object | Compiler-generated metadata not represented by the Spec, including inspected function return annotations and entrypoint package provenance. |
 | `invocations` | array of objects | Operations to execute and their declared inputs and dependencies. |
 | `stages` | array of arrays of strings | Invocation identifiers grouped by dependency order. |
 
 All root fields are required. Unknown fields and unsupported versions are
-rejected. Version 1 and 2 plans are not converted. Rebuild generated bundles
-from their source Specs to create version 3 plans.
+rejected. Earlier plan versions are not converted. Rebuild generated bundles
+from their source Specs to create version 4 plans.
 
 ## Resources
 
 The build bundle includes `spec.json`, which is the source of dimensions,
-entities, functions, and datasets used by the engine. Plan resources contain
+profiles, functions, and datasets used by the engine. Plan resources contain
 compiler-generated metadata that is not part of the Spec: inspected return
 annotations keyed by invocation identifier and the installed distribution name
 and version associated with each entrypoint. Signature-disabled functions have
@@ -55,7 +55,6 @@ spelling.
 | `entrypoint` | string | Implementation location for the function. |
 | `function_id` | string | Function declaration used by the invocation. |
 | `mapping_id` | string | Action declaration used by the invocation. |
-| `entity_id` | string | Entity that scopes the invocation. |
 | `dataset_id` | string or null | Dataset receiving or supplying dataframe state. |
 | `arguments` | object | Resolved arguments passed to the function. Runtime storage placeholders remain unresolved. |
 | `input_features` | array of strings | Features declared as inputs to the operation. |

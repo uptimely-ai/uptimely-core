@@ -26,6 +26,7 @@ export function initializeFeatureLineage(signal) {
 			const outputLabel = node.is_effect ? 'Declared logical outputs' : 'Produces';
 			const rows = [
 				['Node type', 'Action'],
+				['Profile', node.profile || 'n/a'],
 				['Dataset', node.dataset_name || node.dataset_id],
 				['Dataset ID', node.dataset_id],
 				['Action', node.action_id || label],
@@ -42,11 +43,11 @@ export function initializeFeatureLineage(signal) {
 			return;
 		}
 		const dataType = node.data_type || node.type || 'unknown';
-		const entity = node.entity || 'n/a';
+		const profile = node.profile || 'n/a';
 		ExplorerLineage.showDetails(nodeDetails, 'Selected item', [
 			['Node type', 'Feature'], ['Feature', label], ['Feature ID', node.feature_id || node.id],
 			['Dataset', node.dataset_name || node.dataset_id], ['Dataset ID', node.dataset_id],
-			['Entity', formatDetailValue(entity)], ['Data type', formatDetailValue(dataType)],
+			['Profile', formatDetailValue(profile)], ['Data type', formatDetailValue(dataType)],
 		]);
 	}
 
@@ -89,7 +90,7 @@ export function initializeFeatureLineage(signal) {
 			ExplorerLineage.drawCard(node, ctx, node.label || node.id, color, highlight, !isAction);
 		};
 		return ExplorerLineage.createDatasetLineage2D(lineageContainer, graphData, style, layout, highlight, {
-			label: node => `${node.is_action ? 'action' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`,
+			label: node => `${node.is_action ? 'action' : 'feature'}: ${node.label}\nprofile: ${node.profile || 'n/a'}`,
 			color: node => node.is_action ? functionColor : node.datasetColor,
 			nodeValue: node => node.is_action
 				? LINEAGE_LAYOUT_2D.functionValue : LINEAGE_LAYOUT_2D.featureValue,
@@ -102,7 +103,7 @@ export function initializeFeatureLineage(signal) {
 	function createLineage3D(lineageContainer, graphData, updateSelection, style, highlight) {
 		const functionColor = style.function_color;
 		return ExplorerLineage.createLineage3D(lineageContainer, graphData, style, {
-			label: node => `${node.is_action ? 'function' : 'feature'}: ${node.label}\nentity: ${node.entity || 'n/a'}`,
+			label: node => `${node.is_action ? 'function' : 'feature'}: ${node.label}\nprofile: ${node.profile || 'n/a'}`,
 			color: node => node.is_action ? functionColor : node.datasetColor,
 			onSelect: updateSelection,
 			highlight,

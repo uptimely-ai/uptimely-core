@@ -30,7 +30,7 @@ export function dashboard(data) {
       <circle cx="156" cy="208" r="4" fill="#67e8f9"/><circle cx="264" cy="72" r="4" fill="#e879f9"/>
     </svg></header>
     <dl class="dashboard-metrics" aria-label="Project counts">${[
-      ["Entities", summary.entity_count], ["Datasets", summary.dataset_count],
+      ["Profiles", summary.profile_count],
       ["Features", summary.feature_count], ["Functions", summary.function_count],
       ["Invocations", data.plan.invocation_count], ["Stages", data.plan.stage_count],
     ].map(([label, count]) => `<div data-stat="${label}" data-value="${count}"><dt>${label}</dt><dd>${count}</dd></div>`).join("")}</dl>
@@ -38,7 +38,7 @@ export function dashboard(data) {
       <h2 class="dashboard-section-title" id="journey-heading">Follow the analytics journey</h2>
       <p class="dashboard-section-intro">Start with the declarations, inspect the compiled plan, then explore execution.</p>
       <ol class="spec-journey" aria-label="Spec journey">${[
-        ["spec", "01", "Spec", "The source of truth. Browse entities, datasets, features, dimensions, and the functions bound to them.", "spec", "Explore spec"],
+        ["spec", "01", "Spec", "The source of truth. Browse profiles, features, dimensions, and the functions bound to them.", "spec", "Explore spec"],
         ["plan", "02", "Plan", "The path to execution. Inspect compiled operations, argument bindings, and dependency-ordered stages with potential parallelism.", "plan", "Inspect the plan"],
         ["execution", "03", "Execution", "Follow color-coded processing tables and the dependencies connecting them.", "animation", "Explore execution"],
       ].map(([key, number, title, description, view, action]) => `<li class="journey-step ${key} icon--${key}">
@@ -64,7 +64,7 @@ function overviewChart(title, counts, total, suffix = "") {
 export function specOverview(data) {
   const config = data.catalogs.configuration, summary = data.catalogs.summary;
   const source = config.source || {};
-  return page(heading("Overview", "A summary of the entities, datasets, features, and functions declared in this spec.") + `
+  return page(heading("Overview", "A summary of the profiles, features, and functions declared in this spec.") + `
     <div class="relative mb-8 overflow-hidden rounded-3xl border border-cyan-900/60 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/50 p-6 shadow-xl shadow-cyan-950/10 sm:p-8"
       data-source-name="${escape(source.name || "manual")}" data-generated="${Boolean(source.generated)}">
       <div class="pointer-events-none absolute -right-12 -top-20 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" aria-hidden="true"></div>
@@ -78,7 +78,7 @@ export function specOverview(data) {
               <span class="text-xs text-slate-400">${source.generated ? "Framework-generated" : "Hand-written"}</span></div></div>
         </div></div></div>
     <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">${[
-      ["Entities", summary.entity_count], ["Datasets", summary.dataset_count],
+      ["Profiles", summary.profile_count],
       ["Actions", summary.action_count, "functions"], ["Dimensions", summary.dimension_count],
     ].map(([title, value]) => `<div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5"><span class="font-mono text-[10px] uppercase tracking-[.15em] text-slate-500">${title}</span><p class="mt-4 font-display text-3xl font-semibold text-white">${value}</p></div>`).join("")}</div>
     <div class="mt-5 grid gap-5 lg:grid-cols-2">
@@ -94,7 +94,7 @@ export function planOverview(data) {
     <section id="plan-overview" class="mb-16">
       <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">${[
         ["Invocations", plan.invocation_count], ["Functions", plan.function_count],
-        ["Entities", plan.entity_count], ["Features", plan.feature_count], ["Stages", plan.stage_count],
+        ["Profiles", plan.profile_count], ["Features", plan.feature_count], ["Stages", plan.stage_count],
         ["Dependencies", plan.dependency_count, "invocation-lineage"], ["Max parallel invocations", plan.max_parallel_invocations, "stages"],
       ].map(([title, value, key]) => `<div class="rounded-2xl border border-slate-800 bg-slate-900/75 p-5" data-stat="${title}">
         <div class="flex items-center justify-between gap-3"><span class="font-mono text-[10px] uppercase tracking-[.15em] text-slate-500">${title}</span>${icon(key || title.toLowerCase())}</div>
@@ -133,7 +133,7 @@ export function lineage(data, topology) {
         <div class="dataset-legend" id="dataset-legend"></div></div></details>
       <div class="details" id="${panelId}" role="region" aria-label="${topology ? "Invocation details" : "Selected item"}" aria-live="polite">
         <h2>${topology ? "Invocation details" : "Selected item"}</h2><div class="meta">Click a node</div>
-        <div class="summary">${topology ? "Select an invocation to inspect its function kind, arguments, entity, declared features, and invocation dependencies." : "Select any feature in the lineage to see its identifier and details."}</div>
+        <div class="summary">${topology ? "Select an invocation to inspect its function kind, arguments, profile, declared features, and invocation dependencies." : "Select any feature in the lineage to see its identifier and details."}</div>
       </div></aside>`,
     content: `<main class="lineage-workspace"><div class="lineage-stage">${contextToggle("lineage-context", "Lineage")}
       <p id="lineage-error" role="alert" hidden></p>

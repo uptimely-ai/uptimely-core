@@ -2,8 +2,8 @@ import polars as pl
 import pytest
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension as pump_dimensions
-from examples.pump_analytics.spec import entity as pump_entities
 from examples.pump_analytics.spec import spec as pump_telemetry_spec
+from examples.pump_analytics.spec.datasets import constants, external_workflow, pump, telemetry
 from support import examples as example_support
 
 from uptimely import spec
@@ -48,36 +48,31 @@ def test_pump_dimensions_are_declared_in_spec_order() -> None:
     assert pump_dimensions.PUMP.parent == pump_dimensions.PRODUCTION_LINE.id
 
 
-def test_pump_entities_are_declared_in_spec_order() -> None:
-    expected = [pump_entities.PUMP_TELEMETRY, pump_entities.PUMP, pump_entities.CONSTANTS]
-
-    assert pump_entities.entities == expected
-    assert [entity.id for entity in pump_telemetry_spec.python_spec.entities] == [
-        "pump_telemetry",
-        "pump",
-        "constants",
+def test_pump_profiles_are_declared_in_spec_order() -> None:
+    expected = [
+        telemetry.Telemetry,
+        pump.Pump,
+        external_workflow.PumpExternalWorkflow,
+        constants.Constants,
     ]
-    assert pump_entities.PUMP_TELEMETRY.dimensions == pump_telemetry_spec.python_spec.dimensions
-    assert pump_entities.PUMP.dimensions == [
+
+    assert [type(profile) for profile in pump_telemetry_spec.python_spec.profiles] == expected
+    assert [profile.id for profile in pump_telemetry_spec.python_spec.profiles] == [
+        "pump_telemetry_dataset",
+        "pump_dataset",
+        "pump_external_workflow_dataset",
+        "constants_dataset",
+    ]
+    assert telemetry.Telemetry.dimensions == [
         pump_dimensions.PLANT,
         pump_dimensions.PRODUCTION_LINE,
         pump_dimensions.PUMP,
+        pump_dimensions.TIMESTAMP,
     ]
-    assert [declaration.id for declaration in pump_telemetry_spec.python_spec.datasets] == [
-        "pump_telemetry_dataset",
-        "pump_dataset",
-        "pump_external_workflow_dataset",
-        "constants_dataset",
-    ]
-    assert [
-        dataset.id
-        for entity in pump_telemetry_spec.python_spec.entities
-        for dataset in entity.datasets
-    ] == [
-        "pump_telemetry_dataset",
-        "pump_dataset",
-        "pump_external_workflow_dataset",
-        "constants_dataset",
+    assert pump.Pump.dimensions == [
+        pump_dimensions.PLANT,
+        pump_dimensions.PRODUCTION_LINE,
+        pump_dimensions.PUMP,
     ]
 
 
@@ -107,14 +102,19 @@ def test_example_manifest_parses_complete_spec() -> None:
 
     assert spec_from_directory == spec_definition
     assert spec_definition.dimensions["pump"].parent == "production_line"
-    assert set(spec_definition.entities) == {"pump_telemetry", "pump", "constants"}
-    assert spec_definition.entities["pump_telemetry"].dimension_ids == [
+    assert set(spec_definition.profiles) == {
+        "pump_telemetry_dataset",
+        "pump_dataset",
+        "pump_external_workflow_dataset",
+        "constants_dataset",
+    }
+    assert spec_definition.profiles["pump_telemetry_dataset"].dimension_ids == [
         "plant",
         "production_line",
         "pump",
         "timestamp",
     ]
-    assert spec_definition.entities["pump_telemetry"].dimensions == [
+    assert spec_definition.profiles["pump_telemetry_dataset"].dimensions == [
         spec_definition.dimensions[identifier]
         for identifier in ("plant", "production_line", "pump", "timestamp")
     ]
@@ -132,21 +132,26 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert "aggregate" not in spec_definition.functions.by_kind("vectorize")
     assert len(spec_definition.functions.by_kind("vectorize")) == 7
 
-    pump_dataset = spec_definition.entities["pump"].datasets["pump_dataset"]
+    pump_dataset = spec_definition.profiles["pump_dataset"]
     collapse = pump_dataset.actions["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.binding.function == "aggregate"
     assert "bearing_temperature_max" in collapse.output_features
 
 
-def test_spec_from_entities_python_api() -> None:
+def test_spec_from_profiles_python_api() -> None:
     spec_definition = spec.from_python(
-        entities=pump_telemetry_spec.python_spec.entities,
+        profiles=pump_telemetry_spec.python_spec.profiles,
         dimensions=pump_telemetry_spec.python_spec.dimensions,
         name=pump_telemetry_spec.python_spec.name,
     )
 
-    assert set(spec_definition.entities) == {"pump_telemetry", "pump", "constants"}
+    assert set(spec_definition.profiles) == {
+        "pump_telemetry_dataset",
+        "pump_dataset",
+        "pump_external_workflow_dataset",
+        "constants_dataset",
+    }
     assert spec_definition.name == pump_telemetry_spec.python_spec.name
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True
@@ -155,102 +160,81 @@ def test_spec_from_entities_python_api() -> None:
 
 def test_example_timestamp_order_matches_python_declaration() -> None:
     authored = spec.from_python(
-        entities=pump_telemetry_spec.python_spec.entities,
+        profiles=pump_telemetry_spec.python_spec.profiles,
         dimensions=pump_telemetry_spec.python_spec.dimensions,
     )
     exported = spec.load_spec(SPEC_PATH)
     expected = [{"dimension": "$dimensions.timestamp", "direction": "asc"}]
     for spec_definition in (authored, exported):
         assert [
-            key.model_dump()
-            for key in spec_definition.entities["pump_telemetry"]
-            .datasets["pump_telemetry_dataset"]
-            .order
+            key.model_dump() for key in spec_definition.profiles["pump_telemetry_dataset"].order
         ] == expected
-        assert spec_definition.entities["pump"].datasets["pump_dataset"].order == []
+        assert spec_definition.profiles["pump_dataset"].order == []
 
 
 def test_sources_and_transforms_python_spec() -> None:
     id_dimension = python_spec.dimension.Dimension(id="id", type="integer")
     region_dimension = python_spec.dimension.Dimension(id="region", type="string")
-    source = python_spec.entity.Entity(
-        id="source",
-        name="Source",
+    source = python_spec.profile.Profile(
+        id="transformed_dataset",
         dimensions=[id_dimension],
-        datasets=[
-            python_spec.profile.Profile(
-                id="transformed_dataset",
-                producers=[
-                    python_spec.actions.Action(
-                        id="read",
-                        inputs=[],
-                        function=python_spec.ref.function(_read_transform_data, kind="read"),
-                        arguments={},
-                        outputs=[python_spec.feature.Feature(id="input_1")],
-                    )
-                ],
+        producers=[
+            python_spec.actions.Action(
+                id="read",
+                inputs=[],
+                function=python_spec.ref.function(_read_transform_data, kind="read"),
+                arguments={},
+                outputs=[python_spec.feature.Feature(id="input_1")],
             )
         ],
     )
-    target = python_spec.entity.Entity(
-        id="transforms_test",
-        name="Transforms test",
+    target = python_spec.profile.Profile(
+        id="target",
         dimensions=[id_dimension, region_dimension],
-        datasets=[
-            python_spec.profile.Profile(
-                id="target",
-                producers=[
-                    python_spec.actions.Action(
-                        id="read",
-                        inputs=[],
-                        function=python_spec.ref.function(_read_transform_data, kind="read"),
-                        arguments={},
-                        outputs=[python_spec.feature.Feature(id="target_value")],
-                    ),
-                    python_spec.actions.Action(
-                        id="expand_data",
-                        inputs=[python_spec.ref.feature("input_1")],
-                        function=python_spec.ref.function(expand_data, kind="expand"),
-                        arguments={
-                            "source": python_spec.ref.dataset("transformed_dataset").dataframe,
-                        },
-                        outputs=[python_spec.feature.Feature(id="input_2")],
-                    ),
-                ],
-            )
+        producers=[
+            python_spec.actions.Action(
+                id="read",
+                inputs=[],
+                function=python_spec.ref.function(_read_transform_data, kind="read"),
+                arguments={},
+                outputs=[python_spec.feature.Feature(id="target_value")],
+            ),
+            python_spec.actions.Action(
+                id="expand_data",
+                inputs=[python_spec.ref.feature("input_1")],
+                function=python_spec.ref.function(expand_data, kind="expand"),
+                arguments={
+                    "source": python_spec.ref.dataset("transformed_dataset").dataframe,
+                },
+                outputs=[python_spec.feature.Feature(id="input_2")],
+            ),
         ],
     )
-    summary = python_spec.entity.Entity(
+    summary = python_spec.profile.Profile(
         id="summary",
-        name="Summary",
         dimensions=[id_dimension],
-        datasets=[
-            python_spec.profile.Profile(
-                id="summary",
-                producers=[
-                    python_spec.actions.Action(
-                        id="collapse_data",
-                        inputs=[python_spec.ref.feature("input_2")],
-                        function=python_spec.ref.function(analytics.aggregate, kind="collapse"),
-                        arguments={
-                            "dataset": python_spec.ref.dataset("target").dataframe,
-                            "feature": python_spec.ref.feature("input_2").id,
-                            "group_by": [python_spec.ref.dimension("id").id],
-                            "output": python_spec.ref.feature("collapsed_feature").id,
-                        },
-                        outputs=[python_spec.feature.Feature(id="collapsed_feature")],
-                    )
-                ],
+        producers=[
+            python_spec.actions.Action(
+                id="collapse_data",
+                inputs=[python_spec.ref.feature("input_2")],
+                function=python_spec.ref.function(analytics.aggregate, kind="collapse"),
+                arguments={
+                    "dataset": python_spec.ref.dataset("target").dataframe,
+                    "feature": python_spec.ref.feature("input_2").id,
+                    "group_by": [python_spec.ref.dimension("id").id],
+                    "output": python_spec.ref.feature("collapsed_feature").id,
+                },
+                outputs=[python_spec.feature.Feature(id="collapsed_feature")],
             )
         ],
     )
     spec_definition = spec.from_python(
-        entities=[source, target, summary],
+        profiles=[source, target, summary],
         dimensions=[id_dimension, region_dimension],
         name="transforms_test",
     )
 
-    ds_model = spec_definition.entities["transforms_test"].datasets["target"]
+    ds_model = spec_definition.profiles["target"]
     assert set(ds_model.actions) == {"read", "expand_data"}
     assert {"target_value", "input_2"} <= set(ds_model.all_features)
     expand = ds_model.actions["expand_data"]
@@ -259,7 +243,7 @@ def test_sources_and_transforms_python_spec() -> None:
         "source": "$datasets.transformed_dataset.dataframe",
     }
     assert expand.input_features == ["input_1"]
-    collapse = spec_definition.entities["summary"].datasets["summary"].actions["collapse_data"]
+    collapse = spec_definition.profiles["summary"].actions["collapse_data"]
     assert collapse.binding.function == "aggregate"
     assert collapse.binding.args == {
         "dataset": "$datasets.target.dataframe",
@@ -267,5 +251,5 @@ def test_sources_and_transforms_python_spec() -> None:
         "group_by": ["$dimensions.id.id"],
         "output": "$features.collapsed_feature.id",
     }
-    assert collapse.output_features == ["collapsed_feature"]
+    assert collapse.output_features == ["id", "collapsed_feature"]
     assert spec_definition.functions["aggregate"].kind == "collapse"

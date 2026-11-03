@@ -10,7 +10,7 @@ from uptimely import entrypoint as entrypoint_module
 from uptimely import row_context as uptimely_row_context
 from uptimely.spec import functions
 
-PLAN_VERSION = 3
+PLAN_VERSION = 4
 
 
 @dataclasses.dataclass(frozen=True)
@@ -22,7 +22,6 @@ class Invocation:
     entrypoint: str
     function_id: str
     mapping_id: str
-    entity_id: str
     dataset_id: str | None
     arguments: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
     dependency_ids: list[str] = dataclasses.field(default_factory=list)
@@ -117,8 +116,7 @@ class ExecutionPlan:
         for invocation in self.invocations:
             indexes.invocations_by_id[invocation.id] = invocation
             indexes.function_ids.add(invocation.function_id)
-            indexes.entity_ids.add(invocation.entity_id)
-            indexes.datasets[invocation.dataset_id] = invocation.entity_id
+            indexes.profile_ids.add(invocation.dataset_id)
             indexes.arguments[invocation.id] = invocation.arguments
             indexes.entrypoints.setdefault(invocation.entrypoint, None)
             indexes.invocations_by_kind.setdefault(invocation.function_kind, []).append(invocation)
@@ -132,14 +130,9 @@ class ExecutionPlan:
         return self._indexes.function_ids
 
     @property
-    def entity_ids(self) -> set[str]:
-        """Return the distinct entities used by this plan."""
-        return self._indexes.entity_ids
-
-    @property
-    def datasets(self) -> dict[str | None, str]:
-        """Return invoked dataset IDs mapped to their entity IDs."""
-        return self._indexes.datasets
+    def profile_ids(self) -> set[str | None]:
+        """Return the distinct profile IDs used by this plan."""
+        return self._indexes.profile_ids
 
     @property
     def arguments(self) -> dict[str, dict[str, typing.Any]]:
@@ -200,8 +193,7 @@ class ExecutionPlan:
 class _PlanResourceIndex:
     invocations_by_id: dict[str, Invocation] = dataclasses.field(default_factory=dict)
     function_ids: set[str] = dataclasses.field(default_factory=set)
-    entity_ids: set[str] = dataclasses.field(default_factory=set)
-    datasets: dict[str | None, str] = dataclasses.field(default_factory=dict)
+    profile_ids: set[str | None] = dataclasses.field(default_factory=set)
     arguments: dict[str, dict[str, typing.Any]] = dataclasses.field(default_factory=dict)
     features: dict[str, list[Invocation]] = dataclasses.field(default_factory=dict)
     entrypoints: dict[str, None] = dataclasses.field(default_factory=dict)

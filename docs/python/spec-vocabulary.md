@@ -13,11 +13,11 @@ string identifiers. `FUNCTION_KINDS` is a read-only mapping from each supported
 identifier to its contract.
 
 The built-in structural policies are independent. `dimension_change` compares
-the bound source dataset's declared dimension identities with the target
-dataset's declared identities during spec validation: `preserve` requires equal
+the bound source profile's declared dimension identities with the target
+profile's declared identities during spec validation: `preserve` requires equal
 sets, `add` requires the target to be a strict superset, and `remove` requires
 the target to be a strict subset. `fragment_dimensions` checks the raw
-materialized result against the target entity's dimensions: `target` requires
+materialized result against the target profile's dimensions: `target` requires
 all target dimension columns; `subset` permits any subset and leaves the
 engine to assemble it against the accumulated target. `row_count_relation`
 compares the raw result's row count with the accumulated target frame.

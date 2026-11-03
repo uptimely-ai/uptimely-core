@@ -29,7 +29,7 @@ class DataLineageColumn:
 
 @dataclasses.dataclass(frozen=True)
 class DataLineageInput:
-    """Source dataset schema and shared dimension keys for a transfer."""
+    """Source profile schema and shared dimension keys for a transfer."""
 
     dataset: str
     dataset_label: str
@@ -49,7 +49,7 @@ class DataLineageStep:
     function_label: str
     action: str
     kind: functions.FunctionKind
-    entity: str
+    profile: str
     dataset: str | None
     grain: str
     color: str
@@ -63,19 +63,19 @@ class DataLineageStep:
 
 @dataclasses.dataclass(frozen=True)
 class _FeatureSource:
-    """A feature declaration together with its owning table and entity."""
+    """A feature declaration together with its owning profile."""
 
-    entity: spec.Entity
+    profile: spec.Profile
     dataset: spec.Profile
     feature: spec.Feature
 
 
 def _dimension_columns(
-    entity: spec.Entity, dimensions: dict[str, spec.Dimension]
+    profile: spec.Profile, dimensions: dict[str, spec.Dimension]
 ) -> list[DataLineageColumn]:
-    """Resolve entity dimensions from the canonical global declarations."""
+    """Resolve profile dimensions from the canonical global declarations."""
     columns = []
-    for name in entity.dimension_ids:
+    for name in profile.dimension_ids:
         dimension = dimensions[name]
         columns.append(
             DataLineageColumn(
@@ -120,8 +120,8 @@ class _DataLineageBuilder:
                 continue
             owner = definition.feature_owners[feature_id][-1]
             self.features[feature_id] = _FeatureSource(
-                entity=definition.entities[owner[0]],
-                dataset=definition.datasets_by_key[owner],
+                profile=definition.profiles_by_key[owner],
+                dataset=definition.profiles_by_key[owner],
                 feature=feature,
             )
         self.compact_datasets = {
@@ -163,7 +163,7 @@ class _DataLineageBuilder:
     def _input_tables(
         self,
         invocation: execution_plan.Invocation,
-        entity: spec.Entity,
+        profile: spec.Profile,
         columns: list[DataLineageColumn],
     ) -> list[DataLineageInput]:
         """Group cross-dataset inputs with their source dimensions."""
@@ -180,18 +180,18 @@ class _DataLineageBuilder:
                 source_columns.setdefault(source.dataset.id, []).append(column)
 
         tables = []
-        target_dimensions = set(entity.dimension_ids)
+        target_dimensions = set(profile.dimension_ids)
         for source_id, inputs in source_columns.items():
             source = self.features[inputs[0].name]
             tables.append(
                 DataLineageInput(
                     dataset=source_id,
                     dataset_label=source.dataset.name or source_id,
-                    keys=_dimension_columns(source.entity, self.definition.dimensions),
+                    keys=_dimension_columns(source.profile, self.definition.dimensions),
                     columns=inputs,
                     join_dimensions=[
                         dimension.id
-                        for dimension in source.entity.dimensions
+                        for dimension in source.profile.dimensions
                         if dimension.id in target_dimensions
                     ],
                     row_count=1 if source_id in self.compact_datasets else 3,
@@ -219,14 +219,14 @@ class _DataLineageBuilder:
 
     def _step(self, invocation: execution_plan.Invocation) -> DataLineageStep:
         """Assemble one invocation's schema, input tables, and dependencies."""
-        entity = self.definition.entities[invocation.entity_id]
+        profile = self.definition.profiles[invocation.dataset_id]
         kind = functions.FUNCTION_KINDS[invocation.function_kind]
         dataset = (
-            self.definition.datasets.get(invocation.dataset_id) if invocation.dataset_id else None
+            self.definition.profiles.get(invocation.dataset_id) if invocation.dataset_id else None
         )
-        dimensions = set(entity.dimension_ids)
+        dimensions = set(profile.dimension_ids)
         input_role = "Declared input" if kind.is_effect else "Input"
-        columns = _dimension_columns(entity, self.definition.dimensions)
+        columns = _dimension_columns(profile, self.definition.dimensions)
         columns.extend(
             self._feature_column(name, role)
             for role, names in (
@@ -251,7 +251,7 @@ class _DataLineageBuilder:
             else invocation.function_id,
             action=spec_common.humanize_identifier(invocation.mapping_id),
             kind=kind,
-            entity=invocation.entity_id,
+            profile=profile.id,
             dataset=invocation.dataset_id,
             dataset_label=dataset_label,
             grain=dataset.row_scope.grain if dataset is not None else "",
@@ -260,7 +260,7 @@ class _DataLineageBuilder:
             dependencies=sorted(
                 self.numbers[dependency] for dependency in invocation.dependency_ids
             ),
-            input_tables=self._input_tables(invocation, entity, columns),
+            input_tables=self._input_tables(invocation, profile, columns),
             main_columns=self._main_columns(invocation, columns),
             row_count=1 if invocation.dataset_id in self.compact_datasets else 3,
         )

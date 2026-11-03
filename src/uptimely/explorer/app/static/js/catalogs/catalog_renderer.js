@@ -1,18 +1,19 @@
 import { KINDS, contextHeader, contextLink, display, distribution, escape, heading, href, icon, kindIcon, miniGraphic, page, statistic } from "../rendering/shared_markup.js";
 
-export function datasets(configuration) {
-  return Object.entries(configuration.entities).flatMap(([entityId, entity]) =>
-    Object.entries(entity.datasets).map(([id, dataset]) => ({ id, dataset, entityId, entity })));
+export function profiles(configuration) {
+  return Object.entries(configuration.profiles).map(([id, profile]) => ({
+    id, profile, profileId: id,
+  }));
 }
 
 export function features(configuration) {
-  return datasets(configuration).flatMap(item => {
+  return profiles(configuration).flatMap(item => {
     const produced = new Map();
-    for (const [actionId, action] of Object.entries(item.dataset.actions)) {
+    for (const [actionId, action] of Object.entries(item.profile.actions)) {
       for (const reference of action.features.outputs) {
         const id = reference.replace(/^\$features\./, "");
-        if (!item.entity.dimensions.includes(id)) {
-          produced.set(id, { ...item, featureId: id, feature: item.dataset.features[id], actionId, action });
+        if (!item.profile.dimensions.includes(id)) {
+          produced.set(id, { ...item, featureId: id, feature: item.profile.features[id], actionId, action });
         }
       }
     }
@@ -33,16 +34,15 @@ const contextLinks = {
   features(data) {
     const config = data.catalogs.configuration;
     const produced = features(config);
-    return datasets(config).map(({ id, dataset }) => {
+    return profiles(config).map(({ id, profile }) => {
       const items = produced.filter(item => item.id === id);
-      return items.length ? group(label(id, dataset), items.map(item =>
+      return items.length ? group(label(id, profile), items.map(item =>
         contextLink(`feature-${id}-${item.featureId}`, label(item.featureId, item.feature), "features"))) : "";
     }).join("");
   },
-  datasets(data) {
-    return Object.entries(data.catalogs.configuration.entities).map(([id, entity]) => group(label(id, entity),
-      Object.entries(entity.datasets).map(([datasetId, dataset]) =>
-        contextLink(`dataset-${datasetId}`, label(datasetId, dataset), "datasets")))).join("");
+  profiles(data) {
+    return Object.entries(data.catalogs.configuration.profiles).map(([id, profile]) =>
+      contextLink(`profile-${id}`, label(id, profile), "profiles")).join("");
   },
   functions(data) {
     return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length)
@@ -54,10 +54,6 @@ const contextLinks = {
   stages(data) {
     return data.stages.map(stage =>
       contextLink(`stage-${stage.stage}`, `Stage ${stage.stage}`, "stages", stage.steps.length)).join("");
-  },
-  entities(data) {
-    return Object.entries(data.catalogs.configuration.entities).map(([id, item]) =>
-      contextLink(`entity-${id}`, label(id, item), "entities")).join("");
   },
   dimensions(data) {
     return Object.entries(data.catalogs.configuration.dimensions).map(([id, item]) =>
@@ -77,31 +73,18 @@ export function catalogContext(data, view) {
 }
 
 const overviewData = {
-  entities(data) {
+  profiles(data) {
     const { configuration: config, summary } = data.catalogs;
-    const entities = Object.values(config.entities);
-    const counts = new Map();
-    entities.forEach(entity => {
-      const key = `${entity.dimensions.length} dimensions`;
-      counts.set(key, (counts.get(key) || 0) + 1);
+    const categoryCounts = new Map();
+    Object.values(config.profiles).forEach(profile => {
+      const category = profile.category || "Uncategorized";
+      categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
     });
-    const withDatasets = entities.filter(entity => Object.keys(entity.datasets).length).length;
     return {
-      stats: [["Entities", summary.entity_count], ["With datasets", withDatasets, "datasets"],
-        ["Datasets", summary.dataset_count], ["Dimensions", summary.dimension_count]],
-      charts: [distribution("Entities by dimension count", [...counts])],
-    };
-  },
-  datasets(data) {
-    const { configuration: config, summary } = data.catalogs;
-    const entities = Object.entries(config.entities);
-    const withDatasets = entities.filter(([, entity]) => Object.keys(entity.datasets).length).length;
-    return {
-      stats: [["Datasets", summary.dataset_count], ["Owning entities", withDatasets, "entities"],
-        ["Features", datasets(config).reduce((total, { dataset }) => total + Object.keys(dataset.features).length, 0)],
+      stats: [["Profiles", summary.profile_count], ["Categories", categoryCounts.size],
+        ["Features", profiles(config).reduce((total, { profile }) => total + Object.keys(profile.features).length, 0)],
         ["Actions", summary.action_count, "invocations"]],
-      charts: [distribution("Datasets by entity", entities.map(([id, entity]) =>
-        [id, Object.keys(entity.datasets).length]))],
+      charts: [distribution("Profiles by category", [...categoryCounts])],
     };
   },
   features(data) {
@@ -109,8 +92,8 @@ const overviewData = {
     const produced = features(config);
     return {
       stats: [["Features", produced.length],
-        ["Datasets with features", new Set(produced.map(item => item.id)).size, "datasets"]],
-      charts: [distribution("Features by dataset", datasets(config).map(({ id }) =>
+        ["Profiles with features", new Set(produced.map(item => item.id)).size, "profiles"]],
+      charts: [distribution("Features by profile", profiles(config).map(({ id }) =>
         [id, produced.filter(item => item.id === id).length]))],
     };
   },
@@ -187,8 +170,7 @@ function featureCards(config) {
         ${description(fn.description)}
       </section>
       <dl class="mt-6 grid gap-6 sm:grid-cols-2">${[
-        ["Entity", label(item.entityId, item.entity), "entities", href("entities", `entity-${item.entityId}`)],
-        ["Dataset", label(item.id, item.dataset), "datasets", href("datasets", `dataset-${item.id}`)],
+        ["Profile", label(item.id, item.profile), "profiles", href("profiles", `profile-${item.id}`)],
         ["Type", item.feature.type || "unspecified", "features"],
         ["Unit", item.feature.unit || "Not specified", "dimensions"],
       ].map(([title, value, key, url]) => `<div><dt class="flex items-center gap-2 text-xs text-slate-500">${icon(key, "h-3.5 w-3.5")}${title}</dt>
@@ -198,26 +180,15 @@ function featureCards(config) {
   }).join("");
 }
 
-function entityCards(config) {
-  return Object.entries(config.entities).map(([id, entity]) => `<article id="entity-${escape(id)}" data-context-item>
-    <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">${escape(id)}</p>
-    <h2 class="mt-1 font-display text-xl font-semibold text-white">${escape(label(id, entity))}</h2>${entity.description ? description(entity.description) : ""}
-    <div class="mt-4">${subheading("Dimensions")}${chips(entity.dimensions.map(key => config.dimensions[key].name || key))}</div>
-    <div class="mt-4 border-t border-slate-800 pt-3">${subheading("Datasets")}
-      <ul class="mt-3 space-y-1">${Object.entries(entity.datasets).map(([key, dataset]) =>
-        `<li class="font-mono text-sm text-cyan-200"><a href="${href("datasets", `dataset-${key}`)}">${escape(label(key, dataset))}</a></li>`).join("")}</ul>
-    </div></article>`).join("");
-}
-
 function dimensionCards(config) {
   return Object.entries(config.dimensions).map(([id, item]) => `<article id="dimension-${escape(id)}" data-context-item class="min-w-0">
     ${itemTitle(id, item, "h2", "text-lg")}${chips([item.type, ...(item.parent ? [`child of ${config.dimensions[item.parent].name || item.parent}`] : [])])}
     ${description(item.description)}</article>`).join("");
 }
 
-export function schemaColumns(config, entity, dataset) {
+export function schemaColumns(config, profile) {
   const producers = new Map();
-  for (const action of Object.values(dataset.actions)) {
+  for (const action of Object.values(profile.actions)) {
     const kind = config.functions[action.binding.function]?.kind;
     for (const ref of action.features.outputs) {
       const id = ref.replace(/^\$features\./, "");
@@ -225,47 +196,48 @@ export function schemaColumns(config, entity, dataset) {
     }
   }
   return [
-    ...entity.dimensions.map(id => ({ id, ...config.dimensions[id], role: "Dimension", color: "dimension" })),
-    ...Object.entries(dataset.features).filter(([id]) => !entity.dimensions.includes(id)).map(([id, feature]) => {
+    ...profile.dimensions.map(id => ({ id, ...config.dimensions[id], role: "Dimension", color: "dimension" })),
+    ...Object.entries(profile.features).filter(([id]) => !profile.dimensions.includes(id)).map(([id, feature]) => {
       const color = producers.get(id) || "neutral";
       return { id, ...feature, color, role: color === "teal" ? "Raw" : color === "escape" ? "External" : "Feature" };
     }),
   ];
 }
 
-function datasetCards(config) {
+function profileCards(config) {
   const colors = {
     dimension: "bg-[#172b46] text-[#b5d4f8]", teal: "bg-[#15352e] text-[#a5dfca]",
     escape: "bg-[#30234a] text-[#d8b4fe]", amber: "bg-[#392e19] text-[#efcf89]",
     neutral: "bg-slate-800 text-slate-300",
   };
-  return datasets(config).map(({ id, dataset, entityId, entity }) => {
-    const columns = schemaColumns(config, entity, dataset);
-    const actions = Object.entries(dataset.actions).filter(([, action]) => config.functions[action.binding.function]?.kind !== "vectorize");
-    return `<article id="dataset-${escape(id)}" data-context-item>
+  return profiles(config).map(({ id, profile }) => {
+    const columns = schemaColumns(config, profile);
+    const actions = Object.entries(profile.actions).filter(([, action]) => config.functions[action.binding.function]?.kind !== "vectorize");
+    return `<article id="profile-${escape(id)}" data-context-item>
       <header class="flex flex-wrap items-start justify-between gap-4"><div>
-        <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">${escape(label(entityId, entity))}</p>
-        ${itemTitle(id, dataset, "h2", "text-xl")}</div><span class="rounded-full bg-slate-800/70 px-3 py-1 font-mono text-[10px] text-slate-400">${columns.length} columns</span></header>
-      <section class="mt-5 border-t border-slate-800 pt-5" aria-label="Dataset details">
-        <h3 class="font-display text-lg font-semibold text-white">Dataset details</h3>
-        <div class="mt-5 space-y-6">${dataset.description ? description(dataset.description) : ""}
-          <dl class="grid gap-6 sm:grid-cols-2">${["filtering", "coverage"].filter(key => dataset.row_scope?.[key]).map(key => `<div>
+        ${profile.category ? `<p class="font-mono text-[10px] uppercase tracking-wider text-cyan-300">${escape(profile.category)}</p>` : ""}
+        ${itemTitle(id, profile, "h2", "text-xl")}</div><span class="rounded-full bg-slate-800/70 px-3 py-1 font-mono text-[10px] text-slate-400">${columns.length} columns</span></header>
+      <section class="mt-5 border-t border-slate-800 pt-5" aria-label="Profile details">
+        <h3 class="font-display text-lg font-semibold text-white">Profile details</h3>
+        <div class="mt-5 space-y-6">${profile.description ? description(profile.description) : ""}
+          ${profile.dimensions.length ? `<div>${subheading("Dimensions")}${chips(profile.dimensions.map(key => config.dimensions[key]?.name || key))}</div>` : ""}
+          <dl class="grid gap-6 sm:grid-cols-2">${["filtering", "coverage"].filter(key => profile.row_scope?.[key]).map(key => `<div>
             <dt class="font-mono text-xs uppercase tracking-wider text-slate-400">${key}</dt>
-            <dd class="mt-2 text-sm leading-6 text-slate-300">${escape(dataset.row_scope[key])}</dd></div>`).join("")}</dl>
-          ${dataset.order?.length ? `<div>${subheading("Logical order")}<p class="mt-2 text-xs text-slate-500">Not a physical row-order guarantee.</p>${chips(dataset.order.map(key =>
+            <dd class="mt-2 text-sm leading-6 text-slate-300">${escape(profile.row_scope[key])}</dd></div>`).join("")}</dl>
+          ${profile.order?.length ? `<div>${subheading("Logical order")}<p class="mt-2 text-xs text-slate-500">Not a physical row-order guarantee.</p>${chips(profile.order.map(key =>
             `${config.dimensions[key.dimension.replace(/^\$dimensions\./, "")]?.name || key.dimension} ${key.direction}`))}</div>` : ""}
           ${actions.length ? `<div>${subheading("Actions")}<div class="mt-3 divide-y divide-slate-800">${actions.map(([key, action]) => {
             const fn = config.functions[action.binding.function] || {};
             return `<div class="space-y-2 py-3"><p class="font-mono text-sm text-slate-300">${escape(fn.kind)} · ${escape(fn.name || action.binding.function)}</p>
               <p class="font-mono text-xs text-slate-500">${escape(key)} · ${escape(action.binding.function)}</p>
-              ${fn.kind === "collapse" ? `<p class="font-mono text-xs text-slate-400">Input dataset inferred from bound features · Group by entity dimensions: ${display(entity.dimensions)}<br>${escape(fn.name || action.binding.function)}(${display(action.binding.args)})</p>` : ""}
+              ${fn.kind === "collapse" ? `<p class="font-mono text-xs text-slate-400">Input dataset inferred from bound features · Group by profile dimensions: ${display(profile.dimensions)}<br>${escape(fn.name || action.binding.function)}(${display(action.binding.args)})</p>` : ""}
               ${fn.kind === "escape" ? '<p class="text-xs leading-5 text-violet-300">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</p>' : ""}</div>`;
           }).join("")}</div></div>` : ""}
         </div></section>
-      ${dataset.row_scope?.grain ? description(dataset.row_scope.grain) : ""}
+      ${profile.row_scope?.grain ? description(profile.row_scope.grain) : ""}
       <div class="mt-6"><div class="dataset-table-scroll overflow-x-auto rounded-xl border border-slate-700/60">
         <table data-dataset-schema="${escape(id)}" class="w-full min-w-max border-collapse text-left font-mono text-xs">
-          <caption class="sr-only">Declared column types and units for ${escape(label(id, dataset))}; schema only, no sample records.</caption>
+          <caption class="sr-only">Declared column types and units for ${escape(label(id, profile))}; schema only, no sample records.</caption>
           <thead><tr>${columns.map(column => `<th scope="col" class="border-b border-slate-700/50 px-4 py-4 ${colors[column.color]}">${escape(label(column.id, column))}
             <span class="mt-2 block text-[10px] font-normal">${column.role}</span><span class="mt-1 block text-[9px] font-normal text-slate-500">${escape(column.id)}</span></th>`).join("")}</tr></thead>
           <tbody><tr>${columns.map(column => `<td class="border-b border-slate-800/60 px-4 py-3 text-lime-300">${escape(column.type || "unspecified")}</td>`).join("")}</tr>
@@ -288,7 +260,7 @@ function functionCards(data) {
         ${(fn.doc?.examples || []).slice(1).map((example, index) => `<section class="mt-6">${subheading(`Example ${index + 2}`)}<pre class="mt-3 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(example)}</code></pre></section>`).join("")}
         ${fn.kind === "escape" ? `<p class="mt-10 text-sm leading-6 text-violet-200/90">Uncontrolled external operation: declared feature inputs and outputs express logical dependencies only. Dataframes are passed only through explicitly bound arguments, and the return value is ignored.</p>
           ${fn.escape_actions?.length ? `<div class="mt-10">${subheading("Used by actions")}${fn.escape_actions.map(action => `<div class="py-4">
-            <p class="font-mono text-xs text-slate-200">${escape(action.entity)} / ${escape(action.dataset)} · ${escape(action.action)}</p>
+            <p class="font-mono text-xs text-slate-200">${escape(action.profile)} · ${escape(action.action)}</p>
             <p class="mt-2 font-mono text-xs text-slate-400">Declared inputs: ${escape(action.inputs.join(", ") || "none")}</p>
             <p class="mt-1 font-mono text-xs text-slate-400">Declared outputs: ${escape(action.outputs.join(", ") || "none")}</p></div>`).join("")}</div>` : ""}` : ""}
         ${Object.keys(fn.args || {}).length ? `<div class="mt-10">${subheading("Arguments")}<dl class="mt-3 divide-y divide-slate-800/60">${Object.entries(fn.args).map(([key, arg]) => `<div class="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
@@ -327,8 +299,8 @@ export function stageCards(data) {
 
 export function renderCatalog(data, view) {
   const config = data.catalogs.configuration;
-  const renderers = { features: () => featureCards(config), entities: () => entityCards(config),
-    dimensions: () => dimensionCards(config), datasets: () => datasetCards(config),
+  const renderers = { features: () => featureCards(config), profiles: () => profileCards(config),
+    dimensions: () => dimensionCards(config),
     functions: () => functionCards(data), stages: () => stageCards(data) };
   const title = view[0].toUpperCase() + view.slice(1);
   const descriptions = {

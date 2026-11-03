@@ -202,24 +202,17 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
                     "args": {"value": {"type": "float"}},
                 },
             },
-            "entities": {
-                "entity": {
-                    "name": "Entity",
-                    "datasets": {
-                        "dataset": {
-                            "actions": {
-                                "zero_argument": {
-                                    "binding": {"function": "zero_argument", "args": {}}
-                                },
-                                "scalar_argument": {
-                                    "binding": {
-                                        "function": "scalar_argument",
-                                        "args": {"value": 1.5},
-                                    }
-                                },
+            "profiles": {
+                "dataset": {
+                    "actions": {
+                        "zero_argument": {"binding": {"function": "zero_argument", "args": {}}},
+                        "scalar_argument": {
+                            "binding": {
+                                "function": "scalar_argument",
+                                "args": {"value": 1.5},
                             }
-                        }
-                    },
+                        },
+                    }
                 }
             },
         }

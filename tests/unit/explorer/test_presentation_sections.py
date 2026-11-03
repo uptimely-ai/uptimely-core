@@ -35,17 +35,12 @@ def test_feature_labels_use_ids_for_empty_names_and_prefer_global_dimensions() -
     definition = spec.Spec.model_validate(
         {
             "dimensions": {"id": {"name": "Global key", "type": "integer"}},
-            "entities": {
-                "asset": {
-                    "name": "Asset",
-                    "datasets": {
-                        "data": {
-                            "features": {
-                                "id": {"name": "Dataset key"},
-                                "value": {"name": ""},
-                            }
-                        }
-                    },
+            "profiles": {
+                "data": {
+                    "features": {
+                        "id": {"name": "Dataset key"},
+                        "value": {"name": ""},
+                    }
                 }
             },
         }
@@ -54,14 +49,16 @@ def test_feature_labels_use_ids_for_empty_names_and_prefer_global_dimensions() -
 
 
 def test_feature_data_preserves_empty_strings() -> None:
-    node = models.FeatureNode(name="reading", data_type="", entity="asset", dataset_id="telemetry")
+    node = models.FeatureNode(
+        name="reading", data_type="", profile_id="telemetry", dataset_id="telemetry"
+    )
 
     assert feature_lineage._node_data(node) == {
         "node_type": "feature",
         "is_action": False,
         "label": "reading",
         "feature_id": "reading",
-        "entity": "asset",
+        "profile": "telemetry",
         "dataset_id": "telemetry",
         "data_type": "",
     }
@@ -78,7 +75,7 @@ def test_action_data_includes_declared_function_metadata() -> None:
     node = models.ActionNode(
         action_id="double_action",
         features=("doubled",),
-        entity="asset",
+        profile_id="telemetry",
         dataset_id="telemetry",
         function=function,
     )
@@ -89,7 +86,7 @@ def test_action_data_includes_declared_function_metadata() -> None:
         "label": "Double",
         "action_id": "double_action",
         "features": ["doubled"],
-        "entity": "asset",
+        "profile": "telemetry",
         "dataset_id": "telemetry",
         "function_id": "double",
         "function_name": "Double",
@@ -135,7 +132,6 @@ def test_main_columns_replace_outputs_in_order_without_materializing_escape() ->
         entrypoint="example:calculate",
         function_id="calculate",
         mapping_id="calculate",
-        entity_id="asset",
         dataset_id="data",
         input_features=["a"],
     )
@@ -186,14 +182,9 @@ def test_kind_capabilities_preserve_presentation_contracts(
                     "entrypoint": "example:calculate",
                 }
             },
-            "entities": {
-                "asset": {
-                    "name": "Asset",
-                    "datasets": {
-                        "data": {"features": {"value": {}}},
-                        "source": {"features": {"raw": {}}},
-                    },
-                }
+            "profiles": {
+                "data": {"features": {"value": {}}},
+                "source": {"features": {"raw": {}}},
             },
         }
     )
@@ -203,7 +194,6 @@ def test_kind_capabilities_preserve_presentation_contracts(
         entrypoint="example:calculate",
         function_id="calculate",
         mapping_id="calculate",
-        entity_id="asset",
         dataset_id="data",
         input_features=["raw"],
         output_features=["value"],
@@ -243,11 +233,8 @@ def test_presentation_follows_changed_capabilities_not_kind_names(
                     "entrypoint": "example:calculate",
                 }
             },
-            "entities": {
-                "asset": {
-                    "name": "Asset",
-                    "datasets": {"data": {"features": {"value": {}}}},
-                }
+            "profiles": {
+                "data": {"features": {"value": {}}},
             },
         }
     )
@@ -257,7 +244,6 @@ def test_presentation_follows_changed_capabilities_not_kind_names(
         entrypoint="example:calculate",
         function_id="calculate",
         mapping_id="calculate",
-        entity_id="asset",
         dataset_id="data",
         output_features=["value"],
     )

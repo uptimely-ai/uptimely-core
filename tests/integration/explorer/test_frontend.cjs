@@ -18,7 +18,7 @@ test("restores the original navigation hierarchy, project identity and build bad
 
 test("catalogs restore contextual browsing, overview charts and escaped item details", async () => {
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
-  for (const view of ["features", "entities", "datasets", "dimensions", "functions", "stages"]) {
+  for (const view of ["features", "profiles", "dimensions", "functions", "stages"]) {
     const { content, context } = renderCatalog(sampleData(), view);
     assert.match(context, /id="catalog-context"/);
     assert.match(context, /href="#catalog-overview"/);
@@ -33,18 +33,18 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(functions.content, /&lt;script&gt;/);
   assert.match(functions.content, /DataFrame/);
   assert.match(functions.context, /href="#function-calculate"/);
-  assert.match(renderCatalog(sampleData(), "datasets").content, /data-dataset-schema="readings"/);
+  assert.match(renderCatalog(sampleData(), "profiles").content, /data-dataset-schema="readings"/);
   assert.match(renderCatalog(sampleData(), "stages").content, /Engine type/);
 });
 
 test("feature catalog excludes dimensions, unused declarations and duplicate outputs", async () => {
   const { features, schemaColumns } = await moduleAt("catalogs/catalog_renderer.js");
   const config = sampleData().catalogs.configuration;
-  const dataset = config.entities.asset.datasets.readings;
-  dataset.features.unused = { type: "string" };
-  dataset.actions.calculate.features.outputs.push("$features.id", "$features.value");
+  const profile = config.profiles.readings;
+  profile.features.unused = { type: "string" };
+  profile.actions.calculate.features.outputs.push("$features.id", "$features.value");
   assert.deepEqual(features(config).map(item => item.featureId), ["value"]);
-  assert.deepEqual(schemaColumns(config, config.entities.asset, dataset).map(column => column.role),
+  assert.deepEqual(schemaColumns(config, profile).map(column => column.role),
     ["Dimension", "Feature", "Feature"]);
 });
 
@@ -54,7 +54,7 @@ test("dashboard, spec and plan retain original visual components and counts", as
   assert.match(dashboard(data), /dashboard-hero/);
   assert.match(dashboard(data), /dashboard-art/);
   assert.match(dashboard(data), /spec-journey/);
-  assert.equal((dashboard(data).match(/data-stat=/g) || []).length, 6);
+  assert.equal((dashboard(data).match(/data-stat=/g) || []).length, 5);
   assert.match(specOverview(data), /Spec profile/);
   assert.match(specOverview(data), /data-generated="false"/);
   assert.match(planOverview(data), /Max parallel invocations/);

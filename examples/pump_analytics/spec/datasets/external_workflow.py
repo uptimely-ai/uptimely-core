@@ -1,7 +1,7 @@
 """Declared dataframe boundary for the pump-level uncontrolled workflow."""
 
 from examples.pump_analytics.functions import external_workflow
-from examples.pump_analytics.spec import entity
+from examples.pump_analytics.spec import dimension
 
 from uptimely import Action, Feature, Profile, RowScope, ref
 
@@ -12,7 +12,8 @@ class PumpExternalWorkflow(Profile):
     id = "pump_external_workflow_dataset"
     name = "Pump External Workflow"
     description = "Pump-level inputs and outputs for an uncontrolled local workflow."
-    entity = entity.PUMP
+    category = "assets"
+    dimensions = [dimension.PLANT, dimension.PRODUCTION_LINE, dimension.PUMP]
     row_scope = RowScope(grain="One row per pump")
 
     producers = [

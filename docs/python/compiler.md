@@ -29,7 +29,7 @@ without them must be rebuilt; loading reports a recompile error rather than
 running without key or type information.
 
 Plans cache `invocations_by_id` and `execution_stages`, along with resource
-indexes: `function_ids`, `entity_ids`, `datasets` (dataset ID to entity ID),
+indexes: `function_ids`, `profile_ids`,
 `arguments` (invocation ID to bound arguments), `features` (output feature ID to
 producing invocations), `calculated_features`, `entrypoints`, and
 `invocations_by_kind`, and `count_per_kind` (invocation counts keyed and sorted by

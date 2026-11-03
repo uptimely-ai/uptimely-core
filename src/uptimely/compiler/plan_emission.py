@@ -22,11 +22,11 @@ def emit_invocation(
     resolver = spec_model.BindingArgumentResolver(
         current_dataset_id=node.dataset_id,
         feature_id=node.feature_id,
-        dimension_ids_by_dataset=spec_definition.dimension_ids_by_dataset,
+        dimension_ids_by_dataset=spec_definition.dimension_ids_by_profile,
     )
     arguments = resolver.resolve_arguments(node.arguments)
-    dataset = spec_definition.datasets[node.dataset_id]
-    id_columns = spec_definition.dimension_ids_by_dataset[node.dataset_id]
+    dataset = spec_definition.profiles[node.dataset_id]
+    id_columns = spec_definition.dimension_ids_by_profile[node.dataset_id]
     column_definitions = {
         **dataset.features,
         **{key: spec_definition.dimensions[key] for key in id_columns},
@@ -37,7 +37,6 @@ def emit_invocation(
         entrypoint=function.entrypoint,
         function_id=node.function_id,
         mapping_id=node.action_id,
-        entity_id=node.entity_id,
         dataset_id=node.dataset_id,
         output_features=list(node.output_features),
         input_features=list(node.input_features),

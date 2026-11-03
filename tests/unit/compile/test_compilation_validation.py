@@ -220,7 +220,7 @@ def test_compiler_logs_feature_and_graph_checks_before_failure(
     assert caplog.messages.count("\nCompiler validation:") == 1
     compiler_start = caplog.messages.index("\nCompiler validation:")
     assert caplog.messages[0] == "  Semantic checks:"
-    assert caplog.messages.index("    - checking globally unique dataset IDs") < compiler_start
+    assert caplog.messages.index("    - checking globally unique profile IDs") < compiler_start
     assert caplog.messages[compiler_start : compiler_start + 3] == [
         "\nCompiler validation:",
         "  Feature selection:",

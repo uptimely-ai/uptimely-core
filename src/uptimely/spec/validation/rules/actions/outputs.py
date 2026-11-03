@@ -20,7 +20,7 @@ def validate_output_presence(spec: spec_model.Spec) -> None:
             and functions.FUNCTION_KINDS[function.kind].requires_feature_outputs
             and not action.output_features
         ):
-            raise ValueError(f"Action {key[2]} must declare one or more features")
+            raise ValueError(f"Action {key[1]} must declare one or more features")
 
 
 def validate_function_id(spec: spec_model.Spec) -> None:
@@ -57,7 +57,7 @@ def validate_dimension_collision(spec: spec_model.Spec) -> None:
         collisions = set(action.output_features) & spec.dimensions.keys()
         if function is not None and function.kind == functions.VECTORIZE and collisions:
             raise ValueError(
-                "Calculated feature names cannot duplicate entity dimensions: "
+                "Calculated feature names cannot duplicate profile dimensions: "
                 + ", ".join(sorted(collisions))
             )
 
@@ -69,7 +69,7 @@ def validate_function_reference(spec: spec_model.Spec) -> None:
         function_id = action.binding.function
         if function_id not in spec.functions:
             raise errors.SpecError(
-                f"Profile {key[1]} actions reference unknown functions: {function_id}",
+                f"Profile {key[0]} actions reference unknown functions: {function_id}",
                 code="unknown_function_reference",
                 path=(*spec.declaration_paths[key], "binding", "function"),
             )
@@ -86,7 +86,7 @@ def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
             and action.output_features
         ):
             raise ValueError(
-                f"{function.kind.capitalize()} action {key[2]} cannot produce features"
+                f"{function.kind.capitalize()} action {key[1]} cannot produce features"
             )
 
 
@@ -98,28 +98,28 @@ def validate_output_feature(spec: spec_model.Spec) -> None:
         if function is None or not functions.FUNCTION_KINDS[function.kind].produces_features:
             continue
         for feature in action.output_features:
-            if feature not in spec.datasets_by_key[key[:2]].features:
-                raise ValueError(f"Action {key[2]} references unknown feature: {feature}")
+            if feature not in spec.profiles_by_key[key[0]].features:
+                raise ValueError(f"Action {key[1]} references unknown feature: {feature}")
 
 
 def validate_unique_producer(spec: spec_model.Spec) -> None:
     """Reject multiple producers for a non-dimension feature in declaration order."""
     logger.debug("    - checking unique producers for non-dimension features")
-    producers: dict[tuple[spec_model.DatasetKey, str], str] = {}
+    producers: dict[tuple[spec_model.ProfileKey, str], str] = {}
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or not functions.FUNCTION_KINDS[function.kind].produces_features:
             continue
         for feature in action.output_features:
-            if feature in spec.dimensions_by_dataset[key[:2]]:
+            if feature in spec.dimensions_by_profile[key[0]]:
                 continue
-            producer_key = (key[:2], feature)
+            producer_key = (key[0], feature)
             previous = producers.get(producer_key)
             if previous is not None:
                 raise ValueError(
-                    f"Feature {feature} is produced by multiple actions: {previous}, {key[2]}"
+                    f"Feature {feature} is produced by multiple actions: {previous}, {key[1]}"
                 )
-            producers[producer_key] = key[2]
+            producers[producer_key] = key[1]
 
 
 def validate_collapse_output(spec: spec_model.Spec) -> None:
@@ -130,9 +130,9 @@ def validate_collapse_output(spec: spec_model.Spec) -> None:
         if (
             function is not None
             and function.kind == functions.COLLAPSE
-            and not (set(action.output_features) - spec.dimensions_by_dataset[key[:2]])
+            and not (set(action.output_features) - spec.dimensions_by_profile[key[0]])
         ):
-            raise ValueError(f"Collapse action {key[2]} must produce a non-dimension feature")
+            raise ValueError(f"Collapse action {key[1]} must produce a non-dimension feature")
 
 
 def validate_current_feature_selector(spec: spec_model.Spec) -> None:
@@ -143,13 +143,13 @@ def validate_current_feature_selector(spec: spec_model.Spec) -> None:
         if function is None or function.kind not in {functions.VECTORIZE, functions.COLLAPSE}:
             continue
         count = (
-            len(set(action.output_features) - spec.dimensions_by_dataset[key[:2]])
+            len(set(action.output_features) - spec.dimensions_by_profile[key[0]])
             if function.kind == functions.COLLAPSE
             else len(action.output_features)
         )
         if count > 1 and selectors.CURRENT_ID in action.feature_selectors:
             raise ValueError(
-                f"{function.kind.capitalize()} action {key[2]} "
+                f"{function.kind.capitalize()} action {key[1]} "
                 "cannot use $features.@ when it produces multiple features"
             )
 
@@ -157,21 +157,20 @@ def validate_current_feature_selector(spec: spec_model.Spec) -> None:
 def warn_unproduced_features(spec: spec_model.Spec) -> None:
     """Warn when declared dataset features have no action producer."""
     logger.debug("    - checking declared features have producers (warning only)")
-    for key, dataset in spec.dataset_items:
+    for key, profile in spec.profile_items:
         produced = {
             feature
-            for feature, producers in dataset.feature_producers.items()
+            for feature, producers in profile.feature_producers.items()
             if any(
                 (function := spec.functions.root.get(action.binding.function)) is not None
                 and functions.FUNCTION_KINDS[function.kind].produces_features
                 for _, action in producers
             )
         }
-        missing = sorted(dataset.features.keys() - produced - spec.dimensions_by_dataset[key])
+        missing = sorted(profile.features.keys() - produced - spec.dimensions_by_profile[key])
         if missing:
             warnings.warn(
-                f"entities.{key[0]}.datasets.{key[1]}.features: Features have no producer action: "
-                + ", ".join(missing),
+                f"profiles.{key}.features: Features have no producer action: " + ", ".join(missing),
                 UserWarning,
                 stacklevel=2,
             )
