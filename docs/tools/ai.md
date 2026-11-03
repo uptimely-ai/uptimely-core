@@ -42,7 +42,7 @@ Introspection over the saved spec and build:
 Execution through the saved plan and engine:
 
 - `execute_build` — run the saved execution plan as-is and return calculated
-  dataset outputs as dimension-keyed JSON rows
+  profile outputs as dimension-keyed JSON rows
 
 MCP never compiles or renders. Choose a full or scoped plan with
 `uptimely project build` before starting the server; `execute_build` has no
@@ -135,7 +135,7 @@ To use it:
    **Agent mode** — tools are not available in Ask mode.
 3. Check the tools icon to confirm the `uptimely` tools are listed, then ask
    for example: *"describe the pump_health_score function"* or *"run the saved
-   build and show three rows per dataset"*.
+   build and show three rows per profile"*.
 
 MCP sampling uses VS Code's default available models. The repository does not
 pin an `allowedModels` list because VS Code identifies a workspace MCP server
@@ -183,13 +183,13 @@ running the runners by hand:
 - *"What arguments does `min_max_scale` take?"* → `describe_function`
 - *"What does `pump_health_score` depend on?"* → `describe_feature`
 - *"What feature scope does this build cover?"* → `describe_build`
-- *"Run the saved build and show up to five rows per dataset"* →
+- *"Run the saved build and show up to five rows per profile"* →
   `execute_build`
 - *"I rebuilt the project; reload the active build"* → `reload_build`
 
-`execute_build` returns entity dimension keys plus the calculated features for
-each dataset, so results stay traceable to their owning entity rather than bare
-numbers. It runs the plan's configured sinks, which may persist output.
+`execute_build` returns profile grain keys plus the calculated features for
+each profile, so results retain their declared dimensional context. It runs the
+plan's configured sinks, which may persist output.
 
 ## Limitations
 
@@ -198,5 +198,5 @@ numbers. It runs the plan's configured sinks, which may persist output.
 - Scoped plans still execute their configured sinks. A sink that expects
   features outside the selected plan can fail; if all calculated outputs were
   produced, the tool reports sink failures as warnings.
-- Each dataset payload is capped by the `max_rows` argument of `execute_build`
+- Each profile payload is capped by the `max_rows` argument of `execute_build`
   to keep responses within a size agents can handle.

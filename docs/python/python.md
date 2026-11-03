@@ -77,22 +77,13 @@ Dimensions have stable IDs and declare one or more keyed resolutions. A profile'
 the dataframe column used by that profile. Optional dimension names are
 human-readable labels generated from IDs when omitted.
 
-`up.Spec` requires explicit `dimensions`, `entities`, and `datasets` sequences,
-including empty sequences when appropriate. It instantiates dataset classes and
-groups datasets using their `entity` attribute, which accepts an entity ID string
-or an `Entity` object. An entity's `dimensions` accepts dimension ID strings,
-`Dimension` objects, or a mixture of both. Referenced entities and dimensions
-must also appear in the corresponding `up.Spec` sequence; object references
-do not register them implicitly. Duplicate registrations, undeclared references,
-and conflicting object metadata are rejected.
-
-The explicit dataset sequence is authoritative; datasets nested in an `Entity`
-are not automatically registered. Unused registered entities and dimensions are
-preserved. Reference resolution does not mutate the supplied declarations.
-The function catalog is collected from the registered datasets.
-Convert declarations containing ID references through `up.Spec.to_model()`
-or `up.Spec.to_dict()` so those references can be resolved.
-`DatasetRegistry([Pump]).to_declarations()` optionally registers dataset classes.
+`up.Spec` accepts the profile declarations only. It infers dimension and
+resolution definitions from each profile's grain, requires repeated declarations
+to agree, rejects unresolved resolutions and conflicting metadata, and emits
+deterministic output. Profile IDs are globally unique. The function catalog is
+collected from the registered profiles; reference resolution does not mutate
+the supplied declarations. `ProfileRegistry([Pump]).to_declarations()` can
+instantiate and register profile classes.
 
 `Action` declares work without executing it. It takes `id`, `function`,
 `arguments`, and `outputs`, with optional `inputs`, `function_id`, and
@@ -136,7 +127,7 @@ engine assembles fragments for the same profile by complete keys with a full
 outer join, preserving partial coverage while rejecting duplicate keys and
 feature collisions. An
 `expand` fragment may omit dimension keys its lower-dimensional source cannot
-supply; the engine left-joins such a fragment onto the accumulated dataset by
+supply; the engine left-joins such a fragment onto the accumulated profile frame by
 the keys it carries, broadcasting a dimensionless fragment to every
 observation. See the runnable
 [dimensional operations example](https://github.com/uptimely-ai/uptimely-core/tree/main/examples/dimensional_operations)
@@ -151,17 +142,18 @@ as `ref.feature("result").id` pass an identifier, not feature data, and may be
 used for output-name arguments. Declare produced features in `outputs`; they
 are not inferred from arguments. In the resulting spec document, dependencies
 are recorded explicitly in `features.inputs`. Writes use `outputs=[]`. For
-generated declarations, use `Dataset(id=..., producers=[...], publishers=[...],
+generated declarations, use `Profile(id=..., grain=[...], producers=[...],
+publishers=[...],
 pipelines=[...])`.
 
-### Dataset action collections
+### Profile action collections
 
-Each dataset exposes three lists of actions:
+Each profile exposes three lists of actions:
 
 | Collection | Allowed kinds | Purpose |
 | --- | --- | --- |
-| `producers` | `read`, `collapse`, `conform`, `expand`, `vectorize` | Produce dataset features. |
-| `publishers` | `write` | Write dataset results to external destinations. |
+| `producers` | `read`, `collapse`, `conform`, `expand`, `vectorize` | Produce profile features. |
+| `publishers` | `write` | Write profile results to external destinations. |
 | `pipelines` | `escape` | Invoke opaque custom processing with logical feature inputs/outputs and no dataframe handoff. |
 
 Kinds remain explicit on functions or function references. Putting an action in
@@ -170,7 +162,7 @@ Action IDs must be non-empty and unique across all three collections. Reusing
 one function in multiple actions is allowed with distinct action IDs;
 `function_id` separately identifies its reusable catalog contract.
 
-Collections default to empty and are copied for each dataset instance.
+Collections default to empty and are copied for each profile instance.
 Constructor arguments replace the corresponding class collections, including
 when an empty list is passed. Subclasses inherit collections using normal Python
 attribute lookup: defining `producers` replaces the inherited list rather than
@@ -183,20 +175,21 @@ pipeline function's internal steps.
 
 ### Migrating from FunctionMapping
 
-- Replace `FunctionMapping(...)` with `Action(id=..., ...)`. Move named dataset
+- Replace `FunctionMapping(...)` with `Action(id=..., ...)`. Move named profile
   attributes or entries in `mappings={...}` into the appropriate action list.
   Use the former attribute name or dictionary key as the action ID.
 - Replace imports from `uptimely.spec.python.mapping` or
   `uptimely.spec.python.mappings` with `uptimely.spec.python.actions`, or import
   `Action` directly from `uptimely.spec.python`.
-- Access declarations through their collection rather than `Dataset.mappings`.
+- Access declarations through their collection rather than `Profile.mappings`.
 - Convert an action with `Action.to_model()`; its own ID supplies the canonical
   action identifier. Feature metadata remains in `outputs`, and
   `Feature.to_model()` is unchanged.
 
 The old Python authoring names and `mappings` constructor argument are removed.
 The canonical document model and exported JSON now use `actions` in each
-dataset. This breaking document change is spec version 3.
+profile. The current JSON contract is spec version 4; see the
+[spec migration guide](../components/spec.md#migrating-from-spec-version-3).
 
 <div class="api-reference" markdown="1">
 
@@ -210,27 +203,12 @@ dataset. This breaking document change is spec version 3.
       heading_level: 3
       show_root_heading: false
 
-## entity
+## profile
 
-`uptimely.spec.python.entity` declares entity metadata and dimensions.
+`uptimely.spec.python.profile` declares profile grain, metadata, actions, and
+optional class registries.
 
-Python entity declarations describe their dimensions and metadata. Associate
-datasets with them by setting the `entity` class attribute on each dataset.
-Conversion produces an ID-keyed dataset dictionary in the canonical model and
-exported JSON, without repeating `id` in the JSON attributes. Duplicate dataset
-IDs within an entity are rejected rather than overwritten.
-
-::: uptimely.spec.python.entity
-    options:
-      heading_level: 3
-      show_root_heading: false
-
-## dataset
-
-`uptimely.spec.python.dataset` declares dataset scope, action collections, and optional
-class registries.
-
-::: uptimely.spec.python.dataset
+::: uptimely.spec.python.profile
     options:
       heading_level: 3
       show_root_heading: false

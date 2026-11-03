@@ -61,7 +61,7 @@ def _validator(
     [
         ({"value": [1]}, ["key"], "missing dimension columns: key"),
         ({"key": ["A", "A"]}, ["key"], "duplicate dimension keys"),
-        ({"value": [1, 2]}, [], "dimensionless datasets allow at most one row"),
+        ({"value": [1, 2]}, [], "dimensionless profile frames allow at most one row"),
     ],
 )
 def test_shared_structural_contracts(
@@ -131,7 +131,7 @@ def test_equal_row_count_does_not_prove_identical_keys() -> None:
     validator = _vectorize_validator(
         pl.DataFrame({"key": ["new"]}), pl.DataFrame({"key": ["existing"]})
     )
-    with pytest.raises(ValueError, match="preserve the dataset dimension keys"):
+    with pytest.raises(ValueError, match="preserve the profile grain keys"):
         validator.validate()
 
 
@@ -139,15 +139,15 @@ def test_row_count_failure_precedes_key_identity_failure() -> None:
     validator = _vectorize_validator(
         pl.DataFrame({"key": ["existing", "new"]}), pl.DataFrame({"key": ["existing"]})
     )
-    with pytest.raises(ValueError, match="preserve the accumulated dataset row count"):
+    with pytest.raises(ValueError, match="preserve the accumulated profile row count"):
         validator.validate()
 
 
 @pytest.mark.parametrize(
     ("row_count_relation", "key_relation", "message"),
     [
-        ("same", "unrestricted", "preserve the accumulated dataset row count"),
-        ("unrestricted", "identical", "preserve the dataset dimension keys"),
+        ("same", "unrestricted", "preserve the accumulated profile row count"),
+        ("unrestricted", "identical", "preserve the profile grain keys"),
         ("unrestricted", "unrestricted", None),
     ],
 )
@@ -176,7 +176,7 @@ def test_kind_contracts_are_independent_and_not_hard_coded(
 
 def test_preservation_requires_the_accumulated_target() -> None:
     validator = _vectorize_validator(pl.DataFrame({"key": ["new"]}), None)
-    with pytest.raises(ValueError, match="preserve the accumulated dataset row count"):
+    with pytest.raises(ValueError, match="preserve the accumulated profile row count"):
         validator.validate()
 
 
@@ -257,7 +257,7 @@ def test_main_frame_merge_validation(lazy: bool, collision: bool) -> None:
     )
     contribution = fragment.lazy() if lazy else fragment
     if collision:
-        with pytest.raises(ValueError, match="overlap the accumulated dataset: value"):
+        with pytest.raises(ValueError, match="overlap the accumulated profile frame: value"):
             validator.validate_merge(contribution)
     else:
         validator.validate_merge(contribution)

@@ -109,7 +109,7 @@ def write_pump_telemetry(dataset: pl.LazyFrame, features: list[str]) -> None:
     Parameters
     ----------
     dataset
-        Dataset containing the calculated telemetry features.
+        DataFrame containing the calculated telemetry features.
     features
         Names of the feature columns to write.
 
@@ -133,7 +133,7 @@ def aggregate(
     Parameters
     ----------
     dataset
-        Dataset to aggregate.
+        DataFrame to aggregate.
     feature
         Name of the column to aggregate.
     method
@@ -182,7 +182,7 @@ def delta(
     Parameters
     ----------
     dataset
-        Dataset containing the readings.
+        DataFrame containing the readings.
     feature
         Name of the column to difference.
     partition_by
@@ -194,7 +194,7 @@ def delta(
 
     Returns:
     -------
-    Dataset with the ordered difference appended.
+    DataFrame with the ordered difference appended.
 
     Examples:
     --------
@@ -221,7 +221,7 @@ def ratio(
     Parameters
     ----------
     dataset
-        Dataset containing the numerator and denominator columns.
+        DataFrame containing the numerator and denominator columns.
     numerator_features
         Names of the columns multiplied into the numerator.
     denominator_features
@@ -234,7 +234,7 @@ def ratio(
 
     Returns:
     -------
-    Dataset with the scaled ratio appended.
+    DataFrame with the scaled ratio appended.
 
     Examples:
     --------
@@ -293,7 +293,7 @@ def subtract(
     Parameters
     ----------
     dataset
-        Dataset containing both feature columns.
+        DataFrame containing both feature columns.
     feature
         Name of the column subtracted from.
     subtrahend
@@ -303,7 +303,7 @@ def subtract(
 
     Returns:
     -------
-    Dataset with the difference appended.
+    DataFrame with the difference appended.
 
     Examples:
     --------
@@ -327,7 +327,7 @@ def extract_field(
     Parameters
     ----------
     dataset
-        Dataset containing the struct column.
+        DataFrame containing the struct column.
     field
         Name of the struct field to extract.
     column
@@ -337,7 +337,7 @@ def extract_field(
 
     Returns:
     -------
-    Dataset with the extracted field appended.
+    DataFrame with the extracted field appended.
 
     Examples:
     --------
@@ -363,7 +363,7 @@ def min_max_scale(
     Parameters
     ----------
     dataset
-        Dataset containing the column to scale.
+        DataFrame containing the column to scale.
     feature
         Name of the column to scale.
     lower_bound
@@ -378,7 +378,7 @@ def min_max_scale(
 
     Returns:
     -------
-    Dataset with the scaled column appended.
+    DataFrame with the scaled column appended.
 
     Examples:
     --------
@@ -408,7 +408,7 @@ def optimize_pump_operating_point(
     Parameters
     ----------
     dataset
-        Dataset containing the pump operating measurements.
+        DataFrame containing the pump operating measurements.
     optimization_features
         Names of the pressure, flow, power, temperature, and vibration
         columns, in that order.
@@ -417,7 +417,7 @@ def optimize_pump_operating_point(
 
     Returns:
     -------
-    Dataset with the recommendation struct appended.
+    DataFrame with the recommendation struct appended.
 
     Examples:
     --------
@@ -449,7 +449,7 @@ def pump_health_score(
     Parameters
     ----------
     dataset
-        Dataset containing the health input features.
+        DataFrame containing the health input features.
     health_features
         Names of the temperature-delta, vibration-delta, and efficiency
         columns, in that order.
@@ -458,7 +458,7 @@ def pump_health_score(
 
     Returns:
     -------
-    Dataset with the health score appended.
+    DataFrame with the health score appended.
 
     Examples:
     --------

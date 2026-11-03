@@ -3,7 +3,7 @@ import pytest
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension as pump_dimensions
 from examples.pump_analytics.spec import spec as pump_telemetry_spec
-from examples.pump_analytics.spec.datasets import constants, external_workflow, pump, telemetry
+from examples.pump_analytics.spec.profiles import constants, external_workflow, pump, telemetry
 from support import examples as example_support
 
 from uptimely import spec
@@ -58,10 +58,10 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
 
     assert [type(profile) for profile in pump_telemetry_spec.python_spec.profiles] == expected
     assert [profile.id for profile in pump_telemetry_spec.python_spec.profiles] == [
-        "pump_telemetry_dataset",
-        "pump_dataset",
-        "pump_external_workflow_dataset",
-        "constants_dataset",
+        "pump_telemetry",
+        "pump_profile",
+        "pump_external_workflow",
+        "constants",
     ]
     assert telemetry.Telemetry.grain == [
         python_spec.Grain(pump_dimensions.MACHINE, "machine"),
@@ -101,20 +101,20 @@ def test_example_manifest_parses_complete_spec() -> None:
         "production_line"
     )
     assert set(spec_definition.profiles) == {
-        "pump_telemetry_dataset",
-        "pump_dataset",
-        "pump_external_workflow_dataset",
-        "constants_dataset",
+        "pump_telemetry",
+        "pump_profile",
+        "pump_external_workflow",
+        "constants",
     }
-    assert spec_definition.profiles["pump_telemetry_dataset"].dimension_ids == [
+    assert spec_definition.profiles["pump_telemetry"].dimension_ids == [
         "machine",
         "timestamp",
     ]
-    assert spec_definition.profiles["pump_telemetry_dataset"].grain_reference_set == {
+    assert spec_definition.profiles["pump_telemetry"].grain_reference_set == {
         ("machine", "machine"),
         ("timestamp", "timestamp"),
     }
-    assert spec_definition.grain_keys_by_profile["pump_telemetry_dataset"] == [
+    assert spec_definition.grain_keys_by_profile["pump_telemetry"] == [
         "pump",
         "timestamp",
     ]
@@ -132,8 +132,8 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert "aggregate" not in spec_definition.functions.by_kind("vectorize")
     assert len(spec_definition.functions.by_kind("vectorize")) == 7
 
-    pump_dataset = spec_definition.profiles["pump_dataset"]
-    collapse = pump_dataset.actions["bearing_temperature_by_pump"]
+    pump_profile = spec_definition.profiles["pump_profile"]
+    collapse = pump_profile.actions["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.binding.function == "aggregate"
     assert "bearing_temperature_max" in collapse.output_features
@@ -146,10 +146,10 @@ def test_spec_from_profiles_python_api() -> None:
     )
 
     assert set(spec_definition.profiles) == {
-        "pump_telemetry_dataset",
-        "pump_dataset",
-        "pump_external_workflow_dataset",
-        "constants_dataset",
+        "pump_telemetry",
+        "pump_profile",
+        "pump_external_workflow",
+        "constants",
     }
     assert spec_definition.name == pump_telemetry_spec.python_spec.name
     assert spec_definition.source.name == "python_api"
@@ -165,9 +165,9 @@ def test_example_timestamp_order_matches_python_declaration() -> None:
     expected = [{"dimension": "timestamp", "resolution": "timestamp", "direction": "asc"}]
     for spec_definition in (authored, exported):
         assert [
-            key.model_dump() for key in spec_definition.profiles["pump_telemetry_dataset"].order
+            key.model_dump() for key in spec_definition.profiles["pump_telemetry"].order
         ] == expected
-        assert spec_definition.profiles["pump_dataset"].order == []
+        assert spec_definition.profiles["pump_profile"].order == []
 
 
 def test_sources_and_transforms_python_spec() -> None:

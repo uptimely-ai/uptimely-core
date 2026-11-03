@@ -74,7 +74,7 @@ def test_runtime_bindings_reject_invalid_runtime_references(reference: str, mess
 def test_runtime_bindings_reject_unavailable_dataframe_reference() -> None:
     bindings = _bindings()
 
-    with pytest.raises(ValueError, match="Dataset dataframe is unavailable: missing"):
+    with pytest.raises(ValueError, match="Profile dataframe is unavailable: missing"):
         bindings.resolve_value("missing", "dataframe")
 
 

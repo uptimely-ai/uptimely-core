@@ -32,9 +32,9 @@ The Explorer contains:
 | Section | What it shows |
 | --- | --- |
 | **Project home** | Project identity, counts, build scope, and the spec-to-execution journey. |
-| **Spec** | Overview, separate feature/entity/dataset/dimension/function catalogs, and feature lineage. |
+| **Spec** | Overview, separate profile/feature/dimension/function catalogs, and feature lineage. |
 | **Plan** | Overview, invocation topology, and execution stages with argument bindings. |
-| **Execution** | Dataset-specific animation of declared processing steps and illustrative tables. |
+| **Execution** | Profile-specific animation of declared processing steps and illustrative tables. |
 
 The original desktop navigation and contextual sidebars can be collapsed
 independently. On narrow screens, use the navigation menu and the page's context
@@ -46,7 +46,7 @@ rebuilding to load updated project data. Graphs and animation playback are
 stopped when leaving their view.
 
 Lineage and topology offer interactive **2D** and **3D** views, zoom, reset,
-dataset legends, and selectable node details. For animation, choose a dataset
+profile legends, and selectable node details. For animation, choose a profile
 before using **Previous**, **Play**, and **Next**.
 Animation values and rows are illustrative placeholders;
 they are not execution results. Running the project's workflow is a separate

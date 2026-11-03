@@ -24,9 +24,9 @@ directory is used. The grouped form is `uptimely engine run [PROJECT_ROOT]`.
 | `--config PATH` | No | `config/config.json` under the project root or current working directory | Engine settings and required runtime control parameter values in JSON. |
 | `--validate` | No | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
 | `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes execution details and validation traces. Replaces `--verbose`. |
-| `--preview [ROWS]` | No | Disabled; 5 rows when supplied without a count | Log the first positive number of rows from each final dataset after successful execution at info level. |
+| `--preview [ROWS]` | No | Disabled; 5 rows when supplied without a count | Log the first positive number of rows from each final profile after successful execution at info level. |
 
-For example, preview five rows per dataset, or request a specific row limit:
+For example, preview five rows per profile, or request a specific row limit:
 
 ```console
 uptimely run examples/pump_analytics
@@ -39,7 +39,7 @@ the completion summary and any debug details. Levels above `info` hide previews
 and the completion summary. Lazy frames are limited before
 collection, but their upstream operations may still require substantial work or
 repeat computation. Execution timing excludes preview collection and display.
-Previews can expose dataset contents in logs; enable them only when appropriate.
+Previews can expose profile contents in logs; enable them only when appropriate.
 
 Use `uptimely build` or the grouped `uptimely project build` command to change
 the execution plan or feature scope. Engine executes the saved
@@ -57,7 +57,7 @@ It does not enable validation; use `--validate` to run the runtime checks.
 Debug headings use `Invocation: read_constants [read]`, with the function ID
 below when different. Subsections are `Requirements:`, `Fragment:`,
 `Main frame:`, and `Merge:`, shown only when reached.
-The merge section shows the target dataset, join kind, keys,
+The merge section shows the target profile, join kind, keys,
 and cardinality; initial fragments are identified as initialization without a
 join. Internal invocation IDs remain unchanged.
 

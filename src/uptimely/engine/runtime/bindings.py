@@ -35,7 +35,7 @@ class RuntimeBindings:
         if argument_type == arg_types.DATAFRAME and isinstance(value, str):
             frame = self.state.resolve_main_frame_or_fragment_dataframe(value)
             if frame is None:
-                raise ValueError(f"Dataset dataframe is unavailable: {value}")
+                raise ValueError(f"Profile dataframe is unavailable: {value}")
             return frame
         if isinstance(value, str) and value.startswith(selectors.PARAMS_PREFIX):
             return self.resolve_parameter_reference(value)

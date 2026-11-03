@@ -18,8 +18,7 @@ project/
 │   └── config.json
 ├── spec/
 │   ├── spec.py <-- default spec entrypoint
-│   ├── dataset_<name>.py
-│   ├── entity.py
+│   ├── profile_<name>.py
 │   └── dimension.py
 └── _generated/
     ├── build/
@@ -49,8 +48,9 @@ live in `spec/`, runtime logic lives in functions, curated data stays under
 `_generated/` when they are disposable previews or debugging artifacts; use
 `data/output/` when results should be retained, shared, or reused as project data.
 
-Python dataset modules subclass `uptimely.spec.python.Dataset` and declare
-`Action` objects under `producers`, `publishers`, and `pipelines`. Each action
+Python profile modules subclass `uptimely.spec.python.Profile` and declare
+`Action` objects under `producers`, `publishers`, and `pipelines`. Profile grain
+references infer the dimensions and resolutions used by the spec. Each action
 points directly to an implementation in `functions/`, binds its arguments, and
 defines its output features. See
 [Python authoring](../python/python.md) for the declaration syntax.

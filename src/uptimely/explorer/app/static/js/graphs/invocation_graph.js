@@ -25,8 +25,8 @@ export function initializeInvocationLineage(signal) {
 			return;
 		}
 		const rows = [
-			['Dataset', node.dataset_name || node.dataset_id],
-			['Dataset ID', node.dataset_id],
+			['Profile', node.dataset_name || node.dataset_id],
+			['Profile ID', node.dataset_id],
 			['Stage', node.stage],
 			['Function kind', node.function_kind || 'n/a'],
 			['Function', node.function_name || node.function_id || 'n/a'],
@@ -100,7 +100,7 @@ export function initializeInvocationLineage(signal) {
 			layout.bounds.height += STAGE_COLUMNS.headerHeight;
 		}
 		return ExplorerLineage.createDatasetLineage2D(lineageContainer, graphData, style, layout, highlight, {
-			label: node => `${node.label}\ndataset: ${node.dataset_name || node.dataset_id}\nstage: ${node.stage}`,
+			label: node => `${node.label}\nprofile: ${node.dataset_name || node.dataset_id}\nstage: ${node.stage}`,
 			drawNode: (node, ctx) =>
 				ExplorerLineage.drawCard(node, ctx, node.function_name || node.function_id, node.datasetColor, highlight),
 			onSelect: updateSelection,

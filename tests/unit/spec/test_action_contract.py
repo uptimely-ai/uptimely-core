@@ -131,7 +131,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments(
     [
         ("missing", "missing output columns: result"),
         ("keys", "missing dimension columns: id"),
-        ("rows", "must preserve the dataset dimension keys"),
+        ("rows", "must preserve the profile grain keys"),
         ("type", "Output column result has type String; expected integer"),
         ("scalar", "must return a Polars DataFrame or LazyFrame"),
     ],

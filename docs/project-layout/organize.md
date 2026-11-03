@@ -34,7 +34,7 @@ generated output.
 
 Each repository owns its analytical code and publishes a versioned JSON spec
 fragment. A master project combines the fragments into one spec, exposing
-cross-repository dependencies through agreed dataset and feature identifiers.
+cross-repository dependencies through agreed profile and feature identifiers.
 Fragments may reference declarations in other fragments; validate the complete
 document after merging and reject conflicting definitions.
 

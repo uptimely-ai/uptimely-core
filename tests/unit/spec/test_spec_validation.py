@@ -28,7 +28,7 @@ def _escape_configuration() -> dict:
         "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
         "args": {},
     }
-    target = configuration["profiles"]["pump_telemetry_dataset"]
+    target = configuration["profiles"]["pump_telemetry"]
     target["actions"]["escape_first"] = {
         "binding": {
             "function": "external_action",
@@ -85,15 +85,15 @@ def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -
 
 def test_traversal_retains_duplicate_declarations_and_feature_owners() -> None:
     model = spec_model.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
-    pump_dataset = model.profiles["pump_dataset"]
-    model.profiles["pump_dataset_copy"] = pump_dataset.model_copy(
-        update={"id": "pump_dataset_copy"}, deep=True
+    pump_profile = model.profiles["pump_profile"]
+    model.profiles["pump_profile_copy"] = pump_profile.model_copy(
+        update={"id": "pump_profile_copy"}, deep=True
     )
 
     locations = model.profile_items
-    assert sum(item.id.startswith("pump_dataset") for _, item in locations) == 2
+    assert sum(item.id.startswith("pump_profile") for _, item in locations) == 2
     feature_id = next(
-        feature_id for feature_id in pump_dataset.features if feature_id not in model.grain_key_ids
+        feature_id for feature_id in pump_profile.features if feature_id not in model.grain_key_ids
     )
     assert len(model.feature_owners[feature_id]) == 2
 
@@ -131,13 +131,13 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
             "source": {"type": "dataframe"},
         },
     }
-    dataset = configuration["profiles"]["pump_telemetry_dataset"]
+    dataset = configuration["profiles"]["pump_telemetry"]
     dataset["features"]["expanded_feature"] = {"type": "float", "description": "Expanded feature"}
     dataset["actions"]["expand_op"] = {
         "binding": {
             "function": "expand_telemetry",
             "args": {
-                "source": "$profiles.pump_dataset.dataframe",
+                "source": "$profiles.pump_profile.dataframe",
             },
         },
         "features": {
@@ -149,17 +149,17 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     spec_path = tmp_path / "valid_mappings_spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
     parsed_spec = spec.load_spec(spec_path)
-    ds = parsed_spec.profiles["pump_telemetry_dataset"]
+    ds = parsed_spec.profiles["pump_telemetry"]
 
     assert "read_pump_telemetry" in ds.actions
     assert "expand_op" in ds.actions
     assert "expanded_feature" in ds.all_features
 
     bad_source_config = json.loads(json.dumps(configuration))
-    bad_source_config["profiles"]["pump_telemetry_dataset"]["features"]["bad_source_feature"] = {
+    bad_source_config["profiles"]["pump_telemetry"]["features"]["bad_source_feature"] = {
         "type": "float"
     }
-    bad_source_config["profiles"]["pump_telemetry_dataset"]["actions"]["bad_source"] = {
+    bad_source_config["profiles"]["pump_telemetry"]["actions"]["bad_source"] = {
         "binding": {"function": "missing_read", "args": {}},
         "features": {"inputs": [], "outputs": ["$features.bad_source_feature"]},
     }
@@ -169,10 +169,10 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         spec.load_spec(bad_source_path)
 
     bad_transform_config = json.loads(json.dumps(configuration))
-    bad_transform_config["profiles"]["pump_telemetry_dataset"]["features"][
-        "bad_transform_feature"
-    ] = {"type": "float"}
-    bad_transform_config["profiles"]["pump_telemetry_dataset"]["actions"]["bad_transform"] = {
+    bad_transform_config["profiles"]["pump_telemetry"]["features"]["bad_transform_feature"] = {
+        "type": "float"
+    }
+    bad_transform_config["profiles"]["pump_telemetry"]["actions"]["bad_transform"] = {
         "binding": {"function": "missing_expand", "args": {}},
         "features": {
             "inputs": ["$features.bearing_temperature_max"],
@@ -189,7 +189,7 @@ def test_unproduced_declared_features_warn_instead_of_failing(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = configuration["profiles"]["pump_telemetry_dataset"]
+    dataset = configuration["profiles"]["pump_telemetry"]
     dataset["features"]["unproduced_feature"] = {"type": "float"}
     path = tmp_path / "unproduced_feature.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -197,20 +197,19 @@ def test_unproduced_declared_features_warn_instead_of_failing(
     with pytest.warns(
         UserWarning,
         match=(
-            "profiles.pump_telemetry_dataset.features: "
-            "Features have no producer action: unproduced_feature"
+            "profiles.pump_telemetry.features: Features have no producer action: unproduced_feature"
         ),
     ):
         parsed_spec = spec.load_spec(path)
 
-    assert "unproduced_feature" in parsed_spec.profiles["pump_telemetry_dataset"].features
+    assert "unproduced_feature" in parsed_spec.profiles["pump_telemetry"].features
 
 
 def test_escape_mappings_preserve_logical_inputs_and_outputs(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = _escape_configuration()
-    dataset_config = configuration["profiles"]["pump_telemetry_dataset"]
+    dataset_config = configuration["profiles"]["pump_telemetry"]
     dataset_config["features"]["external_result"] = {"type": "float"}
     dataset_config["features"]["external_followup"] = {"type": "float"}
     dataset_config["actions"]["escape_first"]["features"]["outputs"] = ["$features.external_result"]
@@ -222,7 +221,7 @@ def test_escape_mappings_preserve_logical_inputs_and_outputs(
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
     parsed_spec = spec.load_spec(path)
-    actions = parsed_spec.profiles["pump_telemetry_dataset"].actions
+    actions = parsed_spec.profiles["pump_telemetry"].actions
 
     assert actions["escape_first"].input_features == [
         "bearing_temperature",
@@ -259,9 +258,7 @@ def test_escape_mappings_validate_declared_input_references(
     path_suffix: tuple[str, ...] | None,
 ) -> None:
     configuration = _escape_configuration()
-    mapping_definition = configuration["profiles"]["pump_telemetry_dataset"]["actions"][
-        "escape_first"
-    ]
+    mapping_definition = configuration["profiles"]["pump_telemetry"]["actions"]["escape_first"]
     mapping_definition["features"][field] = value
     path = tmp_path / "invalid_escape.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -328,13 +325,13 @@ def test_expand_rejects_higher_dimensional_source(tmp_path: pathlib.Path) -> Non
             "source": {"type": "dataframe"},
         },
     }
-    target = configuration["profiles"]["pump_dataset"]
+    target = configuration["profiles"]["pump_profile"]
     target["features"]["expanded_feature"] = {"type": "float"}
     target["actions"]["expand_op"] = {
         "binding": {
             "function": "expand_telemetry",
             "args": {
-                "source": "$profiles.pump_telemetry_dataset.dataframe",
+                "source": "$profiles.pump_telemetry.dataframe",
             },
         },
         "features": {
@@ -359,13 +356,13 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
             "source": {"type": "dataframe"},
         },
     }
-    target = configuration["profiles"]["pump_dataset"]
+    target = configuration["profiles"]["pump_profile"]
     target["features"]["conformed_feature"] = {"type": "float"}
     target["actions"]["conform_op"] = {
         "binding": {
             "function": "conform_telemetry",
             "args": {
-                "source": "$profiles.pump_telemetry_dataset.dataframe",
+                "source": "$profiles.pump_telemetry.dataframe",
             },
         },
         "features": {
@@ -394,14 +391,14 @@ def _matching_key_configuration(key_selector: object, *, key_type: str = "array[
     }
     target = configuration["profiles"]
     target["conformed_dataset"] = {
-        "grain": target["pump_dataset"]["grain"],
+        "grain": target["pump_profile"]["grain"],
         "features": {"conformed_value": {"type": "float"}},
         "actions": {
             "conform_values": {
                 "binding": {
                     "function": "conform_with_keys",
                     "args": {
-                        "source": "$profiles.pump_dataset.dataframe",
+                        "source": "$profiles.pump_profile.dataframe",
                         "on": key_selector,
                     },
                 },
@@ -426,7 +423,7 @@ def _matching_key_configuration(key_selector: object, *, key_type: str = "array[
     "key_selector",
     [
         "$profiles.@.grain.ids",
-        "$profiles.pump_dataset.grain.ids",
+        "$profiles.pump_profile.grain.ids",
     ],
 )
 def test_matching_key_selectors_validate_on_target_and_source(
@@ -492,7 +489,7 @@ def test_matching_key_errors_point_to_the_declared_key(
 
 def test_escape_accepts_explicit_dataframe_arguments(tmp_path: pathlib.Path) -> None:
     configuration = _matching_key_configuration(
-        "$profiles.pump_dataset.dataframe", key_type="dataframe"
+        "$profiles.pump_profile.dataframe", key_type="dataframe"
     )
     function = configuration["functions"]["conform_with_keys"]
     function["kind"] = "escape"
@@ -513,7 +510,7 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {"source": {"type": "dataframe"}},
     }
-    target = configuration["profiles"]["pump_dataset"]
+    target = configuration["profiles"]["pump_profile"]
     target["features"]["conformed_feature"] = {"type": "float"}
     target["actions"]["conform_op"] = {
         "binding": {
@@ -528,15 +525,15 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
     path = tmp_path / "conform_target_argument.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="must reference a foreign source dataset"):
+    with pytest.raises(ValueError, match="must reference a foreign source profile"):
         spec.load_spec(path)
 
 
 @pytest.mark.parametrize("action_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
 def test_action_rejects_explicit_source(tmp_path: pathlib.Path, action_id: str) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_dataset"]["actions"][action_id]["source"] = (
-        "$profiles.pump_telemetry_dataset"
+    configuration["profiles"]["pump_profile"]["actions"][action_id]["source"] = (
+        "$profiles.pump_telemetry"
     )
     invalid_operation_path = tmp_path / "invalid_aggregation_operation.json"
     invalid_operation_path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -565,7 +562,7 @@ def test_collapse_validates_source_grouping_and_output_contract(
     tmp_path: pathlib.Path, field: str, value: object, message: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    collapse = configuration["profiles"]["pump_dataset"]["actions"]["bearing_temperature_by_pump"]
+    collapse = configuration["profiles"]["pump_profile"]["actions"]["bearing_temperature_by_pump"]
     collapse[field] = value
     path = tmp_path / "invalid.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -577,17 +574,17 @@ def test_collapse_validates_source_grouping_and_output_contract(
     ("inputs", "message"),
     [
         ([], "must reference a source feature"),
-        (["$features.local_source"], "target dataset"),
+        (["$features.local_source"], "target profile"),
         (["$features.missing"], "unknown input feature"),
-        (["$profiles.pump_telemetry_dataset"], "Action features must use"),
+        (["$profiles.pump_telemetry"], "Action features must use"),
     ],
 )
 def test_collapse_validates_explicit_inputs(
     tmp_path: pathlib.Path, inputs: list, message: str
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_dataset"]["features"]["local_source"] = {}
-    collapse = configuration["profiles"]["pump_dataset"]["actions"]["bearing_temperature_by_pump"]
+    configuration["profiles"]["pump_profile"]["features"]["local_source"] = {}
+    collapse = configuration["profiles"]["pump_profile"]["actions"]["bearing_temperature_by_pump"]
     collapse["features"]["inputs"] = inputs
     path = tmp_path / "invalid.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -597,9 +594,9 @@ def test_collapse_validates_explicit_inputs(
 
 def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_telemetry_dataset"]["grain"] = [
+    configuration["profiles"]["pump_telemetry"]["grain"] = [
         item
-        for item in configuration["profiles"]["pump_telemetry_dataset"]["grain"]
+        for item in configuration["profiles"]["pump_telemetry"]["grain"]
         if item["dimension"] != "machine"
     ]
     path = tmp_path / "invalid_dimensions.json"
@@ -665,7 +662,7 @@ def test_collapse_rejects_inputs_from_multiple_datasets(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     references = ["$features.bearing_temperature", "$features.health_signal_normalized"]
-    collapse = configuration["profiles"]["pump_dataset"]["actions"]["bearing_temperature_by_pump"]
+    collapse = configuration["profiles"]["pump_profile"]["actions"]["bearing_temperature_by_pump"]
     collapse["features"]["inputs"] = references
     path = tmp_path / "mixed_inputs.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -677,7 +674,7 @@ def test_collapse_dimensions_alone_do_not_identify_input_dataset(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    collapse = configuration["profiles"]["pump_dataset"]["actions"]["bearing_temperature_by_pump"]
+    collapse = configuration["profiles"]["pump_profile"]["actions"]["bearing_temperature_by_pump"]
     collapse["features"]["inputs"] = ["$features.pump"]
     path = tmp_path / "dimension_input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")

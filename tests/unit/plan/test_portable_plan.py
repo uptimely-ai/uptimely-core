@@ -24,8 +24,8 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 entrypoint="example.functions:load",
                 function_id="load",
                 mapping_id="read_pressure",
-                dataset_id="pump_dataset",
-                arguments={"dataset": {"type": "literal", "value": "pump_dataset"}},
+                dataset_id="pump_profile",
+                arguments={"dataset": {"type": "literal", "value": "pump_profile"}},
                 dependency_ids=[],
                 id_columns=["plant", "pump"],
                 column_types={"plant": "string", "pump": "string", "pressure": "float"},
@@ -37,7 +37,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 entrypoint="example.functions:maximum",
                 function_id="maximum",
                 mapping_id="pressure_by_pump",
-                dataset_id="pump_dataset",
+                dataset_id="pump_profile",
                 arguments={"feature": "pressure"},
                 output_features=["plant", "pump", "maximum"],
                 dependency_ids=["opaque-read"],
@@ -48,7 +48,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 entrypoint="example.functions:save",
                 function_id="save",
                 mapping_id="save_pressure_by_pump",
-                dataset_id="pump_dataset",
+                dataset_id="pump_profile",
                 arguments={},
                 dependency_ids=["opaque-collapse"],
             ),
@@ -72,11 +72,11 @@ def test_plan_round_trip_preserves_function_kind_metadata() -> None:
     assert not hasattr(restored.invocations[1], "source")
     assert all("source" not in invocation for invocation in payload["invocations"])
     assert restored.invocations[1].entrypoint == "example.functions:maximum"
-    assert restored.invocations[1].dataset_id == "pump_dataset"
+    assert restored.invocations[1].dataset_id == "pump_profile"
     assert restored.invocations[1].mapping_id == "pressure_by_pump"
     assert restored.invocations[0].function_id == "load"
     assert restored.invocations[0].mapping_id == "read_pressure"
-    assert restored.invocations[0].dataset_id == "pump_dataset"
+    assert restored.invocations[0].dataset_id == "pump_profile"
     assert restored.invocations[0].id_columns == ["plant", "pump"]
     assert restored.invocations[0].column_types == {
         "plant": "string",
@@ -277,7 +277,7 @@ def test_plan_resource_indexes_traverse_invocations_once() -> None:
         assert list(plan.invocations_by_id) == ["opaque-read", "opaque-collapse", "opaque-write"]
         assert plan.invocations_by_id["opaque-read"] is plan.invocations[0]
         assert plan.function_ids == {"load", "maximum", "save"}
-        assert plan.profile_ids == {"pump_dataset"}
+        assert plan.profile_ids == {"pump_profile"}
         assert plan.arguments["opaque-read"] is plan.invocations[0].arguments
         assert plan.features["maximum"] == [plan.invocations[1]]
         assert plan.calculated_features == set()

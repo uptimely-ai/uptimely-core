@@ -6,7 +6,7 @@ Atomic rules accept a spec and raise on failure. The runner orders their prerequ
 from __future__ import annotations
 
 from .errors import SpecError
-from .rules.datasets import validate_profile_ids
+from .rules.profile_identity import validate_profile_ids
 from .spec import validate_spec
 
 __all__ = [

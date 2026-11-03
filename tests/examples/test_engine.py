@@ -45,17 +45,17 @@ def test_engine_returns_calculated_features_without_writing_output(
         "vibration_delta",
     ]
     assert isinstance(
-        result.calculated_outputs[("pump_dataset", "health_signal_normalized")],
+        result.calculated_outputs[("pump_profile", "health_signal_normalized")],
         pl.LazyFrame,
     )
-    pump_frame = result.main_frames["pump_dataset"].collect()
+    pump_frame = result.main_frames["pump_profile"].collect()
     assert pump_frame.select("pump", "bearing_temperature_max", "health_signal_normalized").sort(
         "pump"
     ).rows() == [
         ("PUMP-101", 68.7, 1.0),
         ("PUMP-201", 64.5, -1.0),
     ]
-    telemetry_frame = result.main_frames["pump_telemetry_dataset"].collect()
+    telemetry_frame = result.main_frames["pump_telemetry"].collect()
     assert "health_signal_normalized" not in telemetry_frame.columns
     telemetry_frame = telemetry_frame.sort("pump", "timestamp")
     assert telemetry_frame["pump"].to_list() == ["PUMP-101", "PUMP-101", "PUMP-201"]
@@ -64,7 +64,7 @@ def test_engine_returns_calculated_features_without_writing_output(
         "high_speed",
         "low_speed",
     ]
-    assert result.main_frames["constants_dataset"].collect().to_dicts() == [
+    assert result.main_frames["constants"].collect().to_dicts() == [
         {"gravity": 9.81, "room_temperature": 20.0}
     ]
     assert analytics.read_constants(
@@ -104,7 +104,7 @@ def test_engine_returns_calculated_features_without_writing_output(
         )
 
 
-def test_engine_cli_reports_processed_datasets(
+def test_engine_cli_reports_processed_profiles(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -132,11 +132,11 @@ def test_engine_cli_reports_processed_datasets(
 
     output = capsys.readouterr().out
     assert "Scope: all features" in output
-    assert "- Dataset: pump_dataset - 3 features" in output
-    assert "Dataset: pump_dataset\n" in output
-    assert "Dataset: pump_telemetry_dataset\n" in output
-    assert output.index("- Dataset: pump_dataset - 3 features") < output.index(
-        "Dataset: pump_dataset\n"
+    assert "- Profile: pump_profile - 3 features" in output
+    assert "Profile: pump_profile\n" in output
+    assert "Profile: pump_telemetry\n" in output
+    assert output.index("- Profile: pump_profile - 3 features") < output.index(
+        "Profile: pump_profile\n"
     )
     assert "shape:" not in output
     assert "\nInvocation: read_constants [read]\n" in output
@@ -145,7 +145,7 @@ def test_engine_cli_reports_processed_datasets(
     assert "Fragment read_constants:" not in output
     assert "\n  Main frame:\n    - checking dataframe type\n" in output
     assert (
-        "\n  Merge:\n    Target dataset: pump_telemetry_dataset\n"
+        "\n  Merge:\n    Target profile: pump_telemetry\n"
         "    - checking fragment feature collisions\n    - full join on "
     ) in output
     assert "\n  Completed in " not in output
@@ -180,7 +180,7 @@ def test_engine_cli_reports_scoped_saved_build(
 
     output = capsys.readouterr().out
     assert "Scope: selected features: health_signal_normalized" in output
-    assert "- Dataset: pump_dataset - 3 features" in output
+    assert "- Profile: pump_profile - 3 features" in output
 
 
 def test_engine_rejects_missing_parameter(
@@ -244,7 +244,7 @@ def test_engine_merges_fragments_by_profile_grain_keys(
     )
 
     operation = next(
-        operation for operation in engine.plan.invocations if operation.dataset_id == "pump_dataset"
+        operation for operation in engine.plan.invocations if operation.dataset_id == "pump_profile"
     )
     grain_keys = engine.spec_definition.grain_keys_by_profile[operation.dataset_id]
     main = execution_support.main_frame(
@@ -379,7 +379,7 @@ def test_engine_validates_required_fragment_columns_and_types(
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.dataset_id == "pump_dataset" and item.function_kind == "collapse"
+        if item.dataset_id == "pump_profile" and item.function_kind == "collapse"
     )
     grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.dataset_id]
     output = next(name for name in invocation.output_features if name not in grain_keys)
@@ -420,7 +420,7 @@ def test_engine_assembly_rejects_feature_collisions(
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.dataset_id == "pump_dataset" and item.function_kind == "collapse"
+        if item.dataset_id == "pump_profile" and item.function_kind == "collapse"
     )
     grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.dataset_id]
     output = next(name for name in invocation.output_features if name not in grain_keys)
@@ -463,7 +463,7 @@ def test_engine_rejects_invalid_fragments(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
     operation = next(
-        operation for operation in engine.plan.invocations if operation.dataset_id == "pump_dataset"
+        operation for operation in engine.plan.invocations if operation.dataset_id == "pump_profile"
     )
 
     main = execution_support.main_frame(
@@ -478,7 +478,7 @@ def test_engine_rejects_invalid_fragments(
         )
 
 
-def test_engine_looks_up_datasets_by_project_wide_id() -> None:
+def test_engine_looks_up_profiles_by_project_wide_id() -> None:
     frame = pl.LazyFrame({"id": [1]})
     state = state_module.RuntimeState(main_frames={"shared": execution_support.main_frame(frame)})
 
@@ -555,4 +555,4 @@ def test_engine_executes_requested_feature_and_its_dependencies(
 
     result = engine.run()
 
-    assert result.main_frames["pump_dataset"].collect().height == 2
+    assert result.main_frames["pump_profile"].collect().height == 2

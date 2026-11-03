@@ -79,7 +79,7 @@ directly.
 ## Spec
 
 Spec JSON is the portable, authoritative definition of the spec. It
-describes subjects, datasets, features, functions, and actions without
+describes dimensions, profiles, features, functions, and actions without
 depending on a particular authoring language. The other tools consume this
 shared contract.
 

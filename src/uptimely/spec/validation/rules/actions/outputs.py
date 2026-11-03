@@ -91,8 +91,8 @@ def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
 
 
 def validate_output_feature(spec: spec_model.Spec) -> None:
-    """Require an output feature to be declared in the target dataset."""
-    logger.debug("    - checking action outputs are declared in the target dataset")
+    """Require an output feature to be declared in the target profile."""
+    logger.debug("    - checking action outputs are declared in the target profile")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or not functions.FUNCTION_KINDS[function.kind].produces_features:
@@ -158,7 +158,7 @@ def validate_current_feature_selector(spec: spec_model.Spec) -> None:
 
 
 def warn_unproduced_features(spec: spec_model.Spec) -> None:
-    """Warn when declared dataset features have no action producer."""
+    """Warn when declared profile features have no action producer."""
     logger.debug("    - checking declared features have producers (warning only)")
     for key, profile in spec.profile_items:
         produced = {

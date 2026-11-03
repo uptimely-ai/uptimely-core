@@ -50,6 +50,7 @@ While the version is `0.x`, minor releases may include breaking changes.
   `profiles` in spec version 4. Profile declarations now own their dimensions
   and may declare an optional `category`; removed the Entity model and authoring
   API. Execution plans are now version 4 and no longer carry `entity_id`.
+  CLI summaries, previews, and Explorer labels now present profile terminology.
 - **Breaking:** Project builds and feature-graph inspection replace `--verbose`
   with `--log-level {debug,info,warning,error,critical}` (default: `info`).
   Debug logging includes detailed build summaries and feature graph trees.

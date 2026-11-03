@@ -176,8 +176,34 @@ Version 4 replaces the entity-owned `datasets` structure with top-level
 its own grain explicitly. Entity-owned dimensions and descriptive
 `row_scope.grain` text do not determine the selected grain. The optional
 `category` and `scope` fields do not affect semantic validation or execution.
-Rebuild generated project artifacts after migration; earlier spec versions are
-not supported.
+Rebuild generated project artifacts after migration; version 3 is not supported.
+
+## Migrating from spec version 3
+
+Version 3 documents are rejected rather than parsed with compatibility rules.
+Migrate the source document, then rebuild its execution plan and Explorer
+snapshot:
+
+1. Move each entity-owned dataset to the top-level `profiles` object and give
+   each profile a globally unique ID. Remove the `entities` object and entity
+   references.
+2. Replace inherited entity dimensions with top-level dimension declarations.
+   Declare each available keyed resolution under its dimension, including its
+   dataframe `key`, logical `type`, and any same-dimension `parent`.
+3. Add an explicit `grain` to every profile that needs dimension keys. Each
+   entry selects a `dimension` and one of its `resolutions`; do not infer a
+   profile grain from an entity or from descriptive text. Use `[]` for a
+   dimensionless profile.
+4. Replace `row_scope` with an optional descriptive string `scope`. It is not
+   executable and does not filter rows or validate coverage. If `row_scope`
+   previously held grain or filtering rules, move those requirements into
+   explicit profile grains or application logic as appropriate.
+5. Change dataset selectors to profile selectors, such as
+   `$profiles.<id>.grain.ids` or `$profiles.@.grain.ids`, then export version 4
+   and rebuild all generated artifacts.
+
+Set `spec_version` to `4` in exported JSON. The field defaults to `4` when
+omitted; readers accept only version `4`.
 
 ### Feature and Action Identifiers
 
@@ -261,7 +287,7 @@ Declare feature types explicitly: a tabular result's general type does not
 describe the types of its individual columns.
 
 Non-dimension feature identifiers must be globally unique and have exactly
-one producer. Dimension columns can recur across datasets.
+one producer. Dimension columns can recur across profiles.
 
 Feature and dimension registries describe the columns expected in tabular
 results. Runtime type checks and dataframe merge behavior are described in the
@@ -331,17 +357,19 @@ declared kind determines its analytical role.
 
 ### Function kinds
 
-Each function is labeled with exactly one kind. The function's dataframe arguments determine which datasets it consumes. The table defines the dataframe argument and feature-output counts for each kind:
+Each function is labeled with exactly one kind. The function's dataframe
+arguments determine which profiles it consumes. The table defines the dataframe
+argument and feature-output counts for each kind:
 
 | Kind | Dataframes in | Results out | Analytical | Dimension change | Purpose |
 | --- | ---: | ---: | --- | --- | --- |
-| `read` | 0 | 1 | No |  | Read external observations into a dataset. |
-| `collapse` | 1 | 1 | Yes | Down | Calculate features from a higher-dimensional foreign dataset. |
-| `conform` | 1 | 1 | No | Same | Adapt a same-dimension foreign dataset to the target profile's rows. |
-| `expand` | 1 | 1 | No | Up | Transfer observations from a lower-dimensional foreign dataset. |
+| `read` | 0 | 1 | No |  | Read external observations into a profile. |
+| `collapse` | 1 | 1 | Yes | Down | Calculate features from a higher-dimensional source profile. |
+| `conform` | 1 | 1 | No | Same | Adapt a same-dimension source profile to the target profile's rows. |
+| `expand` | 1 | 1 | No | Up | Transfer observations from a lower-dimensional source profile. |
 | `vectorize` | 1 | 1 | Yes | | Calculate features while preserving observation keys. |
 | `write` | 1 | 0 | No |  | Persist or evaluate selected data. |
-| `escape` | Any explicit arguments | 0 | No |  | Perform uncontrolled work outside the feature dataset with logical feature dependencies. |
+| `escape` | Any explicit arguments | 0 | No |  | Perform uncontrolled work outside the declared feature workflow with logical feature dependencies. |
 
 Data-producing functions return tabular results. Their implementations follow
 the kind contract; analytical functions perform their calculations and
@@ -473,7 +501,7 @@ outputs. An `expand` fragment may omit dimension keys its lower-dimensional
 source cannot supply; the engine left-joins it onto the accumulated dataset by
 the keys it carries. The engine validates required columns, types, and unique
 keys, then
-assembles same-dataset fragments by key with a full outer join. Partial
+assembles same-profile fragments by key with a full outer join. Partial
 coverage is retained; duplicate keys and overlapping feature outputs are
 rejected. See the [engine fragment contract](engine.md#fragments) for runtime
 details.
@@ -492,7 +520,7 @@ details.
 | `$features.@.id` | `string` | The sole vectorize output, or sole non-dimension collapse output. |
 
 Unsuffixed references remain supported; their template argument type determines
-whether a dataset identifier is resolved to data. Prefer explicit selectors
+whether a profile identifier is resolved to data. Prefer explicit selectors
 when writing new declarations. `.id` arguments require `string`, and
 `.dataframe` arguments require `dataframe`. Grain-key selectors require
 `array[string]`; their keys must be selected by the target and every referenced

@@ -41,7 +41,7 @@ def configure_run_parser(parser: argparse.ArgumentParser) -> None:
         const=DEFAULT_PREVIEW_ROWS,
         metavar="ROWS",
         help=(
-            "Log the first ROWS rows of each resulting dataset "
+            "Log the first ROWS rows of each resulting profile "
             f"(default when supplied: {DEFAULT_PREVIEW_ROWS})"
         ),
     )
@@ -98,11 +98,11 @@ def _log_summary(
 
     Args:
         bundle: Saved build used for execution.
-        result: Execution result containing the final datasets.
+        result: Execution result containing the final profile frames.
         duration: Execution duration in seconds.
     """
     logger.info(
-        "\nEngine completed in %.3f s: %d datasets processed",
+        "\nEngine completed in %.3f s: %d profiles processed",
         duration,
         len(result.main_frames),
     )
@@ -114,30 +114,30 @@ def _log_summary(
         )
         logger.debug("\nScope: %s", scope)
 
-        logger.debug("\nProcessed datasets:")
-        for dataset_id, dataset in bundle.spec_definition.profiles.items():
+        logger.debug("\nProcessed profiles:")
+        for profile_id, profile in bundle.spec_definition.profiles.items():
             logger.debug(
-                "- Dataset: %s - %d features",
-                dataset_id,
-                len(dataset.features),
+                "- Profile: %s - %d features",
+                profile_id,
+                len(profile.features),
             )
 
 
 def _log_previews(result: engine_module.ExecutionResult, rows: int) -> None:
-    """Log bounded dataset previews without changing Polars display settings.
+    """Log bounded profile previews without changing Polars display settings.
 
     Args:
-        result: Execution result containing the final datasets.
-        rows: Positive maximum number of rows to display per dataset.
+        result: Execution result containing the final profile frames.
+        rows: Positive maximum number of rows to display per profile.
     """
-    for dataset_id, frame in result.main_frames.items():
+    for profile_id, frame in result.main_frames.items():
         if not isinstance(frame, (pl.DataFrame, pl.LazyFrame)):
             raise TypeError(
-                f"Cannot preview Dataset({dataset_id}): "
+                f"Cannot preview Profile({profile_id}): "
                 f"unsupported frame type {type(frame).__name__}"
             )
         preview = frame.head(rows)
         if isinstance(preview, pl.LazyFrame):
             preview = preview.collect()
         with pl.Config(tbl_rows=rows, tbl_cols=-1, tbl_hide_dataframe_shape=True):
-            logger.info("\nDataset: %s\n%s", dataset_id, preview)
+            logger.info("\nProfile: %s\n%s", profile_id, preview)

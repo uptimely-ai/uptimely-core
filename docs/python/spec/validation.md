@@ -72,7 +72,7 @@ Independent rules have a deterministic order based on the dependency mapping's
 insertion order. Historical first-error precedence is not preserved. Declare
 every actual prerequisite instead of relying on incidental ordering.
 
-Dataset features without producers generate warnings only after all validators
+Profile features without producers generate warnings only after all validators
 have succeeded.
 
 ## Errors
@@ -88,7 +88,7 @@ Pydantic reports document-shape errors separately.
 | Module in `uptimely.spec.validation` | Responsibility |
 | --- | --- |
 | `spec` | Dependency mapping and fail-fast topological runner |
-| `rules.datasets` | Profile identity and ordering checks |
+| `rules.profile_identity` | Profile identity and ordering checks |
 | `rules.profiles` | Profile dimension membership |
 | `rules.dimensions` | Parent references and ancestry cycles |
 | `rules.features` | Feature ownership discovery and uniqueness |
@@ -102,10 +102,10 @@ Pydantic reports document-shape errors separately.
 | `rules.row_context` | Input ordering and context dimensions |
 | `errors` | Structured validation errors |
 
-Resource modules use the plural names of the spec collections. Action rules are
-grouped by the relationship they check, not by function kind. Collapse shares
-input source discovery with every other action; only invariants specific to
-collapsing are conditional on that kind.
+Profile identity and ordering checks are implemented in `rules.profile_identity`.
+Action rules are grouped by the relationship they check, not by function kind.
+Collapse shares input source discovery with every other action; only invariants
+specific to collapsing are conditional on that kind.
 
 Rules access `spec.profile_items` and `spec.action_items` directly when they need
 ownership or diagnostic paths, and use `spec.profiles` or `spec.actions` otherwise.
@@ -147,12 +147,12 @@ and invocation dependency ordering.
       show_root_heading: false
       members: [validate_spec]
 
-## datasets
+## Profile identity and ordering
 
-::: uptimely.spec.validation.rules.datasets
+::: uptimely.spec.validation.rules.profile_identity
     options:
       heading_level: 3
       show_root_heading: false
-      members: [validate_dataset_ids]
+      members: [validate_profile_ids]
 
 </div>

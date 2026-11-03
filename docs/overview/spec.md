@@ -1,17 +1,17 @@
 # Spec
 
-The examples below use pump measurements to show how entities, datasets,
-features, actions, and functions describe an analytical system.
+The examples below use pump measurements to show how dimensions, resolutions,
+profiles, features, actions, and functions describe an analytical system.
 
-## Entity
+## Dimension and resolution
 
-<p class="cv-function-subtitle">The analytical subject</p>
+<p class="cv-function-subtitle">Available observation keys and their levels</p>
 
 <div class="concepts-visual">
-  <div class="cv-entity">
+  <div class="cv-dimension">
     <div>
-      <p>An <strong>entity</strong> is an analytical subject. Here, it is pump telemetry: measurements describing pumps over time.</p>
-      <p>P-01 identifies a real pump. Pressure and flow measurements connect its physical behavior to the analytical model.</p>
+      <p>A <strong>dimension</strong> describes an observation axis, such as a machine or time. Its <strong>resolutions</strong> declare available keys, such as pump ID or fleet ID.</p>
+      <p>P-01 is one pump resolution key. Pressure and flow are measured features, not dimensions.</p>
     </div>
     <div class="cv-pump">
       <svg viewBox="0 0 240 200" role="img" aria-label="A pump with pressure and flow measurements">
@@ -29,16 +29,16 @@ features, actions, and functions describe an analytical system.
   </div>
 </div>
 
-## Dataset
+## Profile
 
-<p class="cv-function-subtitle">The entity's observations at a defined row scope</p>
+<p class="cv-function-subtitle">A selected grain and its available features</p>
 
-An entity can have several datasets, each describing a different row scope.
-This dataset contains minute-by-minute observations of the pump entity above.
+A profile selects one resolution per dimension in its ordered `grain`. This
+profile selects pump and timestamp keys for minute-by-minute observations.
 
-Other datasets could represent:
+Other profiles could represent:
 
-| Dataset | What one row represents | Example features |
+| Profile | What one row represents | Example features |
 | --- | --- | --- |
 | Pump reference data | One pump | Rated flow, installation date |
 | Minute-level telemetry | One pump at one timestamp | Pressure, flow |
@@ -49,11 +49,11 @@ Note that this is analytical representation.
 Data might be stored physically in different way.
 
 <div class="concepts-visual">
-  <div class="cv-dataset">
+  <div class="cv-profile">
     <div class="cv-scope">
       <div><span>GRAIN</span><strong>One pump at one timestamp</strong></div>
-      <div><span>FILTERING</span><strong>P-01, 09:00 to 09:02</strong></div>
-      <div><span>COVERAGE</span><strong>Every minute in this interval</strong></div>
+      <div><span>SCOPE / DESCRIPTIVE ONLY</span><strong>Pump telemetry observations</strong></div>
+      <div><span>CATEGORY</span><strong>Telemetry</strong></div>
     </div>
     <div class="cv-table-scroll">
       <table class="cv-table cv-model-table">
@@ -79,7 +79,7 @@ Data might be stored physically in different way.
   </div>
 </div>
 
-The combined dataset is a conceptual view, not a requirement to store all
+The combined profile dataframe is a conceptual view, not a requirement to store all
 intermediate columns in one physical table.
 
 ## Functions
@@ -88,7 +88,7 @@ A **function template** defines reusable code and argument types.
 
 In the compact tables, `time` abbreviates `timestamp`. Pressure and limits are
 in bar; tables without a pump column still describe P-01. Column colors follow
-the dataset legend above, including on both sides of each transformation.
+the profile legend above, including on both sides of each transformation.
 
 ### Read
 
@@ -122,7 +122,7 @@ the dataset legend above, including on both sides of each transformation.
 
 ### Conform
 
-<p class="cv-function-subtitle">Align with the target row scope</p>
+<p class="cv-function-subtitle">Align with the target profile grain</p>
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -142,7 +142,7 @@ the dataset legend above, including on both sides of each transformation.
 <div class="concepts-visual">
   <div class="cv-operation">
     <div class="cv-transform">
-      <div><span class="cv-tag">SOURCE DATASET / pump grain</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-violet">limit</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-violet">8</td></tr></tbody></table><p class="cv-detail">One value for the pump.</p></div>
+      <div><span class="cv-tag">SOURCE PROFILE / pump grain</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-violet">limit</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-violet">8</td></tr></tbody></table><p class="cv-detail">One value for the pump.</p></div>
       <div class="cv-arrow"><span>extend</span><b aria-hidden="true">&#8594;</b></div>
       <div><span class="cv-tag">TARGET FRAGMENT / pump + time</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-key">time</th><th class="cv-violet">limit</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:01</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:02</td><td class="cv-violet">8</td></tr></tbody></table></div>
     </div>
@@ -152,10 +152,10 @@ the dataset legend above, including on both sides of each transformation.
 
 ### Collapse
 
-<p class="cv-function-subtitle">Move to a coarser grain</p>
+<p class="cv-function-subtitle">Move from a source profile to a coarser target grain</p>
 
 `collapse` is the function kind that groups source observations and returns a
-dataset at the target grain. The engine runs the grouping; `collapse`
+profile at the target grain. The engine runs the grouping; `collapse`
 analytical functions calculate output features within each group.
 
 <div class="concepts-visual">
@@ -210,7 +210,7 @@ explicit dataflow and runtime checks fit the work.
 
 An action declares which features a function needs and produces, then binds
 that function to concrete arguments. In this example, `divide` receives the
-current dataset and feature identifiers, and returns `pressure_ratio`.
+current profile dataframe and feature identifiers, and returns `pressure_ratio`.
 
 <div class="concepts-visual">
   <div class="cv-operation cv-mapping-flow" role="group" aria-label="Input dataframe, JSON action, and output dataframe">

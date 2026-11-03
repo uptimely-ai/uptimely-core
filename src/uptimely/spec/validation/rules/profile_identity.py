@@ -1,4 +1,4 @@
-"""Atomic dataset identity and ordering checks."""
+"""Profile identity and ordering checks."""
 
 import logging
 
