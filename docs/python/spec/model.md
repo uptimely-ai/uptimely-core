@@ -137,7 +137,7 @@ mapping, and their internal IDs are excluded from serialized profile attributes.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Profile, Feature, Order, RowScope, Action, ActionFeatures]
+      members: [Profile, Feature, Order, Action, ActionFeatures]
 
 ## functions
 

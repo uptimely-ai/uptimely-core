@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Action, Feature, Grain, Order, Profile, RowScope, ref
+from uptimely import Action, Feature, Grain, Order, Profile, ref
 from uptimely.spec.python import row_context
 
 HYDRAULIC_POWER_SCALE = 1.0 / 36.0
@@ -23,9 +23,7 @@ class Telemetry(Profile):
     description = "Pump process and condition readings sampled at one-minute intervals."
     category = "telemetry"
     grain = TELEMETRY_GRAIN
-    row_scope = RowScope(
-        filtering="Development telemetry selected by the read function",
-    )
+    scope = "Development telemetry selected by the read function"
     order = (Order(dimension.TIMESTAMP, "timestamp", direction="asc"),)
 
     producers = [

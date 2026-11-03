@@ -26,7 +26,7 @@ function sampleData() {
               value: { name: "<Value>", type: "float" },
             },
             actions: { calculate: { binding: { function: "calculate", args: {} }, features: { inputs: [], outputs: ["$features.value"] } } },
-            row_scope: { filtering: "one row per machine" },
+            scope: "one row per machine <source>",
           },
         },
         dimensions: {

@@ -24,7 +24,7 @@ def test_keyed_profiles_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
                 "name": "First Profile",
                 "description": "First profile",
                 "category": "telemetry",
-                "row_scope": {"coverage": "One row per machine"},
+                "scope": "One row per machine",
             },
             "second": {},
         }
@@ -43,7 +43,7 @@ def test_keyed_profiles_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
     assert model.profiles["second"].name == "Second"
     assert payload["profiles"]["first"]["description"] == "First profile"
     assert payload["profiles"]["first"]["category"] == "telemetry"
-    assert payload["profiles"]["first"]["row_scope"]["coverage"] == "One row per machine"
+    assert payload["profiles"]["first"]["scope"] == "One row per machine"
     assert payload == model.model_dump(exclude_none=False)
     assert payload["spec_version"] == 4
     assert "actions" in payload["profiles"]["first"]
@@ -111,6 +111,16 @@ def test_profile_defaults_are_empty_independent_dictionaries() -> None:
     second = explicit.profiles
     first["new"] = spec.Profile(id="new")
     assert second == {"values": second["values"]}
+
+
+def test_profile_scope_must_be_a_string() -> None:
+    with pytest.raises(pydantic.ValidationError, match="scope"):
+        spec.Spec.model_validate(_document({"values": {"scope": {"filter": "active"}}}))
+
+
+def test_python_profile_scope_must_be_a_string() -> None:
+    with pytest.raises(TypeError, match="Profile scope must be a string"):
+        python_spec.Profile(id="values", scope=1)
 
 
 @pytest.mark.parametrize("canonical", [False, True])

@@ -477,6 +477,7 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
         description = "Telemetry readings"
         grain = [profile.Grain(pump, "machine")]
         category = "telemetry"
+        scope = "One row per pump observation"
         order = [profile.Order(pump, "machine", direction="desc")]
 
     spec_definition = Spec(
@@ -516,7 +517,7 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
             "description": "Telemetry readings",
             "category": "telemetry",
             "grain": [{"dimension": "machine", "resolution": "machine"}],
-            "row_scope": {"filtering": "", "coverage": ""},
+            "scope": "One row per pump observation",
             "order": [{"dimension": "machine", "resolution": "machine", "direction": "desc"}],
             "features": {},
             "actions": {},

@@ -71,6 +71,7 @@ def test_root_authoring_exports_preserve_object_identity() -> None:
     assert python_spec.ProfileRegistry is python_spec.profile.ProfileRegistry
     assert uptimely.Feature is python_spec.Feature
     assert uptimely.Order is python_spec.Order
-    assert uptimely.RowScope is python_spec.RowScope
+    assert not hasattr(uptimely, "RowScope")
+    assert not hasattr(python_spec, "RowScope")
     assert uptimely.function is python_spec.function
     assert uptimely.ref is python_spec.ref

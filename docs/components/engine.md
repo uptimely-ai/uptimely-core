@@ -186,12 +186,13 @@ represents zero or one global row, and the engine uses an internal
 collision-safe join key that is not exposed in the result.
 
 The join is intentionally permissive about coverage: it does not prove that
-fragments satisfy the dataset's declared grain, filtering, or `row_scope`.
+fragments satisfy the profile's declared grain. Profile `scope` is descriptive
+metadata only and has no bearing on the join.
 Fragments for one dataset should represent the same intended observations.
 Include a key with an explicit null feature value when an observation belongs
 to the dataset but its value is missing; put genuinely different row scopes in
 separate datasets. A `conform` operation is responsible for reconciling its
-source to the target dataset's row scope before returning a fragment.
+source to the target dataset's required rows before returning a fragment.
 
 ## Runtime validation
 

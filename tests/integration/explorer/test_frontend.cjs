@@ -33,7 +33,12 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(functions.content, /&lt;script&gt;/);
   assert.match(functions.content, /DataFrame/);
   assert.match(functions.context, /href="#function-calculate"/);
-  assert.match(renderCatalog(sampleData(), "profiles").content, /data-dataset-schema="readings"/);
+  const profiles = renderCatalog(sampleData(), "profiles").content;
+  assert.match(profiles, /data-dataset-schema="readings"/);
+  assert.match(profiles, /one row per machine &lt;source&gt;/);
+  assert.ok(!profiles.includes("one row per machine <source>"));
+  assert.ok(!profiles.includes("Filtering"));
+  assert.ok(!profiles.includes("Coverage"));
   assert.match(renderCatalog(sampleData(), "stages").content, /Engine type/);
 });
 

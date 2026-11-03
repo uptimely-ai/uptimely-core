@@ -124,13 +124,6 @@ class Order(Grain):
     direction: typing.Literal["asc", "desc"]
 
 
-class RowScope(common.StrictModel):
-    """Descriptive filtering and coverage metadata for a profile."""
-
-    filtering: str = ""
-    coverage: str = ""
-
-
 class Profile(common.StrictModel):
     """An entry under the top-level ID-keyed `profiles` object."""
 
@@ -138,8 +131,8 @@ class Profile(common.StrictModel):
     name: str | None = None
     description: str | None = None
     category: str | None = None
+    scope: str | None = None
     grain: list[Grain] = pydantic.Field(default_factory=list)
-    row_scope: RowScope = pydantic.Field(default_factory=RowScope)
     features: dict[str, Feature] = pydantic.Field(default_factory=dict)
     actions: dict[str, Action] = pydantic.Field(default_factory=dict)
     order: list[Order] = pydantic.Field(default_factory=list)
