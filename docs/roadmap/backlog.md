@@ -103,20 +103,6 @@ Parallel scheduling is not required for an adapter to ship.
 |---|---|---|
 | Add explanations for non-experts | No | Extend metadata extraction with `Explanation:` and `Formula:` sections containing argument placeholders. Explorer fills them with bound feature descriptions and units and combines them into output lineage stories. |
 
-## Planned release: Execution reports and inspection
-
-Make execution outcomes portable and inspectable without promising live
-monitoring or shared history.
-
-**Prerequisites:** Data quality validations for shared run/build identifiers;
-Explorer navigation extension points for UI integration. Report export can
-ship before its Explorer view.
-
-| title | breaking | description |
-|---|---|---|
-| Add structured execution reports | No | Export stable JSON with execution identity, build/plan references, per-callable status and duration, and failure details. Correlate with validation reports through common identities while keeping their distinct purposes. Exclude credentials and dataset values by default. |
-| Explore execution reports in Explorer | No | Load reports locally to show statuses, timings and failures beside the graph. Verify build/plan identity and distinguish actual results from illustrative animation. Defer live monitoring and shared history; require explicit safeguards for data values or snapshots. |
-
 ## Planned release: Freshness-aware scheduling
 
 Derive schedules from declared result freshness without changing the meaning
