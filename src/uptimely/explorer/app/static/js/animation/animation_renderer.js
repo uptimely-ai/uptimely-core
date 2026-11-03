@@ -1,4 +1,4 @@
-import { contextHeader, contextToggle, dataTypeIcon, escape, kindIcon } from "../rendering/shared_markup.js";
+import { contextHeader, dataTypeIcon, escape, kindIcon } from "../rendering/shared_markup.js";
 
 const PLACEHOLDERS = {
   float: ["1.23", "4.56", "7.89"], numeric: ["1.23", "4.56", "7.89"], integer: ["12", "45", "78"],
@@ -77,7 +77,6 @@ export function animation(data) {
   return {
     context: `<aside class="site-context" id="animation-context" aria-label="Animation context" data-context-label="animation">
       ${contextHeader("Animation", "data-lineage", "animation-context")}
-      <button class="ui-button context-close" type="button" aria-label="Close animation context">Close</button>
       ${stages.length ? `<div class="data-lineage-toolbar" id="data-lineage-toolbar" role="group" aria-label="Lineage playback" hidden>
         <button class="ui-button" type="button" id="data-lineage-previous">Previous</button>
         <button class="ui-button" type="button" id="data-lineage-play" aria-pressed="false">Play</button>
@@ -97,7 +96,7 @@ export function animation(data) {
           }).join("")}</div>`;
         }).join("")}</nav>` : '<p class="context-empty">No processing steps.</p>'}
     </aside>`,
-    content: `<main class="data-lineage-page">${contextToggle("animation-context", "Animation")}
+    content: `<main class="data-lineage-page">
       ${stages.length ? `<p id="animation-dataset-prompt" role="status" hidden>Choose a profile in Animation controls to view its actions.</p>
         <div id="data-lineage-board">${stages.map((stage, index) => `<section class="data-lineage-stage" aria-labelledby="stage-${index + 1}">
           <h2 id="stage-${index + 1}">Stage ${index + 1} / ${stage.length} independent step${stage.length === 1 ? "" : "s"}</h2>

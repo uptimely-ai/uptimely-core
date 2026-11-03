@@ -89,16 +89,13 @@ export function page(content) {
 
 export function contextHeader(title, key, id, label = title.toLowerCase()) {
   const tag = id === "catalog-context" ? "h2" : "h1";
-  return `<div class="context-header"><div class="context-heading site-nav-heading">
+  return `<div class="context-header">
+    <div class="context-heading site-nav-heading">
     <${tag} class="title-with-icon" title="${escape(title)}">${icon(key)}<span>${escape(title)}</span></${tag}>
     <button class="nav-label-toggle context-label-toggle" type="button" aria-label="Collapse ${escape(label)} context"
       aria-pressed="false" aria-controls="${id}" title="Collapse ${escape(label)} context">${icon("collapse-navigation")}${icon("expand-navigation")}</button>
+    <button class="ui-button context-sheet-close" type="button" aria-label="Close ${escape(label)} menu">Close</button>
     </div></div>`;
-}
-
-export function contextToggle(id, label) {
-  return `<button class="ui-button context-toggle" type="button" aria-label="Show ${escape(label.toLowerCase())} context"
-    aria-expanded="false" aria-controls="${id}">${escape(label)} controls</button>`;
 }
 
 export function contextLink(target, label, key, count = null, kind = null) {
@@ -111,6 +108,8 @@ export function contextLink(target, label, key, count = null, kind = null) {
 
 export function shell(data, view, context, content) {
   const projectName = escape(data.project.name || "Untitled analytics project");
+  const contextTitle = ["lineage", "topology"].includes(view) ? "Legend & details"
+    : view === "animation" ? "Animation steps" : view[0].toUpperCase() + view.slice(1);
   const projectLink = `<a class="site-product" href="${href("home")}" title="${projectName}" aria-label="${projectName}"${view === "home" ? ' aria-current="page"' : ""}><span>${projectName}</span></a>`;
   const navigationGroups = [
     ["spec", "Spec", [
@@ -128,6 +127,12 @@ export function shell(data, view, context, content) {
   return `<header class="site-topbar" aria-label="Project context">
       <button class="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="explorer-navigation">${icon("menu")}</button>${projectLink}
     </header>
+    ${context ? `<section class="mobile-context-bar" aria-label="Page controls">
+      <button class="mobile-context-toggle ui-button" type="button" aria-expanded="false">
+        <span>${escape(contextTitle)}</span><i data-lucide="chevron-down" aria-hidden="true"></i>
+      </button><div class="mobile-primary-controls"></div>
+    </section><button class="context-backdrop" type="button" aria-label="Close page controls" tabindex="-1"></button>` : ""}
+    <div class="site-menus" id="explorer-menus">
     <nav class="site-nav" id="explorer-navigation" aria-label="Explorer pages">
       <div class="site-nav-context"><div class="site-nav-heading">${projectLink}
         <button class="nav-label-toggle" type="button" aria-label="Hide navigation labels" aria-pressed="false" aria-controls="explorer-navigation" title="Hide navigation labels">${icon("collapse-navigation")}${icon("expand-navigation")}</button>
@@ -140,7 +145,7 @@ export function shell(data, view, context, content) {
         title="Spec: complete model. Plan and execution: ${escape(data.scope.label)}"
         aria-label="Build coverage: ${data.scope.is_scoped ? "Partial" : "Full"} build. Spec: complete model. Plan and execution: ${escape(data.scope.label)}">${data.scope.is_scoped ? "Partial" : "Full"} build</span>
     </nav>
-    ${context}<div class="site-content" id="content">${content}</div>`;
+    ${context}</div><div class="site-content" id="content">${content}</div>`;
 }
 
 export function miniGraphic(kind) {

@@ -45,6 +45,7 @@ def test_original_ui_components_are_packaged_with_the_static_frontend() -> None:
         "catalogs/catalog_navigation",
         "catalogs/function_highlighting",
         "navigation/sidebar_controls",
+        "navigation/mobile_context",
         "theme/tailwind_theme",
         "graphs/feature_graph",
         "graphs/invocation_graph",
