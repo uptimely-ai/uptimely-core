@@ -29,8 +29,7 @@ __all__ = [
 class ExplorerSummary:
     """Typed summary values displayed in the explorer overview."""
 
-    entity_count: int
-    dataset_count: int
+    profile_count: int
     action_count: int
     dimension_count: int
     feature_count: int
@@ -82,7 +81,7 @@ def _feature_data(
     calculated_features: list[dict] = []
     seen_inputs: set[tuple[str, str]] = set()
     for key, action in spec_definition.action_items:
-        dataset = spec_definition.datasets_by_key[key[:2]]
+        dataset = spec_definition.profiles_by_key[key[0]]
         function = spec_definition.functions.root.get(action.binding.function)
         kind = function_kinds.FUNCTION_KINDS[function.kind] if function is not None else None
         for feature_id in action.output_features:
@@ -171,7 +170,6 @@ def _build_context(
 ) -> ExplorerContext:
     """Build typed Explorer catalog data from a spec document model."""
     configuration = spec_definition.model_dump(mode="json", exclude_none=True)
-    entities = configuration.get("entities", {})
     dimensions = configuration.get("dimensions", {})
     function_definitions = configuration.get("functions", {})
     function_groups: dict[str, dict[str, dict[str, typing.Any]]] = {}
@@ -190,8 +188,7 @@ def _build_context(
         if function_kinds.FUNCTION_KINDS[function["kind"]].is_effect:
             function["escape_actions"].append(
                 {
-                    "entity": key[0],
-                    "dataset": key[1],
+                    "profile": key[0],
                     "action": action.id,
                     "inputs": action.input_features,
                     "outputs": action.output_features,
@@ -247,7 +244,7 @@ def _build_context(
     function_buckets = {
         kind: len(function_groups.get(kind, {})) for kind in function_kinds.FUNCTION_KINDS
     }
-    dataset_count = len(spec_definition.datasets)
+    profile_count = len(spec_definition.profiles)
     action_count = sum(
         1
         for action in spec_definition.actions
@@ -256,8 +253,7 @@ def _build_context(
         ].is_source
     )
     summary = ExplorerSummary(
-        entity_count=len(entities),
-        dataset_count=dataset_count,
+        profile_count=profile_count,
         action_count=action_count,
         dimension_count=len(dimensions),
         feature_count=len([*fragment_features, *calculated_features]),

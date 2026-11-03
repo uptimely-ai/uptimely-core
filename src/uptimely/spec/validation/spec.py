@@ -12,9 +12,9 @@ from .rules import (
     bindings,
     datasets,
     dimensions,
-    entities,
     features,
     functions,
+    profiles,
     row_context,
 )
 from .rules.actions import contracts as action_contracts
@@ -27,12 +27,12 @@ logger = logging.getLogger(__name__)
 type Validator = collections.abc.Callable[[spec_model.Spec], None]
 
 VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
-    datasets.validate_dataset_ids: (),
+    datasets.validate_profile_ids: (),
     features.validate_feature_ownership: (),
     dimensions.validate_parent: (),
     dimensions.validate_parent_cycle: (dimensions.validate_parent,),
-    entities.validate_entity_dimensions: (),
-    datasets.validate_order_dimension: (entities.validate_entity_dimensions,),
+    profiles.validate_profile_dimensions: (),
+    datasets.validate_order_dimension: (profiles.validate_profile_dimensions,),
     datasets.validate_unique_order_dimension: (),
     functions.validate_return_kind: (),
     functions.validate_dataframe_count: (),
@@ -62,7 +62,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         action_outputs.validate_function_reference,
     ),
     action_inputs.validate_feature_reference: (),
-    action_inputs.validate_dataset_reference: (datasets.validate_dataset_ids,),
+    action_inputs.validate_dataset_reference: (datasets.validate_profile_ids,),
     action_inputs.validate_dimension_reference: (),
     bindings.validate_arguments: (action_outputs.validate_function_reference,),
     bindings.validate_selector_type: (bindings.validate_arguments,),
@@ -73,13 +73,13 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         action_inputs.validate_source_feature,
     ),
     action_inputs.validate_source_count: (
-        datasets.validate_dataset_ids,
+        datasets.validate_profile_ids,
         action_inputs.validate_feature_owner,
     ),
     action_inputs.validate_source_target: (action_inputs.validate_source_count,),
     action_inputs.validate_grouping_dimensions: (
         action_inputs.validate_source_count,
-        entities.validate_entity_dimensions,
+        profiles.validate_profile_dimensions,
     ),
     action_inputs.validate_source_features: (action_inputs.validate_source_count,),
     action_inputs.validate_source_dimensions: (
@@ -93,7 +93,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     ),
     row_context.validate_dimension: (
         action_inputs.validate_source_count,
-        entities.validate_entity_dimensions,
+        profiles.validate_profile_dimensions,
     ),
     row_context.validate_dimension_type: (row_context.validate_dimension,),
     row_context.validate_dimension_order: (
@@ -105,7 +105,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         action_contracts.validate_dataset_argument_reference,
     ),
     action_contracts.validate_dataset_argument_source: (
-        datasets.validate_dataset_ids,
+        datasets.validate_profile_ids,
         action_contracts.validate_dataset_argument_selector,
     ),
     action_contracts.validate_dataset_argument_count: (
@@ -115,7 +115,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     action_contracts.validate_matching_keys: (
         action_contracts.validate_dataset_argument_source,
         action_inputs.validate_dataset_reference,
-        entities.validate_entity_dimensions,
+        profiles.validate_profile_dimensions,
     ),
     action_contracts.validate_input_feature_source_count: (
         action_outputs.validate_function_reference,
@@ -131,7 +131,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     ),
     action_contracts.validate_dataset_argument_features: (
         action_contracts.validate_dataset_argument_feature_source,
-        entities.validate_entity_dimensions,
+        profiles.validate_profile_dimensions,
     ),
     action_contracts.validate_feature_input_scope: (action_outputs.validate_function_reference,),
     action_contracts.validate_target_dataset_input: (
@@ -146,14 +146,14 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     ),
     action_contracts.validate_dimension_change: (
         action_contracts.validate_dataset_argument_source,
-        entities.validate_entity_dimensions,
+        profiles.validate_profile_dimensions,
     ),
     action_contracts.validate_dimension_expansion_input: (
         action_contracts.validate_dataset_argument_feature_source,
-        entities.validate_entity_dimensions,
+        profiles.validate_profile_dimensions,
     ),
     dependencies.validate_action_cycle: (
-        datasets.validate_dataset_ids,
+        datasets.validate_profile_ids,
         action_outputs.validate_unique_producer,
         action_inputs.validate_input_feature,
     ),

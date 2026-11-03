@@ -21,7 +21,7 @@ export function initializeInvocationLineage(signal) {
 	function updateInvocationDetails(node) {
 		if (!node) {
 			ExplorerLineage.showDetails(invocationNodeDetails, 'invocation details', [],
-				'Select an invocation to inspect its function kind, arguments, entity, declared features, and invocation dependencies.');
+				'Select an invocation to inspect its function kind, arguments, profile, declared features, and invocation dependencies.');
 			return;
 		}
 		const rows = [
@@ -32,7 +32,7 @@ export function initializeInvocationLineage(signal) {
 			['Function', node.function_name || node.function_id || 'n/a'],
 			['Function ID', node.function_id || 'n/a'],
 			['Arguments', formatArguments(node.arguments)],
-			['Entity', node.entity || 'n/a'],
+			['Profile', node.profile || 'n/a'],
 			[node.is_effect ? 'Declared feature outputs' : 'Produces',
 				node.feature || (node.is_effect ? 'None' : 'n/a')],
 		];

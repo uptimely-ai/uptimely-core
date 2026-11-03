@@ -35,13 +35,12 @@ def test_graph_metadata_follows_function_capabilities(
             assert changed[name].is_source_input is not original[name].is_source_input
     assert checked == {"read", "collapse"}
     graph.spec = spec.Spec.model_validate(graph.spec.model_dump())
-    for entity in graph.spec.entities.values():
-        for dataset in entity.datasets.values():
-            dataset.actions = {
-                key: action
-                for key, action in dataset.actions.items()
-                if graph.spec.functions[action.binding.function].kind == "read"
-            }
+    for profile in graph.spec.profiles.values():
+        profile.actions = {
+            key: action
+            for key, action in profile.actions.items()
+            if graph.spec.functions[action.binding.function].kind == "read"
+        }
     graph.actions = graph.spec.actions
     rebuilt_features = [
         node.reference
@@ -144,11 +143,7 @@ def test_system_graph_contains_one_node_per_action() -> None:
         node.reference for node in system.graph if isinstance(node.reference, models.ActionNode)
     ]
     spec_function_ids = set(system.spec.functions)
-    action_count = sum(
-        len(dataset.actions)
-        for entity in spec_definition.entities.values()
-        for dataset in entity.datasets.values()
-    )
+    action_count = sum(len(profile.actions) for profile in spec_definition.profiles.values())
 
     assert len(action_nodes) == action_count
     assert any(action.action_id == "bearing_temperature_by_pump" for action in action_nodes)
@@ -199,7 +194,7 @@ def test_graph_rendering_and_explicit_printing(
 
 
 @pytest.mark.usefixtures("example_projects")
-def test_system_graph_builds_from_entity_feature_bindings() -> None:
+def test_system_graph_builds_from_profile_feature_bindings() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     system = spec.FeatureGraph(spec_definition)
 
@@ -208,7 +203,7 @@ def test_system_graph_builds_from_entity_feature_bindings() -> None:
 
 
 @pytest.mark.usefixtures("example_projects")
-def test_dependency_features_keep_their_producer_entity_without_becoming_source_inputs() -> None:
+def test_dependency_features_keep_their_producer_profile_without_becoming_source_inputs() -> None:
     system = spec.FeatureGraph(spec.load_spec(SPEC_PATH))
     features = {
         node.reference.name: node.reference
@@ -216,7 +211,7 @@ def test_dependency_features_keep_their_producer_entity_without_becoming_source_
         if isinstance(node.reference, models.FeatureNode)
     }
 
-    assert features["bearing_temperature_max"].entity == "pump"
-    assert features["operating_point_recommendation"].entity == "pump_telemetry"
+    assert features["bearing_temperature_max"].profile_id == "pump_dataset"
+    assert features["operating_point_recommendation"].profile_id == "pump_telemetry_dataset"
     assert features["bearing_temperature_max"].is_source_input is False
     assert features["operating_point_recommendation"].is_source_input is False

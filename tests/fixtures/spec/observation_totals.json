@@ -1,6 +1,6 @@
 {
   "name": "Observation totals",
-  "spec_version": 3,
+  "spec_version": 4,
   "dimensions": {
     "id": {
       "type": "integer"
@@ -24,46 +24,42 @@
       }
     }
   },
-  "entities": {
-    "observation": {
-      "name": "Observation",
+  "profiles": {
+    "observations": {
+      "name": "Observations",
       "dimensions": ["id"],
-      "datasets": {
-        "observations": {
-          "features": {
-            "id": {"type": "integer"},
-            "input_1": {"type": "integer"},
-            "input_2": {"type": "integer"},
-            "total": {"type": "integer"}
+      "features": {
+        "id": {"type": "integer"},
+        "input_1": {"type": "integer"},
+        "input_2": {"type": "integer"},
+        "total": {"type": "integer"}
+      },
+      "actions": {
+        "read_observations": {
+          "binding": {
+            "function": "read_observations"
           },
-          "actions": {
-            "read_observations": {
-              "binding": {
-                "function": "read_observations"
-              },
-              "features": {
-                "outputs": [
-                  "$features.id",
-                  "$features.input_1",
-                  "$features.input_2"
-                ]
-              }
-            },
-            "calculate_total": {
-              "binding": {
-                "function": "sum_features",
-                "args": {
-                  "left_feature": "$features.input_1",
-                  "right_feature": "$features.input_2",
-                  "output": "$features.total",
-                  "dataset": "$datasets.@.dataframe"
-                }
-              },
-              "features": {
-                "inputs": ["$features.input_1", "$features.input_2"],
-                "outputs": ["$features.total"]
-              }
+          "features": {
+            "outputs": [
+              "$features.id",
+              "$features.input_1",
+              "$features.input_2"
+            ]
+          }
+        },
+        "calculate_total": {
+          "binding": {
+            "function": "sum_features",
+            "args": {
+              "left_feature": "$features.input_1",
+              "right_feature": "$features.input_2",
+              "output": "$features.total",
+              "dataset": "$datasets.@.dataframe"
             }
+          },
+          "features": {
+            "inputs": ["$features.input_1", "$features.input_2"],
+            "outputs": ["$features.total"]
           }
         }
       }

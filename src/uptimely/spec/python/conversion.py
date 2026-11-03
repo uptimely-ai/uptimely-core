@@ -10,18 +10,13 @@ from .. import catalog
 from .. import model as spec_model
 from ..json import codec
 from . import dimension as dimension_module
-from . import entity as entity_module
 from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
 
-type Datasets = (
+type Profiles = (
     abc.Iterable[profile_module.Profile | spec_model.Profile]
     | abc.Mapping[str, profile_module.Profile | spec_model.Profile]
-)
-type Entities = (
-    abc.Iterable[entity_module.Entity | spec_model.Entity]
-    | abc.Mapping[str, entity_module.Entity | spec_model.Entity]
 )
 type Dimensions = (
     abc.Iterable[dimension_module.Dimension | spec_model.Dimension]
@@ -38,69 +33,51 @@ def _values[T](resources: abc.Iterable[T] | abc.Mapping[str, T]) -> list[T]:
 
 
 def to_dict(
-    datasets: Datasets | None = None,
+    profiles: Profiles | None = None,
     functions: Functions | None = None,
     name: str | None = None,
     dimensions: Dimensions | None = None,
-    *,
-    entities: Entities | None = None,
 ) -> dict[str, typing.Any]:
     """Encode Python declarations using the same codec as JSON file exports."""
-    return codec.to_document(to_model(datasets, functions, name, dimensions, entities=entities))
+    return codec.to_document(to_model(profiles, functions, name, dimensions))
 
 
 def to_model(
-    datasets: Datasets | None = None,
+    profiles: Profiles | None = None,
     functions: Functions | None = None,
     name: str | None = None,
     dimensions: Dimensions | None = None,
-    *,
-    entities: Entities | None = None,
 ) -> spec_model.Spec:
     """Build structural spec without importing function entrypoints.
 
     Args:
-        datasets: Datasets wrapped in a single entity named after ``name``.
+        profiles: Profile declarations keyed by their globally unique IDs.
         functions: Explicit function catalog, or infer it from declarations.
         name: Optional spec display name.
         dimensions: Global dimension declarations.
-        entities: Explicit entities, mutually exclusive with ``datasets``.
 
     Raises:
         ValueError: No declarations were supplied or function definitions conflict.
         TypeError: A resource is not a supported declaration or document model.
     """
-    if datasets is not None and entities is not None:
-        raise ValueError("Use either 'datasets' or 'entities', not both.")
     dimension_values = _dimensions(dimensions)
-    declarations: list[profile_module.Profile | spec_model.Profile] = []
-    if entities is not None:
-        entity_values: dict[str, spec_model.Entity] = {}
-        for entity in _values(entities):
-            if isinstance(entity, entity_module.Entity):
-                declarations.extend(entity.datasets)
-                canonical = entity.to_model()
-            elif isinstance(entity, spec_model.Entity):
-                declarations.extend(entity.datasets.values())
-                canonical = entity
-            else:
-                raise TypeError("entities must contain Entity declarations or canonical models")
-            entity_values[canonical.id] = canonical
-        if not entity_values:
-            raise ValueError("At least one entity is required.")
-    else:
-        declarations = _values(datasets) if datasets is not None else []
-        if not declarations:
-            raise ValueError("At least one dataset is required.")
-        entity_id = name or "entity"
-        entity_values = {
-            entity_id: spec_model.Entity(
-                id=entity_id,
-                name=entity_id,
-                dimensions=list(dimension_values.values()),
-                datasets=profile_module.to_models(declarations),
+    declarations = _values(profiles) if profiles is not None else []
+    if not declarations:
+        raise ValueError("At least one profile is required.")
+
+    profile_values: dict[str, spec_model.Profile] = {}
+    for declaration in declarations:
+        if isinstance(declaration, profile_module.Profile):
+            canonical = declaration.to_model(
+                dimensions=_profile_dimensions(declaration, dimension_values)
             )
-        }
+        elif isinstance(declaration, spec_model.Profile):
+            canonical = declaration
+        else:
+            raise TypeError("profiles must contain Profile declarations or canonical models")
+        if canonical.id in profile_values:
+            raise ValueError(f"Duplicate profile id {canonical.id}")
+        profile_values[canonical.id] = canonical
 
     if logger.isEnabledFor(logging.DEBUG):
         action_count = sum(
@@ -130,7 +107,7 @@ def to_model(
             "source": {"name": "python_api", "generated": True},
             "dimensions": dimension_values,
             "functions": functions,
-            "entities": entity_values,
+            "profiles": profile_values,
         }
     )
 
@@ -159,3 +136,35 @@ def _dimension(
     if isinstance(declaration, spec_model.Dimension):
         return declaration
     raise TypeError("dimensions must contain Dimension declarations or canonical models")
+
+
+def _profile_dimensions(
+    declaration: profile_module.Profile,
+    dimensions: dict[str, spec_model.Dimension],
+) -> list[dimension_module.Dimension]:
+    """Resolve profile dimension references against the global declarations."""
+    resolved: list[dimension_module.Dimension] = []
+    for item in declaration.dimensions:
+        if not isinstance(item, (str, dimension_module.Dimension)):
+            raise TypeError("profile dimensions must contain dimension IDs or declarations")
+        identifier = item if isinstance(item, str) else item.id
+        if identifier not in dimensions:
+            raise ValueError(
+                f"Profile '{declaration.id}' references undeclared dimension '{identifier}'"
+            )
+        if not isinstance(item, str):
+            if item.to_model() != dimensions[identifier]:
+                raise ValueError(f"Conflicting metadata for dimension '{identifier}'")
+            resolved.append(item)
+            continue
+        model_dimension = dimensions[identifier]
+        resolved.append(
+            dimension_module.Dimension(
+                id=model_dimension.id,
+                name=model_dimension.name,
+                description=model_dimension.description,
+                type=model_dimension.type,
+                parent=model_dimension.parent,
+            )
+        )
+    return resolved

@@ -1,14 +1,14 @@
 # Spec
 
-**Current spec version: 3**
+**Current spec version: 4**
 
-The spec definition is a single JSON document describing datasets, feature
+The spec definition is a single JSON document describing profiles, feature
 dependencies, and function bindings. JSON is the shared format used by
 analytical declarations and the tools that validate, document, and compile them.
 
 ## Document Conventions
 
-The root is one JSON object. Dimensions, entities, datasets, function templates,
+The root is one JSON object. Dimensions, profiles, function templates,
 features, arguments, and actions use object keys as identifiers. Their IDs are
 derived from those keys; serialized action entries also include their `id`.
 Identifiers should be stable, lowercase, and descriptive.
@@ -18,15 +18,18 @@ omitted; it does not generally make explicit `null` valid. Unknown fields are
 rejected. The JSON structure defines the same contract regardless of how a
 document is authored or consumed.
 
-For example, dimensions and entities use their identifiers as object keys:
+For example, dimensions and profiles use their identifiers as object keys:
 
 ```json
 {
   "dimensions": {
     "pump_id": {"type": "string"}
   },
-  "entities": {
-    "pump": {"name": "Pump", "dimensions": ["pump_id"]}
+  "profiles": {
+    "pump_telemetry": {
+      "name": "Pump Telemetry",
+      "dimensions": ["pump_id"]
+    }
   }
 }
 ```
@@ -36,11 +39,11 @@ For example, dimensions and entities use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `spec_version` | integer | No | `3` | Spec format version; only `3` is supported. |
+| `spec_version` | integer | No | `4` | Spec format version; only `4` is supported. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
-| `entities` | object | No | `{}` | Entity definitions keyed by identifier. |
+| `profiles` | object | No | `{}` | Profile definitions keyed by globally unique identifier. |
 
 `spec_version` versions the Spec JSON format, not a particular analytics
 project. Increment it when the format changes incompatibly; readers reject
@@ -56,7 +59,7 @@ can identify their generator in `name` and set `generated` to `true`.
   "dimensions": {
     "pump_id": {"type": "string"}
   },
-  "entities": {}
+  "profiles": {}
 }
 ```
 
@@ -74,7 +77,7 @@ Parents must reference declared dimensions and must not form cycles.
 | `parent` | string or null | No | `null` | Bare identifier of a declared parent dimension. |
 
 Parent metadata describes a hierarchy. It does not automatically add parent
-columns to an entity, group calculations, or expand observations.
+columns to a profile, group calculations, or expand observations.
 
 ```json
 "dimensions": {
@@ -83,48 +86,30 @@ columns to an entity, group calculations, or expand observations.
 }
 ```
 
-## Entities
+## Profiles
 
-An entity describes an analytical subject. It has a `name`, optional
-`description`, a list of dimension identifiers, and an ID-keyed object of datasets.
-The complete entity dimension key identifies a dataset observation.
+A profile describes observations, their dimensions, features, actions, and
+optional metadata. Profiles are top-level and identified by a globally unique
+object key; attributes must not include `id`. A profile's dimension list is its
+own observation key.
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
-| `name` | string | Yes | N/A | Display name. |
-| `description` | string or null | No | `null` | Explanation of the subject. |
+| `name` | string or null | No | Generated from the profile identifier | Human-readable display name. |
+| `description` | string or null | No | `null` | Explanation of the profile. |
+| `category` | string or null | No | `null` | Optional free-form grouping label. |
 | `dimensions` | array of strings | No | `[]` | Bare identifiers from the root dimension registry. |
-| `datasets` | object | No | `{}` | Datasets keyed by identifier describing this subject. |
-
-```json
-"entities": {
-  "pump": {
-    "name": "Pump",
-    "dimensions": ["pump_id"]
-  }
-}
-```
-
-## Datasets
-
-Each key under an entity's `datasets` object is a globally unique dataset
-identifier, including across different entities. Dataset attributes must not
-include `id`. Omitting `datasets` gives an empty object; arrays and `null` are
-not accepted.
-
-| Field | JSON type | Required | Default | Meaning |
-| --- | --- | --- | --- | --- |
-| `name` | string or null | No | Generated from the dataset identifier | Human-readable display name. |
-| `description` | string or null | No | `null` | Explanation of the dataset. |
 | `row_scope` | object | No | Empty descriptions | Observation grain, filtering, and coverage. |
-| `order` | array of objects | No | `[]` | Logical ordering by entity dimensions. |
+| `order` | array of objects | No | `[]` | Logical ordering by profile dimensions. |
 | `features` | object | No | `{}` | Feature metadata keyed by identifier. |
-| `actions` | object | No | `{}` | Function bindings keyed by identifier, unique within this dataset. |
+| `actions` | object | No | `{}` | Function bindings keyed by identifier, unique within this profile. |
 
 ```json
-"datasets": {
-  "telemetry": {
+"profiles": {
+  "pump_telemetry": {
     "name": "Pump Telemetry",
+    "category": "telemetry",
+    "dimensions": ["pump_id"],
     "row_scope": {"grain": "One row per pump and timestamp"},
     "order": [
       {"dimension": "$dimensions.timestamp", "direction": "asc"}
@@ -134,15 +119,17 @@ not accepted.
 }
 ```
 
-To migrate a version 2 document, rename each dataset's `mappings` object to
-`actions` and set `spec_version` to `3`. A version 1 document must first be
-migrated to the keyed dataset format introduced in version 2. Rebuild generated
-project artifacts after migration. Versions 1 and 2 are not supported.
+Version 4 replaces the entity-owned `datasets` structure with top-level
+`profiles`. To migrate, move each dataset declaration under `profiles` using
+its dataset ID as the profile key, copy the owning entity's dimensions to each
+profile, and remove the `entities` object. The optional `category` field does
+not affect validation or execution. Rebuild generated project artifacts after
+migration; earlier spec versions are not supported.
 
 ### Feature and Action Identifiers
 
 Each key under `features` identifies a column's metadata. Each key under
-`actions` identifies one function binding, unique within its dataset.
+`actions` identifies one function binding, unique within its profile.
 An action identifier names a binding instance, not a reusable function or an
 output feature. Multiple actions can invoke the same function with different
 arguments. Serialized action entries include an `id` matching their key.
@@ -164,21 +151,21 @@ Each field must be a string when supplied.
 
 | Field | JSON type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `dimension` | string | Yes | N/A | Reference to a dimension of the owning entity. |
+| `dimension` | string | Yes | N/A | Reference to a dimension of the owning profile. |
 | `direction` | string | Yes | N/A | Sort direction: `asc` or `desc`. |
 
-Order keys must be distinct dimensions of the owning entity. Array position
+Order keys must be distinct dimensions of the owning profile. Array position
 determines key precedence. Omission means no declared order. Null placement,
 collation, and ties are not specified.
 
 Order is a logical convention, not a physical sort or partition guarantee.
 Functions implement sorting and grouping themselves. Action context inherits
-dataset order to interpret preceding and following observations.
+profile order to interpret preceding and following observations.
 
 ## Features
 
-A feature is a column describing an entity, whether read from a source or
-calculated. Its dataset registry declares the metadata once. The registry key
+A feature is a column describing a profile's observations, whether read from a
+source or calculated. Its profile registry declares the metadata once. The registry key
 is the feature ID; `name` is an optional human-readable label and defaults to
 the ID converted from snake or kebab case to title case:
 
@@ -311,7 +298,7 @@ grouping but should not perform external I/O.
 `expand` takes exactly one dataframe argument: its foreign/source dataset. The
 target dataset is engine-owned and is not passed to these functions.
 `conform` requires the source and target to declare the same dimensions, but
-they may belong to different entities. `collapse` requires the source
+they may belong to different profiles. `collapse` requires the source
 dimensions to be a strict superset of the target dimensions; `expand` requires
 them to be a strict subset. These kinds return fragments for their
 declaring (target) dataset; the engine does not pass its accumulated target
@@ -406,7 +393,7 @@ An action separates analytical requirements from the implementation binding:
 | --- | --- | --- | --- | --- |
 | `features` | object | No | Empty lists | Explicit prerequisites and outputs. |
 | `features.inputs` | array of strings | No | `[]` | Materialized features required before the call. |
-| `features.outputs` | array of strings | No | `[]` | Features produced in the owning dataset. |
+| `features.outputs` | array of strings | No | `[]` | Features produced in the owning profile. |
 | `row_context` | object or null | No | `null` | Surrounding-observation requirements. |
 | `binding` | object | Yes | N/A | Function invocation. |
 | `binding.function` | string | Yes | N/A | Identifier of the function definition to bind. |
@@ -418,14 +405,14 @@ arguments.
 Conversely, passing a feature identifier is not a declaration that its data
 must exist. Declare every consumed feature in `inputs`.
 
-Outputs reference the owning dataset's feature registry and are the only
+Outputs reference the owning profile's feature registry and are the only
 declaration of features produced by an action. Binding arguments may use
 feature references to pass identifiers, including output names; those arguments
-do not infer inputs or outputs. Entity dimension keys are required in every
+do not infer inputs or outputs. Profile dimension keys are required in every
 returned table, even when omitted from `outputs`.
 A write action declares empty outputs and explicitly lists its required inputs.
 Data-producing actions require at least one output. Vectorize outputs cannot
-redeclare entity dimensions. Collapse must produce at least one non-dimension
+redeclare profile dimensions. Collapse must produce at least one non-dimension
 feature. There is no binding-level `return` field.
 
 Each `read`, `conform`, `collapse`, or `expand` result is a fragment containing
@@ -445,8 +432,8 @@ details.
 | --- | --- | --- |
 | `$features.<id>.id` | `string` | Feature identifier string. |
 | `$dimensions.<id>.id` | `string` | Dimension identifier string. |
-| `$datasets.<id>.dimensions.ids` | `array[string]` | Dimension identifiers declared by that dataset's entity. |
-| `$datasets.@.dimensions.ids` | `array[string]` | Dimension identifiers declared by the action's target entity. |
+| `$datasets.<id>.dimensions.ids` | `array[string]` | Dimension identifiers declared by that profile. |
+| `$datasets.@.dimensions.ids` | `array[string]` | Dimension identifiers declared by the action's target profile. |
 | `$datasets.<id>.dataframe` | `dataframe` | Materialized table for that dataset. |
 | `$datasets.@.dataframe` | `dataframe` | Current dataset's input-ready table. |
 | `$datasets.<id>.id` | `string` | Dataset identifier string. |
@@ -503,7 +490,7 @@ need no order; one unbounded direction still needs logical ordering.
 Functions handle grouping and sorting themselves.
 
 Nonzero directional requirements need dataset order. A time/step dimension must
-belong to the input entity and have the matching type. When directional context
+belong to the input profile and have the matching type. When directional context
 requires ordering, that dimension must also occur in the dataset's order.
 For dimension-removing operations, validation uses the inferred source dataset
 rather than the target. Other operations use the target dataset.

@@ -17,17 +17,16 @@ def validate_action_cycle(spec: spec_model.Spec) -> None:
     for key, action in spec.action_items:
         if spec.functions[action.binding.function].kind == functions.WRITE:
             continue
-        dataset_key = spec.action_dataset_keys[key]
-        dimensions = spec.dimensions_by_dataset[dataset_key]
-        action_key = (dataset_key[1], key[2])
+        profile_id = spec.action_profile_keys[key]
+        dimensions = spec.dimensions_by_profile[profile_id]
+        action_key = key
         for feature in action.output_features:
             if feature not in dimensions and feature not in spec.dimensions:
                 producers[feature] = action_key
 
     dependencies: dict[ActionKey, tuple[ActionKey, ...]] = {}
     for key, action in spec.action_items:
-        dataset_key = spec.action_dataset_keys[key]
-        action_key = (dataset_key[1], key[2])
+        action_key = key
         dependencies[action_key] = tuple(
             dict.fromkeys(
                 producers[feature] for feature in action.input_features if feature in producers

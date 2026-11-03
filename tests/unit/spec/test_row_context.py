@@ -17,7 +17,6 @@ from uptimely.spec.python import (
     actions,
     binding_conversion,
     dimension,
-    entity,
     feature,
     profile,
     ref,
@@ -47,9 +46,10 @@ def maximum(dataset: pl.DataFrame, column: str, output: str) -> pl.DataFrame:
 
 def _spec(context=None, *, ordered=True, dimension_type="datetime"):
     return spec.from_python(
-        datasets=[
+        profiles=[
             profile.Profile(
                 id="observations",
+                dimensions=[dimension.Dimension(id="timestamp", type=dimension_type)],
                 order=[profile.Order(ref.dimension("timestamp"), "asc")] if ordered else [],
                 producers=[
                     actions.Action(
@@ -246,7 +246,7 @@ def test_unbounded_dominates_bounded_directional_requirements():
                 dimension="$dimensions.other", before=row_context.ContextExtent(time="8h")
             ),
             "datetime",
-            "not in the input entity",
+            "not in the input profile",
         ),
         (
             row_context.RowContext(
@@ -270,7 +270,7 @@ def test_context_dimension_is_validated(context, dimension_type, message):
 
 
 def test_directional_context_requires_dataset_order():
-    with pytest.raises(ValueError, match="requires dataset order"):
+    with pytest.raises(ValueError, match="requires profile order"):
         _spec(authoring.rows(1, before=1).row_context, ordered=False)
     _spec(authoring.current(), ordered=False)
     _spec(authoring.dataset(), ordered=False)
@@ -284,16 +284,17 @@ def test_row_context_dataset_selection_follows_dimension_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     configuration = _spec().model_dump()
-    source = configuration["entities"]["entity"]["datasets"]["observations"]
+    source = configuration["profiles"]["observations"]
     action = source["actions"].pop("result")
     output = source["features"].pop("result")
     action["row_context"] = authoring.time(
         "1h", dimension=ref.dimension("timestamp"), before="1h"
     ).row_context.to_dict()
-    configuration["entities"]["target"] = {
-        "name": "Target",
+    configuration["profiles"]["summary"] = {
+        "name": "Summary",
         "dimensions": [],
-        "datasets": {"summary": {"features": {"result": output}, "actions": {"result": action}}},
+        "features": {"result": output},
+        "actions": {"result": action},
     }
     configuration["functions"]["calculate"]["kind"] = kind
     document = spec.Spec.model_validate(configuration)
@@ -301,24 +302,22 @@ def test_row_context_dataset_selection_follows_dimension_contract(
     definitions[kind] = dataclasses.replace(definitions[kind], dimension_change=dimension_change)
     monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
-    key = ("target", "summary", "result")
-    expected_source = (
-        ("entity", "observations") if dimension_change == "remove" else ("target", "summary")
-    )
-    assert document.get_row_context_dataset(key) is document.datasets_by_key[expected_source]
+    key = ("summary", "result")
+    expected_source = "observations" if dimension_change == "remove" else "summary"
+    assert document.get_row_context_profile(key) is document.profiles[expected_source]
     assert (
-        document.get_row_context_dimensions(key) == document.dimensions_by_dataset[expected_source]
+        document.get_row_context_dimensions(key) == document.dimensions_by_profile[expected_source]
     )
     if dimension_change == "remove":
         row_context_rules.validate_dataset_order(document)
         row_context_rules.validate_dimension(document)
         row_context_rules.validate_dimension_order(document)
     else:
-        with pytest.raises(ValueError, match="requires dataset order"):
+        with pytest.raises(ValueError, match="requires profile order"):
             row_context_rules.validate_dataset_order(document)
-        with pytest.raises(ValueError, match="not in the input entity"):
+        with pytest.raises(ValueError, match="not in the input profile"):
             row_context_rules.validate_dimension(document)
-        with pytest.raises(ValueError, match="must occur in dataset order"):
+        with pytest.raises(ValueError, match="must occur in profile order"):
             row_context_rules.validate_dimension_order(document)
     row_context_rules.validate_dimension_type(document)
 
@@ -326,13 +325,13 @@ def test_row_context_dataset_selection_follows_dimension_contract(
 def test_row_context_accessors_preserve_unresolved_sources() -> None:
     configuration = _spec(authoring.current()).model_dump()
     configuration["functions"]["calculate"]["kind"] = "collapse"
-    configuration["entities"]["entity"]["datasets"]["observations"]["actions"]["result"][
-        "features"
-    ]["inputs"] = ["$features.missing"]
+    configuration["profiles"]["observations"]["actions"]["result"]["features"]["inputs"] = [
+        "$features.missing"
+    ]
     document = spec.Spec.model_validate(configuration)
-    key = ("entity", "observations", "result")
+    key = ("observations", "result")
 
-    assert document.get_row_context_dataset(key) is None
+    assert document.get_row_context_profile(key) is None
     assert document.get_row_context_dimensions(key) is None
 
 
@@ -346,7 +345,7 @@ def test_spec_plan_execution_and_presentation_preserve_context(
     path = tmp_path / "spec.json"
     spec.write_document(spec_definition, path)
     payload = json.loads(path.read_text())
-    authored_dataset = payload["entities"]["entity"]["datasets"]["observations"]
+    authored_dataset = payload["profiles"]["observations"]
     assert "row_context" not in authored_dataset["features"]["result"]
     assert authored_dataset["actions"]["result"]["row_context"] == context.to_dict()
     restored = spec.load_spec(path)
@@ -391,28 +390,20 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     spec_path = tmp_path / "spec.json"
     spec.write_document(spec_definition, spec_path)
     restored_spec = spec.load_spec(spec_path)
-    original_mapping = spec_definition.entities["entity"].datasets["observations"].actions["result"]
-    restored_mapping = restored_spec.entities["entity"].datasets["observations"].actions["result"]
+    original_mapping = spec_definition.profiles["observations"].actions["result"]
+    restored_mapping = restored_spec.profiles["observations"].actions["result"]
     assert restored_mapping.row_context == original_mapping.row_context == context
     assert (
         "row_context"
-        not in spec_definition.entities["entity"]
-        .datasets["observations"]
-        .actions["result"]
-        .binding.model_dump()
+        not in spec_definition.profiles["observations"].actions["result"].binding.model_dump()
     )
     exported = json.loads(spec_path.read_text())
-    exported_dataset = exported["entities"]["entity"]["datasets"]["observations"]
+    exported_dataset = exported["profiles"]["observations"]
     exported_feature = exported_dataset["features"]["result"]
     assert "row_context" not in exported_feature
     assert exported_dataset["actions"]["result"]["row_context"] == context.to_dict()
     assert "binding" not in exported_feature
-    assert (
-        "row_context"
-        not in exported["entities"]["entity"]["datasets"]["observations"]["actions"]["result"][
-            "binding"
-        ]
-    )
+    assert "row_context" not in exported["profiles"]["observations"]["actions"]["result"]["binding"]
     assert spec_definition.functions["calculate"].args["column"].type == "string"
 
     plan = compiler.Compiler().compile(restored_spec)
@@ -427,7 +418,7 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
         "output": "result",
         "configuration": {"windows": ["8h", "24h"]},
     }
-    assert spec_definition.entities["entity"].datasets["observations"].order == [
+    assert spec_definition.profiles["observations"].order == [
         spec.Order(dimension="$dimensions.timestamp", direction="asc")
     ]
     plan_path = uptimely_plan.export_json(plan, tmp_path / "plan.json")
@@ -494,11 +485,17 @@ def test_collapse_functions_execute_without_row_context(
     )
     timestamp = dimension.Dimension(id="timestamp", type="datetime")
     spec_definition = spec.from_python(
-        entities=[
-            entity.Entity(
-                id="observation", name="Observation", dimensions=[timestamp], datasets=[source]
+        profiles=[
+            profile.Profile(
+                id=source.id,
+                dimensions=[timestamp],
+                producers=source.producers,
             ),
-            entity.Entity(id="summary", name="Summary", dimensions=[], datasets=[summary]),
+            profile.Profile(
+                id=summary.id,
+                dimensions=[],
+                producers=summary.producers,
+            ),
         ],
         dimensions=[timestamp],
     )
@@ -511,7 +508,7 @@ def test_collapse_functions_execute_without_row_context(
         "column": "temperature",
         "output": "temperature_max",
     }
-    output_dataset = spec_definition.entities["summary"].datasets["summary"]
+    output_dataset = spec_definition.profiles["summary"]
     output = output_dataset.actions["summary"]
     assert output.row_context is None
     payload = output.model_dump()

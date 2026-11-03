@@ -1,4 +1,4 @@
-"""Atomic row-context checks against the selected input dataset."""
+"""Atomic row-context checks against the selected input profile."""
 
 from __future__ import annotations
 
@@ -12,20 +12,20 @@ logger = logging.getLogger(__name__)
 
 
 def validate_dataset_order(spec: spec_model.Spec) -> None:
-    """Require dataset order for directional row context."""
-    logger.debug("    - checking directional row context has dataset order")
+    """Require profile order for directional row context."""
+    logger.debug("    - checking directional row context has profile order")
     for key, action in spec.action_items:
         declaration = action.row_context
         if declaration is None or not declaration.requires_order:
             continue
-        dataset = spec.get_row_context_dataset(key)
-        if dataset is not None and not dataset.order:
-            raise ValueError(f"Action {action.id} directional row context requires dataset order")
+        profile = spec.get_row_context_profile(key)
+        if profile is not None and not profile.order:
+            raise ValueError(f"Action {action.id} directional row context requires profile order")
 
 
 def validate_dimension(spec: spec_model.Spec) -> None:
-    """Require the context dimension to belong to the input entity."""
-    logger.debug("    - checking row-context dimensions belong to the input entity")
+    """Require the context dimension to belong to the input profile."""
+    logger.debug("    - checking row-context dimensions belong to the input profile")
     for key, action in spec.action_items:
         declaration = action.row_context
         if declaration is None or declaration.dimension is None:
@@ -34,7 +34,7 @@ def validate_dimension(spec: spec_model.Spec) -> None:
         dimension_id = declaration.dimension.removeprefix(selectors.DIMENSION_PREFIX)
         if dimensions is not None and dimension_id not in dimensions:
             raise ValueError(
-                f"Action {action.id} context dimension is not in the input entity: {dimension_id}"
+                f"Action {action.id} context dimension is not in the input profile: {dimension_id}"
             )
 
 
@@ -63,12 +63,12 @@ def validate_dimension_type(spec: spec_model.Spec) -> None:
 
 
 def validate_dimension_order(spec: spec_model.Spec) -> None:
-    """Require a directional context dimension to occur in dataset order."""
-    logger.debug("    - checking directional row-context dimensions occur in dataset order")
+    """Require a directional context dimension to occur in profile order."""
+    logger.debug("    - checking directional row-context dimensions occur in profile order")
     for key, action in spec.action_items:
         declaration = action.row_context
         if declaration is None or declaration.dimension is None or not declaration.requires_order:
             continue
-        dataset = spec.get_row_context_dataset(key)
-        if dataset is not None and declaration.dimension not in dataset.order_references:
-            raise ValueError(f"Action {action.id} context dimension must occur in dataset order")
+        profile = spec.get_row_context_profile(key)
+        if profile is not None and declaration.dimension not in profile.order_references:
+            raise ValueError(f"Action {action.id} context dimension must occur in profile order")

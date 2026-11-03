@@ -31,9 +31,7 @@ def _add_escape_mapping(
         "entrypoint": entrypoint,
         "args": {},
     }
-    configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]["actions"][
-        mapping_id
-    ] = {
+    configuration["profiles"]["pump_telemetry_dataset"]["actions"][mapping_id] = {
         "binding": {
             "function": function_id,
             "args": {},
@@ -48,7 +46,7 @@ def _add_escape_mapping(
 def _escape_spec_configuration() -> dict:
     """Return a valid pump spec with input-only, output-only, and chained escapes."""
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
+    dataset = configuration["profiles"]["pump_telemetry_dataset"]
     dataset["features"]["escape_start_output"] = {"type": "float"}
     dataset["features"]["escape_chain_output"] = {"type": "float"}
     dataset["features"]["escape_source_output"] = {"type": "float"}
@@ -118,7 +116,7 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     function["validate_signature"] = False
     function["args"]["keys"] = {"type": "array[string]"}
     function["args"]["source_keys"] = {"type": "array[string]"}
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
+    dataset = configuration["profiles"]["pump_telemetry_dataset"]
     dataset["actions"]["read_pump_telemetry"]["binding"]["args"].update(
         {
             "keys": "$datasets.@.dimensions.ids",
@@ -133,8 +131,8 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     invocation = next(
         item for item in plan.invocations if item.function_id == "read_pump_telemetry"
     )
-    expected = definition.dimension_ids_by_dataset["pump_telemetry_dataset"]
-    expected_source = definition.dimension_ids_by_dataset["pump_dataset"]
+    expected = definition.dimension_ids_by_profile["pump_telemetry_dataset"]
+    expected_source = definition.dimension_ids_by_profile["pump_dataset"]
 
     assert invocation.arguments["keys"] == expected
     assert invocation.arguments["source_keys"] == expected_source
@@ -148,9 +146,7 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
 
 def test_collapse_feature_placeholder_uses_invocation_feature_id(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    action = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
-        "bearing_temperature_by_pump"
-    ]
+    action = configuration["profiles"]["pump_dataset"]["actions"]["bearing_temperature_by_pump"]
     action["binding"]["args"]["output"] = "$features.@.id"
     path = tmp_path / "collapse_feature_placeholder.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -187,33 +183,23 @@ def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> No
 
 def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None:
     definition = spec.load_spec(SPEC_PATH)
-    pump_entity = definition.entities["pump"]
-    pump_dataset = pump_entity.datasets["pump_dataset"]
-    read_mapping = (
-        definition.entities["pump_telemetry"]
-        .datasets["pump_telemetry_dataset"]
-        .actions["read_pump_telemetry"]
-    )
+    pump_profile = definition.profiles["pump_dataset"]
+    pump_dataset = pump_profile
+    read_mapping = definition.profiles["pump_telemetry_dataset"].actions["read_pump_telemetry"]
 
-    definition.entities["auxiliary_entity"] = spec_model.Entity(
-        id="auxiliary_entity",
-        name="Auxiliary",
-        dimensions=pump_entity.dimensions,
-        datasets={
-            "auxiliary_dataset": spec_model.Profile(
-                id="auxiliary_dataset",
-                features={"auxiliary_value": spec_model.Feature(id="auxiliary_value")},
-                actions={
-                    "read_auxiliary": spec_model.Action(
-                        id="read_auxiliary",
-                        binding=spec_model.Binding(
-                            function="read_pump_telemetry",
-                            args=dict(read_mapping.binding.args),
-                        ),
-                        features=spec_model.ActionFeatures(outputs=["$features.auxiliary_value"]),
-                    ),
-                },
-            )
+    definition.profiles["auxiliary_dataset"] = spec_model.Profile(
+        id="auxiliary_dataset",
+        dimensions=list(pump_profile.dimensions),
+        features={"auxiliary_value": spec_model.Feature(id="auxiliary_value")},
+        actions={
+            "read_auxiliary": spec_model.Action(
+                id="read_auxiliary",
+                binding=spec_model.Binding(
+                    function="read_pump_telemetry",
+                    args=dict(read_mapping.binding.args),
+                ),
+                features=spec_model.ActionFeatures(outputs=["$features.auxiliary_value"]),
+            ),
         },
     )
     pump_dataset.features["conformed_auxiliary"] = spec_model.Feature(id="conformed_auxiliary")
@@ -294,7 +280,7 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
 
 def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
     spec_definition = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = spec_definition["entities"]["pump"]["datasets"]["pump_dataset"]
+    dataset = spec_definition["profiles"]["pump_dataset"]
     action = dataset["actions"]["health_signal_normalized"]
     action["features"]["outputs"].append("$features.health_signal_secondary")
     dataset["features"]["health_signal_secondary"] = {"type": "float"}
@@ -496,21 +482,14 @@ def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> No
         graph.subset(["missing"])
 
 
-def test_compiled_inputs_match_each_entity_dataset_mapping() -> None:
+def test_compiled_inputs_match_each_profile_mapping() -> None:
     document = spec.load_spec(SPEC_PATH)
     execution_plan = compiler.Compiler().compile(document)
-    datasets = {
-        (entity_id, dataset.id): dataset
-        for entity_id, entity in document.entities.items()
-        for dataset in entity.datasets.values()
-    }
+    profiles = document.profiles
 
-    assert len(datasets) > 1
-    assert len({entity_id for entity_id, _ in datasets}) > 1
+    assert len(profiles) > 1
     for invocation in execution_plan.invocations:
-        action = datasets[invocation.entity_id, invocation.dataset_id].actions[
-            invocation.mapping_id
-        ]
+        action = profiles[invocation.dataset_id].actions[invocation.mapping_id]
         assert invocation.input_features == action.input_features
         assert invocation.output_features == action.output_features
 
@@ -521,9 +500,7 @@ def test_graph_subset_retains_profile_mapping_lookups() -> None:
     subset = graph.subset(["health_signal_normalized"])
 
     for node in subset.invocations:
-        assert (
-            graph.profile_for(node) is document.entities[node.entity_id].datasets[node.dataset_id]
-        )
+        assert graph.profile_for(node) is document.profiles[node.dataset_id]
         assert subset.profile_for(node) is graph.profile_for(node)
         assert subset.action_for(node) is graph.action_for(node)
         assert {dependency.node_id for dependency in subset.dependencies(node)} == {
@@ -534,14 +511,3 @@ def test_graph_subset_retains_profile_mapping_lookups() -> None:
     assert {node.node_id for node in nested_subset.invocations} == {
         node.node_id for node in subset.invocations
     }
-
-
-def test_graph_rejects_duplicate_datasets_before_indexing() -> None:
-    document = spec.load_spec(SPEC_PATH)
-    entities = list(document.entities.values())
-    dataset = next(iter(entities[0].datasets.values()))
-    entities[1].datasets[dataset.id] = dataset.model_copy(deep=True)
-    document = spec.Spec.model_validate(document.model_dump())
-
-    with pytest.raises(ValueError, match="Duplicate dataset id"):
-        compiler.Compiler().compile(document)

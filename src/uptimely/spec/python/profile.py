@@ -5,7 +5,6 @@ from __future__ import annotations
 import dataclasses
 import typing
 from collections import abc
-from typing import TYPE_CHECKING
 
 from uptimely.spec import catalog as function_catalog
 from uptimely.spec import functions, selectors
@@ -14,9 +13,6 @@ from uptimely.spec.model import common as spec_common
 
 from . import actions, ref
 from . import dimension as dimension_module
-
-if TYPE_CHECKING:
-    from .entity import Entity
 
 __all__ = [
     "Profile",
@@ -91,7 +87,8 @@ class Profile:
     id: str
     name: str | None = None
     description: str | None = None
-    entity: str | Entity | None = None
+    category: str | None = None
+    dimensions: abc.Sequence[str | dimension_module.Dimension] = ()
     row_scope = RowScope()
     order: abc.Sequence[Order] = ()
     producers: abc.Sequence[actions.Action] = ()
@@ -107,7 +104,8 @@ class Profile:
         pipelines: abc.Sequence[actions.Action] | None = None,
         name: str | None = None,
         description: str | None = None,
-        entity: str | Entity | None = None,
+        category: str | None = None,
+        dimensions: abc.Sequence[str | dimension_module.Dimension] | None = None,
         row_scope: RowScope | None = None,
         order: abc.Sequence[Order] | None = None,
     ) -> None:
@@ -121,8 +119,14 @@ class Profile:
             self.name = spec_common.humanize_identifier(self.id)
         if description is not None:
             self.description = description
-        if entity is not None:
-            self.entity = entity
+        if category is not None:
+            if not isinstance(category, str):
+                raise TypeError("Profile category must be a string or None")
+            self.category = category
+        if dimensions is not None:
+            if not isinstance(dimensions, abc.Sequence) or isinstance(dimensions, (str, bytes)):
+                raise TypeError("Profile dimensions must be a sequence")
+            self.dimensions = tuple(dimensions)
         if row_scope is not None:
             self.row_scope = row_scope
         if order is not None:
@@ -173,26 +177,27 @@ class Profile:
             raise TypeError(f"Profile '{self.id}' {group_name} must contain Actions")
         return list(group_actions)
 
-    def to_model(self) -> spec_model.Profile:
+    def to_model(
+        self, *, dimensions: abc.Sequence[dimension_module.Dimension] | None = None
+    ) -> spec_model.Profile:
         """Build the canonical profile, rejecting duplicate feature producers."""
+        resolved_dimensions = tuple(dimensions) if dimensions is not None else self._dimensions()
         return spec_model.Profile(
             id=self.id,
             name=self.name,
             description=self.description,
+            category=self.category,
+            dimensions=[item.to_model() for item in resolved_dimensions],
             row_scope=self.row_scope.to_model(),
             order=[key.to_model() for key in self.order],
-            features=self._feature_metadata,
-            actions=self._action_models,
+            features=self._feature_metadata(resolved_dimensions),
+            actions=self._action_models(resolved_dimensions),
         )
 
-    @property
-    def _entity_dimensions(self) -> tuple[dimension_module.Dimension, ...]:
-        """Resolve the owning entity's dimension declarations."""
-        if isinstance(self.entity, str):
-            raise ValueError("Resolve entity IDs through Spec before converting a profile")
-        dimensions = self.entity.dimensions if self.entity is not None else ()
+    def _dimensions(self) -> tuple[dimension_module.Dimension, ...]:
+        """Return declared dimensions, rejecting unresolved IDs outside a Spec."""
         resolved: list[dimension_module.Dimension] = []
-        for key in dimensions:
+        for key in self.dimensions:
             if isinstance(key, str):
                 raise ValueError("Resolve dimension IDs through Spec before converting a profile")
             if not isinstance(key, dimension_module.Dimension):
@@ -200,28 +205,29 @@ class Profile:
             resolved.append(key)
         return tuple(resolved)
 
-    @property
-    def _action_models(self) -> dict[str, spec_model.Action]:
-        """Convert actions and add entity-key outputs to source actions."""
+    def _action_models(
+        self, dimensions: abc.Sequence[dimension_module.Dimension]
+    ) -> dict[str, spec_model.Action]:
+        """Convert actions and add profile-key outputs to source actions."""
         actions_by_id: dict[str, spec_model.Action] = {}
         for name, declaration in self.actions.items():
             action_model = self._action_model(name, declaration)
             if declaration.kind in {functions.READ, functions.COLLAPSE}:
                 key_outputs = [
                     f"{selectors.FEATURE_PREFIX}{key.id}"
-                    for key in self._entity_dimensions
+                    for key in dimensions
                     if f"{selectors.FEATURE_PREFIX}{key.id}" not in action_model.features.outputs
                 ]
                 action_model.features.outputs[:0] = key_outputs
             actions_by_id[name] = action_model
         return actions_by_id
 
-    @property
-    def _feature_metadata(self) -> dict[str, spec_model.Feature]:
-        """Collect output metadata and entity dimensions, rejecting duplicate producers."""
+    def _feature_metadata(
+        self, dimensions: abc.Sequence[dimension_module.Dimension]
+    ) -> dict[str, spec_model.Feature]:
+        """Collect output metadata and profile dimensions, rejecting duplicate producers."""
         features: dict[str, spec_model.Feature] = {}
         producers: dict[str, str] = {}
-        dimensions = self._entity_dimensions
         for name, declaration in self.actions.items():
             for metadata in declaration.outputs:
                 identifier = metadata.id
@@ -288,7 +294,7 @@ def to_models(
         elif isinstance(declaration, spec_model.Profile):
             model = declaration
         else:
-            raise TypeError("datasets must contain Profile declarations or canonical models")
+            raise TypeError("profiles must contain Profile declarations or canonical models")
         if model.id in models:
             raise ValueError(f"Duplicate profile id {model.id}")
         models[model.id] = model

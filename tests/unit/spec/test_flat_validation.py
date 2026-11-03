@@ -20,8 +20,8 @@ from uptimely.spec.validation import spec as validation
 from uptimely.spec.validation.rules import (
     bindings,
     dimensions,
-    entities,
     features,
+    profiles,
     row_context,
 )
 from uptimely.spec.validation.rules import (
@@ -113,11 +113,17 @@ def make_spec(kind: functions.FunctionKindId = "vectorize") -> model.Spec:
             },
         },
     }
+    entities = document.pop("entities")
+    document["profiles"] = {}
+    for entity in entities.values():
+        for profile_id, profile in entity["datasets"].items():
+            profile["dimensions"] = entity["dimensions"]
+            document["profiles"][profile_id] = profile
     return model.Spec.model_validate(document)
 
 
 def target(spec: model.Spec) -> model.Profile:
-    return spec.entities["target_entity"].datasets["target"]
+    return spec.profiles["target"]
 
 
 def compute(spec: model.Spec) -> model.Action:
@@ -129,10 +135,8 @@ def test_dimension_change_uses_dimension_identities_not_cardinality(
 ) -> None:
     spec = make_spec("conform")
     spec.dimensions["other"] = model.Dimension(id="other", type="integer")
-    spec.entities["source_entity"].dimensions[1] = spec.dimensions["other"]
-    assert len(spec.entities["source_entity"].dimension_ids) == len(
-        spec.entities["target_entity"].dimension_ids
-    )
+    spec.profiles["source"].dimensions[1] = spec.dimensions["other"]
+    assert len(spec.profiles["source"].dimension_ids) == len(spec.profiles["target"].dimension_ids)
 
     with pytest.raises(ValueError, match="preserve target dimensionality"):
         action_contracts.validate_dimension_change(spec)
@@ -174,7 +178,7 @@ def test_source_discovery_visits_every_action_kind(kind: functions.FunctionKindI
     before = spec.model_dump()
     sources = spec.input_sources
     assert list(sources) == [key for key, _ in spec.action_items]
-    key = ("target_entity", "target", "compute")
+    key = ("target", "compute")
     source = sources[key]
     if kind == functions.READ:
         assert spec.input_candidates[key] == ()
@@ -182,7 +186,7 @@ def test_source_discovery_visits_every_action_kind(kind: functions.FunctionKindI
     else:
         expected = "target" if kind in {functions.VECTORIZE, functions.WRITE} else "source"
         assert source is not None
-        assert source[1] == expected
+        assert source == expected
     assert spec.model_dump() == before
 
 
@@ -197,7 +201,7 @@ def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
     spec = make_spec(kind)
     compute(spec).features.inputs = [f"$features.{feature}" for feature in inputs]
     before = spec.model_dump()
-    key = ("target_entity", "target", "compute")
+    key = ("target", "compute")
     assert [feature for feature, _ in spec.input_candidates[key]] == [
         feature for feature in inputs if feature not in spec.dimensions
     ]
@@ -210,13 +214,12 @@ def test_source_discovery_does_not_choose_an_ambiguous_owner(
     kind: functions.FunctionKindId,
 ) -> None:
     spec = make_spec(kind)
-    source_entity = spec.entities["source_entity"]
-    duplicate = source_entity.datasets["source"].model_copy(deep=True)
-    duplicate.id = "duplicate"
-    source_entity.datasets["duplicate"] = duplicate
+    source = spec.profiles["source"]
+    duplicate = source.model_copy(update={"id": "duplicate"}, deep=True)
+    spec.profiles["duplicate"] = duplicate
     compute(spec).features.inputs = ["$features.s"]
-    key = ("target_entity", "target", "compute")
-    assert [owner[1] for _, owners in spec.input_candidates[key] for owner in owners] == [
+    key = ("target", "compute")
+    assert [owner for _, owners in spec.input_candidates[key] for owner in owners] == [
         "source",
         "duplicate",
     ]
@@ -232,9 +235,9 @@ def test_every_rule_is_registered_with_one_spec_parameter() -> None:
         dataset,
         dependencies,
         dimensions,
-        entities,
         features,
         function_rules,
+        profiles,
         row_context,
     )
     rules = {
@@ -327,16 +330,10 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "parent cycle",
         ),
         (
-            entities.validate_entity_dimensions,
-            "read",
-            lambda s: setattr(s.entities["target_entity"].dimensions[0], "id", "missing"),
-            "unknown dimensions",
-        ),
-        (
-            dataset.validate_dataset_ids,
+            dataset.validate_profile_ids,
             "read",
             lambda s: setattr(target(s), "id", "source"),
-            "Duplicate dataset",
+            "Profile key",
         ),
         (
             dataset.validate_order_dimension,
@@ -402,7 +399,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             action_outputs.validate_dimension_collision,
             "vectorize",
             lambda s: compute(s).features.outputs.append("$features.machine"),
-            "duplicate entity",
+            "duplicate profile",
         ),
         (
             action_outputs.validate_output_feature,
@@ -502,7 +499,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             action_inputs.validate_grouping_dimensions,
             "collapse",
-            lambda s: s.entities["source_entity"].dimensions.clear(),
+            lambda s: s.profiles["source"].dimensions.clear(),
             "grouping dimensions",
         ),
         (
@@ -598,19 +595,19 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             action_contracts.validate_dimension_change,
             "collapse",
-            lambda s: s.entities["target_entity"].dimensions.append(s.dimensions["time"]),
+            lambda s: s.profiles["target"].dimensions.append(s.dimensions["time"]),
             "strictly higher",
         ),
         (
             action_contracts.validate_dimension_change,
             "conform",
-            lambda s: s.entities["target_entity"].dimensions.pop(),
+            lambda s: s.profiles["target"].dimensions.pop(),
             "preserve target",
         ),
         (
             action_contracts.validate_dimension_expansion_input,
             "expand",
-            lambda s: s.entities["source_entity"].dimensions.append(s.dimensions["time"]),
+            lambda s: s.profiles["source"].dimensions.append(s.dimensions["time"]),
             "lower-dimensional",
         ),
         (
@@ -647,8 +644,8 @@ def test_atomic_rules_reject_their_own_invariant(
 @pytest.mark.parametrize(
     ("validate", "dimension", "before", "message"),
     [
-        (row_context.validate_dataset_order, None, {"rows": 1}, "requires dataset order"),
-        (row_context.validate_dimension, "$dimensions.missing", {"steps": 1}, "input entity"),
+        (row_context.validate_dataset_order, None, {"rows": 1}, "requires profile order"),
+        (row_context.validate_dimension, "$dimensions.missing", {"steps": 1}, "input profile"),
         (
             row_context.validate_dimension_type,
             "$dimensions.machine",
@@ -659,7 +656,7 @@ def test_atomic_rules_reject_their_own_invariant(
             row_context.validate_dimension_order,
             "$dimensions.time",
             {"time": "1s"},
-            "must occur in dataset order",
+            "must occur in profile order",
         ),
     ],
 )
@@ -751,14 +748,14 @@ def test_from_python_can_defer_semantic_validation(validate: bool) -> None:
     if validate:
         with pytest.raises(ValueError, match="unknown input feature: missing"):
             api.from_python(
-                entities=document.entities,
+                profiles=document.profiles,
                 functions=document.functions,
                 dimensions=document.dimensions,
                 validate=validate,
             )
     else:
         loaded = api.from_python(
-            entities=document.entities,
+            profiles=document.profiles,
             functions=document.functions,
             dimensions=document.dimensions,
             validate=validate,
@@ -773,7 +770,7 @@ def test_from_python_always_checks_document_structure(validate: bool) -> None:
 
     with pytest.raises(pydantic.ValidationError, match="unexpected"):
         api.from_python(
-            entities=document.entities,
+            profiles=document.profiles,
             functions={"invalid": {"unexpected": True}},
             validate=validate,
         )

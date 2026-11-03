@@ -22,7 +22,7 @@ def log_stages(plan: execution_plan.ExecutionPlan) -> None:
             logger.info(
                 "  %s(%s) -> %s%s",
                 invocation.function_id,
-                invocation.entity_id,
+                invocation.dataset_id,
                 ", ".join(invocation.output_features) or invocation.mapping_id,
                 suffix,
             )

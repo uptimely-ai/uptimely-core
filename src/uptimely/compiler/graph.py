@@ -20,7 +20,6 @@ class InvocationNode:
     """One fragment, calculation, or sink function invocation."""
 
     function_id: str
-    entity_id: str
     dataset_id: str
     action_id: str
     feature_id: str | None = None
@@ -36,13 +35,13 @@ class InvocationNode:
     @property
     def node_id(self) -> str:
         """Stable graph identifier for this invocation."""
-        return f"invocation:{self.function_id}:{self.entity_id}:{self.dataset_id}:{self.action_id}"
+        return f"invocation:{self.function_id}:{self.dataset_id}:{self.action_id}"
 
     def __str__(self) -> str:
-        return f"{self.function_id}({self.entity_id})"
+        return f"{self.function_id}({self.dataset_id})"
 
     def __repr__(self) -> str:
-        return f"{self.function_id}({self.entity_id})"
+        return f"{self.function_id}({self.dataset_id})"
 
 
 class InvocationGraph:
@@ -70,8 +69,8 @@ class InvocationGraph:
         dataset_transformers: dict[str, list[InvocationNode]] = {}
 
         for key, action in self.spec.action_items:
-            entity_id = key[0]
-            dataset = self.spec.datasets_by_key[key[:2]]
+            profile_id = key[0]
+            profile = self.spec.profiles_by_key[profile_id]
             function_kind = self.spec.functions[action.binding.function].kind
             function_definition = functions.FUNCTION_KINDS[function_kind]
             outputs = action.output_features
@@ -80,7 +79,7 @@ class InvocationGraph:
                     (
                         feature
                         for feature in outputs
-                        if feature not in self.spec.dimensions_by_dataset[key[:2]]
+                        if feature not in self.spec.dimensions_by_profile[profile_id]
                     ),
                     None,
                 )
@@ -91,8 +90,7 @@ class InvocationGraph:
             )
             invocation = InvocationNode(
                 function_id=action.binding.function,
-                entity_id=entity_id,
-                dataset_id=dataset.id,
+                dataset_id=profile.id,
                 action_id=action.id,
                 feature_id=feature_id,
                 output_features=tuple(outputs),
@@ -102,11 +100,11 @@ class InvocationGraph:
             )
             nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
             if function_definition.is_sink:
-                dataset_sinks.setdefault(dataset.id, []).append(invocation)
+                dataset_sinks.setdefault(profile.id, []).append(invocation)
             if function_definition.is_source:
-                dataset_sources.setdefault(dataset.id, []).append(invocation)
+                dataset_sources.setdefault(profile.id, []).append(invocation)
             if function_definition.is_transformer:
-                dataset_transformers.setdefault(dataset.id, []).append(invocation)
+                dataset_transformers.setdefault(profile.id, []).append(invocation)
             for feature in outputs:
                 if feature not in self.spec.dimensions:
                     feature_producers[feature] = invocation
@@ -211,8 +209,8 @@ class InvocationGraph:
                     graph.add_edge(nodes[invocation.node_id], sink_node)
 
     def profile_for(self, node: InvocationNode) -> spec.Profile:
-        """Return a node's profile directly from its declaring entity."""
-        return self.spec.entities[node.entity_id].datasets[node.dataset_id]
+        """Return a node's profile by its globally unique ID."""
+        return self.spec.profiles[node.dataset_id]
 
     def action_for(self, node: InvocationNode) -> spec.Action:
         """Return the declaration that produced an invocation node."""

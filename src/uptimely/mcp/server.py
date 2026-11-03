@@ -143,9 +143,8 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 "declared_returns": functions.FUNCTION_KINDS[template.kind].returns,
                 "escape_actions": [
                     {
-                        "entity": key[0],
-                        "dataset": key[1],
-                        "action": key[2],
+                        "profile": key[0],
+                        "action": key[1],
                         "inputs": snapshot.spec.actions_by_key[key].input_features,
                         "outputs": snapshot.spec.actions_by_key[key].output_features,
                     }
@@ -224,7 +223,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 "Use list_calculated_features to see available features."
             )
 
-        entity_id, action = producer
+        profile_id, action = producer
         transitive: list[str] = []
         queue = list(action.input_features)
         seen = set(queue)
@@ -241,7 +240,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         return _to_json(
             {
                 "feature": feature_id,
-                "entity": entity_id,
+                "profile": profile_id,
                 "function": action.binding.function,
                 "direct_dependencies": action.input_features,
                 "transitive_dependencies": transitive,
@@ -285,30 +284,25 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         outputs_by_dataset: dict[str, list[str]] = {}
         for dataset_id, feature_id in sorted(actual_outputs):
             outputs_by_dataset.setdefault(dataset_id, []).append(feature_id)
-        dataset_entities = plan.datasets
-
         datasets: list[dict[str, typing.Any]] = []
-        for dataset_id, features in sorted(
-            outputs_by_dataset.items(), key=lambda item: (dataset_entities[item[0]], item[0])
-        ):
-            entity_id = dataset_entities[dataset_id]
+        for dataset_id, features in sorted(outputs_by_dataset.items()):
             frame = _collect_frame(result.main_frames.get(dataset_id))
             if frame is None or not hasattr(frame, "to_dicts"):
                 raise TypeError(
-                    f"Execution produced calculated outputs for {entity_id}.{dataset_id} "
+                    f"Execution produced calculated outputs for profile {dataset_id} "
                     "without a serializable dataset"
                 )
-            entity = snapshot.spec.entities.get(entity_id)
+            profile = snapshot.spec.profiles.get(dataset_id)
             columns = [
                 name
-                for name in [*(entity.dimension_ids if entity else []), *features]
+                for name in [*(profile.dimension_ids if profile else []), *features]
                 if name in frame.columns
             ]
             view = frame.select(columns) if columns else frame
             rows = view.head(max_rows).to_dicts()
             datasets.append(
                 {
-                    "entity": entity_id,
+                    "profile": dataset_id,
                     "dataset": dataset_id,
                     "features": features,
                     "columns": view.columns,
@@ -340,7 +334,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             {
                 **_build_details(snapshot),
                 "spec": str(snapshot.bundle.spec_path),
-                "entities": sorted(spec_definition.entities),
+                "profiles": sorted(spec_definition.profiles),
                 "functions": {
                     kind: sum(
                         function.kind == kind

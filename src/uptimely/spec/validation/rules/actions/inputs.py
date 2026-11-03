@@ -45,7 +45,7 @@ def validate_source_count(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(action.binding.function)
         if function is None or function.kind != functions.COLLAPSE:
             continue
-        source_ids = {owners[0][1] for _, owners in spec.input_candidates[key] if len(owners) == 1}
+        source_ids = {owners[0] for _, owners in spec.input_candidates[key] if len(owners) == 1}
         if len(source_ids) != 1:
             raise ValueError(
                 f"Collapse {action.id} input features must belong to one "
@@ -59,11 +59,7 @@ def validate_source_target(spec: spec_model.Spec) -> None:
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         source = spec.input_sources[key]
-        if (
-            function is not None
-            and function.kind == functions.COLLAPSE
-            and (source is not None and source[1] == key[1])
-        ):
+        if function is not None and function.kind == functions.COLLAPSE and source == key[0]:
             raise ValueError(f"Collapse {action.id} cannot use its target dataset as source")
 
 
@@ -76,10 +72,10 @@ def validate_grouping_dimensions(spec: spec_model.Spec) -> None:
             continue
         source = spec.input_sources[key]
         if source is not None and not (
-            spec.dimensions_by_dataset[key[:2]] <= spec.dimensions_by_dataset[source]
+            spec.dimensions_by_profile[key[0]] <= spec.dimensions_by_profile[source]
         ):
             raise ValueError(
-                f"Collapse {action.id} grouping dimensions must exist in source {source[1]}"
+                f"Collapse {action.id} grouping dimensions must exist in source {source}"
             )
 
 
@@ -96,7 +92,7 @@ def validate_source_features(spec: spec_model.Spec) -> None:
             if unknown:
                 raise ValueError(
                     f"Collapse {action.id} references features outside source "
-                    f"{source[1]}: " + ", ".join(unknown)
+                    f"{source}: " + ", ".join(unknown)
                 )
 
 
@@ -111,7 +107,7 @@ def validate_source_dimensions(spec: spec_model.Spec) -> None:
         referenced = set(action.dimensions_references)
         unknown = sorted(
             (referenced & spec.dimensions.keys())
-            - (spec.dimensions_by_dataset[source] if source is not None else frozenset())
+            - (spec.dimensions_by_profile[source] if source is not None else frozenset())
         )
         if unknown:
             raise ValueError(
@@ -140,7 +136,7 @@ def validate_input_scope(spec: spec_model.Spec) -> None:
         ):
             continue
         for feature in action.input_features:
-            if feature not in spec.local_features[key[:2]]:
+            if feature not in spec.local_features[key[0]]:
                 raise ValueError(
                     f"Action {action.id} cannot read feature {feature} from another dataset"
                 )
@@ -161,7 +157,7 @@ def validate_dataset_reference(spec: spec_model.Spec) -> None:
     logger.debug("    - checking structural dataset references")
     for action in spec.actions:
         for dataset in action.dataset_references:
-            if dataset != selectors.CURRENT_ID and dataset not in spec.datasets:
+            if dataset != selectors.CURRENT_ID and dataset not in spec.profiles:
                 raise ValueError(f"Action {action.id} references unknown dataset: {dataset}")
 
 

@@ -1,7 +1,7 @@
 import pytest
 
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions, conversion, dimension, entity, profile, ref
+from uptimely.spec.python import actions, conversion, dimension, profile, ref
 
 
 def _source(path: str, columns: list[str]) -> None:
@@ -12,14 +12,17 @@ def _other_source(path: str, columns: list[str]) -> None:
     pass
 
 
-def _dataset(identifier: str, conflicting: bool = False) -> profile.Profile:
+def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
     return profile.Profile(
         id=identifier,
         producers=[
             actions.Action(
-                id=ref.function(_other_source if conflicting else _source, kind="read").name,
+                id="read",
                 inputs=[],
-                function=ref.function(_other_source if conflicting else _source, kind="read"),
+                function=ref.function(
+                    _other_source if conflicting else _source,
+                    kind="read",
+                ),
                 arguments={"path": "readings.json", "columns": [ref.feature("temperature")]},
                 outputs=[],
                 function_id="source",
@@ -29,30 +32,18 @@ def _dataset(identifier: str, conflicting: bool = False) -> profile.Profile:
 
 
 @pytest.mark.parametrize("keyed", [False, True])
-@pytest.mark.parametrize("as_entities", [False, True])
-def test_auto_catalog_converts_declaration_lists_and_dicts(keyed: bool, as_entities: bool) -> None:
-    declarations = [_dataset("first"), _dataset("second")]
+def test_auto_catalog_converts_profile_sequences_and_mappings(keyed: bool) -> None:
+    declarations = [_profile("first"), _profile("second")]
     pump = dimension.Dimension(id="pump", type="string")
-    if as_entities:
-        resources = [
-            entity.Entity(id="assets", name="Assets", dimensions=[pump], datasets=declarations)
-        ]
-    else:
-        resources = declarations
-    inputs = {resource.id: resource for resource in resources} if keyed else resources
+    for declaration in declarations:
+        declaration.dimensions = [pump]
+    inputs = {resource.id: resource for resource in declarations} if keyed else declarations
 
-    payload = conversion.to_dict(
-        **({"entities": inputs} if as_entities else {"datasets": inputs}),
-        dimensions=[pump],
-    )
+    payload = conversion.to_dict(profiles=inputs, dimensions=[pump])
 
     assert payload["name"] is None
-    entity_id = "assets" if as_entities else "entity"
-    assert payload["entities"][entity_id]["dimensions"] == ["pump"]
-    assert list(payload["entities"][entity_id]["datasets"]) == [
-        "first",
-        "second",
-    ]
+    assert list(payload["profiles"]) == ["first", "second"]
+    assert all(item["dimensions"] == ["pump"] for item in payload["profiles"].values())
     assert payload["functions"] == {
         "source": {
             "name": "Source",
@@ -69,34 +60,27 @@ def test_auto_catalog_converts_declaration_lists_and_dicts(keyed: bool, as_entit
     }
 
 
-def test_entities_cannot_be_passed_as_datasets() -> None:
-    declarations = [
-        entity.Entity(id="assets", name="Assets", dimensions=[], datasets=[_dataset("readings")])
-    ]
+def test_conversion_rejects_duplicate_and_invalid_profiles() -> None:
+    declaration = _profile("readings")
+    with pytest.raises(ValueError, match="Duplicate profile id readings"):
+        conversion.to_dict(profiles=[declaration, declaration])
+    with pytest.raises(TypeError, match="profiles must contain"):
+        conversion.to_dict(profiles=[object()])
 
-    with pytest.raises(TypeError, match="datasets must contain Profile"):
-        conversion.to_dict(datasets=declarations)
 
-
-@pytest.mark.parametrize("as_entities", [False, True])
-def test_auto_catalog_rejects_conflicting_entrypoints(as_entities: bool) -> None:
-    declarations = [_dataset("first"), _dataset("second", conflicting=True)]
-    inputs = (
-        [entity.Entity(id="assets", name="Assets", dimensions=[], datasets=declarations)]
-        if as_entities
-        else declarations
-    )
+def test_auto_catalog_rejects_conflicting_entrypoints() -> None:
+    declarations = [_profile("first"), _profile("second", conflicting=True)]
 
     with pytest.raises(ValueError, match="Conflicting function definition for 'source'"):
-        conversion.to_dict(**({"entities": inputs} if as_entities else {"datasets": inputs}))
+        conversion.to_dict(profiles=declarations)
 
 
+@pytest.mark.parametrize("canonical_profile", [False, True])
 @pytest.mark.parametrize("catalog_form", ["model", "dict", "dict_of_models"])
-@pytest.mark.parametrize("canonical_dataset", [False, True])
 def test_explicit_catalog_preserves_argument_metadata(
-    catalog_form: str, canonical_dataset: bool
+    catalog_form: str, canonical_profile: bool
 ) -> None:
-    declaration = _dataset("readings")
+    declaration = _profile("readings")
     catalog = spec_model.FunctionCatalog(
         root={
             "source": spec_model.FunctionTemplate(
@@ -118,9 +102,10 @@ def test_explicit_catalog_preserves_argument_metadata(
         "dict_of_models": {"source": catalog["source"]},
     }[catalog_form]
     pump = dimension.Dimension(id="pump", type="string")
+    declaration.dimensions = [pump]
 
     payload = conversion.to_dict(
-        datasets=[declaration.to_model() if canonical_dataset else declaration],
+        profiles=[declaration.to_model() if canonical_profile else declaration],
         functions=functions,
         name="Readings",
         dimensions={"pump": pump.to_model()},
@@ -138,15 +123,15 @@ def test_explicit_catalog_preserves_argument_metadata(
             "columns": {"type": "array[string]", "comment": None},
         },
     }
-    assert payload["entities"]["Readings"]["name"] == "Readings"
-    assert list(payload["entities"]["Readings"]["datasets"]) == ["readings"]
-    assert "id" not in payload["entities"]["Readings"]["datasets"]["readings"]
+    assert payload["profiles"]["readings"]["name"] == "Readings"
+    assert payload["profiles"]["readings"]["dimensions"] == ["pump"]
+    assert "id" not in payload["profiles"]["readings"]
     assert payload["dimensions"] == {"pump": pump.to_model().model_dump()}
 
 
 def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_functions() -> None:
     payload = conversion.to_dict(
-        datasets=[_dataset("readings").to_model()],
+        profiles=[_profile("readings").to_model()],
         functions={
             "configured": {
                 "kind": "read",
@@ -172,25 +157,16 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
 @pytest.mark.parametrize(
     ("kwargs", "error_type", "message"),
     [
-        ({"entities": [], "datasets": []}, ValueError, "Use either 'datasets' or 'entities'"),
-        ({"entities": []}, ValueError, "At least one entity is required"),
-        ({"entities": {}}, ValueError, "At least one entity is required"),
-        ({"datasets": []}, ValueError, "At least one dataset is required"),
-        ({"datasets": {}}, ValueError, "At least one dataset is required"),
-        ({}, ValueError, "At least one dataset is required"),
-        ({"datasets": [object()]}, TypeError, "datasets must contain Profile"),
+        ({"profiles": []}, ValueError, "At least one profile is required"),
+        ({"profiles": {}}, ValueError, "At least one profile is required"),
+        ({}, ValueError, "At least one profile is required"),
         (
-            {"entities": [object()]},
-            TypeError,
-            "entities must contain Entity",
-        ),
-        (
-            {"datasets": [_dataset("readings")], "dimensions": [object()]},
+            {"profiles": [_profile("readings")], "dimensions": [object()]},
             TypeError,
             "dimensions must contain Dimension",
         ),
         (
-            {"datasets": [_dataset("readings")], "functions": object()},
+            {"profiles": [_profile("readings")], "functions": object()},
             TypeError,
             "functions must be a FunctionCatalog",
         ),
@@ -201,3 +177,8 @@ def test_conversion_rejects_invalid_inputs(
 ) -> None:
     with pytest.raises(error_type, match=message):
         conversion.to_dict(**kwargs)
+
+
+def test_conversion_rejects_removed_dataset_argument() -> None:
+    with pytest.raises(TypeError, match="unexpected keyword argument 'datasets'"):
+        conversion.to_dict(datasets=[_profile("readings")])

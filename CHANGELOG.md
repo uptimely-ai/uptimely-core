@@ -12,7 +12,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 - Spec and compiler validation now emit debug traces with headings and
   indented check bullets, including reasons for skipped signature checks.
-  Document structure checks summarize dataset and action counts rather than
+  Document structure checks summarize profile and action counts rather than
   repeating messages for every resource. Python conversion also summarizes
   action output-reference checks once instead of logging each repeated check.
   Compiler invocation checks are grouped into one counted action summary.
@@ -24,7 +24,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Engine validation checks now emit debug logs, including reasons for skipping
   inapplicable dataframe checks.
 - Spec documents and execution plans now expose reusable resource indexes for
-  datasets, features, actions or invocations, and arguments.
+  profiles, features, actions or invocations, and arguments.
   Nested spec models also provide cached child, reference, and source views,
   reused by validation rules without additional declaration wrappers. Views
   use cached properties; construct a new model after editing indexed declarations.
@@ -42,10 +42,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
-- **Breaking:** Renamed the spec model and Python authoring API `Dataset` to
-  `Profile` and `DatasetRegistry` to `ProfileRegistry`, including their public
-  imports. Serialized documents retain the existing entity-owned `datasets`
-  structure in this step.
+- **Breaking:** Replaced entity-owned datasets with globally keyed top-level
+  `profiles` in spec version 4. Profile declarations now own their dimensions
+  and may declare an optional `category`; removed the Entity model and authoring
+  API. Execution plans are now version 4 and no longer carry `entity_id`.
 - **Breaking:** Project builds and feature-graph inspection replace `--verbose`
   with `--log-level {debug,info,warning,error,critical}` (default: `info`).
   Debug logging includes detailed build summaries and feature graph trees.

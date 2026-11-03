@@ -23,7 +23,7 @@ def test_root_authoring_api_compiles_and_executes(
 ) -> None:
     class CalculatedData(up.Profile):
         id = "calculated_dataset"
-        entity = "measurements"
+        dimensions = ["id"]
         producers = [
             up.Action(
                 id="read",
@@ -44,12 +44,11 @@ def test_root_authoring_api_compiles_and_executes(
         ]
 
     declaration = up.Spec(
+        profiles=[CalculatedData],
         dimensions=[up.Dimension(id="id", type="integer")],
-        entities=[up.Entity(id="measurements", name="Measurements", dimensions=["id"])],
-        datasets=[CalculatedData],
     )
     model = declaration.to_model()
-    action = model.entities["measurements"].datasets["calculated_dataset"].actions["double"]
+    action = model.profiles["calculated_dataset"].actions["double"]
     assert action.input_features == ["value"]
     assert action.output_features == ["doubled"]
     assert action.binding.args == {

@@ -12,7 +12,7 @@ const ICONS = {
   home: "house", menu: "menu", "collapse-navigation": "panel-left-close",
   "expand-navigation": "panel-left-open", spec: "book-open", plan: "list-tree",
   execution: "play", overview: "layout-dashboard", features: "sigma",
-  entities: "boxes", datasets: "table", dimensions: "layers-3", functions: "braces",
+  profiles: "boxes", dimensions: "layers-3", functions: "braces",
   invocations: "braces", "feature-lineage": "network", "invocation-lineage": "workflow",
   "data-lineage": "database-zap", stages: "list-ordered",
 };
@@ -103,7 +103,7 @@ export function shell(data, view, context, content) {
   const navigationGroups = [
     ["spec", "Spec", [
       ["spec", "Overview", "overview"], ["features", "Features", "features"],
-      ["entities", "Entities", "entities"], ["datasets", "Datasets", "datasets"],
+      ["profiles", "Profiles", "profiles"],
       ["dimensions", "Dimensions", "dimensions"], ["functions", "Functions", "functions"],
       ["lineage", "Lineage", "feature-lineage"],
     ]],

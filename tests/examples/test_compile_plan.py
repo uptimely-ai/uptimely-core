@@ -18,10 +18,10 @@ def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.Bui
     restored = execution_plan.from_dict(execution_plan.to_dict(pump_bundle.execution_plan))
 
     for invocation in restored.invocations:
-        dimensions = document.dimension_ids_by_dataset[invocation.dataset_id]
-        dataset = document.datasets[invocation.dataset_id]
+        dimensions = document.dimension_ids_by_profile[invocation.dataset_id]
+        profile = document.profiles[invocation.dataset_id]
         definitions = {
-            **dataset.features,
+            **profile.features,
             **{name: document.dimensions[name] for name in dimensions},
         }
         assert invocation.id_columns == dimensions
@@ -90,7 +90,7 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "invocations",
         "stages",
     }
-    assert metadata["plan_version"] == 3
+    assert metadata["plan_version"] == 4
     assert {invocation["function_kind"] for invocation in metadata["invocations"]} == {
         "read",
         "collapse",
@@ -104,7 +104,7 @@ def test_compiled_plan_export_omits_generated_timestamp(
         for invocation in metadata["invocations"]
         if invocation["function_kind"] == "collapse"
     )
-    assert collapse_invocation["entity_id"] == "pump"
+    assert "entity_id" not in collapse_invocation
     assert collapse_invocation["entrypoint"].endswith(":aggregate")
     assert collapse_invocation["arguments"] == {
         "feature": "bearing_temperature",

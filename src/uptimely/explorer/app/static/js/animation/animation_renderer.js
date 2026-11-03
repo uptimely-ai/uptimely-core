@@ -40,7 +40,7 @@ function animationStep(step, stage) {
   const inputs = step.columns.filter(column => column.role === "Input");
   const declared = step.columns.filter(column => column.role === "Declared input");
   const joins = [...new Set(step.input_tables.flatMap(table => table.join_dimensions))];
-  const dataset = step.dataset ? step.dataset_label : step.entity;
+  const dataset = step.dataset ? step.dataset_label : step.profile;
   let sources;
   if (step.kind.is_source && step.kind.dataframe_input_scope === "none") {
     sources = `<div class="data-lineage-boundary"><strong>Source</strong>${escape(dataset)}</div>`;
@@ -50,7 +50,7 @@ function animationStep(step, stage) {
     sources = step.input_tables.map(table => sampleTable(table.columns, table.keys, "Source input", "input",
       table.row_count, step.kind.dimension_change === "remove", table.dataset_label, table.join_dimensions, "removed")).join("");
   } else if (step.kind.is_sink) {
-    sources = `<div class="data-lineage-boundary" data-write-boundary="${escape(step.dataset || step.entity)}"><strong>Write destination</strong>${escape(dataset)}</div>`;
+    sources = `<div class="data-lineage-boundary" data-write-boundary="${escape(step.dataset || step.profile)}"><strong>Write destination</strong>${escape(dataset)}</div>`;
   } else {
     sources = inputs.length || keys.length ? "" : '<div class="data-lineage-boundary"><strong>No declared input columns</strong>Only declared information is shown.</div>';
   }

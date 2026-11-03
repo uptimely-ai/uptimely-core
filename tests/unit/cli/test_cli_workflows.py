@@ -100,7 +100,7 @@ def test_engine_cli_forwards_validation_flag(
             invocation_statuses={},
             durations={},
             failures={},
-            plan_version=3,
+            plan_version=4,
         )
 
     monkeypatch.setattr(engine_module.Engine, "run", run)
@@ -179,7 +179,7 @@ def test_run_log_level_filters_uptimely_only_and_restores_configuration(
             invocation_statuses={},
             durations={},
             failures={},
-            plan_version=3,
+            plan_version=4,
         )
 
     monkeypatch.setattr(engine_module.Engine, "run", run)
@@ -242,7 +242,7 @@ def test_engine_previews_final_datasets(
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=3,
+        plan_version=4,
     )
     monkeypatch.setattr(engine_module.Engine, "run", lambda self, *, validate=False: result)
     collected_heights: list[int] = []
@@ -325,7 +325,7 @@ def test_engine_preview_errors_are_reported(
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=3,
+        plan_version=4,
     )
     monkeypatch.setattr(engine_module.Engine, "run", lambda self, *, validate=False: result)
     with pytest.raises(SystemExit) as error:
@@ -522,7 +522,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
     (build_root / "execution_plan.json").write_text(
         json.dumps(
             {
-                "plan_version": 3,
+                "plan_version": 4,
                 "required_backend": "polars",
                 "resources": {},
                 "invocations": [],

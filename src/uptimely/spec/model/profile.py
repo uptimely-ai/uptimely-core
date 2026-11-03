@@ -128,15 +128,27 @@ class RowScope(common.StrictModel):
 
 
 class Profile(common.StrictModel):
-    """An entry under an entity's ID-keyed `datasets` object."""
+    """An entry under the top-level ID-keyed `profiles` object."""
 
     id: str = pydantic.Field(exclude=True)
     name: str | None = None
     description: str | None = None
+    category: str | None = None
+    dimensions: list[common.Dimension] = pydantic.Field(default_factory=list)
     row_scope: RowScope = pydantic.Field(default_factory=RowScope)
     features: dict[str, Feature] = pydantic.Field(default_factory=dict)
     actions: dict[str, Action] = pydantic.Field(default_factory=dict)
     order: list[Order] = pydantic.Field(default_factory=list)
+
+    @functools.cached_property
+    def dimension_ids(self) -> list[str]:
+        """Return the identifiers of dimensions declared by this profile."""
+        return [dimension.id for dimension in self.dimensions]
+
+    @functools.cached_property
+    def dimension_id_set(self) -> frozenset[str]:
+        """Return dimension IDs for repeated scope checks."""
+        return frozenset(self.dimension_ids)
 
     @pydantic.model_validator(mode="after")
     def generate_name(self) -> typing.Self:
@@ -187,54 +199,7 @@ class Profile(common.StrictModel):
             for dimension_id, _ in self.order_dimensions
         )
 
-
-class Entity(common.StrictModel):
-    """An entry under the top-level `entities` block."""
-
-    id: str = pydantic.Field(exclude=True)
-    name: str
-    description: str | None = None
-    dimensions: list[common.Dimension] = pydantic.Field(default_factory=list)
-    datasets: dict[str, Profile] = pydantic.Field(default_factory=dict)
-
-    @functools.cached_property
-    def dimension_ids(self) -> list[str]:
-        """Return the identifiers of dimensions declared by this entity."""
-        return [dimension.id for dimension in self.dimensions]
-
-    @functools.cached_property
-    def dimension_id_set(self) -> frozenset[str]:
-        """Return dimension IDs for repeated scope checks."""
-        return frozenset(self.dimension_ids)
-
-    @functools.cached_property
-    def features(self) -> dict[str, Feature]:
-        """Return feature metadata from all owned datasets, keyed by feature ID."""
-        return {
-            feature_id: feature
-            for dataset in self.datasets.values()
-            for feature_id, feature in dataset.features.items()
-        }
-
-    @functools.cached_property
-    def actions(self) -> dict[tuple[str, str], Action]:
-        """Return owned actions keyed by dataset ID and action dictionary key."""
-        return {
-            (dataset.id, action_id): action
-            for dataset in self.datasets.values()
-            for action_id, action in dataset.actions.items()
-        }
-
-    @functools.cached_property
-    def arguments(self) -> dict[tuple[str, str, str], common.BindingArgument]:
-        """Return bound arguments keyed by dataset ID, action key, and argument name."""
-        return {
-            (dataset.id, action_id, name): value
-            for dataset in self.datasets.values()
-            for (action_id, name), value in dataset.arguments.items()
-        }
-
     @pydantic.field_serializer("dimensions")
     def serialize_dimensions(self, dimensions: list[common.Dimension]) -> list[str]:
-        """Serialize entity dimensions as references in the spec document."""
+        """Serialize profile dimensions as references in the spec document."""
         return [dimension.id for dimension in dimensions]

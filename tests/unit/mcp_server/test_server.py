@@ -142,7 +142,7 @@ async def test_escape_function_description_reports_logical_feature_dependencies(
         returns="any",
         entrypoint="examples.pump_analytics.functions.analytics:aggregate",
     )
-    dataset = definition.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
+    dataset = definition.profiles["pump_telemetry_dataset"]
     dataset.actions["external_audit"] = spec_model.Action(
         id="external_audit",
         binding=spec_model.Binding(function="external_audit"),
@@ -166,8 +166,7 @@ async def test_escape_function_description_reports_logical_feature_dependencies(
     assert described["declared_returns"] == "any"
     assert described["escape_actions"] == [
         {
-            "entity": "pump_telemetry",
-            "dataset": dataset.id,
+            "profile": "pump_telemetry_dataset",
             "action": "external_audit",
             "inputs": ["bearing_temperature", "vibration_rms"],
             "outputs": [],
@@ -214,7 +213,7 @@ async def test_describe_feature_reports_dependencies(
     """describe_feature reports direct, transitive, and input dependencies."""
     payload = await _call(state, "describe_feature", {"feature_id": "pump_health_score"})
     assert payload["function"] == "pump_health_score"
-    assert payload["entity"] == "pump_telemetry"
+    assert payload["profile"] == "pump_telemetry_dataset"
     assert payload["direct_dependencies"] == [
         "bearing_temperature_delta",
         "vibration_delta",
@@ -261,7 +260,7 @@ async def test_execute_build_runs_the_saved_plan_without_compiling(
     telemetry = next(
         dataset for dataset in payload["datasets"] if "pump_health_score" in dataset["features"]
     )
-    assert telemetry["entity"] == "pump_telemetry"
+    assert telemetry["profile"] == "pump_telemetry_dataset"
     assert telemetry["row_count"] == 3
     assert {
         "plant",
@@ -291,7 +290,12 @@ async def test_reload_build(state: server.ServerState) -> None:
     assert payload["scope"] == "all features"
     assert payload["features"] is None
     assert payload["spec"].endswith("_generated/build/spec.json")
-    assert payload["entities"] == ["constants", "pump", "pump_telemetry"]
+    assert payload["profiles"] == [
+        "constants_dataset",
+        "pump_dataset",
+        "pump_external_workflow_dataset",
+        "pump_telemetry_dataset",
+    ]
 
 
 @pytest.mark.anyio

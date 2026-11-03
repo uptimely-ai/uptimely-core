@@ -94,14 +94,12 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
     )
     (tmp_path / f"{module_name}.py").write_text(
         f"import {dependency_name}\n"
-        "from uptimely.spec.python import Profile, Entity\n"
+        "from uptimely.spec.python import Profile\n"
         "from uptimely.spec.python.spec import Spec\n"
-        "assets = Entity(id='assets', name='Assets', dimensions=[])\n"
         "class Values(Profile):\n"
         "    id = 'values'\n"
-        "    entity = assets\n"
-        f"python_spec = Spec(dimensions=[], entities=[assets], "
-        f"name={dependency_name}.VALUE, datasets=[Values])\n",
+        f"python_spec = Spec(dimensions=[], profiles=[Values], "
+        f"name={dependency_name}.VALUE)\n",
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(tmp_path))
@@ -113,8 +111,7 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
     assert check.call_count == int(validate)
 
     assert isinstance(loaded, spec.Spec)
-    assert loaded.entities["assets"].name == "Assets"
-    assert list(loaded.entities["assets"].datasets) == ["values"]
+    assert list(loaded.profiles) == ["values"]
     assert loaded.name == "Custom project spec"
 
 
@@ -132,15 +129,14 @@ def test_build_defers_source_semantic_validation_to_compiler(
 ) -> None:
     module_name = f"deferred_validation_{tmp_path.name.replace('-', '_')}"
     (tmp_path / f"{module_name}.py").write_text(
-        "from uptimely.spec.python import Spec, Entity, Profile\n"
-        "owner = Entity(id='example', name='Example', dimensions=[])\n"
-        "values = Profile(id='values', entity=owner)\n"
-        "python_spec = Spec(dimensions=[], entities=[owner], datasets=[values])\n",
+        "from uptimely.spec.python import Spec, Profile\n"
+        "values = Profile(id='values')\n"
+        "python_spec = Spec(dimensions=[], profiles=[values])\n",
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(tmp_path))
     json_path = tmp_path / "spec.json"
-    json_path.write_text('{"spec_version": 3}', encoding="utf-8")
+    json_path.write_text('{"spec_version": 4}', encoding="utf-8")
     python_spec = f"{module_name}:python_spec" if source_kind == "python" else None
     json_spec = json_path if source_kind == "json" else None
 
@@ -167,7 +163,7 @@ def test_complete_build_validates_spec_semantics_once(
     tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     path = tmp_path / "source.json"
-    path.write_text('{"spec_version": 3}', encoding="utf-8")
+    path.write_text('{"spec_version": 4}', encoding="utf-8")
     caplog.set_level(logging.DEBUG, logger="uptimely")
 
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:

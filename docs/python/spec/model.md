@@ -8,34 +8,34 @@ The compiler constructs executable invocations from these declarations.
 
 ## Resource indexes
 
-The document model collects nested resources once, on the first index access.
-Use `document.datasets["telemetry"]` or `document.features["pressure"]` instead
-of walking entities and datasets. These dictionaries reference the original
-declarations, not copies. Dataset dimension features are included in `features`;
-the top-level dimension catalog remains `document.dimensions`.
+The document model indexes profiles, features, actions, and arguments once, on
+the first index access. Use `document.profiles["telemetry"]` or
+`document.features["pressure"]` rather than repeatedly traversing the document.
+These dictionaries reference the original declarations, not copies. Profile
+dimension features are included in `features`; the top-level dimension catalog
+remains `document.dimensions`.
 
 `document.actions` is an ordered list of the original canonical `Action` objects.
-Use `for action in document.actions` to traverse it. Action IDs are dataset-scoped,
-so `document.actions_by_key` uses
-`(entity_id, dataset_id, action_key)` keys. `document.arguments` contains function
+Use `for action in document.actions` to traverse it. Action IDs are profile-scoped,
+so `document.actions_by_key` uses `(profile_id, action_key)` keys.
+`document.arguments` contains function
 argument declarations keyed by `(function_id, argument_key)`; bound values remain
-on `action.binding.args`. `document.action_datasets` maps each action key to its
-owning dataset occurrence.
+on `action.binding.args`. `document.action_profiles` maps each action key to its
+owning profile.
 `document.entrypoints` lists distinct function-catalog entrypoint strings in
 declaration order without parsing them or importing implementations. Compilation
 still parses and inspects only entrypoints needed by the selected graph.
 `document.functions.iter_functions()` yields each function ID, its template, and
 the number of arguments declared as dataframes.
 
-When ownership matters, `dataset_items` contains `(dataset_key, dataset)` pairs
+When ownership matters, `profile_items` contains `(profile_key, profile)` pairs
 and `action_items` contains `(action_key, action)` pairs in declaration order.
-Dataset keys are `(entity_id, dataset_id)`; action keys additionally contain the
-action dictionary key. These lists retain duplicate occurrences and aliases for
-validation without introducing additional Dataset or Action classes.
-`datasets_by_key`, `feature_owners`, `feature_producers`, and
+Action keys contain the profile ID and action dictionary key. The action list
+retains aliases for validation without introducing additional Action classes.
+`profiles_by_key`, `feature_owners`, `feature_producers`, and
 `actions_by_function` provide keyed lookups and relationships.
 `feature_owners` excludes global
-dimensions, which can occur in multiple datasets. ID-keyed indexes use the last
+dimensions, which can occur in multiple profiles. ID-keyed indexes use the last
 declaration when IDs collide; validate a document before relying on unique ownership.
 
 Views use `functools.cached_property`; treat declarations and cached collections
@@ -52,15 +52,14 @@ normalize their children:
 
 | Model | Views |
 | --- | --- |
-| `Entity` | `features`, `actions` keyed by `(dataset_id, action_key)`, `arguments` keyed by `(dataset_id, action_key, argument_name)`, `dimension_ids`, `dimension_id_set` |
-| `Dataset` | `arguments` keyed by `(action_key, argument_name)`, `feature_producers`, `order_dimensions`, `order_references` |
+| `Profile` | `all_features`, `arguments` keyed by `(action_key, argument_name)`, `feature_producers`, `dimension_ids`, `dimension_id_set`, `order_dimensions`, `order_references` |
 | `Action` | `arguments`, `input_features`, `output_features`, `feature_selectors`, `dataset_references`, `dimensions_references`, `dimension_reference_paths` |
 | `ActionFeatures` | `input_ids`, `output_ids` |
 | `Binding` | `values_with_paths`, `references_by_prefix`, `dataset_input_references` |
 | `FunctionTemplate` | `arguments_by_type` |
 | `FunctionCatalog` | `arguments`, `functions_by_kind`, `by_kind(kind)` |
 
-Raw child dictionaries such as `dataset.features`, `dataset.actions`, and
+Raw child dictionaries such as `profile.features`, `profile.actions`, and
 `function.args` remain available. Bound arguments are values; catalog arguments
 are declarations. Feature and action references retain declaration order.
 
@@ -78,15 +77,15 @@ and dimension-index context is configured once, then `resolve_arguments` receive
 only the binding argument mapping.
 
 Context-dependent views live on the Spec rather than wrapper objects:
-`local_features` and `dimensions_by_dataset` use dataset keys;
+`dimensions_by_profile` uses profile keys;
 `input_candidates`, `input_sources`, `actions_arguments`, `dataset_argument_sources`,
 `dataset_argument_ids`, `dataset_argument_dimensions`, `matching_key_dimensions`, and
 `binding_selectors` use action keys. Unresolved and ambiguous resources remain
 visible to validators. `declaration_paths` preserves action dictionary keys for
 binding diagnostics; `action_paths` preserves model IDs for contract diagnostics.
-`get_row_context_dataset(action_key)` returns the dataset whose observations the
+`get_row_context_profile(action_key)` returns the profile whose observations the
 action's context describes, and `get_row_context_dimensions(action_key)` returns
-its entity's dimension IDs. Dimension-removing operations use the inferred source;
+its dimension IDs. Dimension-removing operations use the inferred source;
 other operations use the target. Both return `None` for an unresolved source.
 Row context itself remains available directly as `action.row_context`.
 `Binding.dataset_input_references` contains ordered dataset data references,
@@ -125,22 +124,17 @@ bindings.
         - Binding
         - BindingArgumentResolver
 
-## dataset
+## profile
 
-`uptimely.spec.model.dataset` defines entities, datasets, features, and
-their relationships.
+`uptimely.spec.model.profile` defines profiles, features, actions, and
+their relationships. Profiles are keyed by ID in the top-level `profiles`
+mapping, and their internal IDs are excluded from serialized profile attributes.
 
-`Entity.datasets` is a dictionary keyed by dataset ID. Access a dataset with
-`document.entities["pump"].datasets["telemetry"]`, or iterate over
-`entity.datasets.values()`. The internal `Dataset.id` is derived from the JSON
-object key and excluded from serialized dataset attributes. `Dataset.name` is an
-optional human-readable display name, independent of that identifier.
-
-::: uptimely.spec.model.dataset
+::: uptimely.spec.model.profile
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Entity, Dataset, Feature, Order, RowScope, Action, ActionFeatures]
+      members: [Profile, Feature, Order, RowScope, Action, ActionFeatures]
 
 ## functions
 

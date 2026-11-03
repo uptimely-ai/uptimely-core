@@ -81,7 +81,7 @@ def test_signature_validation_setting_survives_conversion_without_importing(
         actions.Action(id="calculate", function=reference, arguments={}, outputs=[]),
     )
 
-    payload = conversion.to_dict(datasets=[declaration])
+    payload = conversion.to_dict(profiles=[declaration])
     reloaded = spec_model.Spec.model_validate(json.loads(json.dumps(payload)))
 
     assert reference.validate_signature is validate_signature
@@ -136,7 +136,7 @@ def test_description_survives_conversion_to_exported_document() -> None:
         actions.Action(id="calculate", function=reference, arguments={}, outputs=[]),
     )
 
-    payload = conversion.to_dict(datasets=[declaration])
+    payload = conversion.to_dict(profiles=[declaration])
     reloaded = spec_model.Spec.model_validate(json.loads(json.dumps(payload)))
 
     assert payload["functions"]["_documented"]["description"] == (
@@ -199,7 +199,7 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
     ]
 
     with pytest.raises(ValueError, match="Conflicting function definition for 'ceil'"):
-        conversion.to_dict(datasets=declarations)
+        conversion.to_dict(profiles=declarations)
 
 
 @pytest.mark.parametrize("location", MODULE_LOCATIONS)
@@ -216,12 +216,10 @@ def test_string_locations_are_preserved_without_importing(
         producers=[actions.Action(id="ceil", function=reference, arguments={"x": 1.2}, outputs=[])],
     )
 
-    payload = conversion.to_dict(datasets=[declaration])
+    payload = conversion.to_dict(profiles=[declaration])
 
     assert payload["functions"]["ceil"]["entrypoint"] == f"{location}:ceil"
-    assert payload["entities"]["entity"]["datasets"]["observations"]["actions"]["ceil"][
-        "binding"
-    ] == {
+    assert payload["profiles"]["observations"]["actions"]["ceil"]["binding"] == {
         "function": "ceil",
         "args": {"x": 1.2},
     }
@@ -282,7 +280,7 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
         ],
     )
 
-    payload = conversion.to_dict(datasets=[declaration])
+    payload = conversion.to_dict(profiles=[declaration])
     reloaded = spec_model.Spec.model_validate(json.loads(json.dumps(payload)))
 
     assert payload["functions"]["ceil"]["kind"] == "escape"

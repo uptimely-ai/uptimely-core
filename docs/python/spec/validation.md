@@ -19,13 +19,13 @@ document, not a phase containing several different checks:
 
 ```python
 from uptimely.spec import model
-from uptimely.spec.validation.rules import dimensions, entities
+from uptimely.spec.validation.rules import dimensions, profiles
 
 document = model.Spec.model_validate(raw_document)
 
 dimensions.validate_parent(document)
 dimensions.validate_parent_cycle(document)
-entities.validate_entity_dimensions(document)
+profiles.validate_profile_dimensions(document)
 ```
 
 Rules do not call other validators, mutate the document, or save state for later
@@ -88,9 +88,9 @@ Pydantic reports document-shape errors separately.
 | Module in `uptimely.spec.validation` | Responsibility |
 | --- | --- |
 | `spec` | Dependency mapping and fail-fast topological runner |
-| `rules.datasets` | Dataset declarations, iteration, identity, and ordering |
+| `rules.datasets` | Profile identity and ordering checks |
+| `rules.profiles` | Profile dimension membership |
 | `rules.dimensions` | Parent references and ancestry cycles |
-| `rules.entities` | Entity dimension membership |
 | `rules.features` | Feature ownership discovery and uniqueness |
 | `rules.functions` | Function return and dataframe argument contracts |
 | `rules.bindings` | Supplied argument names and structural selector types |
@@ -107,8 +107,8 @@ grouped by the relationship they check, not by function kind. Collapse shares
 input source discovery with every other action; only invariants specific to
 collapsing are conditional on that kind.
 
-Rules access `spec.dataset_items` and `spec.action_items` directly when they need
-ownership or diagnostic paths, and use `spec.datasets` or `spec.actions` otherwise.
+Rules access `spec.profile_items` and `spec.action_items` directly when they need
+ownership or diagnostic paths, and use `spec.profiles` or `spec.actions` otherwise.
 The indexed values are the canonical models, not declaration wrappers.
 `spec.feature_owners` retains every owner so ambiguous declarations can be
 reported rather than selecting the first. Cached binding and dataframe views

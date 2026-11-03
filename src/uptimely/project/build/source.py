@@ -39,7 +39,7 @@ class PythonSource:
                 f"{self.entrypoint.module.location}:{self.entrypoint.function.name} must be a Spec"
             )
         return spec.from_python(
-            entities=declaration.entities,
+            profiles=declaration.profiles,
             dimensions=declaration.dimensions,
             name=declaration.name,
             validate=validate,

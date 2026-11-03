@@ -36,9 +36,7 @@ def invocation_lineage_payload(
         function = spec_definition.functions[invocation.function_id]
         kind = functions.FUNCTION_KINDS[invocation.function_kind]
         dataset = (
-            spec_definition.datasets_by_key.get((invocation.entity_id, invocation.dataset_id))
-            if invocation.dataset_id
-            else None
+            spec_definition.profiles.get(invocation.dataset_id) if invocation.dataset_id else None
         )
         function_name = function.name or invocation.function_id
         dataset_name = dataset.name or dataset.id if dataset is not None else invocation.dataset_id
@@ -55,7 +53,7 @@ def invocation_lineage_payload(
                 "function_name": function_name,
                 "arguments": invocation.arguments,
                 "mapping_id": invocation.mapping_id,
-                "entity": invocation.entity_id,
+                "profile": invocation.dataset_id,
                 "dataset_id": invocation.dataset_id,
                 "dataset_name": dataset_name,
                 "feature": (

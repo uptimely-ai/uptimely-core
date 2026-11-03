@@ -32,11 +32,7 @@ def _build_step(
         feature_labels = common.feature_labels(spec_definition)
 
     function_name = spec_definition.functions[invocation.function_id].name or invocation.function_id
-    dataset = (
-        spec_definition.datasets_by_key.get((invocation.entity_id, invocation.dataset_id))
-        if invocation.dataset_id is not None
-        else None
-    )
+    dataset = spec_definition.profiles.get(invocation.dataset_id) if invocation.dataset_id else None
     input_labels = [feature_labels.get(name, name) for name in invocation.input_features]
     output_labels = [feature_labels.get(name, name) for name in invocation.output_features]
     kind = functions.FUNCTION_KINDS[invocation.function_kind]
@@ -52,7 +48,7 @@ def _build_step(
         "title": function_name,
         "function_label": function_name,
         "entrypoint": invocation.entrypoint,
-        "entity": invocation.entity_id,
+        "profile": invocation.dataset_id,
         "dataset": invocation.dataset_id,
         "dataset_label": dataset.name,
         "feature": displayed_feature,
@@ -102,7 +98,7 @@ def _step_sort_key(step: dict[str, typing.Any]) -> tuple[str, str, str, str]:
     """Keep stage cards in their existing display order."""
     return (
         step["entrypoint"] or "",
-        step["entity"],
+        step["profile"],
         step["dataset"] or "",
         step["feature"] or "",
     )
@@ -149,7 +145,7 @@ def build_context(
         "plan_version": plan.plan_version,
         "invocation_count": len(plan.invocations),
         "function_count": len(plan.function_ids),
-        "entity_count": len(plan.entity_ids),
+        "profile_count": len(plan.profile_ids),
         "feature_count": len(plan.calculated_features),
         "stage_count": len(stages),
         "dependency_count": len(invocation_links),

@@ -33,18 +33,18 @@ ORDER = [
 
 def _configuration() -> dict[str, typing.Any]:
     return {
-        "spec_version": 3,
+        "spec_version": 4,
         "dimensions": {
             "machine": {"type": "string"},
             "timestamp": {"type": "datetime"},
             "external": {"type": "string"},
         },
         "functions": {},
-        "entities": {
-            "telemetry": {
-                "name": "Telemetry",
+        "profiles": {
+            "observations": {
+                "name": "Observations",
                 "dimensions": ["machine", "timestamp"],
-                "datasets": {"observations": {"order": ORDER}},
+                "order": ORDER,
             }
         },
     }
@@ -52,7 +52,7 @@ def _configuration() -> dict[str, typing.Any]:
 
 def _parse(tmp_path: pathlib.Path, order: object) -> spec.Spec:
     configuration = _configuration()
-    configuration["entities"]["telemetry"]["datasets"]["observations"]["order"] = order
+    configuration["profiles"]["observations"]["order"] = order
     path = tmp_path / "input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     return spec.load_spec(path)
@@ -60,23 +60,23 @@ def _parse(tmp_path: pathlib.Path, order: object) -> spec.Spec:
 
 def test_dataset_order_json_round_trip_preserves_precedence(tmp_path: pathlib.Path) -> None:
     spec_definition = _parse(tmp_path, ORDER)
-    keys = spec_definition.entities["telemetry"].datasets["observations"].order
+    keys = spec_definition.profiles["observations"].order
     assert keys == [spec.Order(**key) for key in ORDER]
 
     path = tmp_path / "export.json"
     spec.write_document(spec_definition, path)
     payload = json.loads(path.read_text(encoding="utf-8"))
-    assert payload["entities"]["telemetry"]["datasets"]["observations"]["order"] == ORDER
-    assert spec.load_spec(path).entities["telemetry"].datasets["observations"].order == keys
+    assert payload["profiles"]["observations"]["order"] == ORDER
+    assert spec.load_spec(path).profiles["observations"].order == keys
 
 
 def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.Path) -> None:
-    assert _parse(tmp_path, []).entities["telemetry"].datasets["observations"].order == []
+    assert _parse(tmp_path, []).profiles["observations"].order == []
     configuration = _configuration()
-    del configuration["entities"]["telemetry"]["datasets"]["observations"]["order"]
+    del configuration["profiles"]["observations"]["order"]
     path = tmp_path / "omitted.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    assert spec.load_spec(path).entities["telemetry"].datasets["observations"].order == []
+    assert spec.load_spec(path).profiles["observations"].order == []
 
     first = spec.Profile(id="first")
     second = spec.Profile(id="second")
@@ -115,7 +115,7 @@ def test_dataset_order_rejects_invalid_structure(tmp_path: pathlib.Path, order: 
 
 
 @pytest.mark.parametrize("identifier", ["missing", "external", "@"])
-def test_dataset_order_requires_owning_entity_dimensions(
+def test_dataset_order_requires_declared_profile_dimensions(
     tmp_path: pathlib.Path, identifier: str
 ) -> None:
     with pytest.raises(validation.SpecError) as error:
@@ -123,9 +123,7 @@ def test_dataset_order_requires_owning_entity_dimensions(
 
     assert error.value.code == "invalid_order_dimension"
     assert error.value.path == (
-        "entities",
-        "telemetry",
-        "datasets",
+        "profiles",
         "observations",
         "order",
         0,
@@ -156,10 +154,7 @@ def test_dataset_order_reports_first_invalid_key_in_sequence(tmp_path: pathlib.P
     assert error.value.path[-3:] == ("order", 1, "dimension")
 
 
-@pytest.mark.parametrize("use_entities", [True, False])
-def test_dataset_order_python_authoring_matches_json(
-    tmp_path: pathlib.Path, use_entities: bool
-) -> None:
+def test_dataset_order_python_authoring_matches_json(tmp_path: pathlib.Path) -> None:
     declaration = python_spec.profile.Profile(
         id="observations",
         order=[
@@ -173,28 +168,16 @@ def test_dataset_order_python_authoring_matches_json(
         python_spec.dimension.Dimension(id="machine", type="string"),
         python_spec.dimension.Dimension(id="timestamp", type="datetime"),
     ]
-    if use_entities:
-        spec_definition = spec.from_python(
-            entities=[
-                python_spec.entity.Entity(
-                    id="telemetry",
-                    name="Telemetry",
-                    dimensions=dimensions,
-                    datasets=[declaration],
-                )
-            ],
-            dimensions=dimensions,
-        )
-    else:
-        spec_definition = spec.from_python(
-            datasets=[declaration], dimensions=dimensions, name="telemetry"
-        )
-    assert spec_definition.entities["telemetry"].datasets["observations"].order == (
-        _parse(tmp_path, ORDER).entities["telemetry"].datasets["observations"].order
+    declaration.dimensions = [item.id for item in dimensions]
+    spec_definition = spec.from_python(
+        profiles=[declaration], dimensions=dimensions, name="telemetry"
+    )
+    assert spec_definition.profiles["observations"].order == (
+        _parse(tmp_path, ORDER).profiles["observations"].order
     )
     path = tmp_path / "python.json"
     spec.write_document(spec_definition, path)
-    assert spec.load_spec(path).entities["telemetry"].datasets["observations"].order == [
+    assert spec.load_spec(path).profiles["observations"].order == [
         spec.Order(**key) for key in ORDER
     ]
 
@@ -205,9 +188,9 @@ def test_dataset_order_python_authoring_validates_references() -> None:
             dimension=python_spec.ref.feature("machine"), direction="asc"
         ).to_model()
 
-    with pytest.raises(validation.SpecError, match="not declared by entity"):
+    with pytest.raises(validation.SpecError, match="undeclared dimension"):
         spec.from_python(
-            datasets=[
+            profiles=[
                 python_spec.profile.Profile(
                     id="observations",
                     order=[
@@ -253,28 +236,17 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
             ),
         ],
     )
-    entity = python_spec.entity.Entity(
-        id="order_test",
-        name="Order test",
-        dimensions=[identifier],
-        datasets=[declaration],
-    )
-    unordered = spec.from_python(entities=[entity], dimensions=[identifier])
+    declaration.dimensions = [identifier]
+    unordered = spec.from_python(profiles=[declaration], dimensions=[identifier])
     ordered = spec.from_python(
-        entities=[
-            python_spec.entity.Entity(
-                id=entity.id,
-                name=entity.name,
+        profiles=[
+            python_spec.profile.Profile(
+                id=declaration.id,
+                producers=declaration.producers,
                 dimensions=[identifier],
-                datasets=[
-                    python_spec.profile.Profile(
-                        id=declaration.id,
-                        producers=declaration.producers,
-                        order=[
-                            python_spec.profile.Order(
-                                dimension=python_spec.ref.dimension("id"), direction="desc"
-                            )
-                        ],
+                order=[
+                    python_spec.profile.Order(
+                        dimension=python_spec.ref.dimension("id"), direction="desc"
                     )
                 ],
             )

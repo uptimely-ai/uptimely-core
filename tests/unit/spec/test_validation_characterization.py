@@ -33,11 +33,7 @@ def test_document_validation_accepts_valid_document_without_mutation() -> None:
 
 def test_binding_feature_selectors_do_not_become_input_dependencies() -> None:
     document = spec.Spec.model_validate(_configuration())
-    action = (
-        document.entities["pump_telemetry"]
-        .datasets["pump_telemetry_dataset"]
-        .actions["pressure_flow_efficiency"]
-    )
+    action = document.profiles["pump_telemetry_dataset"].actions["pressure_flow_efficiency"]
     action.features.inputs = []
     action.binding.args["dependency_hint"] = "$features.bearing_temperature"
 
@@ -73,9 +69,7 @@ def test_collapse_rules_report_their_own_fault_without_validating_bindings(
     tmp_path: pathlib.Path, load_from_file: bool, inputs: list[str], message: str
 ) -> None:
     configuration = _configuration()
-    action = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
-        "bearing_temperature_by_pump"
-    ]
+    action = configuration["profiles"]["pump_dataset"]["actions"]["bearing_temperature_by_pump"]
     action["features"]["inputs"] = inputs
     action["binding"]["args"]["unexpected"] = None
     if load_from_file:
@@ -95,10 +89,8 @@ def test_collapse_rules_report_their_own_fault_without_validating_bindings(
 
 def test_independent_rules_report_grouping_and_dimension_reference_faults() -> None:
     configuration = _configuration()
-    configuration["entities"]["pump_telemetry"]["dimensions"].remove("pump")
-    action = configuration["entities"]["pump"]["datasets"]["pump_dataset"]["actions"][
-        "bearing_temperature_by_pump"
-    ]
+    configuration["profiles"]["pump_telemetry_dataset"]["dimensions"].remove("pump")
+    action = configuration["profiles"]["pump_dataset"]["actions"]["bearing_temperature_by_pump"]
     action["binding"]["args"]["unexpected"] = "$dimensions.missing"
     document = spec.Spec.model_validate(configuration)
     with pytest.raises(ValueError, match="grouping dimensions must exist in source"):
@@ -112,7 +104,7 @@ def test_binding_and_contract_paths_keep_their_existing_action_identifiers(
     invalid_binding: bool,
 ) -> None:
     document = spec.Spec.model_validate(_configuration())
-    dataset = document.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
+    dataset = document.profiles["pump_telemetry_dataset"]
     action = dataset.actions.pop("pressure_flow_efficiency")
     dataset.actions["alias"] = action
     if invalid_binding:
@@ -131,9 +123,7 @@ def test_binding_and_contract_paths_keep_their_existing_action_identifiers(
         validate(document)
     assert error.value.code == expected_code
     assert error.value.path == (
-        "entities",
-        "pump_telemetry",
-        "datasets",
+        "profiles",
         dataset.id,
         "actions",
         expected_id,
@@ -142,50 +132,45 @@ def test_binding_and_contract_paths_keep_their_existing_action_identifiers(
     )
 
 
-def test_direct_semantic_validation_preserves_duplicate_dataset_error() -> None:
-    model = spec.Spec.model_validate(_configuration())
-    dataset = model.entities["pump"].datasets["pump_dataset"]
-    model.entities["pump_telemetry"].datasets[dataset.id] = dataset.model_copy(deep=True)
+def test_direct_semantic_validation_preserves_profile_identity_error() -> None:
+    document = spec.Spec.model_validate(_configuration())
+    document.profiles["wrong"] = spec.Profile(id="different")
 
     with pytest.raises(validation.SpecError) as error:
-        validation.validate_spec(model)
+        validation.validate_spec(document)
 
     assert str(error.value) == (
-        "entities.pump.datasets.pump_dataset: Duplicate dataset id pump_dataset; "
-        "already declared by entity pump_telemetry"
+        "profiles.wrong: Profile key wrong does not match profile id different"
     )
-    assert error.value.code == "duplicate_dataset_id"
-    assert error.value.path == ("entities", "pump", "datasets", "pump_dataset")
+    assert error.value.code == "invalid_profile_id"
+    assert error.value.path == ("profiles", "wrong")
 
 
-def test_public_standalone_dataset_id_validation_rejects_duplicates() -> None:
-    model = spec.Spec.model_validate(_configuration())
-    dataset = model.entities["pump"].datasets["pump_dataset"]
-    model.entities["pump_telemetry"].datasets[dataset.id] = dataset.model_copy(deep=True)
+def test_public_standalone_profile_id_validation_rejects_mismatched_keys() -> None:
+    document = spec.Spec.model_validate(_configuration())
+    document.profiles["wrong"] = spec.Profile(id="different")
 
     with pytest.raises(validation.SpecError) as error:
-        validation.validate_dataset_ids(model)
+        validation.validate_profile_ids(document)
 
-    assert error.value.code == "duplicate_dataset_id"
-    assert error.value.path == ("entities", "pump", "datasets", "pump_dataset")
+    assert error.value.code == "invalid_profile_id"
+    assert error.value.path == ("profiles", "wrong")
 
 
 def test_duplicate_ids_block_action_cycle_validation() -> None:
     document = spec.Spec.model_validate(_configuration())
-    dataset = document.entities["pump"].datasets["pump_dataset"]
-    document.entities["pump_telemetry"].datasets[dataset.id] = dataset.model_copy(deep=True)
+    dataset = document.profiles["pump_dataset"]
+    document.profiles["wrong"] = spec.Profile(id="different")
     action = dataset.actions["health_signal_normalized"]
     action.features.inputs.append("$features.health_signal_normalized")
     with pytest.raises(validation.SpecError) as error:
         validation.validate_spec(document)
-    assert error.value.code == "duplicate_dataset_id"
+    assert error.value.code == "invalid_profile_id"
 
 
 def test_document_validation_rejects_duplicate_output_producers() -> None:
     configuration = _configuration()
-    actions = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "actions"
-    ]
+    actions = configuration["profiles"]["pump_telemetry_dataset"]["actions"]
     actions["duplicate"] = copy.deepcopy(actions["pressure_flow_efficiency"])
     document = spec.Spec.model_validate(configuration)
 
@@ -209,9 +194,9 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
     configuration = _configuration()
     function = configuration["functions"]["ratio"]
     function["args"]["numerator_features"]["type"] = argument_type
-    binding = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "actions"
-    ]["pressure_flow_efficiency"]["binding"]
+    binding = configuration["profiles"]["pump_telemetry_dataset"]["actions"][
+        "pressure_flow_efficiency"
+    ]["binding"]
     binding["args"]["numerator_features"] = argument_value
     model = spec.Spec.model_validate(configuration)
 
@@ -219,15 +204,13 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
         validation.validate_spec(model)
 
     assert str(error.value) == (
-        "entities.pump_telemetry.datasets.pump_telemetry_dataset.actions."
+        "profiles.pump_telemetry_dataset.actions."
         "pressure_flow_efficiency.binding.args: Reference $datasets.@.dataframe "
         "requires argument type dataframe, got string"
     )
     assert error.value.code == "invalid_binding_reference_type"
     assert error.value.path == (
-        "entities",
-        "pump_telemetry",
-        "datasets",
+        "profiles",
         "pump_telemetry_dataset",
         "actions",
         "pressure_flow_efficiency",
@@ -238,9 +221,9 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
 
 def test_binding_argument_name_contract_keeps_structured_error() -> None:
     configuration = _configuration()
-    action = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "actions"
-    ]["pressure_flow_efficiency"]
+    action = configuration["profiles"]["pump_telemetry_dataset"]["actions"][
+        "pressure_flow_efficiency"
+    ]
     action["binding"]["args"] = {"unexpected": None}
     model = spec.Spec.model_validate(configuration)
 
@@ -249,9 +232,7 @@ def test_binding_argument_name_contract_keeps_structured_error() -> None:
 
     assert error.value.code == "invalid_binding_arguments"
     assert error.value.path == (
-        "entities",
-        "pump_telemetry",
-        "datasets",
+        "profiles",
         "pump_telemetry_dataset",
         "actions",
         "pressure_flow_efficiency",
@@ -264,9 +245,7 @@ def test_binding_argument_name_contract_keeps_structured_error() -> None:
 
 def test_mapping_dependency_cycle_keeps_its_message() -> None:
     configuration = _configuration()
-    action = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "actions"
-    ]["recommended_flow_rate"]
+    action = configuration["profiles"]["pump_telemetry_dataset"]["actions"]["recommended_flow_rate"]
     action["features"]["inputs"].append("$features.recommended_flow_rate")
     model = spec.Spec.model_validate(configuration)
 
@@ -280,9 +259,9 @@ def test_mapping_dependency_cycle_keeps_its_message() -> None:
 
 def test_mapping_dependency_rejects_unknown_feature() -> None:
     configuration = _configuration()
-    action = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "actions"
-    ]["pressure_flow_efficiency"]
+    action = configuration["profiles"]["pump_telemetry_dataset"]["actions"][
+        "pressure_flow_efficiency"
+    ]
     action["features"]["inputs"].append("$features.missing_feature")
     model = spec.Spec.model_validate(configuration)
 
@@ -297,11 +276,7 @@ def test_mapping_dependency_rejects_unknown_feature() -> None:
 def test_new_document_validation_observes_an_edit() -> None:
     document = spec.Spec.model_validate(_configuration())
     validation.validate_spec(document)
-    action = (
-        document.entities["pump_telemetry"]
-        .datasets["pump_telemetry_dataset"]
-        .actions["pressure_flow_efficiency"]
-    )
+    action = document.profiles["pump_telemetry_dataset"].actions["pressure_flow_efficiency"]
     action.features.inputs.append("$features.health_signal_normalized")
     document = spec.Spec.model_validate(document.model_dump())
 
@@ -312,9 +287,9 @@ def test_new_document_validation_observes_an_edit() -> None:
 def test_document_validation_rejects_blank_calculation_function_id() -> None:
     configuration = _configuration()
     configuration["functions"][" "] = configuration["functions"].pop("ratio")
-    action = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"][
-        "actions"
-    ]["pressure_flow_efficiency"]
+    action = configuration["profiles"]["pump_telemetry_dataset"]["actions"][
+        "pressure_flow_efficiency"
+    ]
     action["binding"]["function"] = " "
     document = spec.Spec.model_validate(configuration)
 
@@ -324,7 +299,7 @@ def test_document_validation_rejects_blank_calculation_function_id() -> None:
 
 def test_document_validation_rejects_blank_calculated_output() -> None:
     configuration = _configuration()
-    dataset = configuration["entities"]["pump_telemetry"]["datasets"]["pump_telemetry_dataset"]
+    dataset = configuration["profiles"]["pump_telemetry_dataset"]
     dataset["features"][" "] = dict(dataset["features"]["pressure_flow_efficiency"])
     dataset["actions"]["pressure_flow_efficiency"]["features"]["outputs"] = ["$features. "]
     document = spec.Spec.model_validate(configuration)
@@ -336,20 +311,22 @@ def test_document_validation_rejects_blank_calculated_output() -> None:
 def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> None:
     document = spec.Spec.model_validate(_configuration())
     document.dimensions["plant"].parent = "plant"
-    dataset = document.entities["pump"].datasets["pump_dataset"]
+    dataset = document.profiles["pump_dataset"]
     dataset.actions["bearing_temperature_by_pump"].features.inputs = ["$features.missing"]
-    other = document.entities["pump_telemetry"].datasets["pump_telemetry_dataset"]
+    other = document.profiles["pump_telemetry_dataset"]
     other.actions["pressure_flow_efficiency"].binding.function = "missing"
     other.actions["recommended_flow_rate"].binding.args = {"unexpected": None}
-    document.entities["pump_telemetry"].datasets[dataset.id] = dataset.model_copy(deep=True)
+    document.profiles["pump_dataset_copy"] = dataset.model_copy(
+        update={"id": "pump_dataset_copy"}, deep=True
+    )
     original = document.model_copy(deep=True)
-    datasets = document.dataset_items
+    profiles = document.profile_items
     actions = document.actions
-    assert sum(item.id == dataset.id for _, item in datasets) == 2
+    assert sum(item.id.startswith("pump_dataset") for _, item in profiles) == 2
     assert any(len(owners) > 1 for owners in document.feature_owners.values())
     assert any(item.binding.function not in document.functions for item in actions)
     assert any(cycle for _, cycle in dimensions.iter_parent_cycles(document))
-    assert any(item.order_dimensions for _, item in datasets)
+    assert any(item.order_dimensions for _, item in profiles)
     assert document.feature_producers
     assert any(source is None for source in document.input_sources.values())
     function_id, function, dataframe_inputs = next(document.functions.iter_functions())
@@ -361,7 +338,7 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
 
 def test_duplicate_feature_ownership_retains_all_candidates() -> None:
     document = spec.Spec.model_validate(_configuration())
-    dataset = document.entities["pump"].datasets["pump_dataset"]
+    dataset = document.profiles["pump_dataset"]
     first, second = [f for f in dataset.features if f not in document.dimensions][:2]
     duplicate = dataset.model_copy(deep=True)
     duplicate.id = "another_dataset"
@@ -369,9 +346,9 @@ def test_duplicate_feature_ownership_retains_all_candidates() -> None:
         second: dataset.features[second].model_copy(deep=True),
         first: dataset.features[first].model_copy(deep=True),
     }
-    document.entities["pump"].datasets[duplicate.id] = duplicate
+    document.profiles[duplicate.id] = duplicate
     owners = document.feature_owners
-    assert [document.datasets_by_key[key] for key in owners[first]] == [dataset, duplicate]
-    assert [document.datasets_by_key[key] for key in owners[second]] == [dataset, duplicate]
+    assert [document.profiles[key] for key in owners[first]] == [dataset, duplicate]
+    assert [document.profiles[key] for key in owners[second]] == [dataset, duplicate]
     with pytest.raises(ValueError, match="Duplicate feature name"):
         feature_rules.validate_feature_ownership(document)

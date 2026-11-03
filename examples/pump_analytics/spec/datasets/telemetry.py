@@ -1,13 +1,20 @@
 """Minute-level pump observations and declarative dataframe transformations."""
 
 from examples.pump_analytics.functions import analytics
-from examples.pump_analytics.spec import dimension, entity
+from examples.pump_analytics.spec import dimension
 
 from uptimely import Action, Feature, Order, Profile, RowScope, ref
 from uptimely.spec.python import row_context
 
 HYDRAULIC_POWER_SCALE = 1.0 / 36.0
 """Converts bar * m3/h into kW for the hydraulic-power numerator."""
+
+TELEMETRY_DIMENSIONS = [
+    dimension.PLANT,
+    dimension.PRODUCTION_LINE,
+    dimension.PUMP,
+    dimension.TIMESTAMP,
+]
 
 
 class Telemetry(Profile):
@@ -16,7 +23,8 @@ class Telemetry(Profile):
     id = "pump_telemetry_dataset"
     name = "Pump Telemetry"
     description = "Pump process and condition readings sampled at one-minute intervals."
-    entity = entity.PUMP_TELEMETRY
+    category = "telemetry"
+    dimensions = TELEMETRY_DIMENSIONS
     row_scope = RowScope(
         grain="One row per pump and timestamp",
         filtering="Development telemetry selected by the read function",
@@ -204,7 +212,7 @@ class Telemetry(Profile):
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
                 feature=ref.column("bearing_temperature"),
-                partition_by=[ref.dimension(key.id) for key in entity.dimensions[:-1]],
+                partition_by=[ref.dimension(key.id) for key in TELEMETRY_DIMENSIONS[:-1]],
                 order_by=ref.dimension(dimension.TIMESTAMP.id),
                 output=ref.output("bearing_temperature_delta"),
             ),
@@ -224,7 +232,7 @@ class Telemetry(Profile):
             arguments=dict(  # noqa: C408
                 dataset=ref.dataframe(),
                 feature=ref.column("vibration_rms"),
-                partition_by=[ref.dimension(key.id) for key in entity.dimensions[:-1]],
+                partition_by=[ref.dimension(key.id) for key in TELEMETRY_DIMENSIONS[:-1]],
                 order_by=ref.dimension(dimension.TIMESTAMP.id),
                 output=ref.output("vibration_delta"),
             ),

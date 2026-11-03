@@ -8,43 +8,47 @@ from uptimely.spec.validation import errors
 logger = logging.getLogger(__name__)
 
 
-def validate_dataset_ids(spec: spec_model.Spec) -> None:
-    """Require globally unique dataset IDs."""
-    logger.debug("    - checking globally unique dataset IDs")
-    seen: dict[str, str] = {}
-    for key, dataset in spec.dataset_items:
-        previous = seen.get(dataset.id)
-        if previous is not None:
+def validate_profile_ids(spec: spec_model.Spec) -> None:
+    """Require globally unique profile IDs."""
+    logger.debug("    - checking globally unique profile IDs")
+    seen: set[str] = set()
+    for profile_id, profile in spec.profile_items:
+        if profile_id != profile.id:
             raise errors.SpecError(
-                f"Duplicate dataset id {dataset.id}; already declared by entity {previous}",
-                code="duplicate_dataset_id",
-                path=("entities", key[0], "datasets", dataset.id),
+                f"Profile key {profile_id} does not match profile id {profile.id}",
+                code="invalid_profile_id",
+                path=("profiles", profile_id),
             )
-        seen[dataset.id] = key[0]
+        if profile.id in seen:
+            raise errors.SpecError(
+                f"Duplicate profile id {profile.id}",
+                code="duplicate_profile_id",
+                path=("profiles", profile.id),
+            )
+        seen.add(profile.id)
 
 
 def validate_order_dimension(spec: spec_model.Spec) -> None:
-    """Require an order dimension to be declared by its entity."""
-    logger.debug("    - checking dataset order dimensions belong to the owning entity")
-    for key, dataset in spec.dataset_items:
-        for index, (dimension, _) in enumerate(dataset.order_dimensions):
-            if dimension not in spec.dimensions_by_dataset[key]:
+    """Require each order dimension to be declared by its profile."""
+    logger.debug("    - checking profile order dimensions are declared by each profile")
+    for profile_id, profile in spec.profile_items:
+        for index, (dimension, _) in enumerate(profile.order_dimensions):
+            if dimension not in spec.dimensions_by_profile[profile_id]:
                 raise errors.SpecError(
-                    f"Profile {dataset.id} order references a dimension not declared "
-                    f"by entity {key[0]}: {dimension}",
+                    f"Profile {profile.id} order references an undeclared dimension: {dimension}",
                     code="invalid_order_dimension",
-                    path=("entities", key[0], "datasets", dataset.id, "order", index, "dimension"),
+                    path=("profiles", profile.id, "order", index, "dimension"),
                 )
 
 
 def validate_unique_order_dimension(spec: spec_model.Spec) -> None:
     """Reject a repeated order dimension."""
     logger.debug("    - checking dataset order dimensions are unique")
-    for key, dataset in spec.dataset_items:
-        for index, (dimension, preceding) in enumerate(dataset.order_dimensions):
+    for profile_id, profile in spec.profile_items:
+        for index, (dimension, preceding) in enumerate(profile.order_dimensions):
             if dimension in preceding:
                 raise errors.SpecError(
-                    f"Profile {dataset.id} order repeats dimension: {dimension}",
+                    f"Profile {profile.id} order repeats dimension: {dimension}",
                     code="duplicate_order_dimension",
-                    path=("entities", key[0], "datasets", dataset.id, "order", index, "dimension"),
+                    path=("profiles", profile_id, "order", index, "dimension"),
                 )

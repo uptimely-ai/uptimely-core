@@ -74,11 +74,11 @@ def _log_build_details(
         ("Build", "Build scope", scope),
         ("Spec", "Spec source file", str(source_file)),
         ("Spec", "Number of functions", str(len(definition.functions))),
-        ("Spec", "Number of datasets", str(len(definition.datasets))),
+        ("Spec", "Number of profiles", str(len(definition.profiles))),
         (
             "Spec",
             "Number of features",
-            str(sum(len(dataset.features) for dataset in definition.datasets.values())),
+            str(sum(len(profile.features) for profile in definition.profiles.values())),
         ),
         ("Plan", "Number of stages", str(len(bundle.execution_plan.stages))),
         ("Plan", "Number of invocations", str(len(bundle.execution_plan.invocations))),

@@ -39,7 +39,8 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert uptimely.from_python is spec.from_python
     assert uptimely.write_document is spec.write_document
     assert uptimely.Dimension is python_spec.Dimension
-    assert uptimely.Entity is python_spec.Entity
+    assert not hasattr(uptimely, "Entity")
+    assert not hasattr(python_spec, "Entity")
     assert uptimely.FeatureGraph is spec.FeatureGraph is FeatureGraph
     assert feature_graph.FeatureGraphBase is FeatureGraphBase
     assert feature_graph.FeatureGraphNodeMeta is FeatureGraphNodeMeta

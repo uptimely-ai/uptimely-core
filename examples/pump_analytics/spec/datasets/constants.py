@@ -1,7 +1,6 @@
 """Project-wide physical constants."""
 
 from examples.pump_analytics.functions import analytics
-from examples.pump_analytics.spec import entity
 
 from uptimely import Action, Feature, Profile, RowScope, ref
 
@@ -12,7 +11,7 @@ class Constants(Profile):
     id = "constants_dataset"
     name = "Project Constants"
     description = "Physical constants used by pump analytics."
-    entity = entity.CONSTANTS
+    category = "configuration"
     row_scope = RowScope(grain="One row per project")
 
     producers = [
