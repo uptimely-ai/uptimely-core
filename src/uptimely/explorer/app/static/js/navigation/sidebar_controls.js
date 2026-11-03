@@ -1,15 +1,16 @@
+import { initializeMobileContext } from "./mobile_context.js";
+
 export function initializeIcons(signal) {
   const navigation = document.querySelector("#explorer-navigation");
   const navigationToggle = document.querySelector(".mobile-nav-toggle");
   const labelToggle = document.querySelector(".nav-label-toggle");
   const contextPanel = document.querySelector(".site-context");
-  const contextToggle = document.querySelector(".context-toggle");
-  const contextClose = document.querySelector(".context-close");
   const contextLabelToggle = document.querySelector(".context-label-toggle");
 
-  const closeContext = () => {
-    contextPanel?.classList.remove("is-open");
-    contextToggle?.setAttribute("aria-expanded", "false");
+  const closeNavigation = () => {
+    navigation?.classList.remove("is-open");
+    navigationToggle?.setAttribute("aria-expanded", "false");
+    navigationToggle?.setAttribute("aria-label", "Open navigation");
   };
 
   if (navigation && labelToggle) {
@@ -23,15 +24,9 @@ export function initializeIcons(signal) {
   }
 
   if (navigation && navigationToggle) {
-    const closeNavigation = () => {
-      navigation.classList.remove("is-open");
-      navigationToggle.setAttribute("aria-expanded", "false");
-      navigationToggle.setAttribute("aria-label", "Open navigation");
-    };
-
     navigationToggle.addEventListener("click", () => {
-      closeContext();
       const isOpen = navigationToggle.getAttribute("aria-expanded") !== "true";
+      if (isOpen) navigation.scrollTop = 0;
       navigation.classList.toggle("is-open", isOpen);
       navigationToggle.setAttribute("aria-expanded", String(isOpen));
       navigationToggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
@@ -48,14 +43,20 @@ export function initializeIcons(signal) {
       }
     }, { signal });
 
-    window.matchMedia("(max-width: 640px)").addEventListener("change", closeNavigation, { signal });
+    window.matchMedia("(max-width: 640px)").addEventListener("change", () => {
+      const focusInMenus = navigation.contains(document.activeElement)
+        || contextPanel?.contains(document.activeElement);
+      closeNavigation();
+      if (focusInMenus && window.matchMedia("(max-width: 640px)").matches) navigationToggle.focus();
+    }, { signal });
   }
 
-  if (contextPanel && contextToggle && contextClose) {
+  if (contextPanel) {
     contextPanel.querySelectorAll('a[href^="#"]').forEach((link) => {
-      link.addEventListener("click", () => {
+      link.addEventListener("click", event => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
         if (window.matchMedia("(max-width: 640px)").matches) {
-          closeContext();
+          closeNavigation();
           const target = contextPanel.id === "catalog-context"
             ? document.querySelector("main h1")
             : contextPanel.id === "animation-context"
@@ -68,28 +69,6 @@ export function initializeIcons(signal) {
         }
       });
     });
-    contextToggle.addEventListener("click", () => {
-      const isOpen = contextToggle.getAttribute("aria-expanded") !== "true";
-      if (navigationToggle?.getAttribute("aria-expanded") === "true") navigationToggle.click();
-      contextPanel.classList.toggle("is-open", isOpen);
-      contextToggle.setAttribute("aria-expanded", String(isOpen));
-      if (isOpen) contextClose.focus();
-    });
-    contextClose.addEventListener("click", () => {
-      closeContext();
-      contextToggle.focus();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && contextPanel.classList.contains("is-open")) {
-        closeContext();
-        contextToggle.focus();
-      }
-    }, { signal });
-    window.matchMedia("(max-width: 640px)").addEventListener("change", () => {
-      const focusInContext = contextPanel.contains(document.activeElement);
-      closeContext();
-      if (focusInContext && window.matchMedia("(max-width: 640px)").matches) contextToggle.focus();
-    }, { signal });
   }
 
   if (contextPanel && contextLabelToggle) {
@@ -103,5 +82,6 @@ export function initializeIcons(signal) {
     });
   }
 
+  initializeMobileContext(signal, closeNavigation);
   lucide.createIcons();
 }

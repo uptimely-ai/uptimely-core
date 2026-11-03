@@ -36,7 +36,6 @@ html:has(.lineage-page), .lineage-page { height: 100%; overflow: hidden; }
 .details .meta { font-size: 12px; color: #cfe0ea; margin-bottom: 6px; white-space: normal; word-break: break-word; }
 .details .summary { font-size: 13px; line-height: 1.5; color: #e8edf2; white-space: normal; word-break: break-word; }
 @media (max-width: 640px) {
-	.context-toggle { position: absolute; top: 16px; left: 16px; z-index: 2; }
 	#lineage-error, .lineage-error { top: 64px; }
 	.lineage-page .site-content {
 		margin-top: var(--site-topbar-height);

@@ -1,4 +1,4 @@
-import { contextHeader, contextToggle, escape, heading, href, icon, page } from "./shared_markup.js";
+import { contextHeader, escape, heading, href, icon, page } from "./shared_markup.js";
 
 export function dashboard(data) {
   const summary = data.catalogs.summary;
@@ -119,7 +119,6 @@ export function lineage(data, topology) {
   return {
     context: `<aside class="site-context" id="lineage-context" aria-label="Lineage context" data-context-label="lineage">
       ${contextHeader(title, key, "lineage-context", "lineage")}
-      <button class="ui-button context-close" type="button" aria-label="Close lineage context">Close</button>
       <div class="lineage-control-groups">
         <div class="lineage-buttons" role="group" aria-label="Lineage view">
           <button class="ui-button" type="button" data-dimension="2d" aria-pressed="true" aria-controls="lineage-2d">2D</button>
@@ -135,7 +134,7 @@ export function lineage(data, topology) {
         <h2>${topology ? "Invocation details" : "Selected item"}</h2><div class="meta">Click a node</div>
         <div class="summary">${topology ? "Select an invocation to inspect its function kind, arguments, profile, declared features, and invocation dependencies." : "Select any feature in the lineage to see its identifier and details."}</div>
       </div></aside>`,
-    content: `<main class="lineage-workspace"><div class="lineage-stage">${contextToggle("lineage-context", "Lineage")}
+    content: `<main class="lineage-workspace"><div class="lineage-stage">
       <p id="lineage-error" role="alert" hidden></p>
       ${topology ? '<section id="invocation-lineage-graph">' : ""}
       <div id="lineage"><div id="lineage-2d" class="lineage-view"></div><div id="lineage-3d" class="lineage-view" hidden></div></div>

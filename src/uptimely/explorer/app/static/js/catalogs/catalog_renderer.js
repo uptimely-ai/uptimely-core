@@ -85,7 +85,6 @@ export function catalogContext(data, view) {
   const title = view[0].toUpperCase() + view.slice(1);
   return `<aside class="site-context" id="catalog-context" aria-label="${title} context" data-context-label="${view}">
     ${contextHeader(title, view, "catalog-context")}
-    <button class="ui-button context-close" type="button" aria-label="Close ${view} context">Close</button>
     <nav class="context-links" aria-label="${title} on this page">${contextLink("catalog-overview", "Overview", "overview")}
       <hr class="context-separator">${links || `<p class="context-empty">No ${view}.</p>`}
     </nav></aside>`;
@@ -438,8 +437,7 @@ export function renderCatalog(data, view) {
   };
   return {
     context: catalogContext(data, view),
-    content: `<button class="ui-button context-toggle catalog-context-toggle" type="button" aria-label="Show ${view} context"
-      aria-expanded="false" aria-controls="catalog-context">Browse ${view}</button>` + page(`<section id="${view}" class="mb-16">
+    content: page(`<section id="${view}" class="mb-16">
       ${view === "stages" ? '<p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Plan</p>' : ""}
       ${heading(title, descriptions[view] ?? null, view, view === "features" ? features(config).length : null)}
       ${catalogOverview(data, view)}<div class="space-y-8">${renderers[view]()}</div></section>`),

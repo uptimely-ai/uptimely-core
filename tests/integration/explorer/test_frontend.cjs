@@ -66,6 +66,44 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(renderCatalog(sampleData(), "stages").content, /Engine type/);
 });
 
+test("mobile navigation separates the main menu from page controls", async () => {
+  const { shell } = await moduleAt("rendering/shared_markup.js");
+  const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
+  const { lineage } = await moduleAt("rendering/page_renderer.js");
+  const { animation } = await moduleAt("animation/animation_renderer.js");
+  const data = sampleData();
+  const pages = [
+    ...["features", "profiles", "dimensions", "functions", "stages"].map(view => renderCatalog(data, view)),
+    lineage(data, false), lineage(data, true), animation(data),
+    { context: "", content: "" },
+  ];
+  for (const { context, content } of pages) {
+    const html = shell(data, "functions", context, content);
+    assert.match(html, /class="mobile-nav-toggle"[^>]*aria-controls="explorer-navigation"/);
+    const menus = html.slice(html.indexOf('<div class="site-menus"'), html.indexOf('<div class="site-content"'));
+    assert.match(menus, /id="explorer-menus"/);
+    assert.match(menus, /id="explorer-navigation"/);
+    assert.ok(menus.includes(context));
+    if (context) {
+      assert.match(html, /class="mobile-context-bar"/);
+      assert.match(html, /class="mobile-context-toggle ui-button"/);
+      assert.doesNotMatch(html, /mobile-context-selection/);
+      assert.match(html, /data-lucide="chevron-down"/);
+      assert.doesNotMatch(html, /data-lucide="chevron-up"/);
+      assert.match(context, /class="ui-button context-sheet-close"/);
+    } else {
+      assert.doesNotMatch(html, /mobile-context-bar/);
+    }
+    assert.doesNotMatch(html, /class="ui-button context-back"|catalog-context-toggle|>Browse \w+<\/button>/);
+  }
+  for (const view of ["lineage", "topology"]) {
+    const markup = lineage(data, view === "topology");
+    const html = shell(data, view, markup.context, markup.content);
+    assert.match(html, /<span>Legend &amp; details<\/span>/);
+    assert.doesNotMatch(html, /<span>Graph controls<\/span>/);
+  }
+});
+
 test("profile context groups links by category in declaration order", async () => {
   const { catalogContext } = await moduleAt("catalogs/catalog_renderer.js");
   const data = sampleData();

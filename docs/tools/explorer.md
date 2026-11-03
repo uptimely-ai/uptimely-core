@@ -37,8 +37,15 @@ The Explorer contains:
 | **Execution** | Profile-specific animation of declared processing steps and illustrative tables. |
 
 The original desktop navigation and contextual sidebars can be collapsed
-independently. On narrow screens, use the navigation menu and the page's context
-controls. Catalogs start with an overview; select an item in the contextual
+independently. On narrow screens, the hamburger button opens project navigation.
+A persistent bar below the header provides access to the page's context menu;
+tap it to open a centered dialog with item navigation, legends, and details.
+On graph pages, **Legend & details** opens the legend and selected-node information;
+the graph controls remain separate below it.
+Close the dialog with its **Close** button, the backdrop, or **Escape**.
+Graph view and zoom controls, and animation profile and playback controls,
+remain accessible in the bar without opening the dialog.
+Catalogs start with an overview; select an item in the contextual
 sidebar to inspect its details. Item selections support browser back/forward
 navigation and direct links. Menu links switch views client-side without
 reloading the document or refetching the snapshot. Refresh the browser after
