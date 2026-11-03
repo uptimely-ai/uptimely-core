@@ -56,7 +56,7 @@ class _FrameValidator:
         if self.backend.row_count(self.frame) > 1:
             raise ValueError(
                 f"{self.description} contains duplicate dimension keys "
-                "(dimensionless datasets allow at most one row)"
+                "(dimensionless profile frames allow at most one row)"
             )
 
     def _validate_unique_dimension_keys(self) -> None:
@@ -124,7 +124,7 @@ class FragmentValidator(_FrameValidator):
         ) != self.backend.row_count(self.frame):
             raise ValueError(
                 f"{self.invocation.function_kind.capitalize()} action {self.invocation.mapping_id} "
-                "must preserve the accumulated dataset row count"
+                "must preserve the accumulated profile row count"
             )
 
     def _validate_output_columns(self) -> None:
@@ -153,7 +153,7 @@ class FragmentValidator(_FrameValidator):
         ):
             raise ValueError(
                 f"{self.invocation.function_kind.capitalize()} action {self.invocation.mapping_id} "
-                "must preserve the dataset dimension keys"
+                "must preserve the profile grain keys"
             )
 
     def _function_definition(self) -> functions.FunctionKind:
@@ -199,11 +199,12 @@ class MainFrameValidator(_FrameValidator):
         self._validate_feature_collisions(fragment)
 
     def _validate_feature_collisions(self, fragment: object) -> None:
-        """Reject output feature names already present in the accumulated dataset."""
+        """Reject output feature names already present in the accumulated profile frame."""
         logger.debug("    - checking fragment feature collisions")
         fragment_columns = set(self.backend.column_names(fragment))
         collisions = sorted((fragment_columns - set(self.dimensions)) & self.columns)
         if collisions:
             raise ValueError(
-                "Fragment feature columns overlap the accumulated dataset: " + ", ".join(collisions)
+                "Fragment feature columns overlap the accumulated profile frame: "
+                + ", ".join(collisions)
             )

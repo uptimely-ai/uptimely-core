@@ -25,11 +25,9 @@ from uptimely.spec.validation.rules import (
     bindings,
     dimensions,
     features,
+    profile_identity,
     profiles,
     row_context,
-)
-from uptimely.spec.validation.rules import (
-    datasets as dataset,
 )
 from uptimely.spec.validation.rules import functions as function_rules
 from uptimely.spec.validation.rules.actions import contracts as action_contracts
@@ -257,7 +255,7 @@ def test_every_rule_is_registered_with_one_spec_parameter() -> None:
         action_inputs,
         action_outputs,
         bindings,
-        dataset,
+        profile_identity,
         dependencies,
         dimensions,
         features,
@@ -355,19 +353,19 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "parent cycle",
         ),
         (
-            dataset.validate_profile_ids,
+            profile_identity.validate_profile_ids,
             "read",
             lambda s: setattr(target(s), "id", "source"),
             "Profile key",
         ),
         (
-            dataset.validate_order_dimension,
+            profile_identity.validate_order_dimension,
             "read",
             lambda s: setattr(target(s).order[0], "dimension", "$dimensions.missing"),
             "order references",
         ),
         (
-            dataset.validate_unique_order_dimension,
+            profile_identity.validate_unique_order_dimension,
             "read",
             lambda s: target(s).order.append(target(s).order[0]),
             "repeats dimension",
@@ -463,7 +461,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             action_inputs.validate_input_scope,
             "vectorize",
             lambda s: compute(s).features.inputs.append("$features.s"),
-            "another dataset",
+            "another profile",
         ),
         (
             action_inputs.validate_feature_reference,
@@ -477,7 +475,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             action_inputs.validate_dataset_reference,
             "vectorize",
             lambda s: compute(s).binding.args.update({"data": "$profiles.missing.dataframe"}),
-            "unknown dataset",
+            "unknown profile",
         ),
         (
             action_inputs.validate_dimension_reference,
@@ -513,13 +511,13 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             action_inputs.validate_source_count,
             "collapse",
             lambda s: compute(s).features.inputs.append("$features.x"),
-            "belong to one dataset",
+            "belong to one profile",
         ),
         (
             action_inputs.validate_source_target,
             "collapse",
             lambda s: setattr(compute(s).features, "inputs", ["$features.x"]),
-            "target dataset",
+            "target profile",
         ),
         (
             action_inputs.validate_grouping_dimensions,
@@ -559,19 +557,19 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             action_contracts.validate_dataset_argument_reference,
             "vectorize",
             lambda s: compute(s).binding.args.update({"data": 42}),
-            "must reference a dataset",
+            "must reference a profile",
         ),
         (
             action_contracts.validate_dataset_argument_selector,
             "vectorize",
             lambda s: compute(s).binding.args.update({"data": "$profiles.target.id"}),
-            "must select dataset data",
+            "must select profile data",
         ),
         (
             action_contracts.validate_dataset_argument_source,
             "vectorize",
             lambda s: compute(s).binding.args.update({"data": "$profiles.missing.dataframe"}),
-            "unknown dataset",
+            "unknown profile",
         ),
         (
             action_contracts.validate_dataset_argument_count,
@@ -589,19 +587,19 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             action_contracts.validate_input_feature_source_count,
             "conform",
             lambda s: compute(s).features.inputs.append("$features.x"),
-            "one source dataset",
+            "one source profile",
         ),
         (
             action_contracts.validate_dataset_argument_feature_source,
             "conform",
             lambda s: compute(s).binding.args.update({"data": "$profiles.target.dataframe"}),
-            "foreign source dataset source",
+            "foreign source profile source",
         ),
         (
             action_contracts.validate_dataset_argument_features,
             "expand",
             lambda s: compute(s).features.inputs.append("$features.time"),
-            "dataset inputs",
+            "profile inputs",
         ),
         (
             action_contracts.validate_feature_input_scope,

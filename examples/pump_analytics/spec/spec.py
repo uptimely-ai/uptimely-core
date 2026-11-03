@@ -2,10 +2,10 @@
 
 from uptimely import Spec
 
-from .datasets.constants import Constants
-from .datasets.external_workflow import PumpExternalWorkflow
-from .datasets.pump import Pump
-from .datasets.telemetry import Telemetry
+from .profiles.constants import Constants
+from .profiles.external_workflow import PumpExternalWorkflow
+from .profiles.pump import Pump
+from .profiles.telemetry import Telemetry
 
 python_spec = Spec(
     profiles=[Telemetry, Pump, PumpExternalWorkflow, Constants],

@@ -64,7 +64,7 @@ project source.
 
 ## Python API
 
-Author a spec in Python by describing its entity, dataset, and actions. Save
+Author a spec in Python by describing its profiles, grains, and actions. Save
 this module as `spec/spec.py` in an Uptimely project:
 
 ```python
@@ -99,7 +99,7 @@ measurement_id = up.Dimension(
 
 
 class CalculatedData(up.Profile):
-    id = "calculated_dataset"
+    id = "calculated_profile"
     grain = [up.Grain(measurement_id, "measurement_id")]
 
     producers = [
@@ -158,11 +158,11 @@ bundle = project.build_project(".")
 result = Engine(bundle, EngineConfig()).run()
 ```
 
-Datasets group actions into `producers` (feature-producing kinds), `publishers`
+Profiles group actions into `producers` (feature-producing kinds), `publishers`
 (`write`), and `pipelines` (`escape`, for opaque custom workflows). Each action
-has an explicit ID unique within its dataset. These lists declare roles, not
+has an explicit ID unique within its profile. These lists declare roles, not
 execution order; dependencies determine execution.
-In JSON specs, datasets declare their keyed action definitions under `actions`.
+In JSON specs, profiles declare their keyed action definitions under `actions`.
 
 ## Further exploration
 

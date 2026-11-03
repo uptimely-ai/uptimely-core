@@ -296,13 +296,13 @@ export function stageCards(data) {
       <h3 class="mb-2 break-words font-display text-lg font-semibold text-white">${escape(step.title)}</h3><article>
         <dl class="grid overflow-hidden rounded-lg border border-slate-800 bg-slate-950/55 font-mono text-xs md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]">
           ${[["Function kind", step.function_kind, "text-amber-200"], ["Function", step.function_label, "text-white"],
-            [step.uncontrolled ? "Declared logical outputs" : "Dataset feature output", step.feature || "None", "text-cyan-200"],
+            [step.uncontrolled ? "Declared logical outputs" : "Profile feature output", step.feature || "None", "text-cyan-200"],
             [step.uncontrolled ? "Python return (ignored)" : "Returns", step.returns.type.engine || "—", "text-lime-300"]].map(([title, value, color]) => `<div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
               <dt class="mb-1 uppercase tracking-wider text-slate-500">${title}</dt><dd class="break-all ${color}">${escape(value)}</dd></div>`).join("")}
           <div class="min-w-0 p-3 md:col-span-4"><dt class="mb-1 uppercase tracking-wider text-slate-500">Depends on invocations</dt>
             <dd class="flex flex-wrap gap-1.5">${step.depends_on_invocations.map(dep => `<span class="rounded-md bg-slate-950/70 px-2 py-1 text-slate-300">${escape(dep.function)}</span>`).join("") || '<span class="text-slate-400">No invocation dependencies</span>'}</dd></div>
         </dl>
-        ${step.dataset_label ? `<p class="mt-3 font-mono text-xs text-slate-500">Dataset: ${escape(step.dataset_label)}</p>` : ""}
+        ${step.dataset_label ? `<p class="mt-3 font-mono text-xs text-slate-500">Profile: ${escape(step.dataset_label)}</p>` : ""}
         ${step.uncontrolled ? `<p class="mt-3 rounded-lg border border-violet-900/60 bg-violet-950/30 p-3 text-xs leading-5 text-violet-200">Uncontrolled external operation. Declared inputs: ${escape(step.input_features.join(", ") || "none")}. Declared outputs: ${escape(step.output_features.join(", ") || "none")}. These are logical dependencies only; dataframes are passed only through explicit arguments, and escape return values are ignored.</p>` : ""}
         ${step.row_context !== null ? `<div class="mt-3 font-mono text-xs text-slate-400">Row context: ${display(step.row_context)}</div>` : ""}
         ${Object.keys(step.args).length ? `<div class="mt-5 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80"><table class="w-full font-mono text-xs">

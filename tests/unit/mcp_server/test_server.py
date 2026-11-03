@@ -142,7 +142,7 @@ async def test_escape_function_description_reports_logical_feature_dependencies(
         returns="any",
         entrypoint="examples.pump_analytics.functions.analytics:aggregate",
     )
-    dataset = definition.profiles["pump_telemetry_dataset"]
+    dataset = definition.profiles["pump_telemetry"]
     dataset.actions["external_audit"] = spec_model.Action(
         id="external_audit",
         binding=spec_model.Binding(function="external_audit"),
@@ -166,7 +166,7 @@ async def test_escape_function_description_reports_logical_feature_dependencies(
     assert described["declared_returns"] == "any"
     assert described["escape_actions"] == [
         {
-            "profile": "pump_telemetry_dataset",
+            "profile": "pump_telemetry",
             "action": "external_audit",
             "inputs": ["bearing_temperature", "vibration_rms"],
             "outputs": [],
@@ -213,7 +213,7 @@ async def test_describe_feature_reports_dependencies(
     """describe_feature reports direct, transitive, and input dependencies."""
     payload = await _call(state, "describe_feature", {"feature_id": "pump_health_score"})
     assert payload["function"] == "pump_health_score"
-    assert payload["profile"] == "pump_telemetry_dataset"
+    assert payload["profile"] == "pump_telemetry"
     assert payload["direct_dependencies"] == [
         "bearing_temperature_delta",
         "vibration_delta",
@@ -260,7 +260,7 @@ async def test_execute_build_runs_the_saved_plan_without_compiling(
     telemetry = next(
         dataset for dataset in payload["datasets"] if "pump_health_score" in dataset["features"]
     )
-    assert telemetry["profile"] == "pump_telemetry_dataset"
+    assert telemetry["profile"] == "pump_telemetry"
     assert telemetry["row_count"] == 3
     assert {
         "pump",
@@ -289,10 +289,10 @@ async def test_reload_build(state: server.ServerState) -> None:
     assert payload["features"] is None
     assert payload["spec"].endswith("_generated/build/spec.json")
     assert payload["profiles"] == [
-        "constants_dataset",
-        "pump_dataset",
-        "pump_external_workflow_dataset",
-        "pump_telemetry_dataset",
+        "constants",
+        "pump_external_workflow",
+        "pump_profile",
+        "pump_telemetry",
     ]
 
 

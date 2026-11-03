@@ -22,7 +22,7 @@ def test_root_authoring_api_compiles_and_executes(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     class CalculatedData(up.Profile):
-        id = "calculated_dataset"
+        id = "calculated_profile"
         grain = [
             up.Grain(
                 up.Dimension(
@@ -53,7 +53,7 @@ def test_root_authoring_api_compiles_and_executes(
 
     declaration = up.Spec(profiles=[CalculatedData])
     model = declaration.to_model()
-    action = model.profiles["calculated_dataset"].actions["double"]
+    action = model.profiles["calculated_profile"].actions["double"]
     assert action.input_features == ["value"]
     assert action.output_features == ["doubled"]
     assert action.binding.args == {
@@ -68,7 +68,7 @@ def test_root_authoring_api_compiles_and_executes(
     execution_plan = up.Compiler().compile(model, features=["doubled"])
     execution = engine_for_plan(execution_plan, spec_definition=model).run()
     assert not execution.failures
-    result = execution.main_frames["calculated_dataset"].sort("id")
+    result = execution.main_frames["calculated_profile"].sort("id")
     assert result["doubled"].to_list() == [20, 40]
 
 

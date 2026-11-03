@@ -15,7 +15,7 @@ contract. See [Python authoring](python.md) for declarations that produce it, or
 | Module or subpackage | Purpose |
 | --- | --- |
 | [api](spec/api.md) | Load and convert spec with semantic validation. |
-| [model](spec/model.md) | Define the spec document, datasets, bindings, and function metadata. |
+| [model](spec/model.md) | Define the spec document, profiles, bindings, and function metadata. |
 | [json](spec/json.md) | Write spec documents as JSON. |
 | [validation](spec/validation.md) | Check document relationships and inspect structured validation errors. |
 | [python](python.md) | Author spec using Python declarations. |

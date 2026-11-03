@@ -1,4 +1,4 @@
-"""Minute-level pump observations and declarative dataframe transformations."""
+"""Minute-level pump profile and declarative dataframe transformations."""
 
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
@@ -18,7 +18,7 @@ TELEMETRY_GRAIN = [
 class Telemetry(Profile):
     """Process and condition readings at pump-and-timestamp grain."""
 
-    id = "pump_telemetry_dataset"
+    id = "pump_telemetry"
     name = "Pump Telemetry"
     description = "Pump process and condition readings sampled at one-minute intervals."
     category = "telemetry"
@@ -170,7 +170,7 @@ class Telemetry(Profile):
             id="room_temperature_reference",
             function=analytics.broadcast_constant,
             arguments=dict(  # noqa: C408
-                constants=ref.dataframe("constants_dataset"),
+                constants=ref.dataframe("constants"),
                 feature=ref.column("room_temperature"),
                 output=ref.output("room_temperature_reference"),
             ),

@@ -1,4 +1,4 @@
-"""Invoke plan operations and commit their fragments to logical dataset main frames."""
+"""Invoke plan operations and commit their fragments to profile main frames."""
 
 import functools
 import logging
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class InvocationExecutor:
-    """Dispatch invocations and accumulate their results in per-dataset main frames."""
+    """Dispatch invocations and accumulate their results in per-profile main frames."""
 
     def __init__(
         self,
@@ -58,10 +58,10 @@ class InvocationExecutor:
             raise ValueError(f"Unsupported invocation function kind: {invocation.function_kind}")
 
     def _execute_dataframe_action(self, invocation: execution_plan.Invocation) -> None:
-        """Produce a fragment and merge it into the target dataset's main frame."""
+        """Produce a fragment and merge it into the target profile's main frame."""
         dataset_id = invocation.dataset_id
         if dataset_id is None:
-            raise ValueError(f"Dataframe invocation {invocation.id} must declare a dataset_id")
+            raise ValueError(f"Dataframe invocation {invocation.id} must declare a profile ID")
         main_frame = self.state.main_frames.get(dataset_id)
         fragment = fragment_module.Fragment.stage(
             self.backend,
@@ -84,7 +84,7 @@ class InvocationExecutor:
         """Check assembly contracts and commit a staged fragment to physical data."""
         dataset_id = invocation.dataset_id
         if dataset_id is None:
-            raise ValueError(f"Dataframe invocation {invocation.id} must declare a dataset_id")
+            raise ValueError(f"Dataframe invocation {invocation.id} must declare a profile ID")
         main_frame = self.state.main_frames.get(dataset_id)
         if main_frame is None:
             main_frame = main_frame_module.MainFrame(
@@ -97,11 +97,11 @@ class InvocationExecutor:
                 self.backend,
                 main_frame.dataframe,
                 invocation.id_columns,
-                "Accumulated dataset",
+                "Accumulated profile",
                 column_types=invocation.column_types,
             )
             validator.validate()
-        logger.debug("  Merge:\n    Target dataset: %s", dataset_id)
+        logger.debug("  Merge:\n    Target profile: %s", dataset_id)
         if validator is not None:
             validator.validate_merge(fragment.dataframe)
         main_frame.merge(

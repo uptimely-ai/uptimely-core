@@ -66,8 +66,8 @@ Raw child dictionaries such as `profile.features`, `profile.actions`, and
 `function.args` remain available. Bound arguments are values; catalog arguments
 are declarations. Feature and action references retain declaration order.
 
-`action.dataset_references` contains normalized dataset IDs from nested binding
-arguments, retaining duplicates and the current-dataset marker `@`. It reuses
+`action.dataset_references` contains normalized profile IDs from nested binding
+arguments, retaining duplicates and the current-profile marker `@`. It reuses
 the binding's cached traversal and does not require a Spec.
 `action.feature_selectors` exposes normalized feature IDs from binding arguments,
 including `@` and duplicates; it is separate from the explicitly declared
@@ -75,8 +75,8 @@ including `@` and duplicates; it is separate from the explicitly declared
 `action.dimensions_references` likewise exposes normalized dimension IDs.
 `action.dimension_reference_paths` additionally retains each reference's relative
 binding argument path for diagnostics. Both reuse the same cached binding traversal.
-`BindingArgumentResolver` resolves bound values for one invocation; dataset, feature,
-and dimension-index context is configured once, then `resolve_arguments` receives
+`BindingArgumentResolver` resolves bound values for one invocation; profile-dataframe,
+feature, and dimension-index context is configured once, then `resolve_arguments` receives
 only the binding argument mapping.
 
 Context-dependent views live on the Spec rather than wrapper objects:
@@ -91,7 +91,7 @@ action's context describes, and `get_row_context_dimensions(action_key)` returns
 its dimension IDs. Dimension-removing operations use the inferred source;
 other operations use the target. Both return `None` for an unresolved source.
 Row context itself remains available directly as `action.row_context`.
-`Binding.dataset_input_references` contains ordered dataset data references,
+`Binding.dataset_input_references` contains ordered profile dataframe references,
 retaining duplicates and `@` while excluding identifier and dimension-list selectors.
 `binding_selectors_with_paths` flattens `binding_selectors` into ordered
 `(binding_args_path, value, argument_type)` tuples for validation. These paths

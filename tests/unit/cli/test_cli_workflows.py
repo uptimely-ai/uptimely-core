@@ -74,9 +74,9 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     invoke(monkeypatch, "run", str(project_root), "--log-level", "debug")
     text = capsys.readouterr().out
     assert "Engine completed in " in text
-    assert "3 datasets processed" in text
+    assert "3 profiles processed" in text
     assert "Scope: selected features: health_signal_normalized" in text
-    assert "- Dataset: pump_dataset - 3 features" in text
+    assert "- Profile: pump_profile - 3 features" in text
 
 
 @pytest.mark.parametrize("command", [("run",), ("engine", "run")])
@@ -117,7 +117,7 @@ def test_engine_cli_forwards_validation_flag(
 
 
 @pytest.mark.parametrize("scoped", [False, True])
-def test_engine_default_logs_only_duration_and_processed_datasets(
+def test_engine_default_logs_only_duration_and_processed_profiles(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -137,7 +137,7 @@ def test_engine_default_logs_only_duration_and_processed_datasets(
     dataset_count = 3 if scoped else 4
     assert result.out.splitlines() == [
         "",
-        f"Engine completed in 1.234 s: {dataset_count} datasets processed",
+        f"Engine completed in 1.234 s: {dataset_count} profiles processed",
     ]
 
 
@@ -219,7 +219,7 @@ def test_run_log_level_filters_uptimely_only_and_restores_configuration(
         (["--preview", "12", "--log-level", "debug"], 12),
     ],
 )
-def test_engine_previews_final_datasets(
+def test_engine_previews_final_profiles(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -270,17 +270,17 @@ def test_engine_previews_final_datasets(
 
     output = capsys.readouterr()
     assert not output.err
-    assert "2 datasets processed" in output.out
+    assert "2 profiles processed" in output.out
     assert "shape:" not in output.out
     if row_limit is None:
-        assert "Dataset:" not in output.out
+        assert "Profile:" not in output.out
         assert not collected_heights
     else:
-        assert output.out.index("Engine completed") < output.out.index("Dataset: first")
+        assert output.out.index("Engine completed") < output.out.index("Profile: first")
         if "debug" in arguments:
-            assert output.out.index("Processed datasets:") < output.out.index("Dataset: first")
+            assert output.out.index("Processed profiles:") < output.out.index("Profile: first")
         for dataset in ("first", "second"):
-            assert f"Dataset: {dataset}\n" in output.out
+            assert f"Profile: {dataset}\n" in output.out
             assert f"Dataset(sample, {dataset}):\n" not in output.out
         assert " rows:" not in output.out
         for column in frame.columns:
@@ -343,7 +343,7 @@ def test_engine_preview_errors_are_reported(
     output = capsys.readouterr()
     assert "uptimely: error:" in output.err
     assert "Engine completed" in output.out
-    assert "Dataset:" not in output.out
+    assert "Profile:" not in output.out
 
 
 @pytest.mark.parametrize("debug", [False, True])
@@ -373,11 +373,11 @@ def test_engine_empty_plan_summary(
 
     result = capsys.readouterr()
     assert not result.err
-    summary = "\nEngine completed in 0.000 s: 0 datasets processed\n"
+    summary = "\nEngine completed in 0.000 s: 0 profiles processed\n"
     if debug:
         assert summary in result.out
         assert "\nScope: all features\n" in result.out
-        assert "\nProcessed datasets:\n" in result.out
+        assert "\nProcessed profiles:\n" in result.out
     else:
         assert result.out == summary
 
@@ -503,7 +503,7 @@ def test_engine_operation_failures_are_reported(
     assert "Engine flow failed:" in result.err
     assert "Unresolved parameter:" in result.err
     assert "Engine completed" not in result.out
-    assert "Dataset:" not in result.out
+    assert "Profile:" not in result.out
 
 
 def test_engine_config_loads_backend_and_params() -> None:

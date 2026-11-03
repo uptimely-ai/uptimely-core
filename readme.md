@@ -5,7 +5,7 @@ meaningful structure. It lets teams to build their analytical functions with pur
 pipelines whose calculations depend on one another.
 
 Uptimely complements data modeling: data models organize business data, while
-Uptimely makes calculation-facing datasets and their feature dependencies
+Uptimely makes calculation-facing profiles and their feature dependencies
 explicit. See [Data Modeling and Uptimely](docs/data-science/data-modeling.md).
 
 Use it for machine telemetry, process analytics, failure prediction, and
@@ -79,7 +79,7 @@ Execute the data pipeline:
 uptimely run examples/pump_analytics --log-level debug --preview 10
 ```
 
-Output will show the materialized datasets:
+Output will show the materialized profile frames:
 
 ![Uptimely run preview](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-run-preview.png)
 
@@ -96,7 +96,7 @@ Open <http://127.0.0.1:8001/> to view the Explorer.
 
 ## Python API
 
-The previous example was built by [Python authored example specification](examples/pump_analytics/). The specification describes entities, datasets and actions. The functions are pure Python - the decorator is just a label enabling automatic structural validation.
+The previous example was built by the [Python-authored example specification](examples/pump_analytics/). The specification describes profiles, dimensions, grains, and actions. Functions remain pure Python; the decorator supplies metadata for structural validation.
 
 Here even more simplified example.
 
@@ -132,7 +132,7 @@ measurement_id = up.Dimension(
 
 
 class CalculatedData(up.Profile):
-    id = "calculated_dataset"
+    id = "calculated_profile"
     grain = [up.Grain(measurement_id, "measurement_id")]
 
     producers = [

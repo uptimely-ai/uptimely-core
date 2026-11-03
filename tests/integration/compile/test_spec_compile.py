@@ -31,7 +31,7 @@ def _add_escape_mapping(
         "entrypoint": entrypoint,
         "args": {},
     }
-    configuration["profiles"]["pump_telemetry_dataset"]["actions"][mapping_id] = {
+    configuration["profiles"]["pump_telemetry"]["actions"][mapping_id] = {
         "binding": {
             "function": function_id,
             "args": {},
@@ -46,7 +46,7 @@ def _add_escape_mapping(
 def _escape_spec_configuration() -> dict:
     """Return a valid pump spec with input-only, output-only, and chained escapes."""
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = configuration["profiles"]["pump_telemetry_dataset"]
+    dataset = configuration["profiles"]["pump_telemetry"]
     dataset["features"]["escape_start_output"] = {"type": "float"}
     dataset["features"]["escape_chain_output"] = {"type": "float"}
     dataset["features"]["escape_source_output"] = {"type": "float"}
@@ -116,11 +116,11 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     function["validate_signature"] = False
     function["args"]["keys"] = {"type": "array[string]"}
     function["args"]["source_keys"] = {"type": "array[string]"}
-    dataset = configuration["profiles"]["pump_telemetry_dataset"]
+    dataset = configuration["profiles"]["pump_telemetry"]
     dataset["actions"]["read_pump_telemetry"]["binding"]["args"].update(
         {
             "keys": "$profiles.@.grain.ids",
-            "source_keys": "$profiles.pump_dataset.grain.ids",
+            "source_keys": "$profiles.pump_profile.grain.ids",
         }
     )
     path = tmp_path / "dimension_keys.json"
@@ -131,8 +131,8 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     invocation = next(
         item for item in plan.invocations if item.function_id == "read_pump_telemetry"
     )
-    expected = definition.grain_keys_by_profile["pump_telemetry_dataset"]
-    expected_source = definition.grain_keys_by_profile["pump_dataset"]
+    expected = definition.grain_keys_by_profile["pump_telemetry"]
+    expected_source = definition.grain_keys_by_profile["pump_profile"]
 
     assert invocation.arguments["keys"] == expected
     assert invocation.arguments["source_keys"] == expected_source
@@ -146,7 +146,7 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
 
 def test_collapse_feature_placeholder_uses_invocation_feature_id(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    action = configuration["profiles"]["pump_dataset"]["actions"]["bearing_temperature_by_pump"]
+    action = configuration["profiles"]["pump_profile"]["actions"]["bearing_temperature_by_pump"]
     action["binding"]["args"]["output"] = "$features.@.id"
     path = tmp_path / "collapse_feature_placeholder.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -183,9 +183,9 @@ def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> No
 
 def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None:
     definition = spec.load_spec(SPEC_PATH)
-    pump_profile = definition.profiles["pump_dataset"]
-    pump_dataset = pump_profile
-    read_mapping = definition.profiles["pump_telemetry_dataset"].actions["read_pump_telemetry"]
+    pump_profile = definition.profiles["pump_profile"]
+    pump_profile = pump_profile
+    read_mapping = definition.profiles["pump_telemetry"].actions["read_pump_telemetry"]
 
     definition.profiles["auxiliary_dataset"] = spec_model.Profile(
         id="auxiliary_dataset",
@@ -202,8 +202,8 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
             ),
         },
     )
-    pump_dataset.features["conformed_auxiliary"] = spec_model.Feature(id="conformed_auxiliary")
-    pump_dataset.actions["conform_auxiliary"] = spec_model.Action(
+    pump_profile.features["conformed_auxiliary"] = spec_model.Feature(id="conformed_auxiliary")
+    pump_profile.actions["conform_auxiliary"] = spec_model.Action(
         id="conform_auxiliary",
         binding=spec_model.Binding(
             function="conform_auxiliary",
@@ -280,7 +280,7 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
 
 def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
     spec_definition = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = spec_definition["profiles"]["pump_dataset"]
+    dataset = spec_definition["profiles"]["pump_profile"]
     action = dataset["actions"]["health_signal_normalized"]
     action["features"]["outputs"].append("$features.health_signal_secondary")
     dataset["features"]["health_signal_secondary"] = {"type": "float"}

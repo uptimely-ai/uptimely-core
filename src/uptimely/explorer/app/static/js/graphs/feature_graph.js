@@ -27,8 +27,8 @@ export function initializeFeatureLineage(signal) {
 			const rows = [
 				['Node type', 'Action'],
 				['Profile', node.profile || 'n/a'],
-				['Dataset', node.dataset_name || node.dataset_id],
-				['Dataset ID', node.dataset_id],
+				['Profile', node.dataset_name || node.dataset_id],
+				['Profile ID', node.dataset_id],
 				['Action', node.action_id || label],
 				['Function', node.function_name || node.function_id || 'n/a'],
 				['Function ID', node.function_id || 'n/a'],
@@ -46,7 +46,7 @@ export function initializeFeatureLineage(signal) {
 		const profile = node.profile || 'n/a';
 		ExplorerLineage.showDetails(nodeDetails, 'Selected item', [
 			['Node type', 'Feature'], ['Feature', label], ['Feature ID', node.feature_id || node.id],
-			['Dataset', node.dataset_name || node.dataset_id], ['Dataset ID', node.dataset_id],
+			['Profile', node.dataset_name || node.dataset_id], ['Profile ID', node.dataset_id],
 			['Profile', formatDetailValue(profile)], ['Data type', formatDetailValue(dataType)],
 		]);
 	}

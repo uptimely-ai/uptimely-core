@@ -10,8 +10,8 @@ The workflow has three related specifications:
 
 ## Spec
 
-The Spec document describes the analytical system: its entities,
-dimensions, datasets, features, reusable functions, and bindings between
+The Spec document describes the analytical system: its profiles, dimensions,
+features, reusable functions, and bindings between
 inputs and outputs. Declaring these relationships explicitly makes feature
 dependencies visible, allows tools to validate and document the system, and
 gives the compiler enough information to determine what calculations are

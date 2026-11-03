@@ -10,10 +10,10 @@ from uptimely.spec import model as spec_model
 
 from .rules import (
     bindings,
-    datasets,
     dimensions,
     features,
     functions,
+    profile_identity,
     profiles,
     row_context,
 )
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 type Validator = collections.abc.Callable[[spec_model.Spec], None]
 
 VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
-    datasets.validate_profile_ids: (),
+    profile_identity.validate_profile_ids: (),
     features.validate_feature_ownership: (),
     dimensions.validate_parent: (),
     dimensions.validate_parent_cycle: (dimensions.validate_parent,),
@@ -35,8 +35,8 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     profiles.validate_unique_grain_dimensions: (),
     profiles.validate_grain_resolutions: (profiles.validate_grain_dimensions,),
     profiles.validate_unique_grain_keys: (profiles.validate_grain_resolutions,),
-    datasets.validate_order_dimension: (profiles.validate_unique_grain_keys,),
-    datasets.validate_unique_order_dimension: (),
+    profile_identity.validate_order_dimension: (profiles.validate_unique_grain_keys,),
+    profile_identity.validate_unique_order_dimension: (),
     functions.validate_return_kind: (),
     functions.validate_dataframe_count: (),
     action_outputs.validate_function_reference: (),
@@ -65,7 +65,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         action_outputs.validate_function_reference,
     ),
     action_inputs.validate_feature_reference: (),
-    action_inputs.validate_dataset_reference: (datasets.validate_profile_ids,),
+    action_inputs.validate_dataset_reference: (profile_identity.validate_profile_ids,),
     action_inputs.validate_dimension_reference: (),
     bindings.validate_arguments: (action_outputs.validate_function_reference,),
     bindings.validate_selector_type: (bindings.validate_arguments,),
@@ -76,7 +76,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         action_inputs.validate_source_feature,
     ),
     action_inputs.validate_source_count: (
-        datasets.validate_profile_ids,
+        profile_identity.validate_profile_ids,
         action_inputs.validate_feature_owner,
     ),
     action_inputs.validate_source_target: (action_inputs.validate_source_count,),
@@ -91,8 +91,8 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     ),
     row_context.validate_dataset_order: (
         action_inputs.validate_source_count,
-        datasets.validate_order_dimension,
-        datasets.validate_unique_order_dimension,
+        profile_identity.validate_order_dimension,
+        profile_identity.validate_unique_order_dimension,
     ),
     row_context.validate_dimension: (
         action_inputs.validate_source_count,
@@ -108,7 +108,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         action_contracts.validate_dataset_argument_reference,
     ),
     action_contracts.validate_dataset_argument_source: (
-        datasets.validate_profile_ids,
+        profile_identity.validate_profile_ids,
         action_contracts.validate_dataset_argument_selector,
     ),
     action_contracts.validate_dataset_argument_count: (
@@ -156,7 +156,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         profiles.validate_unique_grain_keys,
     ),
     dependencies.validate_action_cycle: (
-        datasets.validate_profile_ids,
+        profile_identity.validate_profile_ids,
         action_outputs.validate_unique_producer,
         action_inputs.validate_input_feature,
     ),

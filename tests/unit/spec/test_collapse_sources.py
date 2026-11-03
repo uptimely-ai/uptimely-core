@@ -21,7 +21,7 @@ pytestmark = pytest.mark.usefixtures("example_projects")
         (["$features.missing"], "unknown input feature"),
         (
             ["$features.bearing_temperature", "$features.health_signal_normalized"],
-            "must belong to one dataset",
+            "must belong to one profile",
         ),
         (["$features.bearing_temperature"], None),
     ],
@@ -31,10 +31,10 @@ def test_collapse_source_discovery_retains_invalid_candidates(
     inputs: list[str], message: str | None, ambiguous: bool
 ) -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
-    action = document.profiles["pump_dataset"].actions["bearing_temperature_by_pump"]
+    action = document.profiles["pump_profile"].actions["bearing_temperature_by_pump"]
     action.features.inputs = inputs
     if ambiguous:
-        source_profile = document.profiles["pump_telemetry_dataset"]
+        source_profile = document.profiles["pump_telemetry"]
         document.profiles["pump_telemetry_copy"] = source_profile.model_copy(
             update={"id": "pump_telemetry_copy"}, deep=True
         )
@@ -42,7 +42,7 @@ def test_collapse_source_discovery_retains_invalid_candidates(
             message = "ambiguous input feature"
     original = document.model_copy(deep=True)
     facts = document.input_sources
-    key = ("pump_dataset", "bearing_temperature_by_pump")
+    key = ("pump_profile", "bearing_temperature_by_pump")
     source = facts[key]
 
     def validate_source() -> None:
@@ -66,17 +66,17 @@ def test_collapse_source_discovery_retains_invalid_candidates(
 def test_new_document_rediscovers_collapse_sources_after_edits() -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     validation.validate_spec(document)
-    action = document.profiles["pump_dataset"].actions["bearing_temperature_by_pump"]
-    key = ("pump_dataset", "bearing_temperature_by_pump")
+    action = document.profiles["pump_profile"].actions["bearing_temperature_by_pump"]
+    key = ("pump_profile", "bearing_temperature_by_pump")
     first = document.input_sources[key]
     assert first is not None
-    assert first == "pump_telemetry_dataset"
-    target = document.profiles["pump_dataset"]
+    assert first == "pump_telemetry"
+    target = document.profiles["pump_profile"]
     target.features["local_source"] = spec.Feature(id="local_source")
     action.features.inputs = ["$features.local_source"]
     document = spec.Spec.model_validate(document.model_dump())
     second = document.input_sources[key]
     assert second is not None
-    assert second == "pump_dataset"
-    with pytest.raises(ValueError, match="cannot use its target dataset as source"):
+    assert second == "pump_profile"
+    with pytest.raises(ValueError, match="cannot use its target profile as source"):
         validation.validate_spec(document)

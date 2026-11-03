@@ -130,7 +130,7 @@ def test_mapping_rules_use_shared_operation_dataframe_counts(
     definitions[kind] = dataclasses.replace(definitions[kind], dataframe_inputs=2)
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
-    with pytest.raises(errors.SpecError, match=r"exactly 2 foreign dataset\(s\)") as error:
+    with pytest.raises(errors.SpecError, match=r"exactly 2 foreign profile\(s\)") as error:
         action_contracts.validate_dataset_argument_count(document)
     assert error.value.code == "invalid_mapping_dataset_input"
     assert error.value.path[-2:] == ("binding", "args")
@@ -150,7 +150,7 @@ def test_local_and_foreign_input_validation_uses_kind_attributes(
     )
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
-    with pytest.raises(errors.SpecError, match="must reference a foreign source dataset"):
+    with pytest.raises(errors.SpecError, match="must reference a foreign source profile"):
         action_contracts.validate_foreign_dataset_argument(document)
 
     assert document.functions[vectorize.binding.function].kind == "vectorize"
@@ -165,7 +165,7 @@ def test_target_dataset_validation_uses_kind_attribute(
     )
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
-    with pytest.raises(errors.SpecError, match="must consume its target dataset"):
+    with pytest.raises(errors.SpecError, match="must consume its target profile"):
         action_contracts.validate_target_dataset_input(document)
 
 

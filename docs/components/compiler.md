@@ -8,7 +8,7 @@ Python function named in the Spec. Compiling a plan does not run the analytics.
 The build bundle contains both the plan and the Spec. The engine uses the Spec
 for declarations and supplies runtime values when it runs each step.
 
-This page describes the generated plan. Dataset, feature, function, and action
+This page describes the generated plan. Profile, feature, function, and action
 semantics are defined by the Spec document.
 
 ## Plan
@@ -30,7 +30,7 @@ from their source Specs to create version 4 plans.
 ## Resources
 
 The build bundle includes `spec.json`, which is the source of dimensions,
-profiles, functions, and datasets used by the engine. Plan resources contain
+profiles, functions, and actions used by the engine. Plan resources contain
 compiler-generated metadata that is not part of the Spec: inspected return
 annotations keyed by invocation identifier and the installed distribution name
 and version associated with each entrypoint. Signature-disabled functions have
@@ -55,20 +55,19 @@ spelling.
 | `entrypoint` | string | Implementation location for the function. |
 | `function_id` | string | Function declaration used by the invocation. |
 | `mapping_id` | string | Action declaration used by the invocation. |
-| `dataset_id` | string or null | Dataset receiving or supplying dataframe state. |
+| `dataset_id` | string or null | Profile identifier receiving or supplying dataframe state. |
 | `arguments` | object | Resolved arguments passed to the function. Runtime storage placeholders remain unresolved. |
 | `input_features` | array of strings | Features declared as inputs to the operation. |
 | `output_features` | array of strings | Features produced by the operation. |
-| `id_columns` | array of strings | Target dataset identifier columns, in declaration order. |
+| `id_columns` | array of strings | Target profile grain keys, in declaration order. |
 | `column_types` | object | Logical types for target keys and typed features, used by runtime validation. |
 | `argument_types` | object | Declared argument types used for runtime binding. |
 | `dependency_ids` | array of strings | Identifiers of invocation prerequisites. |
 | `row_context` | object or null | Input row-context requirement, when declared. |
 
 Structural references in Spec are resolved to plan identifiers. Runtime
-dataframe binding is deferred to the engine. The `@` dataset reference denotes
-the owning dataset for the operation's declared inputs, not a completed dataset
-state.
+dataframe binding is deferred to the engine. The `@` profile reference denotes
+the owning profile for the operation's declared inputs, not a completed frame.
 
 ## Stages
 
@@ -82,7 +81,7 @@ engine may run them in parallel while preserving stage order.
 Action inputs define the feature dependencies used to select and order
 invocations. Ordinary argument values do not establish dependencies by
 themselves. A plan limited to selected features also includes the features they
-depend on, along with configured writes for the selected datasets. Those writes
+depend on, along with configured writes for the selected profiles. Those writes
 may use features outside the selection.
 
 The dependency graph must be acyclic. Plan loading checks invocation
@@ -140,7 +139,7 @@ Spec with `uptimely build PROJECT_ROOT`.
 Plans lacking invocation runtime metadata (`id_columns`, `column_types`, and
 `argument_types`) must likewise be rebuilt.
 
-The engine returns results: `result.main_frames` contains final datasets,
+The engine returns results: `result.main_frames` contains final profile frames,
 `result.calculated_outputs` contains calculated features, and
 `result.invocation_statuses` reports whether each planned step succeeded,
 failed, or was skipped. `result.durations` and `result.failures` give more run

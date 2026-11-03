@@ -1,4 +1,4 @@
-"""Declared dataframe boundary for the pump-level uncontrolled workflow."""
+"""Declared profile boundary for the pump-level uncontrolled workflow."""
 
 from examples.pump_analytics.functions import external_workflow
 from examples.pump_analytics.spec import dimension
@@ -9,7 +9,7 @@ from uptimely import Action, Feature, Grain, Profile, ref
 class PumpExternalWorkflow(Profile):
     """Declare the logical inputs and output of a workflow that owns its I/O."""
 
-    id = "pump_external_workflow_dataset"
+    id = "pump_external_workflow"
     name = "Pump External Workflow"
     description = "Pump-level inputs and outputs for an uncontrolled local workflow."
     category = "assets"

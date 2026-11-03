@@ -39,7 +39,7 @@ atomically replaced only after the managed build succeeds.
 
 The spec export always contains the complete model. If `--features` is
 provided, the plan includes the selected outputs, their dependencies, and the
-associated dataset sinks; the Explorer snapshot contains that exact plan
+associated profile sinks; the Explorer snapshot contains that exact plan
 alongside the complete spec model. Omit `--features` to compile all features.
 Selections must be nonempty and valid. Duplicate names are normalized.
 
@@ -62,14 +62,14 @@ printed after the build debug trace and before the final success message,
 grouped into:
 
 - **Build:** duration in seconds, output folder, and feature scope.
-- **Spec:** source file and numbers of functions, datasets, and features.
+- **Spec:** source file and numbers of functions, profiles, and features.
 - **Plan:** numbers of execution stages and invocations.
 
 Build logs stream as the build runs. Failed builds do not print a success summary.
 
 Duration covers building, validating, and publishing the bundle, not workflow
 execution. Spec counts cover the complete specification, including for scoped
-builds; features are counted per dataset, excluding dimensions. Plan counts
+builds; features are counted per profile, excluding dimensions. Plan counts
 describe the compiled feature scope. The source file is the original JSON or
 Python declaration, not the generated spec export.
 

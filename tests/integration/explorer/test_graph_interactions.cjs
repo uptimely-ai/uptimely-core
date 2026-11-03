@@ -299,7 +299,7 @@ for (const filename of ['graphs/feature_graph.js', 'graphs/invocation_graph.js']
 			nodes: ['before', 'selected', 'after', 'unrelated'].map((id, index) => ({
 				id, label: id, label_lines: [id], stage: index + 1,
 				function_id: id, function_kind: 'read', entity: 'test', dataset_id: id,
-				dataset_name: ({ before: 'Before', selected: 'Selected Dataset', after: 'After', unrelated: 'Unrelated' })[id],
+				dataset_name: ({ before: 'Before', selected: 'Selected Profile', after: 'After', unrelated: 'Unrelated' })[id],
 			})),
 			links: [
 				{ source: 'before', target: 'selected' },
@@ -409,7 +409,7 @@ for (const filename of ['graphs/feature_graph.js', 'graphs/invocation_graph.js']
 		if (filename === 'graphs/invocation_graph.js') {
 			assert.deepEqual(
 				Array.from(element('invocation-node-details').rows.slice(0, 2), row => Array.from(row)),
-				[['Dataset', 'Selected Dataset'], ['Dataset ID', 'selected']],
+				[['Profile', 'Selected Profile'], ['Profile ID', 'selected']],
 			);
 		}
 		assert.deepEqual(

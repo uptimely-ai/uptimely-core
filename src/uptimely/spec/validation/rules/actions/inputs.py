@@ -39,8 +39,8 @@ def validate_feature_owner(spec: spec_model.Spec) -> None:
 
 
 def validate_source_count(spec: spec_model.Spec) -> None:
-    """Require all collapse source features to belong to one dataset."""
-    logger.debug("    - checking collapse source features belong to one dataset")
+    """Require all collapse source features to belong to one profile."""
+    logger.debug("    - checking collapse source features belong to one profile")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or function.kind != functions.COLLAPSE:
@@ -49,18 +49,18 @@ def validate_source_count(spec: spec_model.Spec) -> None:
         if len(source_ids) != 1:
             raise ValueError(
                 f"Collapse {action.id} input features must belong to one "
-                "dataset; use expand to combine inputs from different datasets"
+                "profile; use expand to combine inputs from different profiles"
             )
 
 
 def validate_source_target(spec: spec_model.Spec) -> None:
-    """Reject the target dataset as a collapse source."""
-    logger.debug("    - checking collapse sources differ from their target datasets")
+    """Reject the target profile as a collapse source."""
+    logger.debug("    - checking collapse sources differ from their target profiles")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         source = spec.input_sources[key]
         if function is not None and function.kind == functions.COLLAPSE and source == key[0]:
-            raise ValueError(f"Collapse {action.id} cannot use its target dataset as source")
+            raise ValueError(f"Collapse {action.id} cannot use its target profile as source")
 
 
 def validate_grouping_dimensions(spec: spec_model.Spec) -> None:
@@ -79,7 +79,7 @@ def validate_grouping_dimensions(spec: spec_model.Spec) -> None:
 
 def validate_source_features(spec: spec_model.Spec) -> None:
     """Require collapse input features to belong to its source."""
-    logger.debug("    - checking collapse input features belong to the source dataset")
+    logger.debug("    - checking collapse input features belong to the source profile")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or function.kind != functions.COLLAPSE:
@@ -96,7 +96,7 @@ def validate_source_features(spec: spec_model.Spec) -> None:
 
 def validate_source_dimensions(spec: spec_model.Spec) -> None:
     """Require structural dimension references to belong to the source."""
-    logger.debug("    - checking collapse dimension references belong to the source dataset")
+    logger.debug("    - checking collapse dimension references belong to the source profile")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or function.kind != functions.COLLAPSE:
@@ -124,8 +124,8 @@ def validate_input_feature(spec: spec_model.Spec) -> None:
 
 
 def validate_input_scope(spec: spec_model.Spec) -> None:
-    """Require target-scoped function inputs to belong to the target dataset."""
-    logger.debug("    - checking target-scoped input features belong to the target dataset")
+    """Require target-scoped function inputs to belong to the target profile."""
+    logger.debug("    - checking target-scoped input features belong to the target profile")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if (
@@ -136,7 +136,7 @@ def validate_input_scope(spec: spec_model.Spec) -> None:
         for feature in action.input_features:
             if feature not in spec.local_features[key[0]]:
                 raise ValueError(
-                    f"Action {action.id} cannot read feature {feature} from another dataset"
+                    f"Action {action.id} cannot read feature {feature} from another profile"
                 )
 
 
@@ -151,12 +151,12 @@ def validate_feature_reference(spec: spec_model.Spec) -> None:
 
 
 def validate_dataset_reference(spec: spec_model.Spec) -> None:
-    """Require a structural dataset reference to be declared."""
-    logger.debug("    - checking structural dataset references")
+    """Require a structural profile reference to be declared."""
+    logger.debug("    - checking structural profile references")
     for action in spec.actions:
         for dataset in action.dataset_references:
             if dataset != selectors.CURRENT_ID and dataset not in spec.profiles:
-                raise ValueError(f"Action {action.id} references unknown dataset: {dataset}")
+                raise ValueError(f"Action {action.id} references unknown profile: {dataset}")
 
 
 def validate_dimension_reference(spec: spec_model.Spec) -> None:

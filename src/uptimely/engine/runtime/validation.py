@@ -50,7 +50,7 @@ class InvocationValidator:
             self._validate_input_features()
 
     def _validate_input_features(self) -> None:
-        """Require each feature locally or in exactly one other dataset."""
+        """Require each feature locally or in exactly one other profile."""
         logger.debug("    - checking declared input features")
         invocation = self.invocation
         target = self.state.main_frames.get(invocation.dataset_id)
@@ -105,7 +105,7 @@ class InvocationValidator:
         source_id = invocation.arguments.get(self.dataframe_arguments[0])
         if not isinstance(source_id, str) or source_id == invocation.dataset_id:
             raise ValueError(
-                f"Action {invocation.mapping_id} must reference a foreign source dataset"
+                f"Action {invocation.mapping_id} must reference a foreign source profile"
             )
         return source_id
 
@@ -124,7 +124,7 @@ class InvocationValidator:
         logger.debug("    - checking foreign source availability")
         source = self.state.main_frames.get(source_id)
         if source is None:
-            raise ValueError(f"Dataset dataframe is unavailable: {source_id}")
+            raise ValueError(f"Profile dataframe is unavailable: {source_id}")
         return source
 
     def _validate_foreign_input_features(self, source: main_frame_module.MainFrame) -> None:
@@ -143,5 +143,5 @@ class InvocationValidator:
             if feature not in columns:
                 raise ValueError(
                     f"Action {invocation.mapping_id} input feature is unavailable in foreign "
-                    f"source dataset: {feature}"
+                    f"source profile: {feature}"
                 )

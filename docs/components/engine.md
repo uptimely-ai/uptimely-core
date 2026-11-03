@@ -50,7 +50,7 @@ output features; the compiler includes their prerequisite calculations and
 dependencies, so the engine needs no special subset logic. An exported plan is
 executed as part of its build bundle, without recompilation.
 
-Execution returns datasets, calculated outputs, per-invocation statuses and
+Execution returns profile frames, calculated outputs, per-invocation statuses and
 durations, failures, and the plan version. A failed invocation is reported in
 the result, and execution stops; invocations that did not run are marked skipped.
 
@@ -65,7 +65,7 @@ See the [row context contract](spec.md#row-context).
 
 ## Configuration and runtime parameters
 
-Keep framework configuration separate from dataset contents and analytical
+Keep framework configuration separate from profile data and analytical
 inputs. Use it for values that adapt how a workflow runs in this framework, so
 the same build can run in different environments without changing its
 analytics. Examples include selecting read and write locations and
@@ -75,12 +75,12 @@ Other useful controls include backend, validation, materialization, execution
 scope, and resource limits when supported by the engine.
 
 Do not put records, feature values, or business thresholds in framework
-configuration. Keep data in datasets and analytical inputs as declared feature
+configuration. Keep observations in profile dataframes and analytical inputs as declared feature
 inputs in the Spec. Engine options belong in the `engine` configuration or
 dedicated CLI options. The `params` map does not set engine options directly;
 it supplies scalar values to function bindings. Use it for framework controls
 such as a path or source identifier when a read or write function needs that
-value, not for dataset or analytical values.
+value, not for profile or analytical values.
 
 Binding arguments may contain `$params.<name>` references. Each reference
 resolves to one required scalar value from the flat `params` map in
@@ -115,24 +115,24 @@ runtime control parameter map under `params`. Programmatic users can construct
 A fragment is a subset of a profile's columns, keyed by the selected grain.
 It contains those grain-key columns and the feature columns declared
 as outputs by one data-producing action. The engine adds validated fragments
-to an accumulated dataset; it does not keep a separate dataset for each
+to an accumulated profile frame; it does not keep a separate frame for each
 feature.
 
 Data-producing actions are declared under `read`, `conform`, `expand`, and
-`collapse`. Each produces a fragment for the dataset that declares it.
+`collapse`. Each produces a fragment for the profile that declares it.
 `conform`, `expand`, and `collapse` take exactly one foreign/source dataframe
 through a `$profiles.<id>.dataframe` binding reference. The engine does not
 pass the accumulated target frame to these functions; each function transforms
 its foreign input into a fragment for the target profile. `read` takes no
 dataframe argument. Vectorize operations consume features from their own
-dataset. The engine never joins another dataset implicitly.
+profile. The engine never joins another profile implicitly.
 
 | Type | Meaning |
 | --- | --- |
 | `read` | Reads data from an external source and returns it as a fragment. |
 | `collapse` | Groups input data, usually at a coarser grain, and returns a fragment. |
-| `expand` | Uses another dataset to produce a fragment with expanded dimensional coverage. |
-| `conform` | Reconciles data from a same-dimension foreign dataset to the target row scope. |
+| `expand` | Uses another profile to produce a fragment with expanded dimensional coverage. |
+| `conform` | Reconciles data from a same-grain foreign profile to the target grain. |
 
 `conform` requires source and target profiles to declare the same grain.
 `collapse` requires a strictly coarser target grain; `expand` requires a
@@ -142,18 +142,19 @@ target grain keys as matching keys, for example with
 `ref.current_profile().grain.ids`. A dimension reference used for grouping or
 ordering does not implicitly select a join key. Combining sources requires an
 explicit dimensional operation; same-profile fragment assembly is
-not a cross-dataset reconciliation. Functions are responsible for grouping,
+not a cross-profile reconciliation. Functions are responsible for grouping,
 matching, output names, and constructing literal values.
 
 The compiled plan groups independent invocations into stages. The built-in engine
-processes stages and invocations sequentially. Dataset `order` metadata does not
+processes stages and invocations sequentially. Profile `order` metadata does not
 sort data or guarantee physical row order; order-sensitive functions must
 explicitly declare and implement their ordering inputs.
 
-## Fragment joins and row scope
+## Fragment joins and row coverage
 
-The runtime represents each logical dataset with a physical `MainFrame` holding
-its accumulated dataframe and ID column names, without a Dataset or Spec dependency.
+The runtime represents each profile with a physical `MainFrame` holding
+its accumulated dataframe and ID column names, without profile declaration or
+Spec dependencies.
 Each data-producing invocation contributes a `Fragment`
 containing a dataframe and its carried dimension keys. `MainFrame.merge()`
 chooses the join from those keys; the backend implements generic dataframe
@@ -164,7 +165,7 @@ declared outputs.
 It then checks assembly contracts and passes prepared fragments and explicit
 retention IDs to the main frame.
 
-Full-grain fragments are combined by the dataset's complete dimension key,
+Full-grain fragments are combined by the profile's complete grain keys,
 never by row position. The main frame uses a full join, coalesces key columns,
 treats null keys as equal, and, with validation enabled, requires a one-to-one
 key relationship. Keys present on only one side are retained, with nulls for
@@ -173,12 +174,12 @@ coverage; equal row counts or identical key sets are not required.
 
 An `expand` fragment is the exception: it may carry only the dimension keys
 its lower-dimensional source can supply. The engine left-joins it onto the
-accumulated dataset by those carried keys with a many-to-one relationship,
+accumulated profile frame by those carried keys with a many-to-one relationship,
 so each source observation is transferred to every matching target
 observation. A fragment with no dimension keys holds at most one row and is
 broadcast to all observations; assembling such a fragment requires an already
-accumulated target dataset, which the compiler guarantees by running the
-dataset's reads first.
+accumulated target profile frame, which the compiler guarantees by running the
+profile's reads first.
 
 With validation enabled, only declared dimension keys may overlap between
 fragments; overlapping feature columns are rejected. A dimensionless fragment
@@ -188,11 +189,11 @@ collision-safe join key that is not exposed in the result.
 The join is intentionally permissive about coverage: it does not prove that
 fragments satisfy the profile's declared grain. Profile `scope` is descriptive
 metadata only and has no bearing on the join.
-Fragments for one dataset should represent the same intended observations.
+Fragments for one profile should represent the same intended observations.
 Include a key with an explicit null feature value when an observation belongs
-to the dataset but its value is missing; put genuinely different row scopes in
-separate datasets. A `conform` operation is responsible for reconciling its
-source to the target dataset's required rows before returning a fragment.
+to the profile but its value is missing; use separate profiles for genuinely
+different grains. A `conform` operation is responsible for reconciling its
+source to the target profile's required rows before returning a fragment.
 
 ## Runtime validation
 
@@ -215,7 +216,7 @@ The executor runs validators directly only when validation is enabled.
 `InvocationValidator` holds its backend, runtime state, and invocation directly.
 Its `validate()` method calls private checks in fail-fast order: foreign
 dataframe argument, source reference, source availability, then source features;
-other invocation kinds check local or unambiguous cross-dataset features.
+other invocation kinds check local or unambiguous cross-profile features.
 `FragmentValidator`
 checks raw invocation results before output projection, including the function
 kind's row-count and key-preservation contracts. `MainFrameValidator` checks the
@@ -234,9 +235,9 @@ structured validation report is collected.
 
 | Check | Runtime requirement |
 | --- | --- |
-| Dimensions | Every fragment contains all dimensions declared by its entity; an expand fragment contains the dimensions its source can supply. |
+| Dimensions | Every fragment contains the keys selected by its profile grain; an expand fragment contains the keys its source can supply. |
 | Outputs | Every declared output feature is present as a column. |
-| Keys | Complete dimension keys are unique; dimensionless datasets and fragments contain at most one row. |
+| Keys | Complete profile grain keys are unique; dimensionless profiles and fragments contain at most one row. |
 | Row count | Vectorize results preserve the accumulated target's row count. Other kinds impose no source-to-result row-count relationship. |
 | Types | Declared dimension and feature types match the returned schema. |
 | Feature collisions | Output feature columns do not replace columns already assembled. |
@@ -276,8 +277,8 @@ while an omitted feature type skips that feature's type check.
 
 In either mode, only dimension and declared output columns are merged.
 Additional columns returned by a function are ignored, so they cannot replace
-other dataset features. Other data-producing operations may change coverage to
-create their target row scope.
+other features on the target profile. Other data-producing operations may
+change coverage within the target profile's grain.
 
 These runtime checks enforce the declared data contract; they do not verify
 that a calculation is analytically correct or prove that arbitrary Python

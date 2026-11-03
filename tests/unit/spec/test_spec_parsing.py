@@ -233,7 +233,7 @@ def test_spec_errors_expose_stable_profile_identity_code_and_path() -> None:
 
 def test_spec_rejects_unknown_write_function(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    profile = configuration["profiles"]["pump_telemetry_dataset"]
+    profile = configuration["profiles"]["pump_telemetry"]
     profile["actions"]["write_pump_telemetry"]["binding"]["function"] = "missing_write"
 
     with pytest.raises(ValueError, match="actions reference unknown functions: missing_write"):
@@ -242,9 +242,9 @@ def test_spec_rejects_unknown_write_function(tmp_path: pathlib.Path) -> None:
 
 def test_spec_rejects_undeclared_binding_arguments(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    binding_args = configuration["profiles"]["pump_telemetry_dataset"]["actions"][
-        "read_pump_telemetry"
-    ]["binding"]["args"]
+    binding_args = configuration["profiles"]["pump_telemetry"]["actions"]["read_pump_telemetry"][
+        "binding"
+    ]["args"]
     binding_args["unexpected"] = "value"
 
     with pytest.raises(
@@ -284,8 +284,8 @@ def test_structural_references_compile_to_identifiers() -> None:
     }
 
     binding = model.Binding(function="read", args=args)
-    assert binding.resolve_args("pump_telemetry_dataset") == {
-        "current": "pump_telemetry_dataset",
+    assert binding.resolve_args("pump_telemetry") == {
+        "current": "pump_telemetry",
         "specific": "pump_units",
         "dimension": "pump",
     }
@@ -362,7 +362,7 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     assert len(spec_definition.functions.by_kind("vectorize")) == 7
-    collapse = spec_definition.profiles["pump_dataset"].actions["bearing_temperature_by_pump"]
+    collapse = spec_definition.profiles["pump_profile"].actions["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.binding.function == "aggregate"
     assert collapse.binding.args["feature"] == "$features.bearing_temperature"
@@ -402,9 +402,7 @@ def test_system_and_subset_support_multiple_variables() -> None:
 
 def test_spec_validation_rejects_missing_output_variables() -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    action = configuration["profiles"]["pump_telemetry_dataset"]["actions"][
-        "pressure_flow_efficiency"
-    ]
+    action = configuration["profiles"]["pump_telemetry"]["actions"]["pressure_flow_efficiency"]
     action["features"]["outputs"] = []
     document = spec.Spec.model_validate(configuration)
 
@@ -416,7 +414,7 @@ def test_spec_validation_rejects_missing_output_variables() -> None:
 
 def test_spec_validation_rejects_duplicate_feature_names(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    profile = configuration["profiles"]["pump_telemetry_dataset"]
+    profile = configuration["profiles"]["pump_telemetry"]
     duplicate = profile["actions"]["pressure_flow_efficiency"]
     configuration["profiles"]["duplicate_dataset"] = {
         "name": "Duplicate profile",
@@ -435,7 +433,7 @@ def test_spec_validation_rejects_duplicate_fragment_input_names(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    profile = configuration["profiles"]["pump_telemetry_dataset"]
+    profile = configuration["profiles"]["pump_telemetry"]
     profile["actions"]["duplicate_input"] = {
         "binding": profile["actions"]["read_pump_telemetry"]["binding"],
         "features": {"inputs": [], "outputs": ["$features.bearing_temperature"]},
@@ -454,9 +452,9 @@ def test_dimension_outputs_are_implicit_in_mapping(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_telemetry_dataset"]["actions"]["read_pump_telemetry"][
-        "features"
-    ]["outputs"].remove("$features.pump")
+    configuration["profiles"]["pump_telemetry"]["actions"]["read_pump_telemetry"]["features"][
+        "outputs"
+    ].remove("$features.pump")
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -467,9 +465,9 @@ def test_spec_validation_rejects_unknown_vectorize_template(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_telemetry_dataset"]["actions"]["recommended_flow_rate"][
-        "binding"
-    ]["function"] = "missing_vectorize_template"
+    configuration["profiles"]["pump_telemetry"]["actions"]["recommended_flow_rate"]["binding"][
+        "function"
+    ] = "missing_vectorize_template"
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -484,7 +482,7 @@ def test_spec_validation_rejects_feature_dimension_name_collision(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    profile = configuration["profiles"]["pump_telemetry_dataset"]
+    profile = configuration["profiles"]["pump_telemetry"]
     collision = json.loads(json.dumps(profile["actions"]["converged"]))
     profile["actions"]["pump_collision"] = {
         **collision,
@@ -500,20 +498,20 @@ def test_spec_validation_rejects_feature_dimension_name_collision(
         spec.load_spec(spec_path)
 
 
-def test_spec_validation_rejects_cross_dataset_feature_dependency(
+def test_spec_validation_rejects_cross_profile_feature_dependency(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     calculation = json.loads(
-        json.dumps(configuration["profiles"]["pump_dataset"]["actions"]["health_signal_normalized"])
+        json.dumps(configuration["profiles"]["pump_profile"]["actions"]["health_signal_normalized"])
     )
     calculation["features"]["outputs"] = ["$features.health_signal_normalized_copy"]
-    copied_feature = configuration["profiles"]["pump_dataset"]["features"][
+    copied_feature = configuration["profiles"]["pump_profile"]["features"][
         "health_signal_normalized"
     ]
-    configuration["profiles"]["pump_copy_dataset"] = {
+    configuration["profiles"]["pump_copy_profile"] = {
         "name": "Pump copy",
-        "grain": configuration["profiles"]["pump_dataset"]["grain"],
+        "grain": configuration["profiles"]["pump_profile"]["grain"],
         "features": {"health_signal_normalized_copy": copied_feature},
         "actions": {"health_signal_normalized_copy": calculation},
     }
@@ -522,6 +520,6 @@ def test_spec_validation_rejects_cross_dataset_feature_dependency(
 
     with pytest.raises(
         ValueError,
-        match="cannot read feature .* from another dataset",
+        match="cannot read feature .* from another profile",
     ):
         spec.load_spec(spec_path)

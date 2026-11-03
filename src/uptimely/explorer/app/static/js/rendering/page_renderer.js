@@ -129,7 +129,7 @@ export function lineage(data, topology) {
         <div class="lineage-buttons" role="group" aria-label="Lineage reset"><button class="ui-button" id="reset-lineage" type="button">Reset lineage</button></div>
       </div>
       <details class="panel" open><summary>Legend</summary><div class="legend" aria-label="Legend">
-        ${topology ? "" : '<span class="function" id="action-legend">Action</span>'}<span class="legend-heading">Datasets</span>
+        ${topology ? "" : '<span class="function" id="action-legend">Action</span>'}<span class="legend-heading">Profiles</span>
         <div class="dataset-legend" id="dataset-legend"></div></div></details>
       <div class="details" id="${panelId}" role="region" aria-label="${topology ? "Invocation details" : "Selected item"}" aria-live="polite">
         <h2>${topology ? "Invocation details" : "Selected item"}</h2><div class="meta">Click a node</div>

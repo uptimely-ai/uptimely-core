@@ -1,4 +1,4 @@
-"""Pump-level observation scope and declarative dataframe transformations."""
+"""Pump-level profile and declarative dataframe transformations."""
 
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
@@ -9,7 +9,7 @@ from uptimely import Action, Feature, Grain, Profile, ref
 class Pump(Profile):
     """One observation per pump, derived from timestamped telemetry."""
 
-    id = "pump_dataset"
+    id = "pump_profile"
     name = "Pump Summary"
     description = "One row per pump with collapsed condition information."
     category = "assets"
@@ -21,7 +21,7 @@ class Pump(Profile):
             id="bearing_temperature_by_pump",
             function=analytics.aggregate,
             arguments=dict(  # noqa: C408
-                dataset=ref.dataframe("pump_telemetry_dataset"),
+                dataset=ref.dataframe("pump_telemetry"),
                 feature=ref.column("bearing_temperature"),
                 method="max",
                 dimensions=ref.current_profile().grain.ids,

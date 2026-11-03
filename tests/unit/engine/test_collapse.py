@@ -340,7 +340,7 @@ def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> Non
         validate=True,
     )
 
-    with pytest.raises(ValueError, match="input feature.*foreign source dataset: maximum"):
+    with pytest.raises(ValueError, match="input feature.*foreign source profile: maximum"):
         executor.execute(invocation)
 
 
@@ -557,7 +557,7 @@ def test_dimensionless_alignment_rejects_multiple_global_rows(lazy):
 def _broadcast_spec(
     reader: object, expand_function: object, source_dimension_ids: list[str], lazy: bool
 ) -> spec.Spec:
-    """Build a two-entity spec expanding a lower-dimensional source feature."""
+    """Build a two-profile spec expanding a lower-dimensional source feature."""
     group = dimension.Dimension(
         id="group",
         resolutions=[dimension.Resolution(id="group", key="group", type="string")],

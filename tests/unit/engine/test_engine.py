@@ -91,7 +91,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
         f"\nInvocation: {invocation.mapping_id} [{invocation.function_kind}]"
         for invocation in engine.plan.execution_invocations
     ]
-    assert caplog.messages.count("  Merge:\n    Target dataset: telemetry") == 2
+    assert caplog.messages.count("  Merge:\n    Target profile: telemetry") == 2
     assert [message for message in caplog.messages if message.startswith("  Function: ")] == [
         "  Function: load",
         "  Function: double",
@@ -223,8 +223,8 @@ def test_validation_is_opt_in_for_eager_and_lazy_frames(
     message = {
         "duplicates": "duplicate dimension keys",
         "types": "expected string",
-        "row_count": "must preserve the accumulated dataset row count",
-        "keys": "must preserve the dataset dimension keys",
+        "row_count": "must preserve the accumulated profile row count",
+        "keys": "must preserve the profile grain keys",
     }[invalid]
     assert message in next(iter(checked.failures.values()))
     assert len(writes) == 1
@@ -719,7 +719,7 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
     result = engine_for_plan(plan).run()
 
     assert result.invocation_statuses == {first_id: "failed", second_id: "skipped"}
-    assert "Dataset dataframe is unavailable: missing" in result.failures[first_id]
+    assert "Profile dataframe is unavailable: missing" in result.failures[first_id]
 
 
 def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
@@ -1085,10 +1085,10 @@ def test_input_validation_reads_each_dataset_schema_once(
     [
         ("no_argument", "exactly one foreign dataframe argument", 1),
         ("multiple_arguments", "exactly one foreign dataframe argument", 1),
-        ("non_reference", "must reference a foreign source dataset", 2),
-        ("target_reference", "must reference a foreign source dataset", 2),
-        ("missing_source", "Dataset dataframe is unavailable: missing", 3),
-        ("missing_feature", "input feature is unavailable in foreign source dataset", 4),
+        ("non_reference", "must reference a foreign source profile", 2),
+        ("target_reference", "must reference a foreign source profile", 2),
+        ("missing_source", "Profile dataframe is unavailable: missing", 3),
+        ("missing_feature", "input feature is unavailable in foreign source profile", 4),
         (None, None, 4),
     ],
 )

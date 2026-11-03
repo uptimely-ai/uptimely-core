@@ -1,4 +1,4 @@
-"""Project-wide physical constants."""
+"""Project-wide physical constants profile."""
 
 from examples.pump_analytics.functions import analytics
 
@@ -8,7 +8,7 @@ from uptimely import Action, Feature, Profile, ref
 class Constants(Profile):
     """One row containing project-wide physical constants."""
 
-    id = "constants_dataset"
+    id = "constants"
     name = "Project Constants"
     description = "Physical constants used by pump analytics."
     category = "configuration"

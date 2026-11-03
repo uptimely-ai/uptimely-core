@@ -108,7 +108,7 @@ def test_compiled_plan_export_omits_generated_timestamp(
     assert collapse_invocation["arguments"] == {
         "feature": "bearing_temperature",
         "method": "max",
-        "dataset": "pump_telemetry_dataset",
+        "dataset": "pump_telemetry",
         "dimensions": ["pump"],
         "output": "bearing_temperature_max",
     }

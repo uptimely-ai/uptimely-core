@@ -1,4 +1,4 @@
-"""Atomic dataset-input and function-kind-specific action contract checks."""
+"""Atomic profile-input and function-kind-specific action contract checks."""
 
 import logging
 
@@ -9,26 +9,26 @@ from uptimely.spec.validation import errors
 logger = logging.getLogger(__name__)
 
 EXPAND_INPUT_ERROR = (
-    "Expand action must reference a declared feature from a lower-dimensional foreign dataset"
+    "Expand action must reference a declared feature from a lower-dimensional foreign profile"
 )
 
 
 def validate_dataset_argument_reference(spec: spec_model.Spec) -> None:
-    """Require each dataset argument to reference a dataset."""
-    logger.debug("    - checking dataset arguments use dataset references")
+    """Require each dataframe argument to reference a profile."""
+    logger.debug("    - checking dataframe arguments use profile references")
     for key, arguments in spec.actions_arguments.items():
         for name, value, _ in arguments:
             if not isinstance(value, str) or not value.startswith(selectors.PROFILE_PREFIX):
                 raise errors.SpecError(
-                    f"Dataset argument {name} must reference a dataset",
+                    f"DataFrame argument {name} must reference a profile",
                     code="invalid_mapping_dataset_input",
                     path=(*spec.action_paths[key], "binding", "args", name),
                 )
 
 
 def validate_dataset_argument_selector(spec: spec_model.Spec) -> None:
-    """Reject identifier and dimension selectors for dataset arguments."""
-    logger.debug("    - checking dataset arguments select data, not IDs or dimensions")
+    """Reject identifier and grain-key selectors for dataframe arguments."""
+    logger.debug("    - checking dataframe arguments select profile data, not IDs or grain keys")
     for key, arguments in spec.actions_arguments.items():
         for name, value, _ in arguments:
             if isinstance(value, str) and (
@@ -36,29 +36,29 @@ def validate_dataset_argument_selector(spec: spec_model.Spec) -> None:
                 or value.endswith(selectors.PROFILE_GRAIN_IDS_SELECTOR)
             ):
                 raise errors.SpecError(
-                    f"Dataset argument {name} must select dataset data, not an identifier "
-                    "or dimension list",
+                    f"DataFrame argument {name} must select profile data, not an identifier "
+                    "or grain-key list",
                     code="invalid_mapping_dataset_input",
                     path=(*spec.action_paths[key], "binding", "args", name),
                 )
 
 
 def validate_dataset_argument_source(spec: spec_model.Spec) -> None:
-    """Require each dataset argument to resolve to a declared dataset."""
-    logger.debug("    - checking dataset argument sources are declared")
+    """Require each dataframe argument to resolve to a declared profile."""
+    logger.debug("    - checking dataframe argument profiles are declared")
     for key, arguments in spec.actions_arguments.items():
         for name, _, source_id in arguments:
             if source_id not in spec.profiles:
                 raise errors.SpecError(
-                    f"Dataset argument {name} references unknown dataset {source_id}",
+                    f"DataFrame argument {name} references unknown profile {source_id}",
                     code="invalid_mapping_dataset_input",
                     path=(*spec.action_paths[key], "binding", "args", name),
                 )
 
 
 def validate_dataset_argument_count(spec: spec_model.Spec) -> None:
-    """Require actions to consume the foreign dataset count in their kind contract."""
-    logger.debug("    - checking foreign dataset input counts match function kinds")
+    """Require actions to consume the foreign profile count in their kind contract."""
+    logger.debug("    - checking foreign profile input counts match function kinds")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -72,15 +72,15 @@ def validate_dataset_argument_count(spec: spec_model.Spec) -> None:
         ):
             raise errors.SpecError(
                 f"{function.kind.capitalize()} action must consume exactly "
-                f"{expected} foreign dataset(s)",
+                f"{expected} foreign profile(s)",
                 code="invalid_mapping_dataset_input",
                 path=(*spec.action_paths[key], "binding", "args"),
             )
 
 
 def validate_matching_keys(spec: spec_model.Spec) -> None:
-    """Require explicitly selected matching keys to exist on every participating dataset."""
-    logger.debug("    - checking matching keys exist on every participating dataset")
+    """Require matching keys on every participating profile."""
+    logger.debug("    - checking matching keys exist on every participating profile")
     for key, matches in spec.matching_profile_keys.items():
         participants = (spec.action_profile_keys[key], *spec.dataset_argument_sources[key])
         for grain_key, path in matches:
@@ -94,8 +94,8 @@ def validate_matching_keys(spec: spec_model.Spec) -> None:
 
 
 def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
-    """Require dataset-scoped feature inputs to belong to at most one dataset."""
-    logger.debug("    - checking dataset-scoped feature inputs have at most one source")
+    """Require profile-scoped feature inputs to belong to at most one profile."""
+    logger.debug("    - checking profile-scoped feature inputs have at most one source")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
@@ -105,15 +105,15 @@ def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
         dataset_ids = {owner for _, owners in spec.input_candidates[key] for owner in owners}
         if len(dataset_ids) > 1:
             raise errors.SpecError(
-                f"{function.kind.capitalize()} action inputs must belong to one source dataset",
+                f"{function.kind.capitalize()} action inputs must belong to one source profile",
                 code="invalid_mapping_dataset_input",
                 path=(*spec.action_paths[key], "features", "inputs"),
             )
 
 
 def validate_foreign_dataset_argument(spec: spec_model.Spec) -> None:
-    """Reject the target dataset when a kind requires a foreign dataset input."""
-    logger.debug("    - checking foreign dataset arguments do not reference the target")
+    """Reject the target profile when a kind requires a foreign profile input."""
+    logger.debug("    - checking foreign profile arguments do not reference the target")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -122,15 +122,15 @@ def validate_foreign_dataset_argument(spec: spec_model.Spec) -> None:
         if "target_as_foreign_input" in _dataset_input_violations(spec, key, definition):
             name = spec.actions_arguments[key][0][0]
             raise errors.SpecError(
-                f"{function.kind.capitalize()} action must reference a foreign source dataset",
+                f"{function.kind.capitalize()} action must reference a foreign source profile",
                 code="invalid_mapping_dataset_input",
                 path=(*spec.action_paths[key], "binding", "args", name),
             )
 
 
 def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
-    """Require a feature source to match the action's dataset input."""
-    logger.debug("    - checking feature sources match dataset arguments")
+    """Require a feature source to match the action's profile input."""
+    logger.debug("    - checking feature sources match profile arguments")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -149,7 +149,7 @@ def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
         name, _, source_id = arguments[0]
         if source_id in spec.profiles and source_id != source:
             raise errors.SpecError(
-                f"{function.kind.capitalize()} action must reference its foreign source dataset "
+                f"{function.kind.capitalize()} action must reference its foreign source profile "
                 f"{source}",
                 code="invalid_mapping_dataset_input",
                 path=(*spec.action_paths[key], "binding", "args", name),
@@ -157,8 +157,8 @@ def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
 
 
 def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
-    """Require dataset-scoped feature inputs to belong to the action's dataset inputs."""
-    logger.debug("    - checking feature inputs belong to the dataset arguments")
+    """Require profile-scoped feature inputs to belong to the action's profile inputs."""
+    logger.debug("    - checking feature inputs belong to profile arguments")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
@@ -179,7 +179,7 @@ def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
         )
         if unavailable:
             raise errors.SpecError(
-                f"{function.kind.capitalize()} action inputs must belong to its dataset inputs: "
+                f"{function.kind.capitalize()} action inputs must belong to its profile inputs: "
                 + ", ".join(unavailable),
                 code="invalid_mapping_feature_inputs",
                 path=(*spec.action_paths[key], "features", "inputs"),
@@ -204,8 +204,8 @@ def validate_feature_input_scope(spec: spec_model.Spec) -> None:
 
 
 def validate_target_dataset_input(spec: spec_model.Spec) -> None:
-    """Require target-scoped actions to consume their target dataset."""
-    logger.debug("    - checking target-scoped actions consume their target dataset")
+    """Require target-scoped actions to consume their target profile."""
+    logger.debug("    - checking target-scoped actions consume their target profile")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -213,15 +213,15 @@ def validate_target_dataset_input(spec: spec_model.Spec) -> None:
         definition = functions.FUNCTION_KINDS[function.kind]
         if "missing_target" in _dataset_input_violations(spec, key, definition):
             raise errors.SpecError(
-                f"{function.kind.capitalize()} action must consume its target dataset",
+                f"{function.kind.capitalize()} action must consume its target profile",
                 code="invalid_mapping_dataset_input",
                 path=(*spec.action_paths[key], "binding", "args"),
             )
 
 
 def validate_target_dataset_only(spec: spec_model.Spec) -> None:
-    """Reject foreign dataset inputs on target-scoped actions."""
-    logger.debug("    - checking target-scoped actions do not consume foreign datasets")
+    """Reject foreign profile inputs on target-scoped actions."""
+    logger.debug("    - checking target-scoped actions do not consume foreign profiles")
     for key, action in spec.action_items:
         function = spec.functions.root.get(action.binding.function)
         if function is None:
@@ -232,7 +232,7 @@ def validate_target_dataset_only(spec: spec_model.Spec) -> None:
         foreign = sorted(spec.dataset_argument_ids[key] - {spec.action_profile_keys[key]})
         if foreign:
             raise errors.SpecError(
-                f"{function.kind.capitalize()} action cannot publish a foreign dataset: "
+                f"{function.kind.capitalize()} action cannot publish a foreign profile: "
                 + ", ".join(foreign),
                 code="invalid_mapping_dataset_input",
                 path=(*spec.action_paths[key], "binding", "args"),
@@ -252,7 +252,7 @@ def validate_dimension_source(spec: spec_model.Spec) -> None:
             spec, key, definition
         ):
             raise errors.SpecError(
-                f"{function.kind.capitalize()} action must consume its source dataset {source}",
+                f"{function.kind.capitalize()} action must consume its source profile {source}",
                 code="invalid_mapping_dataset_input",
                 path=(*spec.action_paths[key], "binding", "args"),
             )
