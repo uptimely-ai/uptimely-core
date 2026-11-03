@@ -95,7 +95,7 @@ class InstalledImportsTest(unittest.TestCase):
                     )
                 result = self.command("run", str(project), "--preview", "2")
                 self.assertIn("Engine completed", result.stdout)
-                self.assertIn("Dataset:", result.stdout)
+                self.assertIn("Profile:", result.stdout)
 
     def test_installed_project_builds_and_executes_in_separate_processes(self) -> None:
         project = self.root / "project"
@@ -117,8 +117,8 @@ class InstalledImportsTest(unittest.TestCase):
         config.parent.mkdir()
         config.write_text("{}", encoding="utf-8")
         result = self.command("engine", "run", "--project-root", str(project), "--preview", "2")
-        self.assertIn("1 datasets processed", result.stdout)
-        self.assertIn("Dataset: values", result.stdout)
+        self.assertIn("1 profiles processed", result.stdout)
+        self.assertIn("Profile: values", result.stdout)
         result = subprocess.run(
             [
                 sys.executable,
@@ -148,7 +148,7 @@ class InstalledImportsTest(unittest.TestCase):
         json_project = self.root / "json-project"
         self.command("build", str(json_project), "--json-spec", str(build / "spec.json"))
         result = self.command("run", str(json_project), "--config", str(config), "--preview", "2")
-        self.assertIn("Dataset: values", result.stdout)
+        self.assertIn("Profile: values", result.stdout)
 
     def test_missing_runtime_dependency_is_deferred_but_not_hidden(self) -> None:
         project = self.root / "project"
