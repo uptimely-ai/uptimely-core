@@ -28,6 +28,12 @@ jobs:
       - name: Build pump analytics demo site
         run: |
           poetry run uptimely project build --project-root examples/pump_analytics
+      - name: Run pump analytics demo
+        run: |
+          poetry run uptimely engine run \
+            --project-root examples/pump_analytics \
+            --preview 10 \
+            --log-level debug
       - name: Export static Explorer to the docs
         run: |
           poetry run uptimely explorer export \

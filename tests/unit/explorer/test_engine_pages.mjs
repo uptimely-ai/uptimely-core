@@ -9,7 +9,7 @@ const moduleSource = source.replace(
   "./rendering/shared_markup.js",
   `data:text/javascript;base64,${Buffer.from(shared).toString("base64")}`,
 );
-const { previewPage, initializePreview, infoPage, logsPage } = await import(
+const { previewPage, initializePreview, infoPage, logsPage, loadInfo, loadLogs, loadPreviews } = await import(
   `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`
 );
 
@@ -23,6 +23,60 @@ const preview = {
   columns: [{ name: "Value", dtype: "Float64" }],
   rows: [[12.5], [null], ["<script>"]],
 };
+
+test("exported engine pages load only relative static data without live API requests", async () => {
+  const snapshot = {
+    run: { run_id: "exported", profiles: { first: {} } },
+    logs: Array.from({ length: 1000 }, (_, index) => ({
+      level: "debug", logger: "demo", timestamp: "2026-11-03T20:00:00Z",
+      message: `Event ${index}`,
+    })),
+    previews: { first: preview },
+  };
+  const fetched = [];
+  const fetchData = async (url, options) => {
+    fetched.push([url, options.cache]);
+    return { ok: true, json: async () => snapshot };
+  };
+  const configuration = { runDataUrl: "./data/run.json" };
+  assert.equal((await loadInfo(fetchData, configuration)).run, snapshot.run);
+  const logs = await loadLogs(fetchData, configuration);
+  assert.equal(logs.logs.length, 1000);
+  assert.doesNotMatch(logsPage(logs).content, /id="load-more-logs"/);
+  assert.equal((await loadPreviews(fetchData, configuration)).previews.first, preview);
+  assert.deepEqual(fetched, Array(3).fill(["./data/run.json", "no-store"]));
+});
+
+test("static run fetch failures are explicit, not disguised as an absent run", async () => {
+  const fetchData = async () => ({
+    ok: false, status: 404, headers: { get: () => "text/html" },
+  });
+  for (const load of [loadInfo, loadLogs, loadPreviews]) {
+    await assert.rejects(load(fetchData, { runDataUrl: "./data/run.json" }), /HTTP 404/);
+  }
+});
+
+test("live run pages preserve API requests and paginated logs", async () => {
+  const run = { run_id: "live", profiles: { first: {} } };
+  const logs = Array.from({ length: 1000 }, () => ({
+    level: "debug", logger: "demo", timestamp: "", message: "Recorded",
+  }));
+  const fetched = [];
+  const fetchData = async url => {
+    fetched.push(url);
+    return {
+      ok: true,
+      json: async () => url === "/api/run" ? run : url.includes("/logs") ? logs : preview,
+    };
+  };
+  assert.equal((await loadInfo(fetchData)).run, run);
+  assert.match(logsPage(await loadLogs(fetchData)).content, /id="load-more-logs"/);
+  assert.equal((await loadPreviews(fetchData)).previews.first, preview);
+  assert.deepEqual(fetched, [
+    "/api/run", "/api/run", "/api/run/logs?run_id=live&offset=0&limit=1000",
+    "/api/run", "/api/run/preview/first?run_id=live",
+  ]);
+});
 
 test("profile titles replace the generic Preview heading and tables preserve values", () => {
   const { content, context } = previewPage(data, {

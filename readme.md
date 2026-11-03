@@ -136,7 +136,7 @@ measurement_id = up.Dimension(
 )
 
 
-class CalculatedData(up.Profile):
+class MyAnalyticalProfile(up.Profile):
     id = "calculated_profile"
     grain = [up.Grain(measurement_id, "measurement_id")]
 
@@ -169,7 +169,7 @@ class CalculatedData(up.Profile):
 
 
 python_spec = up.Spec(
-    profiles=[CalculatedData],
+    profiles=[MyAnalyticalProfile],
     name="Analytics Specification",
 )
 ```

@@ -8,6 +8,12 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- The GitHub Pages pump analytics demo now includes engine run information,
+  debug logs, and ten-row profile previews. Static Explorer exports include the
+  latest run and display results without requiring live API endpoints.
+
 ### Added
 
 - Every engine execution now replaces `_generated/run/` with latest-run

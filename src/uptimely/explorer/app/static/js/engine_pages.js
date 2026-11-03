@@ -43,19 +43,25 @@ async function loadLogPage(fetchData, runId, offset = 0) {
   return responseData(fetchData, runUrl("/api/run/logs", runId, offset));
 }
 
-export async function loadInfo(fetchData) {
+export async function loadInfo(fetchData, configuration = {}) {
+  if (configuration.runDataUrl) return responseData(fetchData, configuration.runDataUrl);
   const run = await responseData(fetchData, "/api/run");
   return { run };
 }
 
-export async function loadLogs(fetchData) {
+export async function loadLogs(fetchData, configuration = {}) {
+  if (configuration.runDataUrl) {
+    const snapshot = await responseData(fetchData, configuration.runDataUrl);
+    return { ...snapshot, staticSnapshot: true };
+  }
   const run = await responseData(fetchData, "/api/run");
   if (!run) return { run: null, logs: [] };
   const logs = await loadLogPage(fetchData, run.run_id);
   return { run, logs };
 }
 
-export async function loadPreviews(fetchData) {
+export async function loadPreviews(fetchData, configuration = {}) {
+  if (configuration.runDataUrl) return responseData(fetchData, configuration.runDataUrl);
   const run = await responseData(fetchData, "/api/run");
   if (!run) return { run: null, previews: {} };
   const profiles = await Promise.all(Object.keys(run.profiles).map(async profileId => {
@@ -126,9 +132,9 @@ export function infoPage({ run }) {
   };
 }
 
-export function logsPage({ run, logs }) {
+export function logsPage({ run, logs, staticSnapshot = false }) {
   const logList = logs.map((entry, index) => logEntry(entry, index + 1)).join("");
-  const logMore = run && logs.length === LOG_PAGE_SIZE
+  const logMore = !staticSnapshot && run && logs.length === LOG_PAGE_SIZE
     ? `<button class="ui-button engine-load-more" id="load-more-logs" type="button"
         data-run-id="${escape(run.run_id)}" data-offset="${logs.length}">Load more log entries</button>` : "";
   const logError = '<p class="engine-error-text" id="run-log-error" role="alert" hidden></p>';
