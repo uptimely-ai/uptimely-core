@@ -18,7 +18,6 @@ from .profile import (
     Grain,
     Order,
     Profile,
-    RowScope,
 )
 from .spec import SPEC_VERSION, ActionKey, ProfileKey, Spec
 
@@ -40,7 +39,6 @@ __all__ = [
     "ActionFeatures",
     "Grain",
     "Order",
-    "RowScope",
     "StrictModel",
     "ActionKey",
     "ProfileKey",

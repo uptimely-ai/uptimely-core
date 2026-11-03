@@ -34,6 +34,7 @@ def _document() -> Document:
         },
         "profiles": {
             "pump_telemetry": {
+                "scope": "One row per pump observation",
                 "grain": [
                     {"dimension": "machine", "resolution": "pump"},
                     {"dimension": "sales_time", "resolution": "default"},
@@ -89,7 +90,7 @@ def test_serialization_keeps_resolution_grain_and_order_references() -> None:
         "resolution": "pump",
     }
     assert "dimensions" not in serialized["profiles"]["pump_telemetry"]
-    assert "grain" not in serialized["profiles"]["pump_telemetry"]["row_scope"]
+    assert serialized["profiles"]["pump_telemetry"]["scope"] == "One row per pump observation"
 
 
 @pytest.mark.parametrize(

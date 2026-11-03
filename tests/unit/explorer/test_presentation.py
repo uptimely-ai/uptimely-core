@@ -24,6 +24,9 @@ def test_build_presentation_data_returns_versioned_json_structures(
     assert data["scope"]["features"] == ["health_signal_normalized"]
     assert data["scope"]["is_scoped"]
     assert data["catalogs"]["configuration"]
+    assert data["catalogs"]["configuration"]["profiles"]["pump_dataset"]["scope"] == (
+        "Telemetry available to the source profile"
+    )
     assert data["graphs"]["feature_lineage"]["nodes"]
     assert data["graphs"]["invocation_lineage"]["nodes"]
     assert data["plan"]["stage_count"] == len(bundle.execution_plan.execution_stages)

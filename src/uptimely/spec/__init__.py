@@ -14,7 +14,6 @@ from .model import (
     Order,
     Profile,
     Resolution,
-    RowScope,
     Spec,
 )
 
@@ -30,7 +29,6 @@ __all__ = [
     "FunctionCatalog",
     "Action",
     "Order",
-    "RowScope",
     "Spec",
     "from_python",
     "load_spec",

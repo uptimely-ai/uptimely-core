@@ -19,7 +19,6 @@ __all__ = [
     "ProfileRegistry",
     "Grain",
     "Order",
-    "RowScope",
 ]
 
 _ACTION_KINDS: typing.Final[dict[str, tuple[functions.FunctionKindId, ...]]] = {
@@ -33,21 +32,6 @@ _ACTION_KINDS: typing.Final[dict[str, tuple[functions.FunctionKindId, ...]]] = {
     "publishers": (functions.WRITE,),
     "pipelines": (functions.ESCAPE,),
 }
-
-
-@dataclasses.dataclass(frozen=True)
-class RowScope:
-    """Descriptive filtering and coverage metadata for a profile."""
-
-    filtering: str = ""
-    coverage: str = ""
-
-    def to_model(self) -> spec_model.RowScope:
-        """Convert this row scope definition to its document model."""
-        return spec_model.RowScope(
-            filtering=self.filtering,
-            coverage=self.coverage,
-        )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -96,8 +80,8 @@ class Profile:
     name: str | None = None
     description: str | None = None
     category: str | None = None
+    scope: str | None = None
     grain: abc.Sequence[Grain] = ()
-    row_scope = RowScope()
     order: abc.Sequence[Order] = ()
     producers: abc.Sequence[actions.Action] = ()
     publishers: abc.Sequence[actions.Action] = ()
@@ -113,8 +97,8 @@ class Profile:
         name: str | None = None,
         description: str | None = None,
         category: str | None = None,
+        scope: str | None = None,
         grain: abc.Sequence[Grain] | None = None,
-        row_scope: RowScope | None = None,
         order: abc.Sequence[Order] | None = None,
     ) -> None:
         if id is not None:
@@ -131,14 +115,18 @@ class Profile:
             if not isinstance(category, str):
                 raise TypeError("Profile category must be a string or None")
             self.category = category
+        if scope is not None:
+            if not isinstance(scope, str):
+                raise TypeError("Profile scope must be a string or None")
+            self.scope = scope
+        elif self.scope is not None and not isinstance(self.scope, str):
+            raise TypeError("Profile scope must be a string or None")
         if grain is not None:
             if not isinstance(grain, abc.Sequence) or isinstance(grain, (str, bytes)):
                 raise TypeError("Profile grain must be a sequence")
             if any(not isinstance(item, Grain) for item in grain):
                 raise TypeError("Profile grain must contain Grain declarations")
             self.grain = tuple(grain)
-        if row_scope is not None:
-            self.row_scope = row_scope
         if order is not None:
             self.order = tuple(order)
         self.producers = self._action_group("producers", producers, self.producers)
@@ -198,8 +186,8 @@ class Profile:
             name=self.name,
             description=self.description,
             category=self.category,
+            scope=self.scope,
             grain=grain,
-            row_scope=self.row_scope.to_model(),
             order=[key.to_model() for key in self.order],
             features=self._feature_metadata(self.grain),
             actions=self._action_models(selected_resolutions),

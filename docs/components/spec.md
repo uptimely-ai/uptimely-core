@@ -122,8 +122,8 @@ represents a dimensionless profile.
 | `name` | string or null | No | Generated from the profile identifier | Human-readable display name. |
 | `description` | string or null | No | `null` | Explanation of the profile. |
 | `category` | string or null | No | `null` | Optional free-form grouping label. |
+| `scope` | string or null | No | `null` | Free-form descriptive metadata; it does not affect semantic validation or execution. |
 | `grain` | array of objects | No | `[]` | Ordered dimension-resolution references defining row detail. |
-| `row_scope` | object | No | Empty descriptions | Descriptive filtering and coverage. |
 | `order` | array of objects | No | `[]` | Logical ordering by selected grain references. |
 | `features` | object | No | `{}` | Feature metadata keyed by identifier. |
 | `actions` | object | No | `{}` | Function bindings keyed by identifier, unique within this profile. |
@@ -175,8 +175,9 @@ Version 4 replaces the entity-owned `datasets` structure with top-level
 `profiles`. Dimensions declare available resolutions; each profile must select
 its own grain explicitly. Entity-owned dimensions and descriptive
 `row_scope.grain` text do not determine the selected grain. The optional
-`category` field does not affect validation or execution. Rebuild generated
-project artifacts after migration; earlier spec versions are not supported.
+`category` and `scope` fields do not affect semantic validation or execution.
+Rebuild generated project artifacts after migration; earlier spec versions are
+not supported.
 
 ### Feature and Action Identifiers
 
@@ -186,17 +187,14 @@ An action identifier names a binding instance, not a reusable function or an
 output feature. Multiple actions can invoke the same function with different
 arguments. Serialized action entries include an `id` matching their key.
 
-### Row Scope
+### Scope
 
-`row_scope` contains descriptive strings:
+`scope` is an optional free-form string for descriptive metadata, for example
+an explanation of which observations are intended to belong to the profile.
+It is not interpreted: it does not filter observations, check coverage, or
+drive action execution.
 
-| Field | Required | Default | Description |
-| --- | --- | --- | --- |
-| `filtering` | No | `""` | Which observations belong to the dataset. |
-| `coverage` | No | `""` | Expected completeness across dimension keys. |
-
-These descriptions do not execute filters or source queries.
-Each field must be a string when supplied.
+The former `row_scope` object is not accepted.
 
 ### Logical Order
 
@@ -339,7 +337,7 @@ Each function is labeled with exactly one kind. The function's dataframe argumen
 | --- | ---: | ---: | --- | --- | --- |
 | `read` | 0 | 1 | No |  | Read external observations into a dataset. |
 | `collapse` | 1 | 1 | Yes | Down | Calculate features from a higher-dimensional foreign dataset. |
-| `conform` | 1 | 1 | No | Same | Adapt a same-dimension foreign dataset to the target row scope. |
+| `conform` | 1 | 1 | No | Same | Adapt a same-dimension foreign dataset to the target profile's rows. |
 | `expand` | 1 | 1 | No | Up | Transfer observations from a lower-dimensional foreign dataset. |
 | `vectorize` | 1 | 1 | Yes | | Calculate features while preserving observation keys. |
 | `write` | 1 | 0 | No |  | Persist or evaluate selected data. |

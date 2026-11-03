@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Action, Feature, Grain, Profile, RowScope, ref
+from uptimely import Action, Feature, Grain, Profile, ref
 
 
 class Pump(Profile):
@@ -14,9 +14,7 @@ class Pump(Profile):
     description = "One row per pump with collapsed condition information."
     category = "assets"
     grain = [Grain(dimension.MACHINE, "machine")]
-    row_scope = RowScope(
-        filtering="Telemetry available to the source dataset",
-    )
+    scope = "Telemetry available to the source profile"
 
     producers = [
         Action(

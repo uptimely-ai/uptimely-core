@@ -235,9 +235,7 @@ function profileCards(config) {
         <h3 class="font-display text-lg font-semibold text-white">Profile details</h3>
         <div class="mt-5 space-y-6">${profile.description ? description(profile.description) : ""}
           ${grain.length ? `<div>${subheading("Grain")}${chips(grain)}</div>` : ""}
-          <dl class="grid gap-6 sm:grid-cols-2">${["filtering", "coverage"].filter(key => profile.row_scope?.[key]).map(key => `<div>
-            <dt class="font-mono text-xs uppercase tracking-wider text-slate-400">${key}</dt>
-            <dd class="mt-2 text-sm leading-6 text-slate-300">${escape(profile.row_scope[key])}</dd></div>`).join("")}</dl>
+          ${profile.scope ? `<div>${subheading("Scope")}${description(profile.scope)}</div>` : ""}
           ${profile.order?.length ? `<div>${subheading("Logical order")}<p class="mt-2 text-xs text-slate-500">Not a physical row-order guarantee.</p>${chips(profile.order.map(key => {
             const dimensionId = key.dimension;
             const dimension = config.dimensions[dimensionId];
@@ -252,7 +250,6 @@ function profileCards(config) {
               ${fn.kind === "escape" ? '<p class="text-xs leading-5 text-violet-300">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</p>' : ""}</div>`;
           }).join("")}</div></div>` : ""}
         </div></section>
-      ${profile.row_scope?.grain ? description(profile.row_scope.grain) : ""}
       <div class="mt-6"><div class="dataset-table-scroll overflow-x-auto rounded-xl border border-slate-700/60">
         <table data-dataset-schema="${escape(id)}" class="w-full min-w-max border-collapse text-left font-mono text-xs">
           <caption class="sr-only">Declared column types and units for ${escape(label(id, profile))}; schema only, no sample records.</caption>

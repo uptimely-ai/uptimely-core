@@ -5,7 +5,7 @@ from .actions import Action
 from .dimension import Dimension, Resolution
 from .feature import Feature
 from .functions import function
-from .profile import Grain, Order, Profile, ProfileRegistry, RowScope
+from .profile import Grain, Order, Profile, ProfileRegistry
 from .spec import Spec
 
 __all__ = [
@@ -18,7 +18,6 @@ __all__ = [
     "ProfileRegistry",
     "Order",
     "Spec",
-    "RowScope",
     "function",
     "ref",
 ]
