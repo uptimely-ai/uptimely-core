@@ -16,7 +16,7 @@ def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
     return profile.Profile(
         id=identifier,
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="read",
                 inputs=[],
                 function=ref.function(

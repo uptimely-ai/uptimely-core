@@ -62,7 +62,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                 grain=[profile.Grain(timestamp, "timestamp")],
                 order=[profile.Order(timestamp, "timestamp", "asc")] if ordered else [],
                 assembly=[
-                    actions.Action(
+                    actions.Operator(
                         id="read_observations",
                         inputs=[],
                         function=ref.function(read_observations, kind="read"),
@@ -72,7 +72,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                             feature.Feature(id="temperature", type="integer"),
                         ],
                     ),
-                    actions.Action(
+                    actions.Operator(
                         id="result",
                         inputs=[ref.feature("temperature")],
                         row_context=context,
@@ -141,7 +141,7 @@ def test_count_extents_require_nonnegative_integers(factory, value):
 
 
 def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
-    declaration = actions.Action(
+    declaration = actions.Operator(
         id="declaration",
         row_context=authoring.time("explicit", dimension=ref.dimension("timestamp"), after="3h"),
         inputs=[],
@@ -173,7 +173,7 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
     first = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h")
     second = authoring.time("8h", dimension=ref.dimension("other"), before="8h")
     with pytest.raises(ValueError, match="one dimension"):
-        actions.Action(
+        actions.Operator(
             id="action",
             inputs=[],
             function=ref.function(calculate, kind="vectorize"),
@@ -181,7 +181,7 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
             outputs=[],
         )
     with pytest.raises(ValueError, match="one measurement"):
-        actions.Action(
+        actions.Operator(
             id="action",
             inputs=[],
             function=ref.function(calculate, kind="vectorize"),
@@ -217,7 +217,7 @@ def test_context_rejects_invalid_metadata(payload):
 
 def test_unknown_current_and_whole_dataset_context_are_distinct():
     assert (
-        actions.Action(
+        actions.Operator(
             id="action",
             inputs=[],
             function=ref.function(calculate, kind="vectorize"),
@@ -379,7 +379,7 @@ def test_spec_plan_execution_and_presentation_preserve_context(
 
 @pytest.mark.parametrize("operation", ["read", "expand", "collapse", "vectorize"])
 def test_all_data_mappings_preserve_annotated_context(operation):
-    declaration = actions.Action(
+    declaration = actions.Operator(
         id="declaration",
         inputs=[],
         function=ref.function(f"{__name__}:calculate", kind=operation),
@@ -464,7 +464,7 @@ def test_collapse_functions_execute_without_row_context(
     source = profile.Profile(
         id="observations",
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="read_observations",
                 inputs=[],
                 function=ref.function(read_observations, kind="read"),
@@ -479,7 +479,7 @@ def test_collapse_functions_execute_without_row_context(
     summary = profile.Profile(
         id="summary",
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="summary",
                 inputs=[ref.feature("temperature")],
                 function=ref.function(maximum, kind="collapse"),

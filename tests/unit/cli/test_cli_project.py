@@ -228,11 +228,11 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     if source_kind != "json":
         (root / "declaration.py").write_text(
             "from uptimely.spec import python as api\n"
-            "from uptimely.spec.python import Profile, Feature, Action\n"
+            "from uptimely.spec.python import Profile, Feature, Operator\n"
             "import build_functions\n"
             "class Values(Profile):\n"
             "    id = 'values'\n"
-            "    assembly = [Action(\n"
+            "    assembly = [Operator(\n"
             "        id='read',\n"
             "        function=api.ref.function(build_functions.read, kind='read'),\n"
             "        arguments={},\n"

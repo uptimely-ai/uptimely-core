@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Action, Binding, Feature, FeatureSet, Grain, Interface, Profile, ref
+from uptimely import Binding, Feature, FeatureSet, Grain, Interface, Operator, Profile, ref
 
 
 class PumpFeatures(FeatureSet):
@@ -34,7 +34,7 @@ class Pump(Profile):
     features = PumpFeatures()
 
     assembly = [
-        Action(
+        Operator(
             id="bearing_temperature_by_pump",
             interface=Interface(
                 outputs=[features.bearing_temperature_max],
@@ -50,7 +50,7 @@ class Pump(Profile):
                 ),
             ),
         ),
-        Action(
+        Operator(
             id="health_signal_normalized",
             interface=Interface(
                 outputs=[features.health_signal_normalized],

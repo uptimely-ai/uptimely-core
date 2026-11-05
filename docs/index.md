@@ -64,7 +64,7 @@ project source.
 
 ## Python API
 
-Author a spec in Python by describing its profiles, grains, and actions. Save
+Author a spec in Python by describing its profiles, grains, and assembly. Save
 this module as `spec/spec.py` in an Uptimely project:
 
 ```python
@@ -103,7 +103,7 @@ class CalculatedData(up.Profile):
     grain = [up.Grain(measurement_id, "measurement_id")]
 
     assembly = [
-        up.Action(
+        up.Operator(
             id="read",
             function=read_values,
             arguments={},
@@ -114,7 +114,7 @@ class CalculatedData(up.Profile):
                 )
             ],
         ),
-        up.Action(
+        up.Operator(
             id="double",
             function=double,
             arguments={
@@ -129,7 +129,7 @@ class CalculatedData(up.Profile):
                 )
             ],
         ),
-        up.Action(
+        up.Operator(
             id="print",
             function=print_results,
             arguments={"dataset": up.ref.dataframe()},
@@ -156,8 +156,8 @@ bundle = project.build_project(".")
 result = Engine(bundle, EngineConfig()).run()
 ```
 
-Profiles declare actions in one list, optionally using a mapping to group them
-by purpose. Each action has an explicit ID unique within its profile. Grouping
+Profiles declare operators in one assembly, optionally using a mapping to group them
+by purpose. Each operator has an explicit ID unique within its profile. Grouping
 is organizational, not execution order; dependencies determine execution.
 In JSON specs, profiles declare their keyed action definitions under `actions`.
 

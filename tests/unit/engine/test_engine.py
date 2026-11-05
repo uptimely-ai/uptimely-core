@@ -907,7 +907,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
             )
         ],
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="external_action",
                 inputs=[ref.feature("asset_id")],
                 function=ref.function(f"{package_name}.external_action:process", kind="escape"),

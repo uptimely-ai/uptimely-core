@@ -17,5 +17,5 @@ def validate_action_output_references(
     for reference in references:
         if isinstance(reference, ref.OutputReference) and reference.name not in declared_outputs:
             raise ValueError(
-                f"Action '{action_id}' references undeclared output '{reference.name}'"
+                f"Operator '{action_id}' references undeclared output '{reference.name}'"
             )

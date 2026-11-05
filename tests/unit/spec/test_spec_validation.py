@@ -278,7 +278,7 @@ def test_python_conversion_and_json_loading_accept_output_only_escape_actions(
     declaration = profile.Profile(
         id="observations",
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="escape",
                 function=ref.function("example:escape", kind="escape"),
                 arguments={},
@@ -303,7 +303,7 @@ def test_python_dataset_accepts_escape_feature_outputs() -> None:
     declaration = profile.Profile(
         id="observations",
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="escape",
                 function=ref.function("example:escape", kind="escape"),
                 arguments={},

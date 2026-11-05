@@ -33,12 +33,12 @@ def test_root_authoring_api_compiles_and_executes(
             )
         ]
         assembly = [
-            up.Action(
+            up.Operator(
                 id="read",
                 interface=up.Interface(outputs=[up.Feature(id="value")]),
                 compute=up.Binding(function=read_values),
             ),
-            up.Action(
+            up.Operator(
                 id="double",
                 interface=up.Interface(outputs=[up.Feature(id="doubled")]),
                 compute=up.Binding(
@@ -103,7 +103,7 @@ def test_profile_features_attributes_can_be_action_outputs() -> None:
         value = up.Feature(id="value", type="float")
 
     features = Features()
-    action = up.Action(
+    action = up.Operator(
         id="read",
         function=read_values,
         arguments={},
@@ -127,8 +127,8 @@ def test_output_references_validate_nested_arguments(shape: str, declared: bool)
         "context": row_context.rows(output, before=1),
     }
 
-    def create_action() -> up.Action:
-        return up.Action(
+    def create_action() -> up.Operator:
+        return up.Operator(
             id="calculate",
             function=ref.function("external:calculate", kind="vectorize"),
             arguments={"output": shapes[shape]},
@@ -137,7 +137,7 @@ def test_output_references_validate_nested_arguments(shape: str, declared: bool)
 
     if not declared:
         with pytest.raises(
-            ValueError, match="Action 'calculate' references undeclared output 'result'"
+            ValueError, match="Operator 'calculate' references undeclared output 'result'"
         ):
             create_action()
     else:
@@ -147,7 +147,7 @@ def test_output_references_validate_nested_arguments(shape: str, declared: bool)
 
 
 def test_mutated_output_references_are_revalidated_on_conversion() -> None:
-    action = up.Action(
+    action = up.Operator(
         id="calculate",
         function=ref.function("external:calculate", kind="vectorize"),
         arguments={"output": up.ref.output("result")},
