@@ -23,6 +23,7 @@ def emit_invocation(
         current_profile_id=node.dataset_id,
         feature_id=node.feature_id,
         grain_keys_by_profile=spec_definition.grain_keys_by_profile,
+        resources=spec_definition.binding_resources,
     )
     arguments = resolver.resolve_arguments(node.arguments)
     profile_key = spec_definition.profile_keys[node.dataset_id]

@@ -18,6 +18,7 @@ from .spec.python import (
     FeatureSet,
     Interface,
     Order,
+    Params,
     Resolution,
     Spec,
     function,
@@ -29,6 +30,7 @@ from .engine import Engine
 
 __all__ = [
     "Spec",
+    "Params",
     "Operator",
     "Interface",
     "Binding",

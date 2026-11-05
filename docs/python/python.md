@@ -51,10 +51,10 @@ class Pump(up.Profile):
             compute=up.Binding(
                 function=maximum,
                 arguments=dict(
-                    dataset=up.ref.dataframe("telemetry"),
-                    feature=up.ref.column("bearing_temperature"),
-                    dimensions=up.ref.current_profile().grain.ids,
-                    output=up.ref.output("bearing_temperature_max"),
+                    dataset=up.ref.data("telemetry"),
+                    feature=up.ref.feature("bearing_temperature"),
+                    dimensions=up.ref.profile().grain.ids,
+                    output=up.ref.feature("bearing_temperature_max"),
                 ),
             ),
         ),
@@ -136,7 +136,7 @@ the same grain. `collapse` moves to a coarser grain, and `expand` moves to a
 finer grain; parent links between resolutions describe valid coarsening and
 refinement.
 Declare dimensional matching keys explicitly with
-`ref.current_profile().grain.ids` (or a named profile's `.grain.ids` selector).
+`ref.profile().grain.ids` (or a named profile's `.grain.ids` selector).
 Grouping and ordering references do not implicitly select matching keys.
 Data-producing functions return Polars `DataFrame` or `LazyFrame` fragments;
 other dataframe types and custom adapters are not currently supported. The
@@ -289,14 +289,14 @@ references to functions and spec objects. It does not construct or load data.
 
 | Helper | Meaning |
 | --- | --- |
-| `up.ref.dataframe()` | Current profile's dataframe. |
-| `up.ref.dataframe("telemetry")` | Named profile's dataframe. |
-| `up.ref.column("temperature")` | Input feature column; infers a dependency unless `inputs` is explicit. |
-| `up.ref.output("maximum")` | Identifier of a feature in the containing action's `outputs`; no input dependency. |
+| `up.ref.data()` | Current profile's dataframe. |
+| `up.ref.data("telemetry")` | Named profile's dataframe. |
+| `up.ref.feature("temperature")` | Input feature column; infers a dependency unless `inputs` is explicit. |
+| `up.ref.feature("maximum")` | Identifier of a feature in the containing action's `outputs`; no input dependency. |
 
-`ref.output()` does not declare a feature. An undeclared output name raises
+`ref.feature()` does not declare a feature. An undeclared output name raises
 `ValueError`, including references nested in lists, dictionaries, and bindings.
-Use `ref.current_profile().dataframe`, `ref.profile(name).dataframe`,
+Use `ref.profile().data`, `ref.profile(name).data`,
 `ref.feature(name)`, and `ref.feature(name).id` to create deferred references.
 The general `.id` selector does not require the feature to be an action output.
 

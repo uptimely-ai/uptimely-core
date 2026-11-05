@@ -526,7 +526,7 @@ when writing new declarations. `.id` arguments require `string`, and
 `array[string]`; their keys must be selected by the target and every referenced
 dataframe profile. Use only the reference forms above.
 
-In Python declarations, use `ref.current_profile().grain.ids` or
+In Python declarations, use `ref.profile().grain.ids` or
 `ref.profile("source").grain.ids` for the corresponding selector. Grain-key
 selectors are explicit binding values; grouping, ordering, and other dimension
 references do not implicitly declare matching keys. For a dimensional

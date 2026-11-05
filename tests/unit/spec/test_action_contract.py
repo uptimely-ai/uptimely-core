@@ -89,7 +89,7 @@ def _spec() -> spec.Spec:
                         compute=actions.Binding(
                             function=ref.function(add_one, kind="vectorize"),
                             arguments={
-                                "dataset": ref.current_profile().dataframe,
+                                "dataset": ref.profile().data,
                                 "output": ref.feature("result").id,
                             },
                         ),
@@ -103,7 +103,7 @@ def _spec() -> spec.Spec:
                         compute=actions.Binding(
                             function=ref.function(metadata_only, kind="vectorize"),
                             arguments={
-                                "dataset": ref.current_profile().dataframe,
+                                "dataset": ref.profile().data,
                                 "identifier": ref.feature("result").id,
                             },
                         ),
@@ -360,7 +360,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                                 kind="expand",
                             ),
                             arguments={
-                                "dataset": source_reference.dataframe,
+                                "dataset": source_reference.data,
                                 "output": ref.feature("copied").id,
                                 **({} if dataframe else {"identifier": source_reference.id}),
                             },

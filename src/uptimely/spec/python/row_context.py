@@ -7,7 +7,16 @@ import typing
 
 from uptimely import row_context
 
+from . import dimension as dimension_module
 from . import ref
+
+
+def _dimension_id(value: dimension_module.Dimension | ref.Reference | str) -> str:
+    """Normalize dimension instances and deferred references consistently."""
+    if isinstance(value, dimension_module.Dimension):
+        return value.id
+    return value.to_model() if isinstance(value, ref.Reference) else value
+
 
 __all__ = [
     "RowContextBinding",
@@ -28,7 +37,11 @@ class RowContextBinding[T]:
 
 
 def time[T](
-    value: T, *, dimension: ref.Reference | str, before: str = "0s", after: str = "0s"
+    value: T,
+    *,
+    dimension: dimension_module.Dimension | ref.Reference | str,
+    before: str = "0s",
+    after: str = "0s",
 ) -> RowContextBinding[T]:
     """Bind a value with preceding/following fixed-time requirements.
 
@@ -47,7 +60,7 @@ def time[T](
     return RowContextBinding(
         value,
         row_context.RowContext(
-            dimension=dimension.to_model() if isinstance(dimension, ref.Reference) else dimension,
+            dimension=_dimension_id(dimension),
             before=row_context.ContextExtent(time=before),
             after=row_context.ContextExtent(time=after),
         ),
@@ -57,7 +70,7 @@ def time[T](
 def steps[T](
     value: T,
     *,
-    dimension: ref.Reference | str,
+    dimension: dimension_module.Dimension | ref.Reference | str,
     before: row_context.CountExtent = 0,
     after: row_context.CountExtent = 0,
 ) -> RowContextBinding[T]:
@@ -78,7 +91,7 @@ def steps[T](
     return RowContextBinding(
         value,
         row_context.RowContext(
-            dimension=dimension.to_model() if isinstance(dimension, ref.Reference) else dimension,
+            dimension=_dimension_id(dimension),
             before=row_context.ContextExtent(steps=before),
             after=row_context.ContextExtent(steps=after),
         ),

@@ -94,6 +94,10 @@ class Binding(StrictModel):
                 and value.startswith(selectors.PROFILE_PREFIX)
                 and not value.endswith(selectors.ID_SELECTOR)
                 and not value.endswith(selectors.PROFILE_GRAIN_IDS_SELECTOR)
+                and (
+                    value.endswith(selectors.DATAFRAME_SELECTOR)
+                    or "." not in value.removeprefix(selectors.PROFILE_PREFIX)
+                )
             )
         )
 
@@ -160,6 +164,9 @@ class BindingArgumentResolver:
     current_profile_id: str
     feature_id: str | None
     grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]] | None
+    resources: typing.Mapping[str, typing.Mapping[str, pydantic.BaseModel]] = dataclasses.field(
+        default_factory=dict
+    )
 
     def resolve_arguments(self, arguments: typing.Mapping[str, object]) -> dict[str, typing.Any]:
         """Resolve every binding argument using this invocation's context."""
@@ -177,7 +184,7 @@ class BindingArgumentResolver:
             return [self._resolve_value(item) for item in value]
         return value
 
-    def _resolve_reference(self, value: str) -> str | list[str]:
+    def _resolve_reference(self, value: str) -> object:
         """Resolve one structural reference to its execution value."""
         if value in {
             f"{selectors.FEATURE_PREFIX}{selectors.CURRENT_ID}",
@@ -208,6 +215,37 @@ class BindingArgumentResolver:
                 )
             else:
                 identifier = identifier.removesuffix(selectors.ID_SELECTOR)
+            resource_id, separator, attribute = identifier.partition(".")
+            if separator:
+                if prefix == selectors.PROFILE_PREFIX and resource_id == selectors.CURRENT_ID:
+                    resource_id = self.current_profile_id
+                resource = self.resources.get(prefix, {}).get(resource_id)
+                if resource is None:
+                    raise ValueError(f"Cannot resolve resource metadata: {value}")
+                if prefix == selectors.DIMENSION_PREFIX and attribute.startswith("resolutions."):
+                    _, _, resolution_path = attribute.partition(".")
+                    resolution_id, _, attribute = resolution_path.partition(".")
+                    resolutions = resource.resolutions
+                    resource = resolutions.get(resolution_id)
+                    if resource is None:
+                        raise ValueError(f"Cannot resolve resolution: {value}")
+                    if not attribute:
+                        return resource.id
+                allowed = {
+                    selectors.FEATURE_PREFIX: {"id", "name", "type", "unit", "description"},
+                    selectors.PROFILE_PREFIX: {"id", "name", "description", "category", "scope"},
+                    selectors.DIMENSION_PREFIX: {
+                        "id",
+                        "name",
+                        "description",
+                        "key",
+                        "type",
+                        "parent",
+                    },
+                }[prefix]
+                if attribute not in allowed or attribute not in type(resource).model_fields:
+                    raise ValueError(f"Unsupported resource selector: {value}")
+                return getattr(resource, attribute)
             return (
                 self.current_profile_id
                 if prefix == selectors.PROFILE_PREFIX and identifier == selectors.CURRENT_ID

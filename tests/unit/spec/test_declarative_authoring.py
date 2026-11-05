@@ -1,29 +1,13 @@
 """Checks for class-based and programmatic Python declarations."""
 
 import dataclasses
-import logging
 import typing
 
 import pytest
 
 from uptimely.spec import functions
 from uptimely.spec import python as authoring
-from uptimely.spec.python import conversion, dimension, ref, row_context, validation
-
-
-@pytest.mark.parametrize("declared", [False, True])
-def test_python_output_reference_validation_does_not_log_per_action(
-    caplog: pytest.LogCaptureFixture, declared: bool
-) -> None:
-    caplog.set_level(logging.DEBUG, logger="uptimely.spec.python")
-    references = [ref.output("temperature")]
-    if declared:
-        validation.validate_action_output_references("read", references, ["temperature"])
-    else:
-        with pytest.raises(ValueError, match="undeclared output 'temperature'"):
-            validation.validate_action_output_references("read", references, [])
-
-    assert not caplog.messages
+from uptimely.spec.python import conversion, dimension, ref, row_context
 
 
 @authoring.function(kind="vectorize")
@@ -309,7 +293,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
                         ref.feature("first"),
                     ],
                     "output": ref.feature("result").id,
-                    "key": ref.current_profile().grain.ids,
+                    "key": ref.profile().grain.ids,
                 }
             },
         ),
@@ -381,7 +365,7 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
                 compute=authoring.Binding(
                     function=ref.function("reader:read", kind="read"),
                     arguments={
-                        "keys": ref.current_profile().grain.ids,
+                        "keys": ref.profile().grain.ids,
                         "source_keys": ref.profile("source").grain.ids,
                     },
                 ),

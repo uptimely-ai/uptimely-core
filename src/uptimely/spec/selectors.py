@@ -22,14 +22,7 @@ STRUCTURAL_PREFIXES: typing.Final[tuple[str, ...]] = (
 
 def structural_identifier(value: str, prefix: str) -> str:
     """Return a structural reference's resource ID without its selector suffix."""
-    identifier = value.removeprefix(prefix)
-    if prefix == PROFILE_PREFIX:
-        return (
-            identifier.removesuffix(PROFILE_GRAIN_IDS_SELECTOR)
-            .removesuffix(DATAFRAME_SELECTOR)
-            .removesuffix(ID_SELECTOR)
-        )
-    return identifier.removesuffix(ID_SELECTOR)
+    return value.removeprefix(prefix).partition(".")[0]
 
 
 __all__ = [

@@ -46,7 +46,10 @@ def validate_selector_type(spec: spec_model.Spec) -> None:
             selectors.PROFILE_GRAIN_IDS_SELECTOR
         ):
             expected = arg_types.array_of(arg_types.STRING)
-        elif value.endswith(selectors.ID_SELECTOR):
+        elif value.endswith(selectors.ID_SELECTOR) or any(
+            value.startswith(prefix) and "." in value.removeprefix(prefix)
+            for prefix in selectors.STRUCTURAL_PREFIXES
+        ):
             expected = arg_types.STRING
         else:
             continue
@@ -56,3 +59,30 @@ def validate_selector_type(spec: spec_model.Spec) -> None:
                 code="invalid_binding_reference_type",
                 path=path,
             )
+    for key, action in spec.action_items:
+        resolver = spec_model.BindingArgumentResolver(
+            current_profile_id=key[0],
+            feature_id=None,
+            grain_keys_by_profile=spec.grain_keys_by_profile,
+            resources=spec.binding_resources,
+        )
+        for value, path in action.binding.values_with_paths:
+            if not isinstance(value, str):
+                continue
+            prefix = next(
+                (prefix for prefix in selectors.STRUCTURAL_PREFIXES if value.startswith(prefix)),
+                None,
+            )
+            if prefix is None:
+                continue
+            _, _, attribute = value.removeprefix(prefix).partition(".")
+            if not attribute or attribute in {"id", "dataframe", "grain.ids"}:
+                continue
+            try:
+                resolver.resolve_arguments({"value": value})
+            except ValueError as error:
+                raise errors.SpecError(
+                    str(error),
+                    code="invalid_binding_selector",
+                    path=(*spec.declaration_paths[key], "binding", "args", *path),
+                ) from error

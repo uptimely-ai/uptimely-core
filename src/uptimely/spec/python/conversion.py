@@ -87,7 +87,7 @@ def to_model(
             if isinstance(declaration, profile_module.Profile)
         )
         logger.debug(
-            "\nPython spec validation:\n  - checked output references for %d actions",
+            "\nPython spec validation:\n  - collected feature interfaces for %d actions",
             action_count,
         )
 

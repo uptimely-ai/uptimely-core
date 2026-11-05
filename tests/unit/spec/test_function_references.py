@@ -273,7 +273,7 @@ def test_generic_mapping_exports_function_kind_without_importing(
             ),
             compute=actions.Binding(
                 function=ref.function("unavailable_package.functions:calculate", kind=kind),
-                arguments={"dataset": ref.current_profile().dataframe},
+                arguments={"dataset": ref.profile().data},
             ),
         ),
     )

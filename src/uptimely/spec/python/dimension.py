@@ -42,6 +42,17 @@ class Dimension:
     description: str | None = None
     name: str | None = None
 
+    def resolution(self, name: str) -> Resolution:
+        """Return a declared resolution by ID.
+
+        Raises:
+            ValueError: If the resolution is not declared in this dimension.
+        """
+        for resolution in self.resolutions:
+            if resolution.id == name:
+                return resolution
+        raise ValueError(f"Dimension '{self.id}' does not declare resolution '{name}'")
+
     def __post_init__(self) -> None:
         """Generate a display name from the ID when one is not supplied."""
         if self.name is None:

@@ -39,7 +39,7 @@ class Constants(Profile):
             ),
             compute=Binding(
                 function=analytics.read_constants,
-                arguments={"source": ref.source("constants_source")},
+                arguments={"source": ref.params("constants_source")},
             ),
         )
     ]
