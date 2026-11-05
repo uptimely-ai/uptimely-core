@@ -101,10 +101,10 @@ and a `compute` binding. `Binding` contains the implementation `function` and
 named `arguments`; `Interface` contains feature `inputs` and `outputs`.
 Interface inputs are optional: if omitted, feature references in compute
 arguments are inferred as dependencies. If supplied, they define the
-dependencies instead. Existing flat `function`, `arguments`, `inputs`, and
-`outputs` keywords remain accepted for compatibility. `Operator` also accepts
-optional `function_id` and `row_context` requirements. Optionally annotate
-callable implementations with `@function(kind=...)`. The decorator attaches
+dependencies instead. `Operator` also accepts an optional `row_context`
+requirement. Its function catalog ID is derived from the referenced function
+name. Optionally annotate callable implementations with `@function(kind=...)`.
+The decorator attaches
 semantic metadata for validation;
 it returns the original function without wrapping or executing it. Alternatively,
 keep implementations undecorated and supply their contract through
@@ -176,8 +176,8 @@ assembly = {
 Groups are organizational only; function kind remains explicit on functions
 or function references and determines runtime behavior. Operator IDs must be
 non-empty and unique within the profile. Reusing one function in multiple
-operators is allowed with distinct operator IDs; `function_id` separately
-identifies its reusable catalog contract.
+operators is allowed with distinct operator IDs; its function name identifies
+the reusable catalog contract.
 
 The assembly defaults to an empty list and is copied for each profile instance.
 Constructor arguments replace the class declaration, including when an empty

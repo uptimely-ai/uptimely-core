@@ -105,9 +105,13 @@ def test_profile_features_attributes_can_be_action_outputs() -> None:
     features = Features()
     action = up.Operator(
         id="read",
-        function=read_values,
-        arguments={},
-        outputs=[features.value],
+        interface=up.Interface(
+            outputs=[features.value],
+        ),
+        compute=up.Binding(
+            function=read_values,
+            arguments={},
+        ),
     )
 
     assert action.to_model().output_features == ["value"]
@@ -130,9 +134,13 @@ def test_output_references_validate_nested_arguments(shape: str, declared: bool)
     def create_action() -> up.Operator:
         return up.Operator(
             id="calculate",
-            function=ref.function("external:calculate", kind="vectorize"),
-            arguments={"output": shapes[shape]},
-            outputs=[up.Feature(id="result")] if declared else [],
+            interface=up.Interface(
+                outputs=[up.Feature(id="result")] if declared else [],
+            ),
+            compute=up.Binding(
+                function=ref.function("external:calculate", kind="vectorize"),
+                arguments={"output": shapes[shape]},
+            ),
         )
 
     if not declared:
@@ -149,10 +157,14 @@ def test_output_references_validate_nested_arguments(shape: str, declared: bool)
 def test_mutated_output_references_are_revalidated_on_conversion() -> None:
     action = up.Operator(
         id="calculate",
-        function=ref.function("external:calculate", kind="vectorize"),
-        arguments={"output": up.ref.output("result")},
-        outputs=[up.Feature(id="result")],
+        interface=up.Interface(
+            outputs=[up.Feature(id="result")],
+        ),
+        compute=up.Binding(
+            function=ref.function("external:calculate", kind="vectorize"),
+            arguments={"output": up.ref.output("result")},
+        ),
     )
-    action.outputs.clear()
+    action.interface.outputs.clear()
     with pytest.raises(ValueError, match="undeclared output 'result'"):
         action.to_model()

@@ -64,26 +64,34 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                 assembly=[
                     actions.Operator(
                         id="read_observations",
-                        inputs=[],
-                        function=ref.function(read_observations, kind="read"),
-                        arguments={},
-                        outputs=[
-                            feature.Feature(id="timestamp", type=dimension_type),
-                            feature.Feature(id="temperature", type="integer"),
-                        ],
+                        interface=actions.Interface(
+                            inputs=[],
+                            outputs=[
+                                feature.Feature(id="timestamp", type=dimension_type),
+                                feature.Feature(id="temperature", type="integer"),
+                            ],
+                        ),
+                        compute=actions.Binding(
+                            function=ref.function(read_observations, kind="read"),
+                            arguments={},
+                        ),
                     ),
                     actions.Operator(
                         id="result",
-                        inputs=[ref.feature("temperature")],
+                        interface=actions.Interface(
+                            inputs=[ref.feature("temperature")],
+                            outputs=[feature.Feature(id="result", type="integer")],
+                        ),
+                        compute=actions.Binding(
+                            function=ref.function(calculate, kind="vectorize"),
+                            arguments={
+                                "dataset": ref.current_profile().dataframe,
+                                "column": ref.feature("temperature").id,
+                                "output": ref.feature("result").id,
+                                "configuration": {"windows": ["8h", "24h"]},
+                            },
+                        ),
                         row_context=context,
-                        function=ref.function(calculate, kind="vectorize"),
-                        arguments={
-                            "dataset": ref.current_profile().dataframe,
-                            "column": ref.feature("temperature").id,
-                            "output": ref.feature("result").id,
-                            "configuration": {"windows": ["8h", "24h"]},
-                        },
-                        outputs=[feature.Feature(id="result", type="integer")],
                     ),
                 ],
             )
@@ -143,20 +151,24 @@ def test_count_extents_require_nonnegative_integers(factory, value):
 def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
     declaration = actions.Operator(
         id="declaration",
+        interface=actions.Interface(
+            inputs=[],
+            outputs=[],
+        ),
+        compute=actions.Binding(
+            function=ref.function(f"{__name__}:calculate", kind="vectorize"),
+            arguments={
+                "configuration": {
+                    "windows": [
+                        authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h"),
+                        authoring.time(
+                            "24h", dimension=ref.dimension("timestamp"), before="24h", after="2h"
+                        ),
+                    ]
+                }
+            },
+        ),
         row_context=authoring.time("explicit", dimension=ref.dimension("timestamp"), after="3h"),
-        inputs=[],
-        function=ref.function(f"{__name__}:calculate", kind="vectorize"),
-        arguments={
-            "configuration": {
-                "windows": [
-                    authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h"),
-                    authoring.time(
-                        "24h", dimension=ref.dimension("timestamp"), before="24h", after="2h"
-                    ),
-                ]
-            }
-        },
-        outputs=[],
     )
     assert declaration.to_model().row_context.to_dict() == {
         "dimension": "$dimensions.timestamp",
@@ -175,18 +187,26 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
     with pytest.raises(ValueError, match="one dimension"):
         actions.Operator(
             id="action",
-            inputs=[],
-            function=ref.function(calculate, kind="vectorize"),
-            arguments={"configuration": [first, second]},
-            outputs=[],
+            interface=actions.Interface(
+                inputs=[],
+                outputs=[],
+            ),
+            compute=actions.Binding(
+                function=ref.function(calculate, kind="vectorize"),
+                arguments={"configuration": [first, second]},
+            ),
         )
     with pytest.raises(ValueError, match="one measurement"):
         actions.Operator(
             id="action",
-            inputs=[],
-            function=ref.function(calculate, kind="vectorize"),
-            arguments={"configuration": [first, authoring.rows(8, before=7)]},
-            outputs=[],
+            interface=actions.Interface(
+                inputs=[],
+                outputs=[],
+            ),
+            compute=actions.Binding(
+                function=ref.function(calculate, kind="vectorize"),
+                arguments={"configuration": [first, authoring.rows(8, before=7)]},
+            ),
         )
 
 
@@ -219,10 +239,14 @@ def test_unknown_current_and_whole_dataset_context_are_distinct():
     assert (
         actions.Operator(
             id="action",
-            inputs=[],
-            function=ref.function(calculate, kind="vectorize"),
-            arguments={},
-            outputs=[],
+            interface=actions.Interface(
+                inputs=[],
+                outputs=[],
+            ),
+            compute=actions.Binding(
+                function=ref.function(calculate, kind="vectorize"),
+                arguments={},
+            ),
         ).row_context
         is None
     )
@@ -381,10 +405,14 @@ def test_spec_plan_execution_and_presentation_preserve_context(
 def test_all_data_mappings_preserve_annotated_context(operation):
     declaration = actions.Operator(
         id="declaration",
-        inputs=[],
-        function=ref.function(f"{__name__}:calculate", kind=operation),
-        arguments={"configuration": {"windows": [authoring.rows(8, before=7)]}},
-        outputs=[],
+        interface=actions.Interface(
+            inputs=[],
+            outputs=[],
+        ),
+        compute=actions.Binding(
+            function=ref.function(f"{__name__}:calculate", kind=operation),
+            arguments={"configuration": {"windows": [authoring.rows(8, before=7)]}},
+        ),
     )
     assert declaration.to_model().row_context.before.rows == 7
     assert declaration.to_model().binding.args == {"configuration": {"windows": [8]}}
@@ -466,13 +494,17 @@ def test_collapse_functions_execute_without_row_context(
         assembly=[
             actions.Operator(
                 id="read_observations",
-                inputs=[],
-                function=ref.function(read_observations, kind="read"),
-                arguments={},
-                outputs=[
-                    feature.Feature(id="timestamp", type="datetime"),
-                    feature.Feature(id="temperature", type="integer"),
-                ],
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[
+                        feature.Feature(id="timestamp", type="datetime"),
+                        feature.Feature(id="temperature", type="integer"),
+                    ],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(read_observations, kind="read"),
+                    arguments={},
+                ),
             )
         ],
     )
@@ -481,14 +513,18 @@ def test_collapse_functions_execute_without_row_context(
         assembly=[
             actions.Operator(
                 id="summary",
-                inputs=[ref.feature("temperature")],
-                function=ref.function(maximum, kind="collapse"),
-                arguments={
-                    "dataset": ref.profile("observations").dataframe,
-                    "column": ref.feature("temperature").id,
-                    "output": ref.feature("temperature_max").id,
-                },
-                outputs=[feature.Feature(id="temperature_max", type="integer")],
+                interface=actions.Interface(
+                    inputs=[ref.feature("temperature")],
+                    outputs=[feature.Feature(id="temperature_max", type="integer")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(maximum, kind="collapse"),
+                    arguments={
+                        "dataset": ref.profile("observations").dataframe,
+                        "column": ref.feature("temperature").id,
+                        "output": ref.feature("temperature_max").id,
+                    },
+                ),
             )
         ],
     )

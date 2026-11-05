@@ -188,10 +188,14 @@ def test_sources_and_transforms_python_spec() -> None:
         assembly=[
             python_spec.actions.Operator(
                 id="read",
-                inputs=[],
-                function=python_spec.ref.function(_read_transform_data, kind="read"),
-                arguments={},
-                outputs=[python_spec.feature.Feature(id="input_1")],
+                interface=python_spec.actions.Interface(
+                    inputs=[],
+                    outputs=[python_spec.feature.Feature(id="input_1")],
+                ),
+                compute=python_spec.actions.Binding(
+                    function=python_spec.ref.function(_read_transform_data, kind="read"),
+                    arguments={},
+                ),
             )
         ],
     )
@@ -204,19 +208,27 @@ def test_sources_and_transforms_python_spec() -> None:
         assembly=[
             python_spec.actions.Operator(
                 id="read",
-                inputs=[],
-                function=python_spec.ref.function(_read_transform_data, kind="read"),
-                arguments={},
-                outputs=[python_spec.feature.Feature(id="target_value")],
+                interface=python_spec.actions.Interface(
+                    inputs=[],
+                    outputs=[python_spec.feature.Feature(id="target_value")],
+                ),
+                compute=python_spec.actions.Binding(
+                    function=python_spec.ref.function(_read_transform_data, kind="read"),
+                    arguments={},
+                ),
             ),
             python_spec.actions.Operator(
                 id="expand_data",
-                inputs=[python_spec.ref.feature("input_1")],
-                function=python_spec.ref.function(expand_data, kind="expand"),
-                arguments={
-                    "source": python_spec.ref.profile("transformed_dataset").dataframe,
-                },
-                outputs=[python_spec.feature.Feature(id="input_2")],
+                interface=python_spec.actions.Interface(
+                    inputs=[python_spec.ref.feature("input_1")],
+                    outputs=[python_spec.feature.Feature(id="input_2")],
+                ),
+                compute=python_spec.actions.Binding(
+                    function=python_spec.ref.function(expand_data, kind="expand"),
+                    arguments={
+                        "source": python_spec.ref.profile("transformed_dataset").dataframe,
+                    },
+                ),
             ),
         ],
     )
@@ -226,15 +238,19 @@ def test_sources_and_transforms_python_spec() -> None:
         assembly=[
             python_spec.actions.Operator(
                 id="collapse_data",
-                inputs=[python_spec.ref.feature("input_2")],
-                function=python_spec.ref.function(analytics.aggregate, kind="collapse"),
-                arguments={
-                    "dataset": python_spec.ref.profile("target").dataframe,
-                    "feature": python_spec.ref.feature("input_2").id,
-                    "group_by": python_spec.ref.current_profile().grain.ids,
-                    "output": python_spec.ref.feature("collapsed_feature").id,
-                },
-                outputs=[python_spec.feature.Feature(id="collapsed_feature")],
+                interface=python_spec.actions.Interface(
+                    inputs=[python_spec.ref.feature("input_2")],
+                    outputs=[python_spec.feature.Feature(id="collapsed_feature")],
+                ),
+                compute=python_spec.actions.Binding(
+                    function=python_spec.ref.function(analytics.aggregate, kind="collapse"),
+                    arguments={
+                        "dataset": python_spec.ref.profile("target").dataframe,
+                        "feature": python_spec.ref.feature("input_2").id,
+                        "group_by": python_spec.ref.current_profile().grain.ids,
+                        "output": python_spec.ref.feature("collapsed_feature").id,
+                    },
+                ),
             )
         ],
     )

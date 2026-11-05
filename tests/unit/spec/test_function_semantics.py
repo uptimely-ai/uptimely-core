@@ -44,9 +44,13 @@ def test_undecorated_function_uses_explicit_reference_contract() -> None:
     assert functions.declared_kind(implementation) is None
     action = authoring.Operator(
         id="calculate",
-        function=ref.function(implementation, kind="vectorize"),
-        arguments={"value": "input"},
-        outputs=[],
+        interface=authoring.Interface(
+            outputs=[],
+        ),
+        compute=authoring.Binding(
+            function=ref.function(implementation, kind="vectorize"),
+            arguments={"value": "input"},
+        ),
     )
     assert action.kind == "vectorize"
     assert action.function_catalog()["implementation"].kind == "vectorize"
@@ -57,13 +61,24 @@ def test_undecorated_function_uses_explicit_reference_contract() -> None:
 
 def test_decorated_direct_callable_and_reference_have_identical_contracts() -> None:
     direct = authoring.Operator(
-        id="calculate", function=decorated, arguments={"value": "input"}, outputs=[]
+        id="calculate",
+        interface=authoring.Interface(
+            outputs=[],
+        ),
+        compute=authoring.Binding(
+            function=decorated,
+            arguments={"value": "input"},
+        ),
     )
     referenced = authoring.Operator(
         id="calculate",
-        function=ref.function(decorated),
-        arguments={"value": "input"},
-        outputs=[],
+        interface=authoring.Interface(
+            outputs=[],
+        ),
+        compute=authoring.Binding(
+            function=ref.function(decorated),
+            arguments={"value": "input"},
+        ),
     )
     assert direct.kind == referenced.kind == "vectorize"
     assert direct.to_model() == referenced.to_model()
@@ -94,5 +109,12 @@ def test_missing_function_semantics_are_not_guessed(use_reference: bool) -> None
     target = ref.function(implementation) if use_reference else implementation
     with pytest.raises(ValueError, match="Function kind is required"):
         authoring.Operator(
-            id="calculate", function=target, arguments={"value": "input"}, outputs=[]
+            id="calculate",
+            interface=authoring.Interface(
+                outputs=[],
+            ),
+            compute=authoring.Binding(
+                function=target,
+                arguments={"value": "input"},
+            ),
         )

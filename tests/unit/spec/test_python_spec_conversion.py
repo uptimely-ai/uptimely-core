@@ -27,9 +27,13 @@ def test_output_reference_logging_is_one_counted_summary(
             assembly=[
                 actions.Operator(
                     id=f"read_{action}",
-                    function=ref.function("reader:read", kind="read"),
-                    arguments={"column": ref.output(f"value_{action}")},
-                    outputs=[feature.Feature(id=f"value_{action}")],
+                    interface=actions.Interface(
+                        outputs=[feature.Feature(id=f"value_{action}")],
+                    ),
+                    compute=actions.Binding(
+                        function=ref.function("reader:read", kind="read"),
+                        arguments={"column": ref.output(f"value_{action}")},
+                    ),
                 )
                 for action in range(count)
             ],
@@ -69,30 +73,38 @@ def _declaration(
 ) -> profile.Profile:
     is_expand = category == "expand"
     is_dimensional = category in {"conform", "expand"}
+    module = __name__ if function is _source else f"{__name__}.alternate"
     declarations = [
         actions.Operator(
             id=f"{identifier}_mapping",
-            inputs=[ref.feature("temperature")] if is_dimensional else [],
-            function=ref.function(function, kind=category),
-            arguments={
-                **(
-                    {"dataset": ref.current_profile().dataframe}
-                    if category in {"write", "vectorize", "collapse"}
-                    else {}
+            interface=actions.Interface(
+                inputs=[ref.feature("temperature")] if is_dimensional else [],
+                outputs=[],
+            ),
+            compute=actions.Binding(
+                function=ref.FunctionReference(
+                    module=module,
+                    name=f"{category}_shared",
+                    kind=category,
                 ),
-                **(
-                    {
-                        "dataset": ref.profile(
-                            "shared_source" if is_expand else f"{identifier}_source"
-                        ).dataframe,
-                    }
-                    if is_dimensional
-                    else {}
-                ),
-                "columns": [ref.feature("temperature")],
-            },
-            outputs=[],
-            function_id=f"{category}_shared",
+                arguments={
+                    **(
+                        {"dataset": ref.current_profile().dataframe}
+                        if category in {"write", "vectorize", "collapse"}
+                        else {}
+                    ),
+                    **(
+                        {
+                            "dataset": ref.profile(
+                                "shared_source" if is_expand else f"{identifier}_source"
+                            ).dataframe,
+                        }
+                        if is_dimensional
+                        else {}
+                    ),
+                    "columns": [ref.feature("temperature")],
+                },
+            ),
         )
     ]
     return profile.Profile(
@@ -111,10 +123,14 @@ def _mapping_source() -> profile.Profile:
         assembly=[
             actions.Operator(
                 id="_other_source",
-                inputs=[],
-                function=ref.function(_other_source, kind="read"),
-                arguments={},
-                outputs=[feature.Feature(id="temperature")],
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[feature.Feature(id="temperature")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(_other_source, kind="read"),
+                    arguments={},
+                ),
             )
         ],
     )
@@ -126,10 +142,14 @@ def _conform_source(identifier: str) -> profile.Profile:
         assembly=[
             actions.Operator(
                 id="_other_source",
-                inputs=[],
-                function=ref.function(_other_source, kind="read"),
-                arguments={},
-                outputs=[feature.Feature(id="temperature")],
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[feature.Feature(id="temperature")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(_other_source, kind="read"),
+                    arguments={},
+                ),
             )
         ],
     )
@@ -310,10 +330,14 @@ def test_function_catalog_keeps_distinct_functions_and_kinds() -> None:
         assembly=[
             actions.Operator(
                 id="_other_source",
-                inputs=[],
-                function=ref.function(_other_source, kind="read"),
-                arguments={},
-                outputs=[],
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(_other_source, kind="read"),
+                    arguments={},
+                ),
             )
         ],
     )
@@ -351,7 +375,7 @@ def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> No
 
     function_id = f"{category}_shared"
     assert catalog[function_id] == first.function_catalog()[function_id]
-    assert catalog[function_id].entrypoint == f"{__name__}:_source"
+    assert catalog[function_id].entrypoint == f"{__name__}:{function_id}"
     expected_dataframe_inputs = {
         "read": 0,
         "write": 1,
@@ -370,7 +394,7 @@ def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> No
         "description": None,
         "kind": category,
         "returns": "none" if category == "write" else "dataframe",
-        "entrypoint": f"{__name__}:_source",
+        "entrypoint": f"{__name__}:{function_id}",
         "validate_signature": True,
         "args": {
             "columns": {"type": "array[string]", "comment": None},
@@ -423,11 +447,14 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
         assembly=[
             actions.Operator(
                 id="_source",
-                inputs=[],
-                function=ref.function(_source, kind="read"),
-                arguments={"path": "readings.json"},
-                outputs=[],
-                function_id="shared",
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(_source, kind="read"),
+                    arguments={"path": "readings.json"},
+                ),
             )
         ],
     )
@@ -436,19 +463,22 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
         assembly=[
             actions.Operator(
                 id="_source",
-                inputs=[],
-                function=ref.function(_source, kind="read"),
-                arguments={"path": 42},
-                outputs=[],
-                function_id="shared",
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(_source, kind="read"),
+                    arguments={"path": 42},
+                ),
             )
         ],
     )
     spec_definition = _python_spec([first, second])
 
-    with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):
+    with pytest.raises(ValueError, match="Conflicting function definition for '_source'"):
         spec_definition.function_catalog()
-    with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):
+    with pytest.raises(ValueError, match="Conflicting function definition for '_source'"):
         conversion.to_dict(profiles=[first, second])
 
     combined = profile.Profile(
@@ -458,7 +488,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
             dataclasses.replace(second.assembly[0], id="second"),
         ],
     )
-    with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):
+    with pytest.raises(ValueError, match="Conflicting function definition for '_source'"):
         combined.function_catalog()
 
 

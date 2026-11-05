@@ -68,33 +68,45 @@ def _spec() -> spec.Spec:
                 assembly=[
                     actions.Operator(
                         id="read_values",
-                        inputs=[],
-                        function=ref.function(read_values, kind="read"),
-                        arguments={},
-                        outputs=[
-                            feature.Feature(id="id", type="integer"),
-                            feature.Feature(id="value", type="integer"),
-                        ],
+                        interface=actions.Interface(
+                            inputs=[],
+                            outputs=[
+                                feature.Feature(id="id", type="integer"),
+                                feature.Feature(id="value", type="integer"),
+                            ],
+                        ),
+                        compute=actions.Binding(
+                            function=ref.function(read_values, kind="read"),
+                            arguments={},
+                        ),
                     ),
                     actions.Operator(
                         id="result",
-                        inputs=[ref.feature("value")],
-                        function=ref.function(add_one, kind="vectorize"),
-                        arguments={
-                            "dataset": ref.current_profile().dataframe,
-                            "output": ref.feature("result").id,
-                        },
-                        outputs=[feature.Feature(id="result", type="integer")],
+                        interface=actions.Interface(
+                            inputs=[ref.feature("value")],
+                            outputs=[feature.Feature(id="result", type="integer")],
+                        ),
+                        compute=actions.Binding(
+                            function=ref.function(add_one, kind="vectorize"),
+                            arguments={
+                                "dataset": ref.current_profile().dataframe,
+                                "output": ref.feature("result").id,
+                            },
+                        ),
                     ),
                     actions.Operator(
                         id="metadata",
-                        inputs=[],
-                        function=ref.function(metadata_only, kind="vectorize"),
-                        arguments={
-                            "dataset": ref.current_profile().dataframe,
-                            "identifier": ref.feature("result").id,
-                        },
-                        outputs=[feature.Feature(id="metadata", type="integer")],
+                        interface=actions.Interface(
+                            inputs=[],
+                            outputs=[feature.Feature(id="metadata", type="integer")],
+                        ),
+                        compute=actions.Binding(
+                            function=ref.function(metadata_only, kind="vectorize"),
+                            arguments={
+                                "dataset": ref.current_profile().dataframe,
+                                "identifier": ref.feature("result").id,
+                            },
+                        ),
                     ),
                 ],
             )
@@ -303,10 +315,14 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                 assembly=[
                     actions.Operator(
                         id="read_lower_grain",
-                        inputs=[],
-                        function=ref.function(read_lower_grain, kind="read"),
-                        arguments={},
-                        outputs=[feature.Feature(id="value", type="integer")],
+                        interface=actions.Interface(
+                            inputs=[],
+                            outputs=[feature.Feature(id="value", type="integer")],
+                        ),
+                        compute=actions.Binding(
+                            function=ref.function(read_lower_grain, kind="read"),
+                            arguments={},
+                        ),
                     )
                 ],
             ),
@@ -319,26 +335,36 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                 assembly=[
                     actions.Operator(
                         id="read_target_grain",
-                        inputs=[],
-                        function=ref.function(read_target_grain, kind="read"),
-                        arguments={"include_second": dataframe},
-                        outputs=[feature.Feature(id="target_value", type="integer")],
+                        interface=actions.Interface(
+                            inputs=[],
+                            outputs=[feature.Feature(id="target_value", type="integer")],
+                        ),
+                        compute=actions.Binding(
+                            function=ref.function(read_target_grain, kind="read"),
+                            arguments={"include_second": dataframe},
+                        ),
                     ),
                     actions.Operator(
                         id="copied",
-                        inputs=[ref.feature("value")],
-                        outputs=[
-                            feature.Feature(id="copied", type="integer" if dataframe else "string")
-                        ],
-                        function=ref.function(
-                            copy_values if dataframe else dataset_identifier,
-                            kind="expand",
+                        interface=actions.Interface(
+                            inputs=[ref.feature("value")],
+                            outputs=[
+                                feature.Feature(
+                                    id="copied", type="integer" if dataframe else "string"
+                                )
+                            ],
                         ),
-                        arguments={
-                            "dataset": source_reference.dataframe,
-                            "output": ref.feature("copied").id,
-                            **({} if dataframe else {"identifier": source_reference.id}),
-                        },
+                        compute=actions.Binding(
+                            function=ref.function(
+                                copy_values if dataframe else dataset_identifier,
+                                kind="expand",
+                            ),
+                            arguments={
+                                "dataset": source_reference.dataframe,
+                                "output": ref.feature("copied").id,
+                                **({} if dataframe else {"identifier": source_reference.id}),
+                            },
+                        ),
                     ),
                 ],
             ),

@@ -236,26 +236,34 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
         assembly=[
             python_spec.actions.Operator(
                 id="read",
-                inputs=[],
-                function=python_spec.ref.function(_read_order_data, kind="read"),
-                arguments={},
-                outputs=[
-                    python_spec.feature.Feature(id="input_1"),
-                    python_spec.feature.Feature(id="input_2"),
-                    python_spec.feature.Feature(id="id", type="integer"),
-                ],
+                interface=python_spec.actions.Interface(
+                    inputs=[],
+                    outputs=[
+                        python_spec.feature.Feature(id="input_1"),
+                        python_spec.feature.Feature(id="input_2"),
+                        python_spec.feature.Feature(id="id", type="integer"),
+                    ],
+                ),
+                compute=python_spec.actions.Binding(
+                    function=python_spec.ref.function(_read_order_data, kind="read"),
+                    arguments={},
+                ),
             ),
             python_spec.actions.Operator(
                 id="sum",
-                inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
-                function=python_spec.ref.function(_sum_order_features, kind="vectorize"),
-                arguments={
-                    "left_feature": python_spec.ref.feature("input_1"),
-                    "right_feature": python_spec.ref.feature("input_2"),
-                    "output": "sum",
-                    "dataset": python_spec.ref.current_profile().dataframe,
-                },
-                outputs=[python_spec.feature.Feature(id="sum")],
+                interface=python_spec.actions.Interface(
+                    inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
+                    outputs=[python_spec.feature.Feature(id="sum")],
+                ),
+                compute=python_spec.actions.Binding(
+                    function=python_spec.ref.function(_sum_order_features, kind="vectorize"),
+                    arguments={
+                        "left_feature": python_spec.ref.feature("input_1"),
+                        "right_feature": python_spec.ref.feature("input_2"),
+                        "output": "sum",
+                        "dataset": python_spec.ref.current_profile().dataframe,
+                    },
+                ),
             ),
         ],
     )

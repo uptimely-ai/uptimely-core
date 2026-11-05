@@ -143,25 +143,28 @@ class MyAnalyticalProfile(up.Profile):
     assembly = [
         up.Operator(
             id="read",
-            function=read_values,
-            arguments={},
-            outputs=[up.Feature(id="value")],
+            interface=up.Interface(outputs=[up.Feature(id="value")]),
+            compute=up.Binding(function=read_values),
         ),
         up.Operator(
             id="double",
-            function=double,
-            arguments={
-                "dataset": up.ref.dataframe(),
-                "value": up.ref.column("value"),
-                "output": up.ref.output("doubled"),
-            },
-            outputs=[up.Feature(id="doubled")],
+            interface=up.Interface(outputs=[up.Feature(id="doubled")]),
+            compute=up.Binding(
+                function=double,
+                arguments={
+                    "dataset": up.ref.dataframe(),
+                    "value": up.ref.column("value"),
+                    "output": up.ref.output("doubled"),
+                },
+            ),
         ),
         up.Operator(
             id="print",
-            function=print_results,
-            arguments={"dataset": up.ref.dataframe()},
-            outputs=[],
+            interface=up.Interface(outputs=[]),
+            compute=up.Binding(
+                function=print_results,
+                arguments={"dataset": up.ref.dataframe()},
+            ),
         ),
     ]
 

@@ -131,7 +131,10 @@ class Profile:
         for operator in self.assembly:
             if not isinstance(operator, actions.Operator):
                 raise TypeError(f"Profile '{self.id}' assembly must contain Operators")
-            if operator.outputs and not functions.FUNCTION_KINDS[operator.kind].produces_features:
+            if (
+                operator.interface.outputs
+                and not functions.FUNCTION_KINDS[operator.kind].produces_features
+            ):
                 raise ValueError(
                     f"Profile '{self.id}', operator '{operator.id}': "
                     f"{operator.kind.capitalize()} operator cannot produce features"
@@ -241,7 +244,7 @@ class Profile:
         features: dict[str, spec_model.Feature] = {}
         producers: dict[str, str] = {}
         for name, declaration in self._assembly_by_id.items():
-            for metadata in declaration.outputs:
+            for metadata in declaration.interface.outputs:
                 identifier = metadata.id
                 if identifier in producers:
                     raise ValueError(
