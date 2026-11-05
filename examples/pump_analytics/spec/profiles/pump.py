@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Action, Feature, FeatureSet, Grain, Profile, ref
+from uptimely import Action, Binding, Feature, FeatureSet, Grain, Interface, Profile, ref
 
 
 class PumpFeatures(FeatureSet):
@@ -36,27 +36,35 @@ class Pump(Profile):
     actions = [
         Action(
             id="bearing_temperature_by_pump",
-            function=analytics.aggregate,
-            arguments=dict(  # noqa: C408
-                dataset=ref.dataframe("pump_telemetry"),
-                feature=ref.column("bearing_temperature"),
-                method="max",
-                dimensions=ref.current_profile().grain.ids,
-                output=ref.output("bearing_temperature_max"),
+            interface=Interface(
+                outputs=[features.bearing_temperature_max],
             ),
-            outputs=[features.bearing_temperature_max],
+            compute=Binding(
+                function=analytics.aggregate,
+                arguments=dict(
+                    dataset=ref.dataframe("pump_telemetry"),
+                    feature=ref.column("bearing_temperature"),
+                    method="max",
+                    dimensions=ref.current_profile().grain.ids,
+                    output=ref.output("bearing_temperature_max"),
+                ),
+            ),
         ),
         Action(
             id="health_signal_normalized",
-            function=analytics.min_max_scale,
-            arguments=dict(  # noqa: C408
-                dataset=ref.dataframe(),
-                feature=ref.column("bearing_temperature_max"),
-                lower_bound=-1.0,
-                upper_bound=1.0,
-                features=[ref.column("bearing_temperature_max")],
-                output=ref.output("health_signal_normalized"),
+            interface=Interface(
+                outputs=[features.health_signal_normalized],
             ),
-            outputs=[features.health_signal_normalized],
+            compute=Binding(
+                function=analytics.min_max_scale,
+                arguments=dict(
+                    dataset=ref.dataframe(),
+                    feature=ref.column("bearing_temperature_max"),
+                    lower_bound=-1.0,
+                    upper_bound=1.0,
+                    features=[ref.column("bearing_temperature_max")],
+                    output=ref.output("health_signal_normalized"),
+                ),
+            ),
         ),
     ]
