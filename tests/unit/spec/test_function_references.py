@@ -29,9 +29,7 @@ MAPPING_KINDS: tuple[functions.FunctionKindId, ...] = (
 def _dataset(action: actions.Action) -> profile.Profile:
     return profile.Profile(
         id="observations",
-        producers=[action] if action.kind not in {"write", "escape"} else [],
-        publishers=[action] if action.kind == "write" else [],
-        pipelines=[action] if action.kind == "escape" else [],
+        actions=[action],
     )
 
 
@@ -183,7 +181,7 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
     declarations = [
         profile.Profile(
             id=identifier,
-            producers=[
+            actions=[
                 actions.Action(
                     id="ceil",
                     inputs=[],
@@ -213,7 +211,7 @@ def test_string_locations_are_preserved_without_importing(
     reference = ref.function(f"{location}:ceil", kind="vectorize")
     declaration = profile.Profile(
         id="observations",
-        producers=[actions.Action(id="ceil", function=reference, arguments={"x": 1.2}, outputs=[])],
+        actions=[actions.Action(id="ceil", function=reference, arguments={"x": 1.2}, outputs=[])],
     )
 
     payload = conversion.to_dict(profiles=[declaration])
@@ -269,7 +267,7 @@ def test_generic_mapping_requires_operation_metadata() -> None:
 def test_escape_catalog_metadata_survives_json_round_trip() -> None:
     declaration = profile.Profile(
         id="observations",
-        pipelines=[
+        actions=[
             actions.Action(
                 id="external_update",
                 inputs=[],

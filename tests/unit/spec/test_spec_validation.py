@@ -277,7 +277,7 @@ def test_python_conversion_and_json_loading_accept_output_only_escape_actions(
 ) -> None:
     declaration = profile.Profile(
         id="observations",
-        pipelines=[
+        actions=[
             actions.Action(
                 id="escape",
                 function=ref.function("example:escape", kind="escape"),
@@ -302,7 +302,7 @@ def test_python_conversion_and_json_loading_accept_output_only_escape_actions(
 def test_python_dataset_accepts_escape_feature_outputs() -> None:
     declaration = profile.Profile(
         id="observations",
-        pipelines=[
+        actions=[
             actions.Action(
                 id="escape",
                 function=ref.function("example:escape", kind="escape"),

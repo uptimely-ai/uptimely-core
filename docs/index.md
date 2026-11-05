@@ -102,7 +102,7 @@ class CalculatedData(up.Profile):
     id = "calculated_profile"
     grain = [up.Grain(measurement_id, "measurement_id")]
 
-    producers = [
+    actions = [
         up.Action(
             id="read",
             function=read_values,
@@ -129,14 +129,12 @@ class CalculatedData(up.Profile):
                 )
             ],
         ),
-    ]
-    publishers = [
         up.Action(
             id="print",
             function=print_results,
             arguments={"dataset": up.ref.dataframe()},
             outputs=[],
-        )
+        ),
     ]
 
 
@@ -158,10 +156,9 @@ bundle = project.build_project(".")
 result = Engine(bundle, EngineConfig()).run()
 ```
 
-Profiles group actions into `producers` (feature-producing kinds), `publishers`
-(`write`), and `pipelines` (`escape`, for opaque custom workflows). Each action
-has an explicit ID unique within its profile. These lists declare roles, not
-execution order; dependencies determine execution.
+Profiles declare actions in one list, optionally using a mapping to group them
+by purpose. Each action has an explicit ID unique within its profile. Grouping
+is organizational, not execution order; dependencies determine execution.
 In JSON specs, profiles declare their keyed action definitions under `actions`.
 
 ## Further exploration

@@ -15,7 +15,7 @@ def _other_source(path: str, columns: list[str]) -> None:
 def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
     return profile.Profile(
         id=identifier,
-        producers=[
+        actions=[
             actions.Action(
                 id="read",
                 inputs=[],

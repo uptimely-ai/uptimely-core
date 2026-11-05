@@ -32,7 +32,7 @@ def test_root_authoring_api_compiles_and_executes(
                 "id",
             )
         ]
-        producers = [
+        actions = [
             up.Action(
                 id="read",
                 function=read_values,

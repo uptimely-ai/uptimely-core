@@ -54,7 +54,7 @@ def test_dataset_name_defaults_to_humanized_id() -> None:
 def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     declaration = authoring.Profile(
         id="example",
-        producers=[
+        actions=[
             authoring.Action(
                 id="read",
                 function=ref.function("reader:read", kind="read"),
@@ -109,7 +109,7 @@ def test_mapping_rejects_duplicate_output_ids() -> None:
 def test_assembly_collects_inputs_without_executing_implementation() -> None:
     class Example(authoring.Profile):
         id = "example"
-        producers = [
+        actions = [
             authoring.Action(
                 id="result",
                 function=must_not_execute,
@@ -122,7 +122,7 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
         ]
 
     declaration = Example()
-    action = declaration.producers[0]
+    action = declaration.actions[0]
     model = declaration.to_model().actions["result"]
 
     assert model.id == "result"
@@ -152,7 +152,7 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
 
     class Example(authoring.Profile):
         id = "example"
-        publishers = [
+        actions = [
             authoring.Action(
                 id="invalid",
                 function=implementation,
@@ -170,7 +170,7 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
 def test_duplicate_producers_are_rejected(identifier: str) -> None:
     class Example(authoring.Profile):
         id = "example"
-        producers = [
+        actions = [
             authoring.Action(
                 id="first",
                 function=ref.function(
@@ -180,7 +180,7 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
                 outputs=[authoring.Feature(id=identifier, type="float")],
             )
         ]
-        producers = [*producers, dataclasses.replace(producers[0], id="second")]
+        actions = [*actions, dataclasses.replace(actions[0], id="second")]
 
     with pytest.raises(ValueError, match="'first' and 'second'"):
         Example().to_model()
@@ -209,22 +209,20 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
     class Base(authoring.Profile):
         id = "base"
         description = "Inherited metadata"
-        producers = [first]
-        publishers = [sink]
+        actions = [first, sink]
 
     class Derived(Base):
         id = "derived"
-        producers = [replacement]
+        actions = [replacement]
 
     base = Base()
     derived = Derived()
-    assert base.producers == [first]
-    assert derived.producers == [replacement]
-    assert derived.publishers == [sink]
-    assert list(derived.to_model().actions) == ["read", "write"]
+    assert base.actions == [first, sink]
+    assert derived.actions == [replacement]
+    assert list(derived.to_model().actions) == ["read"]
     assert derived.to_model().description == "Inherited metadata"
     assert derived.to_model().features["value"].type == "integer"
-    assert set(derived.function_catalog()) == {"replacement", "write"}
+    assert set(derived.function_catalog()) == {"replacement"}
 
 
 def test_dataset_requires_identifier() -> None:
@@ -242,7 +240,7 @@ def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
     class Example(authoring.Profile):
         id = "example"
         grain = [authoring.Grain(identifier, "machine")]
-        producers = [
+        actions = [
             authoring.Action(
                 id="values",
                 function=ref.function("reader:values", kind="read"),
@@ -295,9 +293,9 @@ def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -
         inputs=[ref.feature("explicit")],
         outputs=[authoring.Feature(id="result", type="float")],
     )
-    declaration = authoring.Profile(id="example", producers=[action])
+    declaration = authoring.Profile(id="example", actions=[action])
 
-    assert declaration.producers == [action]
+    assert declaration.actions == [action]
     assert action.reference.entrypoint == "calculation:calculate"
     assert action.catalog_id == "custom"
     assert declaration.to_model().actions["named"].input_features == ["explicit"]
@@ -313,7 +311,7 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
     declaration = authoring.Profile(
         id="example",
         grain=[authoring.Grain(identifier, "machine")],
-        producers=[
+        actions=[
             authoring.Action(
                 id="read",
                 function=ref.function("reader:read", kind="read"),
@@ -391,41 +389,56 @@ def test_action_rejects_invalid_identifiers(identifier: typing.Any) -> None:
 
 
 @pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
-@pytest.mark.parametrize("collection", ["producers", "publishers", "pipelines"])
-def test_action_collection_enforces_function_kind(
-    kind: functions.FunctionKindId, collection: str
-) -> None:
+def test_actions_accept_every_declared_function_kind(kind: functions.FunctionKindId) -> None:
     action = authoring.Action(
         id="work",
         function=ref.function("implementation:work", kind=kind),
         arguments={},
         outputs=[],
     )
-    declarations = {
-        "producers": [action] if collection == "producers" else [],
-        "publishers": [action] if collection == "publishers" else [],
-        "pipelines": [action] if collection == "pipelines" else [],
-    }
-    expected_collection = {"write": "publishers", "escape": "pipelines"}.get(kind, "producers")
-    if collection != expected_collection:
-        with pytest.raises(ValueError, match=f"kind '{kind}' is not allowed in {collection}"):
-            authoring.Profile(id="example", **declarations)
-        return
-
-    declaration = authoring.Profile(id="example", **declarations)
+    declaration = authoring.Profile(id="example", actions=[action])
     assert declaration.to_model().actions["work"] == action.to_model()
     assert declaration.function_catalog()["work"].kind == kind
 
 
-@pytest.mark.parametrize("collection", ["producers", "publishers", "pipelines"])
+@pytest.mark.parametrize("invalid", ["invalid", [object()], [None]])
+def test_action_list_rejects_invalid_values(invalid: typing.Any) -> None:
+    with pytest.raises(
+        TypeError, match="actions must (be a sequence or mapping of|contain) Actions"
+    ):
+        authoring.Profile(id="example", actions=invalid)
+
+
 @pytest.mark.parametrize("invalid", [{}, "invalid", [object()], [None]])
-def test_action_collections_reject_invalid_values(collection: str, invalid: typing.Any) -> None:
-    with pytest.raises(TypeError, match=f"{collection} must (be a sequence of|contain) Actions"):
-        authoring.Profile(id="example", **{collection: invalid})
+def test_action_groups_reject_invalid_values(invalid: typing.Any) -> None:
+    with pytest.raises(TypeError, match="action group 'calculations'"):
+        authoring.Profile(id="example", actions={"calculations": invalid})
+
+
+def test_action_groups_flatten_in_mapping_order() -> None:
+    first = authoring.Action(
+        id="read",
+        function=ref.function("reader:read", kind="read"),
+        arguments={},
+        outputs=[],
+    )
+    second = dataclasses.replace(
+        first,
+        id="write",
+        function=ref.function("writer:write", kind="write"),
+    )
+    declaration = authoring.Profile(
+        id="example",
+        actions={"ingestion": [first], "publishing": [second]},
+    )
+
+    assert declaration.actions == [first, second]
+    assert list(declaration.to_model().actions) == ["read", "write"]
+    assert authoring.Profile(id="empty_grouped", actions={}).actions == []
 
 
 @pytest.mark.parametrize("second_kind", ["read", "write", "escape"])
-def test_action_ids_are_unique_across_collections(second_kind: functions.FunctionKindId) -> None:
+def test_action_ids_are_unique_across_groups(second_kind: functions.FunctionKindId) -> None:
     first = authoring.Action(
         id="duplicate",
         function=ref.function("reader:read", kind="read"),
@@ -438,13 +451,11 @@ def test_action_ids_are_unique_across_collections(second_kind: functions.Functio
     with pytest.raises(ValueError, match="Profile 'example' has duplicate action ID 'duplicate'"):
         authoring.Profile(
             id="example",
-            producers=[first, second] if second_kind == "read" else [first],
-            publishers=[second] if second_kind == "write" else [],
-            pipelines=[second] if second_kind == "escape" else [],
+            actions={"first": [first], "second": [second]},
         )
 
 
-def test_collection_defaults_and_inherited_lists_are_not_shared_between_instances() -> None:
+def test_action_defaults_and_inherited_lists_are_not_shared_between_instances() -> None:
     read = authoring.Action(
         id="read",
         function=ref.function("reader:read", kind="read"),
@@ -454,26 +465,22 @@ def test_collection_defaults_and_inherited_lists_are_not_shared_between_instance
 
     class Base(authoring.Profile):
         id = "base"
-        producers = [read]
+        actions = [read]
 
     first = Base()
     second = Base()
-    assert isinstance(first.producers, list)
-    assert isinstance(first.publishers, list)
-    assert isinstance(first.pipelines, list)
-    first.producers.clear()
-    assert second.producers == Base.producers == [read]
-    assert first.publishers is not second.publishers
-    assert first.pipelines is not second.pipelines
-    assert Base(producers=[]).producers == []
+    assert isinstance(first.actions, list)
+    first.actions.clear()
+    assert second.actions == Base.actions == [read]
+    assert Base(actions=[]).actions == []
 
     supplied = [read]
-    constructed = authoring.Profile(id="constructed", producers=supplied)
+    constructed = authoring.Profile(id="constructed", actions=supplied)
     supplied.clear()
-    assert constructed.producers == [read]
+    assert constructed.actions == [read]
 
 
-def test_subclasses_can_explicitly_extend_or_clear_inherited_collections() -> None:
+def test_subclasses_can_explicitly_extend_or_clear_inherited_actions() -> None:
     read = authoring.Action(
         id="read",
         function=ref.function("reader:read", kind="read"),
@@ -483,22 +490,22 @@ def test_subclasses_can_explicitly_extend_or_clear_inherited_collections() -> No
 
     class Base(authoring.Profile):
         id = "base"
-        producers = [read]
+        actions = [read]
 
     class Extended(Base):
-        producers = [*Base.producers, dataclasses.replace(read, id="another_read")]
+        actions = [*Base.actions, dataclasses.replace(read, id="another_read")]
 
     class Empty(Base):
-        producers = []
+        actions = []
 
     assert list(Extended().to_model().actions) == ["read", "another_read"]
     assert Empty().to_model().actions == {}
-    assert Base.producers == [read]
+    assert Base.actions == [read]
 
 
-def test_conversion_revalidates_modified_action_collections() -> None:
+def test_conversion_revalidates_modified_actions() -> None:
     declaration = authoring.Profile(id="example")
-    declaration.producers = [
+    declaration.actions = [
         authoring.Action(
             id="write",
             function=ref.function("writer:write", kind="write"),
@@ -506,43 +513,52 @@ def test_conversion_revalidates_modified_action_collections() -> None:
             outputs=[],
         )
     ]
-    with pytest.raises(ValueError, match="not allowed in producers"):
+    declaration.actions[0] = dataclasses.replace(
+        declaration.actions[0], outputs=[authoring.Feature(id="value")]
+    )
+    with pytest.raises(ValueError, match="Write action cannot produce features"):
         declaration.to_model()
-    with pytest.raises(ValueError, match="not allowed in producers"):
+    with pytest.raises(ValueError, match="Write action cannot produce features"):
         declaration.function_catalog()
 
 
-def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> None:
+def test_grouped_actions_preserve_dependencies_and_canonical_mapping_ids() -> None:
     class Example(authoring.Profile):
         id = "example"
-        producers = [
-            authoring.Action(
-                id="calculate",
-                function=ref.function("implementation:calculate", kind="vectorize"),
-                arguments={"column": ref.feature("pipeline_result")},
-                outputs=[authoring.Feature(id="result")],
-            )
-        ]
-        publishers = [
-            authoring.Action(
-                id="publish",
-                function=ref.function("implementation:publish", kind="write"),
-                arguments={"column": ref.feature("result")},
-                outputs=[],
-            )
-        ]
-        pipelines = [
-            authoring.Action(
-                id="custom_work",
-                function=ref.function("implementation:custom_work", kind="escape"),
-                arguments={},
-                inputs=[ref.feature("external_input")],
-                outputs=[],
-            )
-        ]
+        actions = {
+            "calculations": [
+                authoring.Action(
+                    id="calculate",
+                    function=ref.function("implementation:calculate", kind="vectorize"),
+                    arguments={"column": ref.feature("pipeline_result")},
+                    outputs=[authoring.Feature(id="result")],
+                )
+            ],
+            "publishing": [
+                authoring.Action(
+                    id="publish",
+                    function=ref.function("implementation:publish", kind="write"),
+                    arguments={"column": ref.feature("result")},
+                    outputs=[],
+                )
+            ],
+            "custom": [
+                authoring.Action(
+                    id="custom_work",
+                    function=ref.function("implementation:custom_work", kind="escape"),
+                    arguments={},
+                    inputs=[ref.feature("external_input")],
+                    outputs=[],
+                )
+            ],
+        }
 
     declaration = Example()
-    assert list(declaration.actions) == ["calculate", "publish", "custom_work"]
+    assert [action.id for action in declaration.actions] == [
+        "calculate",
+        "publish",
+        "custom_work",
+    ]
     model = declaration.to_model()
     assert list(model.actions) == ["calculate", "publish", "custom_work"]
     assert model.actions["calculate"].input_features == ["pipeline_result"]
@@ -550,9 +566,6 @@ def test_all_collections_preserve_dependencies_and_canonical_mapping_ids() -> No
     assert model.actions["custom_work"].input_features == ["external_input"]
     payload = conversion.to_dict(profiles=[declaration])
     exported = payload["profiles"]["example"]
-    assert "producers" not in exported
-    assert "publishers" not in exported
-    assert "pipelines" not in exported
     assert set(exported["actions"]) == {"calculate", "publish", "custom_work"}
     assert set(exported["features"]) == {"result"}
 

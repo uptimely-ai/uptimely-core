@@ -906,7 +906,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
                 "asset",
             )
         ],
-        pipelines=[
+        actions=[
             actions.Action(
                 id="external_action",
                 inputs=[ref.feature("asset_id")],

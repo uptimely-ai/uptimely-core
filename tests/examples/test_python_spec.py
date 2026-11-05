@@ -185,7 +185,7 @@ def test_sources_and_transforms_python_spec() -> None:
     source = python_spec.profile.Profile(
         id="transformed_dataset",
         grain=[python_spec.Grain(id_dimension, "id")],
-        producers=[
+        actions=[
             python_spec.actions.Action(
                 id="read",
                 inputs=[],
@@ -201,7 +201,7 @@ def test_sources_and_transforms_python_spec() -> None:
             python_spec.Grain(id_dimension, "id"),
             python_spec.Grain(region_dimension, "region"),
         ],
-        producers=[
+        actions=[
             python_spec.actions.Action(
                 id="read",
                 inputs=[],
@@ -223,7 +223,7 @@ def test_sources_and_transforms_python_spec() -> None:
     summary = python_spec.profile.Profile(
         id="summary",
         grain=[python_spec.Grain(id_dimension, "id")],
-        producers=[
+        actions=[
             python_spec.actions.Action(
                 id="collapse_data",
                 inputs=[python_spec.ref.feature("input_2")],

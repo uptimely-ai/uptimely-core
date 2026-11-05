@@ -36,20 +36,18 @@ class PumpExternalWorkflow(Profile):
     grain = [Grain(dimension.MACHINE, "machine")]
     features = PumpExternalWorkflowFeatures()
 
-    producers = [
+    actions = [
         Action(
             id="read_pump_external_inputs",
             function=external_workflow.read_pump_external_inputs,
             arguments={},
             outputs=[features.measurement, features.reference_value],
-        )
-    ]
-    pipelines = [
+        ),
         Action(
             id="process_pump_external_workflow",
             function=external_workflow.process_pump_external_workflow,
             arguments={},
             inputs=[ref.column("measurement"), ref.column("reference_value")],
             outputs=[features.ratio],
-        )
+        ),
     ]
