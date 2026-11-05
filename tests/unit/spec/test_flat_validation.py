@@ -789,7 +789,7 @@ def _python_profile_with_missing_input() -> python_profile.Profile:
                 ),
                 compute=python_actions.Binding(
                     function=python_ref.function("external:compute", kind="vectorize"),
-                    arguments={"data": python_ref.current_profile().dataframe},
+                    arguments={"data": python_ref.profile().data},
                 ),
             )
         ],

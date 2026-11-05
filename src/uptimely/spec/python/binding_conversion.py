@@ -4,16 +4,36 @@ from __future__ import annotations
 
 import typing
 
-from .. import arg_types
-from . import bind, ref, row_context
+from uptimely.spec import arg_types
+
+from . import bind, references, row_context
+from . import dimension as dimension_module
+from . import feature as feature_module
+from . import profile as profile_module
+
+
+def resource_reference(value: object) -> references.Reference | references.Params | None:
+    """Normalize declaration instances and deferred lookups at one boundary."""
+    if isinstance(value, (references.Reference, references.Params)):
+        return value
+    if isinstance(value, feature_module.Feature):
+        return references.FeatureReference(kind="feature", value=f"$features.{value.id}")
+    if isinstance(value, dimension_module.Dimension):
+        return references.DimensionReference(kind=arg_types.STRING, value=f"$dimensions.{value.id}")
+    if isinstance(value, dimension_module.Resolution):
+        return references.Reference(kind=arg_types.STRING, value=value.id)
+    if isinstance(value, profile_module.Profile):
+        return references.ProfileReference(kind=arg_types.STRING, value=f"$profiles.{value.id}")
+    return None
 
 
 def to_value(value: typing.Any) -> typing.Any:
     """Convert Python references and nested bindings to document values."""
     if isinstance(value, row_context.RowContextBinding):
         return to_value(value.value)
-    if isinstance(value, ref.Reference):
-        return value.to_model()
+    reference = resource_reference(value)
+    if reference is not None:
+        return reference.to_model()
     if isinstance(value, bind.Bind):
         return {
             "function": value.function_id or value.function.name,
@@ -30,11 +50,13 @@ def argument_definition(value: typing.Any) -> dict[str, str]:
     """Infer a recursive function-argument schema from a bound value."""
     if isinstance(value, row_context.RowContextBinding):
         return argument_definition(value.value)
-    if isinstance(value, ref.Reference):
-        if value.type == "profile":
-            return {"type": arg_types.DATAFRAME}
-        if value.type == arg_types.array_of(arg_types.STRING):
-            return {"type": value.type}
+    reference = resource_reference(value)
+    if reference is not None:
+        if isinstance(reference, references.Reference) and reference.kind in {
+            arg_types.DATAFRAME,
+            arg_types.array_of(arg_types.STRING),
+        }:
+            return {"type": reference.kind}
         return {"type": arg_types.STRING}
     if isinstance(value, (list, tuple)):
         item_definitions = [argument_definition(item) for item in value]

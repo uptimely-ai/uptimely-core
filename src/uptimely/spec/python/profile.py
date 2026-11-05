@@ -11,7 +11,7 @@ from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 from uptimely.spec.model import common as spec_common
 
-from . import actions
+from . import actions, references
 from . import dimension as dimension_module
 from . import feature as feature_module
 
@@ -28,18 +28,30 @@ class Grain:
     """Select a resolution from a declared dimension for a profile's grain."""
 
     dimension: dimension_module.Dimension
-    resolution: str
+    resolution: str | dimension_module.Resolution
+
+    @property
+    def resolution_id(self) -> str:
+        """Return the resolution ID, validating instance metadata and membership."""
+        if isinstance(self.resolution, dimension_module.Resolution):
+            if self.resolution not in self.dimension.resolutions:
+                raise ValueError(
+                    f"Dimension '{self.dimension.id}' does not declare resolution "
+                    f"'{self.resolution.id}' with matching metadata"
+                )
+            return self.resolution.id
+        return self.resolution
 
     def to_model(self) -> spec_model.Grain:
         """Convert this selected resolution to its document reference."""
         if not isinstance(self.dimension, dimension_module.Dimension):
             raise TypeError("Profile grain entries must reference Dimension declarations")
         dimension = self.dimension.to_model()
-        if self.resolution not in dimension.resolutions:
+        if self.resolution_id not in dimension.resolutions:
             raise ValueError(
                 f"Dimension '{self.dimension.id}' does not declare resolution '{self.resolution}'"
             )
-        return spec_model.Grain(dimension=self.dimension.id, resolution=self.resolution)
+        return spec_model.Grain(dimension=self.dimension.id, resolution=self.resolution_id)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -50,9 +62,10 @@ class Order(Grain):
 
     def to_model(self) -> spec_model.Order:
         """Convert this ordering key to its document model."""
+        grain = super().to_model()
         return spec_model.Order(
-            dimension=self.dimension.id,
-            resolution=self.resolution,
+            dimension=grain.dimension,
+            resolution=grain.resolution,
             direction=self.direction,
         )
 
@@ -76,6 +89,11 @@ class Profile:
     grain: abc.Sequence[Grain] = ()
     order: abc.Sequence[Order] = ()
     assembly: abc.Sequence[actions.Operator] | abc.Mapping[str, abc.Sequence[actions.Operator]] = ()
+
+    @property
+    def data(self) -> references.Reference:
+        """Reference this profile's dataframe without materializing it."""
+        return references.ProfileReference(kind="string", value=f"$profiles.{self.id}").data
 
     def __init__(
         self,
@@ -183,7 +201,7 @@ class Profile:
         """Build the canonical profile, rejecting duplicate feature producers."""
         grain = self._grain()
         selected_resolutions = [
-            item.dimension.to_model().resolutions[item.resolution] for item in self.grain
+            item.dimension.to_model().resolutions[item.resolution_id] for item in self.grain
         ]
         return spec_model.Profile(
             id=self.id,
@@ -206,7 +224,7 @@ class Profile:
             if not isinstance(item, Grain):
                 raise TypeError("Profile grain must contain Grain declarations")
             reference = item.to_model()
-            resolution = item.dimension.to_model().resolutions[item.resolution]
+            resolution = item.dimension.to_model().resolutions[item.resolution_id]
             if reference.dimension in dimensions:
                 raise ValueError(
                     f"Profile '{self.id}' selects multiple resolutions for dimension "
@@ -255,7 +273,7 @@ class Profile:
                 features[identifier] = metadata.to_model()
             if declaration.kind in {functions.READ, functions.COLLAPSE}:
                 for item in grain:
-                    resolution = item.dimension.to_model().resolutions[item.resolution]
+                    resolution = item.dimension.to_model().resolutions[item.resolution_id]
                     if resolution.key not in features:
                         features[resolution.key] = spec_model.Feature(
                             id=resolution.key,

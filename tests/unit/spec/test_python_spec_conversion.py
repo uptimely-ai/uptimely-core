@@ -32,7 +32,7 @@ def test_output_reference_logging_is_one_counted_summary(
                     ),
                     compute=actions.Binding(
                         function=ref.function("reader:read", kind="read"),
-                        arguments={"column": ref.output(f"value_{action}")},
+                        arguments={"column": ref.feature(f"value_{action}")},
                     ),
                 )
                 for action in range(count)
@@ -44,7 +44,7 @@ def test_output_reference_logging_is_one_counted_summary(
     conversion.to_model(profiles=iter(declarations))
 
     assert caplog.messages == (
-        ["\nPython spec validation:\n  - checked output references for 3 actions"]
+        ["\nPython spec validation:\n  - collected feature interfaces for 3 actions"]
         if level == logging.DEBUG
         else []
     )
@@ -89,7 +89,7 @@ def _declaration(
                 ),
                 arguments={
                     **(
-                        {"dataset": ref.current_profile().dataframe}
+                        {"dataset": ref.profile().data}
                         if category in {"write", "vectorize", "collapse"}
                         else {}
                     ),
@@ -97,7 +97,7 @@ def _declaration(
                         {
                             "dataset": ref.profile(
                                 "shared_source" if is_expand else f"{identifier}_source"
-                            ).dataframe,
+                            ).data,
                         }
                         if is_dimensional
                         else {}

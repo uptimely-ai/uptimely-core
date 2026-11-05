@@ -104,8 +104,8 @@ dictionaries and lists and do not create feature dependencies.
 }
 ```
 
-In Python authoring, `up.ref.source("telemetry_source")` and
-`up.ref.sink("output_path")` create references to the same map. Parameter
+In Python authoring, `up.ref.params("telemetry_source")` and
+`up.ref.params("output_path")` create references to the same map. Parameter
 values support JSON strings, finite numbers, booleans, and null; arrays and
 objects are rejected. These references are required bindings, not a defaulting
 mechanism: a missing value fails the invocation. Defaults are appropriate for
@@ -146,7 +146,7 @@ profile. The engine never joins another profile implicitly.
 strictly finer target grain. Parent links between resolutions describe valid
 coarsening and refinement. Each dimensional action explicitly supplies its
 target grain keys as matching keys, for example with
-`ref.current_profile().grain.ids`. A dimension reference used for grouping or
+`ref.profile().grain.ids`. A dimension reference used for grouping or
 ordering does not implicitly select a join key. Combining sources requires an
 explicit dimensional operation; same-profile fragment assembly is
 not a cross-profile reconciliation. Functions are responsible for grouping,

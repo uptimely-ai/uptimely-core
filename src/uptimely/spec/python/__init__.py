@@ -6,6 +6,7 @@ from .dimension import Dimension, Resolution
 from .feature import Feature, FeatureSet
 from .functions import function
 from .profile import Grain, Order, Profile, ProfileRegistry
+from .references import Params
 from .spec import Spec
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "ProfileRegistry",
     "Order",
     "Spec",
+    "Params",
     "function",
     "ref",
 ]

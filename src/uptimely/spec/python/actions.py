@@ -11,7 +11,7 @@ from uptimely import row_context as row_context_values
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 
-from . import bind, binding_conversion, ref, validation
+from . import bind, binding_conversion, ref
 from . import feature as feature_module
 from . import functions as function_semantics
 from . import row_context as row_context_module
@@ -88,11 +88,6 @@ class Operator:
         output_ids = [output.id for output in self.interface.outputs]
         if len(output_ids) != len(set(output_ids)):
             raise ValueError("Operator output feature IDs must not repeat")
-        validation.validate_action_output_references(
-            self.id,
-            self._references(self.compute.arguments),
-            (output.id for output in self.interface.outputs),
-        )
         object.__setattr__(
             self,
             "row_context",
@@ -133,11 +128,6 @@ class Operator:
         Entrypoint strings are not imported during authoring; signature validation
         for those functions is deferred until compilation.
         """
-        validation.validate_action_output_references(
-            self.id,
-            self._references(self.compute.arguments),
-            (output.id for output in self.interface.outputs),
-        )
         if callable(self.compute.function):
             inspect.signature(self.compute.function).bind(**self.compute.arguments)
         return self.compute.arguments.copy()
@@ -194,7 +184,8 @@ class Operator:
     def _input_ids(self) -> list[str]:
         """Return declared input IDs or infer them from feature bindings."""
         if self.interface.inputs is None:
-            return self._inputs(self.compute.arguments)
+            outputs = {output.id for output in self.interface.outputs}
+            return [name for name in self._inputs(self.compute.arguments) if name not in outputs]
         return [self._feature_id(value) for value in self.interface.inputs]
 
     @staticmethod
@@ -215,7 +206,7 @@ class Operator:
             dict.fromkeys(
                 reference.value.removeprefix(selectors.FEATURE_PREFIX)
                 for reference in Operator._references(value)
-                if reference.type == "feature"
+                if reference.kind == "feature"
             )
         )
 
@@ -224,8 +215,8 @@ class Operator:
         """Yield references nested in argument bindings."""
         if isinstance(value, row_context_module.RowContextBinding):
             yield from Operator._references(value.value)
-        elif isinstance(value, ref.Reference):
-            yield value
+        elif isinstance(reference := binding_conversion.resource_reference(value), ref.Reference):
+            yield reference
         elif isinstance(value, bind.Bind):
             yield from Operator._references(value.args)
         elif isinstance(value, abc.Mapping):

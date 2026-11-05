@@ -395,6 +395,19 @@ class Spec(common.StrictModel):
         )
 
     @functools.cached_property
+    def binding_resources(self) -> dict[str, dict[str, pydantic.BaseModel]]:
+        """Return declaration metadata available to structural binding selectors."""
+        return {
+            selectors.PROFILE_PREFIX: dict(self.profiles),
+            selectors.DIMENSION_PREFIX: dict(self.dimensions),
+            selectors.FEATURE_PREFIX: {
+                feature_id: feature
+                for profile in self.profiles.values()
+                for feature_id, feature in profile.features.items()
+            },
+        }
+
+    @functools.cached_property
     def matching_profile_keys(self) -> dict[ActionKey, tuple[tuple[str, SpecPath], ...]]:
         """Return selected matching profile keys and their declaration paths."""
         result: dict[ActionKey, tuple[tuple[str, SpecPath], ...]] = {}

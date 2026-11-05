@@ -57,11 +57,11 @@ class Pump(Profile):
             compute=Binding(
                 function=analytics.aggregate,
                 arguments=dict(
-                    dataset=ref.dataframe("pump_telemetry"),
-                    feature=ref.column("bearing_temperature"),
+                    dataset=ref.data("pump_telemetry"),
+                    feature=ref.feature("bearing_temperature"),
                     method="max",
-                    dimensions=ref.current_profile().grain.ids,
-                    output=ref.output("bearing_temperature_max"),
+                    dimensions=ref.profile().grain.ids,
+                    output=features.bearing_temperature_max,
                 ),
             ),
         ),
@@ -73,12 +73,12 @@ class Pump(Profile):
             compute=Binding(
                 function=analytics.min_max_scale,
                 arguments=dict(
-                    dataset=ref.dataframe(),
-                    feature=ref.column("bearing_temperature_max"),
+                    dataset=ref.data(),
+                    feature=features.bearing_temperature_max,
                     lower_bound=-1.0,
                     upper_bound=1.0,
-                    features=[ref.column("bearing_temperature_max")],
-                    output=ref.output("health_signal_normalized"),
+                    features=[features.bearing_temperature_max],
+                    output=features.health_signal_normalized,
                 ),
             ),
         ),

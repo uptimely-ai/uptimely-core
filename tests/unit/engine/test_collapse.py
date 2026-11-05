@@ -170,7 +170,7 @@ def _spec(*, lazy=False, empty=False):
                 compute=actions.Binding(
                     function=ref.function(double, kind="vectorize"),
                     arguments={
-                        "dataset": ref.current_profile().dataframe,
+                        "dataset": ref.profile().data,
                         "column": ref.feature("value").id,
                         "output": ref.feature("doubled").id,
                     },
@@ -185,7 +185,7 @@ def _spec(*, lazy=False, empty=False):
                 compute=actions.Binding(
                     function=ref.function(double, kind="vectorize"),
                     arguments={
-                        "dataset": ref.current_profile().dataframe,
+                        "dataset": ref.profile().data,
                         "column": ref.feature("value").id,
                         "output": ref.feature("unneeded").id,
                     },
@@ -206,7 +206,7 @@ def _spec(*, lazy=False, empty=False):
                 compute=actions.Binding(
                     function=ref.function(summarize, kind="collapse"),
                     arguments={
-                        "dataset": ref.profile("observations").dataframe,
+                        "dataset": ref.profile("observations").data,
                         "column": ref.feature("value").id,
                         "calculated": ref.feature("doubled").id,
                     },
@@ -225,7 +225,7 @@ def _spec(*, lazy=False, empty=False):
                 ),
                 compute=actions.Binding(
                     function=ref.function(total, kind="collapse"),
-                    arguments={"dataset": ref.profile("summary").dataframe},
+                    arguments={"dataset": ref.profile("summary").data},
                 ),
             ),
             actions.Operator(
@@ -236,7 +236,7 @@ def _spec(*, lazy=False, empty=False):
                 ),
                 compute=actions.Binding(
                     function=ref.function(maximum, kind="collapse"),
-                    arguments={"dataset": ref.profile("summary").dataframe},
+                    arguments={"dataset": ref.profile("summary").data},
                 ),
             ),
         ],
@@ -298,8 +298,8 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                 compute=actions.Binding(
                     function=ref.function(conform_source, kind="conform"),
                     arguments={
-                        "source": ref.profile("foreign").dataframe,
-                        "matching_keys": ref.current_profile().grain.ids,
+                        "source": ref.profile("foreign").data,
+                        "matching_keys": ref.profile().grain.ids,
                     },
                 ),
             ),
@@ -627,7 +627,7 @@ def _broadcast_spec(
                 compute=actions.Binding(
                     function=ref.function(expand_function, kind="expand"),
                     arguments={
-                        "source": ref.profile("reference_source").dataframe,
+                        "source": ref.profile("reference_source").data,
                         "feature": ref.feature("source_value").id,
                         "output": ref.feature("reference").id,
                     },

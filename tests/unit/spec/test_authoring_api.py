@@ -44,9 +44,9 @@ def test_root_authoring_api_compiles_and_executes(
                 compute=up.Binding(
                     function=double,
                     arguments={
-                        "dataset": up.ref.dataframe(),
-                        "value": up.ref.column("value"),
-                        "output": up.ref.output("doubled"),
+                        "dataset": up.ref.data(),
+                        "value": up.ref.feature("value"),
+                        "output": up.ref.feature("doubled"),
                     },
                 ),
             ),
@@ -60,7 +60,7 @@ def test_root_authoring_api_compiles_and_executes(
     assert action.binding.args == {
         "dataset": "$profiles.@.dataframe",
         "value": "$features.value",
-        "output": "$features.doubled.id",
+        "output": "$features.doubled",
     }
     assert model.functions["double"].args["dataset"].type == "dataframe"
     assert model.functions["double"].args["value"].type == "string"
@@ -75,25 +75,26 @@ def test_root_authoring_api_compiles_and_executes(
 
 @pytest.mark.parametrize("name", [None, "telemetry"])
 def test_dataframe_helper_matches_existing_selectors(name: str | None) -> None:
-    expected = ref.current_profile() if name is None else ref.profile(name)
-    assert up.ref.dataframe(name) == expected.dataframe
-    assert binding_conversion.argument_definition(up.ref.dataframe(name)) == {"type": "dataframe"}
+    expected = ref.profile() if name is None else ref.profile(name)
+    assert up.ref.data(name) == expected.data
+    assert binding_conversion.argument_definition(up.ref.data(name)) == {"type": "dataframe"}
 
 
-def test_column_and_output_helpers_preserve_document_values() -> None:
-    assert up.ref.column("value") == ref.feature("value")
-    output = up.ref.output("result")
-    assert output.to_model() == ref.feature("result").id.to_model()
+def test_feature_reference_defaults_to_id_binding() -> None:
+    assert up.ref.feature("value") == ref.feature("value")
+    output = up.ref.feature("result")
+    assert output.to_model() == "$features.result"
     assert binding_conversion.argument_definition(output) == {"type": "string"}
 
 
 def test_global_parameter_and_feature_authoring() -> None:
-    parameter = up.ref.parameter("asset_limit")
+    parameter = up.ref.params("asset_limit")
     feature = up.Feature(id="asset_limit").to_model()
 
-    assert parameter == "$params.asset_limit"
-    assert up.ref.source("telemetry_source") == "$params.telemetry_source"
-    assert up.ref.sink("results_path") == "$params.results_path"
+    assert parameter == up.Params("asset_limit")
+    assert parameter.to_model() == "$params.asset_limit"
+    assert up.ref.params("telemetry_source").to_model() == "$params.telemetry_source"
+    assert up.ref.params("results_path").to_model() == "$params.results_path"
     assert feature.id == "asset_limit"
     assert feature.name == "Asset Limit"
 
@@ -120,8 +121,8 @@ def test_profile_features_attributes_can_be_action_outputs() -> None:
 
 @pytest.mark.parametrize("shape", ["direct", "list", "tuple", "dict", "bind", "context"])
 @pytest.mark.parametrize("declared", [False, True])
-def test_output_references_validate_nested_arguments(shape: str, declared: bool) -> None:
-    output = up.ref.output("result")
+def test_feature_roles_follow_interface_in_nested_arguments(shape: str, declared: bool) -> None:
+    output = up.ref.feature("result")
     shapes: dict[str, typing.Any] = {
         "direct": output,
         "list": [output],
@@ -143,18 +144,12 @@ def test_output_references_validate_nested_arguments(shape: str, declared: bool)
             ),
         )
 
-    if not declared:
-        with pytest.raises(
-            ValueError, match="Operator 'calculate' references undeclared output 'result'"
-        ):
-            create_action()
-    else:
-        action = create_action()
-        assert action.to_model().input_features == []
-        assert action.to_model().output_features == ["result"]
+    action = create_action()
+    assert action.to_model().input_features == ([] if declared else ["result"])
+    assert action.to_model().output_features == (["result"] if declared else [])
 
 
-def test_mutated_output_references_are_revalidated_on_conversion() -> None:
+def test_mutated_interface_updates_inferred_input_roles() -> None:
     action = up.Operator(
         id="calculate",
         interface=up.Interface(
@@ -162,9 +157,8 @@ def test_mutated_output_references_are_revalidated_on_conversion() -> None:
         ),
         compute=up.Binding(
             function=ref.function("external:calculate", kind="vectorize"),
-            arguments={"output": up.ref.output("result")},
+            arguments={"output": up.ref.feature("result")},
         ),
     )
     action.interface.outputs.clear()
-    with pytest.raises(ValueError, match="undeclared output 'result'"):
-        action.to_model()
+    assert action.to_model().input_features == ["result"]

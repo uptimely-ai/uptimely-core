@@ -14,8 +14,8 @@ ratios, and writes the results internally.
 The Python modules import authoring classes and helpers directly from
 `uptimely`, for example `from uptimely import Operator, Feature, Profile, ref`.
 Functions use `from uptimely import function` and `@function` for analytical
-contracts. Argument wiring uses `ref.dataframe()`, `ref.column()`, and
-`ref.output()`. Row-window binding helpers are imported separately from
+contracts. Argument wiring uses `ref.data()`, `ref.feature()`, and
+`ref.feature()`. Row-window binding helpers are imported separately from
 `uptimely.spec.python.row_context`.
 
 ## Running the example

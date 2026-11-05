@@ -158,8 +158,8 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.read_pump_telemetry,
                     arguments=dict(
-                        source=ref.source("telemetry_source"),
-                        pump_assets_source=ref.source("pump_assets_source"),
+                        source=ref.params("telemetry_source"),
+                        pump_assets_source=ref.params("pump_assets_source"),
                         environment="development",
                     ),
                 ),
@@ -174,10 +174,10 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.extract_field,
                     arguments=dict(
-                        dataset=ref.dataframe(),
-                        column=ref.column("operating_point_recommendation"),
+                        dataset=ref.data(),
+                        column=features.operating_point_recommendation,
                         field="recommended_flow_rate",
-                        output=ref.output("recommended_flow_rate"),
+                        output=features.recommended_flow_rate,
                     ),
                 ),
             ),
@@ -189,10 +189,10 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.extract_field,
                     arguments=dict(
-                        dataset=ref.dataframe(),
-                        column=ref.column("operating_point_recommendation"),
+                        dataset=ref.data(),
+                        column=features.operating_point_recommendation,
                         field="recommended_discharge_pressure",
-                        output=ref.output("recommended_discharge_pressure"),
+                        output=features.recommended_discharge_pressure,
                     ),
                 ),
             ),
@@ -204,10 +204,10 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.extract_field,
                     arguments=dict(
-                        dataset=ref.dataframe(),
-                        column=ref.column("operating_point_recommendation"),
+                        dataset=ref.data(),
+                        column=features.operating_point_recommendation,
                         field="energy_cost_score",
-                        output=ref.output("energy_cost_score"),
+                        output=features.energy_cost_score,
                     ),
                 ),
             ),
@@ -219,10 +219,10 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.extract_field,
                     arguments=dict(
-                        dataset=ref.dataframe(),
-                        column=ref.column("operating_point_recommendation"),
+                        dataset=ref.data(),
+                        column=features.operating_point_recommendation,
                         field="converged",
-                        output=ref.output("converged"),
+                        output=features.converged,
                     ),
                 ),
             ),
@@ -234,14 +234,14 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.ratio,
                     arguments=dict(
-                        dataset=ref.dataframe(),
+                        dataset=ref.data(),
                         numerator_features=[
-                            ref.column("discharge_pressure"),
-                            ref.column("flow_rate"),
+                            features.discharge_pressure,
+                            features.flow_rate,
                         ],
-                        denominator_features=[ref.column("motor_power")],
+                        denominator_features=[features.motor_power],
                         scale=HYDRAULIC_POWER_SCALE,
-                        output=ref.output("pressure_flow_efficiency"),
+                        output=features.pressure_flow_efficiency,
                     ),
                 ),
             ),
@@ -253,9 +253,9 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.broadcast_constant,
                     arguments=dict(
-                        constants=ref.dataframe("constants"),
-                        feature=ref.column("room_temperature"),
-                        output=ref.output("room_temperature_reference"),
+                        constants=ref.data("constants"),
+                        feature=ref.feature("room_temperature"),
+                        output=features.room_temperature_reference,
                     ),
                 ),
             ),
@@ -267,10 +267,10 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.subtract,
                     arguments=dict(
-                        dataset=ref.dataframe(),
-                        feature=ref.column("bearing_temperature"),
-                        subtrahend=ref.column("room_temperature_reference"),
-                        output=ref.output("bearing_temperature_rise"),
+                        dataset=ref.data(),
+                        feature=features.bearing_temperature,
+                        subtrahend=features.room_temperature_reference,
+                        output=features.bearing_temperature_rise,
                     ),
                 ),
             ),
@@ -282,11 +282,11 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.delta,
                     arguments=dict(
-                        dataset=ref.dataframe(),
-                        feature=ref.column("bearing_temperature"),
+                        dataset=ref.data(),
+                        feature=features.bearing_temperature,
                         partition_by=[ref.feature("pump_id").id],
                         order_by=ref.feature("timestamp").id,
-                        output=ref.output("bearing_temperature_delta"),
+                        output=features.bearing_temperature_delta,
                     ),
                 ),
                 row_context=row_context.rows(1, before=1),
@@ -299,11 +299,11 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.delta,
                     arguments=dict(
-                        dataset=ref.dataframe(),
-                        feature=ref.column("vibration_rms"),
+                        dataset=ref.data(),
+                        feature=features.vibration_rms,
                         partition_by=[ref.feature("pump_id").id],
                         order_by=ref.feature("timestamp").id,
-                        output=ref.output("vibration_delta"),
+                        output=features.vibration_delta,
                     ),
                 ),
                 row_context=row_context.rows(1, before=1),
@@ -316,13 +316,13 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.pump_health_score,
                     arguments=dict(
-                        dataset=ref.dataframe(),
+                        dataset=ref.data(),
                         health_features=[
-                            ref.column("bearing_temperature_delta"),
-                            ref.column("vibration_delta"),
-                            ref.column("pressure_flow_efficiency"),
+                            features.bearing_temperature_delta,
+                            features.vibration_delta,
+                            features.pressure_flow_efficiency,
                         ],
-                        output=ref.output("pump_health_score"),
+                        output=features.pump_health_score,
                     ),
                 ),
             ),
@@ -334,15 +334,15 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.optimize_pump_operating_point,
                     arguments=dict(
-                        dataset=ref.dataframe(),
+                        dataset=ref.data(),
                         optimization_features=[
-                            ref.column("discharge_pressure"),
-                            ref.column("flow_rate"),
-                            ref.column("motor_power"),
-                            ref.column("bearing_temperature"),
-                            ref.column("vibration_rms"),
+                            features.discharge_pressure,
+                            features.flow_rate,
+                            features.motor_power,
+                            features.bearing_temperature,
+                            features.vibration_rms,
                         ],
-                        output=ref.output("operating_point_recommendation"),
+                        output=features.operating_point_recommendation,
                     ),
                 ),
             ),
@@ -356,18 +356,18 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.write_pump_telemetry,
                     arguments=dict(
-                        dataset=ref.current_profile(),
+                        dataset=ref.data(),
                         features=[
-                            ref.column("recommended_flow_rate"),
-                            ref.column("recommended_discharge_pressure"),
-                            ref.column("energy_cost_score"),
-                            ref.column("converged"),
-                            ref.column("pressure_flow_efficiency"),
-                            ref.column("bearing_temperature_rise"),
-                            ref.column("bearing_temperature_delta"),
-                            ref.column("vibration_delta"),
-                            ref.column("pump_health_score"),
-                            ref.column("operating_point_recommendation"),
+                            features.recommended_flow_rate,
+                            features.recommended_discharge_pressure,
+                            features.energy_cost_score,
+                            features.converged,
+                            features.pressure_flow_efficiency,
+                            features.bearing_temperature_rise,
+                            features.bearing_temperature_delta,
+                            features.vibration_delta,
+                            features.pump_health_score,
+                            features.operating_point_recommendation,
                         ],
                     ),
                 ),
