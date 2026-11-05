@@ -42,7 +42,7 @@ class Pump(up.Profile):
     grain = [up.Grain(machine, "machine")]
     features = PumpFeatures()
 
-    actions = [
+    assembly = [
         up.Action(
             id="temperature_max",
             interface=up.Interface(
@@ -156,16 +156,16 @@ data, and may be used for output-name arguments. Declare produced features in
 `interface.outputs`; they are not inferred from arguments. In the resulting
 spec document, dependencies are recorded explicitly in `features.inputs`.
 Writes use `interface=Interface(outputs=[])`. For
-generated declarations, use `Profile(id=..., grain=[...], actions=[...])`.
+generated declarations, use `Profile(id=..., grain=[...], assembly=[...])`.
 
-### Profile actions
+### Profile assembly
 
-Each profile declares all work in one `actions` list. For readability, a
+Each profile declares its work in one `assembly` list. For readability, a
 mapping of group names to action lists is also accepted and flattened in
 insertion order:
 
 ```python
-actions = {
+assembly = {
     "ingestion": [read_action],
     "calculations": [calculate_action],
     "publishing": [write_action],
@@ -178,11 +178,11 @@ non-empty and unique within the profile. Reusing one function in multiple
 actions is allowed with distinct action IDs; `function_id` separately
 identifies its reusable catalog contract.
 
-Actions default to an empty list and are copied for each profile instance.
+The assembly defaults to an empty list and is copied for each profile instance.
 Constructor arguments replace the class declaration, including when an empty
-list is passed. Subclasses inherit actions using normal Python attribute lookup:
-defining `actions` replaces the inherited list rather than merging it. To extend
-it, write `actions = [*Base.actions, another_action]`.
+list is passed. Subclasses inherit assembly using normal Python attribute lookup:
+defining `assembly` replaces the inherited list rather than merging it. To extend
+it, write `assembly = [*Base.assembly, another_action]`.
 
 List order and group order do not impose execution order. Declared feature
 dependencies determine scheduling. Uptimely does not inspect an escape
@@ -191,19 +191,19 @@ function's internal steps.
 ### Migrating from FunctionMapping
 
 - Replace `FunctionMapping(...)` with `Action(id=..., ...)`. Move named profile
-  attributes or entries in `mappings={...}` into the appropriate action list.
+  attributes or entries in `mappings={...}` into the appropriate assembly list.
   Use the former attribute name or dictionary key as the action ID.
 - Replace imports from `uptimely.spec.python.mapping` or
   `uptimely.spec.python.mappings` with `uptimely.spec.python.actions`, or import
   `Action` directly from `uptimely.spec.python`.
-- Access declarations through their collection rather than `Profile.mappings`.
+- Access declarations through `Profile.assembly` rather than `Profile.mappings`.
 - Convert an action with `Action.to_model()`; its own ID supplies the canonical
   action identifier. Feature metadata remains in `outputs`, and
   `Feature.to_model()` is unchanged.
 
-The old Python authoring names and `mappings` constructor argument are removed.
-The canonical document model and exported JSON now use `actions` in each
-profile. The current JSON contract is spec version 4; see the
+Python profiles expose declarations through `Profile.assembly`; the canonical
+document model and exported JSON continue to use `actions` in each profile.
+The current JSON contract is spec version 4; see the
 [spec migration guide](../components/spec.md#migrating-from-spec-version-3).
 
 <div class="api-reference" markdown="1">
@@ -246,10 +246,10 @@ optional class registries.
       heading_level: 3
       show_root_heading: false
 
-## actions
+## actions module
 
-`uptimely.spec.python.actions` declares analytical work, function arguments,
-feature inputs and outputs, and execution requirements.
+`uptimely.spec.python.actions` defines the `Action`, `Interface`, and `Binding`
+declarations used in a profile's assembly.
 
 ::: uptimely.spec.python.actions
     options:

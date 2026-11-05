@@ -32,7 +32,7 @@ def test_root_authoring_api_compiles_and_executes(
                 "id",
             )
         ]
-        actions = [
+        assembly = [
             up.Action(
                 id="read",
                 interface=up.Interface(outputs=[up.Feature(id="value")]),

@@ -23,7 +23,7 @@ class Values(Profile):
     id = "values"
     grain = [Grain(row, "row")]
 
-    actions = [
+    assembly = [
         Action(
             id="read",
             function=ref.function(functions.Readers.values, kind="read"),

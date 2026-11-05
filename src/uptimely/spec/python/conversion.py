@@ -82,7 +82,7 @@ def to_model(
 
     if logger.isEnabledFor(logging.DEBUG):
         action_count = sum(
-            len(declaration.actions)
+            len(declaration.assembly)
             for declaration in declarations
             if isinstance(declaration, profile_module.Profile)
         )

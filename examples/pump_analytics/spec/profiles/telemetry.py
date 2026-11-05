@@ -141,7 +141,7 @@ class Telemetry(Profile):
     order = (Order(dimension.TIMESTAMP, "timestamp", direction="asc"),)
     features = TelemetryFeatures()
 
-    actions = dict(
+    assembly = dict(
         ingestion=[
             Action(
                 id="read_pump_telemetry",

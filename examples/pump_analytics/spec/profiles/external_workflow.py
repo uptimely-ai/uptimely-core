@@ -36,7 +36,7 @@ class PumpExternalWorkflow(Profile):
     grain = [Grain(dimension.MACHINE, "machine")]
     features = PumpExternalWorkflowFeatures()
 
-    actions = [
+    assembly = [
         Action(
             id="read_pump_external_inputs",
             interface=Interface(

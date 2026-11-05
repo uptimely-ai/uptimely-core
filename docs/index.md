@@ -102,7 +102,7 @@ class CalculatedData(up.Profile):
     id = "calculated_profile"
     grain = [up.Grain(measurement_id, "measurement_id")]
 
-    actions = [
+    assembly = [
         up.Action(
             id="read",
             function=read_values,
