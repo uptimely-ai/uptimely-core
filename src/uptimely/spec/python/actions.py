@@ -16,52 +16,137 @@ from . import feature as feature_module
 from . import functions as function_semantics
 from . import row_context as row_context_module
 
-__all__ = ["Action"]
+__all__ = ["Action", "Interface", "Binding"]
 
 _Function = abc.Callable[..., object] | str | ref.FunctionReference
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
+class Interface:
+    """Declare the feature dependencies and outputs of an action."""
+
+    inputs: list[feature_module.Feature | ref.Reference | str] | None = None
+    outputs: list[feature_module.Feature] = dataclasses.field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Copy interface collections into mutable lists."""
+        if self.inputs is not None:
+            object.__setattr__(self, "inputs", list(self.inputs))
+        object.__setattr__(self, "outputs", list(self.outputs))
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class Binding:
+    """Bind an implementation to its named arguments."""
+
+    function: _Function
+    arguments: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True, init=False)
 class Action:
-    """Declare analytical work without executing its implementation.
+    """Declare action identity, logical interface, and computation.
 
     Args:
         id: Non-empty action identifier, unique within its dataset.
-        function: Real callable, entrypoint string, or explicit function reference.
-        arguments: Named implementation arguments, including structural references.
-        outputs: Named feature outputs in declaration order; empty for writes.
+        interface: Feature dependencies and outputs. Inputs are inferred from
+            compute arguments when omitted.
+        compute: Computation function and named arguments.
         function_id: Optional function catalog ID, defaulting to the function name.
-        inputs: Explicit feature dependencies, useful for opaque data access.
-            Otherwise dependencies are collected from feature-valued arguments.
-            Identifier selectors do not imply data dependencies.
         row_context: Action-specific observation requirements, merged with
             argument annotations.
     """
 
     id: str
-    function: _Function
-    arguments: dict[str, typing.Any]
-    outputs: list[feature_module.Feature]
+    compute: Binding
+    interface: Interface
     function_id: str | None = None
-    inputs: list[ref.Reference | str] | None = None
     row_context: (
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
 
-    def __post_init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        id: str,
+        compute: Binding | None = None,
+        interface: Interface | None = None,
+        function: _Function | None = None,
+        arguments: dict[str, typing.Any] | None = None,
+        outputs: abc.Sequence[feature_module.Feature] | None = None,
+        inputs: abc.Sequence[feature_module.Feature | ref.Reference | str] | None = None,
+        function_id: str | None = None,
+        row_context: (
+            row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
+        ) = None,
+    ) -> None:
         """Validate the declaration and merge argument-level row-context annotations."""
+        if compute is None:
+            if function is None:
+                raise TypeError("Action requires 'function' or 'compute'")
+            if arguments is None:
+                raise TypeError("Action requires 'arguments'")
+            if outputs is None:
+                raise TypeError("Action requires 'outputs'")
+            compute = Binding(function=function, arguments=arguments)
+        elif function is not None or arguments is not None:
+            compute = Binding(
+                function=compute.function if function is None else function,
+                arguments=compute.arguments if arguments is None else arguments,
+            )
+        if interface is None:
+            interface = Interface(
+                inputs=None if inputs is None else list(inputs),
+                outputs=[] if outputs is None else list(outputs),
+            )
+        elif outputs is not None or inputs is not None:
+            interface = Interface(
+                inputs=interface.inputs if inputs is None else list(inputs),
+                outputs=interface.outputs if outputs is None else list(outputs),
+            )
+        if not isinstance(compute, Binding):
+            raise TypeError("Action compute must be a Binding")
+        if not isinstance(interface, Interface):
+            raise TypeError("Action interface must be an Interface")
+        object.__setattr__(self, "id", id)
+        object.__setattr__(self, "compute", compute)
+        object.__setattr__(self, "interface", interface)
+        object.__setattr__(self, "function_id", function_id)
+        object.__setattr__(self, "row_context", row_context)
         if not isinstance(self.id, str) or not self.id.strip():
             raise ValueError("Action requires a non-empty id")
         _ = self.kind
-        output_ids = [output.id for output in self.outputs]
+        output_ids = [output.id for output in self.interface.outputs]
         if len(output_ids) != len(set(output_ids)):
             raise ValueError("Action output feature IDs must not repeat")
         validation.validate_action_output_references(
-            self.id, self._references(self.arguments), (output.id for output in self.outputs)
+            self.id,
+            self._references(self.arguments),
+            (output.id for output in self.outputs),
         )
         object.__setattr__(
             self, "row_context", row_context_module._context(self.arguments, self.row_context)
         )
+
+    @property
+    def function(self) -> _Function:
+        """Return the bound implementation."""
+        return self.compute.function
+
+    @property
+    def arguments(self) -> dict[str, typing.Any]:
+        """Return the computation's named arguments."""
+        return self.compute.arguments
+
+    @property
+    def outputs(self) -> list[feature_module.Feature]:
+        """Return the action's declared output features."""
+        return self.interface.outputs
+
+    @property
+    def inputs(self) -> list[feature_module.Feature | ref.Reference | str] | None:
+        """Return declared input features, or None when they are inferred."""
+        return self.interface.inputs
 
     @property
     def kind(self) -> functions.FunctionKindId:
@@ -107,11 +192,7 @@ class Action:
     def to_model(self) -> spec_model.Action:
         """Convert this declaration to its canonical document model."""
         arguments = self.bound_arguments()
-        inputs = (
-            [self._feature_id(value) for value in self.inputs]
-            if self.inputs is not None
-            else self._inputs(self.arguments)
-        )
+        inputs = self._input_ids()
         return spec_model.Action(
             id=self.id,
             binding=spec_model.Binding(
@@ -146,14 +227,22 @@ class Action:
         )
 
     @staticmethod
-    def _feature_id(value: ref.Reference | str) -> str:
+    def _feature_id(value: feature_module.Feature | ref.Reference | str) -> str:
         """Return a feature identifier or reject a reference to another resource."""
+        if isinstance(value, feature_module.Feature):
+            return value.id
         if isinstance(value, ref.Reference):
             prefix, _, identifier = value.value.rpartition(".")
             if prefix != selectors.FEATURE_PREFIX.removesuffix("."):
                 raise ValueError(f"Action input must reference a feature, got {value.value!r}")
             return identifier
         return value.removeprefix(selectors.FEATURE_PREFIX)
+
+    def _input_ids(self) -> list[str]:
+        """Return declared input IDs or infer them from feature bindings."""
+        if self.inputs is None:
+            return self._inputs(self.arguments)
+        return [self._feature_id(value) for value in self.inputs]
 
     @staticmethod
     def _action_features(

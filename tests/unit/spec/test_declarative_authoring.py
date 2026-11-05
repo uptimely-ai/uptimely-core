@@ -303,6 +303,23 @@ def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -
     assert set(declaration.function_catalog()) == {"custom"}
 
 
+def test_action_interface_inputs_accept_feature_declarations() -> None:
+    action = authoring.Action(
+        id="calculate",
+        interface=authoring.Interface(
+            inputs=[authoring.Feature(id="explicit")],
+            outputs=[authoring.Feature(id="result")],
+        ),
+        compute=authoring.Binding(
+            function=ref.function("calculation:calculate", kind="vectorize"),
+            arguments={"value": ref.feature("inferred")},
+        ),
+    )
+
+    assert action.to_model().input_features == ["explicit"]
+    assert action.to_model().output_features == ["result"]
+
+
 def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None:
     identifier = dimension.Dimension(
         id="machine",
@@ -425,7 +442,10 @@ def test_action_groups_flatten_in_mapping_order() -> None:
     second = dataclasses.replace(
         first,
         id="write",
-        function=ref.function("writer:write", kind="write"),
+        compute=dataclasses.replace(
+            first.compute,
+            function=ref.function("writer:write", kind="write"),
+        ),
     )
     declaration = authoring.Profile(
         id="example",
@@ -446,7 +466,11 @@ def test_action_ids_are_unique_across_groups(second_kind: functions.FunctionKind
         outputs=[],
     )
     second = dataclasses.replace(
-        first, function=ref.function("implementation:work", kind=second_kind)
+        first,
+        compute=dataclasses.replace(
+            first.compute,
+            function=ref.function("implementation:work", kind=second_kind),
+        ),
     )
     with pytest.raises(ValueError, match="Profile 'example' has duplicate action ID 'duplicate'"):
         authoring.Profile(

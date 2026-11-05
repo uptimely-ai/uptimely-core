@@ -35,19 +35,20 @@ def test_root_authoring_api_compiles_and_executes(
         actions = [
             up.Action(
                 id="read",
-                function=read_values,
-                arguments={},
-                outputs=[up.Feature(id="value")],
+                interface=up.Interface(outputs=[up.Feature(id="value")]),
+                compute=up.Binding(function=read_values),
             ),
             up.Action(
                 id="double",
-                function=double,
-                arguments={
-                    "dataset": up.ref.dataframe(),
-                    "value": up.ref.column("value"),
-                    "output": up.ref.output("doubled"),
-                },
-                outputs=[up.Feature(id="doubled")],
+                interface=up.Interface(outputs=[up.Feature(id="doubled")]),
+                compute=up.Binding(
+                    function=double,
+                    arguments={
+                        "dataset": up.ref.dataframe(),
+                        "value": up.ref.column("value"),
+                        "output": up.ref.output("doubled"),
+                    },
+                ),
             ),
         ]
 

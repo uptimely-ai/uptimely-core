@@ -45,14 +45,18 @@ class Pump(up.Profile):
     actions = [
         up.Action(
             id="temperature_max",
-            function=maximum,
-            arguments=dict(
-                dataset=up.ref.dataframe("telemetry"),
-                feature=up.ref.column("bearing_temperature"),
-                dimensions=up.ref.current_profile().grain.ids,
-                output=up.ref.output("bearing_temperature_max"),
+            interface=up.Interface(
+                outputs=[features.bearing_temperature_max],
             ),
-            outputs=[features.bearing_temperature_max],
+            compute=up.Binding(
+                function=maximum,
+                arguments=dict(
+                    dataset=up.ref.dataframe("telemetry"),
+                    feature=up.ref.column("bearing_temperature"),
+                    dimensions=up.ref.current_profile().grain.ids,
+                    output=up.ref.output("bearing_temperature_max"),
+                ),
+            ),
         ),
     ]
 ```
@@ -71,8 +75,9 @@ python_spec = up.Spec(
 )
 ```
 
-Root-level `Spec`, `Profile`, `Action`, `Dimension`, `Resolution`, `Grain`,
-`Feature` and `FeatureSet` are Python authoring classes.
+Root-level `Spec`, `Profile`, `Action`, `Interface`, `Binding`,
+`Dimension`, `Resolution`, `Grain`, `Feature` and `FeatureSet` are Python
+authoring classes.
 Document-model classes remain under `uptimely.spec.model` and the existing
 `uptimely.spec` exports. The authoring `Spec` is defined as
 `uptimely.spec.python.spec.Spec` and exported as `up.Spec` and
@@ -91,9 +96,14 @@ collected from the registered profiles; reference resolution does not mutate
 the supplied declarations. `ProfileRegistry([Pump]).to_declarations()` can
 instantiate and register profile classes.
 
-`Action` declares work without executing it. It takes `id`, `function`,
-`arguments`, and `outputs`, with optional `inputs`, `function_id`, and
-`row_context` requirements. Optionally annotate callable implementations with
+`Action` declares work without executing it. It takes an `id`, an `interface`,
+and a `binding`. `Binding` contains the implementation `function` and named
+`arguments`; `Interface` contains feature `inputs` and `outputs`.
+Interface inputs are optional: if omitted, feature references in binding
+arguments are inferred as dependencies. If supplied, they define the
+dependencies instead. Existing flat `function`, `arguments`, `inputs`, and
+`outputs` keywords remain accepted for compatibility. `Action` also accepts
+optional `function_id` and `row_context` requirements. Optionally annotate callable implementations with
 `@function(kind=...)`. The decorator attaches semantic metadata for validation;
 it returns the original function without wrapping or executing it. Alternatively,
 keep implementations undecorated and supply their contract through
@@ -141,13 +151,11 @@ and [engine fragment contract](../components/engine.md#fragments).
 The implementation module's package must be installed in the build and runtime
 environments; install a local project package in editable mode for development.
 
-In Python authoring, declare `inputs` explicitly whenever practical. If
-`inputs` is omitted, feature references in `arguments` are used to infer them;
-if `inputs` is supplied, it defines the dependencies instead. References such
-as `ref.feature("result").id` pass an identifier, not feature data, and may be
-used for output-name arguments. Declare produced features in `outputs`; they
-are not inferred from arguments. In the resulting spec document, dependencies
-are recorded explicitly in `features.inputs`. Writes use `outputs=[]`. For
+References such as `ref.feature("result").id` pass an identifier, not feature
+data, and may be used for output-name arguments. Declare produced features in
+`interface.outputs`; they are not inferred from arguments. In the resulting
+spec document, dependencies are recorded explicitly in `features.inputs`.
+Writes use `interface=Interface(outputs=[])`. For
 generated declarations, use `Profile(id=..., grain=[...], actions=[...])`.
 
 ### Profile actions

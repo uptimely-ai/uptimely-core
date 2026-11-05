@@ -10,11 +10,13 @@ from .spec import (  # noqa: I001
 )
 from .spec.python import (
     Action,
+    Binding,
     Grain,
     Profile,
     Dimension,
     Feature,
     FeatureSet,
+    Interface,
     Order,
     Resolution,
     Spec,
@@ -28,6 +30,8 @@ from .engine import Engine
 __all__ = [
     "Spec",
     "Action",
+    "Interface",
+    "Binding",
     "Profile",
     "Feature",
     "FeatureSet",

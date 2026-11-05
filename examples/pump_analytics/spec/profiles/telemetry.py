@@ -3,7 +3,17 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Action, Feature, FeatureSet, Grain, Order, Profile, ref
+from uptimely import (
+    Action,
+    Binding,
+    Feature,
+    FeatureSet,
+    Grain,
+    Interface,
+    Order,
+    Profile,
+    ref,
+)
 from uptimely.spec.python import row_context
 
 HYDRAULIC_POWER_SCALE = 1.0 / 36.0
@@ -135,180 +145,232 @@ class Telemetry(Profile):
         ingestion=[
             Action(
                 id="read_pump_telemetry",
-                function=analytics.read_pump_telemetry,
-                arguments=dict(
-                    source=ref.source("telemetry_source"),
-                    pump_assets_source=ref.source("pump_assets_source"),
-                    environment="development",
+                interface=Interface(
+                    outputs=[
+                        features.discharge_pressure,
+                        features.flow_rate,
+                        features.bearing_temperature,
+                        features.vibration_rms,
+                        features.motor_power,
+                        features.operation_mode,
+                    ],
                 ),
-                outputs=[
-                    features.discharge_pressure,
-                    features.flow_rate,
-                    features.bearing_temperature,
-                    features.vibration_rms,
-                    features.motor_power,
-                    features.operation_mode,
-                ],
+                compute=Binding(
+                    function=analytics.read_pump_telemetry,
+                    arguments=dict(
+                        source=ref.source("telemetry_source"),
+                        pump_assets_source=ref.source("pump_assets_source"),
+                        environment="development",
+                    ),
+                ),
             ),
         ],
         calculations=[
             Action(
                 id="recommended_flow_rate",
-                function=analytics.extract_field,
-                arguments=dict(
-                    dataset=ref.dataframe(),
-                    column=ref.column("operating_point_recommendation"),
-                    field="recommended_flow_rate",
-                    output=ref.output("recommended_flow_rate"),
+                interface=Interface(
+                    outputs=[features.recommended_flow_rate],
                 ),
-                outputs=[features.recommended_flow_rate],
+                compute=Binding(
+                    function=analytics.extract_field,
+                    arguments=dict(
+                        dataset=ref.dataframe(),
+                        column=ref.column("operating_point_recommendation"),
+                        field="recommended_flow_rate",
+                        output=ref.output("recommended_flow_rate"),
+                    ),
+                ),
             ),
             Action(
                 id="recommended_discharge_pressure",
-                function=analytics.extract_field,
-                arguments=dict(
-                    dataset=ref.dataframe(),
-                    column=ref.column("operating_point_recommendation"),
-                    field="recommended_discharge_pressure",
-                    output=ref.output("recommended_discharge_pressure"),
+                interface=Interface(
+                    outputs=[features.recommended_discharge_pressure],
                 ),
-                outputs=[features.recommended_discharge_pressure],
+                compute=Binding(
+                    function=analytics.extract_field,
+                    arguments=dict(
+                        dataset=ref.dataframe(),
+                        column=ref.column("operating_point_recommendation"),
+                        field="recommended_discharge_pressure",
+                        output=ref.output("recommended_discharge_pressure"),
+                    ),
+                ),
             ),
             Action(
                 id="energy_cost_score",
-                function=analytics.extract_field,
-                arguments=dict(
-                    dataset=ref.dataframe(),
-                    column=ref.column("operating_point_recommendation"),
-                    field="energy_cost_score",
-                    output=ref.output("energy_cost_score"),
+                interface=Interface(
+                    outputs=[features.energy_cost_score],
                 ),
-                outputs=[features.energy_cost_score],
+                compute=Binding(
+                    function=analytics.extract_field,
+                    arguments=dict(
+                        dataset=ref.dataframe(),
+                        column=ref.column("operating_point_recommendation"),
+                        field="energy_cost_score",
+                        output=ref.output("energy_cost_score"),
+                    ),
+                ),
             ),
             Action(
                 id="converged",
-                function=analytics.extract_field,
-                arguments=dict(
-                    dataset=ref.dataframe(),
-                    column=ref.column("operating_point_recommendation"),
-                    field="converged",
-                    output=ref.output("converged"),
+                interface=Interface(
+                    outputs=[features.converged],
                 ),
-                outputs=[features.converged],
+                compute=Binding(
+                    function=analytics.extract_field,
+                    arguments=dict(
+                        dataset=ref.dataframe(),
+                        column=ref.column("operating_point_recommendation"),
+                        field="converged",
+                        output=ref.output("converged"),
+                    ),
+                ),
             ),
             Action(
                 id="pressure_flow_efficiency",
-                function=analytics.ratio,
-                arguments=dict(
-                    dataset=ref.dataframe(),
-                    numerator_features=[
-                        ref.column("discharge_pressure"),
-                        ref.column("flow_rate"),
-                    ],
-                    denominator_features=[ref.column("motor_power")],
-                    scale=HYDRAULIC_POWER_SCALE,
-                    output=ref.output("pressure_flow_efficiency"),
+                interface=Interface(
+                    outputs=[features.pressure_flow_efficiency],
                 ),
-                outputs=[features.pressure_flow_efficiency],
+                compute=Binding(
+                    function=analytics.ratio,
+                    arguments=dict(
+                        dataset=ref.dataframe(),
+                        numerator_features=[
+                            ref.column("discharge_pressure"),
+                            ref.column("flow_rate"),
+                        ],
+                        denominator_features=[ref.column("motor_power")],
+                        scale=HYDRAULIC_POWER_SCALE,
+                        output=ref.output("pressure_flow_efficiency"),
+                    ),
+                ),
             ),
             Action(
                 id="room_temperature_reference",
-                function=analytics.broadcast_constant,
-                arguments=dict(
-                    constants=ref.dataframe("constants"),
-                    feature=ref.column("room_temperature"),
-                    output=ref.output("room_temperature_reference"),
+                interface=Interface(
+                    outputs=[features.room_temperature_reference],
                 ),
-                outputs=[features.room_temperature_reference],
+                compute=Binding(
+                    function=analytics.broadcast_constant,
+                    arguments=dict(
+                        constants=ref.dataframe("constants"),
+                        feature=ref.column("room_temperature"),
+                        output=ref.output("room_temperature_reference"),
+                    ),
+                ),
             ),
             Action(
                 id="bearing_temperature_rise",
-                function=analytics.subtract,
-                arguments=dict(
-                    dataset=ref.dataframe(),
-                    feature=ref.column("bearing_temperature"),
-                    subtrahend=ref.column("room_temperature_reference"),
-                    output=ref.output("bearing_temperature_rise"),
+                interface=Interface(
+                    outputs=[features.bearing_temperature_rise],
                 ),
-                outputs=[features.bearing_temperature_rise],
+                compute=Binding(
+                    function=analytics.subtract,
+                    arguments=dict(
+                        dataset=ref.dataframe(),
+                        feature=ref.column("bearing_temperature"),
+                        subtrahend=ref.column("room_temperature_reference"),
+                        output=ref.output("bearing_temperature_rise"),
+                    ),
+                ),
             ),
             Action(
                 id="bearing_temperature_delta",
-                function=analytics.delta,
-                arguments=dict(
-                    dataset=ref.dataframe(),
-                    feature=ref.column("bearing_temperature"),
-                    partition_by=[ref.feature("pump_id").id],
-                    order_by=ref.feature("timestamp").id,
-                    output=ref.output("bearing_temperature_delta"),
+                interface=Interface(
+                    outputs=[features.bearing_temperature_delta],
                 ),
-                outputs=[features.bearing_temperature_delta],
+                compute=Binding(
+                    function=analytics.delta,
+                    arguments=dict(
+                        dataset=ref.dataframe(),
+                        feature=ref.column("bearing_temperature"),
+                        partition_by=[ref.feature("pump_id").id],
+                        order_by=ref.feature("timestamp").id,
+                        output=ref.output("bearing_temperature_delta"),
+                    ),
+                ),
                 row_context=row_context.rows(1, before=1),
             ),
             Action(
                 id="vibration_delta",
-                function=analytics.delta,
-                arguments=dict(
-                    dataset=ref.dataframe(),
-                    feature=ref.column("vibration_rms"),
-                    partition_by=[ref.feature("pump_id").id],
-                    order_by=ref.feature("timestamp").id,
-                    output=ref.output("vibration_delta"),
+                interface=Interface(
+                    outputs=[features.vibration_delta],
                 ),
-                outputs=[features.vibration_delta],
+                compute=Binding(
+                    function=analytics.delta,
+                    arguments=dict(
+                        dataset=ref.dataframe(),
+                        feature=ref.column("vibration_rms"),
+                        partition_by=[ref.feature("pump_id").id],
+                        order_by=ref.feature("timestamp").id,
+                        output=ref.output("vibration_delta"),
+                    ),
+                ),
                 row_context=row_context.rows(1, before=1),
             ),
             Action(
                 id="pump_health_score",
-                function=analytics.pump_health_score,
-                arguments=dict(
-                    dataset=ref.dataframe(),
-                    health_features=[
-                        ref.column("bearing_temperature_delta"),
-                        ref.column("vibration_delta"),
-                        ref.column("pressure_flow_efficiency"),
-                    ],
-                    output=ref.output("pump_health_score"),
+                interface=Interface(
+                    outputs=[features.pump_health_score],
                 ),
-                outputs=[features.pump_health_score],
+                compute=Binding(
+                    function=analytics.pump_health_score,
+                    arguments=dict(
+                        dataset=ref.dataframe(),
+                        health_features=[
+                            ref.column("bearing_temperature_delta"),
+                            ref.column("vibration_delta"),
+                            ref.column("pressure_flow_efficiency"),
+                        ],
+                        output=ref.output("pump_health_score"),
+                    ),
+                ),
             ),
             Action(
                 id="operating_point_recommendation",
-                function=analytics.optimize_pump_operating_point,
-                arguments=dict(
-                    dataset=ref.dataframe(),
-                    optimization_features=[
-                        ref.column("discharge_pressure"),
-                        ref.column("flow_rate"),
-                        ref.column("motor_power"),
-                        ref.column("bearing_temperature"),
-                        ref.column("vibration_rms"),
-                    ],
-                    output=ref.output("operating_point_recommendation"),
+                interface=Interface(
+                    outputs=[features.operating_point_recommendation],
                 ),
-                outputs=[features.operating_point_recommendation],
+                compute=Binding(
+                    function=analytics.optimize_pump_operating_point,
+                    arguments=dict(
+                        dataset=ref.dataframe(),
+                        optimization_features=[
+                            ref.column("discharge_pressure"),
+                            ref.column("flow_rate"),
+                            ref.column("motor_power"),
+                            ref.column("bearing_temperature"),
+                            ref.column("vibration_rms"),
+                        ],
+                        output=ref.output("operating_point_recommendation"),
+                    ),
+                ),
             ),
         ],
         publishing=[
             Action(
                 id="write_pump_telemetry",
-                function=analytics.write_pump_telemetry,
-                arguments=dict(
-                    dataset=ref.current_profile(),
-                    features=[
-                        ref.column("recommended_flow_rate"),
-                        ref.column("recommended_discharge_pressure"),
-                        ref.column("energy_cost_score"),
-                        ref.column("converged"),
-                        ref.column("pressure_flow_efficiency"),
-                        ref.column("bearing_temperature_rise"),
-                        ref.column("bearing_temperature_delta"),
-                        ref.column("vibration_delta"),
-                        ref.column("pump_health_score"),
-                        ref.column("operating_point_recommendation"),
-                    ],
+                interface=Interface(
+                    outputs=[],
                 ),
-                outputs=[],
+                compute=Binding(
+                    function=analytics.write_pump_telemetry,
+                    arguments=dict(
+                        dataset=ref.current_profile(),
+                        features=[
+                            ref.column("recommended_flow_rate"),
+                            ref.column("recommended_discharge_pressure"),
+                            ref.column("energy_cost_score"),
+                            ref.column("converged"),
+                            ref.column("pressure_flow_efficiency"),
+                            ref.column("bearing_temperature_rise"),
+                            ref.column("bearing_temperature_delta"),
+                            ref.column("vibration_delta"),
+                            ref.column("pump_health_score"),
+                            ref.column("operating_point_recommendation"),
+                        ],
+                    ),
+                ),
             )
         ],
     )

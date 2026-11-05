@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import external_workflow
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Action, Feature, FeatureSet, Grain, Profile, ref
+from uptimely import Action, Binding, Feature, FeatureSet, Grain, Interface, Profile, ref
 
 
 class PumpExternalWorkflowFeatures(FeatureSet):
@@ -39,15 +39,23 @@ class PumpExternalWorkflow(Profile):
     actions = [
         Action(
             id="read_pump_external_inputs",
-            function=external_workflow.read_pump_external_inputs,
-            arguments={},
-            outputs=[features.measurement, features.reference_value],
+            interface=Interface(
+                outputs=[features.measurement, features.reference_value],
+            ),
+            compute=Binding(
+                function=external_workflow.read_pump_external_inputs,
+                arguments={},
+            ),
         ),
         Action(
             id="process_pump_external_workflow",
-            function=external_workflow.process_pump_external_workflow,
-            arguments={},
-            inputs=[ref.column("measurement"), ref.column("reference_value")],
-            outputs=[features.ratio],
+            interface=Interface(
+                inputs=[ref.column("measurement"), ref.column("reference_value")],
+                outputs=[features.ratio],
+            ),
+            compute=Binding(
+                function=external_workflow.process_pump_external_workflow,
+                arguments={},
+            ),
         ),
     ]

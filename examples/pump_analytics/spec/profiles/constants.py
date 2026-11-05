@@ -2,7 +2,7 @@
 
 from examples.pump_analytics.functions import analytics
 
-from uptimely import Action, Feature, FeatureSet, Profile, ref
+from uptimely import Action, Binding, Feature, FeatureSet, Interface, Profile, ref
 
 
 class ConstantsFeatures(FeatureSet):
@@ -34,8 +34,12 @@ class Constants(Profile):
     actions = [
         Action(
             id="read_constants",
-            function=analytics.read_constants,
-            arguments={"source": ref.source("constants_source")},
-            outputs=[features.gravity, features.room_temperature],
+            interface=Interface(
+                outputs=[features.gravity, features.room_temperature],
+            ),
+            compute=Binding(
+                function=analytics.read_constants,
+                arguments={"source": ref.source("constants_source")},
+            ),
         )
     ]

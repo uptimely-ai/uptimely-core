@@ -1,7 +1,7 @@
 """Python authoring declarations for spec."""
 
 from . import ref
-from .actions import Action
+from .actions import Action, Binding, Interface
 from .dimension import Dimension, Resolution
 from .feature import Feature, FeatureSet
 from .functions import function
@@ -10,6 +10,8 @@ from .spec import Spec
 
 __all__ = [
     "Action",
+    "Interface",
+    "Binding",
     "Profile",
     "Dimension",
     "Resolution",
