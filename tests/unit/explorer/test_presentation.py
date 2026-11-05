@@ -25,7 +25,7 @@ def test_build_presentation_data_returns_versioned_json_structures(
     assert data["scope"]["is_scoped"]
     assert data["catalogs"]["configuration"]
     assert data["catalogs"]["configuration"]["profiles"]["pump_profile"]["scope"] == (
-        "Telemetry available to the source profile"
+        "Pump-level telemetry and external workflow inputs"
     )
     assert data["graphs"]["feature_lineage"]["nodes"]
     assert data["graphs"]["invocation_lineage"]["nodes"]

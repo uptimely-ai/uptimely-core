@@ -48,11 +48,11 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     assert result.invocation_statuses[escape.id] == "succeeded"
     assert all(status == "succeeded" for status in result.invocation_statuses.values())
     assert result.failures == {}
-    assert len(result.main_frames) == 4
-    dataset = result.main_frames["pump_external_workflow"]
-    assert "ratio" in spec_definition.profiles["pump_external_workflow"].features
-    assert "ratio" not in dataset.columns
-    assert ("pump_external_workflow", "ratio") not in result.calculated_outputs
+    assert len(result.main_frames) == 3
+    dataset = result.main_frames["pump_profile"]
+    assert "ratio" in spec_definition.profiles["pump_profile"].features
+    assert "ratio" not in dataset.collect_schema().names()
+    assert ("pump_profile", "ratio") not in result.calculated_outputs
     assert pl.read_csv(output_path).select("pump_id", "ratio").rows() == [
         ("PUMP-101", 0.75),
         ("PUMP-201", 1.0),

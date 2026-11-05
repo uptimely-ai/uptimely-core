@@ -475,6 +475,7 @@ def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> No
         for node in subset.dependencies(normalized)
     } == {
         ("collapse", "aggregate"),
+        ("read", "read_pump_external_inputs"),
     }
     assert len(graph.invocations) == 18
 

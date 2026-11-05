@@ -132,10 +132,10 @@ def test_engine_cli_reports_processed_profiles(
 
     output = capsys.readouterr().out
     assert "Scope: all features" in output
-    assert "- Profile: pump_profile - 3 features" in output
+    assert "- Profile: pump_profile - 6 features" in output
     assert "Profile: pump_profile\n" in output
     assert "Profile: pump_telemetry\n" in output
-    assert output.index("- Profile: pump_profile - 3 features") < output.index(
+    assert output.index("- Profile: pump_profile - 6 features") < output.index(
         "Profile: pump_profile\n"
     )
     assert "shape:" not in output
@@ -180,7 +180,7 @@ def test_engine_cli_reports_scoped_saved_build(
 
     output = capsys.readouterr().out
     assert "Scope: selected features: health_signal_normalized" in output
-    assert "- Profile: pump_profile - 3 features" in output
+    assert "- Profile: pump_profile - 6 features" in output
 
 
 def test_engine_rejects_missing_parameter(
