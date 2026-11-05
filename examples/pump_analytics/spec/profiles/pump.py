@@ -33,7 +33,7 @@ class Pump(Profile):
     scope = "Telemetry available to the source profile"
     features = PumpFeatures()
 
-    producers = [
+    actions = [
         Action(
             id="bearing_temperature_by_pump",
             function=analytics.aggregate,

@@ -233,7 +233,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
     declaration = python_spec.profile.Profile(
         id="ordered_values",
         grain=[python_spec.profile.Grain(identifier, "id")],
-        producers=[
+        actions=[
             python_spec.actions.Action(
                 id="read",
                 inputs=[],
@@ -264,7 +264,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
         profiles=[
             python_spec.profile.Profile(
                 id=declaration.id,
-                producers=declaration.producers,
+                actions=declaration.actions,
                 grain=[python_spec.profile.Grain(identifier, "id")],
                 order=[python_spec.profile.Order(identifier, "id", direction="desc")],
             )

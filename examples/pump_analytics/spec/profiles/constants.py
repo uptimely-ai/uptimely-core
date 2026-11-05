@@ -31,7 +31,7 @@ class Constants(Profile):
     category = "Configuration"
     features = ConstantsFeatures()
 
-    producers = [
+    actions = [
         Action(
             id="read_constants",
             function=analytics.read_constants,

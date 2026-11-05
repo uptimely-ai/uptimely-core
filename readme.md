@@ -140,7 +140,7 @@ class MyAnalyticalProfile(up.Profile):
     id = "calculated_profile"
     grain = [up.Grain(measurement_id, "measurement_id")]
 
-    producers = [
+    actions = [
         up.Action(
             id="read",
             function=read_values,
@@ -157,14 +157,12 @@ class MyAnalyticalProfile(up.Profile):
             },
             outputs=[up.Feature(id="doubled")],
         ),
-    ]
-    publishers = [
         up.Action(
             id="print",
             function=print_results,
             arguments={"dataset": up.ref.dataframe()},
             outputs=[],
-        )
+        ),
     ]
 
 

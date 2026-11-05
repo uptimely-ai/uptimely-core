@@ -42,7 +42,7 @@ class Pump(up.Profile):
     grain = [up.Grain(machine, "machine")]
     features = PumpFeatures()
 
-    producers = [
+    actions = [
         up.Action(
             id="temperature_max",
             function=maximum,
@@ -148,36 +148,37 @@ as `ref.feature("result").id` pass an identifier, not feature data, and may be
 used for output-name arguments. Declare produced features in `outputs`; they
 are not inferred from arguments. In the resulting spec document, dependencies
 are recorded explicitly in `features.inputs`. Writes use `outputs=[]`. For
-generated declarations, use `Profile(id=..., grain=[...], producers=[...],
-publishers=[...],
-pipelines=[...])`.
+generated declarations, use `Profile(id=..., grain=[...], actions=[...])`.
 
-### Profile action collections
+### Profile actions
 
-Each profile exposes three lists of actions:
+Each profile declares all work in one `actions` list. For readability, a
+mapping of group names to action lists is also accepted and flattened in
+insertion order:
 
-| Collection | Allowed kinds | Purpose |
-| --- | --- | --- |
-| `producers` | `read`, `collapse`, `conform`, `expand`, `vectorize` | Produce profile features. |
-| `publishers` | `write` | Write profile results to external destinations. |
-| `pipelines` | `escape` | Invoke opaque custom processing with logical feature inputs/outputs and no dataframe handoff. |
+```python
+actions = {
+    "ingestion": [read_action],
+    "calculations": [calculate_action],
+    "publishing": [write_action],
+}
+```
 
-Kinds remain explicit on functions or function references. Putting an action in
-the wrong collection raises an error; placement never changes its kind.
-Action IDs must be non-empty and unique across all three collections. Reusing
-one function in multiple actions is allowed with distinct action IDs;
-`function_id` separately identifies its reusable catalog contract.
+Groups are organizational only; function kind remains explicit on functions
+or function references and determines runtime behavior. Action IDs must be
+non-empty and unique within the profile. Reusing one function in multiple
+actions is allowed with distinct action IDs; `function_id` separately
+identifies its reusable catalog contract.
 
-Collections default to empty and are copied for each profile instance.
-Constructor arguments replace the corresponding class collections, including
-when an empty list is passed. Subclasses inherit collections using normal Python
-attribute lookup: defining `producers` replaces the inherited list rather than
-merging it. To extend it, write `producers = [*Base.producers, another_action]`.
+Actions default to an empty list and are copied for each profile instance.
+Constructor arguments replace the class declaration, including when an empty
+list is passed. Subclasses inherit actions using normal Python attribute lookup:
+defining `actions` replaces the inherited list rather than merging it. To extend
+it, write `actions = [*Base.actions, another_action]`.
 
-List order does not impose execution order, nor do collections define execution
-phases. Declared feature dependencies determine scheduling, including
-dependencies between producers and pipelines. Uptimely does not inspect a
-pipeline function's internal steps.
+List order and group order do not impose execution order. Declared feature
+dependencies determine scheduling. Uptimely does not inspect an escape
+function's internal steps.
 
 ### Migrating from FunctionMapping
 
