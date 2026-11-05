@@ -2,7 +2,24 @@
 
 from examples.pump_analytics.functions import analytics
 
-from uptimely import Action, Feature, Profile, ref
+from uptimely import Action, Feature, FeatureSet, Profile, ref
+
+
+class ConstantsFeatures(FeatureSet):
+    """Features declared by the constants profile."""
+
+    gravity = Feature(
+        id="gravity",
+        type="float",
+        unit="m/s^2",
+        description="Gravitational acceleration used in pump analytics.",
+    )
+    room_temperature = Feature(
+        id="room_temperature",
+        type="float",
+        unit="C",
+        description="Ambient room temperature used as the thermal reference.",
+    )
 
 
 class Constants(Profile):
@@ -12,24 +29,13 @@ class Constants(Profile):
     name = "Project Constants"
     description = "Physical constants used by pump analytics."
     category = "Configuration"
+    features = ConstantsFeatures()
+
     producers = [
         Action(
             id="read_constants",
             function=analytics.read_constants,
             arguments={"source": ref.source("constants_source")},
-            outputs=[
-                Feature(
-                    id="gravity",
-                    type="float",
-                    unit="m/s^2",
-                    description="Gravitational acceleration used in pump analytics.",
-                ),
-                Feature(
-                    id="room_temperature",
-                    type="float",
-                    unit="C",
-                    description="Ambient room temperature used as the thermal reference.",
-                ),
-            ],
+            outputs=[features.gravity, features.room_temperature],
         )
     ]

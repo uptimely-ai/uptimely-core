@@ -13,6 +13,7 @@ from uptimely.spec.model import common as spec_common
 
 from . import actions
 from . import dimension as dimension_module
+from . import feature as feature_module
 
 __all__ = [
     "Profile",
@@ -73,7 +74,8 @@ class Profile:
 
     Each collection contains Actions with IDs unique across the profile.
     Subclasses inherit collections normally; assigning a collection replaces it.
-    Feature metadata belongs to each action's outputs, not a separate inventory.
+    A FeatureSet instance may group feature declarations referenced by
+    action outputs.
     """
 
     id: str
@@ -81,6 +83,7 @@ class Profile:
     description: str | None = None
     category: str | None = None
     scope: str | None = None
+    features: feature_module.FeatureSet | None = None
     grain: abc.Sequence[Grain] = ()
     order: abc.Sequence[Order] = ()
     producers: abc.Sequence[actions.Action] = ()

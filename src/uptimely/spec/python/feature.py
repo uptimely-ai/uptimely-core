@@ -7,7 +7,7 @@ import dataclasses
 from uptimely.spec import model as spec_model
 from uptimely.spec.model import common as spec_common
 
-__all__ = ["Feature"]
+__all__ = ["Feature", "FeatureSet"]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -34,3 +34,11 @@ class Feature:
             type=self.type,
             unit=self.unit,
         )
+
+
+class FeatureSet:
+    """Namespace for a profile's feature declarations.
+
+    Subclasses declare :class:`Feature` instances as class attributes and
+    reference those attributes from ``Action.outputs``.
+    """

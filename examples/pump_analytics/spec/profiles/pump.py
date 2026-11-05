@@ -3,7 +3,23 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Action, Feature, Grain, Profile, ref
+from uptimely import Action, Feature, FeatureSet, Grain, Profile, ref
+
+
+class PumpFeatures(FeatureSet):
+    """Features declared by the pump profile."""
+
+    bearing_temperature_max = Feature(
+        id="bearing_temperature_max",
+        type="float",
+        unit="C",
+        description="Maximum observed bearing temperature",
+    )
+    health_signal_normalized = Feature(
+        id="health_signal_normalized",
+        type="float",
+        description="Normalized bearing-temperature health signal by pump.",
+    )
 
 
 class Pump(Profile):
@@ -15,6 +31,7 @@ class Pump(Profile):
     category = "Machines"
     grain = [Grain(dimension.MACHINE, "machine")]
     scope = "Telemetry available to the source profile"
+    features = PumpFeatures()
 
     producers = [
         Action(
@@ -27,14 +44,7 @@ class Pump(Profile):
                 dimensions=ref.current_profile().grain.ids,
                 output=ref.output("bearing_temperature_max"),
             ),
-            outputs=[
-                Feature(
-                    id="bearing_temperature_max",
-                    type="float",
-                    unit="C",
-                    description="Maximum observed bearing temperature",
-                )
-            ],
+            outputs=[features.bearing_temperature_max],
         ),
         Action(
             id="health_signal_normalized",
@@ -47,12 +57,6 @@ class Pump(Profile):
                 features=[ref.column("bearing_temperature_max")],
                 output=ref.output("health_signal_normalized"),
             ),
-            outputs=[
-                Feature(
-                    id="health_signal_normalized",
-                    type="float",
-                    description="Normalized bearing-temperature health signal by pump.",
-                )
-            ],
+            outputs=[features.health_signal_normalized],
         ),
     ]
