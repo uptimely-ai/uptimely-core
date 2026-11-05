@@ -52,15 +52,13 @@ class Operator:
         interface: Feature dependencies and outputs. Inputs are inferred from
             compute arguments when omitted.
         compute: Computation function and named arguments.
-        function_id: Optional function catalog ID, defaulting to the function name.
         row_context: Operator-specific observation requirements, merged with
             argument annotations.
     """
 
     id: str
-    compute: Binding
     interface: Interface
-    function_id: str | None = None
+    compute: Binding
     row_context: (
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
@@ -69,49 +67,20 @@ class Operator:
         self,
         *,
         id: str,
-        compute: Binding | None = None,
-        interface: Interface | None = None,
-        function: _Function | None = None,
-        arguments: dict[str, typing.Any] | None = None,
-        outputs: abc.Sequence[feature_module.Feature] | None = None,
-        inputs: abc.Sequence[feature_module.Feature | ref.Reference | str] | None = None,
-        function_id: str | None = None,
+        interface: Interface,
+        compute: Binding,
         row_context: (
             row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
         ) = None,
     ) -> None:
         """Validate the declaration and merge argument-level row-context annotations."""
-        if compute is None:
-            if function is None:
-                raise TypeError("Operator requires 'function' or 'compute'")
-            if arguments is None:
-                raise TypeError("Operator requires 'arguments'")
-            if outputs is None:
-                raise TypeError("Operator requires 'outputs'")
-            compute = Binding(function=function, arguments=arguments)
-        elif function is not None or arguments is not None:
-            compute = Binding(
-                function=compute.function if function is None else function,
-                arguments=compute.arguments if arguments is None else arguments,
-            )
-        if interface is None:
-            interface = Interface(
-                inputs=None if inputs is None else list(inputs),
-                outputs=[] if outputs is None else list(outputs),
-            )
-        elif outputs is not None or inputs is not None:
-            interface = Interface(
-                inputs=interface.inputs if inputs is None else list(inputs),
-                outputs=interface.outputs if outputs is None else list(outputs),
-            )
         if not isinstance(compute, Binding):
             raise TypeError("Operator compute must be a Binding")
         if not isinstance(interface, Interface):
             raise TypeError("Operator interface must be an Interface")
         object.__setattr__(self, "id", id)
-        object.__setattr__(self, "compute", compute)
         object.__setattr__(self, "interface", interface)
-        object.__setattr__(self, "function_id", function_id)
+        object.__setattr__(self, "compute", compute)
         object.__setattr__(self, "row_context", row_context)
         if not isinstance(self.id, str) or not self.id.strip():
             raise ValueError("Operator requires a non-empty id")
@@ -121,40 +90,22 @@ class Operator:
             raise ValueError("Operator output feature IDs must not repeat")
         validation.validate_action_output_references(
             self.id,
-            self._references(self.arguments),
-            (output.id for output in self.outputs),
+            self._references(self.compute.arguments),
+            (output.id for output in self.interface.outputs),
         )
         object.__setattr__(
-            self, "row_context", row_context_module._context(self.arguments, self.row_context)
+            self,
+            "row_context",
+            row_context_module._context(self.compute.arguments, self.row_context),
         )
-
-    @property
-    def function(self) -> _Function:
-        """Return the bound implementation."""
-        return self.compute.function
-
-    @property
-    def arguments(self) -> dict[str, typing.Any]:
-        """Return the computation's named arguments."""
-        return self.compute.arguments
-
-    @property
-    def outputs(self) -> list[feature_module.Feature]:
-        """Return the action's declared output features."""
-        return self.interface.outputs
-
-    @property
-    def inputs(self) -> list[feature_module.Feature | ref.Reference | str] | None:
-        """Return declared input features, or None when they are inferred."""
-        return self.interface.inputs
 
     @property
     def kind(self) -> functions.FunctionKindId:
         """Return the kind declared on the function or its reference."""
-        if isinstance(self.function, ref.FunctionReference):
-            value = self.function.kind
-        elif callable(self.function):
-            value = function_semantics.declared_kind(self.function)
+        if isinstance(self.compute.function, ref.FunctionReference):
+            value = self.compute.function.kind
+        elif callable(self.compute.function):
+            value = function_semantics.declared_kind(self.compute.function)
         else:
             value = None
         if value not in functions.FUNCTION_KINDS:
@@ -167,14 +118,14 @@ class Operator:
     @property
     def reference(self) -> ref.FunctionReference:
         """Return the normalized entrypoint without importing string references."""
-        if isinstance(self.function, ref.FunctionReference):
-            return self.function
-        return ref.function(self.function)
+        if isinstance(self.compute.function, ref.FunctionReference):
+            return self.compute.function
+        return ref.function(self.compute.function)
 
     @property
     def catalog_id(self) -> str:
-        """Return the explicit or function-derived catalog identifier."""
-        return self.function_id or self.reference.name
+        """Return the function-derived catalog identifier."""
+        return self.reference.name
 
     def bound_arguments(self) -> dict[str, typing.Any]:
         """Return a copy of arguments, validating names for in-process callables.
@@ -183,11 +134,13 @@ class Operator:
         for those functions is deferred until compilation.
         """
         validation.validate_action_output_references(
-            self.id, self._references(self.arguments), (output.id for output in self.outputs)
+            self.id,
+            self._references(self.compute.arguments),
+            (output.id for output in self.interface.outputs),
         )
-        if callable(self.function):
-            inspect.signature(self.function).bind(**self.arguments)
-        return self.arguments.copy()
+        if callable(self.compute.function):
+            inspect.signature(self.compute.function).bind(**self.compute.arguments)
+        return self.compute.arguments.copy()
 
     def to_model(self) -> spec_model.Action:
         """Convert this declaration to its canonical document model."""
@@ -201,7 +154,7 @@ class Operator:
                     name: binding_conversion.to_value(value) for name, value in arguments.items()
                 },
             ),
-            features=self._action_features(inputs, self.outputs),
+            features=self._action_features(inputs, self.interface.outputs),
             row_context=self.row_context,
         )
 
@@ -240,9 +193,9 @@ class Operator:
 
     def _input_ids(self) -> list[str]:
         """Return declared input IDs or infer them from feature bindings."""
-        if self.inputs is None:
-            return self._inputs(self.arguments)
-        return [self._feature_id(value) for value in self.inputs]
+        if self.interface.inputs is None:
+            return self._inputs(self.compute.arguments)
+        return [self._feature_id(value) for value in self.interface.inputs]
 
     @staticmethod
     def _action_features(

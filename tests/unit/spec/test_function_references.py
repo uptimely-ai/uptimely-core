@@ -76,7 +76,16 @@ def test_signature_validation_setting_survives_conversion_without_importing(
         validate_signature=validate_signature,
     )
     declaration = _dataset(
-        actions.Operator(id="calculate", function=reference, arguments={}, outputs=[]),
+        actions.Operator(
+            id="calculate",
+            interface=actions.Interface(
+                outputs=[],
+            ),
+            compute=actions.Binding(
+                function=reference,
+                arguments={},
+            ),
+        ),
     )
 
     payload = conversion.to_dict(profiles=[declaration])
@@ -131,7 +140,16 @@ def test_undocumented_callable_and_string_references_have_no_description() -> No
 def test_description_survives_conversion_to_exported_document() -> None:
     reference = ref.function(_documented, kind="vectorize")
     declaration = _dataset(
-        actions.Operator(id="calculate", function=reference, arguments={}, outputs=[]),
+        actions.Operator(
+            id="calculate",
+            interface=actions.Interface(
+                outputs=[],
+            ),
+            compute=actions.Binding(
+                function=reference,
+                arguments={},
+            ),
+        ),
     )
 
     payload = conversion.to_dict(profiles=[declaration])
@@ -184,12 +202,16 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
             assembly=[
                 actions.Operator(
                     id="ceil",
-                    inputs=[],
-                    function=ref.function(
-                        "math:ceil", kind="vectorize", validate_signature=validate_signature
+                    interface=actions.Interface(
+                        inputs=[],
+                        outputs=[],
                     ),
-                    arguments={},
-                    outputs=[],
+                    compute=actions.Binding(
+                        function=ref.function(
+                            "math:ceil", kind="vectorize", validate_signature=validate_signature
+                        ),
+                        arguments={},
+                    ),
                 )
             ],
         )
@@ -212,7 +234,16 @@ def test_string_locations_are_preserved_without_importing(
     declaration = profile.Profile(
         id="observations",
         assembly=[
-            actions.Operator(id="ceil", function=reference, arguments={"x": 1.2}, outputs=[])
+            actions.Operator(
+                id="ceil",
+                interface=actions.Interface(
+                    outputs=[],
+                ),
+                compute=actions.Binding(
+                    function=reference,
+                    arguments={"x": 1.2},
+                ),
+            )
         ],
     )
 
@@ -236,11 +267,14 @@ def test_generic_mapping_exports_function_kind_without_importing(
     declaration = _dataset(
         actions.Operator(
             id="calculate",
-            inputs=[],
-            function=ref.function("unavailable_package.functions:calculate", kind=kind),
-            arguments={"dataset": ref.current_profile().dataframe},
-            outputs=[],
-            function_id="calculate",
+            interface=actions.Interface(
+                inputs=[],
+                outputs=[],
+            ),
+            compute=actions.Binding(
+                function=ref.function("unavailable_package.functions:calculate", kind=kind),
+                arguments={"dataset": ref.current_profile().dataframe},
+            ),
         ),
     )
 
@@ -259,10 +293,14 @@ def test_generic_mapping_requires_operation_metadata() -> None:
     with pytest.raises(ValueError, match="kind"):
         actions.Operator(
             id="action",
-            inputs=[],
-            function=ref.function("math:ceil"),
-            arguments={"x": 1.2},
-            outputs=[],
+            interface=actions.Interface(
+                inputs=[],
+                outputs=[],
+            ),
+            compute=actions.Binding(
+                function=ref.function("math:ceil"),
+                arguments={"x": 1.2},
+            ),
         )
 
 
@@ -272,10 +310,14 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
         assembly=[
             actions.Operator(
                 id="external_update",
-                inputs=[],
-                function=ref.function("math:ceil", kind="escape"),
-                arguments={},
-                outputs=[],
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[],
+                ),
+                compute=actions.Binding(
+                    function=ref.function("math:ceil", kind="escape"),
+                    arguments={},
+                ),
             )
         ],
     )
@@ -295,29 +337,33 @@ def test_generic_mapping_accepts_function_kind_metadata(
 ) -> None:
     declaration = actions.Operator(
         id="declaration",
-        inputs=[],
-        function=ref.function("math:ceil", kind=kind),
-        arguments={"x": 1.2},
-        outputs=[],
+        interface=actions.Interface(
+            inputs=[],
+            outputs=[],
+        ),
+        compute=actions.Binding(
+            function=ref.function("math:ceil", kind=kind),
+            arguments={"x": 1.2},
+        ),
     )
 
     assert declaration.kind == kind
 
 
 @pytest.mark.parametrize("kind", MAPPING_KINDS)
-@pytest.mark.parametrize("function_id", [None, "rounded"])
-def test_references_supply_catalog_ids_and_preserve_overrides(
-    kind: functions.FunctionKindId, function_id: str | None
-) -> None:
+def test_references_supply_function_names_as_catalog_ids(kind: functions.FunctionKindId) -> None:
     declaration = actions.Operator(
         id="declaration",
-        function=ref.function("math:ceil", kind=kind),
-        function_id=function_id,
-        arguments={"x": 1.2},
-        outputs=[],
+        interface=actions.Interface(
+            outputs=[],
+        ),
+        compute=actions.Binding(
+            function=ref.function("math:ceil", kind=kind),
+            arguments={"x": 1.2},
+        ),
     )
     catalog = _dataset(declaration).function_catalog()
-    identifier = function_id or "ceil"
+    identifier = "ceil"
 
     assert catalog[identifier].kind == kind
     assert catalog[identifier].entrypoint == "math:ceil"

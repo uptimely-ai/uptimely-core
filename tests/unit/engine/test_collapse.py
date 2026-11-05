@@ -152,32 +152,44 @@ def _spec(*, lazy=False, empty=False):
         assembly=[
             actions.Operator(
                 id="read_values",
-                inputs=[],
-                function=ref.function(read_values, kind="read"),
-                arguments={"lazy": lazy, "empty": empty},
-                outputs=[feature.Feature(id=name) for name in ("group", "id", "value")],
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[feature.Feature(id=name) for name in ("group", "id", "value")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(read_values, kind="read"),
+                    arguments={"lazy": lazy, "empty": empty},
+                ),
             ),
             actions.Operator(
                 id="double",
-                inputs=[ref.feature("value")],
-                function=ref.function(double, kind="vectorize"),
-                arguments={
-                    "dataset": ref.current_profile().dataframe,
-                    "column": ref.feature("value").id,
-                    "output": ref.feature("doubled").id,
-                },
-                outputs=[feature.Feature(id="doubled")],
+                interface=actions.Interface(
+                    inputs=[ref.feature("value")],
+                    outputs=[feature.Feature(id="doubled")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(double, kind="vectorize"),
+                    arguments={
+                        "dataset": ref.current_profile().dataframe,
+                        "column": ref.feature("value").id,
+                        "output": ref.feature("doubled").id,
+                    },
+                ),
             ),
             actions.Operator(
                 id="unneeded",
-                inputs=[ref.feature("value")],
-                function=ref.function(double, kind="vectorize"),
-                arguments={
-                    "dataset": ref.current_profile().dataframe,
-                    "column": ref.feature("value").id,
-                    "output": ref.feature("unneeded").id,
-                },
-                outputs=[feature.Feature(id="unneeded")],
+                interface=actions.Interface(
+                    inputs=[ref.feature("value")],
+                    outputs=[feature.Feature(id="unneeded")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(double, kind="vectorize"),
+                    arguments={
+                        "dataset": ref.current_profile().dataframe,
+                        "column": ref.feature("value").id,
+                        "output": ref.feature("unneeded").id,
+                    },
+                ),
             ),
         ],
     )
@@ -187,14 +199,18 @@ def _spec(*, lazy=False, empty=False):
         assembly=[
             actions.Operator(
                 id="group_summary",
-                inputs=[ref.feature("value"), ref.feature("doubled")],
-                function=ref.function(summarize, kind="collapse"),
-                arguments={
-                    "dataset": ref.profile("observations").dataframe,
-                    "column": ref.feature("value").id,
-                    "calculated": ref.feature("doubled").id,
-                },
-                outputs=[feature.Feature(id=name) for name in ("maximum", "average", "values")],
+                interface=actions.Interface(
+                    inputs=[ref.feature("value"), ref.feature("doubled")],
+                    outputs=[feature.Feature(id=name) for name in ("maximum", "average", "values")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(summarize, kind="collapse"),
+                    arguments={
+                        "dataset": ref.profile("observations").dataframe,
+                        "column": ref.feature("value").id,
+                        "calculated": ref.feature("doubled").id,
+                    },
+                ),
             )
         ],
     )
@@ -203,17 +219,25 @@ def _spec(*, lazy=False, empty=False):
         assembly=[
             actions.Operator(
                 id="global_total",
-                inputs=[ref.feature("maximum")],
-                function=ref.function(total, kind="collapse"),
-                arguments={"dataset": ref.profile("summary").dataframe},
-                outputs=[feature.Feature(id="total")],
+                interface=actions.Interface(
+                    inputs=[ref.feature("maximum")],
+                    outputs=[feature.Feature(id="total")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(total, kind="collapse"),
+                    arguments={"dataset": ref.profile("summary").dataframe},
+                ),
             ),
             actions.Operator(
                 id="global_maximum",
-                inputs=[ref.feature("maximum")],
-                function=ref.function(maximum, kind="collapse"),
-                arguments={"dataset": ref.profile("summary").dataframe},
-                outputs=[feature.Feature(id="global_max")],
+                interface=actions.Interface(
+                    inputs=[ref.feature("maximum")],
+                    outputs=[feature.Feature(id="global_max")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(maximum, kind="collapse"),
+                    arguments={"dataset": ref.profile("summary").dataframe},
+                ),
             ),
         ],
     )
@@ -256,20 +280,28 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
         assembly=[
             actions.Operator(
                 id="read_target",
-                inputs=[],
-                function=ref.function(read_conform_target, kind="read"),
-                arguments={},
-                outputs=[feature.Feature(id="base_value")],
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[feature.Feature(id="base_value")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(read_conform_target, kind="read"),
+                    arguments={},
+                ),
             ),
             actions.Operator(
                 id="conform_source",
-                inputs=[ref.feature("source_value")],
-                function=ref.function(conform_source, kind="conform"),
-                arguments={
-                    "source": ref.profile("foreign").dataframe,
-                    "matching_keys": ref.current_profile().grain.ids,
-                },
-                outputs=[feature.Feature(id="conformed_value")],
+                interface=actions.Interface(
+                    inputs=[ref.feature("source_value")],
+                    outputs=[feature.Feature(id="conformed_value")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(conform_source, kind="conform"),
+                    arguments={
+                        "source": ref.profile("foreign").dataframe,
+                        "matching_keys": ref.current_profile().grain.ids,
+                    },
+                ),
             ),
         ],
     )
@@ -279,10 +311,14 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
         assembly=[
             actions.Operator(
                 id="read_source",
-                inputs=[],
-                function=ref.function(read_conform_source, kind="read"),
-                arguments={},
-                outputs=[feature.Feature(id="source_value")],
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[feature.Feature(id="source_value")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(read_conform_source, kind="read"),
+                    arguments={},
+                ),
             )
         ],
     )
@@ -573,21 +609,29 @@ def _broadcast_spec(
         assembly=[
             actions.Operator(
                 id="read_values",
-                inputs=[],
-                function=ref.function(read_values, kind="read"),
-                arguments={"lazy": lazy},
-                outputs=[feature.Feature(id="value")],
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[feature.Feature(id="value")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(read_values, kind="read"),
+                    arguments={"lazy": lazy},
+                ),
             ),
             actions.Operator(
                 id="reference",
-                inputs=[ref.feature("source_value")],
-                function=ref.function(expand_function, kind="expand"),
-                arguments={
-                    "source": ref.profile("reference_source").dataframe,
-                    "feature": ref.feature("source_value").id,
-                    "output": ref.feature("reference").id,
-                },
-                outputs=[feature.Feature(id="reference")],
+                interface=actions.Interface(
+                    inputs=[ref.feature("source_value")],
+                    outputs=[feature.Feature(id="reference")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(expand_function, kind="expand"),
+                    arguments={
+                        "source": ref.profile("reference_source").dataframe,
+                        "feature": ref.feature("source_value").id,
+                        "output": ref.feature("reference").id,
+                    },
+                ),
             ),
         ],
     )
@@ -597,10 +641,14 @@ def _broadcast_spec(
         assembly=[
             actions.Operator(
                 id="read_reference",
-                inputs=[],
-                function=ref.function(reader, kind="read"),
-                arguments={"lazy": lazy},
-                outputs=[feature.Feature(id="source_value")],
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[feature.Feature(id="source_value")],
+                ),
+                compute=actions.Binding(
+                    function=ref.function(reader, kind="read"),
+                    arguments={"lazy": lazy},
+                ),
             )
         ],
     )

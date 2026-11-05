@@ -4,28 +4,24 @@ from uptimely.spec import model as spec_model
 from uptimely.spec.python import actions, conversion, profile, ref
 
 
-def _source(path: str, columns: list[str]) -> None:
-    pass
-
-
-def _other_source(path: str, columns: list[str]) -> None:
-    pass
-
-
 def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
     return profile.Profile(
         id=identifier,
         assembly=[
             actions.Operator(
                 id="read",
-                inputs=[],
-                function=ref.function(
-                    _other_source if conflicting else _source,
-                    kind="read",
+                interface=actions.Interface(
+                    inputs=[],
+                    outputs=[],
                 ),
-                arguments={"path": "readings.json", "columns": [ref.feature("temperature")]},
-                outputs=[],
-                function_id="source",
+                compute=actions.Binding(
+                    function=ref.FunctionReference(
+                        module=__name__ if not conflicting else f"{__name__}.alternate",
+                        name="source",
+                        kind="read",
+                    ),
+                    arguments={"path": "readings.json", "columns": [ref.feature("temperature")]},
+                ),
             )
         ],
     )
@@ -47,7 +43,7 @@ def test_auto_catalog_converts_profile_sequences_and_mappings(keyed: bool) -> No
             "description": None,
             "kind": "read",
             "returns": "dataframe",
-            "entrypoint": f"{__name__}:_source",
+            "entrypoint": f"{__name__}:source",
             "validate_signature": True,
             "args": {
                 "path": {"type": "string", "comment": None},

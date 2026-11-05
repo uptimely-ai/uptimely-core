@@ -783,10 +783,14 @@ def _python_profile_with_missing_input() -> python_profile.Profile:
         assembly=[
             python_actions.Operator(
                 id="compute",
-                function=python_ref.function("external:compute", kind="vectorize"),
-                arguments={"data": python_ref.current_profile().dataframe},
-                inputs=[python_ref.feature("missing")],
-                outputs=[python_feature.Feature(id="result")],
+                interface=python_actions.Interface(
+                    inputs=[python_ref.feature("missing")],
+                    outputs=[python_feature.Feature(id="result")],
+                ),
+                compute=python_actions.Binding(
+                    function=python_ref.function("external:compute", kind="vectorize"),
+                    arguments={"data": python_ref.current_profile().dataframe},
+                ),
             )
         ],
     )

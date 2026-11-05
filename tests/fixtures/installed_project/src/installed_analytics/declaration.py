@@ -1,9 +1,11 @@
 """Python source with a relative import within an installed package."""
 
 from uptimely.spec.python import (
+    Binding,
     Dimension,
     Feature,
     Grain,
+    Interface,
     Operator,
     Profile,
     Resolution,
@@ -26,9 +28,8 @@ class Values(Profile):
     assembly = [
         Operator(
             id="read",
-            function=ref.function(functions.Readers.values, kind="read"),
-            arguments={},
-            outputs=[Feature(id="value")],
+            interface=Interface(outputs=[Feature(id="value")]),
+            compute=Binding(function=ref.function(functions.Readers.values, kind="read")),
         )
     ]
 
