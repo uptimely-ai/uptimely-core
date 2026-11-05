@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Action, Feature, Grain, Order, Profile, ref
+from uptimely import Action, Feature, FeatureSet, Grain, Order, Profile, ref
 from uptimely.spec.python import row_context
 
 HYDRAULIC_POWER_SCALE = 1.0 / 36.0
@@ -13,6 +13,110 @@ TELEMETRY_GRAIN = [
     Grain(dimension.MACHINE, "machine"),
     Grain(dimension.TIMESTAMP, "timestamp"),
 ]
+
+
+class TelemetryFeatures(FeatureSet):
+    """Features declared by the telemetry profile."""
+
+    discharge_pressure = Feature(
+        id="discharge_pressure",
+        type="float",
+        unit="bar",
+        description="Pump discharge pressure",
+    )
+    flow_rate = Feature(
+        id="flow_rate",
+        type="float",
+        unit="m3/h",
+        description="Pump discharge flow rate",
+    )
+    bearing_temperature = Feature(
+        id="bearing_temperature",
+        type="float",
+        unit="C",
+        description="Drive-end bearing temperature",
+    )
+    vibration_rms = Feature(
+        id="vibration_rms",
+        type="float",
+        unit="mm/s",
+        description="Overall pump vibration RMS",
+    )
+    motor_power = Feature(
+        id="motor_power",
+        type="float",
+        unit="kW",
+        description="Electric motor active power consumption",
+    )
+    operation_mode = Feature(
+        id="operation_mode",
+        type="string",
+        description="Pump speed mode: low_speed below rated flow, otherwise high_speed.",
+    )
+    recommended_flow_rate = Feature(
+        id="recommended_flow_rate",
+        type="float",
+        unit="m3/h",
+        description="Recommended flow rate for efficient operation",
+    )
+    recommended_discharge_pressure = Feature(
+        id="recommended_discharge_pressure",
+        type="float",
+        unit="bar",
+        description="Recommended discharge pressure for efficient operation",
+    )
+    energy_cost_score = Feature(
+        id="energy_cost_score",
+        type="float",
+        description="Estimated energy-cost score for the recommended operating point",
+    )
+    converged = Feature(
+        id="converged",
+        type="boolean",
+        description="Whether the optimization converged",
+    )
+    pressure_flow_efficiency = Feature(
+        id="pressure_flow_efficiency",
+        type="float",
+        description="Hydraulic efficiency proxy from pressure, flow, and motor power",
+    )
+    room_temperature_reference = Feature(
+        id="room_temperature_reference",
+        type="float",
+        unit="C",
+        description="Room-temperature constant broadcast to every telemetry row.",
+    )
+    bearing_temperature_rise = Feature(
+        id="bearing_temperature_rise",
+        type="float",
+        unit="C",
+        description="Bearing-temperature rise above the room-temperature constant.",
+    )
+    bearing_temperature_delta = Feature(
+        id="bearing_temperature_delta",
+        type="float",
+        unit="C",
+        description="Bearing-temperature change from the previous pump reading.",
+    )
+    vibration_delta = Feature(
+        id="vibration_delta",
+        type="float",
+        unit="mm/s",
+        description="Vibration change from the previous pump reading.",
+    )
+    pump_health_score = Feature(
+        id="pump_health_score",
+        type="float",
+        description=(
+            "Composite pump health score from bearing-temperature trend, "
+            "vibration trend, and efficiency."
+        ),
+    )
+    operating_point_recommendation = Feature(
+        id="operating_point_recommendation",
+        type="object",
+        description="Recommended pump operating point based on process demand and energy use",
+    )
 
 
 class Telemetry(Profile):
@@ -25,6 +129,7 @@ class Telemetry(Profile):
     grain = TELEMETRY_GRAIN
     scope = "Development telemetry selected by the read function"
     order = (Order(dimension.TIMESTAMP, "timestamp", direction="asc"),)
+    features = TelemetryFeatures()
 
     producers = [
         Action(
@@ -36,43 +141,12 @@ class Telemetry(Profile):
                 environment="development",
             ),
             outputs=[
-                Feature(
-                    id="discharge_pressure",
-                    type="float",
-                    unit="bar",
-                    description="Pump discharge pressure",
-                ),
-                Feature(
-                    id="flow_rate",
-                    type="float",
-                    unit="m3/h",
-                    description="Pump discharge flow rate",
-                ),
-                Feature(
-                    id="bearing_temperature",
-                    type="float",
-                    unit="C",
-                    description="Drive-end bearing temperature",
-                ),
-                Feature(
-                    id="vibration_rms",
-                    type="float",
-                    unit="mm/s",
-                    description="Overall pump vibration RMS",
-                ),
-                Feature(
-                    id="motor_power",
-                    type="float",
-                    unit="kW",
-                    description="Electric motor active power consumption",
-                ),
-                Feature(
-                    id="operation_mode",
-                    type="string",
-                    description=(
-                        "Pump speed mode: low_speed below rated flow, otherwise high_speed."
-                    ),
-                ),
+                features.discharge_pressure,
+                features.flow_rate,
+                features.bearing_temperature,
+                features.vibration_rms,
+                features.motor_power,
+                features.operation_mode,
             ],
         ),
         Action(
@@ -84,14 +158,7 @@ class Telemetry(Profile):
                 field="recommended_flow_rate",
                 output=ref.output("recommended_flow_rate"),
             ),
-            outputs=[
-                Feature(
-                    id="recommended_flow_rate",
-                    type="float",
-                    unit="m3/h",
-                    description="Recommended flow rate for efficient operation",
-                )
-            ],
+            outputs=[features.recommended_flow_rate],
         ),
         Action(
             id="recommended_discharge_pressure",
@@ -102,14 +169,7 @@ class Telemetry(Profile):
                 field="recommended_discharge_pressure",
                 output=ref.output("recommended_discharge_pressure"),
             ),
-            outputs=[
-                Feature(
-                    id="recommended_discharge_pressure",
-                    type="float",
-                    unit="bar",
-                    description="Recommended discharge pressure for efficient operation",
-                )
-            ],
+            outputs=[features.recommended_discharge_pressure],
         ),
         Action(
             id="energy_cost_score",
@@ -120,13 +180,7 @@ class Telemetry(Profile):
                 field="energy_cost_score",
                 output=ref.output("energy_cost_score"),
             ),
-            outputs=[
-                Feature(
-                    id="energy_cost_score",
-                    type="float",
-                    description="Estimated energy-cost score for the recommended operating point",
-                )
-            ],
+            outputs=[features.energy_cost_score],
         ),
         Action(
             id="converged",
@@ -137,13 +191,7 @@ class Telemetry(Profile):
                 field="converged",
                 output=ref.output("converged"),
             ),
-            outputs=[
-                Feature(
-                    id="converged",
-                    type="boolean",
-                    description="Whether the optimization converged",
-                )
-            ],
+            outputs=[features.converged],
         ),
         Action(
             id="pressure_flow_efficiency",
@@ -158,13 +206,7 @@ class Telemetry(Profile):
                 scale=HYDRAULIC_POWER_SCALE,
                 output=ref.output("pressure_flow_efficiency"),
             ),
-            outputs=[
-                Feature(
-                    id="pressure_flow_efficiency",
-                    type="float",
-                    description="Hydraulic efficiency proxy from pressure, flow, and motor power",
-                )
-            ],
+            outputs=[features.pressure_flow_efficiency],
         ),
         Action(
             id="room_temperature_reference",
@@ -174,14 +216,7 @@ class Telemetry(Profile):
                 feature=ref.column("room_temperature"),
                 output=ref.output("room_temperature_reference"),
             ),
-            outputs=[
-                Feature(
-                    id="room_temperature_reference",
-                    type="float",
-                    unit="C",
-                    description="Room-temperature constant broadcast to every telemetry row.",
-                )
-            ],
+            outputs=[features.room_temperature_reference],
         ),
         Action(
             id="bearing_temperature_rise",
@@ -192,14 +227,7 @@ class Telemetry(Profile):
                 subtrahend=ref.column("room_temperature_reference"),
                 output=ref.output("bearing_temperature_rise"),
             ),
-            outputs=[
-                Feature(
-                    id="bearing_temperature_rise",
-                    type="float",
-                    unit="C",
-                    description="Bearing-temperature rise above the room-temperature constant.",
-                )
-            ],
+            outputs=[features.bearing_temperature_rise],
         ),
         Action(
             id="bearing_temperature_delta",
@@ -211,14 +239,7 @@ class Telemetry(Profile):
                 order_by=ref.feature("timestamp").id,
                 output=ref.output("bearing_temperature_delta"),
             ),
-            outputs=[
-                Feature(
-                    id="bearing_temperature_delta",
-                    type="float",
-                    unit="C",
-                    description="Bearing-temperature change from the previous pump reading.",
-                )
-            ],
+            outputs=[features.bearing_temperature_delta],
             row_context=row_context.rows(1, before=1),
         ),
         Action(
@@ -231,14 +252,7 @@ class Telemetry(Profile):
                 order_by=ref.feature("timestamp").id,
                 output=ref.output("vibration_delta"),
             ),
-            outputs=[
-                Feature(
-                    id="vibration_delta",
-                    type="float",
-                    unit="mm/s",
-                    description="Vibration change from the previous pump reading.",
-                )
-            ],
+            outputs=[features.vibration_delta],
             row_context=row_context.rows(1, before=1),
         ),
         Action(
@@ -253,14 +267,7 @@ class Telemetry(Profile):
                 ],
                 output=ref.output("pump_health_score"),
             ),
-            outputs=[
-                Feature(
-                    id="pump_health_score",
-                    type="float",
-                    description="Composite pump health score from bearing-temperature trend, "
-                    "vibration trend, and efficiency.",
-                )
-            ],
+            outputs=[features.pump_health_score],
         ),
         Action(
             id="operating_point_recommendation",
@@ -276,15 +283,7 @@ class Telemetry(Profile):
                 ],
                 output=ref.output("operating_point_recommendation"),
             ),
-            outputs=[
-                Feature(
-                    id="operating_point_recommendation",
-                    type="object",
-                    description=(
-                        "Recommended pump operating point based on process demand and energy use"
-                    ),
-                )
-            ],
+            outputs=[features.operating_point_recommendation],
         ),
     ]
     publishers = [

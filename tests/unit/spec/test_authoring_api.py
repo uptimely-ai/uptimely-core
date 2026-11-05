@@ -97,6 +97,22 @@ def test_global_parameter_and_feature_authoring() -> None:
     assert feature.name == "Asset Limit"
 
 
+def test_profile_features_attributes_can_be_action_outputs() -> None:
+    class Features(up.FeatureSet):
+        value = up.Feature(id="value", type="float")
+
+    features = Features()
+    action = up.Action(
+        id="read",
+        function=read_values,
+        arguments={},
+        outputs=[features.value],
+    )
+
+    assert action.to_model().output_features == ["value"]
+    assert Features.value.to_model().type == "float"
+
+
 @pytest.mark.parametrize("shape", ["direct", "list", "tuple", "dict", "bind", "context"])
 @pytest.mark.parametrize("declared", [False, True])
 def test_output_references_validate_nested_arguments(shape: str, declared: bool) -> None:

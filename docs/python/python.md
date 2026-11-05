@@ -26,11 +26,21 @@ def maximum(
 ) -> pl.LazyFrame: ...
 
 
+class PumpFeatures(up.FeatureSet):
+    bearing_temperature_max = up.Feature(
+        id="bearing_temperature_max",
+        type="float",
+        unit="C",
+        description="Maximum observed bearing temperature.",
+    )
+
+
 class Pump(up.Profile):
     id = "pump_summary"
     name = "Pump Summary"
     description = "Maximum bearing temperature per pump."
     grain = [up.Grain(machine, "machine")]
+    features = PumpFeatures()
 
     producers = [
         up.Action(
@@ -42,14 +52,7 @@ class Pump(up.Profile):
                 dimensions=up.ref.current_profile().grain.ids,
                 output=up.ref.output("bearing_temperature_max"),
             ),
-            outputs=[
-                up.Feature(
-                    id="bearing_temperature_max",
-                    type="float",
-                    unit="C",
-                    description="Maximum observed bearing temperature.",
-                ),
-            ],
+            outputs=[features.bearing_temperature_max],
         ),
     ]
 ```
@@ -57,7 +60,9 @@ class Pump(up.Profile):
 `Feature.id` is the stable feature identifier used by references and serialized
 keys. `Feature.name` is an optional display label; when omitted, it is generated
 by humanizing the ID (for example, `bearing_temperature_max` becomes
-`Bearing Temperature Max`).
+`Bearing Temperature Max`). A `FeatureSet` subclass groups a profile's
+feature declarations as attributes, which actions reference in their outputs
+instead of repeating metadata inline.
 
 ```python
 python_spec = up.Spec(
@@ -66,11 +71,12 @@ python_spec = up.Spec(
 )
 ```
 
-Root-level `Spec`, `Profile`, `Action`, `Dimension`, `Resolution`, `Grain`, and
-`Feature` are Python authoring classes. Document-model classes remain under
-`uptimely.spec.model` and the existing `uptimely.spec` exports. The authoring
-`Spec` is defined as `uptimely.spec.python.spec.Spec` and exported as `up.Spec`
-and `uptimely.spec.python.Spec`.
+Root-level `Spec`, `Profile`, `Action`, `Dimension`, `Resolution`, `Grain`,
+`Feature` and `FeatureSet` are Python authoring classes.
+Document-model classes remain under `uptimely.spec.model` and the existing
+`uptimely.spec` exports. The authoring `Spec` is defined as
+`uptimely.spec.python.spec.Spec` and exported as `up.Spec` and
+`uptimely.spec.python.Spec`.
 
 Dimensions have stable IDs and declare one or more keyed resolutions. A profile's
 `grain` selects one resolution per dimension; the selected resolution's key is
