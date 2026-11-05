@@ -58,13 +58,13 @@ class Order(Grain):
 
 
 class Profile:
-    """Observation profile with declarative actions and feature metadata.
+    """Observation profile with a declarative assembly and feature metadata.
 
-    Actions may be declared in a list or grouped in a mapping; mapping groups
-    are flattened in insertion order. Subclasses replace inherited actions
-    unless they explicitly include the base actions.
+    The assembly may be declared in a list or grouped in a mapping; mapping
+    groups are flattened in insertion order. Subclasses replace inherited
+    assemblies unless they explicitly include the base assembly.
     A ProfileFeatures instance may group feature declarations referenced by
-    action outputs.
+    assembly outputs.
     """
 
     id: str
@@ -75,13 +75,13 @@ class Profile:
     features: feature_module.FeatureSet | None = None
     grain: abc.Sequence[Grain] = ()
     order: abc.Sequence[Order] = ()
-    actions: abc.Sequence[actions.Action] | abc.Mapping[str, abc.Sequence[actions.Action]] = ()
+    assembly: abc.Sequence[actions.Action] | abc.Mapping[str, abc.Sequence[actions.Action]] = ()
 
     def __init__(
         self,
         *,
         id: str | None = None,
-        actions: (
+        assembly: (
             abc.Sequence[actions.Action] | abc.Mapping[str, abc.Sequence[actions.Action]] | None
         ) = None,
         name: str | None = None,
@@ -119,18 +119,18 @@ class Profile:
             self.grain = tuple(grain)
         if order is not None:
             self.order = tuple(order)
-        self.actions = self._flatten_actions(self.actions if actions is None else actions)
-        _ = self._actions_by_id
+        self.assembly = self._flatten_assembly(self.assembly if assembly is None else assembly)
+        _ = self._assembly_by_id
 
     @property
-    def _actions_by_id(self) -> dict[str, actions.Action]:
-        """Return declared actions keyed by ID after validating the collection."""
+    def _assembly_by_id(self) -> dict[str, actions.Action]:
+        """Return declared assembly items keyed by ID after validating the collection."""
         collected: dict[str, actions.Action] = {}
-        if not isinstance(self.actions, abc.Sequence) or isinstance(self.actions, (str, bytes)):
-            raise TypeError(f"Profile '{self.id}' actions must be a sequence of Actions")
-        for action in self.actions:
+        if not isinstance(self.assembly, abc.Sequence) or isinstance(self.assembly, (str, bytes)):
+            raise TypeError(f"Profile '{self.id}' assembly must be a sequence of Actions")
+        for action in self.assembly:
             if not isinstance(action, actions.Action):
-                raise TypeError(f"Profile '{self.id}' actions must contain Actions")
+                raise TypeError(f"Profile '{self.id}' assembly must contain Actions")
             if action.outputs and not functions.FUNCTION_KINDS[action.kind].produces_features:
                 raise ValueError(
                     f"Profile '{self.id}', action '{action.id}': "
@@ -141,38 +141,40 @@ class Profile:
             collected[action.id] = action
         return collected
 
-    def _flatten_actions(
+    def _flatten_assembly(
         self,
-        provided_actions: (
+        provided_assembly: (
             abc.Sequence[actions.Action] | abc.Mapping[str, abc.Sequence[actions.Action]]
         ),
     ) -> list[actions.Action]:
-        """Copy action declarations, flattening named groups in insertion order."""
-        if isinstance(provided_actions, abc.Mapping):
+        """Copy assembly declarations, flattening named groups in insertion order."""
+        if isinstance(provided_assembly, abc.Mapping):
             flattened: list[actions.Action] = []
-            for group_name, group_actions in provided_actions.items():
+            for group_name, group_items in provided_assembly.items():
                 if not isinstance(group_name, str) or not group_name.strip():
-                    raise TypeError("Profile action group names must be non-empty strings")
-                if not isinstance(group_actions, abc.Sequence) or isinstance(
-                    group_actions, (str, bytes)
+                    raise TypeError("Profile assembly group names must be non-empty strings")
+                if not isinstance(group_items, abc.Sequence) or isinstance(
+                    group_items, (str, bytes)
                 ):
                     raise TypeError(
-                        f"Profile '{self.id}' action group '{group_name}' "
+                        f"Profile '{self.id}' assembly group '{group_name}' "
                         "must be a sequence of Actions"
                     )
-                if any(not isinstance(action, actions.Action) for action in group_actions):
+                if any(not isinstance(action, actions.Action) for action in group_items):
                     raise TypeError(
-                        f"Profile '{self.id}' action group '{group_name}' must contain Actions"
+                        f"Profile '{self.id}' assembly group '{group_name}' must contain Actions"
                     )
-                flattened.extend(group_actions)
+                flattened.extend(group_items)
             return flattened
-        if not isinstance(provided_actions, abc.Sequence) or isinstance(
-            provided_actions, (str, bytes)
+        if not isinstance(provided_assembly, abc.Sequence) or isinstance(
+            provided_assembly, (str, bytes)
         ):
-            raise TypeError(f"Profile '{self.id}' actions must be a sequence or mapping of Actions")
-        if any(not isinstance(action, actions.Action) for action in provided_actions):
-            raise TypeError(f"Profile '{self.id}' actions must contain Actions")
-        return list(provided_actions)
+            raise TypeError(
+                f"Profile '{self.id}' assembly must be a sequence or mapping of Actions"
+            )
+        if any(not isinstance(action, actions.Action) for action in provided_assembly):
+            raise TypeError(f"Profile '{self.id}' assembly must contain Actions")
+        return list(provided_assembly)
 
     def to_model(self) -> spec_model.Profile:
         """Build the canonical profile, rejecting duplicate feature producers."""
@@ -221,7 +223,7 @@ class Profile:
     ) -> dict[str, spec_model.Action]:
         """Convert actions and add profile-key outputs to source actions."""
         actions_by_id: dict[str, spec_model.Action] = {}
-        for action_id, declaration in self._actions_by_id.items():
+        for action_id, declaration in self._assembly_by_id.items():
             action_model = self._action_model(action_id, declaration)
             if declaration.kind in {functions.READ, functions.COLLAPSE}:
                 key_outputs = [
@@ -238,7 +240,7 @@ class Profile:
         """Collect output metadata and selected grain keys, rejecting duplicate producers."""
         features: dict[str, spec_model.Feature] = {}
         producers: dict[str, str] = {}
-        for name, declaration in self._actions_by_id.items():
+        for name, declaration in self._assembly_by_id.items():
             for metadata in declaration.outputs:
                 identifier = metadata.id
                 if identifier in producers:
@@ -272,7 +274,7 @@ class Profile:
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Collect reusable function contracts without executing implementations."""
         catalogs: list[spec_model.FunctionCatalog] = []
-        for name, declaration in self._actions_by_id.items():
+        for name, declaration in self._assembly_by_id.items():
             self._action_model(name, declaration)
             catalogs.append(declaration.function_catalog())
         return spec_model.FunctionCatalog(root=function_catalog.merge_function_catalogs(catalogs))

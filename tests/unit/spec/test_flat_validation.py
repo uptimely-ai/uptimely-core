@@ -780,7 +780,7 @@ def test_load_spec_always_checks_document_structure(tmp_path: pathlib.Path, vali
 def _python_profile_with_missing_input() -> python_profile.Profile:
     return python_profile.Profile(
         id="source",
-        actions=[
+        assembly=[
             python_actions.Action(
                 id="compute",
                 function=python_ref.function("external:compute", kind="vectorize"),

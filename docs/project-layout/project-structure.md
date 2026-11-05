@@ -51,7 +51,7 @@ live in `spec/`, runtime logic lives in functions, curated data stays under
 `data/output/` when results should be retained, shared, or reused as project data.
 
 Python profile modules subclass `uptimely.spec.python.Profile` and declare
-`Action` objects in `actions`, optionally grouped by purpose in a mapping.
+`Action` objects in `assembly`, optionally grouped by purpose in a mapping.
 Profile grain references infer the dimensions and resolutions used by the spec.
 Each action points directly to an implementation in `functions/`, binds its
 arguments, and defines its output features. See

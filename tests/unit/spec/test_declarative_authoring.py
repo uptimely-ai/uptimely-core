@@ -54,7 +54,7 @@ def test_dataset_name_defaults_to_humanized_id() -> None:
 def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     declaration = authoring.Profile(
         id="example",
-        actions=[
+        assembly=[
             authoring.Action(
                 id="read",
                 function=ref.function("reader:read", kind="read"),
@@ -109,7 +109,7 @@ def test_mapping_rejects_duplicate_output_ids() -> None:
 def test_assembly_collects_inputs_without_executing_implementation() -> None:
     class Example(authoring.Profile):
         id = "example"
-        actions = [
+        assembly = [
             authoring.Action(
                 id="result",
                 function=must_not_execute,
@@ -122,7 +122,7 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
         ]
 
     declaration = Example()
-    action = declaration.actions[0]
+    action = declaration.assembly[0]
     model = declaration.to_model().actions["result"]
 
     assert model.id == "result"
@@ -152,7 +152,7 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
 
     class Example(authoring.Profile):
         id = "example"
-        actions = [
+        assembly = [
             authoring.Action(
                 id="invalid",
                 function=implementation,
@@ -170,7 +170,7 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
 def test_duplicate_producers_are_rejected(identifier: str) -> None:
     class Example(authoring.Profile):
         id = "example"
-        actions = [
+        assembly = [
             authoring.Action(
                 id="first",
                 function=ref.function(
@@ -180,7 +180,7 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
                 outputs=[authoring.Feature(id=identifier, type="float")],
             )
         ]
-        actions = [*actions, dataclasses.replace(actions[0], id="second")]
+        assembly = [*assembly, dataclasses.replace(assembly[0], id="second")]
 
     with pytest.raises(ValueError, match="'first' and 'second'"):
         Example().to_model()
@@ -209,16 +209,16 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
     class Base(authoring.Profile):
         id = "base"
         description = "Inherited metadata"
-        actions = [first, sink]
+        assembly = [first, sink]
 
     class Derived(Base):
         id = "derived"
-        actions = [replacement]
+        assembly = [replacement]
 
     base = Base()
     derived = Derived()
-    assert base.actions == [first, sink]
-    assert derived.actions == [replacement]
+    assert base.assembly == [first, sink]
+    assert derived.assembly == [replacement]
     assert list(derived.to_model().actions) == ["read"]
     assert derived.to_model().description == "Inherited metadata"
     assert derived.to_model().features["value"].type == "integer"
@@ -240,7 +240,7 @@ def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
     class Example(authoring.Profile):
         id = "example"
         grain = [authoring.Grain(identifier, "machine")]
-        actions = [
+        assembly = [
             authoring.Action(
                 id="values",
                 function=ref.function("reader:values", kind="read"),
@@ -293,9 +293,9 @@ def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -
         inputs=[ref.feature("explicit")],
         outputs=[authoring.Feature(id="result", type="float")],
     )
-    declaration = authoring.Profile(id="example", actions=[action])
+    declaration = authoring.Profile(id="example", assembly=[action])
 
-    assert declaration.actions == [action]
+    assert declaration.assembly == [action]
     assert action.reference.entrypoint == "calculation:calculate"
     assert action.catalog_id == "custom"
     assert declaration.to_model().actions["named"].input_features == ["explicit"]
@@ -328,7 +328,7 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
     declaration = authoring.Profile(
         id="example",
         grain=[authoring.Grain(identifier, "machine")],
-        actions=[
+        assembly=[
             authoring.Action(
                 id="read",
                 function=ref.function("reader:read", kind="read"),
@@ -413,7 +413,7 @@ def test_actions_accept_every_declared_function_kind(kind: functions.FunctionKin
         arguments={},
         outputs=[],
     )
-    declaration = authoring.Profile(id="example", actions=[action])
+    declaration = authoring.Profile(id="example", assembly=[action])
     assert declaration.to_model().actions["work"] == action.to_model()
     assert declaration.function_catalog()["work"].kind == kind
 
@@ -421,15 +421,15 @@ def test_actions_accept_every_declared_function_kind(kind: functions.FunctionKin
 @pytest.mark.parametrize("invalid", ["invalid", [object()], [None]])
 def test_action_list_rejects_invalid_values(invalid: typing.Any) -> None:
     with pytest.raises(
-        TypeError, match="actions must (be a sequence or mapping of|contain) Actions"
+        TypeError, match="assembly must (be a sequence or mapping of|contain) Actions"
     ):
-        authoring.Profile(id="example", actions=invalid)
+        authoring.Profile(id="example", assembly=invalid)
 
 
 @pytest.mark.parametrize("invalid", [{}, "invalid", [object()], [None]])
 def test_action_groups_reject_invalid_values(invalid: typing.Any) -> None:
-    with pytest.raises(TypeError, match="action group 'calculations'"):
-        authoring.Profile(id="example", actions={"calculations": invalid})
+    with pytest.raises(TypeError, match="assembly group 'calculations'"):
+        authoring.Profile(id="example", assembly={"calculations": invalid})
 
 
 def test_action_groups_flatten_in_mapping_order() -> None:
@@ -449,12 +449,12 @@ def test_action_groups_flatten_in_mapping_order() -> None:
     )
     declaration = authoring.Profile(
         id="example",
-        actions={"ingestion": [first], "publishing": [second]},
+        assembly={"ingestion": [first], "publishing": [second]},
     )
 
-    assert declaration.actions == [first, second]
+    assert declaration.assembly == [first, second]
     assert list(declaration.to_model().actions) == ["read", "write"]
-    assert authoring.Profile(id="empty_grouped", actions={}).actions == []
+    assert authoring.Profile(id="empty_grouped", assembly={}).assembly == []
 
 
 @pytest.mark.parametrize("second_kind", ["read", "write", "escape"])
@@ -475,7 +475,7 @@ def test_action_ids_are_unique_across_groups(second_kind: functions.FunctionKind
     with pytest.raises(ValueError, match="Profile 'example' has duplicate action ID 'duplicate'"):
         authoring.Profile(
             id="example",
-            actions={"first": [first], "second": [second]},
+            assembly={"first": [first], "second": [second]},
         )
 
 
@@ -489,19 +489,19 @@ def test_action_defaults_and_inherited_lists_are_not_shared_between_instances() 
 
     class Base(authoring.Profile):
         id = "base"
-        actions = [read]
+        assembly = [read]
 
     first = Base()
     second = Base()
-    assert isinstance(first.actions, list)
-    first.actions.clear()
-    assert second.actions == Base.actions == [read]
-    assert Base(actions=[]).actions == []
+    assert isinstance(first.assembly, list)
+    first.assembly.clear()
+    assert second.assembly == Base.assembly == [read]
+    assert Base(assembly=[]).assembly == []
 
     supplied = [read]
-    constructed = authoring.Profile(id="constructed", actions=supplied)
+    constructed = authoring.Profile(id="constructed", assembly=supplied)
     supplied.clear()
-    assert constructed.actions == [read]
+    assert constructed.assembly == [read]
 
 
 def test_subclasses_can_explicitly_extend_or_clear_inherited_actions() -> None:
@@ -514,22 +514,22 @@ def test_subclasses_can_explicitly_extend_or_clear_inherited_actions() -> None:
 
     class Base(authoring.Profile):
         id = "base"
-        actions = [read]
+        assembly = [read]
 
     class Extended(Base):
-        actions = [*Base.actions, dataclasses.replace(read, id="another_read")]
+        assembly = [*Base.assembly, dataclasses.replace(read, id="another_read")]
 
     class Empty(Base):
-        actions = []
+        assembly = []
 
     assert list(Extended().to_model().actions) == ["read", "another_read"]
     assert Empty().to_model().actions == {}
-    assert Base.actions == [read]
+    assert Base.assembly == [read]
 
 
 def test_conversion_revalidates_modified_actions() -> None:
     declaration = authoring.Profile(id="example")
-    declaration.actions = [
+    declaration.assembly = [
         authoring.Action(
             id="write",
             function=ref.function("writer:write", kind="write"),
@@ -537,8 +537,8 @@ def test_conversion_revalidates_modified_actions() -> None:
             outputs=[],
         )
     ]
-    declaration.actions[0] = dataclasses.replace(
-        declaration.actions[0], outputs=[authoring.Feature(id="value")]
+    declaration.assembly[0] = dataclasses.replace(
+        declaration.assembly[0], outputs=[authoring.Feature(id="value")]
     )
     with pytest.raises(ValueError, match="Write action cannot produce features"):
         declaration.to_model()
@@ -549,7 +549,7 @@ def test_conversion_revalidates_modified_actions() -> None:
 def test_grouped_actions_preserve_dependencies_and_canonical_mapping_ids() -> None:
     class Example(authoring.Profile):
         id = "example"
-        actions = {
+        assembly = {
             "calculations": [
                 authoring.Action(
                     id="calculate",
@@ -578,7 +578,7 @@ def test_grouped_actions_preserve_dependencies_and_canonical_mapping_ids() -> No
         }
 
     declaration = Example()
-    assert [action.id for action in declaration.actions] == [
+    assert [action.id for action in declaration.assembly] == [
         "calculate",
         "publish",
         "custom_work",

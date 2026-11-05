@@ -232,7 +232,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             "import build_functions\n"
             "class Values(Profile):\n"
             "    id = 'values'\n"
-            "    actions = [Action(\n"
+            "    assembly = [Action(\n"
             "        id='read',\n"
             "        function=api.ref.function(build_functions.read, kind='read'),\n"
             "        arguments={},\n"

@@ -24,7 +24,7 @@ def test_output_reference_logging_is_one_counted_summary(
     declarations = [
         profile.Profile(
             id=f"dataset_{index}",
-            actions=[
+            assembly=[
                 actions.Action(
                     id=f"read_{action}",
                     function=ref.function("reader:read", kind="read"),
@@ -97,7 +97,7 @@ def _declaration(
     ]
     return profile.Profile(
         id=identifier,
-        actions=declarations,
+        assembly=declarations,
     )
 
 
@@ -108,7 +108,7 @@ def _python_spec(profiles: list[profile.Profile], name: str | None = None) -> Sp
 def _mapping_source() -> profile.Profile:
     return profile.Profile(
         id="shared_source",
-        actions=[
+        assembly=[
             actions.Action(
                 id="_other_source",
                 inputs=[],
@@ -123,7 +123,7 @@ def _mapping_source() -> profile.Profile:
 def _conform_source(identifier: str) -> profile.Profile:
     return profile.Profile(
         id=f"{identifier}_source",
-        actions=[
+        assembly=[
             actions.Action(
                 id="_other_source",
                 inputs=[],
@@ -307,7 +307,7 @@ def test_python_spec_infers_dimensions_in_profile_grain_order() -> None:
 def test_function_catalog_keeps_distinct_functions_and_kinds() -> None:
     additional = profile.Profile(
         id="additional",
-        actions=[
+        assembly=[
             actions.Action(
                 id="_other_source",
                 inputs=[],
@@ -420,7 +420,7 @@ def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None
 def test_catalog_conflicts_are_rejected_consistently() -> None:
     first = profile.Profile(
         id="first",
-        actions=[
+        assembly=[
             actions.Action(
                 id="_source",
                 inputs=[],
@@ -433,7 +433,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
     )
     second = profile.Profile(
         id="second",
-        actions=[
+        assembly=[
             actions.Action(
                 id="_source",
                 inputs=[],
@@ -453,9 +453,9 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
 
     combined = profile.Profile(
         id="combined",
-        actions=[
-            dataclasses.replace(first.actions[0], id="first"),
-            dataclasses.replace(second.actions[0], id="second"),
+        assembly=[
+            dataclasses.replace(first.assembly[0], id="first"),
+            dataclasses.replace(second.assembly[0], id="second"),
         ],
     )
     with pytest.raises(ValueError, match="Conflicting function definition for 'shared'"):

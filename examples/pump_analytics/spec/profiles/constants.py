@@ -31,7 +31,7 @@ class Constants(Profile):
     category = "Configuration"
     features = ConstantsFeatures()
 
-    actions = [
+    assembly = [
         Action(
             id="read_constants",
             interface=Interface(

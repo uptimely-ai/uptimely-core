@@ -149,7 +149,7 @@ def _spec(*, lazy=False, empty=False):
     source = profile.Profile(
         id="observations",
         grain=[profile.Grain(group, "group"), profile.Grain(identifier, "id")],
-        actions=[
+        assembly=[
             actions.Action(
                 id="read_values",
                 inputs=[],
@@ -184,7 +184,7 @@ def _spec(*, lazy=False, empty=False):
     summary = profile.Profile(
         id="summary",
         grain=[profile.Grain(group, "group")],
-        actions=[
+        assembly=[
             actions.Action(
                 id="group_summary",
                 inputs=[ref.feature("value"), ref.feature("doubled")],
@@ -200,7 +200,7 @@ def _spec(*, lazy=False, empty=False):
     )
     global_summary = profile.Profile(
         id="global",
-        actions=[
+        assembly=[
             actions.Action(
                 id="global_total",
                 inputs=[ref.feature("maximum")],
@@ -253,7 +253,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     target = profile.Profile(
         id="target",
         grain=[profile.Grain(group, "group")],
-        actions=[
+        assembly=[
             actions.Action(
                 id="read_target",
                 inputs=[],
@@ -276,7 +276,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     foreign = profile.Profile(
         id="foreign",
         grain=[profile.Grain(group, "group")],
-        actions=[
+        assembly=[
             actions.Action(
                 id="read_source",
                 inputs=[],
@@ -570,7 +570,7 @@ def _broadcast_spec(
     observations = profile.Profile(
         id="observations",
         grain=[profile.Grain(group, "group"), profile.Grain(identifier, "id")],
-        actions=[
+        assembly=[
             actions.Action(
                 id="read_values",
                 inputs=[],
@@ -594,7 +594,7 @@ def _broadcast_spec(
     source = profile.Profile(
         id="reference_source",
         grain=[profile.Grain(dimensions[name], name) for name in source_dimension_ids],
-        actions=[
+        assembly=[
             actions.Action(
                 id="read_reference",
                 inputs=[],

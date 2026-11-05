@@ -61,7 +61,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                 id="observations",
                 grain=[profile.Grain(timestamp, "timestamp")],
                 order=[profile.Order(timestamp, "timestamp", "asc")] if ordered else [],
-                actions=[
+                assembly=[
                     actions.Action(
                         id="read_observations",
                         inputs=[],
@@ -463,7 +463,7 @@ def test_collapse_functions_execute_without_row_context(
 ) -> None:
     source = profile.Profile(
         id="observations",
-        actions=[
+        assembly=[
             actions.Action(
                 id="read_observations",
                 inputs=[],
@@ -478,7 +478,7 @@ def test_collapse_functions_execute_without_row_context(
     )
     summary = profile.Profile(
         id="summary",
-        actions=[
+        assembly=[
             actions.Action(
                 id="summary",
                 inputs=[ref.feature("temperature")],
@@ -501,11 +501,11 @@ def test_collapse_functions_execute_without_row_context(
             profile.Profile(
                 id=source.id,
                 grain=[profile.Grain(timestamp, "timestamp")],
-                actions=source.actions,
+                assembly=source.assembly,
             ),
             profile.Profile(
                 id=summary.id,
-                actions=summary.actions,
+                assembly=summary.assembly,
             ),
         ]
     )
