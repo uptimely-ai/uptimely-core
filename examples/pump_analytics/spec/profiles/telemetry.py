@@ -4,12 +4,12 @@ from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
 
 from uptimely import (
-    Action,
     Binding,
     Feature,
     FeatureSet,
     Grain,
     Interface,
+    Operator,
     Order,
     Profile,
     ref,
@@ -143,7 +143,7 @@ class Telemetry(Profile):
 
     assembly = dict(
         ingestion=[
-            Action(
+            Operator(
                 id="read_pump_telemetry",
                 interface=Interface(
                     outputs=[
@@ -166,7 +166,7 @@ class Telemetry(Profile):
             ),
         ],
         calculations=[
-            Action(
+            Operator(
                 id="recommended_flow_rate",
                 interface=Interface(
                     outputs=[features.recommended_flow_rate],
@@ -181,7 +181,7 @@ class Telemetry(Profile):
                     ),
                 ),
             ),
-            Action(
+            Operator(
                 id="recommended_discharge_pressure",
                 interface=Interface(
                     outputs=[features.recommended_discharge_pressure],
@@ -196,7 +196,7 @@ class Telemetry(Profile):
                     ),
                 ),
             ),
-            Action(
+            Operator(
                 id="energy_cost_score",
                 interface=Interface(
                     outputs=[features.energy_cost_score],
@@ -211,7 +211,7 @@ class Telemetry(Profile):
                     ),
                 ),
             ),
-            Action(
+            Operator(
                 id="converged",
                 interface=Interface(
                     outputs=[features.converged],
@@ -226,7 +226,7 @@ class Telemetry(Profile):
                     ),
                 ),
             ),
-            Action(
+            Operator(
                 id="pressure_flow_efficiency",
                 interface=Interface(
                     outputs=[features.pressure_flow_efficiency],
@@ -245,7 +245,7 @@ class Telemetry(Profile):
                     ),
                 ),
             ),
-            Action(
+            Operator(
                 id="room_temperature_reference",
                 interface=Interface(
                     outputs=[features.room_temperature_reference],
@@ -259,7 +259,7 @@ class Telemetry(Profile):
                     ),
                 ),
             ),
-            Action(
+            Operator(
                 id="bearing_temperature_rise",
                 interface=Interface(
                     outputs=[features.bearing_temperature_rise],
@@ -274,7 +274,7 @@ class Telemetry(Profile):
                     ),
                 ),
             ),
-            Action(
+            Operator(
                 id="bearing_temperature_delta",
                 interface=Interface(
                     outputs=[features.bearing_temperature_delta],
@@ -291,7 +291,7 @@ class Telemetry(Profile):
                 ),
                 row_context=row_context.rows(1, before=1),
             ),
-            Action(
+            Operator(
                 id="vibration_delta",
                 interface=Interface(
                     outputs=[features.vibration_delta],
@@ -308,7 +308,7 @@ class Telemetry(Profile):
                 ),
                 row_context=row_context.rows(1, before=1),
             ),
-            Action(
+            Operator(
                 id="pump_health_score",
                 interface=Interface(
                     outputs=[features.pump_health_score],
@@ -326,7 +326,7 @@ class Telemetry(Profile):
                     ),
                 ),
             ),
-            Action(
+            Operator(
                 id="operating_point_recommendation",
                 interface=Interface(
                     outputs=[features.operating_point_recommendation],
@@ -348,7 +348,7 @@ class Telemetry(Profile):
             ),
         ],
         publishing=[
-            Action(
+            Operator(
                 id="write_pump_telemetry",
                 interface=Interface(
                     outputs=[],

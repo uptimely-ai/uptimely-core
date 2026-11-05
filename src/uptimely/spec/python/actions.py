@@ -16,14 +16,14 @@ from . import feature as feature_module
 from . import functions as function_semantics
 from . import row_context as row_context_module
 
-__all__ = ["Action", "Interface", "Binding"]
+__all__ = ["Operator", "Interface", "Binding"]
 
 _Function = abc.Callable[..., object] | str | ref.FunctionReference
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class Interface:
-    """Declare the feature dependencies and outputs of an action."""
+    """Declare the feature dependencies and outputs of an operator."""
 
     inputs: list[feature_module.Feature | ref.Reference | str] | None = None
     outputs: list[feature_module.Feature] = dataclasses.field(default_factory=list)
@@ -44,16 +44,16 @@ class Binding:
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True, init=False)
-class Action:
-    """Declare action identity, logical interface, and computation.
+class Operator:
+    """Declare operator identity, logical interface, and computation.
 
     Args:
-        id: Non-empty action identifier, unique within its dataset.
+        id: Non-empty operator identifier, unique within its profile.
         interface: Feature dependencies and outputs. Inputs are inferred from
             compute arguments when omitted.
         compute: Computation function and named arguments.
         function_id: Optional function catalog ID, defaulting to the function name.
-        row_context: Action-specific observation requirements, merged with
+        row_context: Operator-specific observation requirements, merged with
             argument annotations.
     """
 
@@ -83,11 +83,11 @@ class Action:
         """Validate the declaration and merge argument-level row-context annotations."""
         if compute is None:
             if function is None:
-                raise TypeError("Action requires 'function' or 'compute'")
+                raise TypeError("Operator requires 'function' or 'compute'")
             if arguments is None:
-                raise TypeError("Action requires 'arguments'")
+                raise TypeError("Operator requires 'arguments'")
             if outputs is None:
-                raise TypeError("Action requires 'outputs'")
+                raise TypeError("Operator requires 'outputs'")
             compute = Binding(function=function, arguments=arguments)
         elif function is not None or arguments is not None:
             compute = Binding(
@@ -105,20 +105,20 @@ class Action:
                 outputs=interface.outputs if outputs is None else list(outputs),
             )
         if not isinstance(compute, Binding):
-            raise TypeError("Action compute must be a Binding")
+            raise TypeError("Operator compute must be a Binding")
         if not isinstance(interface, Interface):
-            raise TypeError("Action interface must be an Interface")
+            raise TypeError("Operator interface must be an Interface")
         object.__setattr__(self, "id", id)
         object.__setattr__(self, "compute", compute)
         object.__setattr__(self, "interface", interface)
         object.__setattr__(self, "function_id", function_id)
         object.__setattr__(self, "row_context", row_context)
         if not isinstance(self.id, str) or not self.id.strip():
-            raise ValueError("Action requires a non-empty id")
+            raise ValueError("Operator requires a non-empty id")
         _ = self.kind
         output_ids = [output.id for output in self.interface.outputs]
         if len(output_ids) != len(set(output_ids)):
-            raise ValueError("Action output feature IDs must not repeat")
+            raise ValueError("Operator output feature IDs must not repeat")
         validation.validate_action_output_references(
             self.id,
             self._references(self.arguments),
@@ -206,7 +206,7 @@ class Action:
         )
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
-        """Build the reusable function contract declared by this action."""
+        """Build the reusable function contract declared by this operator."""
         function_arguments = {
             name: spec_model.Argument(id=name, **binding_conversion.argument_definition(value))
             for name, value in self.bound_arguments().items()
@@ -234,7 +234,7 @@ class Action:
         if isinstance(value, ref.Reference):
             prefix, _, identifier = value.value.rpartition(".")
             if prefix != selectors.FEATURE_PREFIX.removesuffix("."):
-                raise ValueError(f"Action input must reference a feature, got {value.value!r}")
+                raise ValueError(f"Operator input must reference a feature, got {value.value!r}")
             return identifier
         return value.removeprefix(selectors.FEATURE_PREFIX)
 
@@ -261,7 +261,7 @@ class Action:
         return list(
             dict.fromkeys(
                 reference.value.removeprefix(selectors.FEATURE_PREFIX)
-                for reference in Action._references(value)
+                for reference in Operator._references(value)
                 if reference.type == "feature"
             )
         )
@@ -270,14 +270,14 @@ class Action:
     def _references(value: object) -> typing.Iterator[ref.Reference]:
         """Yield references nested in argument bindings."""
         if isinstance(value, row_context_module.RowContextBinding):
-            yield from Action._references(value.value)
+            yield from Operator._references(value.value)
         elif isinstance(value, ref.Reference):
             yield value
         elif isinstance(value, bind.Bind):
-            yield from Action._references(value.args)
+            yield from Operator._references(value.args)
         elif isinstance(value, abc.Mapping):
             for child in value.values():
-                yield from Action._references(child)
+                yield from Operator._references(child)
         elif isinstance(value, (list, tuple)):
             for child in value:
-                yield from Action._references(child)
+                yield from Operator._references(child)

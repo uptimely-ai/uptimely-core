@@ -25,7 +25,7 @@ def test_output_reference_logging_is_one_counted_summary(
         profile.Profile(
             id=f"dataset_{index}",
             assembly=[
-                actions.Action(
+                actions.Operator(
                     id=f"read_{action}",
                     function=ref.function("reader:read", kind="read"),
                     arguments={"column": ref.output(f"value_{action}")},
@@ -70,7 +70,7 @@ def _declaration(
     is_expand = category == "expand"
     is_dimensional = category in {"conform", "expand"}
     declarations = [
-        actions.Action(
+        actions.Operator(
             id=f"{identifier}_mapping",
             inputs=[ref.feature("temperature")] if is_dimensional else [],
             function=ref.function(function, kind=category),
@@ -109,7 +109,7 @@ def _mapping_source() -> profile.Profile:
     return profile.Profile(
         id="shared_source",
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="_other_source",
                 inputs=[],
                 function=ref.function(_other_source, kind="read"),
@@ -124,7 +124,7 @@ def _conform_source(identifier: str) -> profile.Profile:
     return profile.Profile(
         id=f"{identifier}_source",
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="_other_source",
                 inputs=[],
                 function=ref.function(_other_source, kind="read"),
@@ -308,7 +308,7 @@ def test_function_catalog_keeps_distinct_functions_and_kinds() -> None:
     additional = profile.Profile(
         id="additional",
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="_other_source",
                 inputs=[],
                 function=ref.function(_other_source, kind="read"),
@@ -421,7 +421,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
     first = profile.Profile(
         id="first",
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="_source",
                 inputs=[],
                 function=ref.function(_source, kind="read"),
@@ -434,7 +434,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
     second = profile.Profile(
         id="second",
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="_source",
                 inputs=[],
                 function=ref.function(_source, kind="read"),

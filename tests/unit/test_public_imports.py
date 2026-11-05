@@ -63,7 +63,9 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
 
 def test_root_authoring_exports_preserve_object_identity() -> None:
     assert uptimely.Spec is python_spec.Spec
-    assert uptimely.Action is python_spec.Action
+    assert uptimely.Operator is python_spec.Operator
+    assert not hasattr(uptimely, "Action")
+    assert not hasattr(python_spec, "Action")
     assert uptimely.Profile is python_spec.Profile
     assert not hasattr(uptimely, "Dataset")
     assert not hasattr(python_spec, "Dataset")

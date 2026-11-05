@@ -43,7 +43,7 @@ class Pump(up.Profile):
     features = PumpFeatures()
 
     assembly = [
-        up.Action(
+        up.Operator(
             id="temperature_max",
             interface=up.Interface(
                 outputs=[features.bearing_temperature_max],
@@ -65,7 +65,7 @@ class Pump(up.Profile):
 keys. `Feature.name` is an optional display label; when omitted, it is generated
 by humanizing the ID (for example, `bearing_temperature_max` becomes
 `Bearing Temperature Max`). A `FeatureSet` subclass groups a profile's
-feature declarations as attributes, which actions reference in their outputs
+feature declarations as attributes, which operators reference in their outputs
 instead of repeating metadata inline.
 
 ```python
@@ -75,7 +75,7 @@ python_spec = up.Spec(
 )
 ```
 
-Root-level `Spec`, `Profile`, `Action`, `Interface`, `Binding`,
+Root-level `Spec`, `Profile`, `Operator`, `Interface`, `Binding`,
 `Dimension`, `Resolution`, `Grain`, `Feature` and `FeatureSet` are Python
 authoring classes.
 Document-model classes remain under `uptimely.spec.model` and the existing
@@ -96,23 +96,24 @@ collected from the registered profiles; reference resolution does not mutate
 the supplied declarations. `ProfileRegistry([Pump]).to_declarations()` can
 instantiate and register profile classes.
 
-`Action` declares work without executing it. It takes an `id`, an `interface`,
-and a `binding`. `Binding` contains the implementation `function` and named
-`arguments`; `Interface` contains feature `inputs` and `outputs`.
-Interface inputs are optional: if omitted, feature references in binding
+`Operator` declares work without executing it. It takes an `id`, an `interface`,
+and a `compute` binding. `Binding` contains the implementation `function` and
+named `arguments`; `Interface` contains feature `inputs` and `outputs`.
+Interface inputs are optional: if omitted, feature references in compute
 arguments are inferred as dependencies. If supplied, they define the
 dependencies instead. Existing flat `function`, `arguments`, `inputs`, and
-`outputs` keywords remain accepted for compatibility. `Action` also accepts
-optional `function_id` and `row_context` requirements. Optionally annotate callable implementations with
-`@function(kind=...)`. The decorator attaches semantic metadata for validation;
+`outputs` keywords remain accepted for compatibility. `Operator` also accepts
+optional `function_id` and `row_context` requirements. Optionally annotate
+callable implementations with `@function(kind=...)`. The decorator attaches
+semantic metadata for validation;
 it returns the original function without wrapping or executing it. Alternatively,
 keep implementations undecorated and supply their contract through
 `ref.function(implementation, kind=...)`. Entrypoint strings also use explicit
-function references. Kind belongs to the function, not the action.
+function references. Kind belongs to the function, not the operator.
 
 An explicit reference kind must agree with decorated metadata. References to
 decorated callables inherit their kind when it is omitted. Decoration is
-optional, but a function kind is still required to build an executable action;
+optional, but a function kind is still required to build an executable operator;
 Uptimely never guesses a producer's kind from its signature or collection.
 Implementations aren't called during authoring; assembly checks callable
 parameter names and required arguments.
@@ -161,7 +162,7 @@ generated declarations, use `Profile(id=..., grain=[...], assembly=[...])`.
 ### Profile assembly
 
 Each profile declares its work in one `assembly` list. For readability, a
-mapping of group names to action lists is also accepted and flattened in
+mapping of group names to operator lists is also accepted and flattened in
 insertion order:
 
 ```python
@@ -173,9 +174,9 @@ assembly = {
 ```
 
 Groups are organizational only; function kind remains explicit on functions
-or function references and determines runtime behavior. Action IDs must be
+or function references and determines runtime behavior. Operator IDs must be
 non-empty and unique within the profile. Reusing one function in multiple
-actions is allowed with distinct action IDs; `function_id` separately
+operators is allowed with distinct operator IDs; `function_id` separately
 identifies its reusable catalog contract.
 
 The assembly defaults to an empty list and is copied for each profile instance.
@@ -190,14 +191,14 @@ function's internal steps.
 
 ### Migrating from FunctionMapping
 
-- Replace `FunctionMapping(...)` with `Action(id=..., ...)`. Move named profile
+- Replace `FunctionMapping(...)` with `Operator(id=..., ...)`. Move named profile
   attributes or entries in `mappings={...}` into the appropriate assembly list.
-  Use the former attribute name or dictionary key as the action ID.
+  Use the former attribute name or dictionary key as the operator ID.
 - Replace imports from `uptimely.spec.python.mapping` or
   `uptimely.spec.python.mappings` with `uptimely.spec.python.actions`, or import
-  `Action` directly from `uptimely.spec.python`.
+  `Operator` directly from `uptimely.spec.python`.
 - Access declarations through `Profile.assembly` rather than `Profile.mappings`.
-- Convert an action with `Action.to_model()`; its own ID supplies the canonical
+- Convert an operator with `Operator.to_model()`; its own ID supplies the canonical
   action identifier. Feature metadata remains in `outputs`, and
   `Feature.to_model()` is unchanged.
 
@@ -220,7 +221,7 @@ The current JSON contract is spec version 4; see the
 
 ## profile
 
-`uptimely.spec.python.profile` declares profile grain, metadata, actions, and
+`uptimely.spec.python.profile` declares profile grain, metadata, assembly, and
 optional class registries.
 
 ::: uptimely.spec.python.profile
@@ -248,8 +249,8 @@ optional class registries.
 
 ## actions module
 
-`uptimely.spec.python.actions` defines the `Action`, `Interface`, and `Binding`
-declarations used in a profile's assembly.
+`uptimely.spec.python.actions` defines `Operator`, `Interface`, and `Binding`,
+the declarations used in a profile's assembly.
 
 ::: uptimely.spec.python.actions
     options:
@@ -273,7 +274,7 @@ that Uptimely validates at its supported boundaries.
 ## bind
 
 `uptimely.spec.python.bind` provides lower-level nested argument bindings and
-serialization helpers. Actions bind functions directly through their
+serialization helpers. Operators bind functions directly through their
 `function` and `arguments` attributes.
 
 ::: uptimely.spec.python.bind

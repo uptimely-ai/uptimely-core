@@ -26,7 +26,7 @@ MAPPING_KINDS: tuple[functions.FunctionKindId, ...] = (
 )
 
 
-def _dataset(action: actions.Action) -> profile.Profile:
+def _dataset(action: actions.Operator) -> profile.Profile:
     return profile.Profile(
         id="observations",
         assembly=[action],
@@ -76,7 +76,7 @@ def test_signature_validation_setting_survives_conversion_without_importing(
         validate_signature=validate_signature,
     )
     declaration = _dataset(
-        actions.Action(id="calculate", function=reference, arguments={}, outputs=[]),
+        actions.Operator(id="calculate", function=reference, arguments={}, outputs=[]),
     )
 
     payload = conversion.to_dict(profiles=[declaration])
@@ -131,7 +131,7 @@ def test_undocumented_callable_and_string_references_have_no_description() -> No
 def test_description_survives_conversion_to_exported_document() -> None:
     reference = ref.function(_documented, kind="vectorize")
     declaration = _dataset(
-        actions.Action(id="calculate", function=reference, arguments={}, outputs=[]),
+        actions.Operator(id="calculate", function=reference, arguments={}, outputs=[]),
     )
 
     payload = conversion.to_dict(profiles=[declaration])
@@ -182,7 +182,7 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
         profile.Profile(
             id=identifier,
             assembly=[
-                actions.Action(
+                actions.Operator(
                     id="ceil",
                     inputs=[],
                     function=ref.function(
@@ -211,7 +211,9 @@ def test_string_locations_are_preserved_without_importing(
     reference = ref.function(f"{location}:ceil", kind="vectorize")
     declaration = profile.Profile(
         id="observations",
-        assembly=[actions.Action(id="ceil", function=reference, arguments={"x": 1.2}, outputs=[])],
+        assembly=[
+            actions.Operator(id="ceil", function=reference, arguments={"x": 1.2}, outputs=[])
+        ],
     )
 
     payload = conversion.to_dict(profiles=[declaration])
@@ -232,7 +234,7 @@ def test_generic_mapping_exports_function_kind_without_importing(
 
     monkeypatch.setattr(importlib, "import_module", unexpected_import)
     declaration = _dataset(
-        actions.Action(
+        actions.Operator(
             id="calculate",
             inputs=[],
             function=ref.function("unavailable_package.functions:calculate", kind=kind),
@@ -255,7 +257,7 @@ def test_generic_mapping_exports_function_kind_without_importing(
 
 def test_generic_mapping_requires_operation_metadata() -> None:
     with pytest.raises(ValueError, match="kind"):
-        actions.Action(
+        actions.Operator(
             id="action",
             inputs=[],
             function=ref.function("math:ceil"),
@@ -268,7 +270,7 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
     declaration = profile.Profile(
         id="observations",
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="external_update",
                 inputs=[],
                 function=ref.function("math:ceil", kind="escape"),
@@ -291,7 +293,7 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
 def test_generic_mapping_accepts_function_kind_metadata(
     kind: functions.FunctionKindId,
 ) -> None:
-    declaration = actions.Action(
+    declaration = actions.Operator(
         id="declaration",
         inputs=[],
         function=ref.function("math:ceil", kind=kind),
@@ -307,7 +309,7 @@ def test_generic_mapping_accepts_function_kind_metadata(
 def test_references_supply_catalog_ids_and_preserve_overrides(
     kind: functions.FunctionKindId, function_id: str | None
 ) -> None:
-    declaration = actions.Action(
+    declaration = actions.Operator(
         id="declaration",
         function=ref.function("math:ceil", kind=kind),
         function_id=function_id,

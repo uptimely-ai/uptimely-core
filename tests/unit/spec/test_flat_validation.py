@@ -781,7 +781,7 @@ def _python_profile_with_missing_input() -> python_profile.Profile:
     return python_profile.Profile(
         id="source",
         assembly=[
-            python_actions.Action(
+            python_actions.Operator(
                 id="compute",
                 function=python_ref.function("external:compute", kind="vectorize"),
                 arguments={"data": python_ref.current_profile().dataframe},

@@ -140,14 +140,14 @@ class MyAnalyticalProfile(up.Profile):
     id = "calculated_profile"
     grain = [up.Grain(measurement_id, "measurement_id")]
 
-    actions = [
-        up.Action(
+    assembly = [
+        up.Operator(
             id="read",
             function=read_values,
             arguments={},
             outputs=[up.Feature(id="value")],
         ),
-        up.Action(
+        up.Operator(
             id="double",
             function=double,
             arguments={
@@ -157,7 +157,7 @@ class MyAnalyticalProfile(up.Profile):
             },
             outputs=[up.Feature(id="doubled")],
         ),
-        up.Action(
+        up.Operator(
             id="print",
             function=print_results,
             arguments={"dataset": up.ref.dataframe()},

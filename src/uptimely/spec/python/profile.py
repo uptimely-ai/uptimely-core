@@ -75,14 +75,14 @@ class Profile:
     features: feature_module.FeatureSet | None = None
     grain: abc.Sequence[Grain] = ()
     order: abc.Sequence[Order] = ()
-    assembly: abc.Sequence[actions.Action] | abc.Mapping[str, abc.Sequence[actions.Action]] = ()
+    assembly: abc.Sequence[actions.Operator] | abc.Mapping[str, abc.Sequence[actions.Operator]] = ()
 
     def __init__(
         self,
         *,
         id: str | None = None,
         assembly: (
-            abc.Sequence[actions.Action] | abc.Mapping[str, abc.Sequence[actions.Action]] | None
+            abc.Sequence[actions.Operator] | abc.Mapping[str, abc.Sequence[actions.Operator]] | None
         ) = None,
         name: str | None = None,
         description: str | None = None,
@@ -123,33 +123,33 @@ class Profile:
         _ = self._assembly_by_id
 
     @property
-    def _assembly_by_id(self) -> dict[str, actions.Action]:
+    def _assembly_by_id(self) -> dict[str, actions.Operator]:
         """Return declared assembly items keyed by ID after validating the collection."""
-        collected: dict[str, actions.Action] = {}
+        collected: dict[str, actions.Operator] = {}
         if not isinstance(self.assembly, abc.Sequence) or isinstance(self.assembly, (str, bytes)):
-            raise TypeError(f"Profile '{self.id}' assembly must be a sequence of Actions")
-        for action in self.assembly:
-            if not isinstance(action, actions.Action):
-                raise TypeError(f"Profile '{self.id}' assembly must contain Actions")
-            if action.outputs and not functions.FUNCTION_KINDS[action.kind].produces_features:
+            raise TypeError(f"Profile '{self.id}' assembly must be a sequence of Operators")
+        for operator in self.assembly:
+            if not isinstance(operator, actions.Operator):
+                raise TypeError(f"Profile '{self.id}' assembly must contain Operators")
+            if operator.outputs and not functions.FUNCTION_KINDS[operator.kind].produces_features:
                 raise ValueError(
-                    f"Profile '{self.id}', action '{action.id}': "
-                    f"{action.kind.capitalize()} action cannot produce features"
+                    f"Profile '{self.id}', operator '{operator.id}': "
+                    f"{operator.kind.capitalize()} operator cannot produce features"
                 )
-            if action.id in collected:
-                raise ValueError(f"Profile '{self.id}' has duplicate action ID '{action.id}'")
-            collected[action.id] = action
+            if operator.id in collected:
+                raise ValueError(f"Profile '{self.id}' has duplicate operator ID '{operator.id}'")
+            collected[operator.id] = operator
         return collected
 
     def _flatten_assembly(
         self,
         provided_assembly: (
-            abc.Sequence[actions.Action] | abc.Mapping[str, abc.Sequence[actions.Action]]
+            abc.Sequence[actions.Operator] | abc.Mapping[str, abc.Sequence[actions.Operator]]
         ),
-    ) -> list[actions.Action]:
+    ) -> list[actions.Operator]:
         """Copy assembly declarations, flattening named groups in insertion order."""
         if isinstance(provided_assembly, abc.Mapping):
-            flattened: list[actions.Action] = []
+            flattened: list[actions.Operator] = []
             for group_name, group_items in provided_assembly.items():
                 if not isinstance(group_name, str) or not group_name.strip():
                     raise TypeError("Profile assembly group names must be non-empty strings")
@@ -158,11 +158,11 @@ class Profile:
                 ):
                     raise TypeError(
                         f"Profile '{self.id}' assembly group '{group_name}' "
-                        "must be a sequence of Actions"
+                        "must be a sequence of Operators"
                     )
-                if any(not isinstance(action, actions.Action) for action in group_items):
+                if any(not isinstance(operator, actions.Operator) for operator in group_items):
                     raise TypeError(
-                        f"Profile '{self.id}' assembly group '{group_name}' must contain Actions"
+                        f"Profile '{self.id}' assembly group '{group_name}' must contain Operators"
                     )
                 flattened.extend(group_items)
             return flattened
@@ -170,10 +170,10 @@ class Profile:
             provided_assembly, (str, bytes)
         ):
             raise TypeError(
-                f"Profile '{self.id}' assembly must be a sequence or mapping of Actions"
+                f"Profile '{self.id}' assembly must be a sequence or mapping of Operators"
             )
-        if any(not isinstance(action, actions.Action) for action in provided_assembly):
-            raise TypeError(f"Profile '{self.id}' assembly must contain Actions")
+        if any(not isinstance(operator, actions.Operator) for operator in provided_assembly):
+            raise TypeError(f"Profile '{self.id}' assembly must contain Operators")
         return list(provided_assembly)
 
     def to_model(self) -> spec_model.Profile:
@@ -262,14 +262,14 @@ class Profile:
                         )
         return features
 
-    def _action_model(self, name: str, declaration: actions.Action) -> spec_model.Action:
-        """Convert an action and add its dataset location to declaration errors."""
+    def _action_model(self, name: str, declaration: actions.Operator) -> spec_model.Action:
+        """Convert an operator and add its profile location to declaration errors."""
         try:
             return declaration.to_model()
         except TypeError as error:
-            raise TypeError(f"Profile '{self.id}', action '{name}': {error}") from error
+            raise TypeError(f"Profile '{self.id}', operator '{name}': {error}") from error
         except ValueError as error:
-            raise ValueError(f"Profile '{self.id}', action '{name}': {error}") from error
+            raise ValueError(f"Profile '{self.id}', operator '{name}': {error}") from error
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Collect reusable function contracts without executing implementations."""

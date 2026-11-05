@@ -1,10 +1,10 @@
 """Python source with a relative import within an installed package."""
 
 from uptimely.spec.python import (
-    Action,
     Dimension,
     Feature,
     Grain,
+    Operator,
     Profile,
     Resolution,
     Spec,
@@ -24,7 +24,7 @@ class Values(Profile):
     grain = [Grain(row, "row")]
 
     assembly = [
-        Action(
+        Operator(
             id="read",
             function=ref.function(functions.Readers.values, kind="read"),
             arguments={},

@@ -186,7 +186,7 @@ def test_sources_and_transforms_python_spec() -> None:
         id="transformed_dataset",
         grain=[python_spec.Grain(id_dimension, "id")],
         assembly=[
-            python_spec.actions.Action(
+            python_spec.actions.Operator(
                 id="read",
                 inputs=[],
                 function=python_spec.ref.function(_read_transform_data, kind="read"),
@@ -202,14 +202,14 @@ def test_sources_and_transforms_python_spec() -> None:
             python_spec.Grain(region_dimension, "region"),
         ],
         assembly=[
-            python_spec.actions.Action(
+            python_spec.actions.Operator(
                 id="read",
                 inputs=[],
                 function=python_spec.ref.function(_read_transform_data, kind="read"),
                 arguments={},
                 outputs=[python_spec.feature.Feature(id="target_value")],
             ),
-            python_spec.actions.Action(
+            python_spec.actions.Operator(
                 id="expand_data",
                 inputs=[python_spec.ref.feature("input_1")],
                 function=python_spec.ref.function(expand_data, kind="expand"),
@@ -224,7 +224,7 @@ def test_sources_and_transforms_python_spec() -> None:
         id="summary",
         grain=[python_spec.Grain(id_dimension, "id")],
         assembly=[
-            python_spec.actions.Action(
+            python_spec.actions.Operator(
                 id="collapse_data",
                 inputs=[python_spec.ref.feature("input_2")],
                 function=python_spec.ref.function(analytics.aggregate, kind="collapse"),

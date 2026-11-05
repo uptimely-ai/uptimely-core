@@ -36,8 +36,9 @@ def calculate(value: str) -> str:
     return value
 
 
-def test_action_is_the_only_public_work_declaration_name() -> None:
-    assert authoring.Action.__name__ == "Action"
+def test_operator_is_the_public_work_declaration_name() -> None:
+    assert authoring.Operator.__name__ == "Operator"
+    assert not hasattr(authoring, "Action")
     assert not hasattr(authoring, "FunctionCall")
     assert not hasattr(authoring, "Mapping")
     assert not hasattr(authoring, "FunctionMapping")
@@ -55,7 +56,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     declaration = authoring.Profile(
         id="example",
         assembly=[
-            authoring.Action(
+            authoring.Operator(
                 id="read",
                 function=ref.function("reader:read", kind="read"),
                 arguments={},
@@ -95,7 +96,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
 
 def test_mapping_rejects_duplicate_output_ids() -> None:
     with pytest.raises(ValueError, match="output feature IDs must not repeat"):
-        authoring.Action(
+        authoring.Operator(
             id="action",
             function=ref.function("reader:read", kind="read"),
             arguments={},
@@ -110,7 +111,7 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
     class Example(authoring.Profile):
         id = "example"
         assembly = [
-            authoring.Action(
+            authoring.Operator(
                 id="result",
                 function=must_not_execute,
                 arguments={
@@ -153,7 +154,7 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
     class Example(authoring.Profile):
         id = "example"
         assembly = [
-            authoring.Action(
+            authoring.Operator(
                 id="invalid",
                 function=implementation,
                 arguments=arguments,
@@ -161,7 +162,7 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
             )
         ]
 
-    with pytest.raises(TypeError, match="Profile 'example', action 'invalid'") as error:
+    with pytest.raises(TypeError, match="Profile 'example', operator 'invalid'") as error:
         Example().to_model()
     assert message in str(error.value)
 
@@ -171,7 +172,7 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
     class Example(authoring.Profile):
         id = "example"
         assembly = [
-            authoring.Action(
+            authoring.Operator(
                 id="first",
                 function=ref.function(
                     "test_declarative_authoring:implementation", kind="vectorize"
@@ -187,19 +188,19 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
 
 
 def test_dataset_subclasses_inherit_and_replace_collections() -> None:
-    first = authoring.Action(
+    first = authoring.Operator(
         id="read",
         function=ref.function("reader:read", kind="read"),
         arguments={},
         outputs=[authoring.Feature(id="value", type="float")],
     )
-    replacement = authoring.Action(
+    replacement = authoring.Operator(
         id="read",
         function=ref.function("reader:replacement", kind="read"),
         arguments={},
         outputs=[authoring.Feature(id="value", type="integer")],
     )
-    sink = authoring.Action(
+    sink = authoring.Operator(
         id="write",
         function=ref.function("writer:write", kind="write"),
         arguments={"column": ref.feature("value")},
@@ -241,7 +242,7 @@ def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
         id = "example"
         grain = [authoring.Grain(identifier, "machine")]
         assembly = [
-            authoring.Action(
+            authoring.Operator(
                 id="values",
                 function=ref.function("reader:values", kind="read"),
                 arguments={},
@@ -257,7 +258,7 @@ def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
 
 
 def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
-    action = authoring.Action(
+    action = authoring.Operator(
         id="result",
         function=ref.function("calculation:calculate", kind="vectorize"),
         arguments={
@@ -285,7 +286,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
 
 
 def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -> None:
-    action = authoring.Action(
+    action = authoring.Operator(
         id="named",
         function=ref.function("calculation:calculate", kind="vectorize"),
         function_id="custom",
@@ -304,7 +305,7 @@ def test_programmatic_dataset_preserves_mapping_names_and_function_overrides() -
 
 
 def test_action_interface_inputs_accept_feature_declarations() -> None:
-    action = authoring.Action(
+    action = authoring.Operator(
         id="calculate",
         interface=authoring.Interface(
             inputs=[authoring.Feature(id="explicit")],
@@ -329,7 +330,7 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
         id="example",
         grain=[authoring.Grain(identifier, "machine")],
         assembly=[
-            authoring.Action(
+            authoring.Operator(
                 id="read",
                 function=ref.function("reader:read", kind="read"),
                 arguments={
@@ -366,16 +367,16 @@ def test_mapping_constructor_requires_explicit_fields(required: str) -> None:
     }
     del arguments[required]
     with pytest.raises(TypeError, match=required):
-        authoring.Action(**arguments)
+        authoring.Operator(**arguments)
 
 
 def test_mapping_requires_function_kind_metadata() -> None:
     with pytest.raises(ValueError, match="Function kind is required"):
-        authoring.Action(id="action", function="reader:read", arguments={}, outputs=[])
+        authoring.Operator(id="action", function="reader:read", arguments={}, outputs=[])
 
 
 def test_kind_annotation_is_inferred_without_wrapping_function() -> None:
-    declaration = authoring.Action(
+    declaration = authoring.Operator(
         id="declaration",
         function=calculate,
         arguments={"value": "input"},
@@ -388,7 +389,7 @@ def test_kind_annotation_is_inferred_without_wrapping_function() -> None:
 
 
 def test_action_export_uses_its_identifier() -> None:
-    action = authoring.Action(
+    action = authoring.Operator(
         id="action", function=ref.function("reader:read", kind="read"), arguments={}, outputs=[]
     )
     assert action.to_model().id == "action"
@@ -396,8 +397,8 @@ def test_action_export_uses_its_identifier() -> None:
 
 @pytest.mark.parametrize("identifier", ["", " ", None, 1])
 def test_action_rejects_invalid_identifiers(identifier: typing.Any) -> None:
-    with pytest.raises(ValueError, match="Action requires a non-empty id"):
-        authoring.Action(
+    with pytest.raises(ValueError, match="Operator requires a non-empty id"):
+        authoring.Operator(
             id=identifier,
             function=ref.function("reader:read", kind="read"),
             arguments={},
@@ -407,7 +408,7 @@ def test_action_rejects_invalid_identifiers(identifier: typing.Any) -> None:
 
 @pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
 def test_actions_accept_every_declared_function_kind(kind: functions.FunctionKindId) -> None:
-    action = authoring.Action(
+    action = authoring.Operator(
         id="work",
         function=ref.function("implementation:work", kind=kind),
         arguments={},
@@ -421,7 +422,7 @@ def test_actions_accept_every_declared_function_kind(kind: functions.FunctionKin
 @pytest.mark.parametrize("invalid", ["invalid", [object()], [None]])
 def test_action_list_rejects_invalid_values(invalid: typing.Any) -> None:
     with pytest.raises(
-        TypeError, match="assembly must (be a sequence or mapping of|contain) Actions"
+        TypeError, match="assembly must (be a sequence or mapping of|contain) Operators"
     ):
         authoring.Profile(id="example", assembly=invalid)
 
@@ -433,7 +434,7 @@ def test_action_groups_reject_invalid_values(invalid: typing.Any) -> None:
 
 
 def test_action_groups_flatten_in_mapping_order() -> None:
-    first = authoring.Action(
+    first = authoring.Operator(
         id="read",
         function=ref.function("reader:read", kind="read"),
         arguments={},
@@ -459,7 +460,7 @@ def test_action_groups_flatten_in_mapping_order() -> None:
 
 @pytest.mark.parametrize("second_kind", ["read", "write", "escape"])
 def test_action_ids_are_unique_across_groups(second_kind: functions.FunctionKindId) -> None:
-    first = authoring.Action(
+    first = authoring.Operator(
         id="duplicate",
         function=ref.function("reader:read", kind="read"),
         arguments={},
@@ -472,7 +473,7 @@ def test_action_ids_are_unique_across_groups(second_kind: functions.FunctionKind
             function=ref.function("implementation:work", kind=second_kind),
         ),
     )
-    with pytest.raises(ValueError, match="Profile 'example' has duplicate action ID 'duplicate'"):
+    with pytest.raises(ValueError, match="Profile 'example' has duplicate operator ID 'duplicate'"):
         authoring.Profile(
             id="example",
             assembly={"first": [first], "second": [second]},
@@ -480,7 +481,7 @@ def test_action_ids_are_unique_across_groups(second_kind: functions.FunctionKind
 
 
 def test_action_defaults_and_inherited_lists_are_not_shared_between_instances() -> None:
-    read = authoring.Action(
+    read = authoring.Operator(
         id="read",
         function=ref.function("reader:read", kind="read"),
         arguments={},
@@ -505,7 +506,7 @@ def test_action_defaults_and_inherited_lists_are_not_shared_between_instances() 
 
 
 def test_subclasses_can_explicitly_extend_or_clear_inherited_actions() -> None:
-    read = authoring.Action(
+    read = authoring.Operator(
         id="read",
         function=ref.function("reader:read", kind="read"),
         arguments={},
@@ -530,7 +531,7 @@ def test_subclasses_can_explicitly_extend_or_clear_inherited_actions() -> None:
 def test_conversion_revalidates_modified_actions() -> None:
     declaration = authoring.Profile(id="example")
     declaration.assembly = [
-        authoring.Action(
+        authoring.Operator(
             id="write",
             function=ref.function("writer:write", kind="write"),
             arguments={},
@@ -540,9 +541,9 @@ def test_conversion_revalidates_modified_actions() -> None:
     declaration.assembly[0] = dataclasses.replace(
         declaration.assembly[0], outputs=[authoring.Feature(id="value")]
     )
-    with pytest.raises(ValueError, match="Write action cannot produce features"):
+    with pytest.raises(ValueError, match="Write operator cannot produce features"):
         declaration.to_model()
-    with pytest.raises(ValueError, match="Write action cannot produce features"):
+    with pytest.raises(ValueError, match="Write operator cannot produce features"):
         declaration.function_catalog()
 
 
@@ -551,7 +552,7 @@ def test_grouped_actions_preserve_dependencies_and_canonical_mapping_ids() -> No
         id = "example"
         assembly = {
             "calculations": [
-                authoring.Action(
+                authoring.Operator(
                     id="calculate",
                     function=ref.function("implementation:calculate", kind="vectorize"),
                     arguments={"column": ref.feature("pipeline_result")},
@@ -559,7 +560,7 @@ def test_grouped_actions_preserve_dependencies_and_canonical_mapping_ids() -> No
                 )
             ],
             "publishing": [
-                authoring.Action(
+                authoring.Operator(
                     id="publish",
                     function=ref.function("implementation:publish", kind="write"),
                     arguments={"column": ref.feature("result")},
@@ -567,7 +568,7 @@ def test_grouped_actions_preserve_dependencies_and_canonical_mapping_ids() -> No
                 )
             ],
             "custom": [
-                authoring.Action(
+                authoring.Operator(
                     id="custom_work",
                     function=ref.function("implementation:custom_work", kind="escape"),
                     arguments={},

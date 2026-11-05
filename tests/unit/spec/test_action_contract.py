@@ -66,7 +66,7 @@ def _spec() -> spec.Spec:
                 id="observations",
                 grain=[profile.Grain(identifier, "id")],
                 assembly=[
-                    actions.Action(
+                    actions.Operator(
                         id="read_values",
                         inputs=[],
                         function=ref.function(read_values, kind="read"),
@@ -76,7 +76,7 @@ def _spec() -> spec.Spec:
                             feature.Feature(id="value", type="integer"),
                         ],
                     ),
-                    actions.Action(
+                    actions.Operator(
                         id="result",
                         inputs=[ref.feature("value")],
                         function=ref.function(add_one, kind="vectorize"),
@@ -86,7 +86,7 @@ def _spec() -> spec.Spec:
                         },
                         outputs=[feature.Feature(id="result", type="integer")],
                     ),
-                    actions.Action(
+                    actions.Operator(
                         id="metadata",
                         inputs=[],
                         function=ref.function(metadata_only, kind="vectorize"),
@@ -301,7 +301,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                 id="source",
                 grain=[profile.Grain(identifier, "id")],
                 assembly=[
-                    actions.Action(
+                    actions.Operator(
                         id="read_lower_grain",
                         inputs=[],
                         function=ref.function(read_lower_grain, kind="read"),
@@ -317,14 +317,14 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                     profile.Grain(region, "region"),
                 ],
                 assembly=[
-                    actions.Action(
+                    actions.Operator(
                         id="read_target_grain",
                         inputs=[],
                         function=ref.function(read_target_grain, kind="read"),
                         arguments={"include_second": dataframe},
                         outputs=[feature.Feature(id="target_value", type="integer")],
                     ),
-                    actions.Action(
+                    actions.Operator(
                         id="copied",
                         inputs=[ref.feature("value")],
                         outputs=[

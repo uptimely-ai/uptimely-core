@@ -9,7 +9,7 @@ from .spec import (  # noqa: I001
     write_document,
 )
 from .spec.python import (
-    Action,
+    Operator,
     Binding,
     Grain,
     Profile,
@@ -29,7 +29,7 @@ from .engine import Engine
 
 __all__ = [
     "Spec",
-    "Action",
+    "Operator",
     "Interface",
     "Binding",
     "Profile",

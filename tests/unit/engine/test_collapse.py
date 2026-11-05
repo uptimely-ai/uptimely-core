@@ -150,14 +150,14 @@ def _spec(*, lazy=False, empty=False):
         id="observations",
         grain=[profile.Grain(group, "group"), profile.Grain(identifier, "id")],
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="read_values",
                 inputs=[],
                 function=ref.function(read_values, kind="read"),
                 arguments={"lazy": lazy, "empty": empty},
                 outputs=[feature.Feature(id=name) for name in ("group", "id", "value")],
             ),
-            actions.Action(
+            actions.Operator(
                 id="double",
                 inputs=[ref.feature("value")],
                 function=ref.function(double, kind="vectorize"),
@@ -168,7 +168,7 @@ def _spec(*, lazy=False, empty=False):
                 },
                 outputs=[feature.Feature(id="doubled")],
             ),
-            actions.Action(
+            actions.Operator(
                 id="unneeded",
                 inputs=[ref.feature("value")],
                 function=ref.function(double, kind="vectorize"),
@@ -185,7 +185,7 @@ def _spec(*, lazy=False, empty=False):
         id="summary",
         grain=[profile.Grain(group, "group")],
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="group_summary",
                 inputs=[ref.feature("value"), ref.feature("doubled")],
                 function=ref.function(summarize, kind="collapse"),
@@ -201,14 +201,14 @@ def _spec(*, lazy=False, empty=False):
     global_summary = profile.Profile(
         id="global",
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="global_total",
                 inputs=[ref.feature("maximum")],
                 function=ref.function(total, kind="collapse"),
                 arguments={"dataset": ref.profile("summary").dataframe},
                 outputs=[feature.Feature(id="total")],
             ),
-            actions.Action(
+            actions.Operator(
                 id="global_maximum",
                 inputs=[ref.feature("maximum")],
                 function=ref.function(maximum, kind="collapse"),
@@ -254,14 +254,14 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
         id="target",
         grain=[profile.Grain(group, "group")],
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="read_target",
                 inputs=[],
                 function=ref.function(read_conform_target, kind="read"),
                 arguments={},
                 outputs=[feature.Feature(id="base_value")],
             ),
-            actions.Action(
+            actions.Operator(
                 id="conform_source",
                 inputs=[ref.feature("source_value")],
                 function=ref.function(conform_source, kind="conform"),
@@ -277,7 +277,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
         id="foreign",
         grain=[profile.Grain(group, "group")],
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="read_source",
                 inputs=[],
                 function=ref.function(read_conform_source, kind="read"),
@@ -571,14 +571,14 @@ def _broadcast_spec(
         id="observations",
         grain=[profile.Grain(group, "group"), profile.Grain(identifier, "id")],
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="read_values",
                 inputs=[],
                 function=ref.function(read_values, kind="read"),
                 arguments={"lazy": lazy},
                 outputs=[feature.Feature(id="value")],
             ),
-            actions.Action(
+            actions.Operator(
                 id="reference",
                 inputs=[ref.feature("source_value")],
                 function=ref.function(expand_function, kind="expand"),
@@ -595,7 +595,7 @@ def _broadcast_spec(
         id="reference_source",
         grain=[profile.Grain(dimensions[name], name) for name in source_dimension_ids],
         assembly=[
-            actions.Action(
+            actions.Operator(
                 id="read_reference",
                 inputs=[],
                 function=ref.function(reader, kind="read"),

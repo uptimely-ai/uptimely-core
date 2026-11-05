@@ -2,7 +2,7 @@
 
 from examples.pump_analytics.functions import analytics
 
-from uptimely import Action, Binding, Feature, FeatureSet, Interface, Profile, ref
+from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, ref
 
 
 class ConstantsFeatures(FeatureSet):
@@ -32,7 +32,7 @@ class Constants(Profile):
     features = ConstantsFeatures()
 
     assembly = [
-        Action(
+        Operator(
             id="read_constants",
             interface=Interface(
                 outputs=[features.gravity, features.room_temperature],
