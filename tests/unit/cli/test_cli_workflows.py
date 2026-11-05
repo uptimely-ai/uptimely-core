@@ -77,7 +77,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     assert "Engine completed in " in text
     assert "3 profiles processed" in text
     assert "Scope: selected features: health_signal_normalized" in text
-    assert "- Profile: pump_profile - 3 features" in text
+    assert "- Profile: pump_profile - 6 features" in text
 
 
 @pytest.mark.parametrize("command", [("run",), ("engine", "run")])
@@ -139,7 +139,7 @@ def test_engine_default_logs_only_duration_and_processed_profiles(
 
     result = capsys.readouterr()
     assert not result.err
-    dataset_count = 3 if scoped else 4
+    dataset_count = 3
     assert result.out.splitlines() == [
         "",
         f"Engine completed in 1.234 s: {dataset_count} profiles processed",

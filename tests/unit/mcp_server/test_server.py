@@ -290,7 +290,6 @@ async def test_reload_build(state: server.ServerState) -> None:
     assert payload["spec"].endswith("_generated/build/spec.json")
     assert payload["profiles"] == [
         "constants",
-        "pump_external_workflow",
         "pump_profile",
         "pump_telemetry",
     ]

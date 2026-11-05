@@ -1,6 +1,6 @@
 """Pump-level profile and declarative dataframe transformations."""
 
-from examples.pump_analytics.functions import analytics
+from examples.pump_analytics.functions import analytics, external_workflow
 from examples.pump_analytics.spec import dimension
 
 from uptimely import Binding, Feature, FeatureSet, Grain, Interface, Operator, Profile, ref
@@ -9,6 +9,21 @@ from uptimely import Binding, Feature, FeatureSet, Grain, Interface, Operator, P
 class PumpFeatures(FeatureSet):
     """Features declared by the pump profile."""
 
+    measurement = Feature(
+        id="measurement",
+        type="float",
+        description="Measured pump value provided to the external workflow.",
+    )
+    reference_value = Feature(
+        id="reference_value",
+        type="float",
+        description="Reference value used to normalize the pump measurement.",
+    )
+    ratio = Feature(
+        id="ratio",
+        type="float",
+        description="Pump measurement divided by its reference value.",
+    )
     bearing_temperature_max = Feature(
         id="bearing_temperature_max",
         type="float",
@@ -23,14 +38,14 @@ class PumpFeatures(FeatureSet):
 
 
 class Pump(Profile):
-    """One observation per pump, derived from timestamped telemetry."""
+    """One observation per pump with collapsed telemetry and external inputs."""
 
     id = "pump_profile"
     name = "Pump Summary"
-    description = "One row per pump with collapsed condition information."
+    description = "One row per pump with collapsed condition and workflow inputs."
     category = "Machines"
     grain = [Grain(dimension.MACHINE, "machine")]
-    scope = "Telemetry available to the source profile"
+    scope = "Pump-level telemetry and external workflow inputs"
     features = PumpFeatures()
 
     assembly = [
@@ -65,6 +80,27 @@ class Pump(Profile):
                     features=[ref.column("bearing_temperature_max")],
                     output=ref.output("health_signal_normalized"),
                 ),
+            ),
+        ),
+        Operator(
+            id="read_pump_external_inputs",
+            interface=Interface(
+                outputs=[features.measurement, features.reference_value],
+            ),
+            compute=Binding(
+                function=external_workflow.read_pump_external_inputs,
+                arguments={},
+            ),
+        ),
+        Operator(
+            id="process_pump_external_workflow",
+            interface=Interface(
+                inputs=[features.measurement, features.reference_value],
+                outputs=[features.ratio],
+            ),
+            compute=Binding(
+                function=external_workflow.process_pump_external_workflow,
+                arguments={},
             ),
         ),
     ]

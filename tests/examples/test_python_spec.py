@@ -3,7 +3,7 @@ import pytest
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension as pump_dimensions
 from examples.pump_analytics.spec import spec as pump_telemetry_spec
-from examples.pump_analytics.spec.profiles import constants, external_workflow, pump, telemetry
+from examples.pump_analytics.spec.profiles import constants, pump, telemetry
 from support import examples as example_support
 
 from uptimely import spec
@@ -52,18 +52,16 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
     expected = [
         telemetry.Telemetry,
         pump.Pump,
-        external_workflow.PumpExternalWorkflow,
         constants.Constants,
     ]
 
     assert [
         profile.category for profile in pump_telemetry_spec.python_spec.to_model().profiles.values()
-    ] == ["Telemetry", "Machines", "Machines", "Configuration"]
+    ] == ["Telemetry", "Machines", "Configuration"]
     assert [type(profile) for profile in pump_telemetry_spec.python_spec.profiles] == expected
     assert [profile.id for profile in pump_telemetry_spec.python_spec.profiles] == [
         "pump_telemetry",
         "pump_profile",
-        "pump_external_workflow",
         "constants",
     ]
     assert telemetry.Telemetry.grain == [
@@ -106,7 +104,6 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert set(spec_definition.profiles) == {
         "pump_telemetry",
         "pump_profile",
-        "pump_external_workflow",
         "constants",
     }
     assert spec_definition.profiles["pump_telemetry"].dimension_ids == [
@@ -151,7 +148,6 @@ def test_spec_from_profiles_python_api() -> None:
     assert set(spec_definition.profiles) == {
         "pump_telemetry",
         "pump_profile",
-        "pump_external_workflow",
         "constants",
     }
     assert spec_definition.name == pump_telemetry_spec.python_spec.name
