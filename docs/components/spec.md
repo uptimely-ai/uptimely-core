@@ -18,6 +18,12 @@ omitted; it does not generally make explicit `null` valid. Unknown fields are
 rejected. The JSON structure defines the same contract regardless of how a
 document is authored or consumed.
 
+Reference syntax is defined by each field; `$...` selectors are not a
+universal notation for every link between declarations. Some fields name a
+catalog entry directly, some identify a resource by a structured set of IDs,
+and selectors are used where the field accepts a value resolved from the
+document. Follow the syntax documented for the specific field.
+
 For example, dimensions and profiles use their identifiers as object keys:
 
 ```json
@@ -106,8 +112,10 @@ Each resolution has the following fields:
 | `parent` | string or null | No | `null` | Identifier of a parent resolution in this dimension. |
 
 Resolution IDs are local to their dimension; the identity of a resolution is
-the pair of dimension and resolution IDs. A parent link does not add a parent
-key to a profile or expand its observations.
+the pair of dimension and resolution IDs. The `parent` field names a resolution
+within its containing dimension, so it uses that resolution's bare ID rather
+than a selector. A parent link does not add a parent key to a profile or expand
+its observations.
 
 ## Profiles
 
@@ -129,8 +137,9 @@ represents a dimensionless profile.
 | `assembly` | object | No | `{}` | Operators keyed by identifier, unique within this profile. |
 
 Each grain reference contains a bare `dimension` identifier and a `resolution`
-identifier from that dimension. A profile cannot select multiple resolutions
-of one dimension, and selected dataframe keys must be distinct. Different
+identifier from that dimension. Together they identify the resolution; neither
+value uses selector syntax. A profile cannot select multiple resolutions of
+one dimension, and selected dataframe keys must be distinct. Different
 dimensions remain independent axes, so a profile may select separate sales
 time and measurement time dimensions. The dimension registry describes what
 is available; a profile's grain declares what that profile actually selects.
@@ -486,7 +495,7 @@ An operator separates analytical requirements from its computation:
 | `interface.outputs` | array of strings | No | `[]` | Features produced in the owning profile. |
 | `row_context` | object or null | No | `null` | Surrounding-observation requirements. |
 | `compute` | object | Yes | N/A | Function invocation. |
-| `compute.function` | string | Yes | N/A | Identifier of the function definition to invoke. |
+| `compute.function` | string | Yes | N/A | Function-catalog key identifying the definition to invoke; use the bare function ID, not a `$functions` selector. |
 | `compute.args` | object | No | `{}` | Concrete arguments matching the template schema. |
 
 Input and output lists contain distinct `$features.<id>` references, without
@@ -522,6 +531,10 @@ details.
 | --- | --- | --- |
 | `$features.<id>.id` | `string` | Feature identifier string. |
 | `$dimensions.<id>.id` | `string` | Dimension identifier string. |
+| `$dimensions.<id>.resolutions.<resolution_id>.id` | `string` | Resolution identifier string. |
+| `$dimensions.<id>.resolutions.<resolution_id>.key` | `string` | Dataframe key declared for that resolution. |
+| `$dimensions.<id>.resolutions.<resolution_id>.type` | `string` | Logical key type declared for that resolution. |
+| `$dimensions.<id>.resolutions.<resolution_id>.parent` | `string` or `null` | Parent resolution ID, if declared. |
 | `$profiles.<id>.grain.ids` | `array[string]` | Dataframe key names selected by that profile's grain. |
 | `$profiles.@.grain.ids` | `array[string]` | Dataframe key names selected by the operator's target profile. |
 | `$profiles.<id>.dataframe` | `dataframe` | Materialized table for that profile. |
@@ -529,12 +542,20 @@ details.
 | `$profiles.<id>.id` | `string` | Profile identifier string. |
 | `$features.@.id` | `string` | The sole vectorize output, or sole non-dimension collapse output. |
 
+These selectors apply to compute argument values; they are not a general
+replacement for the references elsewhere in the document. For example,
+`compute.function` uses a function-catalog key, grain uses a
+`dimension`/`resolution` pair, and a resolution's `parent` uses a bare
+resolution ID scoped to its dimension. Compute arguments can select resolution
+metadata with `$dimensions.<id>.resolutions.<resolution_id>.<property>`;
+`row_context.dimension` accepts `$dimensions.<id>` as its dimension reference.
+
 Unsuffixed references remain supported; their template argument type determines
 whether a profile identifier is resolved to data. Prefer explicit selectors
 when writing new declarations. `.id` arguments require `string`, and
 `.dataframe` arguments require `dataframe`. Grain-key selectors require
 `array[string]`; their keys must be selected by the target and every referenced
-dataframe profile. Use only the reference forms above.
+dataframe profile. Use only the listed forms for compute arguments.
 
 In Python declarations, use `ref.profile().grain.ids` or
 `ref.profile("source").grain.ids` for the corresponding selector. Grain-key
