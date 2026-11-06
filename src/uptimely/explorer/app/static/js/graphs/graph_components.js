@@ -210,7 +210,7 @@ function createLineageView(forceGraph, container, padding, dimension, bounds = n
 	return { forceGraph, fit, resize, zoom };
 }
 
-function createDatasetLineage2D(container, graphData, style, layout, highlight, {
+function createLineage2D(container, graphData, style, layout, highlight, {
 	label,
 	color,
 	drawNode,
@@ -345,7 +345,7 @@ const ExplorerLineage = {
 	selectCard,
 	createLineageHighlight,
 	createLineageView,
-	createDatasetLineage2D,
+	createLineage2D,
 	createLineage3D,
 	labeledMesh,
 };

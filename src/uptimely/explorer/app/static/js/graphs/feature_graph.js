@@ -90,7 +90,7 @@ export function initializeFeatureLineage(signal) {
 			const color = isOperator ? functionColor : node.datasetColor;
 			ExplorerLineage.drawCard(node, ctx, node.label || node.id, color, highlight, !isOperator);
 		};
-		return ExplorerLineage.createDatasetLineage2D(lineageContainer, graphData, style, layout, highlight, {
+		return ExplorerLineage.createLineage2D(lineageContainer, graphData, style, layout, highlight, {
 			label: node => `${node.is_operator ? 'operator' : 'feature'}: ${node.label}\nprofile: ${node.profile || 'n/a'}`,
 			color: node => node.is_operator ? functionColor : node.datasetColor,
 			nodeValue: node => node.is_operator
