@@ -164,8 +164,9 @@ its accumulated dataframe and ID column names, without profile declaration or
 Spec dependencies.
 Each data-producing invocation contributes a `Fragment`
 containing a dataframe and its carried dimension keys. `MainFrame.merge()`
-chooses the join from those keys; the backend implements generic dataframe
-operations without knowledge of either runtime abstraction.
+delegates key-based assembly to the stateless
+`uptimely.library.merge.polars.merge_by_grain` function; the dataframe backend
+implements generic operations without knowledge of either runtime abstraction.
 The invocation executor uses `Fragment.stage()` to load invocation results,
 validate them against their invocation's compiled contracts when requested, and project
 declared outputs.

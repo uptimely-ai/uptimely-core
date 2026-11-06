@@ -1,12 +1,11 @@
 """Physical dataframe accumulation using explicit identifier columns."""
 
-import logging
 from collections import abc
+
+from uptimely.library.merge import polars as merge_module
 
 from . import backend as backend_module
 from . import fragment as fragment_module
-
-logger = logging.getLogger(__name__)
 
 
 class MainFrame:
@@ -50,48 +49,14 @@ class MainFrame:
         Raises:
             ValueError: Identifier columns are incompatible or a broadcast has no target.
         """
-        if not set(fragment.dimensions).issubset(self.id_columns):
-            raise ValueError(
-                "Fragment identifier columns must be a subset of main frame identifier columns"
-            )
-        same_grain = set(fragment.dimensions) == set(self.id_columns)
-        if self.dataframe is None:
-            if not same_grain:
-                raise ValueError(
-                    "A fragment with fewer identifier columns requires the accumulated "
-                    "main dataframe"
-                )
-            logger.debug("    - initialize from fragment (no join)")
-            merged = fragment.dataframe
-        else:
-            left, right = self.dataframe, fragment.dataframe
-            if type(left) is not type(right):
-                left, right = self.backend.lazy(left), self.backend.lazy(right)
-            if same_grain:
-                logger.debug(
-                    "    - full join on %s (cardinality %s)", self.id_columns, join_cardinality
-                )
-                merged = self.backend.join(
-                    left,
-                    right,
-                    self.id_columns,
-                    validate=join_cardinality,
-                )
-            elif not fragment.dimensions:
-                logger.debug("    - cross join (dimensionless broadcast)")
-                merged = self.backend.cross_join(left, right)
-            else:
-                logger.debug(
-                    "    - left join on %s (cardinality %s)",
-                    fragment.dimensions,
-                    broadcast_cardinality,
-                )
-                merged = self.backend.left_join(
-                    left,
-                    right,
-                    fragment.dimensions,
-                    validate=broadcast_cardinality,
-                )
+        merged = merge_module.merge_by_grain(
+            self.dataframe,
+            fragment.dataframe,
+            self.id_columns,
+            fragment.dimensions,
+            join_cardinality=join_cardinality,
+            broadcast_cardinality=broadcast_cardinality,
+        )
         self.dataframe = merged
         if fragment_id is not None:
             self.fragments[fragment_id] = fragment
