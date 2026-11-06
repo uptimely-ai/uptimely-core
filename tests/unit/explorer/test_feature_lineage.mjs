@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const root = new URL("../../../src/uptimely/explorer/app/static/js/graphs/", import.meta.url);
+const root = new URL("../../../src/uptimely/explorer/app/static/js/lineage/", import.meta.url);
 const load = async name => import(`data:text/javascript;base64,${
   Buffer.from(await readFile(new URL(name, root), "utf8")).toString("base64")
 }`);
 const { projectFeatureLineage } = await load("feature_projection.js");
-const { mountLineageViews } = await load("graph_view_controller.js");
+const { mountLineageViews } = await load("lineage_view_controller.js");
 
 function graphData() {
   return {

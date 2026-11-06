@@ -4,7 +4,7 @@ import {
 	LINK_ROUTE,
 	LINK_STYLE,
 	MIN_RENDER_SCALE,
-} from './graph_config.js';
+} from './lineage_config.js';
 
 function sizeCard(node, label) {
 	node.cardWidth = Math.min(CARD_STYLE.maxWidth,
@@ -12,7 +12,7 @@ function sizeCard(node, label) {
 	node.cardHeight = CARD_STYLE.height;
 }
 
-function prepareDatasetLayout(graphData, rankForNode, labelForNode) {
+function prepareLineageLayout(graphData, rankForNode, labelForNode) {
 	const rankGroups = new Map();
 	const lanes = new Map();
 	const nodesById = new Map(graphData.nodes.map(node => [node.id, node]));
@@ -132,7 +132,7 @@ function prepareDatasetLayout(graphData, rankForNode, labelForNode) {
 	};
 }
 
-function drawDatasetLanes(layout, ctx, globalScale) {
+function drawLineageLanes(layout, ctx, globalScale) {
 	ctx.save();
 	layout.lanes.forEach((lane, index) => {
 		const left = -layout.width / 2 - DATASET_LAYOUT.lanePadding;
@@ -158,7 +158,7 @@ function drawDatasetLanes(layout, ctx, globalScale) {
 	ctx.restore();
 }
 
-function datasetLinkRoute(link) {
+function lineageLinkRoute(link) {
 	const source = link.source;
 	const target = link.target;
 	const direction = target.x >= source.x ? 1 : -1;
@@ -206,12 +206,12 @@ function datasetLinkRoute(link) {
 	return points;
 }
 
-function createDatasetLinkRenderer(data, style, highlight) {
+function createLineageLinkRenderer(data, style, highlight) {
 	data.links.forEach((link, index) => {
 		link.flowOffset = index / Math.max(1, data.links.length);
 	});
 	return (link, ctx, globalScale) => {
-		const points = datasetLinkRoute(link);
+		const points = lineageLinkRoute(link);
 		const scale = Math.max(globalScale, MIN_RENDER_SCALE);
 		const isHighlighted = highlight.isLinkHighlighted(link);
 		const hasSelection = highlight.hasSelection();
@@ -273,7 +273,7 @@ function createDatasetLinkRenderer(data, style, highlight) {
 }
 
 export {
-	createDatasetLinkRenderer,
-	drawDatasetLanes,
-	prepareDatasetLayout,
+	createLineageLinkRenderer,
+	drawLineageLanes,
+	prepareLineageLayout,
 };

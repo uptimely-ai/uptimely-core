@@ -49,7 +49,7 @@ The frontend modules are grouped by responsibility under
 - `application/`: startup, asset loading, history routing, and view lifecycles.
 - `rendering/`: shared HTML helpers and overview/graph page markup.
 - `catalogs/`: catalog rendering, item navigation, and function highlighting.
-- `graphs/`: feature and invocation graphs, shared layouts, and 2D/3D controls.
+- `lineage/`: feature and invocation lineage views, shared layouts, and 2D/3D controls.
 - `animation/`: animation markup, playback, table frames, connections, and viewport.
 - `navigation/`: desktop/mobile sidebar controls.
 - `theme/`: Tailwind theme configuration.

@@ -1,4 +1,4 @@
-import { ExplorerLineage } from './graph_components.js';
+import { ExplorerLineage } from './lineage_components.js';
 import { initializeLineage } from './lineage_initializer.js';
 import { projectFeatureLineage } from './feature_projection.js';
 
@@ -83,7 +83,7 @@ export function initializeFeatureLineage(signal) {
 		}
 
 		const nodeRanks = rankNodes(graphData);
-		const layout = ExplorerLineage.prepareDatasetLayout(
+		const layout = ExplorerLineage.prepareLineageLayout(
 			graphData, node => nodeRanks.get(node.id), node => node.label || node.id);
 		const drawNode = (node, ctx) => {
 			const isOperator = node.is_operator === true;

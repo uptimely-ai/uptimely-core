@@ -4,8 +4,8 @@ import { dashboard, lineage, planOverview } from "../rendering/page_renderer.js"
 import { shell } from "../rendering/shared_markup.js";
 import { initializeCatalog } from "../catalogs/catalog_navigation.js";
 import { initializeIcons } from "../navigation/sidebar_controls.js";
-import { initializeFeatureLineage } from "../graphs/feature_graph.js";
-import { initializeInvocationLineage } from "../graphs/invocation_graph.js";
+import { initializeFeatureLineage } from "../lineage/feature_lineage.js";
+import { initializeInvocationLineage } from "../lineage/invocation_lineage.js";
 import { initializeDataLineage } from "../animation/playback_controller.js";
 import { initializeHighlighting } from "../catalogs/function_highlighting.js";
 import {
@@ -36,12 +36,12 @@ const VIEWS = {
   functions: catalog("functions", true),
   stages: catalog("stages"),
   lineage: {
-    stylesheet: "graph", graph: "feature_style",
+    stylesheet: "lineage", lineageStyle: "feature_style",
     initialize: [initializer("lineage", true), ...icons],
     render: data => lineage(data, false),
   },
   topology: {
-    stylesheet: "graph", graph: "invocation_style",
+    stylesheet: "lineage", lineageStyle: "invocation_style",
     initialize: [initializer("topology"), ...icons],
     render: data => lineage(data, true),
   },
@@ -102,14 +102,14 @@ export class ViewController {
     body.className = [view.catalog && "catalog-context-page", view.engine && "engine-page"]
       .filter(Boolean).join(" ");
     body.style.removeProperty("--lineage-background");
-    if (view.graph) body.classList.add("lineage-page");
+    if (view.lineageStyle) body.classList.add("lineage-page");
     body.innerHTML = shell(this.data, name, context, content);
   }
 
   initializeView(view, sidebars) {
     const { signal } = this.controller;
-    if (view.graph) {
-      const style = this.data.graphs[view.graph];
+    if (view.lineageStyle) {
+      const style = this.data.graphs[view.lineageStyle];
       this.document.body.style.setProperty("--lineage-background", style.background_color);
       this.document.getElementById("operator-legend")?.style.setProperty("--color", style.function_color);
     }

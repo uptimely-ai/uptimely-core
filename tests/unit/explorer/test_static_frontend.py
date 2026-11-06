@@ -43,7 +43,7 @@ def test_static_frontend_uses_packaged_assets_and_live_api() -> None:
 
 def test_original_ui_components_are_packaged_with_the_static_frontend() -> None:
     frontend = importlib.resources.files("uptimely.explorer").joinpath("app", "static")
-    for name in ("base", "icons", "dashboard", "spec", "graph", "data_lineage", "engine"):
+    for name in ("base", "icons", "dashboard", "spec", "lineage", "data_lineage", "engine"):
         assert frontend.joinpath("css", f"{name}.css").is_file()
     for name in (
         "application/bootstrap",
@@ -60,12 +60,12 @@ def test_original_ui_components_are_packaged_with_the_static_frontend() -> None:
         "navigation/sidebar_controls",
         "navigation/mobile_context",
         "theme/tailwind_theme",
-        "graphs/feature_graph",
-        "graphs/invocation_graph",
-        "graphs/graph_components",
-        "graphs/graph_config",
-        "graphs/dataset_layout",
-        "graphs/graph_view_controller",
+        "lineage/feature_lineage",
+        "lineage/invocation_lineage",
+        "lineage/lineage_components",
+        "lineage/lineage_config",
+        "lineage/lineage_layout",
+        "lineage/lineage_view_controller",
         "animation/animation_renderer",
         "animation/playback_controller",
         "animation/table_frames",

@@ -151,7 +151,7 @@ test("a slow route cannot overwrite a newer route or enable its stylesheet", asy
   await app.release("force-graph@");
   assert.equal(app.body.innerHTML, latest);
   assert.equal(app.mounted.at(-1).name, "icons");
-  assert.equal(app.resources.find(element => element.href === "./css/graph.css").media, "not all");
+  assert.equal(app.resources.find(element => element.href === "./css/lineage.css").media, "not all");
 });
 
 test("failed dependencies report an error and allow returning to the active page", async () => {
