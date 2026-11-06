@@ -9,6 +9,7 @@ export function initializeCatalog(signal) {
   const catalogSectionTitle = catalogTitle.textContent;
   const catalogDocumentTitle = document.title;
   const catalogHeading = document.querySelector("main h1");
+  const catalogIcon = catalogHeading.querySelector("[data-lucide]").cloneNode(true);
   const catalogSectionCount = document.querySelector("[data-section-count]");
   const catalogDescription = document.querySelector("[data-section-description]");
   const catalogSectionDescription = catalogDescription?.textContent;
@@ -35,6 +36,22 @@ export function initializeCatalog(signal) {
     const itemHeading = selected.querySelector("h2, h3");
     const title = isOverview ? catalogSectionTitle : itemHeading.textContent.trim();
     catalogTitle.textContent = title;
+    if (catalogPanel.dataset.contextLabel === "features") {
+      const selectedIcon = isOverview ? catalogIcon : itemHeading.querySelector("[data-lucide]");
+      const headingIcon = catalogHeading.querySelector("[data-lucide]");
+      if (selectedIcon) {
+        const icon = selectedIcon.cloneNode(true);
+        icon.setAttribute("class", "title-icon");
+        headingIcon.replaceWith(icon);
+      } else {
+        headingIcon.replaceWith(catalogIcon.cloneNode(true));
+      }
+      if (!isOverview) {
+        catalogHeading.setAttribute("title", itemHeading.querySelector(".typed-name").title);
+      } else {
+        catalogHeading.removeAttribute("title");
+      }
+    }
     if (["functions", "features", "dimensions", "profiles"].includes(catalogPanel.dataset.contextLabel) && catalogDescription) {
       const descriptionSelector = {
         functions: "[data-function-description]",

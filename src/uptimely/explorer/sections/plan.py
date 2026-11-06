@@ -70,7 +70,7 @@ def _build_step(
             name: {
                 "type": {
                     "binding": value.get("type") if isinstance(value, dict) else None,
-                    "function": None,
+                    "function": invocation.argument_types.get(name),
                     "engine": None,
                 },
                 "value": _display_value(

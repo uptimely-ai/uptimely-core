@@ -19,6 +19,48 @@ def test_optional_field_filter_preserves_falsy_values() -> None:
     ) == {"flag": False, "count": 0, "text": "", "items": [], "metadata": {}}
 
 
+def test_stage_arguments_include_compiled_function_data_types() -> None:
+    argument_types = {"source": "string", "dataset": "dataframe", "columns": "array[string]"}
+    arguments = {
+        "source": "$params.source",
+        "dataset": "$dataframes.data",
+        "columns": ["reading"],
+    }
+    definition = spec.Spec.model_validate(
+        {
+            "functions": {
+                "calculate": {
+                    "kind": "vectorize",
+                    "returns": "dataframe",
+                    "entrypoint": "example:calculate",
+                    "args": {name: {"type": value} for name, value in argument_types.items()},
+                }
+            },
+            "profiles": {"data": {"features": {"reading": {"type": "float"}}}},
+        }
+    )
+    invocation = execution_plan.Invocation(
+        id="calculate",
+        function_kind="vectorize",
+        entrypoint="example:calculate",
+        function_id="calculate",
+        operator_id="calculate",
+        dataset_id="data",
+        arguments=arguments,
+        argument_types=argument_types,
+    )
+    compiled = execution_plan.ExecutionPlan(
+        execution_plan.PLAN_VERSION, "polars", {}, [invocation], [["calculate"]]
+    )
+
+    step = plan_render._build_step(1, invocation, compiled, definition)
+
+    assert {name: argument["type"]["function"] for name, argument in step["args"].items()} == (
+        argument_types
+    )
+    assert {name: argument["value"] for name, argument in step["args"].items()} == arguments
+
+
 def test_graph_payload_serialization_is_stable_and_script_safe() -> None:
     payload = common.serialize_graph_payload(
         nodes=[{"id": "z", "label": "</script>"}, {"id": "a", "label": "first"}],
@@ -67,6 +109,37 @@ def test_feature_data_preserves_empty_strings() -> None:
         "dataset_id": "telemetry",
         "data_type": "",
     }
+
+
+@pytest.mark.parametrize("kind", ["read", "vectorize"])
+def test_lineage_preserves_declared_feature_types_for_all_producers(kind: str) -> None:
+    definition = spec.Spec.model_validate(
+        {
+            "functions": {
+                "calculate": {
+                    "kind": kind,
+                    "returns": "dataframe",
+                    "entrypoint": "example:calculate",
+                }
+            },
+            "profiles": {
+                "data": {
+                    "features": {"reading": {"type": "float"}},
+                    "assembly": {
+                        "calculate": {
+                            "compute": {"function": "calculate"},
+                            "interface": {"outputs": ["$features.reading"]},
+                        }
+                    },
+                }
+            },
+        }
+    )
+    graph = spec.FeatureGraph(definition, validate=False)
+    for selected in (graph, graph.subset(["reading"])):
+        nodes, _ = feature_lineage.feature_lineage_payload(selected)
+        reading = next(node for node in nodes if node["id"] == "reading")
+        assert reading["data_type"] == "float"
 
 
 def test_operator_data_includes_declared_function_metadata() -> None:

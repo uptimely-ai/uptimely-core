@@ -1,16 +1,6 @@
-import { badge, contextGroup, contextHeader, contextLink, dataTypeIcon, escape, heading, icon, page } from "./rendering/shared_markup.js";
+import { badge, contextGroup, contextHeader, contextLink, escape, heading, icon, page, typedName } from "./rendering/shared_markup.js";
 
 const LOG_PAGE_SIZE = 1000;
-const PREVIEW_TYPE_CATEGORIES = {
-  int8: "integer", int16: "integer", int32: "integer", int64: "integer", int128: "integer",
-  uint8: "integer", uint16: "integer", uint32: "integer", uint64: "integer",
-  float32: "float", float64: "float", decimal: "numeric",
-  string: "string", categorical: "string", enum: "string",
-  boolean: "boolean", date: "date", datetime: "datetime",
-  time: "datetime", duration: "datetime", list: "array", array: "array",
-  struct: "object", object: "object",
-};
-
 async function responseData(fetchData, url) {
   const response = await fetchData(url, { cache: "no-store" });
   if (!response.ok) {
@@ -155,12 +145,8 @@ function previewTable(preview, label) {
   if (preview.status === "failed") {
     return `<p class="engine-error-text">${escape(preview.error || "Preview failed without an error message.")}</p>`;
   }
-  const headers = preview.columns.map(column => {
-    const type = column.dtype.split(/[([]/, 1)[0].trim().toLowerCase();
-    const typeIcon = dataTypeIcon(PREVIEW_TYPE_CATEGORIES[type], "engine-preview-type-icon");
-    return `<th scope="col" title="${escape(column.dtype)}">${escape(column.name)}${typeIcon}
-      <span${typeIcon ? ' class="sr-only"' : ""}>${escape(column.dtype)}</span></th>`;
-  }).join("");
+  const headers = preview.columns.map(column =>
+    `<th scope="col">${typedName(column.name, column.dtype)}</th>`).join("");
   const rows = preview.rows.map(row => `<tr>${row.map(value =>
     `<td${value === null ? ' class="is-null"' : typeof value === "number" ? ' class="is-number"' : ""}>${escape(formatValue(value))}</td>`).join("")}</tr>`).join("");
   return `<div class="ui-table-scroll engine-preview-surface" tabindex="0" role="region" aria-label="${escape(label)} preview table">

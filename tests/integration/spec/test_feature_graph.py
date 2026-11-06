@@ -48,7 +48,12 @@ def test_graph_metadata_follows_function_capabilities(
         if isinstance(node.reference, models.FeatureNode)
     ]
     assert rebuilt_features
-    assert all(feature.data_type is None for feature in rebuilt_features)
+    declared_types = {
+        feature_id: feature.type
+        for profile in graph.spec.profiles.values()
+        for feature_id, feature in profile.features.items()
+    }
+    assert all(feature.data_type == declared_types[feature.name] for feature in rebuilt_features)
 
 
 @pytest.mark.usefixtures("example_projects")

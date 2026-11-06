@@ -8,6 +8,23 @@ const load = async name => import(`data:text/javascript;base64,${
 }`);
 const { projectFeatureLineage } = await load("feature_projection.js");
 const { mountLineageViews } = await load("lineage_view_controller.js");
+const shared = `data:text/javascript;base64,${Buffer.from(
+  await readFile(new URL("../rendering/shared_markup.js", root), "utf8"),
+).toString("base64")}`;
+const lineageConfig = `data:text/javascript;base64,${Buffer.from(
+  await readFile(new URL("lineage_config.js", root), "utf8"),
+).toString("base64")}`;
+const lineageLayout = `data:text/javascript;base64,${Buffer.from(
+  (await readFile(new URL("lineage_layout.js", root), "utf8"))
+    .replace("./lineage_config.js", lineageConfig),
+).toString("base64")}`;
+const lineageComponents = `data:text/javascript;base64,${Buffer.from(
+  (await readFile(new URL("lineage_components.js", root), "utf8"))
+    .replace("./lineage_config.js", lineageConfig)
+    .replace("./lineage_layout.js", lineageLayout)
+    .replace("../rendering/shared_markup.js", shared),
+).toString("base64")}`;
+const { ExplorerLineage } = await import(lineageComponents);
 
 function graphData() {
   return {
@@ -77,6 +94,46 @@ test("invalid graph endpoints and operator-only paths are explicit errors", () =
   }, false), /connect operators through features/);
 });
 
+test("selected feature details render and initialize a data type icon", () => {
+  const originalDocument = globalThis.document;
+  const originalLucide = globalThis.lucide;
+  const createElement = name => ({
+    name,
+    children: [],
+    attributes: {},
+    append(...children) { this.children.push(...children); },
+    setAttribute(key, value) { this.attributes[key] = value; },
+  });
+  const panel = {
+    children: [],
+    replaceChildren(...children) { this.children = children; },
+    append(child) { this.children.push(child); },
+  };
+  const iconRoots = [];
+  globalThis.document = {
+    createElement,
+    createTextNode: text => ({ text }),
+  };
+  globalThis.lucide = { createIcons: options => iconRoots.push(options.root) };
+  try {
+    ExplorerLineage.showDetails(panel, "Selected item", [
+      ["Data type", "Float64", "Float64"],
+    ]);
+    const typeLabel = panel.children[1].children[1];
+    const icon = typeLabel.children[0];
+    assert.equal(typeLabel.className, "data-type-label lineage-data-type");
+    assert.equal(typeLabel.children[1].textContent, "Float64");
+    assert.equal(icon.attributes["data-lucide"], "hash");
+    assert.equal(icon.attributes["data-type"], "Float64");
+    assert.deepEqual(iconRoots, [panel]);
+  } finally {
+    if (originalDocument === undefined) delete globalThis.document;
+    else globalThis.document = originalDocument;
+    if (originalLucide === undefined) delete globalThis.lucide;
+    else globalThis.lucide = originalLucide;
+  }
+});
+
 class Element extends EventTarget {
   constructor() {
     super();
@@ -89,6 +146,81 @@ class Element extends EventTarget {
   remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
   setAttribute(name, value) { this.attributes[name] = value; }
 }
+
+test("feature cards and 3D labels draw type icons without adding visible type text", t => {
+  const originals = new Map(["Path2D", "lucide", "document", "THREE", "SpriteText"]
+    .map(name => [name, globalThis[name]]));
+  t.after(() => {
+    for (const [name, value] of originals) {
+      if (value === undefined) delete globalThis[name];
+      else globalThis[name] = value;
+    }
+  });
+  const paths = [];
+  globalThis.Path2D = class {
+    constructor(d) { this.d = d; paths.push(this); }
+    arc(...args) { this.arcArgs = args; }
+    roundRect(...args) { this.rectArgs = args; }
+    moveTo(...args) { this.start = args; }
+    lineTo(...args) { this.end = args; }
+  };
+  globalThis.lucide = { icons: {
+    Hash: [["line", { x1: "4", y1: "9", x2: "20", y2: "9" }]],
+    CaseSensitive: [["path", { d: "M1 2" }]],
+    ToggleLeft: [["circle", { cx: "9", cy: "12", r: "3" }],
+      ["rect", { x: "2", y: "5", width: "20", height: "14", rx: "7" }]],
+    Braces: [["path", { d: "M3 4" }]],
+  } };
+  const strokes = [];
+  const labels = [];
+  const ctx = {
+    save() {}, restore() {}, translate() {}, scale() {}, beginPath() {},
+    roundRect() {}, fill() {}, stroke(path) { if (path) strokes.push(path); },
+    fillText(text) { labels.push(text); },
+  };
+  const highlight = {
+    hasSelection: () => false, isSelected: () => false,
+  };
+  for (const type of ["Float64", "String", "Boolean", null]) {
+    ExplorerLineage.drawCard({ x: 0, y: 0, cardWidth: 120, cardHeight: 38, data_type: type },
+      ctx, "Feature name", "#abc", highlight, true);
+  }
+  assert.deepEqual(labels, Array(4).fill("Feature name"));
+  assert.equal(strokes.length, 5);
+  assert.deepEqual(paths[0].start, [4, 9]);
+  assert.deepEqual(paths[0].end, [20, 9]);
+  assert.equal(paths[1].d, "M1 2");
+  assert.deepEqual(paths[2].arcArgs, [9, 12, 3, 0, Math.PI * 2]);
+  assert.deepEqual(paths[3].rectArgs, [2, 5, 20, 14, 7]);
+  const count = strokes.length;
+  ExplorerLineage.drawCard({ x: 0, y: 0, cardWidth: 120, cardHeight: 38 },
+    ctx, "Operator", "#abc", highlight);
+  assert.equal(strokes.length, count);
+
+  const vector = () => ({ set(...values) { this.values = values; }, x: 20 });
+  class Object3D {
+    constructor() { this.children = []; this.position = vector(); this.scale = vector(); }
+    add(child) { this.children.push(child); }
+  }
+  globalThis.THREE = {
+    Group: Object3D, Sprite: Object3D,
+    CanvasTexture: class { constructor(canvas) { this.image = canvas; } },
+    SpriteMaterial: class {},
+    SRGBColorSpace: "srgb",
+  };
+  globalThis.SpriteText = class extends Object3D {
+    constructor(text) { super(); this.text = text; }
+  };
+  globalThis.document = { createElement: () => ({ getContext: () => ctx }) };
+  const group = ExplorerLineage.labeledMesh({}, "Feature name",
+    { label_color: "#fff" }, 14, "String");
+  assert.equal(group.children[1].text, "Feature name");
+  assert.equal(group.children.length, 3);
+  assert.ok(group.children[2].position.values[0] < -group.children[1].scale.x / 2);
+  assert.deepEqual(group.children[2].position.values.slice(1), [14, 0]);
+  assert.equal(strokes.length, count + 1);
+  assert.equal(ExplorerLineage.labeledMesh({}, "Operator", {}, 14).children.length, 2);
+});
 
 function harness(t, { url = "https://example.test/docs/explorer/?view=lineage", fail = () => false,
   projection = projectFeatureLineage } = {}) {

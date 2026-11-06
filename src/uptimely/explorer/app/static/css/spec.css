@@ -6,15 +6,13 @@
 
 .profile-schema-scroll { margin-top: 16px; }
 .profile-schema-table { min-width: 700px; table-layout: fixed; }
-.profile-schema-name-col, .profile-schema-operator-col { width: 29%; }
+.profile-schema-name-col { width: 40%; }
+.profile-schema-operator-col { width: 35%; }
 .profile-schema-role-col { width: 14%; }
-.profile-schema-type-col { width: 17%; }
 .profile-schema-unit-col { width: 11%; }
 .profile-schema-table tbody th { color: #f1f5f9; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
 .profile-schema-column-id { display: block; margin-top: 4px; color: #94a3b8;
   font: 11px/1.5 var(--font-mono); font-weight: 400; }
-.profile-schema-type { display: inline-flex; align-items: center; gap: 8px;
-  font: 12px/1.5 var(--font-mono); }
 .profile-schema-unit { color: #94a3b8; overflow-wrap: anywhere; }
 .profile-schema-operator { display: block; color: var(--color-muted); font: 11px/1.6 var(--font-mono); overflow-wrap: anywhere; }
 .profile-schema-operator + .profile-schema-operator { margin-top: 4px; }
@@ -35,11 +33,6 @@
   border-top: 1px solid #334155; content: ""; }
 .dimension-resolution-card { padding: 12px 16px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; }
 .dimension-resolution-id { margin: 0; color: #f1f5f9; font: 600 14px/1.5 var(--font-mono); overflow-wrap: anywhere; }
-.dimension-resolution-key { display: flex; align-items: center; gap: 8px; margin: 8px 0 0;
-  color: #94a3b8; font: 12px/1.5 var(--font-mono); }
-.dimension-resolution-key code { min-width: 0; font: inherit; overflow-wrap: anywhere; }
-.dimension-resolution-type { font-size: 11px; overflow-wrap: anywhere; }
-.dimension-resolution-type-icon { width: 15px; height: 15px; flex-shrink: 0; color: inherit; }
 
 .profile-grain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin: 12px 0 0; padding: 0; list-style: none; }
 .profile-grain-card { overflow: hidden; border: 1px solid #334155; border-radius: 12px;
@@ -52,7 +45,6 @@
 .profile-grain-fields dt { color: #94a3b8; font: 12px/1.5 var(--font-body); }
 .profile-grain-fields dd { min-width: 0; margin: 0; color: #e2e8f0; font: 12px/1.5 var(--font-mono); overflow-wrap: anywhere; }
 .profile-grain-fields code { color: inherit; font: inherit; }
-.profile-schema-type-icon { width: 15px; height: 15px; color: inherit; stroke-width: 2; }
 
 .profile-operator-list { display: grid; gap: 16px; margin-top: 12px; }
 .profile-operator { --operator-accent: var(--color-accent); min-width: 0; overflow: hidden; border: 1px solid #334155; border-radius: 10px; background: #0b1220; }

@@ -33,7 +33,7 @@ for (const withSectionCount of [false, true]) {
 			querySelectorAll: () => links,
 		};
 		const title = { ...createElement(), textContent: 'Functions' };
-		const heading = { ...createElement(), focus() {} };
+		const heading = createCatalogHeading('Functions', 'square-function');
 		const count = withSectionCount ? createElement() : null;
 		const description = { ...createElement(), textContent: 'Browse the function catalog.' };
 		const document = {
@@ -99,7 +99,8 @@ test(`${catalog} selection displays its description in the section header`, () =
 	const second = { ...createElement(), id: 'feature-second' };
 	const items = [overview, first, second];
 	for (const item of items) {
-		const heading = { ...createElement(), textContent: item.id };
+		const heading = createCatalogHeading(item.id,
+			item === first ? 'hash' : 'case-sensitive', item === first ? 'float' : 'string');
 		item.description = item === overview
 			? null : { ...createElement(), textContent: `${item.id} feature description` };
 		item.querySelector = selector => selector === `[data-${resource}-description]`
@@ -115,7 +116,7 @@ test(`${catalog} selection displays its description in the section header`, () =
 		querySelectorAll: () => links,
 	};
 	const title = { ...createElement(), textContent: 'Features' };
-	const heading = { ...createElement(), focus() {} };
+	const heading = createCatalogHeading('Features', 'sigma');
 	const description = { ...createElement(), textContent: '' };
 	const document = {
 		title: 'Spec features',
@@ -152,16 +153,26 @@ test(`${catalog} selection displays its description in the section header`, () =
 	assert.equal(title.textContent, 'feature-first');
 	assert.equal(description.textContent, 'feature-first feature description');
 	assert.equal(first.description.hidden, true);
+	if (catalog === 'features') {
+		assert.equal(heading.querySelector('[data-lucide]').attributes['data-lucide'], 'hash');
+		assert.equal(heading.attributes.title, 'float');
+	}
 
 	links[2].listeners.click({ button: 0, preventDefault() {} });
 	assert.equal(title.textContent, 'feature-second');
 	assert.equal(description.textContent, 'feature-second feature description');
 	assert.equal(second.description.hidden, true);
+	if (catalog === 'features') {
+		assert.equal(heading.querySelector('[data-lucide]').attributes['data-lucide'], 'case-sensitive');
+		assert.equal(heading.attributes.title, 'string');
+	}
 
 	links[0].listeners.click({ button: 0, preventDefault() {} });
 	assert.equal(title.textContent, 'Features');
 	assert.equal(description.textContent.trim(), '');
 	assert.equal(description.hidden, true);
+	assert.equal(heading.querySelector('[data-lucide]').attributes['data-lucide'], 'sigma');
+	assert.equal(heading.attributes.title, undefined);
 });
 }
 
@@ -185,7 +196,7 @@ test('dimension selection displays its description in the section header', () =>
 		querySelectorAll: () => links,
 	};
 	const title = { ...createElement(), textContent: 'Dimensions' };
-	const heading = { ...createElement(), focus() {} };
+	const heading = createCatalogHeading('Dimensions', 'axis-3d');
 	const description = { ...createElement(), textContent: 'Inspect dimension resolutions, dataframe keys, and their parent relationships.' };
 	const dimensionLabel = createElement();
 	const document = {
@@ -233,7 +244,10 @@ test('dimension selection displays its description in the section header', () =>
 
 function loadLineageScript(context, filename) {
 	let source = fs.readFileSync(path.join(scriptDirectory, filename), 'utf8');
-	if (filename === 'lineage/lineage_config.js') {
+	if (filename === 'rendering/shared_markup.js') {
+		source = source.replace(/^export /gm, '');
+		source += '\nglobalThis.dataTypeIconName = dataTypeIconName;';
+	} else if (filename === 'lineage/lineage_config.js') {
 		const exports = [...source.matchAll(/^export const (\w+)/gm)]
 			.map(([, name]) => name);
 		source = source.replace(/^export /gm, '');
@@ -248,6 +262,10 @@ function loadLineageScript(context, filename) {
 			'globalThis.LineageLayout = {$1};',
 		);
 	} else if (filename === 'lineage/lineage_components.js') {
+		source = source.replace(
+			/^import \{ dataTypeIconName \} from '\.\.\/rendering\/shared_markup\.js';/m,
+			'const { dataTypeIconName } = globalThis;',
+		);
 		source = source.replace(
 			/^import \* as LineageConfig from '\.\/lineage_config\.js';\nimport \* as LineageLayout from '\.\/lineage_layout\.js';/m,
 			'const LineageConfig = globalThis.LineageConfig;\nconst LineageLayout = globalThis.LineageLayout;',
@@ -286,12 +304,28 @@ function loadLineageScript(context, filename) {
 
 function loadLineageDependencies(context) {
 	for (const script of [
+		'rendering/shared_markup.js',
 		'lineage/lineage_config.js', 'lineage/lineage_layout.js',
 		'lineage/lineage_components.js', 'lineage/lineage_initializer.js',
 		'lineage/feature_projection.js',
 	]) {
 		loadLineageScript(context, script);
 	}
+}
+
+function createCatalogHeading(textContent, iconName, type = null) {
+	const heading = { ...createElement(), textContent, focus() {} };
+	const attach = icon => {
+		heading.icon = icon;
+		icon.replaceWith = attach;
+	};
+	attach({ ...createElement(), attributes: { 'data-lucide': iconName } });
+	heading.querySelector = selector => {
+		if (selector === '[data-lucide]') return heading.icon;
+		if (selector === '.typed-name') return type === null ? null : { title: type };
+		return null;
+	};
+	return heading;
 }
 
 function createElement() {
@@ -302,6 +336,8 @@ function createElement() {
 		classList: { toggle() {} }, style: { setProperty() {} },
 		addEventListener(name, callback) { this.listeners[name] = callback; },
 		setAttribute(name, value) { this.attributes[name] = value; },
+		removeAttribute(name) { delete this.attributes[name]; },
+		cloneNode() { return { ...createElement(), attributes: { ...this.attributes } }; },
 		append(child) { this.children.push(child); }, replaceChildren() {}, remove() {},
 	};
 }
@@ -390,9 +426,14 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		});
 		const graphs = new Map();
 		let disconnected = false;
+		const iconCanvas = {
+			save() {}, restore() {}, translate() {}, scale() {}, stroke() {},
+		};
 		const context = vm.createContext({
 			document: {
-				getElementById: element, createElement,
+				getElementById: element,
+				createElement: tag => tag === 'canvas'
+					? { getContext: () => iconCanvas } : createElement(),
 				querySelectorAll: selector => selector === '[data-dimension]' ? buttons : [],
 			},
 			window: {
@@ -403,9 +444,12 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			URL,
 			ResizeObserver: class { observe() {} disconnect() { disconnected = true; } },
 			console,
+			Path2D: class { constructor(path) { this.path = path; } },
+			lucide: { icons: { Braces: [['path', { d: 'M1 2' }]] } },
 			SpriteText: class {
 				constructor(text) {
 					this.text = text;
+					this.scale = { x: text.length };
 					this.position = { set(x, y, z) { this.x = x; this.y = y; this.z = z; } };
 				}
 			},
@@ -420,6 +464,14 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 				return graph;
 			},
 			THREE: {
+				CanvasTexture: class {},
+				SpriteMaterial: class {},
+				Sprite: class {
+					constructor() {
+						this.position = { set() {} };
+						this.scale = { set() {} };
+					}
+				},
 				Group: class {
 					constructor() { this.children = []; }
 					add(child) {
@@ -518,11 +570,15 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		const labels = [];
 		const fills = [];
 		const strokes = [];
+		const iconStrokes = [];
 		const canvas = {
 			save() {}, restore() {}, beginPath() {},
+			translate() {}, scale() {},
 			roundRect(...args) { rectangles.push(args); },
 			fill() { fills.push(this.fillStyle); },
-			stroke() { strokes.push([this.strokeStyle, this.lineWidth]); },
+			stroke(path) {
+				(path ? iconStrokes : strokes).push([this.strokeStyle, this.lineWidth]);
+			},
 			fillText(...args) { labels.push([...args, this.fillStyle, this.font]); },
 		};
 		const selected2D = nodes2D[1];
@@ -535,21 +591,28 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			selected2D.cardHeight,
 			12,
 		]);
-		assert.deepEqual(rectangles[1], filename === 'lineage/invocation_lineage.js'
-			? [left + 12, selected2D.y - 6, 12, 12, 3]
-			: [left + 13, selected2D.y - 9, 4, 18, 2]);
+		if (filename === 'lineage/invocation_lineage.js') {
+			assert.deepEqual(rectangles[1], [left + 12, selected2D.y - 6, 12, 12, 3]);
+			assert.equal(iconStrokes.length, 0);
+		} else {
+			assert.equal(rectangles.length, 1);
+			assert.deepEqual(iconStrokes, [['#e8edf2', 2]]);
+		}
 		const selectedColor = '#fb7185';
 		assert.deepEqual(strokes, [['#f8d66d', 3]]);
-		assert.deepEqual(fills, [
-			filename === 'lineage/invocation_lineage.js' ? '#1a2732' : '#172a35', selectedColor,
-		]);
+		assert.deepEqual(fills, filename === 'lineage/invocation_lineage.js'
+			? ['#1a2732', selectedColor] : ['#172a35']);
 		assert.deepEqual(labels, [[
 			'selected', left + 34, selected2D.y, 70, '#e8edf2', '600 12px "DM Sans", sans-serif',
 		]]);
 		rectangles.length = labels.length = fills.length = strokes.length = 0;
 		graph2D.properties.get('nodeCanvasObject')(nodes2D[3], canvas);
 		assert.deepEqual(strokes, [['#46545f', 1.5]]);
-		assert.deepEqual(fills, ['#121c24', '#46545f']);
+		assert.deepEqual(fills, filename === 'lineage/invocation_lineage.js'
+			? ['#121c24', '#46545f'] : ['#121c24']);
+		if (filename === 'lineage/feature_lineage.js') {
+			assert.deepEqual(iconStrokes.at(-1), ['rgba(232, 237, 242, .3)', 2]);
+		}
 		assert.equal(labels[0][4], 'rgba(232, 237, 242, .3)');
 		for (const link of graph2D.properties.get('graphData').links) {
 			assert.equal(graph2D.properties.get('linkColor')(link), '#67e8f9');

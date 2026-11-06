@@ -1,4 +1,4 @@
-import { badge, contextGroup as group, contextHeader, contextLink, dataTypeIcon, display, distribution, escape, heading, href, icon, kindIcon, miniGraphic, page, statistic } from "../rendering/shared_markup.js";
+import { badge, contextGroup as group, contextHeader, contextLink, dataTypeLabel, display, distribution, escape, heading, href, icon, kindIcon, miniGraphic, page, statistic, typedName } from "../rendering/shared_markup.js";
 
 export function profiles(configuration) {
   return Object.entries(configuration.profiles).map(([id, profile]) => ({
@@ -27,18 +27,13 @@ export function features(configuration) {
 
 const label = (id, value) => value.name || id;
 const description = value => `<p class="mt-4 text-sm leading-6 text-slate-400">${escape(value || "No description provided.")}</p>`;
-const itemTitle = (id, item, tag = "h2", size = "text-2xl") => `<${tag} class="break-words font-display ${size} font-semibold text-white">${escape(label(id, item))}</${tag}>${item.name ? `<p class="mt-1 font-mono text-xs text-slate-500">${escape(id)}</p>` : ""}`;
+const itemTitle = (id, item, tag = "h2", size = "text-2xl", type = null) => `<${tag} class="break-words font-display ${size} font-semibold text-white">${type === null ? escape(label(id, item)) : typedName(label(id, item), type)}</${tag}>${item.name ? `<p class="mt-1 font-mono text-xs text-slate-500">${escape(id)}</p>` : ""}`;
 const subheading = title => `<h3 class="ui-section-title">${escape(title)}</h3>`;
-const chip = (value, isType = false) => `<span class="inline-flex items-center gap-1.5 rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">${isType ? dataTypeIcon(value, "h-3.5 w-3.5 opacity-70") : ""}${escape(value)}</span>`;
+const chip = (value, isType = false) => isType
+  ? dataTypeLabel(value, "rounded-md bg-slate-800 px-2.5 py-1 text-slate-300")
+  : `<span class="inline-flex items-center gap-1.5 rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">${escape(value)}</span>`;
 const chips = values => `<div class="mt-3 flex flex-wrap gap-2">${values.map(value =>
   chip(value)).join("")}</div>`;
-const profileSchemaType = type => {
-  const value = type || "unspecified";
-  const typeIcon = dataTypeIcon(value, "profile-schema-type-icon");
-  return typeIcon
-    ? `${typeIcon}<span>${escape(value)}</span>`
-    : escape(value);
-};
 
 const contextLinks = {
   features(data) {
@@ -47,7 +42,8 @@ const contextLinks = {
     return profiles(config).map(({ id, profile }) => {
       const items = produced.filter(item => item.id === id);
       return items.length ? group(label(id, profile), items.map(item =>
-        contextLink(`feature-${id}-${item.featureId}`, label(item.featureId, item.feature), "features"))) : "";
+        contextLink(`feature-${id}-${item.featureId}`, label(item.featureId, item.feature), null,
+          null, null, item.feature.type || "unspecified"))) : "";
     }).join("");
   },
   profiles(data) {
@@ -127,7 +123,7 @@ const overviewData = {
       stats: [["Dimensions", summary.dimension_count], ["Resolutions", resolutions.length],
         ["Types", types.size], ["Root resolutions", roots],
         ["Child resolutions", resolutions.length - roots]],
-      charts: [distribution("Resolutions by type", [...types])],
+      charts: [distribution("Resolutions by type", [...types], { typeLabels: true })],
     };
   },
   stages(data) {
@@ -173,7 +169,7 @@ function featureCards(config) {
   return features(config).map(item => {
     const fn = config.functions[item.operator.compute.function] || {};
     return `<article id="feature-${escape(item.id)}-${escape(item.featureId)}" data-context-item>
-      ${itemTitle(item.featureId, item.feature)}
+      ${itemTitle(item.featureId, item.feature, "h2", "text-2xl", item.feature.type || "unspecified")}
       <p data-feature-description class="mt-4 text-sm leading-6 text-slate-400">${escape(item.feature.description || "No description provided.")}</p>
       <section class="mt-6 rounded-xl border border-cyan-900/60 bg-cyan-950/20 p-4 sm:p-5">
         <h3 class="ui-section-title">Producing function: ${escape(fn.name || item.operator.compute.function)}</h3>
@@ -182,10 +178,9 @@ function featureCards(config) {
       </section>
       <dl class="mt-6 grid gap-6 sm:grid-cols-2">${[
         ["Profile", label(item.id, item.profile), href("profiles", `profile-${item.id}`)],
-        ["Data type", item.feature.type || "unspecified"],
         ["Unit", item.feature.unit || "Not specified"],
       ].map(([title, value, url]) => `<div><dt class="text-xs text-slate-500">${title}</dt>
-        <dd class="mt-2 break-words font-mono text-sm text-slate-300">${url ? `<a href="${url}">${escape(value)}</a>` : escape(value)}</dd></div>`).join("")}</dl>
+        <dd class="mt-2 break-words text-slate-300">${url ? `<a href="${url}">${escape(value)}</a>` : escape(value)}</dd></div>`).join("")}</dl>
       ${fn.kind === "escape" ? '<p class="mt-6 text-sm leading-6 text-violet-300">Declared logical output only; escape outputs are not materialized as dataframe columns.</p>' : ""}
     </article>`;
   }).join("");
@@ -211,14 +206,9 @@ function resolutionHierarchy(resolutions) {
     rendered.add(node);
     const { resolution } = node;
     const type = resolution.type || "unspecified";
-    const typeIcon = dataTypeIcon(type, "dimension-resolution-type-icon");
     return `<li data-resolution-id="${escape(node.id)}" data-parent-resolution="${escape(resolution.parent || "")}">
       <article class="dimension-resolution-card">
-        <h3 class="dimension-resolution-id">${escape(node.id)}</h3>
-        <p class="dimension-resolution-key" title="${escape(type)}">
-          ${typeIcon}<code>${escape(resolution.key)}</code>
-          <span${typeIcon ? ' class="sr-only"' : ' class="dimension-resolution-type"'}>${escape(type)}</span>
-        </p>
+        <h3 class="dimension-resolution-id">${typedName(node.id, type)}</h3>
       </article>
       ${node.children.length ? `<ul class="dimension-resolution-children">${node.children.map(renderNode).join("")}</ul>` : ""}
     </li>`;
@@ -275,7 +265,7 @@ function grainCards(config, grain) {
       <dl class="profile-grain-fields">
         <div><dt>Resolution</dt><dd><code>${escape(resolutionId)}</code></dd></div>
         <div><dt>Data key</dt><dd><code>${escape(resolutionDefinition?.key || resolution)}</code></dd></div>
-        <div><dt>Data type</dt><dd><code>${escape(resolutionDefinition?.type || "unspecified")}</code></dd></div>
+        <div><dt>Data type</dt><dd>${dataTypeLabel(resolutionDefinition?.type)}</dd></div>
       </dl>
     </li>`;
   }).join("");
@@ -338,12 +328,11 @@ function profileCards(config) {
           <div>${subheading("Produced schema")}<div class="ui-table-scroll profile-schema-scroll" tabindex="0" role="region" aria-label="${escape(label(id, profile))} produced schema">
         <table data-dataset-schema="${escape(id)}" class="ui-table profile-schema-table">
           <caption class="sr-only">Produced schema for ${escape(label(id, profile))}: declared column types and units; no sample records.</caption>
-          <colgroup><col class="profile-schema-name-col"><col class="profile-schema-role-col"><col class="profile-schema-type-col"><col class="profile-schema-unit-col"><col class="profile-schema-operator-col"></colgroup>
-          <thead><tr>${["Column", "Role", "Data type", "Unit", "Producing operator"].map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>
+          <colgroup><col class="profile-schema-name-col"><col class="profile-schema-role-col"><col class="profile-schema-unit-col"><col class="profile-schema-operator-col"></colgroup>
+          <thead><tr>${["Column", "Role", "Unit", "Producing operator"].map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>
           <tbody>${columns.map(column => `<tr data-schema-column="${escape(column.id)}">
-            <th scope="row">${escape(label(column.id, column))}${label(column.id, column) !== column.id ? `<span class="profile-schema-column-id">${escape(column.id)}</span>` : ""}</th>
+            <th scope="row">${typedName(label(column.id, column), column.type)}${label(column.id, column) !== column.id ? `<span class="profile-schema-column-id">${escape(column.id)}</span>` : ""}</th>
             <td>${badge(column.role, { dimension: "blue", teal: "green", amber: "amber", escape: "violet" }[column.color])}</td>
-            <td><span class="profile-schema-type">${profileSchemaType(column.type)}</span></td>
             <td class="profile-schema-unit">${escape(column.unit || "—")}</td>
             <td>${column.operators.length ? column.operators.map(operator => `<code class="profile-schema-operator">${escape(operator)}</code>`).join("") : '<span class="text-slate-500">None declared</span>'}</td>
           </tr>`).join("")}</tbody>
@@ -370,10 +359,18 @@ function functionCards(data) {
             <p class="font-mono text-xs text-slate-200">${escape(operator.profile)} · ${escape(operator.operator)}</p>
             <p class="mt-2 font-mono text-xs text-slate-400">Declared inputs: ${escape(operator.inputs.join(", ") || "none")}</p>
             <p class="mt-1 font-mono text-xs text-slate-400">Declared outputs: ${escape(operator.outputs.join(", ") || "none")}</p></div>`).join("")}</div>` : ""}` : ""}
-        ${Object.keys(fn.args || {}).length ? `<div class="mt-10">${subheading("Arguments")}<dl class="mt-3 divide-y divide-slate-800/60">${Object.entries(fn.args).map(([key, arg]) => `<div class="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <dt class="flex flex-wrap items-start gap-2"><span class="font-mono text-sm font-medium text-cyan-200">${escape(key)}</span>${badge(arg.type || "unspecified", "green")}</dt>
-          <dd class="text-sm leading-6 text-slate-400">${escape(fn.doc?.params?.[key] || arg.comment || "—")}</dd></div>`).join("")}</dl></div>` : ""}
-        ${fn.doc?.returns || fn.return_type ? `<div class="mt-10">${subheading("Returns")}${fn.return_type ? `<p class="mt-3 font-mono text-xs text-lime-300">-&gt; ${escape(fn.return_type)}</p>` : ""}${fn.doc?.returns ? description(fn.doc.returns) : ""}</div>` : ""}
+        ${Object.keys(fn.args || {}).length ? `<div class="mt-10">${subheading("Arguments")}
+          <div class="ui-table-scroll mt-3" tabindex="0" role="region" aria-label="Arguments for ${escape(fn.name || id)}">
+            <table class="ui-table function-arguments-table">
+              <caption class="sr-only">Arguments for ${escape(fn.name || id)} with their data types and descriptions</caption>
+              <thead><tr><th scope="col">Argument</th><th scope="col">Description</th></tr></thead>
+              <tbody>${Object.entries(fn.args).map(([key, arg]) => `<tr>
+                <th scope="row">${typedName(key, arg.type)}</th>
+                <td>${escape(fn.doc?.params?.[key] || arg.comment || "—")}</td>
+              </tr>`).join("")}</tbody>
+            </table>
+          </div></div>` : ""}
+        ${fn.doc?.returns || fn.return_type ? `<div class="mt-10">${subheading("Returns")}${fn.return_type ? `<p class="mt-3 flex flex-wrap items-center gap-2 text-lime-300"><span aria-hidden="true">-&gt;</span>${dataTypeLabel(fn.return_type)}</p>` : ""}${fn.doc?.returns ? description(fn.doc.returns) : ""}</div>` : ""}
         ${fn.doc?.raises?.length ? `<div class="mt-10">${subheading("Raises")}<ul class="mt-3 space-y-2">${fn.doc.raises.map(error => `<li class="text-sm leading-6 text-slate-400"><span class="font-mono text-amber-300">${escape(error.type)}</span> — ${escape(error.description)}</li>`).join("")}</ul></div>` : ""}
         ${fn.entrypoint || fn.signature_validation_disabled ? `<div class="mt-10 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-slate-800/60 pt-5">
           <span class="break-all font-mono text-xs text-slate-400">${escape(fn.entrypoint)}</span>${fn.signature_validation_disabled ? badge("Python signature validation disabled", "amber") : ""}</div>` : ""}
@@ -390,7 +387,7 @@ export function stageCards(data) {
           ${[["Function kind", step.function_kind, "text-amber-200"], ["Function", step.function_label, "text-white"],
             [step.uncontrolled ? "Declared logical outputs" : "Profile feature output", step.feature || "None", "text-cyan-200"],
             [step.uncontrolled ? "Python return (ignored)" : "Returns", step.returns.type.engine || "—", "text-lime-300"]].map(([title, value, color]) => `<div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
-              <dt class="mb-1 uppercase tracking-wider text-slate-500">${title}</dt><dd class="break-all ${color}">${escape(value)}</dd></div>`).join("")}
+              <dt class="mb-1 uppercase tracking-wider text-slate-500">${title}</dt><dd class="break-all ${color}">${title.toLowerCase().includes("return") ? dataTypeLabel(value) : escape(value)}</dd></div>`).join("")}
           <div class="min-w-0 p-3 md:col-span-4"><dt class="mb-1 uppercase tracking-wider text-slate-500">Depends on invocations</dt>
             <dd class="flex flex-wrap gap-1.5">${step.depends_on_invocations.map(dep => `<span class="rounded-md bg-slate-950/70 px-2 py-1 text-slate-300">${escape(dep.function)}</span>`).join("") || '<span class="text-slate-400">No invocation dependencies</span>'}</dd></div>
         </dl>
@@ -399,9 +396,9 @@ export function stageCards(data) {
         ${step.row_context !== null ? `<div class="mt-3 font-mono text-xs text-slate-400">Row context: ${display(step.row_context)}</div>` : ""}
         ${Object.keys(step.args).length ? `<div class="ui-table-scroll mt-5" tabindex="0" role="region" aria-label="Argument bindings for ${escape(step.title)}"><table class="ui-table">
           <caption class="sr-only">Argument bindings for ${escape(step.title)}</caption>
-          <thead><tr>${["Argument", "Value", "Binding type", "Function type", "Engine type"].map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>
-          <tbody>${Object.entries(step.args).map(([id, arg]) => `<tr><th scope="row"><code>${escape(id)}</code></th>
-            <td><code>${display(arg.value)}</code></td>${["compute", "function", "engine"].map(key => `<td><code>${escape(arg.type[key] || "—")}</code></td>`).join("")}</tr>`).join("")}</tbody>
+          <thead><tr>${["Argument", "Value"].map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>
+          <tbody>${Object.entries(step.args).map(([id, arg]) => `<tr><th scope="row">${typedName(id, arg.type.engine || arg.type.function || "—")}</th>
+            <td><code>${display(arg.value)}</code></td></tr>`).join("")}</tbody>
           </table></div>` : ""}</article></div>`).join("")}</div></section>`).join("");
 }
 

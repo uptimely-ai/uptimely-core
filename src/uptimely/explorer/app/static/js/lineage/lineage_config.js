@@ -13,7 +13,7 @@ export const CARD_STYLE = Object.freeze({
 	font: '600 12px "DM Sans", sans-serif',
 	borderWidth: 1.5, selectedBorderWidth: 3, selectedBorderColor: '#f8d66d',
 	iconLeft: 12, iconSize: 12, iconRadius: 3,
-	featureIconLeft: 13, featureIconWidth: 4, featureIconHeight: 18, featureIconRadius: 2,
+	featureIconSize: 16,
 	labelLeft: 34, labelHorizontalPadding: 46,
 });
 export const LINK_STYLE = Object.freeze({

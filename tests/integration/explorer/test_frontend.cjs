@@ -57,13 +57,16 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(profiles, /profile-grain-label">Dimension<\/span>\s*<h4>Machine<\/h4>/);
   assert.match(profiles, /<dl class="profile-grain-fields">\s*<div><dt>Resolution<\/dt><dd><code>machine<\/code>/);
   assert.match(profiles, /Data key<\/dt><dd><code>id<\/code>/);
-  assert.match(profiles, /Data type<\/dt><dd><code>string<\/code>/);
-  assert.match(profiles, /data-lucide="hash" class="profile-schema-type-icon" data-type="float"/);
-  assert.match(profiles, /<span>float<\/span>/);
+  assert.match(profiles, /Data type<\/dt><dd><span class="data-type-label">[^]*?data-type="string"/);
+  assert.match(profiles, /data-lucide="hash" class="data-type-label-icon" data-type="float"/);
+  assert.match(profiles, /aria-label="&lt;Value&gt; \(float\)"/);
+  assert.doesNotMatch(profiles, /<th[^>]*>Data type<\/th>/);
   assert.ok(!profiles.includes("one row per machine <source>"));
   assert.ok(!profiles.includes("Filtering"));
   assert.ok(!profiles.includes("Coverage"));
-  assert.match(renderCatalog(sampleData(), "stages").content, /Engine type/);
+  const stages = renderCatalog(sampleData(), "stages").content;
+  assert.match(stages, /aria-label="value \(float\)"/);
+  assert.doesNotMatch(stages, /Binding type|Function type|Engine type|<th[^>]*>Data type<\/th>/);
 });
 
 test("mobile navigation separates the main menu from page controls", async () => {
@@ -206,9 +209,9 @@ test("dimension catalog renders resolutions as a parent-linked hierarchy", async
 
   const html = renderCatalog(data, "dimensions").content;
   assert.match(html, /aria-label="Resolution levels"/);
-  assert.match(html, /dimension-resolution-id">plant<\/h3>/);
-  assert.match(html, /<code>plant_id<\/code>/);
-  assert.match(html, /<span class="sr-only">string<\/span>/);
+  assert.match(html, /dimension-resolution-id"><span class="typed-name" title="string" aria-label="plant \(string\)">[^]*?<span>plant<\/span><\/span><\/h3>/);
+  const hierarchy = html.match(/<ul aria-label="Resolution hierarchy"[^]*?<\/section>/)[0];
+  assert.doesNotMatch(hierarchy, /<code>plant_id<\/code>|>string<\/span>/);
   assert.doesNotMatch(html, /dimension-resolution-level|dimension-resolution-fields/);
   assert.match(
     html,
@@ -216,7 +219,7 @@ test("dimension catalog renders resolutions as a parent-linked hierarchy", async
   );
   assert.match(html, /data-parent-resolution="production_line"/);
   assert.match(html, /data-parent-resolution="plant"/);
-  assert.match(html, /data-lucide="case-sensitive" class="dimension-resolution-type-icon" data-type="string"/);
+  assert.match(html, /data-lucide="case-sensitive" class="data-type-label-icon" data-type="string"/);
   assert.match(html, /data-dimension-description[^>]*>No description provided\./);
 });
 
@@ -262,7 +265,7 @@ test("animation restores dataset selection, table schemas and playback component
   assert.match(result.content, /data-invocation-id="calculate:readings"/);
   assert.match(result.content, /data-role="Output" data-column="value"/);
   assert.match(result.content, /data-side="output"/);
-  assert.match(result.content, /data-lucide="hash" class="data-lineage-type-icon" data-type="float"/);
+  assert.match(result.content, /data-lucide="hash" class="data-type-label-icon" data-type="float"/);
   assert.match(result.content, /1\.23/);
   assert.equal(placeholder({ name: "production_line", role: "Dimension" }, 1, "input"), "pl-2");
   const table = sampleTable([], [{ name: "id", role: "Dimension", type: "string" }],
