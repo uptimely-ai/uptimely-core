@@ -6,9 +6,28 @@ import logging
 
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
+from uptimely.spec.model import merge
 from uptimely.spec.validation import errors
 
 logger = logging.getLogger(__name__)
+
+
+def validate_default_merge_function(spec: spec_model.Spec) -> None:
+    """Reject declarations that conflict with the builtin default merge function."""
+    logger.debug("    - checking the builtin default merge declaration")
+    if not any(
+        operator.merge is not None and operator.merge.function == merge.DEFAULT_FUNCTION.id
+        for operator in spec.operators
+    ):
+        return
+    function = spec.functions.get(merge.DEFAULT_FUNCTION.id)
+    if function is not None and function != merge.DEFAULT_FUNCTION:
+        raise errors.SpecError(
+            f"Function ID '{merge.DEFAULT_FUNCTION.id}' conflicts with the builtin merge "
+            "declaration",
+            code="function_id_conflict",
+            path=("functions", merge.DEFAULT_FUNCTION.id),
+        )
 
 
 def validate_arguments(spec: spec_model.Spec) -> None:

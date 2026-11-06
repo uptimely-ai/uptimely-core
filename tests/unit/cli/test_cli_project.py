@@ -261,7 +261,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             if line.startswith("|")
         ]
         assert ["Spec", "Spec source file", str(source_file)] in rows
-        assert ["Spec", "Number of functions", "1"] in rows
+        assert ["Spec", "Number of functions", "2"] in rows
         assert ["Spec", "Number of profiles", "1"] in rows
         assert ["Spec", "Number of features", "1"] in rows
     else:

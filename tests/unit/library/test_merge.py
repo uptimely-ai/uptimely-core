@@ -73,6 +73,18 @@ def test_merge_by_grain_initializes_only_from_complete_grain() -> None:
         merge.merge_by_grain(None, fragment, ["id", "group"], ["id"])
 
 
+def test_merge_by_grain_infers_carried_keys_from_fragment_schema() -> None:
+    target = pl.DataFrame({"group": ["A", "A"], "id": [1, 2], "value": [10, 20]})
+    fragment = pl.DataFrame({"group": ["A"], "new": [3]})
+
+    result = merge.merge_by_grain(target, fragment, ["group", "id"])
+
+    assert result.sort("id").to_dicts() == [
+        {"group": "A", "id": 1, "value": 10, "new": 3},
+        {"group": "A", "id": 2, "value": 20, "new": 3},
+    ]
+
+
 def test_merge_by_grain_rejects_incompatible_fragment_keys() -> None:
     target = pl.DataFrame({"id": [1]})
     fragment = pl.DataFrame({"other": [1]})

@@ -75,7 +75,13 @@ def test_resource_indexes_traverse_each_collection_once() -> None:
             ("first", "read"): document.profiles_by_key["first"],
             ("second", "read"): document.profiles_by_key["second"],
         }
-        assert list(document.arguments) == [("load", "path"), ("other", "path")]
+        assert list(document.arguments) == [
+            ("load", "path"),
+            ("other", "path"),
+            (model.merge.DEFAULT_FUNCTION.id, "target"),
+            (model.merge.DEFAULT_FUNCTION.id, "fragment"),
+            (model.merge.DEFAULT_FUNCTION.id, "target_keys"),
+        ]
         assert document.grain_keys_by_profile == {"first": ["key"], "second": ["key"]}
         assert len(document.operators) == 2
         assert len(document.profile_items) == 2
@@ -152,7 +158,8 @@ def test_operator_bindings_preserve_identity_aliases_order_and_unresolved_functi
     assert alias.bindings["merge"] is operator.merge
     assert document.functions.root.get(operator.merge.function) is None
     assert document.profiles["second"].assembly["read"].bindings == {
-        "compute": document.profiles["second"].assembly["read"].compute
+        "compute": document.profiles["second"].assembly["read"].compute,
+        "merge": document.profiles["second"].assembly["read"].merge,
     }
     assert document.model_dump() == original
     assert document.binding_selectors_with_paths == tuple(
@@ -162,6 +169,9 @@ def test_operator_bindings_preserve_identity_aliases_order_and_unresolved_functi
         ("profiles", "first", "assembly", "read", "compute", "args"),
         ("profiles", "first", "assembly", "alias", "compute", "args"),
         ("profiles", "second", "assembly", "read", "compute", "args"),
+        ("profiles", "second", "assembly", "read", "merge", "args"),
+        ("profiles", "second", "assembly", "read", "merge", "args"),
+        ("profiles", "second", "assembly", "read", "merge", "args"),
     ]
     assert document.binding_arguments_with_paths is document.binding_arguments_with_paths
 

@@ -31,17 +31,15 @@ def to_dict(
     profiles: Profiles | None = None,
     functions: Functions | None = None,
     name: str | None = None,
-    options: spec_model.Options | None = None,
 ) -> dict[str, typing.Any]:
     """Encode Python declarations using the same codec as JSON file exports."""
-    return codec.to_document(to_model(profiles, functions, name, options))
+    return codec.to_document(to_model(profiles, functions, name))
 
 
 def to_model(
     profiles: Profiles | None = None,
     functions: Functions | None = None,
     name: str | None = None,
-    options: spec_model.Options | None = None,
 ) -> spec_model.Spec:
     """Build structural spec without importing function entrypoints.
 
@@ -49,7 +47,6 @@ def to_model(
         profiles: Profile declarations keyed by their globally unique IDs.
         functions: Explicit function catalog, or infer it from declarations.
         name: Optional spec display name.
-        options: Build-time Spec options, defaulting to merge mode ``auto``.
 
     Raises:
         ValueError: No declarations were supplied or function definitions conflict.
@@ -108,7 +105,6 @@ def to_model(
     return spec_model.Spec.model_validate(
         {
             "name": name,
-            "options": options or spec_model.Options(),
             "source": {"name": "python_api", "generated": True},
             "dimensions": dimension_values,
             "functions": functions,

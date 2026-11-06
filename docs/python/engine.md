@@ -186,10 +186,12 @@ dimension-aware assembly is handled by the stateless Polars merge library.
 ### Merge functions
 
 `uptimely.library.merge.polars.merge_by_grain(target, fragment, target_keys,
-fragment_keys)` assembles a fragment using its carried keys. Equal key sets use
-a full join, a strict subset uses a left join, and an empty strict subset uses
-a cross join. With no target, only a fragment at the complete target grain can
-initialize the result. The function supports eager and lazy Polars dataframes.
+fragment_keys=None)` assembles a fragment using its carried keys. When
+`fragment_keys` is omitted, the function infers carried target keys from the
+fragment schema at runtime. Equal key sets use a full join, a strict subset
+uses a left join, and an empty strict subset uses a cross join. With no target,
+only a fragment at the complete target grain can initialize the result. The
+function supports eager and lazy Polars dataframes.
 
 ::: uptimely.library.merge.polars
     options:

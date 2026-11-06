@@ -104,7 +104,7 @@ def merge_by_grain(
     target: DataFrame | None,
     fragment: DataFrame,
     target_keys: collections.abc.Sequence[str],
-    fragment_keys: collections.abc.Sequence[str],
+    fragment_keys: collections.abc.Sequence[str] | None = None,
     *,
     join_cardinality: str = "m:m",
     broadcast_cardinality: str = "m:m",
@@ -120,7 +120,8 @@ def merge_by_grain(
         target: Accumulated target dataframe, or ``None`` for initialization.
         fragment: Contribution dataframe.
         target_keys: Complete key set defining the target grain.
-        fragment_keys: Keys carried by the contribution.
+        fragment_keys: Keys carried by the contribution. If omitted, infer the
+            carried target keys from the fragment schema at runtime.
         join_cardinality: Cardinality constraint for full joins.
         broadcast_cardinality: Cardinality constraint for subset-key left joins.
 
@@ -130,6 +131,9 @@ def merge_by_grain(
     Raises:
         ValueError: Fragment keys are incompatible or broadcasting has no target.
     """
+    if fragment_keys is None:
+        fragment_columns = set(_column_names(fragment))
+        fragment_keys = [key for key in target_keys if key in fragment_columns]
     if not set(fragment_keys).issubset(target_keys):
         raise ValueError(
             "Fragment identifier columns must be a subset of main frame identifier columns"

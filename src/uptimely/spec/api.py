@@ -39,7 +39,6 @@ def from_python(
     functions: conversion.Functions | None = None,
     name: str | None = None,
     *,
-    options: model.Options | None = None,
     validate: bool = True,
 ) -> model.Spec:
     """Convert Python declarations, optionally validating the model's semantics.
@@ -48,7 +47,6 @@ def from_python(
         profiles: Profile declarations keyed by their globally unique IDs.
         functions: Explicit catalog, or infer it from Python declarations.
         name: Optional spec name.
-        options: Build-time Spec options.
         validate: Run semantic checks. Declaration and structural checks always run.
 
     Returns:
@@ -62,7 +60,6 @@ def from_python(
         profiles=profiles,
         functions=functions,
         name=name,
-        options=options,
     )
     if validate:
         validation.validate_spec(document)

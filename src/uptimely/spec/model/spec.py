@@ -11,7 +11,7 @@ import pydantic
 
 from uptimely.spec import arg_types, functions, selectors
 
-from . import base, binding_argument
+from . import base, binding_argument, merge
 from . import dimension as dimension_module
 from . import functions as functions_module
 from . import profile as profile_module
@@ -64,12 +64,6 @@ class SpecSource(base.StrictModel):
     generated: bool
 
 
-class Options(base.StrictModel):
-    """Build-time options that affect Spec interpretation."""
-
-    merge: typing.Literal["auto", "explicit"] = "auto"
-
-
 class Spec(base.StrictModel):
     """The complete JSON document; cached views assume declarations are unchanged."""
 
@@ -78,12 +72,15 @@ class Spec(base.StrictModel):
     source: SpecSource = pydantic.Field(
         default_factory=lambda: SpecSource(name="manual", generated=False)
     )
-    options: Options = pydantic.Field(default_factory=Options)
     dimensions: dict[str, dimension_module.Dimension] = pydantic.Field(default_factory=dict)
     functions: functions_module.FunctionCatalog = pydantic.Field(
         default_factory=functions_module.FunctionCatalog
     )
     profiles: dict[str, profile_module.Profile] = pydantic.Field(default_factory=dict)
+
+    def model_post_init(self, context: typing.Any, /) -> None:
+        """Run Spec post-initialization hooks."""
+        merge.bind_default_merges(self)
 
     @functools.cached_property
     def _indexes(self) -> _ResourceIndex:

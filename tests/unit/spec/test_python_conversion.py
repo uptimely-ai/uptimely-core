@@ -37,18 +37,30 @@ def test_auto_catalog_converts_profile_sequences_and_mappings(keyed: bool) -> No
     assert payload["name"] is None
     assert list(payload["profiles"]) == ["first", "second"]
     assert all(item["grain"] == [] for item in payload["profiles"].values())
-    assert payload["functions"] == {
-        "source": {
-            "name": "Source",
-            "description": None,
-            "kind": "read",
-            "returns": "dataframe",
-            "entrypoint": f"{__name__}:source",
-            "validate_signature": True,
-            "args": {
-                "path": {"type": "string", "comment": None},
-                "columns": {"type": "array[string]", "comment": None},
-            },
+    assert payload["functions"]["source"] == {
+        "name": "Source",
+        "description": None,
+        "kind": "read",
+        "returns": "dataframe",
+        "entrypoint": f"{__name__}:source",
+        "validate_signature": True,
+        "args": {
+            "path": {"type": "string", "comment": None},
+            "columns": {"type": "array[string]", "comment": None},
+        },
+    }
+    default_merge = spec_model.merge.DEFAULT_FUNCTION
+    assert payload["functions"][default_merge.id] == {
+        "name": "Automatic merge by grain",
+        "description": None,
+        "kind": "merge",
+        "returns": "dataframe",
+        "entrypoint": default_merge.entrypoint,
+        "validate_signature": True,
+        "args": {
+            "target": {"type": "dataframe | null", "comment": None},
+            "fragment": {"type": "dataframe", "comment": None},
+            "target_keys": {"type": "array[string]", "comment": None},
         },
     }
 
