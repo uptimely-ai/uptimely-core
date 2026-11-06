@@ -3,7 +3,7 @@
 import logging
 import warnings
 
-from uptimely.spec import functions, selectors
+from uptimely.spec import functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 
@@ -66,10 +66,11 @@ def validate_compute_function_exists(spec: spec_model.Spec) -> None:
     """Require compute function references to resolve."""
     logger.debug("    - checking compute functions exist")
     for key, operator in spec.operator_items:
+        profile_id, _ = key
         function_id = operator.compute.function
         if function_id not in spec.functions.root:
             raise errors.SpecError(
-                f"Profile {key[0]} operators reference unknown functions: {function_id}",
+                f"Profile {profile_id} operators reference unknown functions: {function_id}",
                 code="unknown_function_reference",
                 path=(*spec.declaration_paths[key], "compute", "function"),
             )
@@ -94,10 +95,11 @@ def validate_merge_function_exists(spec: spec_model.Spec) -> None:
     for key, operator in spec.operator_items:
         if operator.merge is None:
             continue
+        profile_id, _ = key
         function_id = operator.merge.function
         if function_id not in spec.functions.root:
             raise errors.SpecError(
-                f"Profile {key[0]} operators reference unknown functions: {function_id}",
+                f"Profile {profile_id} operators reference unknown functions: {function_id}",
                 code="unknown_function_reference",
                 path=(*spec.declaration_paths[key], "merge", "function"),
             )
@@ -193,7 +195,7 @@ def validate_current_feature_selector(spec: spec_model.Spec) -> None:
             if function.kind == functions.COLLAPSE
             else len(operator.output_features)
         )
-        if count > 1 and selectors.CURRENT_ID in operator.feature_selectors:
+        if count > 1 and operator.compute.uses_current_feature:
             raise ValueError(
                 f"{function.kind.capitalize()} operator {key[1]} "
                 "cannot use $features.@ when it produces multiple features"

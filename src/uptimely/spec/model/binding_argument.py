@@ -112,6 +112,57 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
             self.selector is None or self.selector == "dataframe"
         )
 
+    @property
+    def is_current_dataset(self) -> bool:
+        """Whether this value explicitly selects the current profile dataframe."""
+        return self.root == (
+            f"{selectors.PROFILE_PREFIX}{selectors.CURRENT_ID}{selectors.DATAFRAME_SELECTOR}"
+        )
+
+    @property
+    def is_current_fragment(self) -> bool:
+        """Whether this value selects the current operator's staged fragment."""
+        return self.root == f"{selectors.OPERATOR_PREFIX}{selectors.CURRENT_ID}.fragment"
+
+    @property
+    def is_grain_reference(self) -> bool:
+        """Whether this value selects a profile's grain keys."""
+        return self.prefix == selectors.PROFILE_PREFIX and self.selector == "grain.ids"
+
+    @property
+    def is_current_feature_reference(self) -> bool:
+        """Whether this reference uses the current output feature marker."""
+        return self.prefix == selectors.FEATURE_PREFIX and self.identifier == selectors.CURRENT_ID
+
+    @functools.cached_property
+    def selector_value_type(self) -> str | None:
+        """Return the required selector value type, or None for an unconstrained value."""
+        value = self.root
+        if not isinstance(value, str) or not value.startswith(selectors.REFERENCE_PREFIX):
+            return None
+        if value.startswith(selectors.OPERATOR_PREFIX):
+            return arg_types.DATAFRAME
+        if self.prefix == selectors.PROFILE_PREFIX:
+            if value.endswith(selectors.DATAFRAME_SELECTOR):
+                return arg_types.DATAFRAME
+            if value.endswith(selectors.PROFILE_GRAIN_IDS_SELECTOR):
+                return arg_types.array_of(arg_types.STRING)
+        if value.endswith(selectors.ID_SELECTOR) or (
+            self.prefix is not None and "." in value.removeprefix(self.prefix)
+        ):
+            return arg_types.STRING
+        return None
+
+    def required_type(self, argument_type: str) -> str | None:
+        """Return a selector's required type, preserving nullable profile-data arguments."""
+        if (
+            self.prefix == selectors.PROFILE_PREFIX
+            and self.selector_value_type == arg_types.DATAFRAME
+            and argument_type == arg_types.OPTIONAL_DATAFRAME
+        ):
+            return arg_types.OPTIONAL_DATAFRAME
+        return self.selector_value_type
+
     def profile_id(self, current_profile_id: str) -> str | None:
         """Return a profile reference's ID in the invocation's context."""
         if self.prefix != selectors.PROFILE_PREFIX:
@@ -172,6 +223,11 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
 
     def typed_values(self, argument_type: str) -> typing.Iterator[tuple[object, str]]:
         """Yield scalar values with types inherited through arrays and objects."""
+        for leaf, value_type in self.typed_arguments(argument_type):
+            yield leaf.root, value_type
+
+    def typed_arguments(self, argument_type: str) -> typing.Iterator[tuple[BindingArgument, str]]:
+        """Yield scalar argument objects with their inherited declared types."""
         for leaf, path in self.leaves_with_paths:
             value_type = argument_type
             for segment in path:
@@ -181,7 +237,7 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
                     else arg_types.object_value_type(value_type)
                 )
                 value_type = item_type or arg_types.STRING
-            yield leaf.root, value_type
+            yield leaf, value_type
 
     def resolve(self, context: BindingArgumentResolver) -> object:
         """Resolve this value recursively using invocation-specific context.
@@ -201,13 +257,9 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
             return [child.resolve(context) for child in self.children.values()]
         if self.prefix is None:
             return self.root
-        if (
-            self.prefix == selectors.FEATURE_PREFIX
-            and self.identifier == selectors.CURRENT_ID
-            and self.selector in {None, "id"}
-        ):
+        if self.is_current_feature_reference and self.selector in {None, "id"}:
             return context.feature_id if context.feature_id is not None else self.root
-        if self.prefix == selectors.PROFILE_PREFIX and self.selector == "grain.ids":
+        if self.is_grain_reference:
             profile_id = self.profile_id(context.current_profile_id)
             if (
                 context.grain_keys_by_profile is None
