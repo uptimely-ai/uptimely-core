@@ -2,7 +2,6 @@
 
 import dataclasses
 import logging
-import types
 
 import polars as pl
 import pytest
@@ -116,68 +115,77 @@ def test_missing_dimensions_fail_before_key_checks(
 
 def _vectorize_validator(
     frame: pl.DataFrame, comparison_frame: pl.DataFrame | None
-) -> dataframe_validation.FragmentValidator:
-    return dataframe_validation.FragmentValidator(
+) -> dataframe_validation.ColumnsValidator:
+    if comparison_frame is None:
+        comparison_frame = pl.DataFrame({"key": ["existing"]})
+    return dataframe_validation.ColumnsValidator(
         backend.PolarsBackend(),
         frame,
         ["key"],
-        "Fragment",
+        "Enriched target frame",
         invocation=_invocation("vectorize"),
         comparison_frame=comparison_frame,
     )
 
 
-def test_equal_row_count_does_not_prove_identical_keys() -> None:
+def test_vectorize_preserves_existing_keys_and_values_in_order() -> None:
     validator = _vectorize_validator(
         pl.DataFrame({"key": ["new"]}), pl.DataFrame({"key": ["existing"]})
     )
-    with pytest.raises(ValueError, match="preserve the profile grain keys"):
-        validator.validate()
+    with pytest.raises(ValueError, match="preserve existing column values and row order"):
+        validator.validate(preserve_data=True)
 
 
-def test_row_count_failure_precedes_key_identity_failure() -> None:
+def test_vectorize_detects_changes_to_existing_feature_values() -> None:
+    validator = _vectorize_validator(
+        pl.DataFrame({"key": ["existing"], "value": [9], "new": [2]}),
+        pl.DataFrame({"key": ["existing"], "value": [1]}),
+    )
+    validator.invocation.output_features.append("new")
+    with pytest.raises(ValueError, match="preserve existing column values and row order"):
+        validator.validate(preserve_data=True)
+
+
+def test_vectorize_preservation_detects_row_count_changes() -> None:
     validator = _vectorize_validator(
         pl.DataFrame({"key": ["existing", "new"]}), pl.DataFrame({"key": ["existing"]})
     )
-    with pytest.raises(ValueError, match="preserve the accumulated profile row count"):
+    with pytest.raises(ValueError, match="preserve existing column values and row order"):
+        validator.validate(preserve_data=True)
+
+
+def test_vectorize_requires_existing_columns_even_without_content_validation() -> None:
+    validator = _vectorize_validator(
+        pl.DataFrame({"key": ["existing"], "new": [2]}),
+        pl.DataFrame({"key": ["existing"], "value": [1]}),
+    )
+    with pytest.raises(ValueError, match="must preserve existing columns: value"):
         validator.validate()
 
 
-@pytest.mark.parametrize(
-    ("row_count_relation", "key_relation", "message"),
-    [
-        ("same", "unrestricted", "preserve the accumulated profile row count"),
-        ("unrestricted", "identical", "preserve the profile grain keys"),
-        ("unrestricted", "unrestricted", None),
-    ],
-)
-def test_kind_contracts_are_independent_and_not_hard_coded(
+def test_vectorize_rejects_undeclared_added_columns_without_content_validation() -> None:
+    validator = _vectorize_validator(
+        pl.DataFrame({"key": ["existing"], "unexpected": [2]}),
+        pl.DataFrame({"key": ["existing"]}),
+    )
+    with pytest.raises(ValueError, match="returned undeclared columns: unexpected"):
+        validator.validate()
+
+
+def test_vectorize_structural_validation_does_not_compare_lazy_data(
     monkeypatch: pytest.MonkeyPatch,
-    row_count_relation: functions.RowCountRelation,
-    key_relation: functions.KeyRelation,
-    message: str | None,
 ) -> None:
     validator = _vectorize_validator(
-        pl.DataFrame({"key": ["new", "another"]}), pl.DataFrame({"key": ["existing"]})
+        pl.DataFrame({"key": ["existing"], "new": [2]}).lazy(),
+        pl.DataFrame({"key": ["existing"]}).lazy(),
     )
-    definitions = dict(functions.FUNCTION_KINDS)
-    definitions[functions.VECTORIZE] = dataclasses.replace(
-        definitions[functions.VECTORIZE],
-        row_count_relation=row_count_relation,
-        key_relation=key_relation,
-    )
-    monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
-    if message is None:
-        validator.validate()
-    else:
-        with pytest.raises(ValueError, match=message):
-            validator.validate()
+    validator.invocation.output_features.append("new")
 
+    def unexpected_comparison(*args: object, **kwargs: object) -> bool:
+        pytest.fail("Content comparison must be skipped when validation is disabled")
 
-def test_preservation_requires_the_accumulated_target() -> None:
-    validator = _vectorize_validator(pl.DataFrame({"key": ["new"]}), None)
-    with pytest.raises(ValueError, match="preserve the accumulated profile row count"):
-        validator.validate()
+    monkeypatch.setattr(validator.backend, "same_data", unexpected_comparison)
+    validator.validate()
 
 
 def test_fragment_output_override_preserves_empty_outputs() -> None:
@@ -324,6 +332,10 @@ def test_dimensionless_and_merge_validation_debug_logs(
 
 def test_preservation_validation_debug_logs(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG, logger=dataframe_validation.__name__)
-    _vectorize_validator(pl.DataFrame({"key": ["A"]}), pl.DataFrame({"key": ["A"]})).validate()
-    assert "    - checking row-count preservation" in caplog.messages
-    assert "    - checking dimension-key preservation" in caplog.messages
+    validator = _vectorize_validator(pl.DataFrame({"key": ["A"]}), pl.DataFrame({"key": ["A"]}))
+    validator.validate(preserve_data=True)
+    assert "    - checking declared vectorize outputs" in caplog.messages
+    assert "    - checking vectorize output collisions" in caplog.messages
+    assert "    - checking preservation of existing columns" in caplog.messages
+    assert "    - checking undeclared added columns" in caplog.messages
+    assert "    - checking existing values and row order" in caplog.messages

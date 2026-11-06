@@ -166,6 +166,110 @@ class FragmentValidator(_FrameValidator):
         return definition
 
 
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ColumnsValidator(_FrameValidator):
+    """Validate a vectorize result against its complete accumulated target."""
+
+    invocation: execution_plan.Invocation
+    comparison_frame: object
+
+    @property
+    def output_features(self) -> list[str]:
+        """Return declared outputs excluding target grain keys."""
+        return [
+            output
+            for output in self.invocation.output_features
+            if output not in self.invocation.id_columns
+        ]
+
+    def validate(self, *, preserve_data: bool = False) -> None:
+        """Check required frame structure and optionally compare original row data.
+
+        Args:
+            preserve_data: Whether to execute lazy queries and compare all existing
+                columns, values, and row order with the accumulated target.
+
+        Raises:
+            ValueError: The result omits, replaces, or adds undeclared columns, or
+                changes existing data when preservation checking is enabled.
+        """
+        logger.debug("  Enriched target frame:")
+        self._validate_frame_type()
+        self._validate_dimension_columns()
+        self._validate_declared_outputs()
+        self._validate_output_collisions()
+        self._validate_existing_columns()
+        self._validate_added_columns()
+        if preserve_data:
+            definition = functions.FUNCTION_KINDS[self.invocation.function_kind]
+            if (
+                definition.row_order_relation == "preserve"
+                or definition.existing_data_relation == "preserve"
+            ):
+                self._validate_preserved_data()
+            self._validate_declared_types()
+
+    def _validate_declared_outputs(self) -> None:
+        """Require every declared output column in the result."""
+        logger.debug("    - checking declared vectorize outputs")
+        missing = sorted(set(self.output_features) - self.columns)
+        if missing:
+            raise ValueError(
+                f"Vectorize operator {self.invocation.operator_id} is missing output columns: "
+                + ", ".join(missing)
+            )
+
+    def _validate_output_collisions(self) -> None:
+        """Reject outputs that replace features already present in the target."""
+        logger.debug("    - checking vectorize output collisions")
+        existing_features = set(self.backend.column_names(self.comparison_frame)) - set(
+            self.dimensions
+        )
+        collisions = sorted(set(self.output_features) & existing_features)
+        if collisions:
+            raise ValueError(
+                f"Vectorize operator {self.invocation.operator_id} cannot replace existing "
+                "columns: " + ", ".join(collisions)
+            )
+
+    def _validate_existing_columns(self) -> None:
+        """Require all columns from the accumulated target in the result."""
+        logger.debug("    - checking preservation of existing columns")
+        existing = self.backend.column_names(self.comparison_frame)
+        missing = sorted(set(existing) - self.columns)
+        if missing:
+            raise ValueError(
+                f"Vectorize operator {self.invocation.operator_id} must preserve existing "
+                "columns: " + ", ".join(missing)
+            )
+
+    def _validate_added_columns(self) -> None:
+        """Reject result columns that are neither existing nor declared outputs."""
+        logger.debug("    - checking undeclared added columns")
+        existing = set(self.backend.column_names(self.comparison_frame))
+        allowed = existing | set(self.output_features)
+        unexpected = sorted(self.columns - allowed)
+        if unexpected:
+            raise ValueError(
+                f"Vectorize operator {self.invocation.operator_id} returned undeclared columns: "
+                + ", ".join(unexpected)
+            )
+
+    def _validate_preserved_data(self) -> None:
+        """Require unchanged existing values and their original row order."""
+        logger.debug("    - checking existing values and row order")
+        columns = self.backend.column_names(self.comparison_frame)
+        if not self.backend.same_data(self.comparison_frame, self.frame, columns):
+            raise ValueError(
+                f"Vectorize operator {self.invocation.operator_id} must preserve existing "
+                "column values and row order"
+            )
+
+    def _validate_declared_types(self) -> None:
+        """Check logical types of target keys and newly produced feature columns."""
+        self._validate_column_types([*self.dimensions, *self.output_features])
+
+
 @dataclasses.dataclass(frozen=True)
 class MainFrameValidator(_FrameValidator):
     """Validate accumulated frame structure and types of present columns."""

@@ -37,11 +37,15 @@ class DataFrameBackend(typing.Protocol):
 
     def collect(self, frame: object) -> object: ...
 
+    def snapshot(self, frame: object) -> object: ...
+
     def is_duplicated(self, frame: object) -> bool: ...
 
     def row_count(self, frame: object) -> int: ...
 
     def same_keys(self, left: object, right: object, keys: abc.Sequence[str]) -> bool: ...
+
+    def same_data(self, left: object, right: object, columns: abc.Sequence[str]) -> bool: ...
 
     def validate_types(self, frame: object, types: abc.Mapping[str, str]) -> None: ...
 
@@ -84,6 +88,12 @@ class PolarsBackend:
     def collect(self, frame: object) -> object:
         return frame.collect()
 
+    def snapshot(self, frame: object) -> object:
+        """Materialize lazy input once while preserving its lazy dataframe interface."""
+        if isinstance(frame, pl.LazyFrame):
+            return frame.collect().lazy()
+        return frame
+
     def is_duplicated(self, frame: object) -> bool:
         if isinstance(frame, pl.LazyFrame):
             frame = frame.collect()
@@ -107,6 +117,16 @@ class PolarsBackend:
         if isinstance(right_keys, pl.LazyFrame):
             right_keys = right_keys.collect()
         return left_keys.sort(list(keys)).equals(right_keys.sort(list(keys)))
+
+    def same_data(self, left: object, right: object, columns: abc.Sequence[str]) -> bool:
+        """Compare selected rows and values in order, collecting lazy frames if needed."""
+        left_data = self.select(left, columns)
+        right_data = self.select(right, columns)
+        if isinstance(left_data, pl.LazyFrame):
+            left_data = left_data.collect()
+        if isinstance(right_data, pl.LazyFrame):
+            right_data = right_data.collect()
+        return left_data.equals(right_data)
 
     def validate_types(self, frame: object, types: abc.Mapping[str, str]) -> None:
         """Check declared logical column types against the returned schema."""

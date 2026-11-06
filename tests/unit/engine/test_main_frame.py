@@ -188,7 +188,7 @@ def test_fragment_stage_rejects_non_dataframe_invocations_without_loading(
     def load() -> object:
         pytest.fail("A non-dataframe invocation must not be loaded during staging")
 
-    with pytest.raises(ValueError, match="does not materialize dataframe results"):
+    with pytest.raises(ValueError, match="does not produce dataframe fragments"):
         fragment_module.Fragment.stage(
             backend_module.PolarsBackend(),
             invocation,

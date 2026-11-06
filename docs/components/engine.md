@@ -216,21 +216,24 @@ bindings and native function or dataframe errors still fail their invocation.
 Saved-build integrity, configuration, and backend compatibility checks remain
 enabled regardless of this flag.
 
-With validation enabled, the engine checks declared feature input availability
-before invoking each non-effect operator, then validates data-producing results
-before merging them:
+The engine always stages fragment-producing results for assembly. With
+validation enabled, it checks declared feature input availability before
+invoking each non-effect operator and validates raw fragments. Vectorize's
+enriched target-frame type and schema are checked before publication in either
+mode; preserving existing values and row order is checked only with validation
+enabled.
 
-The executor runs validators directly only when validation is enabled.
-`InvocationValidator` holds its backend, runtime state, and invocation directly.
-Its `validate()` method calls private checks in fail-fast order: foreign
+`InvocationValidator` runs only when validation is enabled. It holds its
+backend, runtime state, and invocation directly, and checks inputs in fail-fast
+order: foreign
 dataframe argument, source reference, source availability, then source features;
 other invocation kinds check local or unambiguous cross-profile features.
-`FragmentValidator`
-checks raw invocation results before output projection, including the function
-kind's row-count and key-preservation contracts. `MainFrameValidator` checks the
-accumulated dataframe's structure and declared types of columns already present.
-Both hold their validation inputs directly and inherit shared private checks,
-called in an explicit, fail-fast order. `MainFrameValidator.validate_merge()`
+`FragmentValidator` checks raw invocation results before output projection.
+`ColumnsValidator` always checks the vectorize result type and complete
+schema, and checks existing values and row order when validation is enabled.
+`MainFrameValidator` checks the accumulated dataframe's structure and declared
+types of columns already present.
+Dataframe validators share structural checks. `MainFrameValidator.validate_merge()`
 checks feature collisions separately before joining. Identifier compatibility
 and the requirement for an existing broadcast target remain mandatory assembly
 guards in `MainFrame.merge()`, even when runtime validation is disabled.
@@ -246,17 +249,26 @@ structured validation report is collected.
 | Dimensions | Every fragment contains the keys selected by its profile grain; an expand fragment contains the keys its source can supply. |
 | Outputs | Every declared output feature is present as a column. |
 | Keys | Complete profile grain keys are unique; dimensionless profiles and fragments contain at most one row. |
-| Row count | Vectorize results preserve the accumulated target's row count. Other kinds impose no source-to-result row-count relationship. |
+| Vectorize schema | Every existing target column remains present; only declared output columns may be added. This structural check is mandatory. |
+| Vectorize data | With runtime validation enabled, existing values, row count, key identities, and original row order are compared with the accumulated target. |
 | Types | Declared dimension and feature types match the returned schema. |
 | Feature collisions | Output feature columns do not replace columns already assembled. |
-| Vectorize coverage | Independently of row count, the result has exactly the accumulated target's dimension-key identities; row order may differ. |
 
-Checking lazy-frame key uniqueness, row counts, and vectorize coverage executes
+Checking lazy-frame key uniqueness and comparing vectorize data executes
 queries and may repeatedly recompute upstream operations. Enable validation
 when debugging or verifying operator contracts; it can add substantial runtime.
-Validated joins also enforce one-to-one or many-to-one key constraints.
-Without validation, joins use unchecked many-to-many semantics and the checks
-above are skipped, not deferred to a write or final collection.
+Validated vectorize execution materializes its lazy input once and passes a
+lazy view of that snapshot to the function. This makes the preservation check
+compare the same input observations rather than independently executing an
+upstream query whose row order may vary. Without validation, no input snapshot
+is collected.
+With `validate=False`, the engine still requires a dataframe with all existing
+columns, all declared outputs, and no undeclared added columns, but does not
+prove that existing values or row order are unchanged. Vectorize publishes the
+returned frame directly without fragment staging or a join. Validated joins
+also enforce one-to-one or many-to-one key constraints. Without validation,
+joins use unchecked many-to-many semantics and optional validation checks are
+skipped, not deferred to a write or final collection.
 
 User functions, sinks, and explicit `collect()` calls can execute lazy queries
 in either mode. Fragment assembly may still resolve schemas, including source

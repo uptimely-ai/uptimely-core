@@ -35,6 +35,31 @@ def test_backend_value_queries(lazy: bool) -> None:
     assert adapter.row_count(value) == 1
     assert not adapter.is_duplicated(value)
     assert adapter.same_keys(value, value, ["key"])
+    assert adapter.same_data(value, value, ["key"])
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_backend_same_data_preserves_row_order_and_values(lazy: bool) -> None:
+    adapter = backend.PolarsBackend()
+    original = pl.DataFrame({"key": ["A", "B"], "value": [1, 2]})
+    reordered = original.reverse()
+    if lazy:
+        original, reordered = original.lazy(), reordered.lazy()
+
+    assert not adapter.same_data(original, reordered, ["key", "value"])
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_backend_snapshot_preserves_dataframe_interface(lazy: bool) -> None:
+    adapter = backend.PolarsBackend()
+    frame = pl.DataFrame({"value": [1, 2]})
+    snapshot = adapter.snapshot(frame.lazy() if lazy else frame)
+
+    if lazy:
+        assert isinstance(snapshot, pl.LazyFrame)
+        assert snapshot.collect().equals(frame)
+    else:
+        assert snapshot is frame
 
 
 @pytest.mark.parametrize("lazy", [False, True])

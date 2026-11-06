@@ -144,10 +144,8 @@ def test_engine_cli_reports_processed_profiles(
     assert "\n  Fragment:\n    - checking dataframe type\n" in output
     assert "Fragment read_constants:" not in output
     assert "\n  Main frame:\n    - checking dataframe type\n" in output
-    assert (
-        "\n  Merge:\n    Target profile: pump_telemetry\n"
-        "    - checking fragment feature collisions\n    - full join on "
-    ) in output
+    assert "Enriched target frame:" in output
+    assert "    - checking existing values and row order" in output
     assert "\n  Completed in " not in output
     assert "\x1b[" not in output
 
