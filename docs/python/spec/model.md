@@ -56,10 +56,10 @@ normalize their children:
 | Model | Views |
 | --- | --- |
 | `Profile` | `all_features`, `arguments` keyed by `(operator_key, argument_name)`, `feature_producers`, `dimension_ids`, `dimension_id_set`, `order_dimensions`, `order_references` |
-| `Operator` | `arguments`, `input_features`, `output_features`, `feature_selectors`, `dataset_references`, `dimensions_references`, `dimension_reference_paths` |
+| `Operator` | `bindings`, `arguments`, `input_features`, `output_features`, `feature_selectors`, `dataset_references`, `dimensions_references`, `dimension_reference_paths` |
 | `Interface` | `input_ids`, `output_ids` |
-| `Binding` | `values_with_paths`, `references_by_prefix`, `dataset_input_references` |
-| `BindingArgument` | `root`, `children`, `leaves_with_paths`, `references_with_paths`, `prefix`, `identifier`, `selector`, `dataset_input_references`, `inferred_feature_inputs` |
+| `Binding` | `values_with_paths`, `references_by_prefix`, `metadata_references_with_paths`, `grain_references_with_paths`, `feature_references`, `uses_current_feature`, `dataset_input_references` |
+| `BindingArgument` | `root`, `children`, `leaves_with_paths`, `references_with_paths`, `prefix`, `identifier`, `selector`, `selector_value_type`, `is_current_dataset`, `is_current_fragment`, `is_current_feature_reference`, `is_grain_reference`, `dataset_input_references`, `inferred_feature_inputs` |
 | `FunctionTemplate` | `arguments_by_type` |
 | `FunctionCatalog` | `arguments`, `functions_by_kind`, `by_kind(kind)` |
 
@@ -81,6 +81,22 @@ dependencies, argument-type propagation, and value resolution. `Binding` only
 stores `function` and `args` and aggregates argument views. `BindingArgumentResolver`
 supplies shared invocation context; its `resolve_arguments` method remains available
 as an adapter for raw or modeled argument mappings.
+
+`operator.bindings` contains compute and any merge binding in that order.
+Traverse `document.operators` for operator objects, or `document.operator_items`
+when declaration keys are needed for diagnostics. Access `operator.compute` or
+`operator.merge` directly for role-specific checks; use `operator.bindings.items()`
+for checks applying to both. Resolve each binding's function ID through the
+function catalog. Diagnostic paths describe locations only; they do not encode
+binding roles or profile context for consumers to extract.
+
+`binding.argument_mismatches(function)` returns `(missing_names, unknown_names)`
+sets. `binding.typed_arguments(function)` yields scalar argument objects and their
+declared types, propagating container types and skipping undeclared arguments.
+`argument.selector_value_type` exposes a selector's required value type;
+`argument.required_type(declared_type)` additionally preserves nullable profile
+dataframe arguments. These methods use the supplied function contract rather than
+attaching catalog or Spec state to a binding.
 
 ### Working with bound arguments
 
@@ -128,10 +144,12 @@ other operations use the target. Both return `None` for an unresolved source.
 Row context itself remains available directly as `operator.row_context`.
 `Binding.dataset_input_references` contains ordered profile dataframe references,
 retaining duplicates and `@` while excluding identifier and dimension-list selectors.
-`binding_selectors_with_paths` returns ordered
-`(binding_args_path, value, argument_type)` tuples for validation, deriving each
-selector's type from its function argument. These paths identify the operator's
-binding argument collection, not individual nested leaves.
+`binding_arguments_with_paths` returns ordered
+`(binding_args_path, argument, argument_type)` tuples for validation, deriving each
+leaf's type from its function argument. The existing `binding_selectors_with_paths`
+view supplies raw values instead of argument objects. These paths identify the
+operator's binding argument collection, not individual nested leaves; metadata
+reference views retain individual leaf paths for precise diagnostics.
 
 <div class="api-reference" markdown="1">
 

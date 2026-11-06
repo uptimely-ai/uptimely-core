@@ -203,6 +203,100 @@ def test_non_json_bound_values_are_rejected(value: object) -> None:
         model.BindingArgument.model_validate(value)
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("$profiles.@.dataframe", "dataframe"),
+        ("$profiles.source.dataframe", "dataframe"),
+        ("$profiles.@.grain.ids", "array[string]"),
+        ("$profiles.source.id", "string"),
+        ("$features.pressure.unit", "string"),
+        ("$dimensions.pump.resolutions.unit.key", "string"),
+        ("$operators.@.fragment", "dataframe"),
+        ("$params.source.id", "string"),
+        ("$features.pressure", None),
+        ("$profiles.source", None),
+        ("$params.source", None),
+        ("ordinary.id", None),
+        (None, None),
+        ([], None),
+    ],
+)
+def test_selector_type_shortcuts(value: pydantic.JsonValue, expected: str | None) -> None:
+    argument = model.BindingArgument(value)
+    assert argument.selector_value_type == expected
+    assert argument.required_type("string") == expected
+    nullable_expected = (
+        "dataframe | null"
+        if isinstance(value, str) and value.startswith("$profiles.") and expected == "dataframe"
+        else expected
+    )
+    assert argument.required_type("dataframe | null") == nullable_expected
+
+
+@pytest.mark.parametrize(
+    ("value", "dataset", "fragment", "feature", "grain"),
+    [
+        ("$profiles.@.dataframe", True, False, False, False),
+        ("$profiles.@", False, False, False, False),
+        ("$profiles.@.id", False, False, False, False),
+        ("$profiles.source.dataframe", False, False, False, False),
+        ("$operators.@.fragment", False, True, False, False),
+        ("$operators.other.fragment", False, False, False, False),
+        ("$features.@.id", False, False, True, False),
+        ("$features.@.name", False, False, True, False),
+        ("$features.pressure", False, False, False, False),
+        ("$profiles.source.grain.ids", False, False, False, True),
+        (None, False, False, False, False),
+    ],
+)
+def test_reference_predicates(
+    value: pydantic.JsonValue, dataset: bool, fragment: bool, feature: bool, grain: bool
+) -> None:
+    argument = model.BindingArgument(value)
+    assert argument.is_current_dataset is dataset
+    assert argument.is_current_fragment is fragment
+    assert argument.is_current_feature_reference is feature
+    assert argument.is_grain_reference is grain
+
+
+def test_binding_contract_comparison_and_typed_reference_views() -> None:
+    function = model.FunctionTemplate(
+        id="calculate",
+        kind="vectorize",
+        returns="dataframe",
+        entrypoint="example:calculate",
+        args={
+            "data": model.Argument(id="data", type="dataframe"),
+            "columns": model.Argument(id="columns", type="array[string]"),
+        },
+    )
+    binding = model.Binding(
+        function="calculate",
+        args={
+            "columns": ["$features.pressure.unit", "$features.@", "$profiles.@.grain.ids"],
+            "unexpected": "$features.temperature",
+        },
+    )
+    assert binding.argument_mismatches(function) == ({"data"}, {"unexpected"})
+    assert [(leaf.root, kind) for leaf, kind in binding.typed_arguments(function)] == [
+        ("$features.pressure.unit", "string"),
+        ("$features.@", "string"),
+        ("$profiles.@.grain.ids", "string"),
+    ]
+    assert [(leaf.root, path) for leaf, path in binding.metadata_references_with_paths] == [
+        ("$features.pressure.unit", ("columns", 0)),
+    ]
+    assert [(leaf.root, path) for leaf, path in binding.grain_references_with_paths] == [
+        ("$profiles.@.grain.ids", ("columns", 2)),
+    ]
+    assert binding.feature_references == ("pressure", "@", "temperature")
+    assert binding.uses_current_feature
+    assert binding.metadata_references_with_paths is binding.metadata_references_with_paths
+    assert not model.Binding(function="calculate").uses_current_feature
+    assert binding == model.Binding.model_validate(binding.model_dump())
+
+
 def test_python_inference_uses_argument_facts_and_keeps_explicit_inputs_authoritative() -> None:
     binding = assembly.Binding(
         function=ref.function("calculation:calculate", kind="vectorize"),

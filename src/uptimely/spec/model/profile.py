@@ -73,6 +73,11 @@ class Operator(base.StrictModel):
     row_context: uptimely_row_context.RowContext | None = None
 
     @property
+    def bindings(self) -> dict[str, binding.Binding]:
+        """Return compute and optional merge bindings in declaration order."""
+        return {"compute": self.compute} | ({"merge": self.merge} if self.merge is not None else {})
+
+    @property
     def input_features(self) -> list[str]:
         """Return identifiers of declared feature dependencies."""
         return self.interface.input_ids
@@ -97,9 +102,7 @@ class Operator(base.StrictModel):
     @functools.cached_property
     def feature_selectors(self) -> tuple[str, ...]:
         """Return normalized compute feature IDs in reference order, retaining duplicates."""
-        return tuple(
-            feature for feature, _ in self.compute.references_by_prefix[selectors.FEATURE_PREFIX]
-        )
+        return self.compute.feature_references
 
     @property
     def dimension_reference_paths(self) -> tuple[tuple[str, tuple[str | int, ...]], ...]:

@@ -11,12 +11,68 @@ from uptimely.spec import selectors
 
 from . import base, binding_argument
 
+if typing.TYPE_CHECKING:
+    from . import functions
+
 
 class Binding(base.StrictModel):
     """Wire a catalog function to its named argument values."""
 
     function: str
     args: dict[str, binding_argument.BindingArgument] = pydantic.Field(default_factory=dict)
+
+    def argument_mismatches(
+        self, function: functions.FunctionTemplate
+    ) -> tuple[set[str], set[str]]:
+        """Return missing and unknown argument names for a function declaration."""
+        return function.args.keys() - self.args.keys(), self.args.keys() - function.args.keys()
+
+    def typed_arguments(
+        self, function: functions.FunctionTemplate
+    ) -> typing.Iterator[tuple[binding_argument.BindingArgument, str]]:
+        """Yield bound leaves with declared types, skipping undeclared arguments."""
+        for name, argument in self.args.items():
+            declaration = function.args.get(name)
+            if declaration is not None:
+                yield from argument.typed_arguments(declaration.type)
+
+    @functools.cached_property
+    def metadata_references_with_paths(
+        self,
+    ) -> tuple[tuple[binding_argument.BindingArgument, binding_argument.ArgumentPath], ...]:
+        """Return metadata selectors and binding-relative paths."""
+        return tuple(
+            (argument, path)
+            for argument, path in self.references_with_paths
+            if argument.is_metadata_reference
+        )
+
+    @functools.cached_property
+    def grain_references_with_paths(
+        self,
+    ) -> tuple[tuple[binding_argument.BindingArgument, binding_argument.ArgumentPath], ...]:
+        """Return profile grain selectors and their binding-relative paths."""
+        return tuple(
+            (argument, path)
+            for argument, path in self.references_with_paths
+            if argument.is_grain_reference
+        )
+
+    @property
+    def feature_references(self) -> tuple[str, ...]:
+        """Return feature reference IDs in order, retaining duplicates and current markers."""
+        return tuple(
+            identifier
+            for argument in self.args.values()
+            for identifier in argument.feature_references
+        )
+
+    @property
+    def uses_current_feature(self) -> bool:
+        """Whether any nested reference uses the current output feature marker."""
+        return any(
+            argument.is_current_feature_reference for argument, _ in self.references_with_paths
+        )
 
     @functools.cached_property
     def references_with_paths(

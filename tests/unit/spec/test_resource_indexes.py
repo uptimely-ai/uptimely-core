@@ -4,6 +4,7 @@ import typing
 import pytest
 
 from uptimely.spec import model, validation
+from uptimely.spec.validation.rules import bindings
 
 
 def _sample_spec() -> model.Spec:
@@ -134,6 +135,77 @@ def test_indexes_preserve_operator_aliases_and_diagnostic_paths() -> None:
     assert document.operator_paths[key][-1] == "alias"
     assert document.declaration_paths[key][-1] == "alias"
     assert operator.compute.function not in document.functions
+
+
+def test_operator_bindings_preserve_identity_aliases_order_and_unresolved_functions() -> None:
+    document = _sample_spec()
+    profile = document.profiles["first"]
+    operator = profile.assembly["read"]
+    operator.merge = model.Binding(function="missing", args={"target": "$profiles.@.dataframe"})
+    profile.assembly["alias"] = operator
+    original = document.model_dump()
+    assert list(operator.bindings) == ["compute", "merge"]
+    assert operator.bindings["compute"] is operator.compute
+    alias = document.operators_by_key["first", "alias"]
+    assert alias is operator
+    assert alias.bindings["compute"] is operator.compute
+    assert alias.bindings["merge"] is operator.merge
+    assert document.functions.root.get(operator.merge.function) is None
+    assert document.profiles["second"].assembly["read"].bindings == {
+        "compute": document.profiles["second"].assembly["read"].compute
+    }
+    assert document.model_dump() == original
+    assert document.binding_selectors_with_paths == tuple(
+        (path, leaf.root, kind) for path, leaf, kind in document.binding_arguments_with_paths
+    )
+    assert [path for path, _, _ in document.binding_arguments_with_paths] == [
+        ("profiles", "first", "assembly", "read", "compute", "args"),
+        ("profiles", "first", "assembly", "alias", "compute", "args"),
+        ("profiles", "second", "assembly", "read", "compute", "args"),
+    ]
+    assert document.binding_arguments_with_paths is document.binding_arguments_with_paths
+
+
+@pytest.mark.parametrize("binding_name", ["compute", "merge"])
+def test_argument_mismatch_shortcut_preserves_sorted_details_and_alias_path(
+    binding_name: str,
+) -> None:
+    document = _sample_spec()
+    profile = document.profiles["first"]
+    operator = profile.assembly.pop("read")
+    profile.assembly["alias"] = operator
+    invalid = model.Binding(function="load", args={"z": None, "a": None})
+    setattr(operator, binding_name, invalid)
+    with pytest.raises(validation.SpecError) as error:
+        bindings.validate_arguments(document)
+    assert error.value.code == "invalid_binding_arguments"
+    assert str(error.value) == (
+        f"profiles.first.assembly.alias.{binding_name}.args: "
+        "Binding for function load has missing arguments: path; unknown arguments: a, z"
+    )
+    assert error.value.path == ("profiles", "first", "assembly", "alias", binding_name, "args")
+
+
+def test_metadata_shortcut_does_not_skip_unknown_functions() -> None:
+    document = _sample_spec()
+    operator = document.profiles["first"].assembly["read"]
+    operator.compute = model.Binding(
+        function="missing", args={"nested": ["$dimensions.missing.name"]}
+    )
+    assert document.functions.root.get(operator.compute.function) is None
+    with pytest.raises(validation.SpecError) as error:
+        bindings.validate_selector_metadata(document)
+    assert error.value.code == "invalid_binding_selector"
+    assert error.value.path == (
+        "profiles",
+        "first",
+        "assembly",
+        "read",
+        "compute",
+        "args",
+        "nested",
+        0,
+    )
 
 
 def test_nested_models_expose_cached_children_and_normalized_ids() -> None:

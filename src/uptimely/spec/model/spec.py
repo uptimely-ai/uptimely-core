@@ -11,7 +11,7 @@ import pydantic
 
 from uptimely.spec import arg_types, functions, selectors
 
-from . import base
+from . import base, binding_argument
 from . import dimension as dimension_module
 from . import functions as functions_module
 from . import profile as profile_module
@@ -129,9 +129,8 @@ class Spec(base.StrictModel):
                 base = ("profiles", profile.id, "assembly")
                 indexes.operator_paths[key] = (*base, operator_id)
                 indexes.declaration_paths[key] = (*base, operator_id)
-                indexes.operators_by_function.setdefault(operator.compute.function, []).append(key)
-                if operator.merge is not None:
-                    indexes.operators_by_function.setdefault(operator.merge.function, []).append(
+                for operator_binding in operator.bindings.values():
+                    indexes.operators_by_function.setdefault(operator_binding.function, []).append(
                         key
                     )
                 for feature_id in operator.output_features:
@@ -385,23 +384,27 @@ class Spec(base.StrictModel):
     @functools.cached_property
     def binding_selectors_with_paths(self) -> tuple[tuple[SpecPath, object, str], ...]:
         """Return binding leaves and argument types with their binding argument paths."""
-        values: list[tuple[SpecPath, object, str]] = []
+        return tuple(
+            (path, argument.root, argument_type)
+            for path, argument, argument_type in self.binding_arguments_with_paths
+        )
+
+    @functools.cached_property
+    def binding_arguments_with_paths(
+        self,
+    ) -> tuple[tuple[SpecPath, binding_argument.BindingArgument, str], ...]:
+        """Return typed bound leaves with their binding-collection diagnostic paths."""
+        arguments: list[tuple[SpecPath, binding_argument.BindingArgument, str]] = []
         for key, operator in self.operator_items:
-            for name, binding in (("compute", operator.compute), ("merge", operator.merge)):
-                if binding is None:
-                    continue
-                function = self.functions.root.get(binding.function)
-                if function is None:
-                    continue
-                binding_path = (*self.declaration_paths[key], name, "args")
-                for argument_name, argument in binding.args.items():
-                    declaration = function.args.get(argument_name)
-                    if declaration is not None:
-                        values.extend(
-                            (binding_path, value, argument_type)
-                            for value, argument_type in argument.typed_values(declaration.type)
-                        )
-        return tuple(values)
+            for name, operator_binding in operator.bindings.items():
+                function = self.functions.root.get(operator_binding.function)
+                if function is not None:
+                    path = (*self.declaration_paths[key], name, "args")
+                    arguments.extend(
+                        (path, argument, argument_type)
+                        for argument, argument_type in operator_binding.typed_arguments(function)
+                    )
+        return tuple(arguments)
 
     @functools.cached_property
     def binding_resources(self) -> dict[str, dict[str, pydantic.BaseModel]]:
@@ -422,19 +425,9 @@ class Spec(base.StrictModel):
         result: dict[OperatorKey, tuple[tuple[str, SpecPath], ...]] = {}
         for key, operator in self.operator_items:
             matches: list[tuple[str, SpecPath]] = []
-            for reference, path in operator.compute.references_with_paths:
-                if (
-                    reference.prefix != selectors.PROFILE_PREFIX
-                    or reference.selector != "grain.ids"
-                ):
-                    continue
-                profile_id = reference.identifier
-                if profile_id is None:
-                    continue
-                if profile_id == selectors.CURRENT_ID:
-                    profile_key = self.operator_profile_keys[key]
-                else:
-                    profile_key = self.profile_keys.get(profile_id)
+            for reference, path in operator.compute.grain_references_with_paths:
+                profile_id = reference.profile_id(key[0])
+                profile_key = self.profile_keys.get(profile_id) if profile_id is not None else None
                 if profile_key is None:
                     continue
                 matches.extend(
