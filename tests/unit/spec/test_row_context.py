@@ -14,9 +14,7 @@ from uptimely import execution_plan as uptimely_plan
 from uptimely.explorer import presentation
 from uptimely.spec import functions
 from uptimely.spec.python import (
-    actions as assembly,
-)
-from uptimely.spec.python import (
+    assembly,
     binding_conversion,
     dimension,
     feature,
@@ -188,7 +186,7 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
     second = authoring.time("8h", dimension=ref.dimension("other"), before="8h")
     with pytest.raises(ValueError, match="one dimension"):
         assembly.Operator(
-            id="action",
+            id="operator",
             interface=assembly.Interface(
                 inputs=[],
                 outputs=[],
@@ -200,7 +198,7 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
         )
     with pytest.raises(ValueError, match="one measurement"):
         assembly.Operator(
-            id="action",
+            id="operator",
             interface=assembly.Interface(
                 inputs=[],
                 outputs=[],
@@ -240,7 +238,7 @@ def test_context_rejects_invalid_metadata(payload):
 def test_unknown_current_and_whole_dataset_context_are_distinct():
     assert (
         assembly.Operator(
-            id="action",
+            id="operator",
             interface=assembly.Interface(
                 inputs=[],
                 outputs=[],

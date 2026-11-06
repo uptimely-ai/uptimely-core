@@ -1,14 +1,14 @@
 # Compiler
 
-The Spec declares functions and actions. An action says how a function is
-used. The compiler records each action as an invocation, or planned step, and
+The Spec declares functions and operators. An operator says how a function is
+used. The compiler records each operator as an invocation, or planned step, and
 orders the steps by their input features. The engine later loads and calls the
 Python function named in the Spec. Compiling a plan does not run the analytics.
 
 The build bundle contains both the plan and the Spec. The engine uses the Spec
 for declarations and supplies runtime values when it runs each step.
 
-This page describes the generated plan. Profile, feature, function, and action
+This page describes the generated plan. Profile, feature, function, and operators
 semantics are defined by the Spec document.
 
 ## Plan
@@ -17,7 +17,7 @@ A plan is one JSON object. Its root fields are:
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
-| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `4`. |
+| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `5`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
 | `resources` | object | Compiler-generated metadata not represented by the Spec, including inspected function return annotations and entrypoint package provenance. |
 | `invocations` | array of objects | Operations to execute and their declared inputs and dependencies. |
@@ -30,7 +30,7 @@ from their source Specs to create version 4 plans.
 ## Resources
 
 The build bundle includes `spec.json`, which is the source of dimensions,
-profiles, functions, and actions used by the engine. Plan resources contain
+profiles, functions, and operators used by the engine. Plan resources contain
 compiler-generated metadata that is not part of the Spec: inspected return
 annotations keyed by invocation identifier and the installed distribution name
 and version associated with each entrypoint. Signature-disabled functions have
@@ -42,7 +42,7 @@ is consumed as part of its build bundle, not as a replacement for `spec.json`.
 
 ## Invocations
 
-Each invocation represents one function-to-action application. Its inputs
+Each invocation represents one function-to-operator application. Its inputs
 declare the features used by that operation, while dependencies identify
 invocations that must finish first. Invocation IDs are opaque references.
 Consumers must not infer operation or identity metadata by parsing their
@@ -54,7 +54,7 @@ spelling.
 | `function_kind` | string | Function category: `read`, `conform`, `expand`, `collapse`, `vectorize`, `write`, or `escape`. |
 | `entrypoint` | string | Implementation location for the function. |
 | `function_id` | string | Function declaration used by the invocation. |
-| `mapping_id` | string | Action declaration used by the invocation. |
+| `operator_id` | string | Operator declaration used by the invocation. |
 | `dataset_id` | string or null | Profile identifier receiving or supplying dataframe state. |
 | `arguments` | object | Resolved arguments passed to the function. Runtime storage placeholders remain unresolved. |
 | `input_features` | array of strings | Features declared as inputs to the operation. |
@@ -78,7 +78,7 @@ engine may run them in parallel while preserving stage order.
 
 ## Dependencies
 
-Action inputs define the feature dependencies used to select and order
+Operator inputs define the feature dependencies used to select and order
 invocations. Ordinary argument values do not establish dependencies by
 themselves. A plan limited to selected features also includes the features they
 depend on, along with configured writes for the selected profiles. Those writes

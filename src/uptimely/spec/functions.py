@@ -32,7 +32,7 @@ class FunctionKind:
 
     ``produces_features`` marks logical feature outputs; escape outputs are
     declared dependencies and are not materialized by the engine.
-    ``dataframe_input_scope`` relates bound dataframes to the action's target;
+    ``dataframe_input_scope`` relates bound dataframes to the operator's target;
     ``feature_input_scope`` describes where declared feature inputs may come from.
     ``dimension_change`` compares source and target dimension identities;
     ``fragment_dimensions`` constrains raw results; row-count and key relations
@@ -62,7 +62,7 @@ class FunctionKind:
         resolved_dataset_ids: frozenset[str],
         inferred_source_id: str | None,
     ) -> tuple[DatasetInputViolation, ...]:
-        """Return dataset-input contract violations for one action."""
+        """Return dataset-input contract violations for one operator."""
         violations: list[DatasetInputViolation] = []
         if self.dataframe_input_scope == "target":
             if target_dataset_id not in resolved_dataset_ids:

@@ -60,7 +60,7 @@ def test_feature_data_preserves_empty_strings() -> None:
 
     assert feature_lineage._node_data(node) == {
         "node_type": "feature",
-        "is_action": False,
+        "is_operator": False,
         "label": "reading",
         "feature_id": "reading",
         "profile": "telemetry",
@@ -69,7 +69,7 @@ def test_feature_data_preserves_empty_strings() -> None:
     }
 
 
-def test_action_data_includes_declared_function_metadata() -> None:
+def test_operator_data_includes_declared_function_metadata() -> None:
     function = model.FunctionTemplate(
         id="double",
         kind="vectorize",
@@ -77,8 +77,8 @@ def test_action_data_includes_declared_function_metadata() -> None:
         description="Double a reading",
         entrypoint="example:double",
     )
-    node = models.ActionNode(
-        action_id="double_action",
+    node = models.OperatorNode(
+        operator_id="double_operator",
         features=("doubled",),
         profile_id="telemetry",
         dataset_id="telemetry",
@@ -87,9 +87,9 @@ def test_action_data_includes_declared_function_metadata() -> None:
 
     assert feature_lineage._node_data(node) == {
         "node_type": "feature",
-        "is_action": True,
+        "is_operator": True,
         "label": "Double",
-        "action_id": "double_action",
+        "operator_id": "double_operator",
         "features": ["doubled"],
         "profile": "telemetry",
         "dataset_id": "telemetry",
@@ -136,7 +136,7 @@ def test_main_columns_replace_outputs_in_order_without_materializing_escape() ->
         function_kind="vectorize",
         entrypoint="example:calculate",
         function_id="calculate",
-        mapping_id="calculate",
+        operator_id="calculate",
         dataset_id="data",
         input_features=["a"],
     )
@@ -198,7 +198,7 @@ def test_kind_capabilities_preserve_presentation_contracts(
         function_kind=kind_id,
         entrypoint="example:calculate",
         function_id="calculate",
-        mapping_id="calculate",
+        operator_id="calculate",
         dataset_id="data",
         input_features=["raw"],
         output_features=["value"],
@@ -248,7 +248,7 @@ def test_presentation_follows_changed_capabilities_not_kind_names(
         function_kind="read",
         entrypoint="example:calculate",
         function_id="calculate",
-        mapping_id="calculate",
+        operator_id="calculate",
         dataset_id="data",
         output_features=["value"],
     )

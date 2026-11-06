@@ -37,7 +37,7 @@ def test_public_decorator_and_module_exports_are_unambiguous() -> None:
     assert authoring.functions is module
     assert authoring.function is module.function
     assert not hasattr(authoring, "kind")
-    assert not hasattr(authoring.actions, "kind")
+    assert not hasattr(authoring.assembly, "kind")
 
 
 def test_undecorated_function_uses_explicit_reference_contract() -> None:

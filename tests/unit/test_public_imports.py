@@ -23,7 +23,7 @@ from uptimely.spec.feature_graph import (
     FeatureSubGraph,
 )
 from uptimely.spec.feature_graph import models as feature_graph_models
-from uptimely.spec.feature_graph.models import ActionNode, FeatureNode
+from uptimely.spec.feature_graph.models import FeatureNode, OperatorNode
 from uptimely.spec.model import BindingArgumentResolver
 from uptimely.spec.model import Profile as ProfileModel
 from uptimely.spec.model import Spec as SpecModel
@@ -46,7 +46,7 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert feature_graph.FeatureGraphNodeMeta is FeatureGraphNodeMeta
     assert graph_style.GraphStyle.__module__ == "uptimely.explorer.graph_style"
     assert feature_graph_models.FeatureNode is FeatureNode
-    assert feature_graph_models.ActionNode is ActionNode
+    assert feature_graph_models.OperatorNode is OperatorNode
     assert uptimely.FeatureSubGraph is spec.FeatureSubGraph is FeatureSubGraph
 
     assert uptimely.InvocationGraph is compiler.InvocationGraph is InvocationGraphImplementation

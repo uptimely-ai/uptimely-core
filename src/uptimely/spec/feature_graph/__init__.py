@@ -7,11 +7,11 @@ from .feature_graph import (
     FeatureSubGraph,
     Node,
 )
-from .models import ActionNode, FeatureNode
+from .models import FeatureNode, OperatorNode
 
 __all__ = [
     "FeatureGraph",
-    "ActionNode",
+    "OperatorNode",
     "FeatureNode",
     "FeatureGraphBase",
     "FeatureGraphNodeMeta",

@@ -123,7 +123,7 @@ def test_fragment_preserves_raw_data_until_validation_and_projects_declared_outp
     assert main.dataframe.columns == ["asset_id", "reading"]
     assert projected.dataframe is main.dataframe
     assert projected.invocation is invocation
-    assert main.fragments == {invocation.mapping_id: projected}
+    assert main.fragments == {invocation.operator_id: projected}
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -331,6 +331,6 @@ def test_failed_merge_preserves_retained_fragments_and_other_main_frames() -> No
         )
 
     assert main.dataframe is accumulated
-    assert main.fragments == {invocation.mapping_id: retained}
+    assert main.fragments == {invocation.operator_id: retained}
     assert other.fragments == {}
     assert other.fragments is not main.fragments

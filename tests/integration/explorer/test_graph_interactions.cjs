@@ -594,7 +594,7 @@ for (const filename of ['graphs/feature_graph.js', 'graphs/invocation_graph.js']
 			buttons[1 - index].listeners.click();
 			assert.ok([...graph.objects.values()].every(object => object.scale.value === undefined));
 		}
-		node.is_action = filename === 'graphs/feature_graph.js';
+		node.is_operator = filename === 'graphs/feature_graph.js';
 		node.is_effect = true;
 		node.features = ['result'];
 		node.input_features = ['source'];
@@ -680,17 +680,17 @@ for (const filename of ['graphs/feature_graph.js', 'graphs/invocation_graph.js']
 		const nodes = [
 			{ id: 'a', dataset_id: 'a_source', stage: 1 },
 			{ id: 'z', dataset_id: 'a_source', stage: 1 },
-			{ id: 'a_action', dataset_id: 'z_output', stage: 2 },
-			{ id: 'z_action', dataset_id: 'z_output', stage: 2 },
+			{ id: 'a_operator', dataset_id: 'z_output', stage: 2 },
+			{ id: 'z_operator', dataset_id: 'z_output', stage: 2 },
 			{ id: 'result', dataset_id: 'a_source', stage: 3 },
 			{ id: 'other', dataset_id: 'b_isolated', stage: 1 },
 			{ id: 'missing', stage: 1 },
 		].map(node => ({ ...node, label: node.id, function_id: node.id, function_kind: 'read' }));
 		const links = [
-			{ source: 'a', target: 'z_action' },
-			{ source: 'z', target: 'a_action' },
-			{ source: 'a_action', target: 'result' },
-			{ source: 'z_action', target: 'result' },
+			{ source: 'a', target: 'z_operator' },
+			{ source: 'z', target: 'a_operator' },
+			{ source: 'a_operator', target: 'result' },
+			{ source: 'z_operator', target: 'result' },
 		];
 		const layout = datasetLayout(filename, nodes, links);
 		const datasetOrder = ['a_source', 'z_output', 'b_isolated', 'Unassigned'];
@@ -703,10 +703,10 @@ for (const filename of ['graphs/feature_graph.js', 'graphs/invocation_graph.js']
 		});
 		const byId = new Map(layout.nodes.map(node => [node.id, node]));
 		assert.equal(byId.get('a').rank, 0);
-		assert.equal(byId.get('z_action').rank, 1);
+		assert.equal(byId.get('z_operator').rank, 1);
 		assert.equal(byId.get('result').rank, 2);
 		assert.equal(byId.get('missing').x, byId.get('a').x);
-		assert.ok(byId.get('z_action').y < byId.get('a_action').y);
+		assert.ok(byId.get('z_operator').y < byId.get('a_operator').y);
 		for (const link of layout.graph.properties.get('graphData').links) {
 			assert.ok(link.source.x + link.source.cardWidth / 2 < link.target.x - link.target.cardWidth / 2);
 			layout.paths.length = 0;

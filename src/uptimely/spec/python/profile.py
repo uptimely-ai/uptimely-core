@@ -11,10 +11,9 @@ from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 from uptimely.spec.model import common as spec_common
 
-from . import actions as assembly
+from . import assembly, references
 from . import dimension as dimension_module
 from . import feature as feature_module
-from . import references
 
 __all__ = [
     "Profile",

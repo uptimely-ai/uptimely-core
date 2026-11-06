@@ -19,7 +19,7 @@ def _invocation(kind: functions.FunctionKindId = "read") -> execution_plan.Invoc
         function_kind=kind,
         entrypoint="test:calculate",
         function_id="calculate",
-        mapping_id="calculate",
+        operator_id="calculate",
         dataset_id="dataset",
     )
 

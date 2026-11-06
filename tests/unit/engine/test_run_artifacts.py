@@ -32,7 +32,7 @@ def _result(frame: object | None = None) -> engine.ExecutionResult:
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=4,
+        plan_version=5,
     )
 
 

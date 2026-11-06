@@ -20,7 +20,9 @@ def validate_dataset_order(spec: spec_model.Spec) -> None:
             continue
         profile = spec.get_row_context_profile(key)
         if profile is not None and not profile.order:
-            raise ValueError(f"Action {operator.id} directional row context requires profile order")
+            raise ValueError(
+                f"Operator {operator.id} directional row context requires profile order"
+            )
 
 
 def validate_dimension(spec: spec_model.Spec) -> None:
@@ -34,7 +36,7 @@ def validate_dimension(spec: spec_model.Spec) -> None:
         dimension_id = declaration.dimension.removeprefix(selectors.DIMENSION_PREFIX)
         if dimensions is not None and dimension_id not in dimensions:
             raise ValueError(
-                f"Action {operator.id} context dimension is not in the input profile: "
+                f"Operator {operator.id} context dimension is not in the input profile: "
                 f"{dimension_id}"
             )
 
@@ -61,7 +63,8 @@ def validate_dimension_type(spec: spec_model.Spec) -> None:
             and resolution.type != expected_type
         ):
             raise ValueError(
-                f"Action {operator.id} context dimension resolution must have type {expected_type}"
+                f"Operator {operator.id} context dimension resolution must have type "
+                f"{expected_type}"
             )
 
 
@@ -74,4 +77,6 @@ def validate_dimension_order(spec: spec_model.Spec) -> None:
             continue
         profile = spec.get_row_context_profile(key)
         if profile is not None and declaration.dimension not in profile.order_references:
-            raise ValueError(f"Action {operator.id} context dimension must occur in profile order")
+            raise ValueError(
+                f"Operator {operator.id} context dimension must occur in profile order"
+            )

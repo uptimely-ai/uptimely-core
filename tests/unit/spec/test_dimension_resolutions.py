@@ -10,7 +10,7 @@ from uptimely.spec.python.dimension import Dimension
 from uptimely.spec.validation import errors, validate_spec
 from uptimely.spec.validation.rules import profiles as profile_rules
 from uptimely.spec.validation.rules import row_context as row_context_rules
-from uptimely.spec.validation.rules.actions import contracts
+from uptimely.spec.validation.rules.operators import contracts
 
 Document = dict[str, typing.Any]
 

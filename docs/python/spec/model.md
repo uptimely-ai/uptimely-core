@@ -8,7 +8,7 @@ The compiler constructs executable invocations from these declarations.
 
 ## Resource indexes
 
-The document model indexes profiles, features, actions, and arguments once, on
+The document model indexes profiles, features, operators, and arguments once, on
 the first index access. Use `document.profiles["telemetry"]` or
 `document.features["pressure"]` rather than repeatedly traversing the document.
 These dictionaries reference the original declarations, not copies. Selected
@@ -18,12 +18,12 @@ Use `document.grain_keys_by_profile` and
 `document.grain_key_types_by_profile` for the dataframe keys and types selected
 by each profile.
 
-`document.actions` is an ordered list of the original canonical `Operator` objects.
-Use `for action in document.actions` to traverse it. Operator IDs are profile-scoped,
-so `document.actions_by_key` uses `(profile_id, action_key)` keys.
+`document.operators` is an ordered list of the original canonical `Operator` objects.
+Use `for operator in document.operators` to traverse it. Operator IDs are profile-scoped,
+so `document.operators_by_key` uses `(profile_id, operator_key)` keys.
 `document.arguments` contains function
 argument declarations keyed by `(function_id, argument_key)`; bound values remain
-on `action.compute.args`. `document.action_profiles` maps each action key to its
+on `operator.compute.args`. `document.operator_profiles` maps each operator key to its
 owning profile.
 `document.entrypoints` lists distinct function-catalog entrypoint strings in
 declaration order without parsing them or importing implementations. Compilation
@@ -36,7 +36,7 @@ and `operator_items` contains `(operator_key, operator)` pairs in declaration or
 Operator keys contain the profile ID and assembly dictionary key. The operator list
 retains aliases for validation without introducing additional Operator classes.
 `profiles_by_key`, `feature_owners`, `feature_producers`, and
-`actions_by_function` provide keyed lookups and relationships.
+`operators_by_function` provide keyed lookups and relationships.
 `feature_owners` excludes global
 dimensions, which can occur in multiple profiles. ID-keyed indexes use the last
 declaration when IDs collide; validate a document before relying on unique ownership.
@@ -55,7 +55,7 @@ normalize their children:
 
 | Model | Views |
 | --- | --- |
-| `Profile` | `all_features`, `arguments` keyed by `(action_key, argument_name)`, `feature_producers`, `dimension_ids`, `dimension_id_set`, `order_dimensions`, `order_references` |
+| `Profile` | `all_features`, `arguments` keyed by `(operator_key, argument_name)`, `feature_producers`, `dimension_ids`, `dimension_id_set`, `order_dimensions`, `order_references` |
 | `Operator` | `arguments`, `input_features`, `output_features`, `feature_selectors`, `dataset_references`, `dimensions_references`, `dimension_reference_paths` |
 | `Interface` | `input_ids`, `output_ids` |
 | `Binding` | `values_with_paths`, `references_by_prefix`, `dataset_input_references` |
@@ -64,16 +64,16 @@ normalize their children:
 
 Raw child dictionaries such as `profile.features`, `profile.assembly`, and
 `function.args` remain available. Bound arguments are values; catalog arguments
-are declarations. Feature and action references retain declaration order.
+are declarations. Feature and operator references retain declaration order.
 
-`action.dataset_references` contains normalized profile IDs from nested binding
+`operator.dataset_references` contains normalized profile IDs from nested binding
 arguments, retaining duplicates and the current-profile marker `@`. It reuses
 the binding's cached traversal and does not require a Spec.
-`action.feature_selectors` exposes normalized feature IDs from binding arguments,
+`operator.feature_selectors` exposes normalized feature IDs from binding arguments,
 including `@` and duplicates; it is separate from the explicitly declared
-`action.input_features`.
-`action.dimensions_references` likewise exposes normalized dimension IDs.
-`action.dimension_reference_paths` additionally retains each reference's relative
+`operator.input_features`.
+`operator.dimensions_references` likewise exposes normalized dimension IDs.
+`operator.dimension_reference_paths` additionally retains each reference's relative
 binding argument path for diagnostics. Both reuse the same cached binding traversal.
 `BindingArgumentResolver` resolves bound values for one invocation; profile-dataframe,
 feature, and dimension-index context is configured once, then `resolve_arguments` receives
@@ -81,21 +81,21 @@ only the binding argument mapping.
 
 Context-dependent views live on the Spec rather than wrapper objects:
 `dimensions_by_profile` uses profile keys;
-`input_candidates`, `input_sources`, `actions_arguments`, `dataset_argument_sources`,
+`input_candidates`, `input_sources`, `operator_arguments`, `dataset_argument_sources`,
 `dataset_argument_ids`, `dataset_argument_grain_keys`, `matching_profile_keys`, and
-`binding_selectors` use action keys. Unresolved and ambiguous resources remain
-visible to validators. `declaration_paths` preserves action dictionary keys for
-binding diagnostics; `action_paths` preserves model IDs for contract diagnostics.
-`get_row_context_profile(action_key)` returns the profile whose observations the
-action's context describes, and `get_row_context_dimensions(action_key)` returns
+`binding_selectors` use operator keys. Unresolved and ambiguous resources remain
+visible to validators. `declaration_paths` preserves operator dictionary keys for
+binding diagnostics; `operator_paths` preserves model IDs for contract diagnostics.
+`get_row_context_profile(operator_key)` returns the profile whose observations the
+operator's context describes, and `get_row_context_dimensions(operator_key)` returns
 its dimension IDs. Dimension-removing operations use the inferred source;
 other operations use the target. Both return `None` for an unresolved source.
-Row context itself remains available directly as `action.row_context`.
+Row context itself remains available directly as `operator.row_context`.
 `Binding.dataset_input_references` contains ordered profile dataframe references,
 retaining duplicates and `@` while excluding identifier and dimension-list selectors.
 `binding_selectors_with_paths` flattens `binding_selectors` into ordered
 `(binding_args_path, value, argument_type)` tuples for validation. These paths
-identify the action's binding argument collection, not individual nested leaves.
+identify the operator's binding argument collection, not individual nested leaves.
 
 <div class="api-reference" markdown="1">
 
@@ -129,7 +129,7 @@ bindings.
 
 ## profile
 
-`uptimely.spec.model.profile` defines profiles, features, actions, and
+`uptimely.spec.model.profile` defines profiles, features, operators, and
 their relationships. Profiles are keyed by ID in the top-level `profiles`
 mapping, and their internal IDs are excluded from serialized profile attributes.
 

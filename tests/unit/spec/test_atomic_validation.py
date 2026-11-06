@@ -14,13 +14,13 @@ from uptimely.spec import functions as function_kinds
 from uptimely.spec.validation import errors
 from uptimely.spec.validation import spec as spec_validation
 from uptimely.spec.validation.rules import functions
-from uptimely.spec.validation.rules.actions import contracts as action_contracts
-from uptimely.spec.validation.rules.actions import outputs as action_outputs
+from uptimely.spec.validation.rules.operators import contracts as operator_contracts
+from uptimely.spec.validation.rules.operators import outputs as operator_outputs
 
 
 @pytest.mark.parametrize(
     "validate",
-    [*spec_validation.VALIDATION_DEPENDENCIES, action_outputs.warn_unproduced_features],
+    [*spec_validation.VALIDATION_DEPENDENCIES, operator_outputs.warn_unproduced_features],
     ids=lambda validate: f"{validate.__module__.rsplit('.', 1)[-1]}.{validate.__name__}",
 )
 def test_each_spec_rule_logs_its_check(
@@ -68,7 +68,7 @@ def test_failed_spec_validation_logs_the_failing_check_before_stopping(
         spec_validation.validate_spec(document)
 
     assert error.value.code == "unknown_function_reference"
-    assert caplog.messages[-1] == "    - checking action function references"
+    assert caplog.messages[-1] == "    - checking operator function references"
     assert (
         "    - checking binding argument names match function declarations" not in caplog.messages
     )
@@ -93,7 +93,9 @@ def test_unknown_function_error_uses_declaration_path(
     key, item = document.operator_items[0]
     item.compute.function = "missing_function"
     validate = (
-        spec_validation.validate_spec if use_runner else action_outputs.validate_function_reference
+        spec_validation.validate_spec
+        if use_runner
+        else operator_outputs.validate_function_reference
     )
     with pytest.raises(errors.SpecError) as error:
         validate(document)
@@ -131,7 +133,7 @@ def test_mapping_rules_use_shared_operation_dataframe_counts(
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match=r"exactly 2 foreign profile\(s\)") as error:
-        action_contracts.validate_dataset_argument_count(document)
+        operator_contracts.validate_dataset_argument_count(document)
     assert error.value.code == "invalid_mapping_dataset_input"
     assert error.value.path[-2:] == ("compute", "args")
 
@@ -141,7 +143,7 @@ def test_local_and_foreign_input_validation_uses_kind_attributes(
 ) -> None:
     vectorize = next(
         item
-        for item in document.actions
+        for item in document.operators
         if document.functions[item.compute.function].kind == "vectorize"
     )
     definitions = dict(function_kinds.FUNCTION_KINDS)
@@ -151,7 +153,7 @@ def test_local_and_foreign_input_validation_uses_kind_attributes(
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match="must reference a foreign source profile"):
-        action_contracts.validate_foreign_dataset_argument(document)
+        operator_contracts.validate_foreign_dataset_argument(document)
 
     assert document.functions[vectorize.compute.function].kind == "vectorize"
 
@@ -166,7 +168,7 @@ def test_target_dataset_validation_uses_kind_attribute(
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match="must consume its target profile"):
-        action_contracts.validate_target_dataset_input(document)
+        operator_contracts.validate_target_dataset_input(document)
 
 
 def test_feature_input_validation_uses_kind_attribute(
@@ -179,7 +181,7 @@ def test_feature_input_validation_uses_kind_attribute(
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match="Kind vectorize cannot declare feature inputs"):
-        action_contracts.validate_feature_input_scope(document)
+        operator_contracts.validate_feature_input_scope(document)
 
 
 def test_none_dataframe_input_count_is_unrestricted(document: spec.Spec) -> None:

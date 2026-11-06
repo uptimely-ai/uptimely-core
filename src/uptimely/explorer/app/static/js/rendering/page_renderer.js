@@ -41,9 +41,9 @@ export function dashboard(data) {
         ["spec", "01", "Analytical model", "Browse profiles, features, dimensions, and the functions bound to them.", "features", "Explore the model"],
         ["plan", "02", "Execution plan", "Inspect compiled operations, argument bindings, and dependency-ordered stages.", "plan", "Inspect the plan"],
         ["execution", "03", "Run results", "Inspect the latest saved run, its logs, and profile dataset previews.", "info", "View run results"],
-      ].map(([key, number, title, description, view, action]) => `<li class="journey-step ${key} icon--${key}">
+      ].map(([key, number, title, description, view, operator]) => `<li class="journey-step ${key} icon--${key}">
         <div class="journey-step-header"><span class="journey-icon">${icon(key)}</span><span class="journey-number" aria-hidden="true">${number}</span></div>
-        <h3>${title}</h3><p>${description}</p><a href="${href(view)}">${action}<i data-lucide="arrow-right" aria-hidden="true"></i></a></li>`).join("")}</ol>
+        <h3>${title}</h3><p>${description}</p><a href="${href(view)}">${operator}<i data-lucide="arrow-right" aria-hidden="true"></i></a></li>`).join("")}</ol>
     </section>
     <p class="dashboard-note">Counts describe the analytical model and its compiled plan.
       Run results are saved by <code>uptimely run</code>; browsing the Explorer does not execute analytical operations.</p>
@@ -86,7 +86,7 @@ export function lineage(data, topology) {
         <div class="lineage-buttons" role="group" aria-label="${title} reset"><button class="ui-button" id="reset-lineage" type="button">Reset ${title.toLowerCase()}</button></div>
       </div>
       <details class="panel" open><summary>Legend</summary><div class="legend" aria-label="Legend">
-        ${topology ? "" : '<span class="function" id="action-legend">Action</span>'}<span class="legend-heading">Profiles</span>
+        ${topology ? "" : '<span class="function" id="operator-legend">Operator</span>'}<span class="legend-heading">Profiles</span>
         <div class="dataset-legend" id="dataset-legend"></div></div></details>
       <div class="details" id="${panelId}" role="region" aria-label="${topology ? "Invocation details" : "Selected item"}" aria-live="polite">
         <h2>${topology ? "Invocation details" : "Selected item"}</h2><div class="meta">Click a node</div>

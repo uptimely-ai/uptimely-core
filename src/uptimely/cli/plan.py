@@ -23,6 +23,6 @@ def log_stages(plan: execution_plan.ExecutionPlan) -> None:
                 "  %s(%s) -> %s%s",
                 invocation.function_id,
                 invocation.dataset_id,
-                ", ".join(invocation.output_features) or invocation.mapping_id,
+                ", ".join(invocation.output_features) or invocation.operator_id,
                 suffix,
             )

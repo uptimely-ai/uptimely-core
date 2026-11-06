@@ -32,7 +32,7 @@ engine.
       <span class="cv-tag">02 / PREPARE</span>
       <h3 id="av-prepare">Make a run plan</h3>
       <div class="av-flow">
-        <div class="av-node av-action">
+        <div class="av-node av-operator">
           <span class="av-node-label">COMPILER</span>
           <strong>Optimize the plan</strong>
           <span>Resolves dependencies and execution order</span>
@@ -50,7 +50,7 @@ engine.
       <span class="cv-tag">03 / RUN</span>
       <h3 id="av-run">Get the results</h3>
       <div class="av-flow">
-        <div class="av-node av-action">
+        <div class="av-node av-operator">
           <span class="av-node-label">ENGINE</span>
           <strong>Execute the plan</strong>
           <span>Connects the plan to live data and functions</span>
@@ -67,7 +67,7 @@ engine.
   <dl class="cv-legend av-legend" aria-label="Architecture diagram color key">
     <div><dt><span class="cv-swatch av-swatch-authoring" aria-hidden="true"></span>Gray</dt><dd><strong>Optional authoring</strong><span>Python source for writing spec definitions.</span></dd></div>
     <div><dt><span class="cv-swatch cv-key" aria-hidden="true"></span>Blue</dt><dd><strong>Definitions</strong><span>Spec JSON and the portable execution plan.</span></dd></div>
-    <div><dt><span class="cv-swatch cv-teal" aria-hidden="true"></span>Teal</dt><dd><strong>Actions</strong><span>The compiler prepares the plan; the engine executes it.</span></dd></div>
+    <div><dt><span class="cv-swatch cv-teal" aria-hidden="true"></span>Teal</dt><dd><strong>Operator</strong><span>The compiler prepares the plan; the engine executes it.</span></dd></div>
     <div><dt><span class="cv-swatch cv-amber" aria-hidden="true"></span>Amber</dt><dd><strong>Results</strong><span>Calculated outputs and details from a run.</span></dd></div>
   </dl>
 </div>
@@ -79,12 +79,12 @@ directly.
 ## Spec
 
 Spec JSON is the portable, authoritative definition of the spec. It
-describes dimensions, profiles, features, functions, and actions without
+describes dimensions, profiles, features, functions, and operators without
 depending on a particular authoring language. The other tools consume this
 shared contract.
 
-The Spec declares functions and actions. An action says what data a function
-reads and writes. The compiler records each action as a planned step; the
+The Spec declares functions and operators. An operator says what data a function
+reads and writes. The compiler records each operator as a planned step; the
 engine runs those steps using the Python functions. Building a plan does not
 run the analytics.
 

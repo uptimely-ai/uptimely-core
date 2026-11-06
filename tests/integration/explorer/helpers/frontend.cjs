@@ -37,7 +37,7 @@ function sampleData() {
         },
         functions: { calculate: fn },
       },
-      summary: { profile_count: 1, action_count: 1, dimension_count: 1,
+      summary: { profile_count: 1, operator_count: 1, dimension_count: 1,
         feature_count: 1, function_count: 1, feature_buckets: { input: 0, output: 1 },
         function_buckets: { vectorize: 1 } },
       function_groups: { vectorize: { calculate: fn } },
@@ -61,7 +61,7 @@ function sampleData() {
     animation: { stages: [[{
       number: 1, invocation_id: "calculate:readings", function_label: "Calculate",
       function: "calculate", profile: "readings", dataset: "readings", dataset_label: "Readings",
-      action: "<Calculate>", dependencies: [], columns: [column], main_columns: [column],
+      operator: "<Calculate>", dependencies: [], columns: [column], main_columns: [column],
       kind: { id: "vectorize" }, input_tables: [], row_count: 3,
     }]] },
   };

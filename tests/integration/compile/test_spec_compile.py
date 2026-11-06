@@ -18,20 +18,20 @@ pytestmark = pytest.mark.usefixtures("example_projects")
 
 def _add_escape_mapping(
     configuration: dict,
-    mapping_id: str,
+    operator_id: str,
     function_id: str,
     input_features: list[str],
     entrypoint: str,
     output_features: list[str] | None = None,
 ) -> None:
-    """Add one escape action with logical feature dependencies."""
+    """Add one escape operator with logical feature dependencies."""
     configuration["functions"][function_id] = {
         "kind": "escape",
         "returns": "any",
         "entrypoint": entrypoint,
         "args": {},
     }
-    configuration["profiles"]["pump_telemetry"]["assembly"][mapping_id] = {
+    configuration["profiles"]["pump_telemetry"]["assembly"][operator_id] = {
         "compute": {
             "function": function_id,
             "args": {},
@@ -154,11 +154,11 @@ def test_collapse_feature_placeholder_uses_invocation_feature_id(tmp_path: pathl
     definition = spec.load_spec(path)
     graph = compiler.InvocationGraph(definition)
     node = next(
-        item for item in graph.invocations if item.action_id == "bearing_temperature_by_pump"
+        item for item in graph.invocations if item.operator_id == "bearing_temperature_by_pump"
     )
     plan = compiler.Compiler().compile(definition)
     invocation = next(
-        item for item in plan.invocations if item.mapping_id == "bearing_temperature_by_pump"
+        item for item in plan.invocations if item.operator_id == "bearing_temperature_by_pump"
     )
 
     assert node.feature_id == "bearing_temperature_max"
@@ -233,7 +233,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         invocation for invocation in plan.invocations if invocation.function_kind == "conform"
     )
     source = next(
-        invocation for invocation in plan.invocations if invocation.mapping_id == "read_auxiliary"
+        invocation for invocation in plan.invocations if invocation.operator_id == "read_auxiliary"
     )
     stage_by_id = {
         invocation_id: index for index, stage in enumerate(plan.stages) for invocation_id in stage
@@ -308,10 +308,10 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
     path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
     document = spec.load_spec(path)
     graph = compiler.InvocationGraph(document)
-    by_action = {node.action_id: node for node in graph.invocations}
+    by_operator = {node.operator_id: node for node in graph.invocations}
 
     assert {
-        node.action_id
+        node.operator_id
         for node in graph.invocations
         if document.functions[node.function_id].kind == "escape"
     } == {
@@ -322,31 +322,31 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
         "process_pump_external_workflow",
     }
     assert {
-        dependency.action_id for dependency in graph.dependencies(by_action["escape_start"])
+        dependency.operator_id for dependency in graph.dependencies(by_operator["escape_start"])
     } == {"read_pump_telemetry"}
     assert {
-        dependency.action_id for dependency in graph.dependencies(by_action["escape_chain"])
+        dependency.operator_id for dependency in graph.dependencies(by_operator["escape_chain"])
     } == {"escape_start"}
 
     assert {
-        dependency.action_id for dependency in graph.dependencies(by_action["escape_unrelated"])
+        dependency.operator_id for dependency in graph.dependencies(by_operator["escape_unrelated"])
     } == {"read_pump_telemetry"}
-    assert graph.dependencies(by_action["escape_source"]) == []
-    assert by_action["escape_start"].output_features == ("escape_start_output",)
-    assert by_action["escape_chain"].output_features == ("escape_chain_output",)
-    assert by_action["escape_source"].input_features == ()
-    assert by_action["escape_source"].output_features == ("escape_source_output",)
+    assert graph.dependencies(by_operator["escape_source"]) == []
+    assert by_operator["escape_start"].output_features == ("escape_start_output",)
+    assert by_operator["escape_chain"].output_features == ("escape_chain_output",)
+    assert by_operator["escape_source"].input_features == ()
+    assert by_operator["escape_source"].output_features == ("escape_source_output",)
     assert {
         "escape_chain_output",
         "escape_source_output",
     } <= spec.FeatureGraph(document).feature_names
     feature_subset = graph.subset(["escape_chain_output"])
     assert {"escape_start", "escape_chain"} <= {
-        node.action_id for node in feature_subset.invocations
+        node.operator_id for node in feature_subset.invocations
     }
     compiled = compiler.Compiler().compile(document)
     compiled_escapes = {
-        invocation.mapping_id: invocation
+        invocation.operator_id: invocation
         for invocation in compiled.invocations
         if invocation.function_kind == "escape"
     }
@@ -371,7 +371,7 @@ def test_feature_subset_retains_sink_roles_independent_of_function_kind(
     graph = compiler.InvocationGraph(spec.load_spec(path))
     subset = graph.subset(["escape_start_output"])
 
-    assert "escape_unrelated" in {node.action_id for node in subset.invocations}
+    assert "escape_unrelated" in {node.operator_id for node in subset.invocations}
 
 
 def test_escape_return_annotations_do_not_constrain_compilation(
@@ -490,7 +490,7 @@ def test_compiled_inputs_match_each_profile_mapping() -> None:
 
     assert len(profiles) > 1
     for invocation in execution_plan.invocations:
-        operator = profiles[invocation.dataset_id].assembly[invocation.mapping_id]
+        operator = profiles[invocation.dataset_id].assembly[invocation.operator_id]
         assert invocation.input_features == operator.input_features
         assert invocation.output_features == operator.output_features
 
@@ -503,7 +503,7 @@ def test_graph_subset_retains_profile_mapping_lookups() -> None:
     for node in subset.invocations:
         assert graph.profile_for(node) is document.profiles[node.dataset_id]
         assert subset.profile_for(node) is graph.profile_for(node)
-        assert subset.action_for(node) is graph.action_for(node)
+        assert subset.operator_for(node) is graph.operator_for(node)
         assert {dependency.node_id for dependency in subset.dependencies(node)} == {
             dependency.node_id for dependency in graph.dependencies(node)
         }

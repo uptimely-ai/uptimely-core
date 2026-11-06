@@ -47,7 +47,7 @@ class DataLineageStep:
     invocation_id: str
     function: str
     function_label: str
-    action: str
+    operator: str
     kind: functions.FunctionKind
     profile: str
     dataset: str | None
@@ -274,7 +274,7 @@ class _DataLineageBuilder:
             function_label=function.name or invocation.function_id
             if function is not None
             else invocation.function_id,
-            action=spec_common.humanize_identifier(invocation.mapping_id),
+            operator=spec_common.humanize_identifier(invocation.operator_id),
             kind=kind,
             profile=profile.id,
             dataset=invocation.dataset_id,

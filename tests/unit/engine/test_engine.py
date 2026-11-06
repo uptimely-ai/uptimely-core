@@ -20,8 +20,7 @@ from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.engine.runtime import validation as runtime_validation
 from uptimely.execution_plan import serialization as plan_serialization
-from uptimely.spec.python import actions as assembly
-from uptimely.spec.python import dimension, profile, ref
+from uptimely.spec.python import assembly, dimension, profile, ref
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
 
@@ -77,7 +76,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
 
     assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert result.failures == {}
-    assert result.plan_version == 4
+    assert result.plan_version == 5
     assert not hasattr(result, "datasets")
     assert isinstance(result.calculated_outputs["telemetry", "doubled"], pl.DataFrame)
     assert set(result.main_frames) == {"telemetry"}
@@ -89,7 +88,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     assert written["dataset"].select("asset_id", "doubled").rows() == [("A", 4), ("B", 6)]
     headings = [message for message in caplog.messages if message.startswith("\nInvocation: ")]
     assert headings == [
-        f"\nInvocation: {invocation.mapping_id} [{invocation.function_kind}]"
+        f"\nInvocation: {invocation.operator_id} [{invocation.function_kind}]"
         for invocation in engine.plan.execution_invocations
     ]
     assert caplog.messages.count("  Merge:\n    Target profile: telemetry") == 2
@@ -303,7 +302,7 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
 
     executor.execute(read)
     main = state.main_frames["telemetry"]
-    source = main.fragments[read.mapping_id]
+    source = main.fragments[read.operator_id]
     assert main.id_columns == ("asset_id",)
     assert not hasattr(main, "dataset")
     assert source.dataframe.columns == ["asset_id", "reading"]
@@ -410,7 +409,7 @@ def test_executor_validates_inputs_against_current_runtime_state(
         function_kind="vectorize",
         entrypoint="test:calculate",
         function_id="calculate",
-        mapping_id="calculate",
+        operator_id="calculate",
         dataset_id="dataset",
         input_features=["local"],
     )
@@ -535,24 +534,24 @@ def test_escape_ignores_any_return_without_materializing_features(
     monkeypatch: pytest.MonkeyPatch,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
-    invocation_id = "invocation:escape:external_action:asset:external:action"
+    invocation_id = "invocation:escape:external_operator:asset:external:operator"
     escape = uptimely_plan.Invocation(
         id=invocation_id,
         function_kind="escape",
         entrypoint="test:escape",
-        function_id="external_action",
-        mapping_id="action",
+        function_id="external_operator",
+        operator_id="operator",
         dataset_id="external",
         output_features=[],
         input_features=["external_input"],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=4,
+        plan_version=5,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
             "functions": {
-                "external_action": {
+                "external_operator": {
                     "kind": "escape",
                     "returns": "any",
                     "args": {},
@@ -593,7 +592,7 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
         function_kind="escape",
         entrypoint="test:first",
         function_id="first",
-        mapping_id="first",
+        operator_id="first",
         dataset_id="external",
         output_features=["first_output"],
         input_features=["external_input"],
@@ -603,14 +602,14 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
         function_kind="escape",
         entrypoint="test:second",
         function_id="second",
-        mapping_id="second",
+        operator_id="second",
         dataset_id="external",
         output_features=[],
         input_features=["first_output"],
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=4,
+        plan_version=5,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -636,25 +635,25 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
 def test_escape_resolves_literal_and_runtime_arguments(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
-    invocation_id = "invocation:escape:external_action:asset:external:action"
+    invocation_id = "invocation:escape:external_operator:asset:external:operator"
     escape = uptimely_plan.Invocation(
         id=invocation_id,
         function_kind="escape",
         entrypoint="test:escape",
-        function_id="external_action",
-        mapping_id="action",
+        function_id="external_operator",
+        operator_id="operator",
         dataset_id="external",
         output_features=[],
         input_features=["external_input"],
         arguments={"path": "$params.output", "mode": "replace"},
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=4,
+        plan_version=5,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
             "functions": {
-                "external_action": {
+                "external_operator": {
                     "kind": "escape",
                     "returns": "any",
                     "args": {
@@ -669,10 +668,10 @@ def test_escape_resolves_literal_and_runtime_arguments(
     )
     received: list[tuple[str, str]] = []
 
-    def external_action(path: str, mode: str) -> None:
+    def external_operator(path: str, mode: str) -> None:
         received.append((path, mode))
 
-    _patch_callables(monkeypatch, {"test:escape": external_action})
+    _patch_callables(monkeypatch, {"test:escape": external_operator})
     result = engine_for_plan(plan, {"output": "/tmp/external-output.csv"}).run()
 
     assert received == [("/tmp/external-output.csv", "replace")]
@@ -690,7 +689,7 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         function_kind="escape",
         entrypoint="test:first",
         function_id="first",
-        mapping_id="first",
+        operator_id="first",
         dataset_id="external",
         output_features=[],
         input_features=["external_input"],
@@ -701,12 +700,12 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         id=second_id,
         entrypoint="test:second",
         function_id="second",
-        mapping_id="second",
+        operator_id="second",
         output_features=[],
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=4,
+        plan_version=5,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -734,26 +733,26 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     read_id = "invocation:read:load:asset:telemetry:load"
-    escape_id = "invocation:escape:external_action:asset:telemetry:action"
+    escape_id = "invocation:escape:external_operator:asset:telemetry:operator"
     vectorize_id = "invocation:vectorize:consume:asset:telemetry:consume"
     observed: list[pl.DataFrame] = []
 
     def read() -> pl.DataFrame:
         return pl.DataFrame({"asset_id": ["A"], "reading": [3]})
 
-    def external_action(dataset: pl.DataFrame) -> pl.DataFrame:
+    def external_operator(dataset: pl.DataFrame) -> pl.DataFrame:
         observed.append(dataset)
         return pl.DataFrame({"external_result": [4]})
 
     def consume() -> pl.DataFrame:
-        pytest.fail("The dataframe action must not run without its declared input feature")
+        pytest.fail("The dataframe operator must not run without its declared input feature")
 
     read_invocation = uptimely_plan.Invocation(
         id=read_id,
         function_kind="read",
         entrypoint="test:read",
         function_id="load",
-        mapping_id="load",
+        operator_id="load",
         dataset_id="telemetry",
         output_features=["asset_id", "reading"],
     )
@@ -761,8 +760,8 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         id=escape_id,
         function_kind="escape",
         entrypoint="test:escape",
-        function_id="external_action",
-        mapping_id="external_result",
+        function_id="external_operator",
+        operator_id="external_result",
         dataset_id="telemetry",
         output_features=["external_result"],
         input_features=["reading"],
@@ -774,14 +773,14 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         function_kind="vectorize",
         entrypoint="test:consume",
         function_id="consume",
-        mapping_id="consume",
+        operator_id="consume",
         dataset_id="telemetry",
         output_features=["processed"],
         input_features=["external_result"],
         dependency_ids=[escape_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=4,
+        plan_version=5,
         required_backend="polars",
         resources={
             "dimensions": {
@@ -792,7 +791,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
             },
             "functions": {
                 "load": {"kind": "read", "returns": "dataframe", "args": {}},
-                "external_action": {
+                "external_operator": {
                     "kind": "escape",
                     "returns": "any",
                     "args": {"dataset": {"type": "dataframe"}},
@@ -806,7 +805,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
 
     _patch_callables(
         monkeypatch,
-        {"test:read": read, "test:escape": external_action, "test:consume": consume},
+        {"test:read": read, "test:escape": external_operator, "test:consume": consume},
     )
     result = engine_for_plan(plan).run(validate=True)
 
@@ -834,7 +833,7 @@ def test_escape_exception_fails_and_skips_downstream(
         function_kind="escape",
         entrypoint="test:first",
         function_id="first",
-        mapping_id="first",
+        operator_id="first",
         dataset_id="external",
         output_features=[],
         input_features=["external_input"],
@@ -844,12 +843,12 @@ def test_escape_exception_fails_and_skips_downstream(
         id=second_id,
         entrypoint="test:second",
         function_id="second",
-        mapping_id="second",
+        operator_id="second",
         output_features=[],
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=4,
+        plan_version=5,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -863,13 +862,13 @@ def test_escape_exception_fails_and_skips_downstream(
     )
 
     def fail() -> None:
-        raise RuntimeError("external action failed")
+        raise RuntimeError("external operator failed")
 
     _patch_callables(monkeypatch, {"test:first": fail, "test:second": lambda: None})
     result = engine_for_plan(plan).run()
 
     assert result.invocation_statuses == {first_id: "failed", second_id: "skipped"}
-    assert result.failures == {first_id: "external action failed"}
+    assert result.failures == {first_id: "external operator failed"}
 
 
 def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
@@ -885,7 +884,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
     package = tmp_path / package_name
     package.mkdir()
     (package / "__init__.py").write_text("", encoding="utf-8")
-    (package / "external_action.py").write_text(
+    (package / "external_operator.py").write_text(
         "import polars as pl\n"
         f"SOURCE = {str(source_path)!r}\n"
         f"OUTPUT = {str(output_path)!r}\n"
@@ -909,13 +908,15 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
         ],
         assembly=[
             assembly.Operator(
-                id="external_action",
+                id="external_operator",
                 interface=assembly.Interface(
                     inputs=[ref.feature("asset_id")],
                     outputs=[],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(f"{package_name}.external_action:process", kind="escape"),
+                    function=ref.function(
+                        f"{package_name}.external_operator:process", kind="escape"
+                    ),
                     arguments={},
                 ),
             )
@@ -1048,7 +1049,7 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
             dataclasses.replace(
                 engine.plan.invocations[0],
                 dataset_id=dataset_id,
-                mapping_id="shared",
+                operator_id="shared",
             )
         )
 
@@ -1257,7 +1258,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         function_kind="read",
         entrypoint="test:read",
         function_id="load",
-        mapping_id="load",
+        operator_id="load",
         dataset_id="telemetry",
         output_features=["asset_id", "reading"],
     )
@@ -1266,13 +1267,13 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         function_kind="vectorize",
         entrypoint="test:calculate",
         function_id="calculate",
-        mapping_id="reading_plus_one",
+        operator_id="reading_plus_one",
         dataset_id="telemetry",
         output_features=["reading_plus_one", "reading_times_two"],
         dependency_ids=[read_invocation.id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=4,
+        plan_version=5,
         required_backend="polars",
         resources={
             "dimensions": {

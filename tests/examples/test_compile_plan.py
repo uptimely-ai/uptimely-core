@@ -89,7 +89,7 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "invocations",
         "stages",
     }
-    assert metadata["plan_version"] == 4
+    assert metadata["plan_version"] == 5
     assert {invocation["function_kind"] for invocation in metadata["invocations"]} == {
         "read",
         "collapse",

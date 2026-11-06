@@ -141,14 +141,14 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 "id": function_id,
                 "kind": template.kind,
                 "declared_returns": functions.FUNCTION_KINDS[template.kind].returns,
-                "escape_actions": [
+                "escape_operators": [
                     {
                         "profile": key[0],
-                        "action": key[1],
-                        "inputs": snapshot.spec.actions_by_key[key].input_features,
-                        "outputs": snapshot.spec.actions_by_key[key].output_features,
+                        "operator": key[1],
+                        "inputs": snapshot.spec.operators_by_key[key].input_features,
+                        "outputs": snapshot.spec.operators_by_key[key].output_features,
                     }
-                    for key in snapshot.spec.actions_by_function.get(function_id, [])
+                    for key in snapshot.spec.operators_by_function.get(function_id, [])
                     if template.kind == functions.ESCAPE
                 ],
                 "execution_semantics": (
@@ -187,7 +187,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 for feature_id, producers in spec_definition.feature_producers.items()
                 if any(
                     spec_definition.functions[
-                        spec_definition.actions_by_key[key].compute.function
+                        spec_definition.operators_by_key[key].compute.function
                     ].kind
                     == functions.VECTORIZE
                     for key in producers
@@ -210,10 +210,12 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         """
         spec_definition = state.load_snapshot().spec
         by_feature = {
-            feature: (key[0], spec_definition.actions_by_key[key])
+            feature: (key[0], spec_definition.operators_by_key[key])
             for feature, producers in spec_definition.feature_producers.items()
             for key in producers
-            if spec_definition.functions[spec_definition.actions_by_key[key].compute.function].kind
+            if spec_definition.functions[
+                spec_definition.operators_by_key[key].compute.function
+            ].kind
             == functions.VECTORIZE
         }
         producer = by_feature.get(feature_id)

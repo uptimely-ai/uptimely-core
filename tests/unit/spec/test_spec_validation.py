@@ -6,10 +6,9 @@ from support import examples as example_support
 
 from uptimely import spec
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions as assembly
-from uptimely.spec.python import conversion, feature, profile, ref
+from uptimely.spec.python import assembly, conversion, feature, profile, ref
 from uptimely.spec.validation import errors as validation_errors
-from uptimely.spec.validation.rules.actions import contracts as action_contracts
+from uptimely.spec.validation.rules.operators import contracts as operator_contracts
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
@@ -23,7 +22,7 @@ def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str)
 
 def _escape_configuration() -> dict:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["functions"]["external_action"] = {
+    configuration["functions"]["external_operator"] = {
         "kind": "escape",
         "returns": "any",
         "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
@@ -32,7 +31,7 @@ def _escape_configuration() -> dict:
     target = configuration["profiles"]["pump_telemetry"]
     target["assembly"]["escape_first"] = {
         "compute": {
-            "function": "external_action",
+            "function": "external_operator",
             "args": {},
         },
         "interface": {
@@ -46,7 +45,7 @@ def _escape_configuration() -> dict:
     }
     target["assembly"]["escape_second"] = {
         "compute": {
-            "function": "external_action",
+            "function": "external_operator",
             "args": {},
         },
         "interface": {
@@ -71,11 +70,11 @@ def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -
     assert len(aliases) == 2
     assert aliases[0][1] is operator
     assert aliases[0][0] == (profile_id, "alias")
-    assert model.action_paths[aliases[0][0]][-1] == "alias"
+    assert model.operator_paths[aliases[0][0]][-1] == "alias"
     assert aliases[0][0][1] != operator.id
     same_profile_locations = [key for key, _ in locations if key[0] == profile_id]
     assert len(same_profile_locations) > 1
-    assert all(model.action_profiles[key] is profile for key in same_profile_locations)
+    assert all(model.operator_profiles[key] is profile for key in same_profile_locations)
 
     facts = same_profile_locations
     dimensions = frozenset(profile.dimension_ids)
@@ -166,7 +165,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     }
     bad_source_path = tmp_path / "bad_source.json"
     bad_source_path.write_text(json.dumps(bad_source_config), encoding="utf-8")
-    with pytest.raises(ValueError, match="actions reference unknown functions"):
+    with pytest.raises(ValueError, match="operators reference unknown functions"):
         spec.load_spec(bad_source_path)
 
     bad_transform_config = json.loads(json.dumps(configuration))
@@ -182,7 +181,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     }
     bad_transform_path = tmp_path / "bad_transform.json"
     bad_transform_path.write_text(json.dumps(bad_transform_config), encoding="utf-8")
-    with pytest.raises(ValueError, match="actions reference unknown functions"):
+    with pytest.raises(ValueError, match="operators reference unknown functions"):
         spec.load_spec(bad_transform_path)
 
 
@@ -198,7 +197,8 @@ def test_unproduced_declared_features_warn_instead_of_failing(
     with pytest.warns(
         UserWarning,
         match=(
-            "profiles.pump_telemetry.features: Features have no producer action: unproduced_feature"
+            "profiles.pump_telemetry.features: Features have no producer operator: "
+            "unproduced_feature"
         ),
     ):
         parsed_spec = spec.load_spec(path)
@@ -235,7 +235,7 @@ def test_escape_mappings_preserve_logical_inputs_and_outputs(
     assert assembly["escape_second"].input_features == []
     assert assembly["escape_second"].output_features == ["external_followup"]
     health_signal_producer = next(
-        item for item in parsed_spec.actions if "health_signal_normalized" in item.output_features
+        item for item in parsed_spec.operators if "health_signal_normalized" in item.output_features
     )
     assert parsed_spec.functions[health_signal_producer.compute.function].kind == "vectorize"
 
@@ -246,7 +246,7 @@ def test_escape_mappings_preserve_logical_inputs_and_outputs(
         (
             "inputs",
             ["$features.unknown_feature"],
-            "Action escape_first references unknown input feature: unknown_feature",
+            "Operator escape_first references unknown input feature: unknown_feature",
             None,
             None,
         ),
@@ -275,7 +275,7 @@ def test_escape_mappings_validate_declared_input_references(
         assert error.value.path[-2:] == path_suffix
 
 
-def test_python_conversion_and_json_loading_accept_output_only_escape_actions(
+def test_python_conversion_and_json_loading_accept_output_only_escape_operator(
     tmp_path: pathlib.Path,
 ) -> None:
     declaration = profile.Profile(
@@ -294,16 +294,16 @@ def test_python_conversion_and_json_loading_accept_output_only_escape_actions(
         ],
     )
     python_spec = spec.from_python(profiles=[declaration])
-    python_action = python_spec.profiles["observations"].assembly["escape"]
-    assert python_action.input_features == []
-    assert python_action.output_features == ["external_result"]
+    python_operator = python_spec.profiles["observations"].assembly["escape"]
+    assert python_operator.input_features == []
+    assert python_operator.output_features == ["external_result"]
 
     path = tmp_path / "python_escape.json"
     path.write_text(json.dumps(conversion.to_dict(profiles=[declaration])), encoding="utf-8")
     json_spec = spec.load_spec(path)
-    json_action = json_spec.profiles["observations"].assembly["escape"]
-    assert json_action.input_features == []
-    assert json_action.output_features == ["external_result"]
+    json_operator = json_spec.profiles["observations"].assembly["escape"]
+    assert json_operator.input_features == []
+    assert json_operator.output_features == ["external_result"]
 
 
 def test_python_dataset_accepts_escape_feature_outputs() -> None:
@@ -444,7 +444,7 @@ def test_matching_key_selectors_validate_on_target_and_source(
     path = _write_configuration(tmp_path, configuration, "matching_keys.json")
 
     spec_definition = spec.load_spec(path)
-    assert action_contracts.validate_matching_keys(spec_definition) is None
+    assert operator_contracts.validate_matching_keys(spec_definition) is None
 
 
 def test_grain_key_selector_is_a_matching_key_declaration() -> None:
@@ -457,7 +457,7 @@ def test_grain_key_selector_is_a_matching_key_declaration() -> None:
 
     assert operator.compute.args["dimensions"] == "$profiles.@.grain.ids"
     assert [grain_key for grain_key, _ in spec_definition.matching_profile_keys[key]] == ["pump_id"]
-    assert action_contracts.validate_matching_keys(spec_definition) is None
+    assert operator_contracts.validate_matching_keys(spec_definition) is None
 
 
 @pytest.mark.parametrize(
@@ -540,10 +540,10 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
         spec.load_spec(path)
 
 
-@pytest.mark.parametrize("action_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
-def test_action_rejects_explicit_source(tmp_path: pathlib.Path, action_id: str) -> None:
+@pytest.mark.parametrize("operator_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
+def test_operator_rejects_explicit_source(tmp_path: pathlib.Path, operator_id: str) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_profile"]["assembly"][action_id]["source"] = (
+    configuration["profiles"]["pump_profile"]["assembly"][operator_id]["source"] = (
         "$profiles.pump_telemetry"
     )
     invalid_operation_path = tmp_path / "invalid_aggregation_operation.json"

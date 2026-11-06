@@ -69,7 +69,7 @@ class InvocationValidator:
         for feature in invocation.input_features:
             if feature in required and available[feature] != 1:
                 raise ValueError(
-                    f"Action {invocation.mapping_id} input feature is unavailable or ambiguous: "
+                    f"Operator {invocation.operator_id} input feature is unavailable or ambiguous: "
                     f"{feature}"
                 )
 
@@ -87,7 +87,7 @@ class InvocationValidator:
         logger.debug("    - checking foreign dataframe argument")
         if len(self.dataframe_arguments) != 1:
             raise ValueError(
-                f"Action {self.invocation.mapping_id} must declare exactly one foreign "
+                f"Operator {self.invocation.operator_id} must declare exactly one foreign "
                 "dataframe argument"
             )
 
@@ -105,7 +105,7 @@ class InvocationValidator:
         source_id = invocation.arguments.get(self.dataframe_arguments[0])
         if not isinstance(source_id, str) or source_id == invocation.dataset_id:
             raise ValueError(
-                f"Action {invocation.mapping_id} must reference a foreign source profile"
+                f"Operator {invocation.operator_id} must reference a foreign source profile"
             )
         return source_id
 
@@ -142,6 +142,6 @@ class InvocationValidator:
         for feature in invocation.input_features:
             if feature not in columns:
                 raise ValueError(
-                    f"Action {invocation.mapping_id} input feature is unavailable in foreign "
+                    f"Operator {invocation.operator_id} input feature is unavailable in foreign "
                     f"source profile: {feature}"
                 )

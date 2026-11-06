@@ -24,7 +24,7 @@ def test_graph_metadata_follows_function_capabilities(
     monkeypatch.setattr(functions, "FUNCTION_KINDS", catalog)
     changed = graph._declared_features()
     checked = set()
-    for operator in graph.actions:
+    for operator in graph.operators:
         kind = graph.spec.functions[operator.compute.function].kind
         if kind not in {"read", "collapse"}:
             continue
@@ -41,7 +41,7 @@ def test_graph_metadata_follows_function_capabilities(
             for key, operator in profile.assembly.items()
             if graph.spec.functions[operator.compute.function].kind == "read"
         }
-    graph.actions = graph.spec.actions
+    graph.operators = graph.spec.operators
     rebuilt_features = [
         node.reference
         for node in graph._create_graph()
@@ -83,11 +83,11 @@ def test_graph_cli_inspects_without_exporting(
 
 
 @pytest.mark.usefixtures("example_projects")
-def test_system_graph_connects_actions_to_feature_outputs() -> None:
+def test_system_graph_connects_operator_to_feature_outputs() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     system = spec.FeatureGraph(spec_definition)
 
-    operator_function_ids = {operator.compute.function for operator in system.actions}
+    operator_function_ids = {operator.compute.function for operator in system.operators}
     assert "aggregate" in operator_function_ids
     assert "min_max_scale" in operator_function_ids
     assert "extract_field" in operator_function_ids
@@ -96,13 +96,13 @@ def test_system_graph_connects_actions_to_feature_outputs() -> None:
     recommendation_nodes = [
         node
         for node in system.graph
-        if isinstance(node.reference, models.ActionNode)
+        if isinstance(node.reference, models.OperatorNode)
         and node.reference.function.id == "extract_field"
     ]
     recommendation_outputs = {
         neighbor.reference.name
-        for action_node in recommendation_nodes
-        for neighbor, _attrs in system.graph.neighbors(action_node)
+        for operator_node in recommendation_nodes
+        for neighbor, _attrs in system.graph.neighbors(operator_node)
         if isinstance(neighbor.reference, models.FeatureNode)
     }
     assert recommendation_outputs == {
@@ -117,11 +117,11 @@ def test_system_graph_connects_actions_to_feature_outputs() -> None:
 
     actual_edges = {
         (
-            source.reference.action_id,
+            source.reference.operator_id,
             neighbor_node.reference.name,
         )
         for source in system.graph
-        if isinstance(source.reference, models.ActionNode)
+        if isinstance(source.reference, models.OperatorNode)
         for neighbor_node, _attrs in system.graph.neighbors(source)
         if isinstance(neighbor_node.reference, models.FeatureNode)
     }
@@ -135,19 +135,19 @@ def test_system_graph_connects_actions_to_feature_outputs() -> None:
 
 
 @pytest.mark.usefixtures("example_projects")
-def test_system_graph_contains_one_node_per_action() -> None:
+def test_system_graph_contains_one_node_per_operator() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     system = spec.FeatureGraph(spec_definition)
 
-    action_nodes = [
-        node.reference for node in system.graph if isinstance(node.reference, models.ActionNode)
+    operator_nodes = [
+        node.reference for node in system.graph if isinstance(node.reference, models.OperatorNode)
     ]
     spec_function_ids = set(system.spec.functions)
     operator_count = sum(len(profile.assembly) for profile in spec_definition.profiles.values())
-    assert len(action_nodes) == operator_count
-    assert any(operator.action_id == "bearing_temperature_by_pump" for operator in action_nodes)
-    assert all(operator.function.id in spec_function_ids for operator in action_nodes)
-    assert len({operator.node_id for operator in action_nodes}) == operator_count
+    assert len(operator_nodes) == operator_count
+    assert any(operator.operator_id == "bearing_temperature_by_pump" for operator in operator_nodes)
+    assert all(operator.function.id in spec_function_ids for operator in operator_nodes)
+    assert len({operator.node_id for operator in operator_nodes}) == operator_count
     assert system.feature_nodes == tuple(
         node.reference for node in system.graph if isinstance(node.reference, models.FeatureNode)
     )
@@ -162,7 +162,7 @@ def test_system_graph_contains_one_node_per_action() -> None:
     assert all(isinstance(name, str) for name in system.input_names)
 
     graph_text = system.print_graph()
-    assert "ActionNode(" not in graph_text
+    assert "OperatorNode(" not in graph_text
     assert "bearing_temperature_by_pump" in graph_text
 
 

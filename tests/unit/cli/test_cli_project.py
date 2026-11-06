@@ -84,7 +84,7 @@ def test_project_build_examples(
     assert not result.err
     if debug:
         assert "\n  Semantic checks:" in result.out
-        assert "    - checking action feature dependencies are acyclic" in result.out
+        assert "    - checking operator feature dependencies are acyclic" in result.out
         assert result.out.count("Compiler validation:") == 1
         assert (
             result.out.index("Document structure:")
@@ -93,8 +93,8 @@ def test_project_build_examples(
         )
         assert "  Invocation graph:" in result.out
         assert "    - checking dependency graph is acyclic and schedulable" in result.out
-        assert "\nCompiler action: " not in result.out
-        assert "  Invocation checks for 18 actions:" in result.out
+        assert "\nCompiler operator: " not in result.out
+        assert "  Invocation checks for 18 operators:" in result.out
         assert result.out.count("    - checking functions declare entrypoints") == 1
         assert result.out.count("    - checking structural argument references resolve") == 1
         assert result.out.count("    - checking emitted invocation contracts") == 1

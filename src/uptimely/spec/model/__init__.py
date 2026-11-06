@@ -19,7 +19,7 @@ from .profile import (
     Order,
     Profile,
 )
-from .spec import SPEC_VERSION, ActionKey, ProfileKey, Spec
+from .spec import SPEC_VERSION, OperatorKey, ProfileKey, Spec
 
 __all__ = [
     "SPEC_VERSION",
@@ -40,6 +40,6 @@ __all__ = [
     "Grain",
     "Order",
     "StrictModel",
-    "ActionKey",
+    "OperatorKey",
     "ProfileKey",
 ]

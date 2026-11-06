@@ -94,21 +94,21 @@ Pydantic reports document-shape errors separately.
 | `rules.features` | Feature ownership discovery and uniqueness |
 | `rules.functions` | Function return and dataframe argument contracts |
 | `rules.bindings` | Supplied argument names and structural selector types |
-| `rules.actions` | Action declarations and iteration |
-| `rules.actions.inputs` | Input feature scope, structural references, and source discovery |
-| `rules.actions.outputs` | Output declarations, producers, and coverage warnings |
-| `rules.actions.contracts` | Dataframe references and kind-specific relationships |
-| `rules.actions.dependencies` | Action feature dependency cycles |
+| `rules.operators` | Operator declarations and iteration |
+| `rules.operators.inputs` | Input feature scope, structural references, and source discovery |
+| `rules.operators.outputs` | Output declarations, producers, and coverage warnings |
+| `rules.operators.contracts` | Dataframe references and kind-specific relationships |
+| `rules.operators.dependencies` | Operator feature dependency cycles |
 | `rules.row_context` | Input ordering and context dimensions |
 | `errors` | Structured validation errors |
 
 Profile identity and ordering checks are implemented in `rules.profile_identity`.
-Action rules are grouped by the relationship they check, not by function kind.
-Collapse shares input source discovery with every other action; only invariants
+Operator rules are grouped by the relationship they check, not by function kind.
+Collapse shares input source discovery with every other operator; only invariants
 specific to collapsing are conditional on that kind.
 
 Rules access `spec.profile_items` and `spec.operator_items` directly when they need
-ownership or diagnostic paths, and use `spec.profiles` or `spec.actions` otherwise.
+ownership or diagnostic paths, and use `spec.profiles` or `spec.operators` otherwise.
 The indexed values are the canonical models, not declaration wrappers.
 `spec.feature_owners` retains every owner so ambiguous declarations can be
 reported rather than selecting the first. Cached binding and dataframe views

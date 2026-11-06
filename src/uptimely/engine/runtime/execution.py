@@ -53,11 +53,11 @@ class InvocationExecutor:
                 raise KeyError(invocation.dataset_id)
             self._invoke(invocation)
         elif definition.returns == arg_types.DATAFRAME:
-            self._execute_dataframe_action(invocation)
+            self._execute_dataframe_operator(invocation)
         else:
             raise ValueError(f"Unsupported invocation function kind: {invocation.function_kind}")
 
-    def _execute_dataframe_action(self, invocation: execution_plan.Invocation) -> None:
+    def _execute_dataframe_operator(self, invocation: execution_plan.Invocation) -> None:
         """Produce a fragment and merge it into the target profile's main frame."""
         dataset_id = invocation.dataset_id
         if dataset_id is None:
@@ -106,7 +106,9 @@ class InvocationExecutor:
             validator.validate_merge(fragment.dataframe)
         main_frame.merge(
             fragment,
-            fragment_id=fragment.invocation.mapping_id if fragment.invocation is not None else None,
+            fragment_id=(
+                fragment.invocation.operator_id if fragment.invocation is not None else None
+            ),
             join_cardinality="1:1" if self.validate else "m:m",
             broadcast_cardinality="m:1" if self.validate else "m:m",
         )

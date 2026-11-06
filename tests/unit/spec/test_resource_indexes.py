@@ -69,19 +69,19 @@ def test_resource_indexes_traverse_each_collection_once() -> None:
     for _ in range(3):
         assert list(document.profiles) == ["first", "second"]
         assert list(document.features) == ["key", "value", "another"]
-        assert list(document.actions_by_key) == [("first", "read"), ("second", "read")]
-        assert document.action_profiles == {
+        assert list(document.operators_by_key) == [("first", "read"), ("second", "read")]
+        assert document.operator_profiles == {
             ("first", "read"): document.profiles_by_key["first"],
             ("second", "read"): document.profiles_by_key["second"],
         }
         assert list(document.arguments) == [("load", "path"), ("other", "path")]
         assert document.grain_keys_by_profile == {"first": ["key"], "second": ["key"]}
-        assert len(document.actions) == 2
+        assert len(document.operators) == 2
         assert len(document.profile_items) == 2
-        assert document.actions_by_function["load"] == [("first", "read")]
+        assert document.operators_by_function["load"] == [("first", "read")]
         assert document.feature_producers["value"] == [("first", "read")]
-        assert document.actions[0] is document.profiles["first"].assembly["read"]
-        assert document.actions is document.actions
+        assert document.operators[0] is document.profiles["first"].assembly["read"]
+        assert document.operators is document.operators
         assert document.features["value"] is document.profiles["first"].features["value"]
 
     assert all(collection.traversals == 1 for collection in counted)
@@ -122,16 +122,16 @@ def test_new_model_discovers_edits_without_invalidation_machinery() -> None:
         validation.validate_spec(reconstructed)
 
 
-def test_indexes_preserve_action_aliases_and_diagnostic_paths() -> None:
+def test_indexes_preserve_operator_aliases_and_diagnostic_paths() -> None:
     document = _sample_spec()
     operator = document.profiles["first"].assembly["read"]
     document.profiles["first"].assembly["alias"] = operator
     operator.compute.function = "missing"
     key = ("first", "alias")
-    assert document.actions_by_key[key] is operator
-    assert document.action_profiles[key] is document.profiles_by_key["first"]
-    assert document.actions[:2] == [operator, operator]
-    assert document.action_paths[key][-1] == "alias"
+    assert document.operators_by_key[key] is operator
+    assert document.operator_profiles[key] is document.profiles_by_key["first"]
+    assert document.operators[:2] == [operator, operator]
+    assert document.operator_paths[key][-1] == "alias"
     assert document.declaration_paths[key][-1] == "alias"
     assert operator.compute.function not in document.functions
 

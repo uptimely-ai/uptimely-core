@@ -71,9 +71,9 @@ the resolution ID and its data key with a data-type icon (or type text when no
 icon is available).
 
 Profile details show a Produced schema table with one row per declared column, listing
-its role, data type, unit, and producing action from top to bottom. Features
+its role, data type, unit, and producing operator from top to bottom. Features
 without a declared producer show "None declared"; multiple producers are listed.
-The Actions section lists every declared action, including vectorized
+The Operator section lists every declared operator, including vectorized
 transformations, with its function, argument bindings, and input/output features.
 
 The Preview context menu groups datasets by profile category when categories are

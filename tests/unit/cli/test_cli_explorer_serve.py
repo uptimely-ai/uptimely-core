@@ -99,7 +99,7 @@ def _saved_run(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> engin
             invocation_statuses={},
             durations={},
             failures={},
-            plan_version=4,
+            plan_version=5,
         )
 
     monkeypatch.setattr(runtime, "_execute", execute)

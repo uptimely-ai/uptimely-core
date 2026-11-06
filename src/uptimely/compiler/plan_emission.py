@@ -17,7 +17,8 @@ def emit_invocation(
     function = spec_definition.functions.get(node.function_id)
     if function is None or not function.entrypoint:
         raise ValueError(
-            f"Missing entrypoint for function {node.function_id} used by action {node.action_id}"
+            f"Missing entrypoint for function {node.function_id} "
+            f"used by operator {node.operator_id}"
         )
     resolver = spec_model.BindingArgumentResolver(
         current_profile_id=node.dataset_id,
@@ -39,7 +40,7 @@ def emit_invocation(
         function_kind=function.kind,
         entrypoint=function.entrypoint,
         function_id=node.function_id,
-        mapping_id=node.action_id,
+        operator_id=node.operator_id,
         dataset_id=node.dataset_id,
         output_features=list(node.output_features),
         input_features=list(node.input_features),

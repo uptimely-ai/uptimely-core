@@ -4,24 +4,24 @@ from uptimely.spec import model
 
 
 @dataclasses.dataclass(frozen=True)
-class ActionNode:
-    """Graph metadata for one declared action and its bound function."""
+class OperatorNode:
+    """Graph metadata for one declared operator and its bound function."""
 
-    action_id: str
+    operator_id: str
     features: tuple[str, ...]
     profile_id: str
     dataset_id: str
     function: model.FunctionTemplate = dataclasses.field(compare=False, hash=False)
     dataset_name: str | None = None
-    action: model.Operator | None = dataclasses.field(default=None, compare=False, hash=False)
+    operator: model.Operator | None = dataclasses.field(default=None, compare=False, hash=False)
 
     @property
     def node_id(self) -> str:
-        """Stable graph identifier for this action in its dataset."""
-        return f"action:{self.profile_id}:{self.action_id}"
+        """Stable graph identifier for this operator in its dataset."""
+        return f"operator:{self.profile_id}:{self.operator_id}"
 
     def __str__(self) -> str:
-        return self.action_id
+        return self.operator_id
 
     def __repr__(self) -> str:
         return str(self)

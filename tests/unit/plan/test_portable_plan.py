@@ -9,7 +9,7 @@ from uptimely import execution_plan as uptimely_plan
 
 def _sample_plan() -> uptimely_plan.ExecutionPlan:
     return uptimely_plan.ExecutionPlan(
-        plan_version=4,
+        plan_version=5,
         required_backend="polars",
         resources={
             "signatures": {
@@ -23,7 +23,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 function_kind="read",
                 entrypoint="example.functions:load",
                 function_id="load",
-                mapping_id="read_pressure",
+                operator_id="read_pressure",
                 dataset_id="pump_profile",
                 arguments={"dataset": {"type": "literal", "value": "pump_profile"}},
                 dependency_ids=[],
@@ -36,7 +36,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 function_kind="collapse",
                 entrypoint="example.functions:maximum",
                 function_id="maximum",
-                mapping_id="pressure_by_pump",
+                operator_id="pressure_by_pump",
                 dataset_id="pump_profile",
                 arguments={"feature": "pressure"},
                 output_features=["plant", "pump", "maximum"],
@@ -47,7 +47,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 function_kind="write",
                 entrypoint="example.functions:save",
                 function_id="save",
-                mapping_id="save_pressure_by_pump",
+                operator_id="save_pressure_by_pump",
                 dataset_id="pump_profile",
                 arguments={},
                 dependency_ids=["opaque-collapse"],
@@ -73,9 +73,9 @@ def test_plan_round_trip_preserves_function_kind_metadata() -> None:
     assert all("source" not in invocation for invocation in payload["invocations"])
     assert restored.invocations[1].entrypoint == "example.functions:maximum"
     assert restored.invocations[1].dataset_id == "pump_profile"
-    assert restored.invocations[1].mapping_id == "pressure_by_pump"
+    assert restored.invocations[1].operator_id == "pressure_by_pump"
     assert restored.invocations[0].function_id == "load"
-    assert restored.invocations[0].mapping_id == "read_pressure"
+    assert restored.invocations[0].operator_id == "read_pressure"
     assert restored.invocations[0].dataset_id == "pump_profile"
     assert restored.invocations[0].id_columns == ["plant", "pump"]
     assert restored.invocations[0].column_types == {
@@ -123,8 +123,8 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
         "invocations",
         "stages",
     }
-    assert payload["plan_version"] == 4
-    assert {"function_id", "mapping_id"} <= set(payload["invocations"][0])
+    assert payload["plan_version"] == 5
+    assert {"function_id", "operator_id"} <= set(payload["invocations"][0])
     assert "function_kind" in payload["invocations"][0]
     assert "operation" not in payload["invocations"][0]
     assert "output" not in payload["invocations"][0]
@@ -167,11 +167,11 @@ def test_plan_rejects_version_one_with_supported_version_error() -> None:
     payload["plan_version"] = 1
     payload["callables"] = payload.pop("invocations")
 
-    with pytest.raises(ValueError, match=r"Unsupported plan version: 1\. Supported version is 4\."):
+    with pytest.raises(ValueError, match=r"Unsupported plan version: 1\. Supported version is 5\."):
         uptimely_plan.from_dict(payload)
 
 
-@pytest.mark.parametrize("version", [0, 1, 2, 3, 5, "4", "unsupported", None, True])
+@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, "5", "unsupported", None, True])
 def test_plan_rejects_unsupported_versions(version: object) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     payload["plan_version"] = version

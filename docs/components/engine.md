@@ -1,7 +1,7 @@
 # Execution engine
 
 The built-in engine runs the plan in a validated build bundle. It uses the
-bundled Spec to find each function and its action, calls the Python
+bundled Spec to find each function and its operator, calls the Python
 implementation, and collects the results. Runtime configuration is supplied
 separately.
 
@@ -121,11 +121,11 @@ runtime control parameter map under `params`. Programmatic users can construct
 
 A fragment is a subset of a profile's columns, keyed by the selected grain.
 It contains those grain-key columns and the feature columns declared
-as outputs by one data-producing action. The engine adds validated fragments
+as outputs by one data-producing operator. The engine adds validated fragments
 to an accumulated profile frame; it does not keep a separate frame for each
 feature.
 
-Data-producing actions are declared under `read`, `conform`, `expand`, and
+Data-producing operators are declared under `read`, `conform`, `expand`, and
 `collapse`. Each produces a fragment for the profile that declares it.
 `conform`, `expand`, and `collapse` take exactly one foreign/source dataframe
 through a `$profiles.<id>.dataframe` binding reference. The engine does not
@@ -144,7 +144,7 @@ profile. The engine never joins another profile implicitly.
 `conform` requires source and target profiles to declare the same grain.
 `collapse` requires a strictly coarser target grain; `expand` requires a
 strictly finer target grain. Parent links between resolutions describe valid
-coarsening and refinement. Each dimensional action explicitly supplies its
+coarsening and refinement. Each dimensional operator explicitly supplies its
 target grain keys as matching keys, for example with
 `ref.profile().grain.ids`. A dimension reference used for grouping or
 ordering does not implicitly select a join key. Combining sources requires an
@@ -216,7 +216,7 @@ Saved-build integrity, configuration, and backend compatibility checks remain
 enabled regardless of this flag.
 
 With validation enabled, the engine checks declared feature input availability
-before invoking each non-effect action, then validates data-producing results
+before invoking each non-effect operator, then validates data-producing results
 before merging them:
 
 The executor runs validators directly only when validation is enabled.
@@ -252,7 +252,7 @@ structured validation report is collected.
 
 Checking lazy-frame key uniqueness, row counts, and vectorize coverage executes
 queries and may repeatedly recompute upstream operations. Enable validation
-when debugging or verifying action contracts; it can add substantial runtime.
+when debugging or verifying operator contracts; it can add substantial runtime.
 Validated joins also enforce one-to-one or many-to-one key constraints.
 Without validation, joins use unchecked many-to-many semantics and the checks
 above are skipped, not deferred to a write or final collection.
