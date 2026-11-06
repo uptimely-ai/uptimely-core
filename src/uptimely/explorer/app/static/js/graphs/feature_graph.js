@@ -1,5 +1,6 @@
 import { ExplorerLineage } from './graph_components.js';
 import { initializeLineage } from './lineage_initializer.js';
+import { projectFeatureLineage } from './feature_projection.js';
 
 export function initializeFeatureLineage(signal) {
 	const DETAIL_VALUE_MAX_LENGTH = 220;
@@ -16,7 +17,7 @@ export function initializeFeatureLineage(signal) {
 	function updateDetails(node) {
 		if (!node) {
 			ExplorerLineage.showDetails(nodeDetails, 'Selected item', [],
-				'Select any feature in the lineage to see its identifier and details.');
+				'Select a feature or visible operator to see its identifier and details.');
 			return;
 		}
 		const label = node.label || node.id || 'Unknown';
@@ -122,5 +123,6 @@ export function initializeFeatureLineage(signal) {
 		});
 	}
 
-	initializeLineage(signal, updateDetails, createLineage2D, createLineage3D);
+	return initializeLineage(signal, updateDetails, createLineage2D, createLineage3D,
+		projectFeatureLineage);
 }

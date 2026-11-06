@@ -79,18 +79,22 @@ export function lineage(data, topology) {
       ${contextHeader(title, key, "lineage-context", title.toLowerCase())}
       <div class="lineage-control-groups">
         <div class="lineage-buttons" role="group" aria-label="${title} view">
-          <button class="ui-button" type="button" data-dimension="2d" aria-pressed="true" aria-controls="lineage-2d">2D</button>
-          <button class="ui-button" type="button" data-dimension="3d" aria-pressed="false" aria-controls="lineage-3d">3D</button>
+          <button class="ui-button" type="button" data-dimension="2d" title="Show 2D view" aria-label="Show 2D view" aria-pressed="true" aria-controls="lineage-2d">${icon("view-2d")}</button>
+          <button class="ui-button" type="button" data-dimension="3d" title="Show 3D view" aria-label="Show 3D view" aria-pressed="false" aria-controls="lineage-3d">${icon("view-3d")}</button>
         </div>
-        <div class="lineage-buttons" role="group" aria-label="${title} zoom"><button class="ui-button" type="button" data-zoom="1.25" aria-label="Zoom in">+</button><button class="ui-button" type="button" data-zoom="0.8" aria-label="Zoom out">-</button></div>
-        <div class="lineage-buttons" role="group" aria-label="${title} reset"><button class="ui-button" id="reset-lineage" type="button">Reset ${title.toLowerCase()}</button></div>
+        ${topology ? "" : `<button class="ui-button lineage-operator-toggle" id="show-operators" type="button" aria-label="Show operators" title="Show operators" aria-pressed="true" aria-controls="lineage">${icon("functions")}</button>`}
+        <div class="lineage-buttons" role="group" aria-label="${title} viewport">
+          <button class="ui-button" type="button" data-zoom="1.25" aria-label="Zoom in" title="Zoom in">${icon("zoom-in")}</button>
+          <button class="ui-button" type="button" data-zoom="0.8" aria-label="Zoom out" title="Zoom out">${icon("zoom-out")}</button>
+          <button class="ui-button lineage-reset" id="reset-lineage" type="button" aria-label="Reset view" title="Reset view" aria-controls="lineage">${icon("reset")}</button>
+        </div>
       </div>
       <details class="panel" open><summary>Legend</summary><div class="legend" aria-label="Legend">
         ${topology ? "" : '<span class="function" id="operator-legend">Operator</span>'}<span class="legend-heading">Profiles</span>
         <div class="dataset-legend" id="dataset-legend"></div></div></details>
       <div class="details" id="${panelId}" role="region" aria-label="${topology ? "Invocation details" : "Selected item"}" aria-live="polite">
         <h2>${topology ? "Invocation details" : "Selected item"}</h2><div class="meta">Click a node</div>
-        <div class="summary">${topology ? "Select an invocation to inspect its function kind, arguments, profile, declared features, and invocation dependencies." : "Select any feature in the lineage to see its identifier and details."}</div>
+        <div class="summary">${topology ? "Select an invocation to inspect its function kind, arguments, profile, declared features, and invocation dependencies." : "Select a feature or visible operator to see its identifier and details."}</div>
       </div></aside>`,
     content: `<main class="lineage-workspace"><div class="lineage-stage">
       <p id="lineage-error" role="alert" hidden></p>

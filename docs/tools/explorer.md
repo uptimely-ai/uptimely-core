@@ -81,7 +81,23 @@ available. Profiles without a category appear under Uncategorized; without any
 categories, the menu remains a flat list.
 
 Lineage and topology offer interactive **2D** and **3D** views, zoom, reset,
-profile legends, and selectable node details. For animation, choose a profile
+profile legends, and selectable node details. Every graph-control button has
+a tooltip identifying its action. The reset icon sits alongside zoom in and
+zoom out in the viewport button group. It clears selection
+and fits the current graph.
+Feature lineage also offers
+the function-icon **Show operators** toggle, enabled and highlighted by default.
+Turn it off to connect input and output
+features directly across each operator; shared dependencies appear as one edge.
+All feature nodes remain visible, including isolated features. Operators without
+inputs or outputs disappear without creating additional dependencies.
+The browser derives these views from the same snapshot, without rebuilding or
+requesting additional data, including in static exports.
+The selection is saved in the URL as `operators=show` or `operators=hide` and
+supports refresh and browser back/forward. Switching detail preserves a selected
+feature; hiding a selected operator clears selection. Each visited detail and
+2D/3D combination retains its own viewport.
+For animation, choose a profile
 before using **Previous**, **Play**, and **Next**.
 Animation values and rows are illustrative placeholders;
 they are not execution results. Running the project's workflow is a separate

@@ -190,9 +190,9 @@ function createLineageView(forceGraph, container, padding, dimension, bounds = n
 		}
 	});
 	const fit = () => fitGraph(LineageConfig.VIEW_TIMING.fit);
-	const resize = () => {
+	const resize = (fitToView = true) => {
 		forceGraph.width(container.clientWidth).height(container.clientHeight);
-		fit();
+		if (fitToView) fit();
 	};
 	const zoom = factor => {
 		if (dimension === '2d') {

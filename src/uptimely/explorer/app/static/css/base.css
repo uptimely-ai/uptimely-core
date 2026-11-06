@@ -212,7 +212,7 @@ html.with-navigation body:has(.site-menus > .site-context) .site-content { grid-
     padding-bottom: 4px; overflow-x: auto; }
   .mobile-primary-controls:empty { display: none; }
   .mobile-primary-controls .ui-button { min-height: 44px; padding: 6px 8px; font-size: 12px; }
-  .mobile-primary-controls .lineage-control-groups { flex-wrap: nowrap; gap: 6px; }
+  .mobile-primary-controls .lineage-control-groups { flex-wrap: nowrap; gap: 6px 10px; }
   .mobile-primary-controls .animation-dataset-picker { flex: 1; min-width: 140px; }
   .mobile-primary-controls .animation-dataset-picker label { display: none; }
   .mobile-primary-controls .animation-dataset-picker select { min-height: 44px; padding: 6px; font-size: 12px; }

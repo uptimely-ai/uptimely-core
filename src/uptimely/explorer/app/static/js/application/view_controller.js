@@ -37,7 +37,7 @@ const VIEWS = {
   stages: catalog("stages"),
   lineage: {
     stylesheet: "graph", graph: "feature_style",
-    initialize: [initializer("lineage"), ...icons],
+    initialize: [initializer("lineage", true), ...icons],
     render: data => lineage(data, false),
   },
   topology: {
