@@ -285,14 +285,14 @@ function profileOperatorCards(config, profile, operators) {
   const featureList = references => references.length
     ? references.map(reference => `<code>${escape(reference.replace(/^\$features\./, ""))}</code>`).join("")
     : '<span class="profile-operator-empty">None declared</span>';
-  return `<div class="profile-operator">${operators.map(([id, operator]) => {
+  return `<div class="profile-operator-list">${operators.map(([id, operator]) => {
     const functionId = operator.compute.function;
     const fn = config.functions[functionId] || {};
     const args = Object.entries(operator.compute.args || {});
     return `<article class="profile-operator" data-profile-operator="${escape(id)}" data-operator-kind="${escape(fn.kind)}">
       <header class="profile-operator-header">
         <span class="profile-operator-symbol">${kindIcon(fn.kind, "profile-operator-icon")}</span>
-        <div class="profile-operator-identity"><span class="profile-operator-label">Operator ID</span><h4>${escape(id)}</h4></div>
+        <div class="profile-operator-identity"><span class="profile-operator-label">OPERATOR</span><h4>${escape(id)}</h4></div>
         ${badge(fn.kind || "Unspecified", fn.kind === "escape" ? "violet" : "neutral")}
       </header>
       ${args.length ? `<details class="profile-operator-bindings"><summary>Argument bindings <span>${args.length}</span></summary>
@@ -348,7 +348,7 @@ function profileCards(config) {
             <td>${column.operators.length ? column.operators.map(operator => `<code class="profile-schema-operator">${escape(operator)}</code>`).join("") : '<span class="text-slate-500">None declared</span>'}</td>
           </tr>`).join("")}</tbody>
         </table></div></div>
-          ${operators.length ? `<div>${subheading("Operator")}          ${profileOperatorCards(config, profile, operators)}</div>` : ""}
+          ${operators.length ? `<div>${subheading("Assembly")}${profileOperatorCards(config, profile, operators)}</div>` : ""}
         </div></section></article>`;
   }).join("");
 }
