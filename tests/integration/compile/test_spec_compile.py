@@ -146,8 +146,8 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
 
 def test_collapse_feature_placeholder_uses_invocation_feature_id(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    action = configuration["profiles"]["pump_profile"]["assembly"]["bearing_temperature_by_pump"]
-    action["compute"]["args"]["output"] = "$features.@.id"
+    operator = configuration["profiles"]["pump_profile"]["assembly"]["bearing_temperature_by_pump"]
+    operator["compute"]["args"]["output"] = "$features.@.id"
     path = tmp_path / "collapse_feature_placeholder.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -281,8 +281,8 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
 def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
     spec_definition = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     dataset = spec_definition["profiles"]["pump_profile"]
-    action = dataset["assembly"]["health_signal_normalized"]
-    action["interface"]["outputs"].append("$features.health_signal_secondary")
+    operator = dataset["assembly"]["health_signal_normalized"]
+    operator["interface"]["outputs"].append("$features.health_signal_secondary")
     dataset["features"]["health_signal_secondary"] = {"type": "float"}
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(spec_definition), encoding="utf-8")
@@ -490,9 +490,9 @@ def test_compiled_inputs_match_each_profile_mapping() -> None:
 
     assert len(profiles) > 1
     for invocation in execution_plan.invocations:
-        action = profiles[invocation.dataset_id].assembly[invocation.mapping_id]
-        assert invocation.input_features == action.input_features
-        assert invocation.output_features == action.output_features
+        operator = profiles[invocation.dataset_id].assembly[invocation.mapping_id]
+        assert invocation.input_features == operator.input_features
+        assert invocation.output_features == operator.output_features
 
 
 def test_graph_subset_retains_profile_mapping_lookups() -> None:

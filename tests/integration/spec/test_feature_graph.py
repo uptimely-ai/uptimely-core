@@ -24,12 +24,12 @@ def test_graph_metadata_follows_function_capabilities(
     monkeypatch.setattr(functions, "FUNCTION_KINDS", catalog)
     changed = graph._declared_features()
     checked = set()
-    for action in graph.actions:
-        kind = graph.spec.functions[action.compute.function].kind
+    for operator in graph.actions:
+        kind = graph.spec.functions[operator.compute.function].kind
         if kind not in {"read", "collapse"}:
             continue
         checked.add(kind)
-        for name in action.output_features:
+        for name in operator.output_features:
             if name in graph.spec.grain_key_ids:
                 continue
             assert changed[name].is_source_input is not original[name].is_source_input
@@ -37,9 +37,9 @@ def test_graph_metadata_follows_function_capabilities(
     graph.spec = spec.Spec.model_validate(graph.spec.model_dump())
     for profile in graph.spec.profiles.values():
         profile.assembly = {
-            key: action
-            for key, action in profile.assembly.items()
-            if graph.spec.functions[action.compute.function].kind == "read"
+            key: operator
+            for key, operator in profile.assembly.items()
+            if graph.spec.functions[operator.compute.function].kind == "read"
         }
     graph.actions = graph.spec.actions
     rebuilt_features = [
@@ -87,12 +87,12 @@ def test_system_graph_connects_actions_to_feature_outputs() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     system = spec.FeatureGraph(spec_definition)
 
-    action_function_ids = {action.compute.function for action in system.actions}
-    assert "aggregate" in action_function_ids
-    assert "min_max_scale" in action_function_ids
-    assert "extract_field" in action_function_ids
-    assert "extract_converged_flag" not in action_function_ids
-    assert "extract_convergence_flag" not in action_function_ids
+    operator_function_ids = {operator.compute.function for operator in system.actions}
+    assert "aggregate" in operator_function_ids
+    assert "min_max_scale" in operator_function_ids
+    assert "extract_field" in operator_function_ids
+    assert "extract_converged_flag" not in operator_function_ids
+    assert "extract_convergence_flag" not in operator_function_ids
     recommendation_nodes = [
         node
         for node in system.graph
@@ -143,12 +143,11 @@ def test_system_graph_contains_one_node_per_action() -> None:
         node.reference for node in system.graph if isinstance(node.reference, models.ActionNode)
     ]
     spec_function_ids = set(system.spec.functions)
-    action_count = sum(len(profile.assembly) for profile in spec_definition.profiles.values())
-
-    assert len(action_nodes) == action_count
-    assert any(action.action_id == "bearing_temperature_by_pump" for action in action_nodes)
-    assert all(action.function.id in spec_function_ids for action in action_nodes)
-    assert len({action.node_id for action in action_nodes}) == action_count
+    operator_count = sum(len(profile.assembly) for profile in spec_definition.profiles.values())
+    assert len(action_nodes) == operator_count
+    assert any(operator.action_id == "bearing_temperature_by_pump" for operator in action_nodes)
+    assert all(operator.function.id in spec_function_ids for operator in action_nodes)
+    assert len({operator.node_id for operator in action_nodes}) == operator_count
     assert system.feature_nodes == tuple(
         node.reference for node in system.graph if isinstance(node.reference, models.FeatureNode)
     )

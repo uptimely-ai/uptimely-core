@@ -8,7 +8,8 @@ from support import execution as execution_support
 from uptimely import compiler, spec
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
-from uptimely.spec.python import actions, dimension, feature, profile, ref
+from uptimely.spec.python import actions as assembly
+from uptimely.spec.python import dimension, feature, profile, ref
 
 
 def read_values() -> pl.DataFrame:
@@ -66,27 +67,27 @@ def _spec() -> spec.Spec:
                 id="observations",
                 grain=[profile.Grain(identifier, "id")],
                 assembly=[
-                    actions.Operator(
+                    assembly.Operator(
                         id="read_values",
-                        interface=actions.Interface(
+                        interface=assembly.Interface(
                             inputs=[],
                             outputs=[
                                 feature.Feature(id="id", type="integer"),
                                 feature.Feature(id="value", type="integer"),
                             ],
                         ),
-                        compute=actions.Binding(
+                        compute=assembly.Binding(
                             function=ref.function(read_values, kind="read"),
                             arguments={},
                         ),
                     ),
-                    actions.Operator(
+                    assembly.Operator(
                         id="result",
-                        interface=actions.Interface(
+                        interface=assembly.Interface(
                             inputs=[ref.feature("value")],
                             outputs=[feature.Feature(id="result", type="integer")],
                         ),
-                        compute=actions.Binding(
+                        compute=assembly.Binding(
                             function=ref.function(add_one, kind="vectorize"),
                             arguments={
                                 "dataset": ref.profile().data,
@@ -94,13 +95,13 @@ def _spec() -> spec.Spec:
                             },
                         ),
                     ),
-                    actions.Operator(
+                    assembly.Operator(
                         id="metadata",
-                        interface=actions.Interface(
+                        interface=assembly.Interface(
                             inputs=[],
                             outputs=[feature.Feature(id="metadata", type="integer")],
                         ),
-                        compute=actions.Binding(
+                        compute=assembly.Binding(
                             function=ref.function(metadata_only, kind="vectorize"),
                             arguments={
                                 "dataset": ref.profile().data,
@@ -313,13 +314,13 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                 id="source",
                 grain=[profile.Grain(identifier, "id")],
                 assembly=[
-                    actions.Operator(
+                    assembly.Operator(
                         id="read_lower_grain",
-                        interface=actions.Interface(
+                        interface=assembly.Interface(
                             inputs=[],
                             outputs=[feature.Feature(id="value", type="integer")],
                         ),
-                        compute=actions.Binding(
+                        compute=assembly.Binding(
                             function=ref.function(read_lower_grain, kind="read"),
                             arguments={},
                         ),
@@ -333,20 +334,20 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                     profile.Grain(region, "region"),
                 ],
                 assembly=[
-                    actions.Operator(
+                    assembly.Operator(
                         id="read_target_grain",
-                        interface=actions.Interface(
+                        interface=assembly.Interface(
                             inputs=[],
                             outputs=[feature.Feature(id="target_value", type="integer")],
                         ),
-                        compute=actions.Binding(
+                        compute=assembly.Binding(
                             function=ref.function(read_target_grain, kind="read"),
                             arguments={"include_second": dataframe},
                         ),
                     ),
-                    actions.Operator(
+                    assembly.Operator(
                         id="copied",
-                        interface=actions.Interface(
+                        interface=assembly.Interface(
                             inputs=[ref.feature("value")],
                             outputs=[
                                 feature.Feature(
@@ -354,7 +355,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                                 )
                             ],
                         ),
-                        compute=actions.Binding(
+                        compute=assembly.Binding(
                             function=ref.function(
                                 copy_values if dataframe else dataset_identifier,
                                 kind="expand",

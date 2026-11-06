@@ -85,10 +85,10 @@ def test_operator_id_is_inferred_from_assembly_key() -> None:
     model = spec.Spec.model_validate(document)
 
     payload = codec.to_document(model)
-    action = payload["profiles"]["telemetry"]["assembly"]["calculate"]
+    operator = payload["profiles"]["telemetry"]["assembly"]["calculate"]
 
-    assert "id" not in action
-    assert set(action) == {"compute", "interface", "row_context"}
+    assert "id" not in operator
+    assert set(operator) == {"compute", "interface", "row_context"}
     assert spec.Spec.model_validate(payload) == model
 
 

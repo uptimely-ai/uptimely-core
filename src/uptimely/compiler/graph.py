@@ -68,12 +68,12 @@ class InvocationGraph:
         dataset_sinks: dict[str, list[InvocationNode]] = {}
         dataset_transformers: dict[str, list[InvocationNode]] = {}
 
-        for key, action in self.spec.action_items:
+        for key, operator in self.spec.operator_items:
             profile_id = key[0]
             profile = self.spec.profiles_by_key[profile_id]
-            function_kind = self.spec.functions[action.compute.function].kind
+            function_kind = self.spec.functions[operator.compute.function].kind
             function_definition = functions.FUNCTION_KINDS[function_kind]
-            outputs = action.output_features
+            outputs = operator.output_features
             feature_id = (
                 next(
                     (
@@ -89,14 +89,14 @@ class InvocationGraph:
                 else None
             )
             invocation = InvocationNode(
-                function_id=action.compute.function,
+                function_id=operator.compute.function,
                 dataset_id=profile.id,
-                action_id=action.id,
+                action_id=operator.id,
                 feature_id=feature_id,
                 output_features=tuple(outputs),
-                arguments=action.compute.args,
-                input_features=tuple(action.input_features),
-                row_context=action.row_context,
+                arguments=operator.compute.args,
+                input_features=tuple(operator.input_features),
+                row_context=operator.row_context,
             )
             nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
             if function_definition.is_sink:

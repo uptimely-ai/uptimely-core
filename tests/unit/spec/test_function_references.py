@@ -9,7 +9,8 @@ import pytest
 
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions, bind, binding_conversion, conversion, profile, ref
+from uptimely.spec.python import actions as assembly
+from uptimely.spec.python import bind, binding_conversion, conversion, profile, ref
 
 MODULE_LOCATIONS = [
     "math",
@@ -26,10 +27,10 @@ MAPPING_KINDS: tuple[functions.FunctionKindId, ...] = (
 )
 
 
-def _dataset(action: actions.Operator) -> profile.Profile:
+def _dataset(operator: assembly.Operator) -> profile.Profile:
     return profile.Profile(
         id="observations",
-        assembly=[action],
+        assembly=[operator],
     )
 
 
@@ -76,12 +77,12 @@ def test_signature_validation_setting_survives_conversion_without_importing(
         validate_signature=validate_signature,
     )
     declaration = _dataset(
-        actions.Operator(
+        assembly.Operator(
             id="calculate",
-            interface=actions.Interface(
+            interface=assembly.Interface(
                 outputs=[],
             ),
-            compute=actions.Binding(
+            compute=assembly.Binding(
                 function=reference,
                 arguments={},
             ),
@@ -140,12 +141,12 @@ def test_undocumented_callable_and_string_references_have_no_description() -> No
 def test_description_survives_conversion_to_exported_document() -> None:
     reference = ref.function(_documented, kind="vectorize")
     declaration = _dataset(
-        actions.Operator(
+        assembly.Operator(
             id="calculate",
-            interface=actions.Interface(
+            interface=assembly.Interface(
                 outputs=[],
             ),
-            compute=actions.Binding(
+            compute=assembly.Binding(
                 function=reference,
                 arguments={},
             ),
@@ -200,13 +201,13 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
         profile.Profile(
             id=identifier,
             assembly=[
-                actions.Operator(
+                assembly.Operator(
                     id="ceil",
-                    interface=actions.Interface(
+                    interface=assembly.Interface(
                         inputs=[],
                         outputs=[],
                     ),
-                    compute=actions.Binding(
+                    compute=assembly.Binding(
                         function=ref.function(
                             "math:ceil", kind="vectorize", validate_signature=validate_signature
                         ),
@@ -234,12 +235,12 @@ def test_string_locations_are_preserved_without_importing(
     declaration = profile.Profile(
         id="observations",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="ceil",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     outputs=[],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=reference,
                     arguments={"x": 1.2},
                 ),
@@ -265,13 +266,13 @@ def test_generic_mapping_exports_function_kind_without_importing(
 
     monkeypatch.setattr(importlib, "import_module", unexpected_import)
     declaration = _dataset(
-        actions.Operator(
+        assembly.Operator(
             id="calculate",
-            interface=actions.Interface(
+            interface=assembly.Interface(
                 inputs=[],
                 outputs=[],
             ),
-            compute=actions.Binding(
+            compute=assembly.Binding(
                 function=ref.function("unavailable_package.functions:calculate", kind=kind),
                 arguments={"dataset": ref.profile().data},
             ),
@@ -291,13 +292,13 @@ def test_generic_mapping_exports_function_kind_without_importing(
 
 def test_generic_mapping_requires_operation_metadata() -> None:
     with pytest.raises(ValueError, match="kind"):
-        actions.Operator(
+        assembly.Operator(
             id="action",
-            interface=actions.Interface(
+            interface=assembly.Interface(
                 inputs=[],
                 outputs=[],
             ),
-            compute=actions.Binding(
+            compute=assembly.Binding(
                 function=ref.function("math:ceil"),
                 arguments={"x": 1.2},
             ),
@@ -308,13 +309,13 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
     declaration = profile.Profile(
         id="observations",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="external_update",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function("math:ceil", kind="escape"),
                     arguments={},
                 ),
@@ -335,13 +336,13 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
 def test_generic_mapping_accepts_function_kind_metadata(
     kind: functions.FunctionKindId,
 ) -> None:
-    declaration = actions.Operator(
+    declaration = assembly.Operator(
         id="declaration",
-        interface=actions.Interface(
+        interface=assembly.Interface(
             inputs=[],
             outputs=[],
         ),
-        compute=actions.Binding(
+        compute=assembly.Binding(
             function=ref.function("math:ceil", kind=kind),
             arguments={"x": 1.2},
         ),
@@ -352,12 +353,12 @@ def test_generic_mapping_accepts_function_kind_metadata(
 
 @pytest.mark.parametrize("kind", MAPPING_KINDS)
 def test_references_supply_function_names_as_catalog_ids(kind: functions.FunctionKindId) -> None:
-    declaration = actions.Operator(
+    declaration = assembly.Operator(
         id="declaration",
-        interface=actions.Interface(
+        interface=assembly.Interface(
             outputs=[],
         ),
-        compute=actions.Binding(
+        compute=assembly.Binding(
             function=ref.function("math:ceil", kind=kind),
             arguments={"x": 1.2},
         ),

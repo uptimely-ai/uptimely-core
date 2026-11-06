@@ -162,8 +162,8 @@ def test_signatures_reuse_function_contracts_and_reset_on_compile(
     disabled = function.model_copy(update={"id": "disabled", "validate_signature": False})
     specification = spec.Spec(functions={"calculate": function, "disabled": disabled})
     nodes = [
-        invocation_graph.InvocationNode(function_id, "entity", "dataset", action)
-        for function_id, action in [
+        invocation_graph.InvocationNode(function_id, "entity", "dataset", operator)
+        for function_id, operator in [
             ("calculate", "first"),
             ("calculate", "second"),
             ("disabled", "third"),

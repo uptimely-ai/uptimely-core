@@ -61,7 +61,7 @@ def test_spec_validation_logs_heading_and_all_checks_only_at_debug(
 def test_failed_spec_validation_logs_the_failing_check_before_stopping(
     document: spec.Spec, caplog: pytest.LogCaptureFixture
 ) -> None:
-    document.action_items[0][1].compute.function = "missing_function"
+    document.operator_items[0][1].compute.function = "missing_function"
     caplog.set_level(logging.DEBUG, logger="uptimely.spec.validation")
 
     with pytest.raises(errors.SpecError) as error:
@@ -90,7 +90,7 @@ def document(example_projects: pathlib.Path) -> spec.Spec:
 def test_unknown_function_error_uses_declaration_path(
     document: spec.Spec, use_runner: bool
 ) -> None:
-    key, item = document.action_items[0]
+    key, item = document.operator_items[0]
     item.compute.function = "missing_function"
     validate = (
         spec_validation.validate_spec if use_runner else action_outputs.validate_function_reference

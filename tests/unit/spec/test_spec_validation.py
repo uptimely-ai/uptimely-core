@@ -6,7 +6,8 @@ from support import examples as example_support
 
 from uptimely import spec
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions, conversion, feature, profile, ref
+from uptimely.spec.python import actions as assembly
+from uptimely.spec.python import conversion, feature, profile, ref
 from uptimely.spec.validation import errors as validation_errors
 from uptimely.spec.validation.rules.actions import contracts as action_contracts
 
@@ -60,18 +61,18 @@ def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -
     model = spec_model.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     profile_id = next(iter(model.profiles))
     profile = model.profiles[profile_id]
-    action = next(iter(profile.assembly.values()))
-    profile.assembly["alias"] = action
-    action.compute.function = "missing"
+    operator = next(iter(profile.assembly.values()))
+    profile.assembly["alias"] = operator
+    operator.compute.function = "missing"
     model.profiles["duplicate"] = profile.model_copy(update={"id": "duplicate"}, deep=True)
 
-    locations = model.action_items
+    locations = model.operator_items
     aliases = [(key, item) for key, item in locations if key[1] == "alias"]
     assert len(aliases) == 2
-    assert aliases[0][1] is action
+    assert aliases[0][1] is operator
     assert aliases[0][0] == (profile_id, "alias")
     assert model.action_paths[aliases[0][0]][-1] == "alias"
-    assert aliases[0][0][1] != action.id
+    assert aliases[0][0][1] != operator.id
     same_profile_locations = [key for key, _ in locations if key[0] == profile_id]
     assert len(same_profile_locations) > 1
     assert all(model.action_profiles[key] is profile for key in same_profile_locations)
@@ -111,7 +112,7 @@ def test_location_indexes_describe_original_objects() -> None:
     item.interface.inputs = ["$features.new_input"]
     item.interface.outputs = ["$features.new_output"]
     item.compute.args = {"nested": ["$features.selected", "$dimensions.new_dimension"]}
-    key, indexed = model.action_items[0]
+    key, indexed = model.operator_items[0]
     assert indexed is item
     assert key[0] == profile_id
     assert "new_dimension" in profile.dimension_ids
@@ -223,16 +224,16 @@ def test_escape_mappings_preserve_logical_inputs_and_outputs(
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
     parsed_spec = spec.load_spec(path)
-    actions = parsed_spec.profiles["pump_telemetry"].assembly
+    assembly = parsed_spec.profiles["pump_telemetry"].assembly
 
-    assert actions["escape_first"].input_features == [
+    assert assembly["escape_first"].input_features == [
         "bearing_temperature",
         "health_signal_normalized",
         "pump_id",
     ]
-    assert actions["escape_first"].output_features == ["external_result"]
-    assert actions["escape_second"].input_features == []
-    assert actions["escape_second"].output_features == ["external_followup"]
+    assert assembly["escape_first"].output_features == ["external_result"]
+    assert assembly["escape_second"].input_features == []
+    assert assembly["escape_second"].output_features == ["external_followup"]
     health_signal_producer = next(
         item for item in parsed_spec.actions if "health_signal_normalized" in item.output_features
     )
@@ -280,12 +281,12 @@ def test_python_conversion_and_json_loading_accept_output_only_escape_actions(
     declaration = profile.Profile(
         id="observations",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="escape",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     outputs=[feature.Feature(id="external_result")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function("example:escape", kind="escape"),
                     arguments={},
                 ),
@@ -309,12 +310,12 @@ def test_python_dataset_accepts_escape_feature_outputs() -> None:
     declaration = profile.Profile(
         id="observations",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="escape",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     outputs=[feature.Feature(id="external_result")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function("example:escape", kind="escape"),
                     arguments={},
                 ),
@@ -448,13 +449,13 @@ def test_matching_key_selectors_validate_on_target_and_source(
 
 def test_grain_key_selector_is_a_matching_key_declaration() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    key, action = next(
-        (key, action)
-        for key, action in spec_definition.action_items
+    key, operator = next(
+        (key, operator)
+        for key, operator in spec_definition.operator_items
         if key[1] == "bearing_temperature_by_pump"
     )
 
-    assert action.compute.args["dimensions"] == "$profiles.@.grain.ids"
+    assert operator.compute.args["dimensions"] == "$profiles.@.grain.ids"
     assert [grain_key for grain_key, _ in spec_definition.matching_profile_keys[key]] == ["pump_id"]
     assert action_contracts.validate_matching_keys(spec_definition) is None
 

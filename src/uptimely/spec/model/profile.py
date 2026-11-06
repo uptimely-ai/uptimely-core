@@ -164,18 +164,18 @@ class Profile(common.StrictModel):
         """Return compute arguments keyed by operator key and argument name."""
         return {
             (action_id, name): value
-            for action_id, action in self.assembly.items()
-            for name, value in action.arguments.items()
+            for action_id, operator in self.assembly.items()
+            for name, value in operator.arguments.items()
         }
 
     @functools.cached_property
     def feature_producers(self) -> dict[str, tuple[tuple[str, Operator], ...]]:
         """Return all declared output operators per feature, retaining aliases."""
         producers: dict[str, list[tuple[str, Operator]]] = {}
-        for action_id, action in self.assembly.items():
-            for feature_id in action.output_features:
-                producers.setdefault(feature_id, []).append((action_id, action))
-        return {feature: tuple(actions) for feature, actions in producers.items()}
+        for action_id, operator in self.assembly.items():
+            for feature_id in operator.output_features:
+                producers.setdefault(feature_id, []).append((action_id, operator))
+        return {feature: tuple(operators) for feature, operators in producers.items()}
 
     @functools.cached_property
     def order_dimensions(self) -> tuple[tuple[str, frozenset[str]], ...]:

@@ -59,8 +59,8 @@ def validate_dataset_argument_source(spec: spec_model.Spec) -> None:
 def validate_dataset_argument_count(spec: spec_model.Spec) -> None:
     """Require actions to consume the foreign profile count in their kind contract."""
     logger.debug("    - checking foreign profile input counts match function kinds")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -96,8 +96,8 @@ def validate_matching_keys(spec: spec_model.Spec) -> None:
 def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
     """Require profile-scoped feature inputs to belong to at most one profile."""
     logger.debug("    - checking profile-scoped feature inputs have at most one source")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
             "dataframe"
         ):
@@ -114,8 +114,8 @@ def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
 def validate_foreign_dataset_argument(spec: spec_model.Spec) -> None:
     """Reject the target profile when a kind requires a foreign profile input."""
     logger.debug("    - checking foreign profile arguments do not reference the target")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -131,8 +131,8 @@ def validate_foreign_dataset_argument(spec: spec_model.Spec) -> None:
 def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
     """Require a feature source to match the action's profile input."""
     logger.debug("    - checking feature sources match profile arguments")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -159,15 +159,15 @@ def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
 def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
     """Require profile-scoped feature inputs to belong to the action's profile inputs."""
     logger.debug("    - checking feature inputs belong to profile arguments")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
             "dataframe"
         ):
             continue
         unavailable = sorted(
             feature
-            for feature in action.input_features
+            for feature in operator.input_features
             if (
                 feature not in spec.dataset_argument_grain_keys[key]
                 if feature in spec.grain_key_ids
@@ -189,12 +189,12 @@ def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
 def validate_feature_input_scope(spec: spec_model.Spec) -> None:
     """Reject feature inputs for kinds that do not accept feature dependencies."""
     logger.debug("    - checking function kinds permit declared feature inputs")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if (
             function is not None
             and functions.FUNCTION_KINDS[function.kind].feature_input_scope == ("none")
-            and action.input_features
+            and operator.input_features
         ):
             raise errors.SpecError(
                 f"Kind {function.kind} cannot declare feature inputs",
@@ -206,8 +206,8 @@ def validate_feature_input_scope(spec: spec_model.Spec) -> None:
 def validate_target_dataset_input(spec: spec_model.Spec) -> None:
     """Require target-scoped actions to consume their target profile."""
     logger.debug("    - checking target-scoped actions consume their target profile")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -222,8 +222,8 @@ def validate_target_dataset_input(spec: spec_model.Spec) -> None:
 def validate_target_dataset_only(spec: spec_model.Spec) -> None:
     """Reject foreign profile inputs on target-scoped actions."""
     logger.debug("    - checking target-scoped actions do not consume foreign profiles")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -242,8 +242,8 @@ def validate_target_dataset_only(spec: spec_model.Spec) -> None:
 def validate_dimension_source(spec: spec_model.Spec) -> None:
     """Require dimension-reducing actions to consume their inferred source."""
     logger.debug("    - checking dimension-reducing actions consume their inferred source")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -275,8 +275,8 @@ def _dataset_input_violations(
 def validate_dimension_change(spec: spec_model.Spec) -> None:
     """Require profile sources and targets to follow their declared grain policy."""
     logger.debug("    - checking source and target dimensions follow function-kind policies")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
         change = functions.FUNCTION_KINDS[function.kind].dimension_change
@@ -318,8 +318,8 @@ def validate_dimension_change(spec: spec_model.Spec) -> None:
 def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
     """Require dimensional expansion to use a feature from a lower-dimensional source."""
     logger.debug("    - checking dimensional expansion inputs come from lower-dimensional sources")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].dimension_change != "add":
             continue
         lower = {
@@ -333,7 +333,7 @@ def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
         }
         if not any(
             owner in lower
-            for feature in action.input_features
+            for feature in operator.input_features
             for owner in spec.feature_owners.get(feature, [])
         ):
             raise errors.SpecError(

@@ -20,7 +20,8 @@ from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.engine.runtime import validation as runtime_validation
 from uptimely.execution_plan import serialization as plan_serialization
-from uptimely.spec.python import actions, dimension, profile, ref
+from uptimely.spec.python import actions as assembly
+from uptimely.spec.python import dimension, profile, ref
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
 
@@ -907,13 +908,13 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
             )
         ],
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="external_action",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[ref.feature("asset_id")],
                     outputs=[],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(f"{package_name}.external_action:process", kind="escape"),
                     arguments={},
                 ),

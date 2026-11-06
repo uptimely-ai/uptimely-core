@@ -35,7 +35,7 @@ def test_loading_can_suppress_structure_debug_without_disabling_checks(
 def test_document_structure_checks_emit_debug_bullets(caplog: pytest.LogCaptureFixture) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     profiles = list(configuration["profiles"].values())
-    action_count = sum(len(profile["assembly"]) for profile in profiles)
+    operator_count = sum(len(profile["assembly"]) for profile in profiles)
     caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
 
     spec.Spec.model_validate(configuration)
@@ -44,7 +44,7 @@ def test_document_structure_checks_emit_debug_bullets(caplog: pytest.LogCaptureF
         "\nSpec validation:\n  Document structure:",
         f"    - checking object keys as identifiers for {len(profiles)} profiles",
         "    - checking spec version is an integer",
-        f"    - checking feature references for {action_count} actions",
+        f"    - checking feature references for {operator_count} actions",
     ]
     assert all(record.levelno == logging.DEBUG for record in caplog.records)
 
@@ -83,19 +83,19 @@ def test_structure_summary_counts_profiles_and_actions_once(
             "profile_1": {
                 "name": "First",
                 "assembly": {
-                    f"action_{action}": {"compute": {"function": "read"}} for action in range(8)
+                    f"action_{operator}": {"compute": {"function": "read"}} for operator in range(8)
                 },
             },
             "profile_2": {
                 "name": "Second",
                 "assembly": {
-                    f"action_{action}": {"compute": {"function": "read"}} for action in range(5)
+                    f"action_{operator}": {"compute": {"function": "read"}} for operator in range(5)
                 },
             },
             "profile_3": {
                 "name": "Third",
                 "assembly": {
-                    f"action_{action}": {"compute": {"function": "read"}} for action in range(7)
+                    f"action_{operator}": {"compute": {"function": "read"}} for operator in range(7)
                 },
             },
         },
@@ -121,7 +121,7 @@ def test_structure_summary_counts_existing_resource_models(
 ) -> None:
     document = spec.Spec.model_validate_json(SPEC_PATH.read_text(encoding="utf-8"))
     profile_count = len(document.profile_items)
-    action_count = len(document.actions)
+    operator_count = len(document.actions)
     caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
 
     spec.Spec.model_validate({"profiles": document.profiles})
@@ -130,7 +130,7 @@ def test_structure_summary_counts_existing_resource_models(
         "\nSpec validation:\n  Document structure:",
         f"    - checking object keys as identifiers for {profile_count} profiles",
         "    - checking spec version is an integer",
-        f"    - checking feature references for {action_count} actions",
+        f"    - checking feature references for {operator_count} actions",
     ]
 
 
@@ -428,8 +428,8 @@ def test_system_and_subset_support_multiple_variables() -> None:
 
 def test_spec_validation_rejects_missing_output_variables() -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    action = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"]
-    action["interface"]["outputs"] = []
+    operator = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"]
+    operator["interface"]["outputs"] = []
     document = spec.Spec.model_validate(configuration)
 
     with pytest.raises(
