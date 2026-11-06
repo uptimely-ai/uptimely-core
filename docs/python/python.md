@@ -100,8 +100,21 @@ instantiate and register profile classes.
 and a `compute` binding. `Binding` contains the implementation `function` and
 named `arguments`; `Interface` contains feature `inputs` and `outputs`.
 Interface inputs are optional: if omitted, feature references in compute
-arguments are inferred as dependencies. If supplied, they define the
-dependencies instead. `Operator` also accepts an optional `row_context`
+and optional merge arguments are inferred as dependencies, excluding declared
+outputs and retaining first-occurrence order. If supplied, they define the
+dependencies instead; an empty input list disables inference. `Interface`
+rejects duplicate output IDs when constructed.
+
+`Binding` owns function metadata (`kind` and `reference`), callable argument
+validation (`bound_arguments()`), and conversion (`to_model()` and
+`to_function_template()`). `Interface.to_model(compute=..., merge=...)` accepts
+canonical bindings and builds feature selectors. `Operator` coordinates these
+conversions and validates compute/merge compatibility; its existing metadata
+properties and `bound_arguments()` delegate to the compute binding.
+Entrypoint strings and function references are not imported during these
+conversions; their signature checks are deferred until compilation.
+
+`Operator` also accepts an optional `row_context`
 requirement. Its function catalog ID is derived from the referenced function
 name. Optionally annotate callable implementations with `@function(kind=...)`.
 The decorator attaches
