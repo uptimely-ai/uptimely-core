@@ -17,9 +17,6 @@
 .engine-error-text { color: #fca5a5 !important; overflow-wrap: anywhere; }
 .engine-preview-table th { min-width: 100px; }
 .engine-preview-table thead th { font-size: 15px; }
-.engine-preview-table th span { display: block; margin-top: 8px; color: #94a3b8; font: 10px var(--font-mono); }
-.engine-preview-type-icon { display: block; width: 16px; height: 16px;
-  margin: 8px 0 0; color: var(--color-muted); }
 .engine-preview-table td { min-width: 100px; vertical-align: top; font: 12px/1.6 var(--font-mono); }
 .engine-preview-table td.is-number { font-variant-numeric: tabular-nums; }
 .engine-preview-table td.is-null { color: #64748b; font-style: italic; }

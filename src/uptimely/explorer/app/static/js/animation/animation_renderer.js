@@ -1,4 +1,4 @@
-import { contextHeader, dataTypeIcon, escape, kindIcon } from "../rendering/shared_markup.js";
+import { contextHeader, dataTypeLabel, escape, kindIcon } from "../rendering/shared_markup.js";
 
 const PLACEHOLDERS = {
   float: ["1.23", "4.56", "7.89"], numeric: ["1.23", "4.56", "7.89"], integer: ["12", "45", "78"],
@@ -21,11 +21,13 @@ export function placeholder(column, index, side) {
 export function sampleTable(columns, keys, label, side, rowCount, aggregate, profile, joins = [], unshared = null) {
   const all = [...keys, ...columns];
   const attributes = column => `data-role="${escape(column.role)}" data-column="${escape(column.name)}"${joins.includes(column.name) ? " data-join-key" : unshared && column.role === "Dimension" ? ` data-dimension-change="${unshared}"` : ""}`;
+  const headers = all.map(column => {
+    return `<th scope="col" ${attributes(column)} title="${escape(`${column.label || column.name} (${column.name}, ${column.type})`)}">
+      <span class="data-lineage-cell"><span>${escape(column.label || column.name)}</span>
+      ${dataTypeLabel(column.type, "data-lineage-type")}</span></th>`;
+  }).join("");
   return `<div class="data-lineage-table-scroll" tabindex="0" role="region" aria-label="${escape(label ? `${label}: ${profile}` : `${profile} main`)} illustrative table">
-    <table class="data-lineage-table" data-side="${side}"><thead><tr>${all.map(column =>
-      `<th scope="col" ${attributes(column)} title="${escape(`${column.label || column.name} (${column.name}, ${column.type})`)}">
-        <span class="data-lineage-cell">${dataTypeIcon(column.type, "data-lineage-type-icon")}
-        ${escape(column.label || column.name)}${dataTypeIcon(column.type, "data-lineage-type-icon") ? `<span class="sr-only"> (${escape(column.type)})</span>` : `<small>${escape(column.type)}</small>`}</span></th>`).join("")}</tr></thead>
+    <table class="data-lineage-table" data-side="${side}"><thead><tr>${headers}</tr></thead>
       <tbody>${Array.from({ length: rowCount }, (_, row) => `<tr>${all.map(column =>
         `<td ${attributes(column)}><span class="data-lineage-cell">${escape(placeholder(column, column.role === "Dimension" && aggregate && joins.includes(column.name) ? 0 : row, side))}</span></td>`).join("")}</tr>`).join("")}</tbody>
     </table></div>`;

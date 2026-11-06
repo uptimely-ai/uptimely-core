@@ -48,7 +48,7 @@ export function initializeFeatureLineage(signal) {
 		ExplorerLineage.showDetails(nodeDetails, 'Selected item', [
 			['Node type', 'Feature'], ['Feature', label], ['Feature ID', node.feature_id || node.id],
 			['Profile', node.dataset_name || node.dataset_id], ['Profile ID', node.dataset_id],
-			['Profile', formatDetailValue(profile)], ['Data type', formatDetailValue(dataType)],
+			['Profile', formatDetailValue(profile)], ['Data type', formatDetailValue(dataType), dataType],
 		]);
 	}
 

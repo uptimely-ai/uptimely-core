@@ -14,7 +14,10 @@ const { catalogContext, renderCatalog, schemaColumns, stageCards } = await impor
 const { Router } = await import(moduleUrl(
   await readFile(new URL("application/history_router.js", root), "utf8"),
 ));
-const { badge, distribution, heading, icon, kindIcon, shell, statistic, contextHeader } = await import(shared);
+const {
+  badge, dataTypeIcon, dataTypeIconName, distribution, heading, icon, kindIcon, shell, typedName,
+  statistic, contextHeader,
+} = await import(shared);
 const { dashboard, lineage, planOverview } = await import(pages);
 
 test("Plan Stats uses the increasing bar chart icon in navigation and title", () => {
@@ -42,6 +45,26 @@ test("resolutions use the scan square icon", () => {
 
 test("vectorize uses the table properties icon", () => {
   assert.match(kindIcon("vectorize"), /data-lucide="table-properties"/);
+});
+
+test("data type icons normalize common aliases and composed types", () => {
+  for (const [type, name] of [
+    ["Float64", "hash"], ["uint32", "hash"], ["array[string]", "brackets"],
+    ["object{str: float}", "braces"], ["pandas.DataFrame", "table-2"],
+    ["boolean", "toggle-left"], ["datetime64[ns]", "calendar-clock"],
+  ]) {
+    assert.equal(dataTypeIconName(type), name, type);
+    assert.match(dataTypeIcon(type, "type-icon"), new RegExp(`data-lucide="${name}"`), type);
+  }
+  assert.equal(dataTypeIconName("unspecified"), null);
+});
+
+test("typed names put the icon before the name without visible type text", () => {
+  const markup = typedName("<reading>", "array[string]");
+  assert.match(markup, /title="array\[string\]" aria-label="&lt;reading&gt; \(array\[string\]\)"/);
+  assert.match(markup, /data-lucide="brackets"[^>]*><\/i><span>&lt;reading&gt;<\/span>/);
+  assert.doesNotMatch(markup, />array\[string\]</);
+  assert.match(typedName("unknown", null), /data-lucide="braces"/);
 });
 
 test("function context uses shared category labels and flat icon links", () => {
@@ -73,12 +96,12 @@ test("produced schema is a table listing declared columns vertically with their 
   assert.match(content, />Produced schema<\/h3>/);
   assert.doesNotMatch(content, /Produced dataset/);
   const table = content.match(/<table data-dataset-schema="readings"[\s\S]*?<\/table>/)[0];
-  assert.equal((table.match(/scope="col"/g) || []).length, 5);
+  assert.equal((table.match(/scope="col"/g) || []).length, 4);
   assert.match(table, />Producing operator<\/th>/);
   assert.match(table, /None declared/);
   assert.equal((table.match(/scope="row"/g) || []).length, 2);
-  assert.match(table, /data-schema-column="temperature"[\s\S]*?Temperature[\s\S]*?temperature[\s\S]*?Feature[\s\S]*?float[\s\S]*?>C<\/td>/);
-  assert.match(table, /class="profile-schema-type"[\s\S]*?<span>float<\/span>/);
+  assert.match(table, /data-schema-column="temperature"[\s\S]*?data-lucide="hash"[\s\S]*?<span>Temperature<\/span>[\s\S]*?Feature[\s\S]*?>C<\/td>/);
+  assert.doesNotMatch(table, />Data type<|>float<|>string<|data-type-label-text/);
   assert.match(table, /<colgroup>/);
   assert.match(table, /data-schema-column="label"[\s\S]*?string[\s\S]*?—<\/td>/);
 });
@@ -143,10 +166,53 @@ test("profile grain uses flat cards with dimension and resolution metadata", () 
   } } }, "profiles");
   const card = content.match(/<li class="profile-grain-card"[\s\S]*?<\/li>/)[0];
   assert.match(card, /<h4>Machine<\/h4>/);
-  for (const [label, value] of [["Resolution", "unit"], ["Data key", "machine_id"], ["Data type", "string"]]) {
-    assert.match(card, new RegExp(`<dt>${label}</dt><dd><code>${value}</code>`));
-  }
-  assert.doesNotMatch(card, /profile-grain-branch|<section|data-lucide/);
+  assert.match(card, /<dt>Resolution<\/dt><dd><code>unit<\/code>/);
+  assert.match(card, /<dt>Data key<\/dt><dd><code>machine_id<\/code>/);
+  assert.match(card, /<dt>Data type<\/dt><dd><span class="data-type-label"[\s\S]*data-lucide="case-sensitive"/);
+  assert.match(card, /data-type-label-text">string<\/span>/);
+  assert.doesNotMatch(card, /profile-grain-branch|<section/);
+});
+
+test("feature and function type displays use matching data type icons", () => {
+  const data = { catalogs: {
+    summary: {
+      feature_count: 1, vectorized_feature_count: 0,
+      feature_buckets: { input: 1, intermediate: 0, output: 0 }, function_count: 1,
+    },
+    configuration: {
+      dimensions: {},
+      functions: { load: { kind: "read", name: "Load" } },
+      profiles: { telemetry: {
+        grain: [], features: { temperature: { type: "float64" } },
+        assembly: { load: {
+          compute: { function: "load" },
+          interface: { outputs: ["$features.temperature"] },
+        } },
+      } },
+    },
+    function_groups: { read: { load: {
+      name: "Load", kind: "read", args: {
+        source: { type: "dataframe" }, path: { type: "string" },
+      },
+      doc: { params: { source: "Input table", path: "Source location" } },
+      return_type: "pandas.DataFrame",
+    } } },
+  } };
+  const { content: featureContent, context: featureContext } = renderCatalog(data, "features");
+  assert.match(featureContent, /data-lucide="hash"[^>]*data-type="float64"/);
+  assert.doesNotMatch(featureContent, />Data type<|>float64</);
+  assert.match(featureContent, /data-lucide="hash"[^>]*><\/i><span>temperature<\/span>/);
+  assert.match(featureContext, /href="#feature-telemetry-temperature"[\s\S]*?data-lucide="hash"/);
+  const featureLink = featureContext.match(/<a href="#feature-telemetry-temperature">[\s\S]*?<\/a>/)[0];
+  assert.doesNotMatch(featureLink, /data-lucide="sigma"/);
+  const functionContent = renderCatalog(data, "functions").content;
+  assert.match(functionContent, /data-lucide="table-2"[^>]*data-type="dataframe"/);
+  assert.match(functionContent, /data-lucide="table-2"[^>]*data-type="pandas\.DataFrame"/);
+  const argumentTable = functionContent.match(/<table class="ui-table function-arguments-table">[\s\S]*?<\/table>/)[0];
+  assert.match(argumentTable, /<th scope="col">Argument<\/th><th scope="col">Description<\/th>/);
+  assert.match(argumentTable, /data-lucide="table-2"[^>]*><\/i><span>source<\/span>[\s\S]*<td>Input table<\/td>/);
+  assert.match(argumentTable, /data-lucide="case-sensitive"[^>]*><\/i><span>path<\/span>[\s\S]*<td>Source location<\/td>/);
+  assert.doesNotMatch(argumentTable, />Data type<|>dataframe<|>string<|data-type-label-text/);
 });
 
 test("dimension details distinguish the dimension from its nested resolution levels", () => {
@@ -157,7 +223,7 @@ test("dimension details distinguish the dimension from its nested resolution lev
         location: { name: "Location", resolutions: {
           country: { key: "country_id", type: "string" },
           city: { key: "city_id", type: "string", parent: "country" },
-          site: { key: "site_id", type: "string", parent: "city" },
+          site: { key: "site_id", type: "integer", parent: "city" },
         } },
       } },
     },
@@ -166,10 +232,12 @@ test("dimension details distinguish the dimension from its nested resolution lev
   assert.doesNotMatch(content, /<p[^>]*>location<\/p>/);
   assert.match(content, /aria-label="Resolution levels"/);
   assert.match(content, /Resolution levels, from parent to child\./);
-  for (const id of ["country", "city", "site"]) {
-    assert.match(content, new RegExp(`<h3 class="dimension-resolution-id">${id}</h3>`));
-    assert.match(content, new RegExp(`data-lucide="case-sensitive"[\\s\\S]*?<code>${id}_id</code>`));
+  for (const id of ["country", "city"]) {
+    assert.match(content, new RegExp(`<h3 class="dimension-resolution-id"><span class="typed-name"[^>]*>[\\s\\S]*?data-lucide="case-sensitive"[^>]*><\\/i><span>${id}</span>`));
   }
+  assert.match(content, /<span class="typed-name" title="integer" aria-label="site \(integer\)"><i data-lucide="hash"[^>]*><\/i><span>site<\/span>/);
+  const hierarchy = content.match(/<ul aria-label="Resolution hierarchy"[\s\S]*?<\/section>/)[0];
+  assert.doesNotMatch(hierarchy, /country_id|city_id|site_id|data-type-label-text|>string<|>integer</);
   assert.match(content, /data-resolution-id="city" data-parent-resolution="country"/);
   assert.match(content, /data-resolution-id="site" data-parent-resolution="city"/);
   assert.equal((content.match(/class="dimension-resolution-children"/g) || []).length, 2);
@@ -352,19 +420,26 @@ test("lineage groups have additional horizontal spacing without changing spacing
   assert.match(lineage, /\.lineage-buttons \{[^}]*gap: 4px;/);
 });
 
-test("stage argument bindings use the shared table and preserve typed values", () => {
+test("stage argument bindings prefix names with type icons and preserve typed values", () => {
   const content = stageCards({ stages: [{ stage: 1, steps: [{
     title: "Binding", function_kind: "vectorize", function_label: "Calculate",
     feature: "score", returns: { type: { engine: "float" } },
     depends_on_invocations: [], row_context: null,
     args: { input: { value: "<unsafe>", type: {
       binding: "feature", function: "Series", engine: "float",
+    } }, source: { value: "$params.source", type: {
+      binding: null, function: "string", engine: null,
     } } },
   }] }] });
   assert.match(content, /<table class="ui-table">/);
-  assert.match(content, /<th scope="row"><code>input<\/code>/);
+  assert.match(content, /data-lucide="hash"[^>]*><\/i><span>input<\/span>/);
+  assert.match(content, /<th scope="col">Argument<\/th><th scope="col">Value<\/th>/);
   assert.match(content, /&lt;unsafe&gt;/);
-  assert.match(content, /<code>Series<\/code>/);
+  assert.match(content, /data-type-label-text">float<\/span>/);
+  assert.match(content, /data-lucide="case-sensitive"[^>]*><\/i><span>source<\/span>/);
+  const table = content.match(/<table class="ui-table">[\s\S]*?<\/table>/)[0];
+  assert.doesNotMatch(table, /Data type|Binding type|Function type|Engine type|data-type-label-text|>float<|>string</);
+  assert.doesNotMatch(content, /data-type="Series"|data-type="feature"/);
   assert.doesNotMatch(content, /parallel invocation/);
 });
 
@@ -400,7 +475,7 @@ test("main menu preserves link order and marks only the current page active", ()
   assert.match(markup, /href="\?view=preview" aria-current="page"/);
 });
 
-test("icon colors are neutral by default with shared selection and semantic exceptions", async () => {
+test("icons and data type labels share neutral color and consistent typography", async () => {
   const [base, icons, spec] = await Promise.all([
     readFile(new URL("../css/base.css", root), "utf8"),
     readFile(new URL("../css/icons.css", root), "utf8"),
@@ -413,7 +488,9 @@ test("icon colors are neutral by default with shared selection and semantic exce
   assert.match(icons, /\.journey-step \{[\s\S]*?var\(--color-accent\)/);
   assert.match(icons, /\.data-lineage-node \{[\s\S]*?--icon-color:/);
   assert.match(base, /\.ui-badge--green/);
-  assert.match(spec, /\.profile-schema-type-icon \{[^}]*color: inherit/);
+  assert.match(base, /\.data-type-label \{[^}]*font: 12px\/1\.5 var\(--font-mono\)/);
+  assert.match(base, /\.data-type-label-icon \{[^}]*width: 14px/);
+  assert.doesNotMatch(spec, /profile-schema-type-icon|dimension-resolution-type-icon/);
 });
 
 test("bookmarks for the removed spec overview redirect to Features", () => {

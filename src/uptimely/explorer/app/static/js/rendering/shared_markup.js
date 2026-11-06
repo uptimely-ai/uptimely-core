@@ -24,6 +24,7 @@ const ICONS = {
 const TYPE_ICONS = {
   float: "hash", integer: "hash", numeric: "hash", string: "case-sensitive",
   datetime: "calendar-clock", date: "calendar", boolean: "toggle-left", object: "braces", array: "brackets",
+  table: "table-2",
 };
 
 export function escape(value) {
@@ -32,11 +33,40 @@ export function escape(value) {
   })[character]);
 }
 
+export function dataTypeIconName(type) {
+  const value = String(type ?? "").trim().toLowerCase().split(".").pop();
+  const base = value.split(/[\[({<]/, 1)[0].trim();
+  if (!base || ["unspecified", "unknown", "n/a", "none", "—"].includes(base)) return null;
+
+  if (/^(?:u?int|integer|byte|short|long)\d*$/.test(base)) return TYPE_ICONS.integer;
+  if (/^(?:float|double|decimal|numeric|number|real)\d*$/.test(base)) return TYPE_ICONS.float;
+  if (/^(?:str|string|text|categorical|category|enum|char|varchar)$/.test(base)) return TYPE_ICONS.string;
+  if (/^(?:bool|boolean)$/.test(base)) return TYPE_ICONS.boolean;
+  if (/^(?:datetime|timestamp|duration|time)\d*$/.test(base)) return TYPE_ICONS.datetime;
+  if (/^date\d*$/.test(base)) return TYPE_ICONS.date;
+  if (/^(?:array|list|sequence|tuple|set|iterable)$/.test(base)) return TYPE_ICONS.array;
+  if (/^(?:object|dict|map|struct|json)$/.test(base)) return TYPE_ICONS.object;
+  if (/^(?:dataframe|data frame|series|table|record)$/.test(base)) return TYPE_ICONS.table;
+  return "braces";
+}
+
 export function dataTypeIcon(type, className) {
-  const lucideIcon = Object.hasOwn(TYPE_ICONS, type) ? TYPE_ICONS[type] : null;
+  const lucideIcon = dataTypeIconName(type);
   return lucideIcon
     ? `<i data-lucide="${lucideIcon}" class="${className}" data-type="${escape(type)}" aria-hidden="true"></i>`
     : "";
+}
+
+export function dataTypeLabel(type, className = "") {
+  const value = type || "unspecified";
+  return `<span class="data-type-label${className ? ` ${className}` : ""}">
+    ${dataTypeIcon(value, "data-type-label-icon")}<span class="data-type-label-text">${escape(value)}</span>
+  </span>`;
+}
+
+export function typedName(name, type) {
+  const value = type || "unspecified";
+  return `<span class="typed-name" title="${escape(value)}" aria-label="${escape(`${name} (${value})`)}">${dataTypeIcon(value, "data-type-label-icon") || icon("data-type", "data-type-label-icon")}<span>${escape(name)}</span></span>`;
 }
 
 export function display(value) {
@@ -76,7 +106,7 @@ export function statistic(label, value) {
   </div>`;
 }
 
-export function distribution(title, counts, { total = null, note = null } = {}) {
+export function distribution(title, counts, { total = null, note = null, typeLabels = false } = {}) {
   const maximum = Math.max(0, ...counts.map(([, value]) => Number(value)));
   return `<section class="ui-panel ui-chart">
     <div class="ui-panel-heading"><h3>${escape(title)}</h3>
@@ -85,7 +115,7 @@ export function distribution(title, counts, { total = null, note = null } = {}) 
     <div class="space-y-4">${counts.map(([label, value, target]) => {
       const tag = target ? "a" : "div";
       return `<${tag}${target ? ` href="${escape(target)}"` : ""} class="ui-chart-row" data-category="${escape(label)}" data-count="${escape(value)}">
-        <span class="break-words font-mono text-xs text-slate-400">${escape(label)}</span>
+        <span class="break-words text-slate-400">${typeLabels ? dataTypeLabel(label) : escape(label)}</span>
         <div class="h-2 overflow-hidden rounded-full bg-slate-800" aria-hidden="true"><div class="h-full rounded-full ${label === "escape" ? "bg-violet-400" : "bg-cyan-400"}" style="width:${maximum ? Number(value) / maximum * 100 : 0}%"></div></div>
         <span class="text-right font-mono text-xs text-white">${escape(value)}</span>
       </${tag}>`;
@@ -114,10 +144,12 @@ export function contextGroup(title, items) {
   <p class="context-group-label"><span>${escape(title)}</span><span class="context-link-count">${items.length}</span></p>${items.join("")}</div>`;
 }
 
-export function contextLink(target, label, key, count = null, kind = null) {
+export function contextLink(target, label, key, count = null, kind = null, type = null) {
   return `<a href="#${encodeURIComponent(target)}">
-    ${key || kind ? `<span class="context-link-icon">${kind ? kindIcon(kind) : icon(key)}</span>` : ""}
+    ${type !== null ? `<span class="context-link-icon" title="${escape(type)}">${dataTypeIcon(type, "nav-icon") || icon("data-type", "nav-icon")}</span>`
+      : key || kind ? `<span class="context-link-icon">${kind ? kindIcon(kind) : icon(key)}</span>` : ""}
     <span class="context-link-label">${escape(label)}</span>
+    ${type === null ? "" : `<span class="sr-only"> (${escape(type)})</span>`}
     ${count === null ? "" : `<span class="context-link-count">${escape(count)}</span>`}
   </a>`;
 }

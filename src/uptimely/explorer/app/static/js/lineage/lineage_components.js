@@ -1,5 +1,6 @@
 import * as LineageConfig from './lineage_config.js';
 import * as LineageLayout from './lineage_layout.js';
+import { dataTypeIconName } from '../rendering/shared_markup.js';
 
 function readPayload(id) {
 	return JSON.parse(document.getElementById(id).textContent);
@@ -16,14 +17,33 @@ function showDetails(panel, title, rows, summary = '') {
 	const heading = document.createElement('h2');
 	heading.textContent = title;
 	panel.replaceChildren(heading);
-	for (const [label, value] of rows) {
+	let hasTypeIcons = false;
+	for (const [label, value, type] of rows) {
 		const row = document.createElement('div');
 		row.className = 'meta';
 		const name = document.createElement('strong');
 		name.textContent = `${label}: `;
-		row.append(name, document.createTextNode(value == null ? 'n/a' : String(value)));
+		const iconName = dataTypeIconName(type);
+		if (iconName) {
+			const typeLabel = document.createElement('span');
+			typeLabel.className = 'data-type-label lineage-data-type';
+			const icon = document.createElement('i');
+			icon.className = 'data-type-label-icon';
+			icon.setAttribute('data-lucide', iconName);
+			icon.setAttribute('data-type', type);
+			icon.setAttribute('aria-hidden', 'true');
+			const typeText = document.createElement('span');
+			typeText.className = 'data-type-label-text';
+			typeText.textContent = value == null ? 'n/a' : String(value);
+			typeLabel.append(icon, typeText);
+			row.append(name, typeLabel);
+			hasTypeIcons = true;
+		} else {
+			row.append(name, document.createTextNode(value == null ? 'n/a' : String(value)));
+		}
 		panel.append(row);
 	}
+	if (hasTypeIcons) lucide.createIcons({ root: panel });
 	if (summary) {
 		const text = document.createElement('div');
 		text.className = 'summary';
@@ -69,7 +89,42 @@ function datasetNodeObject(node, text, style) {
 			LineageConfig.NODE_STYLE_3D.sphereHeightSegments),
 		new THREE.MeshLambertMaterial({ color: node.datasetColor }),
 	);
-	return labeledMesh(mesh, text, style, LineageConfig.NODE_STYLE_3D.labelOffset);
+	return labeledMesh(mesh, text, style, LineageConfig.NODE_STYLE_3D.labelOffset,
+		node.data_type || node.type || 'unknown');
+}
+
+const typeIconPaths = new Map();
+
+function drawDataTypeIcon(ctx, type, x, y, size, color) {
+	const name = dataTypeIconName(type) || 'braces';
+	if (!typeIconPaths.has(name)) {
+		const key = name.replace(/(^|-)(\w)/g, (_match, _separator, letter) => letter.toUpperCase());
+		const paths = lucide.icons[key].map(([tag, attributes]) => {
+			const path = new Path2D(tag === 'path' ? attributes.d : undefined);
+			const number = key => Number(attributes[key] || 0);
+			if (tag === 'circle') {
+				path.arc(number('cx'), number('cy'), number('r'), 0, Math.PI * 2);
+			} else if (tag === 'rect') {
+				path.roundRect(number('x'), number('y'), number('width'), number('height'), number('rx'));
+			} else if (tag === 'line') {
+				path.moveTo(number('x1'), number('y1'));
+				path.lineTo(number('x2'), number('y2'));
+			} else if (tag !== 'path') {
+				throw new Error(`Unsupported data-type icon shape: ${tag}`);
+			}
+			return path;
+		});
+		typeIconPaths.set(name, paths);
+	}
+	ctx.save();
+	ctx.translate(x, y);
+	ctx.scale(size / 24, size / 24);
+	ctx.strokeStyle = color;
+	ctx.lineWidth = 2;
+	ctx.lineCap = 'round';
+	ctx.lineJoin = 'round';
+	for (const path of typeIconPaths.get(name)) ctx.stroke(path);
+	ctx.restore();
 }
 
 function drawCard(node, ctx, label, color, highlight, isFeature = false) {
@@ -91,16 +146,17 @@ function drawCard(node, ctx, label, color, highlight, isFeature = false) {
 	ctx.lineWidth = selected ? CARD_STYLE.selectedBorderWidth : CARD_STYLE.borderWidth;
 	ctx.strokeStyle = selected ? CARD_STYLE.selectedBorderColor : dimmed ? DIMMED_COLOR : color;
 	ctx.stroke();
-	ctx.beginPath();
 	if (isFeature) {
-		ctx.roundRect(left + CARD_STYLE.featureIconLeft, node.y - CARD_STYLE.featureIconHeight / 2,
-			CARD_STYLE.featureIconWidth, CARD_STYLE.featureIconHeight, CARD_STYLE.featureIconRadius);
+		drawDataTypeIcon(ctx, node.data_type || node.type,
+			left + CARD_STYLE.iconLeft, node.y - CARD_STYLE.featureIconSize / 2,
+			CARD_STYLE.featureIconSize, dimmed ? CARD_STYLE.dimmedTextColor : CARD_STYLE.textColor);
 	} else {
+		ctx.beginPath();
 		ctx.roundRect(left + CARD_STYLE.iconLeft, node.y - CARD_STYLE.iconSize / 2,
 			CARD_STYLE.iconSize, CARD_STYLE.iconSize, CARD_STYLE.iconRadius);
+		ctx.fillStyle = dimmed ? DIMMED_COLOR : color;
+		ctx.fill();
 	}
-	ctx.fillStyle = dimmed ? DIMMED_COLOR : color;
-	ctx.fill();
 	ctx.fillStyle = dimmed ? CARD_STYLE.dimmedTextColor : CARD_STYLE.textColor;
 	ctx.font = CARD_STYLE.font;
 	ctx.textAlign = 'left';
@@ -319,7 +375,7 @@ function createLineage3D(container, graphData, style, {
 	return view;
 }
 
-function labeledMesh(mesh, text, style, offset) {
+function labeledMesh(mesh, text, style, offset, dataType = null) {
 	const group = new THREE.Group();
 	group.add(mesh);
 	const label = new SpriteText(text || '', LineageConfig.NODE_STYLE_3D.labelHeight, style.label_color);
@@ -328,6 +384,18 @@ function labeledMesh(mesh, text, style, offset) {
 	label.borderRadius = LineageConfig.NODE_STYLE_3D.labelBorderRadius;
 	label.position.set(0, offset, 0);
 	group.add(label);
+	if (dataType !== null) {
+		const canvas = document.createElement('canvas');
+		canvas.width = canvas.height = 64;
+		drawDataTypeIcon(canvas.getContext('2d'), dataType, 0, 0, canvas.width, style.label_color);
+		const texture = new THREE.CanvasTexture(canvas);
+		texture.colorSpace = THREE.SRGBColorSpace;
+		const icon = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthWrite: false }));
+		const size = LineageConfig.NODE_STYLE_3D.labelHeight;
+		icon.scale.set(size, size, 1);
+		icon.position.set(-label.scale.x / 2 - size * 0.75, offset, 0);
+		group.add(icon);
+	}
 	return group;
 }
 
@@ -340,6 +408,7 @@ const ExplorerLineage = {
 	appendLegend,
 	prepareDatasetColors,
 	datasetNodeObject,
+	drawDataTypeIcon,
 	drawCard,
 	paintPointerArea,
 	selectCard,

@@ -91,6 +91,9 @@ Turn it off to connect input and output
 features directly across each operator; shared dependencies appear as one edge.
 All feature nodes remain visible, including isolated features. Operators without
 inputs or outputs disappear without creating additional dependencies.
+Feature labels in 2D and 3D show a data-type icon before the name. Selected-item
+details show the declared type, including for transformer outputs; features
+without a declared type use a generic icon.
 The browser derives these views from the same snapshot, without rebuilding or
 requesting additional data, including in static exports.
 The selection is saved in the URL as `operators=show` or `operators=hide` and

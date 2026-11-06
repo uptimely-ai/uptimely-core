@@ -89,7 +89,7 @@ test("profile titles replace the generic Preview heading and tables preserve val
   assert.match(content, /<\/h1>\s*<p[^>]*>Dataset produced from the profile<\/p>/);
   assert.doesNotMatch(content, /<h1[^>]*>.*<span>Preview<\/span>/);
   assert.match(content, /id="profile-second" hidden/);
-  assert.match(content, /<th scope="col" title="Float64">Value<i[^>]*data-lucide="hash"[^>]*><\/i>/);
+  assert.match(content, /<th scope="col"><span class="typed-name" title="Float64"[^>]*><i data-lucide="hash"[^>]*><\/i><span>Value<\/span><\/span><\/th>/);
   assert.match(content, /class="is-number">12.5/);
   assert.match(content, /class="is-null">null/);
   assert.match(content, /&lt;script&gt;/);
@@ -188,7 +188,7 @@ test("single-profile previews have no context menu and failed previews remain ex
   assert.doesNotMatch(content, /<table/);
 });
 
-test("preview headers map physical datatypes to icons while retaining exact type labels", () => {
+test("preview headers put physical datatype icons before column names without type strings", () => {
   const types = [
     ["Int64", "hash"], ["String", "case-sensitive"], ["Boolean", "toggle-left"],
     ["Datetime(time_unit='us', time_zone=None)", "calendar-clock"],
@@ -202,17 +202,20 @@ test("preview headers map physical datatypes to icons while retaining exact type
       } },
     });
     assert.ok(content.includes(`data-lucide="${icon}"`), dtype);
-    assert.ok(content.includes("engine-preview-type-icon"), dtype);
-    assert.match(content, /<span class="sr-only">[^<]+<\/span><\/th>/);
+    assert.ok(content.includes(`title="${dtype.replaceAll("'", "&#39;")}"`), dtype);
+    assert.match(content, /<span>Value<\/span><\/span><\/th>/);
+    assert.doesNotMatch(content, /data-type-label-text|engine-preview-type/);
   }
 });
 
-test("preview headers show datatype names when there is no matching icon", () => {
+test("preview headers use generic icons for unrecognized types and retain type tooltips", () => {
   const { content } = previewPage(data, {
     run: { profiles: { first: {} } },
     previews: { first: {
       ...preview, columns: [{ name: "Value", dtype: "Binary" }], rows: [],
     } },
   });
-  assert.match(content, /<span>Binary<\/span><\/th>/);
+  assert.match(content, /title="Binary" aria-label="Value \(Binary\)"/);
+  assert.doesNotMatch(content, />Binary</);
+  assert.match(content, /data-lucide="braces"[^>]*data-type="Binary"/);
 });

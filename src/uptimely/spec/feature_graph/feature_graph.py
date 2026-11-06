@@ -222,12 +222,6 @@ class FeatureGraph(FeatureGraphBase):
                 display_name = dimension_name or name
             return dataclasses.replace(
                 metadata,
-                data_type=(
-                    None
-                    if operator is not None
-                    and functions.FUNCTION_KINDS[operator.function.kind].is_transformer
-                    else metadata.data_type
-                ),
                 profile_id=operator.profile_id if operator is not None else metadata.profile_id,
                 display_name=display_name,
                 is_input=name in dependency_names,

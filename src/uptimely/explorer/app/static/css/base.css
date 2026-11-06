@@ -64,6 +64,15 @@ a.ui-chart-row:hover, a.ui-chart-row:focus-visible { background: #1e293b; }
 .ui-badge--amber { color: #fcd34d; border-color: #f59e0b40; background: #78350f33; }
 .ui-badge--violet { color: #c4b5fd; border-color: #8b5cf640; background: #4c1d9533; }
 .ui-badge--red { color: #fca5a5; border-color: #ef444440; background: #7f1d1d33; }
+.data-type-label { display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  color: inherit; font: 12px/1.5 var(--font-mono); overflow-wrap: anywhere; vertical-align: middle; white-space: normal; }
+.data-type-label-icon { display: block; flex: 0 0 14px; width: 14px; height: 14px;
+  color: currentColor; opacity: .8; stroke-width: 2; }
+.data-type-label-text { min-width: 0; overflow-wrap: anywhere; }
+.typed-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  vertical-align: middle; }
+.typed-name > span { min-width: 0; overflow-wrap: anywhere; }
+.ui-table .typed-name { font: 12px/1.5 var(--font-mono); }
 .ui-table-scroll { min-width: 0; max-width: 100%; overflow-x: auto;
   border: 1px solid #33415580; border-radius: 12px; background: #0f172a40; }
 .ui-table { width: 100%; border-collapse: collapse; text-align: left;
