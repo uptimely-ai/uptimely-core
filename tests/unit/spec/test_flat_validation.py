@@ -769,7 +769,7 @@ def test_load_spec_still_validates(tmp_path: pathlib.Path) -> None:
     spec = make_spec()
     path = tmp_path / "spec.json"
     path.write_text(spec.model_dump_json())
-    assert api.load_spec(path) == spec
+    assert api.load_spec(path) == model.Spec.model_validate(spec.model_dump())
     compute(spec).interface.inputs.append("$features.missing")
     path.write_text(spec.model_dump_json())
     with pytest.raises(ValueError, match="unknown input feature: missing"):

@@ -10,7 +10,7 @@ import pydantic
 from uptimely import row_context as uptimely_row_context
 from uptimely.spec import selectors
 
-from . import base, binding, binding_argument
+from . import base, binding, binding_argument, merge
 
 
 class Feature(base.StrictModel):
@@ -71,6 +71,11 @@ class Operator(base.StrictModel):
     merge: binding.Binding | None = None
     interface: Interface = pydantic.Field(default_factory=Interface)
     row_context: uptimely_row_context.RowContext | None = None
+
+    def bind_default_merge(self) -> None:
+        """Attach the builtin merge binding when no merge is declared."""
+        if self.merge is None:
+            self.merge = merge.DEFAULT_BINDING.model_copy(deep=True)
 
     @property
     def bindings(self) -> dict[str, binding.Binding]:

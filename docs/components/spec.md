@@ -60,7 +60,6 @@ For example, dimensions and profiles use their identifiers as object keys:
 | `name` | string or null | No | `null` | Display name. |
 | `spec_version` | integer | No | `6` | Spec format version; only `6` is supported. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
-| `options` | object | No | `{"merge": "auto"}` | Build-time interpretation options. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
 | `profiles` | object | No | `{}` | Profile definitions keyed by globally unique identifier. |
@@ -72,14 +71,6 @@ unsupported values.
 When supplied, `source` requires `name` (string) and `generated` (boolean).
 The default is `{"name": "manual", "generated": false}`. Generated documents
 can identify their generator in `name` and set `generated` to `true`.
-
-`options.merge` controls how fragment-producing operators obtain merge
-bindings. It is either `auto` (the default) or `explicit`; see
-[Merge bindings](#merge-bindings).
-
-| Option | JSON type | Default | Meaning |
-| --- | --- | --- | --- |
-| `options.merge` | string | `"auto"` | Use automatic merge bindings (`"auto"`) or require explicit bindings (`"explicit"`). |
 
 ```json
 {
@@ -232,8 +223,7 @@ execution plans and Explorer snapshots.
 ## Migrating from spec version 5
 
 Version 5 documents are rejected rather than parsed with compatibility rules.
-Set `spec_version` to `6`, add an `options` object if non-default merge
-behavior is required, and rebuild generated plans and Explorer snapshots.
+Set `spec_version` to `6` and rebuild generated plans and Explorer snapshots.
 Operators may now declare `merge` beside `compute`; version 6 does not infer
 custom merge behavior from older operator or assembly fields.
 
@@ -554,6 +544,10 @@ rejected. See the [engine fragment contract](engine.md#fragments) for runtime
 details.
 
 ### Merge bindings
+
+Fragment-producing operators without a declared merge binding receive the
+builtin merge-by-grain binding during Spec construction. Declare `merge` to
+override this default.
 
 When declared, `merge.args.target` must be `$profiles.@.dataframe` and
 `merge.args.fragment` must be `$operators.@.fragment`. The target is nullable

@@ -161,7 +161,7 @@ reference views retain individual leaf paths for precise diagnostics.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Spec, SpecSource, Options, SPEC_VERSION]
+      members: [Spec, SpecSource, SPEC_VERSION]
 
 ## base
 

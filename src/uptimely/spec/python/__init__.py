@@ -7,7 +7,7 @@ from .feature import Feature, FeatureSet
 from .functions import function
 from .profile import Grain, Order, Profile, ProfileRegistry
 from .references import Params
-from .spec import Options, Spec
+from .spec import Spec
 
 __all__ = [
     "Operator",
@@ -22,7 +22,6 @@ __all__ = [
     "ProfileRegistry",
     "Order",
     "Spec",
-    "Options",
     "Params",
     "function",
     "ref",

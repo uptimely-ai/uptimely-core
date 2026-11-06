@@ -505,7 +505,7 @@ def read_frames() -> object:
     return object()
 
 
-def test_python_spec_merge_binding_and_options_export() -> None:
+def test_python_spec_merge_binding_export() -> None:
     operator = authoring.Operator(
         id="read",
         interface=authoring.Interface(outputs=[authoring.Feature(id="value")]),
@@ -519,15 +519,11 @@ def test_python_spec_merge_binding_and_options_export() -> None:
         ),
     )
     declaration = authoring.Profile(id="example", assembly=[operator])
-    spec_definition = authoring.Spec(
-        profiles=[declaration],
-        options=authoring.Options(merge="explicit"),
-    ).to_model()
+    spec_definition = authoring.Spec(profiles=[declaration]).to_model()
     validate_spec(spec_definition)
     model_operator = spec_definition.profiles["example"].assembly["read"]
 
     assert spec_definition.spec_version == 6
-    assert spec_definition.options.merge == "explicit"
     assert model_operator.merge is not None
     assert model_operator.merge.model_dump()["args"] == {
         "target": "$profiles.@.dataframe",
@@ -536,8 +532,8 @@ def test_python_spec_merge_binding_and_options_export() -> None:
     assert spec_definition.functions["merge_frames"].kind == functions.MERGE
     assert spec_definition.functions["merge_frames"].args["target"].type == "dataframe | null"
     assert spec_definition.functions["merge_frames"].args["fragment"].type == "dataframe"
-    assert spec_definition.model_dump()["options"] == {"merge": "explicit"}
-    assert authoring.Spec(profiles=[declaration]).to_dict()["options"] == {"merge": "auto"}
+    assert "options" not in spec_definition.model_dump()
+    assert "options" not in authoring.Spec(profiles=[declaration]).to_dict()
     validate_spec(spec_model.Spec.model_validate(spec_definition.model_dump()))
 
     invalid_spec = spec_model.Spec.model_validate(spec_definition.model_dump())
@@ -549,12 +545,6 @@ def test_python_spec_merge_binding_and_options_export() -> None:
     with pytest.raises(validation_errors.SpecError, match="cannot reference features") as error:
         validate_spec(invalid_spec)
     assert error.value.code == "invalid_merge_feature_reference"
-
-
-@pytest.mark.parametrize("merge_mode", ["off", "", None, 1])
-def test_spec_options_reject_unsupported_merge_modes(merge_mode: object) -> None:
-    with pytest.raises(ValueError):
-        authoring.Options(merge=merge_mode)
 
 
 @pytest.mark.parametrize("invalid", ["invalid", [object()], [None]])

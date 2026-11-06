@@ -90,6 +90,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         *COMPUTE_FUNCTION_VALIDATORS,
         *MERGE_FUNCTION_VALIDATORS,
     ),
+    bindings.validate_default_merge_function: (),
     bindings.validate_selector_type: (bindings.validate_arguments,),
     bindings.validate_selector_metadata: (bindings.validate_arguments,),
     bindings.validate_merge_operator_kind: (

@@ -128,6 +128,7 @@ def test_example_manifest_parses_complete_spec() -> None:
         "collapse",
         "expand",
         "escape",
+        "merge",
     }
     assert "aggregate" not in spec_definition.functions.by_kind("vectorize")
     assert len(spec_definition.functions.by_kind("vectorize")) == 7
