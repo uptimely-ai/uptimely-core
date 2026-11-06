@@ -85,7 +85,8 @@ class InstalledImportsTest(unittest.TestCase):
                 frontend = pathlib.Path(uptimely.__file__).parent / "explorer" / "app" / "static"
                 self.assertTrue((frontend / "index.html").is_file())
                 self.assertTrue((frontend / "css" / "explorer.css").is_file())
-                self.assertTrue((frontend / "js" / "graphs" / "feature_graph.js").is_file())
+                self.assertTrue((frontend / "js" / "lineage" / "feature_lineage.js").is_file())
+                self.assertTrue((frontend / "css" / "lineage.css").is_file())
                 plan = json.loads((build / "execution_plan.json").read_text(encoding="utf-8"))
                 self.assertTrue(plan["invocations"])
                 for package in plan["resources"]["entrypoint_packages"].values():

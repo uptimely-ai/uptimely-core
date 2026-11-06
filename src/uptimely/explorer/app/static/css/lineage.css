@@ -4,7 +4,7 @@ html:has(.lineage-page), .lineage-page { height: 100%; overflow: hidden; }
 .lineage-workspace { display: grid; grid-template-rows: minmax(0, 1fr); height: 100%;
 	background: var(--lineage-background); color: var(--color-text); font: 14px var(--font-body); }
 .lineage-stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-#invocation-lineage-graph { position: absolute; inset: 0; }
+#invocation-lineage-container { position: absolute; inset: 0; }
 .lineage-heading { min-width: 0; }
 .lineage-heading h1 { min-width: 0; min-height: 40px; margin: 0; padding: 0 12px;
 	font-size: 14px; font-weight: 700; color: #f8fafc; gap: 8px; }

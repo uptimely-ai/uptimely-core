@@ -44,7 +44,8 @@ def test_export_directory_uses_relative_assets_and_preserves_snapshot_bytes(
     assert (output / "js" / "application" / "bootstrap.js").is_file()
     assert (output / "js" / "application" / "view_controller.js").is_file()
     assert (output / "js" / "catalogs" / "catalog_renderer.js").is_file()
-    assert (output / "js" / "graphs" / "feature_graph.js").is_file()
+    assert (output / "js" / "lineage" / "feature_lineage.js").is_file()
+    assert (output / "css" / "lineage.css").is_file()
     assert (output / "js" / "animation" / "playback_controller.js").is_file()
     assert (output / "data" / "explorer.json").read_bytes() == snapshot_bytes
     config = (output / "config.js").read_text(encoding="utf-8")
@@ -81,7 +82,8 @@ def test_export_zip_contains_static_frontend_and_data(
             "js/application/bootstrap.js",
             "js/application/view_controller.js",
             "js/catalogs/catalog_renderer.js",
-            "js/graphs/feature_graph.js",
+            "js/lineage/feature_lineage.js",
+            "css/lineage.css",
             "js/animation/playback_controller.js",
             "js/rendering/shared_markup.js",
             "js/navigation/sidebar_controls.js",

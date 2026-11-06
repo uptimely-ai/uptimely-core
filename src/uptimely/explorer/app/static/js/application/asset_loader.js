@@ -1,5 +1,5 @@
 const ICON_SCRIPT = "https://unpkg.com/lucide@1.67.0/dist/umd/lucide.min.js";
-const GRAPH_SCRIPTS = [
+const LINEAGE_SCRIPTS = [
   "https://unpkg.com/force-graph@1.52.0/dist/force-graph.min.js",
   "https://unpkg.com/three@0.160.0/build/three.min.js",
   "https://unpkg.com/3d-force-graph@1.77.0/dist/3d-force-graph.min.js",
@@ -39,14 +39,14 @@ export class AssetLoader {
     return ready;
   }
 
-  async loadGraphScripts() {
-    for (const url of GRAPH_SCRIPTS) await this.load(url);
+  async loadLineageScripts() {
+    for (const url of LINEAGE_SCRIPTS) await this.load(url);
   }
 
   async prepare(view) {
     const stylesheets = [`./css/${view.stylesheet}.css`];
     const dependencies = [this.load(ICON_SCRIPT)];
-    if (view.graph) dependencies.push(this.loadGraphScripts());
+    if (view.lineageStyle) dependencies.push(this.loadLineageScripts());
     if (view.highlight) {
       stylesheets.push(HIGHLIGHT_STYLESHEET);
       dependencies.push(this.load(HIGHLIGHT_SCRIPT));

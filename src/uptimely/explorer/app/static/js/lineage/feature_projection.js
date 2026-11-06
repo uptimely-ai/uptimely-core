@@ -1,4 +1,4 @@
-// The canonical lineage connects declared inputs to operators and operators to outputs.
+// The canonical feature lineage connects inputs, operators, and outputs.
 export function projectFeatureLineage(data, showOperators) {
 	if (showOperators) return data;
 	const nodes = new Map(data.nodes.map(node => [node.id, node]));

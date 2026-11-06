@@ -1,5 +1,5 @@
-import * as LineageConfig from './graph_config.js';
-import * as LineageLayout from './dataset_layout.js';
+import * as LineageConfig from './lineage_config.js';
+import * as LineageLayout from './lineage_layout.js';
 
 function readPayload(id) {
 	return JSON.parse(document.getElementById(id).textContent);
@@ -227,7 +227,7 @@ function createLineage2D(container, graphData, style, layout, highlight, {
 		.height(container.clientHeight)
 		.backgroundColor(style.background_color)
 		.onRenderFramePre((ctx, scale) => {
-			LineageLayout.drawDatasetLanes(layout, ctx, scale);
+			LineageLayout.drawLineageLanes(layout, ctx, scale);
 			renderOverlay?.(ctx, scale);
 		})
 		.nodeLabel(node => tooltip(label(node)))
@@ -240,7 +240,7 @@ function createLineage2D(container, graphData, style, layout, highlight, {
 		.linkWidth(link => highlight.isLinkHighlighted(link)
 			? LineageConfig.LINK_STYLE.highlightWidth : style.link_width)
 		.linkCanvasObjectMode(() => 'replace')
-		.linkCanvasObject(LineageLayout.createDatasetLinkRenderer(graphData, style, highlight))
+		.linkCanvasObject(LineageLayout.createLineageLinkRenderer(graphData, style, highlight))
 		.linkDirectionalParticles(LineageConfig.LINK_ROUTE.particleCount)
 		.linkDirectionalParticleWidth(LineageConfig.LINK_ROUTE.particleWidth)
 		.linkDirectionalParticleColor(() => LineageConfig.LINK_ROUTE.invisibleParticleColor)

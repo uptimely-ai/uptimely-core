@@ -187,7 +187,7 @@ def test_app_serves_packaged_frontend_and_reads_fresh_snapshot(tmp_path: pathlib
         "/js/application/bootstrap.js",
         "/js/application/view_controller.js",
         "/js/catalogs/catalog_renderer.js",
-        "/js/graphs/feature_graph.js",
+        "/js/lineage/feature_lineage.js",
         "/js/animation/playback_controller.js",
         "/js/rendering/shared_markup.js",
         "/js/navigation/sidebar_controls.js",

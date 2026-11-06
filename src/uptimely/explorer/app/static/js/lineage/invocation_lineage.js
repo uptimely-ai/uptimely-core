@@ -1,4 +1,4 @@
-import { ExplorerLineage } from './graph_components.js';
+import { ExplorerLineage } from './lineage_components.js';
 import { initializeLineage } from './lineage_initializer.js';
 
 export function initializeInvocationLineage(signal) {
@@ -93,7 +93,7 @@ export function initializeInvocationLineage(signal) {
 	}
 
 	function createLineage2D(lineageContainer, graphData, updateSelection, style, highlight) {
-		const layout = ExplorerLineage.prepareDatasetLayout(
+		const layout = ExplorerLineage.prepareLineageLayout(
 			graphData, node => node.stage - 1, node => node.function_name || node.function_id);
 		if (layout.columns.length) {
 			layout.bounds.y -= STAGE_COLUMNS.headerHeight / 2;

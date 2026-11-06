@@ -1,5 +1,5 @@
 export function mountLineageViews(
-	sourceData, createLineage2D, createLineage3D, showDetails, signal, projectData = null,
+	graphData, createLineage2D, createLineage3D, showDetails, signal, projectData = null,
 ) {
 	const buttons = [...document.querySelectorAll('[data-dimension]')];
 	const errorMessage = document.getElementById('lineage-error');
@@ -10,7 +10,7 @@ export function mountLineageViews(
 	const operatorLegend = projectData ? document.getElementById('operator-legend') : null;
 	let activeDimension = null;
 	let activeKey = null;
-	let activeData = sourceData;
+	let activeGraph = graphData;
 	let showOperators = true;
 	let selectedId = null;
 	const readOperators = () => {
@@ -36,7 +36,7 @@ export function mountLineageViews(
 		let viewContainer = containers.get(key);
 		try {
 			if (!projections.has(operators)) {
-				projections.set(operators, projectData ? projectData(sourceData, operators) : sourceData);
+				projections.set(operators, projectData ? projectData(graphData, operators) : graphData);
 			}
 			if (!views.has(key)) {
 				viewContainer = document.createElement('div');
@@ -70,7 +70,7 @@ export function mountLineageViews(
 		}
 		activeDimension = dimension;
 		activeKey = key;
-		activeData = projections.get(operators);
+		activeGraph = projections.get(operators);
 		showOperators = operators;
 		viewContainer.hidden = false;
 		operatorToggle?.setAttribute('aria-pressed', String(operators));
@@ -80,7 +80,7 @@ export function mountLineageViews(
 		}
 		view.forceGraph.resumeAnimation();
 		view.resize(!cached);
-		selectNode(activeData.nodes.find(node => node.id === selectedId) || null);
+		selectNode(activeGraph.nodes.find(node => node.id === selectedId) || null);
 		errorMessage.hidden = true;
 		return true;
 	};

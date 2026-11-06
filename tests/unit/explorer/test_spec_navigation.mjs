@@ -331,8 +331,8 @@ test("lineage and topology zoom buttons use the corresponding accessible icons",
   }
 });
 
-test("all graph buttons share sizing and alignment with larger mobile touch targets", async () => {
-  const styles = await readFile(new URL("../css/graph.css", root), "utf8");
+test("all lineage buttons share sizing and alignment with larger mobile touch targets", async () => {
+  const styles = await readFile(new URL("../css/lineage.css", root), "utf8");
   const shared = styles.match(/\.lineage-control-groups \.ui-button \{([^}]+)\}/)[1];
   for (const rule of ["box-sizing: border-box", "display: inline-flex",
     "align-items: center", "justify-content: center", "flex-shrink: 0",
@@ -342,14 +342,14 @@ test("all graph buttons share sizing and alignment with larger mobile touch targ
   assert.match(styles, /@media \(max-width: 640px\) \{\s*\.lineage-control-groups \.ui-button \{ height: 44px; min-width: 44px; \}/);
 });
 
-test("graph groups have additional horizontal spacing without changing spacing within groups", async () => {
-  const [graph, base] = await Promise.all([
-    readFile(new URL("../css/graph.css", root), "utf8"),
+test("lineage groups have additional horizontal spacing without changing spacing within groups", async () => {
+  const [lineage, base] = await Promise.all([
+    readFile(new URL("../css/lineage.css", root), "utf8"),
     readFile(new URL("../css/base.css", root), "utf8"),
   ]);
-  assert.match(graph, /\.lineage-control-groups \{[^}]*gap: 8px 12px;/);
+  assert.match(lineage, /\.lineage-control-groups \{[^}]*gap: 8px 12px;/);
   assert.match(base, /\.mobile-primary-controls \.lineage-control-groups \{[^}]*gap: 6px 10px;/);
-  assert.match(graph, /\.lineage-buttons \{[^}]*gap: 4px;/);
+  assert.match(lineage, /\.lineage-buttons \{[^}]*gap: 4px;/);
 });
 
 test("stage argument bindings use the shared table and preserve typed values", () => {

@@ -71,7 +71,7 @@ export function lineage(data, topology) {
   const title = topology ? "Topology" : "Lineage";
   const key = topology ? "invocation-lineage" : "feature-lineage";
   const panelId = topology ? "invocation-node-details" : "node-details";
-  const graph = topology ? data.graphs.invocation_lineage : data.graphs.feature_lineage;
+  const graphData = topology ? data.graphs.invocation_lineage : data.graphs.feature_lineage;
   const style = topology ? data.graphs.invocation_style : data.graphs.feature_style;
   const payload = (id, value) => `<script id="${id}" type="application/json">${JSON.stringify(value).replace(/</g, "\\u003c")}</script>`;
   return {
@@ -98,8 +98,8 @@ export function lineage(data, topology) {
       </div></aside>`,
     content: `<main class="lineage-workspace"><div class="lineage-stage">
       <p id="lineage-error" role="alert" hidden></p>
-      ${topology ? '<section id="invocation-lineage-graph">' : ""}
+      ${topology ? '<section id="invocation-lineage-container">' : ""}
       <div id="lineage"><div id="lineage-2d" class="lineage-view"></div><div id="lineage-3d" class="lineage-view" hidden></div></div>
-      ${topology ? "</section>" : ""}${payload("graph-data", graph)}${payload("graph-style", style)}</div></main>`,
+      ${topology ? "</section>" : ""}${payload("graph-data", graphData)}${payload("lineage-style", style)}</div></main>`,
   };
 }
