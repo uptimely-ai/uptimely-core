@@ -37,7 +37,7 @@ class Interface:
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class Binding:
-    """Bind an implementation to its named arguments."""
+    """Declare an implementation and its named arguments."""
 
     function: _Function
     arguments: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
@@ -132,19 +132,19 @@ class Operator:
             inspect.signature(self.compute.function).bind(**self.compute.arguments)
         return self.compute.arguments.copy()
 
-    def to_model(self) -> spec_model.Action:
+    def to_model(self) -> spec_model.Operator:
         """Convert this declaration to its canonical document model."""
         arguments = self.bound_arguments()
         inputs = self._input_ids()
-        return spec_model.Action(
+        return spec_model.Operator(
             id=self.id,
-            binding=spec_model.Binding(
+            compute=spec_model.Binding(
                 function=self.catalog_id,
                 args={
                     name: binding_conversion.to_value(value) for name, value in arguments.items()
                 },
             ),
-            features=self._action_features(inputs, self.interface.outputs),
+            interface=self._model_interface(inputs, self.interface.outputs),
             row_context=self.row_context,
         )
 
@@ -189,12 +189,12 @@ class Operator:
         return [self._feature_id(value) for value in self.interface.inputs]
 
     @staticmethod
-    def _action_features(
+    def _model_interface(
         inputs: abc.Iterable[str],
         outputs: abc.Iterable[feature_module.Feature],
-    ) -> spec_model.ActionFeatures:
+    ) -> spec_model.Interface:
         """Build canonical input and output feature selectors."""
-        return spec_model.ActionFeatures(
+        return spec_model.Interface(
             inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
             outputs=[f"{selectors.FEATURE_PREFIX}{feature.id}" for feature in outputs],
         )

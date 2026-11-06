@@ -147,7 +147,7 @@ class FeatureGraph(FeatureGraphBase):
         for key, action in self.spec.action_items:
             profile = self.spec.action_profiles[key]
             profile_id = self.spec.action_profile_keys[key]
-            function = self.spec.functions[action.binding.function]
+            function = self.spec.functions[action.compute.function]
             kind = functions.FUNCTION_KINDS[function.kind]
             is_source_input = kind.is_source and kind.dimension_change != "remove"
             for name in action.output_features:
@@ -247,7 +247,7 @@ class FeatureGraph(FeatureGraphBase):
                 dataset_id=profile.id,
                 dataset_name=profile.name,
                 action=action,
-                function=self.spec.functions[action.binding.function],
+                function=self.spec.functions[action.compute.function],
             )
             action_node = node(action_metadata)
             for output in outputs:

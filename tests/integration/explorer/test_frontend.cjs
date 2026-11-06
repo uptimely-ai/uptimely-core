@@ -149,13 +149,13 @@ test("profile actions expose engineering contracts and inspectable bindings", as
   const config = data.catalogs.configuration;
   config.functions.aggregate = { name: "Maximum <reading>", kind: "collapse" };
   config.functions.external = { kind: "escape" };
-  config.profiles.readings.actions.aggregate = {
-    binding: { function: "aggregate", args: { dataset: "$profiles.source.dataframe", options: { method: "<max>" } } },
-    features: { inputs: ["$features.raw"], outputs: ["$features.value"] },
+  config.profiles.readings.assembly.aggregate = {
+    compute: { function: "aggregate", args: { dataset: "$profiles.source.dataframe", options: { method: "<max>" } } },
+    interface: { inputs: ["$features.raw"], outputs: ["$features.value"] },
   };
-  config.profiles.readings.actions.external = {
-    binding: { function: "external", args: {} },
-    features: { inputs: [], outputs: ["$features.<logical>"] },
+  config.profiles.readings.assembly.external = {
+    compute: { function: "external", args: {} },
+    interface: { inputs: [], outputs: ["$features.<logical>"] },
   };
   const html = renderCatalog(data, "profiles").content;
   assert.ok(html.indexOf("Produced schema</h3>") < html.indexOf("Actions</h3>"));
@@ -182,7 +182,7 @@ test("feature catalog excludes dimensions, unused declarations and duplicate out
   const config = sampleData().catalogs.configuration;
   const profile = config.profiles.readings;
   profile.features.unused = { type: "string" };
-  profile.actions.calculate.features.outputs.push("$features.id", "$features.value");
+  profile.assembly.calculate.interface.outputs.push("$features.id", "$features.value");
   assert.deepEqual(features(config).map(item => item.featureId), ["value"]);
   assert.deepEqual(schemaColumns(config, profile).map(column => column.role),
     ["Dimension", "Feature", "Feature"]);

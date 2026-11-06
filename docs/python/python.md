@@ -155,7 +155,7 @@ environments; install a local project package in editable mode for development.
 References such as `ref.feature("result").id` pass an identifier, not feature
 data, and may be used for output-name arguments. Declare produced features in
 `interface.outputs`; they are not inferred from arguments. In the resulting
-spec document, dependencies are recorded explicitly in `features.inputs`.
+spec document, dependencies are recorded explicitly in `interface.inputs`.
 Writes use `interface=Interface(outputs=[])`. For
 generated declarations, use `Profile(id=..., grain=[...], assembly=[...])`.
 
@@ -202,10 +202,11 @@ function's internal steps.
   action identifier. Feature metadata remains in `outputs`, and
   `Feature.to_model()` is unchanged.
 
-Python profiles expose declarations through `Profile.assembly`; the canonical
-document model and exported JSON continue to use `actions` in each profile.
-The current JSON contract is spec version 4; see the
-[spec migration guide](../components/spec.md#migrating-from-spec-version-3).
+Python profiles expose declarations through `Profile.assembly`; canonical
+documents and exported JSON use the same `assembly` key.
+The current JSON contract is spec version 5. JSON profiles use an `assembly`
+mapping whose operators declare `compute` and `interface`; see the
+[spec migration guide](../components/spec.md#migrating-from-spec-version-4).
 
 <div class="api-reference" markdown="1">
 

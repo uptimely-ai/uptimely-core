@@ -187,7 +187,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 for feature_id, producers in spec_definition.feature_producers.items()
                 if any(
                     spec_definition.functions[
-                        spec_definition.actions_by_key[key].binding.function
+                        spec_definition.actions_by_key[key].compute.function
                     ].kind
                     == functions.VECTORIZE
                     for key in producers
@@ -213,7 +213,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             feature: (key[0], spec_definition.actions_by_key[key])
             for feature, producers in spec_definition.feature_producers.items()
             for key in producers
-            if spec_definition.functions[spec_definition.actions_by_key[key].binding.function].kind
+            if spec_definition.functions[spec_definition.actions_by_key[key].compute.function].kind
             == functions.VECTORIZE
         }
         producer = by_feature.get(feature_id)
@@ -241,7 +241,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             {
                 "feature": feature_id,
                 "profile": profile_id,
-                "function": action.binding.function,
+                "function": action.compute.function,
                 "direct_dependencies": action.input_features,
                 "transitive_dependencies": transitive,
                 "input_features": [name for name in transitive if name not in by_feature],

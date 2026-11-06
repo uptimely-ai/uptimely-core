@@ -67,7 +67,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     assert canonical.features["temperature"].id == "temperature"
     assert canonical.features["temperature"].name == "Ambient Temperature"
     assert canonical.features["pump"].name == "Pump"
-    assert canonical.actions["read"].output_features == ["temperature", "pump"]
+    assert canonical.assembly["read"].output_features == ["temperature", "pump"]
     payload = conversion.to_dict(profiles=[declaration])
     exported = payload["profiles"]["example"]
     assert exported["features"]["temperature"] == {
@@ -76,7 +76,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
         "unit": "C",
         "description": "Ambient temperature measurement.",
     }
-    assert exported["actions"]["read"]["features"]["outputs"] == [
+    assert exported["assembly"]["read"]["interface"]["outputs"] == [
         "$features.temperature",
         "$features.pump",
     ]
@@ -120,7 +120,7 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
 
     declaration = Example()
     action = declaration.assembly[0]
-    model = declaration.to_model().actions["result"]
+    model = declaration.to_model().assembly["result"]
 
     assert model.id == "result"
     assert model.input_features == ["temperature"]
@@ -129,7 +129,7 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
         "output": ref.feature("result").id,
     }
     assert action.bound_arguments() == action.compute.arguments
-    assert model.binding.args["output"] == "$features.result.id"
+    assert model.compute.args["output"] == "$features.result.id"
     assert action.interface.outputs[0].id == "result"
     assert action.interface.outputs[0].name == "Result"
     assert action.interface.outputs[0].type == "float"
@@ -236,7 +236,7 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
     derived = Derived()
     assert base.assembly == [first, sink]
     assert derived.assembly == [replacement]
-    assert list(derived.to_model().actions) == ["read"]
+    assert list(derived.to_model().assembly) == ["read"]
     assert derived.to_model().description == "Inherited metadata"
     assert derived.to_model().features["value"].type == "integer"
     assert set(derived.function_catalog()) == {"replacement"}
@@ -274,7 +274,7 @@ def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
 
     assert model.features["machine_id"].type == "string"
     assert model.features["machine_id"].description == "Machine key"
-    assert model.actions["values"].output_features == ["machine_id", "value"]
+    assert model.assembly["values"].output_features == ["machine_id", "value"]
 
 
 def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
@@ -302,7 +302,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
     assert action.interface.inputs is None
     assert model.input_features == ["first", "second"]
     assert model.row_context.before.rows == 2
-    assert model.binding.args["configuration"] == {
+    assert model.compute.args["configuration"] == {
         "columns": ["$features.first", "$features.second", "$features.first"],
         "output": "$features.result.id",
         "key": "$profiles.@.grain.ids",
@@ -326,8 +326,8 @@ def test_programmatic_dataset_uses_function_name_for_catalog_id() -> None:
     assert declaration.assembly == [action]
     assert action.reference.entrypoint == "calculation:calculate"
     assert action.catalog_id == "calculate"
-    assert declaration.to_model().actions["named"].input_features == ["explicit"]
-    assert declaration.to_model().actions["named"].binding.function == "calculate"
+    assert declaration.to_model().assembly["named"].input_features == ["explicit"]
+    assert declaration.to_model().assembly["named"].compute.function == "calculate"
     assert set(declaration.function_catalog()) == {"calculate"}
 
 
@@ -375,14 +375,14 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
 
     model = declaration.to_model()
     catalog = declaration.function_catalog()
-    assert model.actions["read"].binding.args["keys"] == "$profiles.@.grain.ids"
-    assert model.actions["read"].binding.args["source_keys"] == "$profiles.source.grain.ids"
+    assert model.assembly["read"].compute.args["keys"] == "$profiles.@.grain.ids"
+    assert model.assembly["read"].compute.args["source_keys"] == "$profiles.source.grain.ids"
     assert catalog["read"].args["keys"].type == "array[string]"
     assert catalog["read"].args["source_keys"].type == "array[string]"
 
     payload = conversion.to_dict(profiles=[declaration])
     assert (
-        payload["profiles"]["example"]["actions"]["read"]["binding"]["args"]["keys"]
+        payload["profiles"]["example"]["assembly"]["read"]["compute"]["args"]["keys"]
         == "$profiles.@.grain.ids"
     )
     assert payload["functions"]["read"]["args"]["keys"]["type"] == "array[string]"
@@ -484,7 +484,7 @@ def test_actions_accept_every_declared_function_kind(kind: functions.FunctionKin
         ),
     )
     declaration = authoring.Profile(id="example", assembly=[action])
-    assert declaration.to_model().actions["work"] == action.to_model()
+    assert declaration.to_model().assembly["work"] == action.to_model()
     assert declaration.function_catalog()["work"].kind == kind
 
 
@@ -527,7 +527,7 @@ def test_action_groups_flatten_in_mapping_order() -> None:
     )
 
     assert declaration.assembly == [first, second]
-    assert list(declaration.to_model().actions) == ["read", "write"]
+    assert list(declaration.to_model().assembly) == ["read", "write"]
     assert authoring.Profile(id="empty_grouped", assembly={}).assembly == []
 
 
@@ -608,8 +608,8 @@ def test_subclasses_can_explicitly_extend_or_clear_inherited_actions() -> None:
     class Empty(Base):
         assembly = []
 
-    assert list(Extended().to_model().actions) == ["read", "another_read"]
-    assert Empty().to_model().actions == {}
+    assert list(Extended().to_model().assembly) == ["read", "another_read"]
+    assert Empty().to_model().assembly == {}
     assert Base.assembly == [read]
 
 
@@ -690,13 +690,13 @@ def test_grouped_actions_preserve_dependencies_and_canonical_mapping_ids() -> No
         "custom_work",
     ]
     model = declaration.to_model()
-    assert list(model.actions) == ["calculate", "publish", "custom_work"]
-    assert model.actions["calculate"].input_features == ["pipeline_result"]
-    assert model.actions["publish"].input_features == ["result"]
-    assert model.actions["custom_work"].input_features == ["external_input"]
+    assert list(model.assembly) == ["calculate", "publish", "custom_work"]
+    assert model.assembly["calculate"].input_features == ["pipeline_result"]
+    assert model.assembly["publish"].input_features == ["result"]
+    assert model.assembly["custom_work"].input_features == ["external_input"]
     payload = conversion.to_dict(profiles=[declaration])
     exported = payload["profiles"]["example"]
-    assert set(exported["actions"]) == {"calculate", "publish", "custom_work"}
+    assert set(exported["assembly"]) == {"calculate", "publish", "custom_work"}
     assert set(exported["features"]) == {"result"}
 
 

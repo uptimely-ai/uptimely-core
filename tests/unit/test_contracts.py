@@ -204,10 +204,10 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
             },
             "profiles": {
                 "dataset": {
-                    "actions": {
-                        "zero_argument": {"binding": {"function": "zero_argument", "args": {}}},
+                    "assembly": {
+                        "zero_argument": {"compute": {"function": "zero_argument", "args": {}}},
                         "scalar_argument": {
-                            "binding": {
+                            "compute": {
                                 "function": "scalar_argument",
                                 "args": {"value": 1.5},
                             }

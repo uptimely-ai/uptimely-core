@@ -13,7 +13,7 @@ class ActionNode:
     dataset_id: str
     function: model.FunctionTemplate = dataclasses.field(compare=False, hash=False)
     dataset_name: str | None = None
-    action: model.Action | None = dataclasses.field(default=None, compare=False, hash=False)
+    action: model.Operator | None = dataclasses.field(default=None, compare=False, hash=False)
 
     @property
     def node_id(self) -> str:

@@ -54,10 +54,10 @@ def test_root_authoring_api_compiles_and_executes(
 
     declaration = up.Spec(profiles=[CalculatedData])
     model = declaration.to_model()
-    action = model.profiles["calculated_profile"].actions["double"]
+    action = model.profiles["calculated_profile"].assembly["double"]
     assert action.input_features == ["value"]
     assert action.output_features == ["doubled"]
-    assert action.binding.args == {
+    assert action.compute.args == {
         "dataset": "$profiles.@.dataframe",
         "value": "$features.value",
         "output": "$features.doubled",

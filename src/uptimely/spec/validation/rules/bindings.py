@@ -15,7 +15,7 @@ def validate_arguments(spec: spec_model.Spec) -> None:
     """Require the supplied argument names to match the function signature."""
     logger.debug("    - checking binding argument names match function declarations")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None:
             continue
         supplied = action.arguments
@@ -26,9 +26,9 @@ def validate_arguments(spec: spec_model.Spec) -> None:
                 ["unknown arguments: " + ", ".join(sorted(unknown))] if unknown else []
             )
             raise errors.SpecError(
-                f"Binding for function {action.binding.function} has " + "; ".join(details),
+                f"Binding for function {action.compute.function} has " + "; ".join(details),
                 code="invalid_binding_arguments",
-                path=(*spec.declaration_paths[key], "binding", "args"),
+                path=(*spec.declaration_paths[key], "compute", "args"),
             )
 
 
@@ -66,7 +66,7 @@ def validate_selector_type(spec: spec_model.Spec) -> None:
             grain_keys_by_profile=spec.grain_keys_by_profile,
             resources=spec.binding_resources,
         )
-        for value, path in action.binding.values_with_paths:
+        for value, path in action.compute.values_with_paths:
             if not isinstance(value, str):
                 continue
             prefix = next(
@@ -84,5 +84,5 @@ def validate_selector_type(spec: spec_model.Spec) -> None:
                 raise errors.SpecError(
                     str(error),
                     code="invalid_binding_selector",
-                    path=(*spec.declaration_paths[key], "binding", "args", *path),
+                    path=(*spec.declaration_paths[key], "compute", "args", *path),
                 ) from error

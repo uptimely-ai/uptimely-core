@@ -61,7 +61,7 @@ def test_spec_validation_logs_heading_and_all_checks_only_at_debug(
 def test_failed_spec_validation_logs_the_failing_check_before_stopping(
     document: spec.Spec, caplog: pytest.LogCaptureFixture
 ) -> None:
-    document.action_items[0][1].binding.function = "missing_function"
+    document.action_items[0][1].compute.function = "missing_function"
     caplog.set_level(logging.DEBUG, logger="uptimely.spec.validation")
 
     with pytest.raises(errors.SpecError) as error:
@@ -91,14 +91,14 @@ def test_unknown_function_error_uses_declaration_path(
     document: spec.Spec, use_runner: bool
 ) -> None:
     key, item = document.action_items[0]
-    item.binding.function = "missing_function"
+    item.compute.function = "missing_function"
     validate = (
         spec_validation.validate_spec if use_runner else action_outputs.validate_function_reference
     )
     with pytest.raises(errors.SpecError) as error:
         validate(document)
     assert error.value.code == "unknown_function_reference"
-    assert error.value.path == (*document.declaration_paths[key], "binding", "function")
+    assert error.value.path == (*document.declaration_paths[key], "compute", "function")
     assert "missing_function" in str(error.value)
 
 
@@ -133,7 +133,7 @@ def test_mapping_rules_use_shared_operation_dataframe_counts(
     with pytest.raises(errors.SpecError, match=r"exactly 2 foreign profile\(s\)") as error:
         action_contracts.validate_dataset_argument_count(document)
     assert error.value.code == "invalid_mapping_dataset_input"
-    assert error.value.path[-2:] == ("binding", "args")
+    assert error.value.path[-2:] == ("compute", "args")
 
 
 def test_local_and_foreign_input_validation_uses_kind_attributes(
@@ -142,7 +142,7 @@ def test_local_and_foreign_input_validation_uses_kind_attributes(
     vectorize = next(
         item
         for item in document.actions
-        if document.functions[item.binding.function].kind == "vectorize"
+        if document.functions[item.compute.function].kind == "vectorize"
     )
     definitions = dict(function_kinds.FUNCTION_KINDS)
     definitions["vectorize"] = dataclasses.replace(
@@ -153,7 +153,7 @@ def test_local_and_foreign_input_validation_uses_kind_attributes(
     with pytest.raises(errors.SpecError, match="must reference a foreign source profile"):
         action_contracts.validate_foreign_dataset_argument(document)
 
-    assert document.functions[vectorize.binding.function].kind == "vectorize"
+    assert document.functions[vectorize.compute.function].kind == "vectorize"
 
 
 def test_target_dataset_validation_uses_kind_attribute(

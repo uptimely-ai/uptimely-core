@@ -250,7 +250,7 @@ def test_string_locations_are_preserved_without_importing(
     payload = conversion.to_dict(profiles=[declaration])
 
     assert payload["functions"]["ceil"]["entrypoint"] == f"{location}:ceil"
-    assert payload["profiles"]["observations"]["actions"]["ceil"]["binding"] == {
+    assert payload["profiles"]["observations"]["assembly"]["ceil"]["compute"] == {
         "function": "ceil",
         "args": {"x": 1.2},
     }
@@ -370,8 +370,8 @@ def test_references_supply_function_names_as_catalog_ids(kind: functions.Functio
     assert catalog[identifier].args["x"].type == "float"
     model = declaration.to_model()
     assert model.id == declaration.id
-    assert model.binding.function == identifier
-    assert model.binding.args == {"x": 1.2}
+    assert model.compute.function == identifier
+    assert model.compute.args == {"x": 1.2}
 
 
 def test_nested_bindings_use_reference_names_and_overrides() -> None:

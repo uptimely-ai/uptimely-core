@@ -17,7 +17,7 @@ from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
 
-SPEC_VERSION = 4
+SPEC_VERSION = 5
 type ProfileKey = str
 type ActionKey = tuple[ProfileKey, str]
 type SpecPath = tuple[str | int, ...]
@@ -29,7 +29,7 @@ class _ResourceIndex:
     profile_items: list[tuple[ProfileKey, profile_module.Profile]] = dataclasses.field(
         default_factory=list
     )
-    action_items: list[tuple[ActionKey, profile_module.Action]] = dataclasses.field(
+    action_items: list[tuple[ActionKey, profile_module.Operator]] = dataclasses.field(
         default_factory=list
     )
     profiles: dict[str, profile_module.Profile] = dataclasses.field(default_factory=dict)
@@ -38,8 +38,10 @@ class _ResourceIndex:
     )
     profile_keys: dict[str, ProfileKey] = dataclasses.field(default_factory=dict)
     features: dict[str, profile_module.Feature] = dataclasses.field(default_factory=dict)
-    actions: list[profile_module.Action] = dataclasses.field(default_factory=list)
-    actions_by_key: dict[ActionKey, profile_module.Action] = dataclasses.field(default_factory=dict)
+    actions: list[profile_module.Operator] = dataclasses.field(default_factory=list)
+    actions_by_key: dict[ActionKey, profile_module.Operator] = dataclasses.field(
+        default_factory=dict
+    )
     action_profile_keys: dict[ActionKey, ProfileKey] = dataclasses.field(default_factory=dict)
     action_profiles: dict[ActionKey, profile_module.Profile] = dataclasses.field(
         default_factory=dict
@@ -58,7 +60,7 @@ class Spec(common.StrictModel):
     """The complete JSON document; cached views assume declarations are unchanged."""
 
     name: str | None = None
-    spec_version: typing.Literal[4] = SPEC_VERSION
+    spec_version: typing.Literal[5] = SPEC_VERSION
     source: common.SpecSource = pydantic.Field(
         default_factory=lambda: common.SpecSource(name="manual", generated=False)
     )
@@ -102,17 +104,17 @@ class Spec(common.StrictModel):
                 indexes.features[feature_id] = feature
                 if feature_id not in all_grain_keys:
                     indexes.feature_owners.setdefault(feature_id, []).append(profile_id)
-            for action_id, action in profile.actions.items():
+            for action_id, action in profile.assembly.items():
                 key = (profile_id, action_id)
                 indexes.action_items.append((key, action))
                 indexes.actions.append(action)
                 indexes.actions_by_key[key] = action
                 indexes.action_profile_keys[key] = profile_id
                 indexes.action_profiles[key] = profile
-                base = ("profiles", profile.id, "actions")
-                indexes.action_paths[key] = (*base, action.id)
+                base = ("profiles", profile.id, "assembly")
+                indexes.action_paths[key] = (*base, action_id)
                 indexes.declaration_paths[key] = (*base, action_id)
-                indexes.actions_by_function.setdefault(action.binding.function, []).append(key)
+                indexes.actions_by_function.setdefault(action.compute.function, []).append(key)
                 for feature_id in action.output_features:
                     indexes.feature_producers.setdefault(feature_id, []).append(key)
         return indexes
@@ -143,17 +145,17 @@ class Spec(common.StrictModel):
         return self._indexes.features
 
     @property
-    def actions(self) -> list[profile_module.Action]:
-        """Return original Action objects in declaration order, retaining aliases."""
+    def actions(self) -> list[profile_module.Operator]:
+        """Return original Operator objects in declaration order, retaining aliases."""
         return self._indexes.actions
 
     @property
-    def action_items(self) -> list[tuple[ActionKey, profile_module.Action]]:
+    def action_items(self) -> list[tuple[ActionKey, profile_module.Operator]]:
         """Return action occurrences with profile and dictionary keys."""
         return self._indexes.action_items
 
     @property
-    def actions_by_key(self) -> dict[ActionKey, profile_module.Action]:
+    def actions_by_key(self) -> dict[ActionKey, profile_module.Operator]:
         """Return original actions keyed by their declaration locations."""
         return self._indexes.actions_by_key
 
@@ -170,7 +172,7 @@ class Spec(common.StrictModel):
     def _row_context_profile_key(self, key: ActionKey) -> ProfileKey | None:
         """Resolve the profile whose observations an action's context describes."""
         action = self.actions_by_key[key]
-        function = self.functions[action.binding.function]
+        function = self.functions[action.compute.function]
         definition = functions.FUNCTION_KINDS[function.kind]
         return (
             self.input_sources[key]
@@ -321,7 +323,7 @@ class Spec(common.StrictModel):
         """Return supplied dataset arguments and normalized dataset IDs per action."""
         result: dict[ActionKey, tuple[DatasetArgument, ...]] = {}
         for key, action in self.action_items:
-            function = self.functions.root.get(action.binding.function)
+            function = self.functions.root.get(action.compute.function)
             arguments: list[DatasetArgument] = []
             if function is not None:
                 for name in function.arguments_by_type.get(arg_types.DATAFRAME, {}):
@@ -367,9 +369,9 @@ class Spec(common.StrictModel):
         result: dict[ActionKey, tuple[tuple[object, str], ...]] = {}
         for key, action in self.action_items:
             values: list[tuple[object, str]] = []
-            function = self.functions.root.get(action.binding.function)
+            function = self.functions.root.get(action.compute.function)
             if function is not None:
-                for value, path in action.binding.values_with_paths:
+                for value, path in action.compute.values_with_paths:
                     argument = function.args.get(path[0]) if isinstance(path[0], str) else None
                     if argument is None:
                         continue
@@ -389,7 +391,7 @@ class Spec(common.StrictModel):
     def binding_selectors_with_paths(self) -> tuple[tuple[SpecPath, object, str], ...]:
         """Return binding leaves and argument types with their binding argument paths."""
         return tuple(
-            ((*self.declaration_paths[key], "binding", "args"), value, argument_type)
+            ((*self.declaration_paths[key], "compute", "args"), value, argument_type)
             for key, values in self.binding_selectors.items()
             for value, argument_type in values
         )
@@ -413,7 +415,7 @@ class Spec(common.StrictModel):
         result: dict[ActionKey, tuple[tuple[str, SpecPath], ...]] = {}
         for key, action in self.action_items:
             matches: list[tuple[str, SpecPath]] = []
-            for value, path in action.binding.values_with_paths:
+            for value, path in action.compute.values_with_paths:
                 if not (
                     isinstance(value, str)
                     and value.startswith(selectors.PROFILE_PREFIX)
@@ -430,7 +432,7 @@ class Spec(common.StrictModel):
                 if profile_key is None:
                     continue
                 matches.extend(
-                    (grain_key, (*self.declaration_paths[key], "binding", "args", *path))
+                    (grain_key, (*self.declaration_paths[key], "compute", "args", *path))
                     for grain_key in self.grain_keys_by_profile[profile_key]
                 )
             result[key] = tuple(matches)
@@ -488,17 +490,17 @@ class Spec(common.StrictModel):
         action_count = 0
         profiles = cls.get_profiles(document)
         for profile in profiles.values() if isinstance(profiles, dict) else ():
-            actions = (
-                profile.get("actions", {})
+            assembly = (
+                profile.get("assembly", {})
                 if isinstance(profile, dict)
-                else profile.actions
+                else profile.assembly
                 if isinstance(profile, profile_module.Profile)
                 else {}
             )
-            if not isinstance(actions, dict):
+            if not isinstance(assembly, dict):
                 continue
             dataset_count += 1
-            action_count += len(actions)
+            action_count += len(assembly)
         logger.debug("    - checking object keys as identifiers for %d profiles", dataset_count)
         logger.debug("    - checking spec version is an integer")
         logger.debug("    - checking feature references for %d actions", action_count)
@@ -527,7 +529,7 @@ class Spec(common.StrictModel):
 
     @classmethod
     def _normalize_profiles(cls, value: typing.Any) -> typing.Any:
-        """Recover profile IDs and normalize their features and actions."""
+        """Recover profile IDs and normalize their features and assembly."""
         if isinstance(value, dict):
             for profile_id, profile in value.items():
                 if isinstance(profile, dict) and "id" in profile:
@@ -541,8 +543,21 @@ class Spec(common.StrictModel):
                 if not isinstance(profile, dict):
                     continue
                 profile["features"] = cls._with_resource_ids(profile.get("features", {}) or {})
-                profile["actions"] = cls._with_resource_ids(profile.get("actions", {}) or {})
+                profile["assembly"] = cls._normalize_assembly(profile.get("assembly", {}) or {})
         return profiles
+
+    @classmethod
+    def _normalize_assembly(cls, value: typing.Any) -> typing.Any:
+        """Infer operator IDs from assembly keys and reject explicit ID attributes."""
+        if not isinstance(value, dict):
+            return value
+        for operator_id, operator in value.items():
+            if isinstance(operator, dict) and "id" in operator:
+                raise ValueError(
+                    f"Operator {operator_id} must use its object key as identifier, "
+                    "not an 'id' attribute"
+                )
+        return cls._with_resource_ids(value)
 
     @staticmethod
     def _with_resource_ids(value: typing.Any) -> typing.Any:

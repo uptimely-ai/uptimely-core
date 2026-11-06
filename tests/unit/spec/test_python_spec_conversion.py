@@ -224,7 +224,7 @@ def test_python_spec_infers_selected_key_and_available_resolutions() -> None:
     assert list(payload["dimensions"]["machine"]["resolutions"]) == ["machine", "fleet"]
     canonical = document.profiles["readings"]
     assert canonical.features["pump"].type == "string"
-    assert canonical.actions["readings_mapping"].features.outputs == ["$features.pump"]
+    assert canonical.assembly["readings_mapping"].interface.outputs == ["$features.pump"]
     assert readings.grain == [profile.Grain(pump, "machine")]
 
 
@@ -415,7 +415,7 @@ def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> No
             else "@"
         )
         expected_args["dataset"] = f"$profiles.{source_id}.dataframe"
-    assert payload["profiles"]["first"]["actions"]["first_mapping"]["binding"] == {
+    assert payload["profiles"]["first"]["assembly"]["first_mapping"]["compute"] == {
         "function": function_id,
         "args": expected_args,
     }
@@ -524,7 +524,7 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
     )
     assert pump.to_model().name == "Machine"
     assert payload["name"] == "Pump analytics"
-    assert payload["spec_version"] == 4
+    assert payload["spec_version"] == 5
     assert payload["source"] == {"name": "python_api", "generated": True}
     assert payload["dimensions"] == {
         "machine": {
@@ -548,6 +548,6 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
             "scope": "One row per pump observation",
             "order": [{"dimension": "machine", "resolution": "machine", "direction": "desc"}],
             "features": {},
-            "actions": {},
+            "assembly": {},
         }
     }

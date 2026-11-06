@@ -212,7 +212,7 @@ class Profile:
             grain=grain,
             order=[key.to_model() for key in self.order],
             features=self._feature_metadata(self.grain),
-            actions=self._action_models(selected_resolutions),
+            assembly=self._action_models(selected_resolutions),
         )
 
     def _grain(self) -> list[spec_model.Grain]:
@@ -241,9 +241,9 @@ class Profile:
 
     def _action_models(
         self, resolutions: abc.Sequence[spec_model.Resolution]
-    ) -> dict[str, spec_model.Action]:
+    ) -> dict[str, spec_model.Operator]:
         """Convert actions and add profile-key outputs to source actions."""
-        actions_by_id: dict[str, spec_model.Action] = {}
+        actions_by_id: dict[str, spec_model.Operator] = {}
         for action_id, declaration in self._assembly_by_id.items():
             action_model = self._action_model(action_id, declaration)
             if declaration.kind in {functions.READ, functions.COLLAPSE}:
@@ -251,9 +251,9 @@ class Profile:
                     f"{selectors.FEATURE_PREFIX}{resolution.key}"
                     for resolution in resolutions
                     if f"{selectors.FEATURE_PREFIX}{resolution.key}"
-                    not in action_model.features.outputs
+                    not in action_model.interface.outputs
                 ]
-                action_model.features.outputs[:0] = key_outputs
+                action_model.interface.outputs[:0] = key_outputs
             actions_by_id[action_id] = action_model
         return actions_by_id
 
@@ -283,7 +283,7 @@ class Profile:
                         )
         return features
 
-    def _action_model(self, name: str, declaration: actions.Operator) -> spec_model.Action:
+    def _action_model(self, name: str, declaration: actions.Operator) -> spec_model.Operator:
         """Convert an operator and add its profile location to declaration errors."""
         try:
             return declaration.to_model()

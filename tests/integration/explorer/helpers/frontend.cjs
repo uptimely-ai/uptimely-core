@@ -14,7 +14,7 @@ function sampleData() {
   const column = { name: "value", label: "<Value>", role: "Output", type: "float" };
   return {
     format_version: 1,
-    project: { name: "<Test project>", spec_version: 4 },
+    project: { name: "<Test project>", spec_version: 5 },
     scope: { label: "all features", is_scoped: false },
     catalogs: {
       configuration: {
@@ -25,7 +25,7 @@ function sampleData() {
               id: { name: "Machine ID", type: "string" },
               value: { name: "<Value>", type: "float" },
             },
-            actions: { calculate: { binding: { function: "calculate", args: {} }, features: { inputs: [], outputs: ["$features.value"] } } },
+            assembly: { calculate: { compute: { function: "calculate", args: {} }, interface: { inputs: [], outputs: ["$features.value"] } } },
             scope: "one row per machine <source>",
           },
         },

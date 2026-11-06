@@ -14,7 +14,7 @@ def validate_output_presence(spec: spec_model.Spec) -> None:
     """Require feature-producing actions to declare outputs when their kind requires them."""
     logger.debug("    - checking required action outputs are declared")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if (
             function is not None
             and functions.FUNCTION_KINDS[function.kind].requires_feature_outputs
@@ -27,7 +27,7 @@ def validate_function_id(spec: spec_model.Spec) -> None:
     """Require a calculation function ID to be nonempty."""
     logger.debug("    - checking calculation function IDs are nonempty")
     for action in spec.actions:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if (
             function is not None
             and function.kind == functions.VECTORIZE
@@ -40,7 +40,7 @@ def validate_output_names(spec: spec_model.Spec) -> None:
     """Require calculated output names to be nonempty."""
     logger.debug("    - checking calculated output names are nonempty")
     for action in spec.actions:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if (
             function is not None
             and function.kind == functions.VECTORIZE
@@ -53,7 +53,7 @@ def validate_dimension_collision(spec: spec_model.Spec) -> None:
     """Reject calculated feature names that collide with selected grain keys."""
     logger.debug("    - checking calculated outputs do not collide with dimensions")
     for action in spec.actions:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         collisions = set(action.output_features) & spec.grain_key_ids
         if function is not None and function.kind == functions.VECTORIZE and collisions:
             raise ValueError(
@@ -66,12 +66,12 @@ def validate_function_reference(spec: spec_model.Spec) -> None:
     """Require an action's function reference to resolve in the catalog."""
     logger.debug("    - checking action function references")
     for key, action in spec.action_items:
-        function_id = action.binding.function
+        function_id = action.compute.function
         if function_id not in spec.functions:
             raise errors.SpecError(
                 f"Profile {key[0]} actions reference unknown functions: {function_id}",
                 code="unknown_function_reference",
-                path=(*spec.declaration_paths[key], "binding", "function"),
+                path=(*spec.declaration_paths[key], "compute", "function"),
             )
 
 
@@ -79,7 +79,7 @@ def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
     """Reject output feature declarations on kinds that do not support them."""
     logger.debug("    - checking nonproducing actions do not declare outputs")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if (
             function is not None
             and not functions.FUNCTION_KINDS[function.kind].produces_features
@@ -94,7 +94,7 @@ def validate_output_feature(spec: spec_model.Spec) -> None:
     """Require an output feature to be declared in the target profile."""
     logger.debug("    - checking action outputs are declared in the target profile")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None or not functions.FUNCTION_KINDS[function.kind].produces_features:
             continue
         for feature in action.output_features:
@@ -110,7 +110,7 @@ def validate_unique_producer(spec: spec_model.Spec) -> None:
     logger.debug("    - checking unique producers for non-dimension features")
     producers: dict[tuple[spec_model.ProfileKey, str], str] = {}
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None or not functions.FUNCTION_KINDS[function.kind].produces_features:
             continue
         for feature in action.output_features:
@@ -129,7 +129,7 @@ def validate_collapse_output(spec: spec_model.Spec) -> None:
     """Require collapse to produce a non-dimension feature."""
     logger.debug("    - checking collapse actions produce non-dimension features")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if (
             function is not None
             and function.kind == functions.COLLAPSE
@@ -142,7 +142,7 @@ def validate_current_feature_selector(spec: spec_model.Spec) -> None:
     """Reject ambiguous current-feature selectors on multi-output calculations."""
     logger.debug("    - checking current-feature selectors are unambiguous")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None or function.kind not in {functions.VECTORIZE, functions.COLLAPSE}:
             continue
         count = (
@@ -165,7 +165,7 @@ def warn_unproduced_features(spec: spec_model.Spec) -> None:
             feature
             for feature, producers in profile.feature_producers.items()
             if any(
-                (function := spec.functions.root.get(action.binding.function)) is not None
+                (function := spec.functions.root.get(action.compute.function)) is not None
                 and functions.FUNCTION_KINDS[function.kind].produces_features
                 for _, action in producers
             )

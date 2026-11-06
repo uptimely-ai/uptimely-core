@@ -12,10 +12,10 @@ from .common import (
 )
 from .functions import FunctionCatalog, FunctionTemplate
 from .profile import (
-    Action,
-    ActionFeatures,
     Feature,
     Grain,
+    Interface,
+    Operator,
     Order,
     Profile,
 )
@@ -35,8 +35,8 @@ __all__ = [
     "Feature",
     "FunctionCatalog",
     "FunctionTemplate",
-    "Action",
-    "ActionFeatures",
+    "Operator",
+    "Interface",
     "Grain",
     "Order",
     "StrictModel",

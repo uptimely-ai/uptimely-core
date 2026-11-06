@@ -4,13 +4,14 @@ from .api import from_python, load_spec
 from .feature_graph import FeatureGraph, FeatureSubGraph
 from .json.codec import write_document
 from .model import (
-    Action,
     Argument,
     Binding,
     Dimension,
     Feature,
     FunctionCatalog,
     Grain,
+    Interface,
+    Operator,
     Order,
     Profile,
     Resolution,
@@ -27,7 +28,8 @@ __all__ = [
     "Grain",
     "FeatureGraph",
     "FunctionCatalog",
-    "Action",
+    "Operator",
+    "Interface",
     "Order",
     "Spec",
     "from_python",

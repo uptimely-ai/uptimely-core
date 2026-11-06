@@ -259,13 +259,13 @@ def _collapse_spec(target_resolution: str) -> model.Spec:
                 "target": {
                     "grain": [{"dimension": "machine", "resolution": target_resolution}],
                     "features": {"maximum": {}},
-                    "actions": {
+                    "assembly": {
                         "maximum": {
-                            "binding": {
+                            "compute": {
                                 "function": "collapse",
                                 "args": {"data": "$profiles.source.dataframe"},
                             },
-                            "features": {
+                            "interface": {
                                 "inputs": ["$features.temperature"],
                                 "outputs": ["$features.maximum"],
                             },
@@ -354,9 +354,9 @@ def test_row_context_uses_the_selected_resolution_type(
 ) -> None:
     document = _document()
     document["profiles"]["pump_telemetry"]["grain"][2]["resolution"] = resolution_id
-    document["profiles"]["pump_telemetry"]["actions"] = {
+    document["profiles"]["pump_telemetry"]["assembly"] = {
         "contextual": {
-            "binding": {"function": "contextual", "args": {}},
+            "compute": {"function": "contextual", "args": {}},
             "row_context": {
                 "dimension": "$dimensions.measurement_time",
                 "before": measurement,

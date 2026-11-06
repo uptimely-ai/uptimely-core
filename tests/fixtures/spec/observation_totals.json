@@ -1,6 +1,6 @@
 {
   "name": "Observation totals",
-  "spec_version": 4,
+  "spec_version": 5,
   "dimensions": {
     "id": {
       "resolutions": {
@@ -36,12 +36,12 @@
         "input_2": {"type": "integer"},
         "total": {"type": "integer"}
       },
-      "actions": {
+      "assembly": {
         "read_observations": {
-          "binding": {
+          "compute": {
             "function": "read_observations"
           },
-          "features": {
+          "interface": {
             "outputs": [
               "$features.id",
               "$features.input_1",
@@ -50,7 +50,7 @@
           }
         },
         "calculate_total": {
-          "binding": {
+          "compute": {
             "function": "sum_features",
             "args": {
               "left_feature": "$features.input_1",
@@ -59,7 +59,7 @@
               "dataset": "$profiles.@.dataframe"
             }
           },
-          "features": {
+          "interface": {
             "inputs": ["$features.input_1", "$features.input_2"],
             "outputs": ["$features.total"]
           }

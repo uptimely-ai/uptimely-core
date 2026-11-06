@@ -222,7 +222,7 @@ current profile dataframe and feature identifiers, and returns `pressure_ratio`.
     <div class="cv-mapping-stage cv-mapping-call">
       <span class="cv-tag">MAPPING / JSON</span>
       <pre class="cv-mapping-code"><code>{
-  <span class="cv-teal">"binding"</span>: {
+  <span class="cv-teal">"compute"</span>: {
     <span class="cv-teal">"function"</span>: <span class="cv-amber">"divide"</span>,
     <span class="cv-teal">"args"</span>: {
       <span class="cv-teal">"dataset"</span>: <span>"$profiles.@.dataframe"</span>,
@@ -231,7 +231,7 @@ current profile dataframe and feature identifiers, and returns `pressure_ratio`.
       <span class="cv-teal">"output"</span>: <span class="cv-amber">"$features.pressure_ratio.id"</span>
     }
   },
-  <span class="cv-violet">"features"</span>: {
+  <span class="cv-violet">"interface"</span>: {
     <span class="cv-teal">"inputs"</span>: [<span class="cv-teal">"$features.pressure"</span>, <span class="cv-violet">"$features.limit"</span>],
     <span class="cv-teal">"outputs"</span>: [<span class="cv-amber">"$features.pressure_ratio"</span>]
   }
@@ -242,6 +242,6 @@ current profile dataframe and feature identifiers, and returns `pressure_ratio`.
       <span class="cv-tag">OUTPUT DATAFRAME / declared feature</span>
       <table class="cv-table"><thead><tr><th class="cv-key">time</th><th class="cv-teal">pressure</th><th class="cv-violet">limit</th><th class="cv-amber">pressure_ratio</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-violet">8</td><td class="cv-amber">0.75</td></tr><tr><td class="cv-key">09:01</td><td class="cv-teal">8</td><td class="cv-violet">8</td><td class="cv-amber">1.00</td></tr><tr><td class="cv-key">09:02</td><td class="cv-teal">4</td><td class="cv-violet">8</td><td class="cv-amber">0.50</td></tr></tbody></table>
     </div>
-    <p class="cv-takeaway"><strong>Two complementary declarations.</strong> Feature inputs and outputs describe data dependencies. Binding arguments provide the dataframe and feature identifiers the function uses; an identifier argument alone does not declare an input dependency.</p>
+    <p class="cv-takeaway"><strong>Two complementary declarations.</strong> Feature inputs and outputs describe data dependencies. Compute arguments provide the dataframe and feature identifiers the function uses; an identifier argument alone does not declare an input dependency.</p>
   </div>
 </div>
