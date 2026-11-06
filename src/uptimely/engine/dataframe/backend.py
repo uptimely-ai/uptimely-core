@@ -7,6 +7,8 @@ from collections import abc
 
 import polars as pl
 
+from uptimely.library.merge import polars as merge_module
+
 from .. import config as config_module
 
 
@@ -66,52 +68,18 @@ class PolarsBackend:
     def join(
         self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "1:1"
     ) -> object:
-        """Full-join dataframes on keys, matching nulls and coalescing key columns.
-
-        With no keys, join on a temporary constant key, preserving either side
-        when the other dataframe is empty.
-        """
-        if not keys:
-            key = "__join_key"
-            columns = set(self.column_names(left)) | set(self.column_names(right))
-            while key in columns:
-                key += "_"
-            return (
-                left.with_columns(pl.lit(0).alias(key))
-                .join(
-                    right.with_columns(pl.lit(0).alias(key)),
-                    on=key,
-                    how="full",
-                    coalesce=True,
-                    validate=validate,
-                )
-                .drop(key)
-            )
-        return left.join(
-            right,
-            on=list(keys),
-            how="full",
-            coalesce=True,
-            validate=validate,
-            nulls_equal=True,
-        )
+        """Full-join dataframes using the shared Polars merge implementation."""
+        return merge_module.full_join(left, right, keys, validate=validate)
 
     def left_join(
         self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "m:1"
     ) -> object:
-        """Left-join dataframes on keys, matching nulls and coalescing key columns."""
-        return left.join(
-            right,
-            on=list(keys),
-            how="left",
-            coalesce=True,
-            validate=validate,
-            nulls_equal=True,
-        )
+        """Left-join dataframes using the shared Polars merge implementation."""
+        return merge_module.left_join(left, right, keys, validate=validate)
 
     def cross_join(self, left: object, right: object) -> object:
-        """Return the Cartesian product of two dataframes."""
-        return left.join(right, how="cross")
+        """Return the Cartesian product using the shared Polars merge implementation."""
+        return merge_module.cross_join(left, right)
 
     def collect(self, frame: object) -> object:
         return frame.collect()

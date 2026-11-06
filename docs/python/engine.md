@@ -180,7 +180,22 @@ implementations.
 Backend methods operate only on dataframe values, column names, keys, and join
 cardinalities. Full, left, and cross joins are reusable operations. Backends do
 not know about profiles, main frames, fragments, or invocation contracts;
-dimension-aware assembly belongs to `MainFrame`.
+dimension-aware assembly is handled by the stateless Polars merge library.
+`MainFrame` delegates assembly to that library and owns accumulator state.
+
+### Merge functions
+
+`uptimely.library.merge.polars.merge_by_grain(target, fragment, target_keys,
+fragment_keys)` assembles a fragment using its carried keys. Equal key sets use
+a full join, a strict subset uses a left join, and an empty strict subset uses
+a cross join. With no target, only a fragment at the complete target grain can
+initialize the result. The function supports eager and lazy Polars dataframes.
+
+::: uptimely.library.merge.polars
+    options:
+      heading_level: 4
+      show_root_heading: false
+      members: [merge_by_grain]
 
 ### Adapter protocols
 

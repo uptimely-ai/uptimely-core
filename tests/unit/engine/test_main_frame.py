@@ -12,6 +12,7 @@ from uptimely.engine.dataframe import main_frame as main_frame_module
 from uptimely.engine.dataframe import validation as dataframe_validation
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
+from uptimely.library.merge import polars as merge_module
 from uptimely.spec import functions
 
 
@@ -21,7 +22,7 @@ from uptimely.spec import functions
 def test_main_frame_selects_merge_by_fragment_dimensions(
     lazy: bool, strict_cardinality: bool, grain: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    caplog.set_level(logging.DEBUG, logger=main_frame_module.__name__)
+    caplog.set_level(logging.DEBUG, logger=merge_module.__name__)
     initial = pl.DataFrame({"group": ["A", "A", "B"], "id": [1, 2, 3], "value": [10, 20, 30]})
     if grain == "same":
         contribution = pl.DataFrame({"id": [2, 4], "group": ["A", "C"], "new": [2, 4]})
@@ -67,7 +68,7 @@ def test_main_frame_selects_merge_by_fragment_dimensions(
 
 @pytest.mark.parametrize("lazy", [False, True])
 def test_main_frame_adopts_first_fragment(lazy: bool, caplog: pytest.LogCaptureFixture) -> None:
-    caplog.set_level(logging.DEBUG, logger=main_frame_module.__name__)
+    caplog.set_level(logging.DEBUG, logger=merge_module.__name__)
     data = pl.DataFrame({"id": [1], "value": [2]})
     frame = data.lazy() if lazy else data
     main = execution_support.main_frame(None, ["id"])
