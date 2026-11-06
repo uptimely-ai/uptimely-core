@@ -19,6 +19,7 @@ def test_named_function_kinds_match_the_public_contract() -> None:
         functions.EXPAND,
         functions.COLLAPSE,
         functions.VECTORIZE,
+        functions.MERGE,
     )
     assert tuple(functions.FUNCTION_KINDS) == expected_ids
     assert typing.get_args(functions.FunctionKindId) == expected_ids
@@ -357,7 +358,7 @@ def test_function_model_uses_the_shared_kind_contract() -> None:
 
 def test_function_capabilities_retain_the_current_execution_groups() -> None:
     assert all(
-        definition.produces_features == (kind != functions.WRITE)
+        definition.produces_features == (kind not in {functions.WRITE, functions.MERGE})
         for kind, definition in functions.FUNCTION_KINDS.items()
     )
     assert {

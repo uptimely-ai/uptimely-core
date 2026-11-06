@@ -8,6 +8,7 @@ REFERENCE_PREFIX: typing.Final[str] = "$"
 FEATURE_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}features."
 PROFILE_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}profiles."
 DIMENSION_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}dimensions."
+OPERATOR_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}operators."
 PARAMS_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}params."
 CURRENT_ID: typing.Final[str] = "@"
 ID_SELECTOR: typing.Final[str] = ".id"
@@ -31,6 +32,7 @@ __all__ = [
     "PROFILE_PREFIX",
     "PROFILE_GRAIN_IDS_SELECTOR",
     "DIMENSION_PREFIX",
+    "OPERATOR_PREFIX",
     "PARAMS_PREFIX",
     "FEATURE_PREFIX",
     "ID_SELECTOR",

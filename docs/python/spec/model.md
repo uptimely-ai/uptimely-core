@@ -69,9 +69,9 @@ are declarations. Feature and operator references retain declaration order.
 `operator.dataset_references` contains normalized profile IDs from nested binding
 arguments, retaining duplicates and the current-profile marker `@`. It reuses
 the binding's cached traversal and does not require a Spec.
-`operator.feature_selectors` exposes normalized feature IDs from binding arguments,
-including `@` and duplicates; it is separate from the explicitly declared
-`operator.input_features`.
+`operator.feature_selectors` exposes normalized feature IDs from compute
+binding arguments, including `@` and duplicates. Merge bindings do not accept
+feature references; joins use dimension keys instead.
 `operator.dimensions_references` likewise exposes normalized dimension IDs.
 `operator.dimension_reference_paths` additionally retains each reference's relative
 binding argument path for diagnostics. Both reuse the same cached binding traversal.
@@ -82,8 +82,8 @@ only the binding argument mapping.
 Context-dependent views live on the Spec rather than wrapper objects:
 `dimensions_by_profile` uses profile keys;
 `input_candidates`, `input_sources`, `operator_arguments`, `dataset_argument_sources`,
-`dataset_argument_ids`, `dataset_argument_grain_keys`, `matching_profile_keys`, and
-`binding_selectors` use operator keys. Unresolved and ambiguous resources remain
+`dataset_argument_ids`, `dataset_argument_grain_keys`, and `matching_profile_keys`
+use operator keys. Unresolved and ambiguous resources remain
 visible to validators. `declaration_paths` preserves operator dictionary keys for
 binding diagnostics; `operator_paths` preserves model IDs for contract diagnostics.
 `get_row_context_profile(operator_key)` returns the profile whose observations the
@@ -93,9 +93,10 @@ other operations use the target. Both return `None` for an unresolved source.
 Row context itself remains available directly as `operator.row_context`.
 `Binding.dataset_input_references` contains ordered profile dataframe references,
 retaining duplicates and `@` while excluding identifier and dimension-list selectors.
-`binding_selectors_with_paths` flattens `binding_selectors` into ordered
-`(binding_args_path, value, argument_type)` tuples for validation. These paths
-identify the operator's binding argument collection, not individual nested leaves.
+`binding_selectors_with_paths` returns ordered
+`(binding_args_path, value, argument_type)` tuples for validation, deriving each
+selector's type from its function argument. These paths identify the operator's
+binding argument collection, not individual nested leaves.
 
 <div class="api-reference" markdown="1">
 
@@ -107,7 +108,7 @@ identify the operator's binding argument collection, not individual nested leave
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Spec, SPEC_VERSION]
+      members: [Spec, Options, SPEC_VERSION]
 
 ## common
 

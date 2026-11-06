@@ -19,11 +19,12 @@ from .profile import (
     Order,
     Profile,
 )
-from .spec import SPEC_VERSION, OperatorKey, ProfileKey, Spec
+from .spec import SPEC_VERSION, OperatorKey, Options, ProfileKey, Spec
 
 __all__ = [
     "SPEC_VERSION",
     "Spec",
+    "Options",
     "SpecSource",
     "Argument",
     "Binding",

@@ -15,7 +15,10 @@ from . import profile as profile_module
 
 __all__ = [
     "Spec",
+    "Options",
 ]
+
+Options = spec_model.Options
 
 
 @dataclasses.dataclass(frozen=True)
@@ -25,9 +28,11 @@ class Spec:
     Args:
         profiles: Profile classes or declarations with globally unique IDs.
         name: Optional spec display name.
+        options: Build-time Spec options. Omitted options use merge mode ``auto``.
     """
 
     name: str | None = None
+    options: Options = dataclasses.field(default_factory=Options)
     _profile_sources: abc.Sequence[type[profile_module.Profile] | profile_module.Profile] = (
         dataclasses.field(init=False, repr=False)
     )
@@ -36,8 +41,12 @@ class Spec:
         self,
         profiles: abc.Sequence[type[profile_module.Profile] | profile_module.Profile],
         name: str | None = None,
+        options: Options | None = None,
     ) -> None:
         object.__setattr__(self, "name", name)
+        if options is not None and not isinstance(options, Options):
+            raise TypeError("options must be an Options declaration")
+        object.__setattr__(self, "options", options or Options())
         object.__setattr__(self, "_profile_sources", profiles)
 
     @functools.cached_property
@@ -73,6 +82,7 @@ class Spec:
             profiles=self.profiles,
             functions=self.function_catalog(),
             name=self.name,
+            options=self.options,
         )
 
     def to_dict(self) -> dict[str, typing.Any]:
@@ -81,4 +91,5 @@ class Spec:
             profiles=self.profiles,
             functions=self.function_catalog(),
             name=self.name,
+            options=self.options,
         )

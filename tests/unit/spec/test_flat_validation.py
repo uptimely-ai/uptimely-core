@@ -187,7 +187,7 @@ def test_atomic_rules_accept_spec_and_do_not_mutate(
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
+@pytest.mark.parametrize("kind", [kind for kind in functions.FUNCTION_KINDS if kind != "merge"])
 def test_full_validation_preserves_valid_function_kinds(kind: functions.FunctionKindId) -> None:
     spec = make_spec(kind)
     before = spec.model_dump()
@@ -195,7 +195,7 @@ def test_full_validation_preserves_valid_function_kinds(kind: functions.Function
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
+@pytest.mark.parametrize("kind", [kind for kind in functions.FUNCTION_KINDS if kind != "merge"])
 def test_source_discovery_visits_every_operator_kind(kind: functions.FunctionKindId) -> None:
     spec = make_spec(kind)
     before = spec.model_dump()
@@ -213,7 +213,7 @@ def test_source_discovery_visits_every_operator_kind(kind: functions.FunctionKin
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
+@pytest.mark.parametrize("kind", [kind for kind in functions.FUNCTION_KINDS if kind != "merge"])
 @pytest.mark.parametrize(
     "inputs",
     [[], ["machine"], ["missing"], ["s", "x"], ["s", "missing"]],
@@ -232,7 +232,7 @@ def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
+@pytest.mark.parametrize("kind", [kind for kind in functions.FUNCTION_KINDS if kind != "merge"])
 def test_source_discovery_does_not_choose_an_ambiguous_owner(
     kind: functions.FunctionKindId,
 ) -> None:
@@ -383,7 +383,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "requires 1 dataframe",
         ),
         (
-            operator_outputs.validate_function_reference,
+            operator_outputs.validate_compute_function_exists,
             "vectorize",
             lambda s: setattr(compute(s).compute, "function", "missing"),
             "unknown functions",

@@ -205,15 +205,15 @@ def test_vectorize_merge_field_is_rejected_by_json_and_python_authoring(
     configuration = json.loads(path.read_text())
     configuration["profiles"]["observations"]["assembly"]["result"]["merge"] = {}
     path.write_text(json.dumps(configuration))
-    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+    with pytest.raises(ValueError, match="merge.function"):
         spec.load_spec(path)
 
-    with pytest.raises(TypeError, match="unexpected keyword argument 'merge'"):
+    with pytest.raises(ValueError, match="Vectorize operators cannot declare a merge binding"):
         assembly.Operator(
             id="vectorize",
             interface=assembly.Interface(),
             compute=assembly.Binding(function=ref.function(add_one, kind="vectorize")),
-            merge=assembly.Binding(function=ref.function(add_one, kind="vectorize")),
+            merge=assembly.Binding(function=ref.function(add_one, kind="merge")),
         )
 
 

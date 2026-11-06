@@ -6,8 +6,11 @@ import typing
 import pytest
 
 from uptimely.spec import functions
+from uptimely.spec import model as spec_model
 from uptimely.spec import python as authoring
 from uptimely.spec.python import conversion, dimension, ref, row_context
+from uptimely.spec.validation import errors as validation_errors
+from uptimely.spec.validation import validate_spec
 
 
 @authoring.function(kind="vectorize")
@@ -471,7 +474,9 @@ def test_operator_rejects_invalid_identifiers(identifier: typing.Any) -> None:
         )
 
 
-@pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
+@pytest.mark.parametrize(
+    "kind", [kind for kind in functions.FUNCTION_KINDS if kind != functions.MERGE]
+)
 def test_operator_accept_every_declared_function_kind(kind: functions.FunctionKindId) -> None:
     operator = authoring.Operator(
         id="work",
@@ -485,7 +490,69 @@ def test_operator_accept_every_declared_function_kind(kind: functions.FunctionKi
     )
     declaration = authoring.Profile(id="example", assembly=[operator])
     assert declaration.to_model().assembly["work"] == operator.to_model()
-    assert declaration.function_catalog()["work"].kind == kind
+    assert declaration.function_catalog()[operator.catalog_id].kind == kind
+
+
+@authoring.function(kind="merge")
+def merge_frames(target: object | None, fragment: object) -> object:
+    """Return the merged dataframe."""
+    return target if target is not None else fragment
+
+
+@authoring.function(kind="read")
+def read_frames() -> object:
+    """Return source observations."""
+    return object()
+
+
+def test_python_spec_merge_binding_and_options_export() -> None:
+    operator = authoring.Operator(
+        id="read",
+        interface=authoring.Interface(outputs=[authoring.Feature(id="value")]),
+        compute=authoring.Binding(function=read_frames),
+        merge=authoring.Binding(
+            function=merge_frames,
+            arguments={
+                "target": ref.data(),
+                "fragment": ref.fragment(),
+            },
+        ),
+    )
+    declaration = authoring.Profile(id="example", assembly=[operator])
+    spec_definition = authoring.Spec(
+        profiles=[declaration],
+        options=authoring.Options(merge="explicit"),
+    ).to_model()
+    validate_spec(spec_definition)
+    model_operator = spec_definition.profiles["example"].assembly["read"]
+
+    assert spec_definition.spec_version == 6
+    assert spec_definition.options.merge == "explicit"
+    assert model_operator.merge is not None
+    assert model_operator.merge.args == {
+        "target": "$profiles.@.dataframe",
+        "fragment": "$operators.@.fragment",
+    }
+    assert spec_definition.functions["merge_frames"].kind == functions.MERGE
+    assert spec_definition.functions["merge_frames"].args["target"].type == "dataframe | null"
+    assert spec_definition.functions["merge_frames"].args["fragment"].type == "dataframe"
+    assert spec_definition.model_dump()["options"] == {"merge": "explicit"}
+    assert authoring.Spec(profiles=[declaration]).to_dict()["options"] == {"merge": "auto"}
+    validate_spec(spec_model.Spec.model_validate(spec_definition.model_dump()))
+
+    invalid_spec = spec_model.Spec.model_validate(spec_definition.model_dump())
+    merge_template = invalid_spec.functions["merge_frames"]
+    merge_template.args["feature"] = spec_model.Argument(id="feature", type="string")
+    invalid_spec.profiles["example"].assembly["read"].merge.args["feature"] = "$features.value"
+    with pytest.raises(validation_errors.SpecError, match="cannot reference features") as error:
+        validate_spec(invalid_spec)
+    assert error.value.code == "invalid_merge_feature_reference"
+
+
+@pytest.mark.parametrize("merge_mode", ["off", "", None, 1])
+def test_spec_options_reject_unsupported_merge_modes(merge_mode: object) -> None:
+    with pytest.raises(ValueError):
+        authoring.Options(merge=merge_mode)
 
 
 @pytest.mark.parametrize("invalid", ["invalid", [object()], [None]])

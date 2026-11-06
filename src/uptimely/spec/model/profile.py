@@ -64,10 +64,11 @@ class Interface(common.StrictModel):
 
 
 class Operator(common.StrictModel):
-    """A computation with declared feature inputs, outputs, and row context."""
+    """A computation with declared feature inputs, outputs, and optional merge."""
 
     id: str = pydantic.Field(exclude=True)
     compute: common.Binding
+    merge: common.Binding | None = None
     interface: Interface = pydantic.Field(default_factory=Interface)
     row_context: uptimely_row_context.RowContext | None = None
 

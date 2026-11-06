@@ -5,6 +5,7 @@ from __future__ import annotations
 import typing
 
 DATAFRAME: typing.Final[str] = "dataframe"
+OPTIONAL_DATAFRAME: typing.Final[str] = "dataframe | null"
 STRING: typing.Final[str] = "string"
 INTEGER: typing.Final[str] = "integer"
 FLOAT: typing.Final[str] = "float"
@@ -48,12 +49,18 @@ def object_value_type(type_expression: str) -> str | None:
     return None
 
 
+def is_dataframe(type_expression: str) -> bool:
+    """Return whether an argument accepts a dataframe, optionally including null."""
+    return type_expression in {DATAFRAME, OPTIONAL_DATAFRAME}
+
+
 __all__ = [
     "ARRAY",
     "ATOMIC_ARGUMENT_TYPES",
     "AtomicArgumentType",
     "BOOLEAN",
     "DATAFRAME",
+    "OPTIONAL_DATAFRAME",
     "FLOAT",
     "INTEGER",
     "OBJECT",
@@ -62,4 +69,5 @@ __all__ = [
     "array_of",
     "object_value_type",
     "object_values_of",
+    "is_dataframe",
 ]

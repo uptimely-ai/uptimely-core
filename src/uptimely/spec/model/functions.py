@@ -39,7 +39,10 @@ class FunctionTemplate(common.StrictModel):
         """Return argument declarations grouped by type in declaration order."""
         grouped: dict[str, dict[str, common.Argument]] = {}
         for argument_id, argument in self.args.items():
-            grouped.setdefault(argument.type, {})[argument_id] = argument
+            argument_type = (
+                arg_types.DATAFRAME if arg_types.is_dataframe(argument.type) else argument.type
+            )
+            grouped.setdefault(argument_type, {})[argument_id] = argument
         return grouped
 
 

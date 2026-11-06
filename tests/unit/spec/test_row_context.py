@@ -309,7 +309,7 @@ def test_directional_context_requires_dataset_order():
     _spec(authoring.dataset(), ordered=False)
 
 
-@pytest.mark.parametrize("kind", list(functions.FUNCTION_KINDS))
+@pytest.mark.parametrize("kind", [kind for kind in functions.FUNCTION_KINDS if kind != "merge"])
 @pytest.mark.parametrize("dimension_change", ["preserve", "remove"])
 def test_row_context_dataset_selection_follows_dimension_contract(
     kind: functions.FunctionKindId,

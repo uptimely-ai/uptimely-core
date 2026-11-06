@@ -204,9 +204,9 @@ function's internal steps.
 
 Python profiles expose declarations through `Profile.assembly`; canonical
 documents and exported JSON use the same `assembly` key.
-The current JSON contract is spec version 5. JSON profiles use an `assembly`
-mapping whose operators declare `compute` and `interface`; see the
-[spec migration guide](../components/spec.md#migrating-from-spec-version-4).
+The current JSON contract is spec version 6. JSON profiles use an `assembly`
+mapping whose operators declare `compute`, optionally `merge`, and `interface`;
+see the [spec migration guide](../components/spec.md#migrating-from-spec-version-5).
 
 <div class="api-reference" markdown="1">
 
