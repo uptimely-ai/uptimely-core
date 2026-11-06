@@ -158,9 +158,12 @@ test("profile operator expose engineering contracts and inspectable bindings", a
     interface: { inputs: [], outputs: ["$features.<logical>"] },
   };
   const html = renderCatalog(data, "profiles").content;
-  assert.ok(html.indexOf("Produced schema</h3>") < html.indexOf("Operator</h3>"));
+  assert.ok(html.indexOf("Produced schema</h3>") < html.indexOf("Assembly</h3>"));
   assert.match(html, /Produced schema<\/h3><div class="ui-table-scroll profile-schema-scroll/);
-  assert.match(html, /class="ui-section-title">Operator<\/h3>/);
+  assert.match(html, /class="ui-section-title">Assembly<\/h3>/);
+  assert.match(html, /profile-operator-label">OPERATOR<\/span>/);
+  assert.match(html, /<div class="profile-operator-list">/);
+  assert.doesNotMatch(html, /<div class="profile-operator">/);
   assert.match(html, /data-profile-operator="aggregate" data-operator-kind="collapse"/);
   assert.match(html, /href="\?view=functions#function-aggregate">Maximum &lt;reading&gt;<\/a>/);
   assert.match(html, /Input features<\/dt><dd><code>raw<\/code>/);

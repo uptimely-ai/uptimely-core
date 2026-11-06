@@ -54,7 +54,7 @@
 .profile-grain-fields code { color: inherit; font: inherit; }
 .profile-schema-type-icon { width: 15px; height: 15px; color: inherit; stroke-width: 2; }
 
-.profile-operator { display: grid; gap: 16px; margin-top: 12px; }
+.profile-operator-list { display: grid; gap: 16px; margin-top: 12px; }
 .profile-operator { --operator-accent: var(--color-accent); min-width: 0; overflow: hidden; border: 1px solid #334155; border-radius: 10px; background: #0b1220; }
 .profile-operator-header { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid #1e293b; }
 .profile-operator-symbol { display: grid; flex: 0 0 34px; height: 34px; place-items: center; border: 1px solid #334155; border-radius: 7px; color: var(--color-muted); }

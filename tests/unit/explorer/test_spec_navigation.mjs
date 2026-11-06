@@ -126,7 +126,10 @@ test("profile details show every declared operator in order including vectorized
 
   configuration.profiles.telemetry.assembly = { calculate: assembly.operator_1 };
   const vectorizedOnly = render();
-  assert.match(vectorizedOnly, />Operator<\/h3>/);
+  assert.match(vectorizedOnly, />Assembly<\/h3>/);
+  assert.match(vectorizedOnly, /profile-operator-label">OPERATOR<\/span>/);
+  assert.match(vectorizedOnly, /profile-operator-list/);
+  assert.doesNotMatch(vectorizedOnly, /<div class="profile-operator">/);
   assert.match(vectorizedOnly, /data-profile-operator="calculate" data-operator-kind="vectorize"/);
 });
 
