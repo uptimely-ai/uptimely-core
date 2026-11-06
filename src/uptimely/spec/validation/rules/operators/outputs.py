@@ -62,16 +62,59 @@ def validate_dimension_collision(spec: spec_model.Spec) -> None:
             )
 
 
-def validate_function_reference(spec: spec_model.Spec) -> None:
-    """Require an operator's function reference to resolve in the catalog."""
-    logger.debug("    - checking operator function references")
+def validate_compute_function_exists(spec: spec_model.Spec) -> None:
+    """Require compute function references to resolve."""
+    logger.debug("    - checking compute functions exist")
     for key, operator in spec.operator_items:
         function_id = operator.compute.function
-        if function_id not in spec.functions:
+        if function_id not in spec.functions.root:
             raise errors.SpecError(
                 f"Profile {key[0]} operators reference unknown functions: {function_id}",
                 code="unknown_function_reference",
                 path=(*spec.declaration_paths[key], "compute", "function"),
+            )
+
+
+def validate_compute_function_kind(spec: spec_model.Spec) -> None:
+    """Reject merge functions used as compute functions."""
+    logger.debug("    - checking compute functions are not merge functions")
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
+        if function is not None and function.kind == functions.MERGE:
+            raise errors.SpecError(
+                "Merge functions must be declared in Operator.merge",
+                code="invalid_merge_binding",
+                path=(*spec.declaration_paths[key], "compute", "function"),
+            )
+
+
+def validate_merge_function_exists(spec: spec_model.Spec) -> None:
+    """Require declared merge function references to resolve."""
+    logger.debug("    - checking merge functions exist")
+    for key, operator in spec.operator_items:
+        if operator.merge is None:
+            continue
+        function_id = operator.merge.function
+        if function_id not in spec.functions.root:
+            raise errors.SpecError(
+                f"Profile {key[0]} operators reference unknown functions: {function_id}",
+                code="unknown_function_reference",
+                path=(*spec.declaration_paths[key], "merge", "function"),
+            )
+
+
+def validate_merge_function_kind(spec: spec_model.Spec) -> None:
+    """Require declared merge functions to have kind ``merge``."""
+    logger.debug("    - checking merge functions have kind 'merge'")
+    for key, operator in spec.operator_items:
+        if operator.merge is None:
+            continue
+        function = spec.functions.root.get(operator.merge.function)
+        if function is not None and function.kind != functions.MERGE:
+            raise errors.SpecError(
+                "Operator.merge must reference a function of kind 'merge'",
+                code="invalid_merge_binding",
+                path=(*spec.declaration_paths[key], "merge", "function"),
             )
 
 

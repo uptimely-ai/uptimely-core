@@ -26,6 +26,15 @@ logger = logging.getLogger(__name__)
 
 type Validator = collections.abc.Callable[[spec_model.Spec], None]
 
+COMPUTE_FUNCTION_VALIDATORS: tuple[Validator, ...] = (
+    operator_outputs.validate_compute_function_exists,
+    operator_outputs.validate_compute_function_kind,
+)
+MERGE_FUNCTION_VALIDATORS: tuple[Validator, ...] = (
+    operator_outputs.validate_merge_function_exists,
+    operator_outputs.validate_merge_function_kind,
+)
+
 VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     profile_identity.validate_profile_ids: (),
     features.validate_feature_ownership: (),
@@ -39,14 +48,24 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     profile_identity.validate_unique_order_dimension: (),
     functions.validate_return_kind: (),
     functions.validate_dataframe_count: (),
-    operator_outputs.validate_function_reference: (),
-    operator_outputs.validate_function_id: (operator_outputs.validate_function_reference,),
-    operator_outputs.validate_output_names: (operator_outputs.validate_function_reference,),
-    operator_outputs.validate_output_presence: (operator_outputs.validate_function_reference,),
-    operator_outputs.validate_nonproducing_outputs: (operator_outputs.validate_function_reference,),
-    operator_outputs.validate_dimension_collision: (operator_outputs.validate_function_reference,),
+    functions.validate_nullable_dataframe_arguments: (functions.validate_dataframe_count,),
+    functions.validate_merge_target_argument: (functions.validate_dataframe_count,),
+    functions.validate_merge_fragment_argument: (functions.validate_dataframe_count,),
+    operator_outputs.validate_compute_function_exists: (),
+    operator_outputs.validate_compute_function_kind: (
+        operator_outputs.validate_compute_function_exists,
+    ),
+    operator_outputs.validate_merge_function_exists: (),
+    operator_outputs.validate_merge_function_kind: (
+        operator_outputs.validate_merge_function_exists,
+    ),
+    operator_outputs.validate_function_id: COMPUTE_FUNCTION_VALIDATORS,
+    operator_outputs.validate_output_names: COMPUTE_FUNCTION_VALIDATORS,
+    operator_outputs.validate_output_presence: COMPUTE_FUNCTION_VALIDATORS,
+    operator_outputs.validate_nonproducing_outputs: COMPUTE_FUNCTION_VALIDATORS,
+    operator_outputs.validate_dimension_collision: COMPUTE_FUNCTION_VALIDATORS,
     operator_outputs.validate_output_feature: (
-        operator_outputs.validate_function_reference,
+        *COMPUTE_FUNCTION_VALIDATORS,
         operator_outputs.validate_nonproducing_outputs,
     ),
     operator_outputs.validate_unique_producer: (
@@ -62,14 +81,25 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
     operator_inputs.validate_input_feature: (),
     operator_inputs.validate_input_scope: (
         operator_inputs.validate_input_feature,
-        operator_outputs.validate_function_reference,
+        *COMPUTE_FUNCTION_VALIDATORS,
     ),
     operator_inputs.validate_feature_reference: (),
     operator_inputs.validate_dataset_reference: (profile_identity.validate_profile_ids,),
     operator_inputs.validate_dimension_reference: (),
-    bindings.validate_arguments: (operator_outputs.validate_function_reference,),
+    bindings.validate_arguments: (
+        *COMPUTE_FUNCTION_VALIDATORS,
+        *MERGE_FUNCTION_VALIDATORS,
+    ),
     bindings.validate_selector_type: (bindings.validate_arguments,),
-    operator_inputs.validate_source_feature: (operator_outputs.validate_function_reference,),
+    bindings.validate_selector_metadata: (bindings.validate_arguments,),
+    bindings.validate_merge_operator_kind: (
+        *COMPUTE_FUNCTION_VALIDATORS,
+        *MERGE_FUNCTION_VALIDATORS,
+    ),
+    bindings.validate_merge_target: (bindings.validate_arguments,),
+    bindings.validate_merge_fragment: (bindings.validate_arguments,),
+    bindings.validate_merge_feature_references: (),
+    operator_inputs.validate_source_feature: (*COMPUTE_FUNCTION_VALIDATORS,),
     operator_inputs.validate_feature_owner: (
         features.validate_feature_ownership,
         operator_inputs.validate_input_feature,
@@ -121,7 +151,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         profiles.validate_unique_grain_keys,
     ),
     operator_contracts.validate_input_feature_source_count: (
-        operator_outputs.validate_function_reference,
+        *COMPUTE_FUNCTION_VALIDATORS,
         features.validate_feature_ownership,
         operator_inputs.validate_input_feature,
     ),
@@ -136,9 +166,7 @@ VALIDATION_DEPENDENCIES: dict[Validator, tuple[Validator, ...]] = {
         operator_contracts.validate_dataset_argument_feature_source,
         profiles.validate_unique_grain_keys,
     ),
-    operator_contracts.validate_feature_input_scope: (
-        operator_outputs.validate_function_reference,
-    ),
+    operator_contracts.validate_feature_input_scope: (*COMPUTE_FUNCTION_VALIDATORS,),
     operator_contracts.validate_target_dataset_input: (
         operator_contracts.validate_dataset_argument_source,
     ),

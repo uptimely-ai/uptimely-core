@@ -13,7 +13,7 @@ from uptimely import spec
 from uptimely.spec import functions as function_kinds
 from uptimely.spec.validation import errors
 from uptimely.spec.validation import spec as spec_validation
-from uptimely.spec.validation.rules import functions
+from uptimely.spec.validation.rules import bindings, functions
 from uptimely.spec.validation.rules.operators import contracts as operator_contracts
 from uptimely.spec.validation.rules.operators import outputs as operator_outputs
 
@@ -68,7 +68,7 @@ def test_failed_spec_validation_logs_the_failing_check_before_stopping(
         spec_validation.validate_spec(document)
 
     assert error.value.code == "unknown_function_reference"
-    assert caplog.messages[-1] == "    - checking operator function references"
+    assert caplog.messages[-1] == "    - checking compute functions exist"
     assert (
         "    - checking binding argument names match function declarations" not in caplog.messages
     )
@@ -95,13 +95,180 @@ def test_unknown_function_error_uses_declaration_path(
     validate = (
         spec_validation.validate_spec
         if use_runner
-        else operator_outputs.validate_function_reference
+        else operator_outputs.validate_compute_function_exists
     )
     with pytest.raises(errors.SpecError) as error:
         validate(document)
     assert error.value.code == "unknown_function_reference"
     assert error.value.path == (*document.declaration_paths[key], "compute", "function")
     assert "missing_function" in str(error.value)
+
+
+def test_unknown_merge_function_error_uses_declaration_path(document: spec.Spec) -> None:
+    key, item = document.operator_items[0]
+    item.merge = spec.model.Binding(function="missing_merge")
+
+    with pytest.raises(errors.SpecError) as error:
+        operator_outputs.validate_merge_function_exists(document)
+
+    assert error.value.code == "unknown_function_reference"
+    assert error.value.path == (*document.declaration_paths[key], "merge", "function")
+    assert "missing_merge" in str(error.value)
+
+
+def test_compute_function_kind_is_validated_independently(document: spec.Spec) -> None:
+    key, operator = document.operator_items[0]
+    document.functions.root[operator.compute.function].kind = function_kinds.MERGE
+
+    with pytest.raises(errors.SpecError, match="must be declared in Operator.merge") as error:
+        operator_outputs.validate_compute_function_kind(document)
+
+    assert error.value.code == "invalid_merge_binding"
+    assert error.value.path == (*document.declaration_paths[key], "compute", "function")
+
+
+def test_merge_binding_rejects_non_merge_function(document: spec.Spec) -> None:
+    _, item = document.operator_items[0]
+    item.merge = spec.model.Binding(function=item.compute.function)
+
+    with pytest.raises(errors.SpecError, match="function of kind 'merge'"):
+        operator_outputs.validate_merge_function_kind(document)
+
+
+def _add_merge_binding(document: spec.Spec) -> spec.model.Operator:
+    _, operator = document.operator_items[0]
+    document.functions.root["merge"] = spec.model.FunctionTemplate(
+        id="merge",
+        kind="merge",
+        returns="dataframe",
+        entrypoint="merge",
+        validate_signature=False,
+        args={
+            "target": spec.model.Argument(id="target", type="dataframe | null"),
+            "fragment": spec.model.Argument(id="fragment", type="dataframe"),
+        },
+    )
+    operator.merge = spec.model.Binding(
+        function="merge",
+        args={
+            "target": "$profiles.@.dataframe",
+            "fragment": "$operators.@.fragment",
+        },
+    )
+    return operator
+
+
+def test_merge_operator_kind_is_validated_independently(document: spec.Spec) -> None:
+    operator = _add_merge_binding(document)
+    document.functions.root[operator.compute.function].kind = "vectorize"
+
+    with pytest.raises(errors.SpecError, match="Vectorize operators cannot declare") as error:
+        bindings.validate_merge_operator_kind(document)
+
+    assert error.value.code == "invalid_merge_binding"
+
+
+def test_merge_target_is_validated_independently(document: spec.Spec) -> None:
+    operator = _add_merge_binding(document)
+    operator.merge.args["target"] = "$profiles.other.dataframe"
+
+    with pytest.raises(errors.SpecError, match="current profile dataframe") as error:
+        bindings.validate_merge_target(document)
+
+    assert error.value.code == "invalid_merge_binding"
+    assert error.value.path[-3:] == ("merge", "args", "target")
+
+
+def test_merge_fragment_is_validated_independently(document: spec.Spec) -> None:
+    operator = _add_merge_binding(document)
+    operator.merge.args["fragment"] = "$operators.other.fragment"
+
+    with pytest.raises(errors.SpecError, match="staged fragment") as error:
+        bindings.validate_merge_fragment(document)
+
+    assert error.value.code == "invalid_merge_binding"
+    assert error.value.path[-3:] == ("merge", "args", "fragment")
+
+
+def test_merge_feature_references_are_validated_independently(document: spec.Spec) -> None:
+    operator = _add_merge_binding(document)
+    operator.merge.args["feature"] = "$features.value"
+
+    with pytest.raises(errors.SpecError, match="cannot reference features") as error:
+        bindings.validate_merge_feature_references(document)
+
+    assert error.value.code == "invalid_merge_feature_reference"
+
+
+def test_selector_metadata_is_validated_independently(document: spec.Spec) -> None:
+    key, operator = document.operator_items[0]
+    function = document.functions.root[operator.compute.function]
+    function.args["metadata"] = spec.model.Argument(id="metadata", type="object{str: string}")
+    operator.compute.args["metadata"] = {"nested": "$dimensions.missing.name"}
+
+    with pytest.raises(errors.SpecError, match="Cannot resolve resource metadata") as error:
+        bindings.validate_selector_metadata(document)
+
+    assert error.value.code == "invalid_binding_selector"
+    assert error.value.path == (
+        *document.declaration_paths[key],
+        "compute",
+        "args",
+        "metadata",
+        "nested",
+    )
+
+
+def _add_merge_function(document: spec.Spec) -> spec.model.FunctionTemplate:
+    function = spec.model.FunctionTemplate(
+        id="merge",
+        kind="merge",
+        returns="dataframe",
+        entrypoint="merge",
+        validate_signature=False,
+        args={
+            "target": spec.model.Argument(id="target", type="dataframe | null"),
+            "fragment": spec.model.Argument(id="fragment", type="dataframe"),
+        },
+    )
+    document.functions.root[function.id] = function
+    return function
+
+
+def test_nullable_dataframe_argument_is_rejected_for_non_merge_function(
+    document: spec.Spec,
+) -> None:
+    function = next(
+        function
+        for function in document.functions.root.values()
+        if function.kind != function_kinds.MERGE
+    )
+    function.args["nullable"] = spec.model.Argument(id="nullable", type="dataframe | null")
+
+    with pytest.raises(errors.SpecError, match="reserved for merge functions") as error:
+        functions.validate_nullable_dataframe_arguments(document)
+
+    assert error.value.code == "invalid_function_input_contract"
+
+
+def test_merge_target_argument_is_validated_independently(document: spec.Spec) -> None:
+    function = _add_merge_function(document)
+    function.args["target"].type = "dataframe"
+
+    with pytest.raises(errors.SpecError, match="target as 'dataframe \\| null'") as error:
+        functions.validate_merge_target_argument(document)
+
+    assert error.value.code == "invalid_function_input_contract"
+
+
+def test_merge_fragment_argument_is_validated_independently(document: spec.Spec) -> None:
+    function = _add_merge_function(document)
+    function.args["fragment"].type = "string"
+
+    with pytest.raises(errors.SpecError, match="fragment as 'dataframe'") as error:
+        functions.validate_merge_fragment_argument(document)
+
+    assert error.value.code == "invalid_function_input_contract"
 
 
 def test_function_rules_raise_independently(document: spec.Spec) -> None:

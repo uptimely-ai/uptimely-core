@@ -14,6 +14,7 @@ __all__ = [
     "dimension",
     "profile",
     "data",
+    "fragment",
     "params",
     "function",
 ]
@@ -42,6 +43,14 @@ def profile(name: str | None = None) -> references.ProfileReference:
 def data(name: str | None = None) -> references.Reference:
     """Select a named profile's runtime data, or the current profile's data."""
     return profile(name).data
+
+
+def fragment() -> references.Reference:
+    """Select the current operator's staged fragment dataframe."""
+    return references.Reference(
+        kind=arg_types.DATAFRAME,
+        value=f"{selectors.OPERATOR_PREFIX}{selectors.CURRENT_ID}.fragment",
+    )
 
 
 def params(name: str) -> references.Params:

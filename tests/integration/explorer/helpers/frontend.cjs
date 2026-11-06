@@ -14,7 +14,7 @@ function sampleData() {
   const column = { name: "value", label: "<Value>", role: "Output", type: "float" };
   return {
     format_version: 1,
-    project: { name: "<Test project>", spec_version: 5 },
+    project: { name: "<Test project>", spec_version: 6 },
     scope: { label: "all features", is_scoped: false },
     catalogs: {
       configuration: {

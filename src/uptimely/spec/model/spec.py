@@ -17,7 +17,7 @@ from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
 
-SPEC_VERSION = 5
+SPEC_VERSION = 6
 type ProfileKey = str
 type OperatorKey = tuple[ProfileKey, str]
 type SpecPath = tuple[str | int, ...]
@@ -56,14 +56,44 @@ class _ResourceIndex:
     declaration_paths: dict[OperatorKey, SpecPath] = dataclasses.field(default_factory=dict)
 
 
+def _typed_binding_values(
+    binding: common.Binding,
+    catalog: typing.Mapping[str, functions_module.FunctionTemplate],
+) -> typing.Iterator[tuple[object, str]]:
+    """Yield binding values with types inherited from their function arguments."""
+    function = catalog.get(binding.function)
+    if function is None:
+        return
+    for value, path in binding.values_with_paths:
+        argument = function.args.get(path[0]) if isinstance(path[0], str) else None
+        if argument is None:
+            continue
+        argument_type = argument.type
+        for segment in path[1:]:
+            item_type = (
+                arg_types.array_item_type(argument_type)
+                if isinstance(segment, int)
+                else arg_types.object_value_type(argument_type)
+            )
+            argument_type = item_type or arg_types.STRING
+        yield value, argument_type
+
+
+class Options(common.StrictModel):
+    """Build-time options that affect Spec interpretation."""
+
+    merge: typing.Literal["auto", "explicit"] = "auto"
+
+
 class Spec(common.StrictModel):
     """The complete JSON document; cached views assume declarations are unchanged."""
 
     name: str | None = None
-    spec_version: typing.Literal[5] = SPEC_VERSION
+    spec_version: typing.Literal[6] = SPEC_VERSION
     source: common.SpecSource = pydantic.Field(
         default_factory=lambda: common.SpecSource(name="manual", generated=False)
     )
+    options: Options = pydantic.Field(default_factory=Options)
     dimensions: dict[str, common.Dimension] = pydantic.Field(default_factory=dict)
     functions: functions_module.FunctionCatalog = pydantic.Field(
         default_factory=functions_module.FunctionCatalog
@@ -115,6 +145,10 @@ class Spec(common.StrictModel):
                 indexes.operator_paths[key] = (*base, operator_id)
                 indexes.declaration_paths[key] = (*base, operator_id)
                 indexes.operators_by_function.setdefault(operator.compute.function, []).append(key)
+                if operator.merge is not None:
+                    indexes.operators_by_function.setdefault(operator.merge.function, []).append(
+                        key
+                    )
                 for feature_id in operator.output_features:
                     indexes.feature_producers.setdefault(feature_id, []).append(key)
         return indexes
@@ -364,37 +398,19 @@ class Spec(common.StrictModel):
         }
 
     @functools.cached_property
-    def binding_selectors(self) -> dict[OperatorKey, tuple[tuple[object, str], ...]]:
-        """Return supplied binding leaves with their inherited argument types."""
-        result: dict[OperatorKey, tuple[tuple[object, str], ...]] = {}
-        for key, operator in self.operator_items:
-            values: list[tuple[object, str]] = []
-            function = self.functions.root.get(operator.compute.function)
-            if function is not None:
-                for value, path in operator.compute.values_with_paths:
-                    argument = function.args.get(path[0]) if isinstance(path[0], str) else None
-                    if argument is None:
-                        continue
-                    argument_type = argument.type
-                    for segment in path[1:]:
-                        item_type = (
-                            arg_types.array_item_type(argument_type)
-                            if isinstance(segment, int)
-                            else arg_types.object_value_type(argument_type)
-                        )
-                        argument_type = item_type or arg_types.STRING
-                    values.append((value, argument_type))
-            result[key] = tuple(values)
-        return result
-
-    @functools.cached_property
     def binding_selectors_with_paths(self) -> tuple[tuple[SpecPath, object, str], ...]:
         """Return binding leaves and argument types with their binding argument paths."""
-        return tuple(
-            ((*self.declaration_paths[key], "compute", "args"), value, argument_type)
-            for key, values in self.binding_selectors.items()
-            for value, argument_type in values
-        )
+        values: list[tuple[SpecPath, object, str]] = []
+        for key, operator in self.operator_items:
+            for name, binding in (("compute", operator.compute), ("merge", operator.merge)):
+                if binding is None:
+                    continue
+                binding_path = (*self.declaration_paths[key], name, "args")
+                values.extend(
+                    (binding_path, value, argument_type)
+                    for value, argument_type in _typed_binding_values(binding, self.functions.root)
+                )
+        return tuple(values)
 
     @functools.cached_property
     def binding_resources(self) -> dict[str, dict[str, pydantic.BaseModel]]:

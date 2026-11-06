@@ -201,7 +201,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     source.write_text(
         json.dumps(
             {
-                "spec_version": 5,
+                "spec_version": 6,
                 "name": "Build-only test",
                 "functions": {
                     "read": {

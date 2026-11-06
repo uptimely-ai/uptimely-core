@@ -15,6 +15,7 @@ from uptimely.engine.engine import Engine as EngineImplementation
 from uptimely.execution_plan.models import ExecutionPlan, Invocation
 from uptimely.explorer import graph_style
 from uptimely.spec import feature_graph
+from uptimely.spec import model as spec_model
 from uptimely.spec import python as python_spec
 from uptimely.spec.feature_graph import (
     FeatureGraph,
@@ -35,10 +36,12 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert spec.model.Profile is ProfileModel
     assert not hasattr(spec.model, "Dataset")
     assert spec.model.BindingArgumentResolver is BindingArgumentResolver
+    assert spec.Options is spec_model.Options
     assert uptimely.load_spec is spec.load_spec
     assert uptimely.from_python is spec.from_python
     assert uptimely.write_document is spec.write_document
     assert uptimely.Dimension is python_spec.Dimension
+    assert python_spec.Options is spec_model.Options
     assert not hasattr(uptimely, "Entity")
     assert not hasattr(python_spec, "Entity")
     assert uptimely.FeatureGraph is spec.FeatureGraph is FeatureGraph

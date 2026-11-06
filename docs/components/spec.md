@@ -1,6 +1,6 @@
 # Spec
 
-**Current spec version: 5**
+**Current spec version: 6**
 
 The spec definition is a single JSON document describing profiles, feature
 dependencies, and function bindings. JSON is the shared format used by
@@ -58,8 +58,9 @@ For example, dimensions and profiles use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `spec_version` | integer | No | `5` | Spec format version; only `5` is supported. |
+| `spec_version` | integer | No | `6` | Spec format version; only `6` is supported. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
+| `options` | object | No | `{"merge": "auto"}` | Build-time interpretation options. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
 | `profiles` | object | No | `{}` | Profile definitions keyed by globally unique identifier. |
@@ -71,6 +72,14 @@ unsupported values.
 When supplied, `source` requires `name` (string) and `generated` (boolean).
 The default is `{"name": "manual", "generated": false}`. Generated documents
 can identify their generator in `name` and set `generated` to `true`.
+
+`options.merge` controls how fragment-producing operators obtain merge
+bindings. It is either `auto` (the default) or `explicit`; see
+[Merge bindings](#merge-bindings).
+
+| Option | JSON type | Default | Meaning |
+| --- | --- | --- | --- |
+| `options.merge` | string | `"auto"` | Use automatic merge bindings (`"auto"`) or require explicit bindings (`"explicit"`). |
 
 ```json
 {
@@ -208,7 +217,7 @@ snapshot:
    previously held grain or filtering rules, move those requirements into
    explicit profile grains or application logic as appropriate.
 5. Change dataset selectors to profile selectors, such as
-   `$profiles.<id>.grain.ids` or `$profiles.@.grain.ids`, then export version 5
+   `$profiles.<id>.grain.ids` or `$profiles.@.grain.ids`, then export version 6
    and rebuild all generated artifacts.
 
 ## Migrating from spec version 4
@@ -217,8 +226,16 @@ Version 4 documents are rejected rather than parsed with compatibility rules.
 Update every profile's `actions` object to `assembly`. Within each operator,
 rename `binding` to `compute` and the operator-level `features` object to
 `interface`. Remove the operator's `id` field; its ID is the key in `assembly`.
-Set `spec_version` to `5` (the default when omitted), then rebuild generated
+Set `spec_version` to `6` (the default when omitted), then rebuild generated
 execution plans and Explorer snapshots.
+
+## Migrating from spec version 5
+
+Version 5 documents are rejected rather than parsed with compatibility rules.
+Set `spec_version` to `6`, add an `options` object if non-default merge
+behavior is required, and rebuild generated plans and Explorer snapshots.
+Operators may now declare `merge` beside `compute`; version 6 does not infer
+custom merge behavior from older operator or assembly fields.
 
 ### Feature and Operator Identifiers
 
@@ -323,7 +340,7 @@ identifiers.
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | Generated from the function identifier | Human-readable display name. |
-| `kind` | string | Yes | N/A | Function kind: `write`, `read`, `escape`, `conform`, `expand`, `collapse`, or `vectorize`. |
+| `kind` | string | Yes | N/A | Function kind: `write`, `read`, `escape`, `conform`, `expand`, `collapse`, `vectorize`, or `merge`. |
 | `returns` | string | Yes | N/A | Return contract: `dataframe` for data-producing kinds, `none` for `write`, or `any` for `escape`. |
 | `entrypoint` | string | Yes | N/A | Python import reference in `module.path:qualname` form. |
 | `validate_signature` | boolean | No | `true` | Whether compilation and documentation inspect the Python signature and check call compatibility and supported annotations. |
@@ -383,6 +400,7 @@ argument and feature-output counts for each kind:
 | `conform` | 1 | 1 | No | Same | Adapt a same-dimension source profile to the target profile's rows. |
 | `expand` | 1 | 1 | No | Up | Transfer observations from a lower-dimensional source profile. |
 | `vectorize` | 1 | 1 | Yes | | Calculate features while preserving observation keys. |
+| `merge` | 2 | 1 | No | Same | Combine the nullable current target and one staged fragment into a complete target dataframe. |
 | `write` | 1 | 0 | No |  | Persist or evaluate selected data. |
 | `escape` | Any explicit arguments | 0 | No |  | Perform uncontrolled work outside the declared feature workflow with logical feature dependencies. |
 
@@ -407,6 +425,12 @@ do not implicitly bind a dataframe. Its return value is ignored, so declared
 outputs are not materialized as dataset columns. A downstream dataframe operator
 that needs an escape output will fail at runtime unless that feature is
 independently available in its dataframe.
+Merge functions take exactly two dataframe arguments: `target` and `fragment`.
+The target argument has type `dataframe | null`; it is bound to the current
+profile dataframe and is null when no target has yet been initialized. The
+fragment argument is bound to the staged fragment for its own operator. A
+merge function returns the complete accumulated target dataframe and does not
+declare feature outputs.
 
 ### Arguments
 
@@ -437,6 +461,7 @@ Common argument type expressions are:
 | `float` | Floating-point value. |
 | `boolean` | Boolean value. |
 | `dataframe` | Tabular dataset input. |
+| `dataframe | null` | Nullable tabular input, used for a merge's initial target. |
 | `array` | Collection value. |
 | `object` | Dictionary value. |
 
@@ -497,6 +522,9 @@ An operator separates analytical requirements from its computation:
 | `compute` | object | Yes | N/A | Function invocation. |
 | `compute.function` | string | Yes | N/A | Function-catalog key identifying the definition to invoke; use the bare function ID, not a `$functions` selector. |
 | `compute.args` | object | No | `{}` | Concrete arguments matching the template schema. |
+| `merge` | object or null | No | `null` | Optional merge function invocation for a staged fragment. |
+| `merge.function` | string | Yes when `merge` is set | N/A | Function-catalog key for a function of kind `merge`. |
+| `merge.args` | object | No | `{}` | Arguments including the current target and this operator's staged fragment. |
 
 Input and output lists contain distinct `$features.<id>` references, without
 selectors. Inputs establish feature dependencies even when not passed as
@@ -525,6 +553,15 @@ coverage is retained; duplicate keys and overlapping feature outputs are
 rejected. See the [engine fragment contract](engine.md#fragments) for runtime
 details.
 
+### Merge bindings
+
+When declared, `merge.args.target` must be `$profiles.@.dataframe` and
+`merge.args.fragment` must be `$operators.@.fragment`. The target is nullable
+for the first merge. Python declarations use `ref.data()` and `ref.fragment()`.
+Merge bindings cannot reference features; assembly
+uses the target profile's declared dimensions to determine join keys.
+`interface.inputs` declares compute dependencies only.
+
 ### Compute syntax
 
 | Argument reference | Argument type | Value supplied to the implementation |
@@ -542,7 +579,7 @@ details.
 | `$profiles.<id>.id` | `string` | Profile identifier string. |
 | `$features.@.id` | `string` | The sole vectorize output, or sole non-dimension collapse output. |
 
-These selectors apply to compute argument values; they are not a general
+These selectors apply to compute and merge argument values; they are not a general
 replacement for the references elsewhere in the document. For example,
 `compute.function` uses a function-catalog key, grain uses a
 `dimension`/`resolution` pair, and a resolution's `parent` uses a bare
@@ -556,6 +593,10 @@ when writing new declarations. `.id` arguments require `string`, and
 `.dataframe` arguments require `dataframe`. Grain-key selectors require
 `array[string]`; their keys must be selected by the target and every referenced
 dataframe profile. Use only the listed forms for compute arguments.
+
+Merge arguments additionally support `$operators.@.fragment`, which supplies
+the current operator's staged fragment as a dataframe. `$profiles.@.dataframe`
+in a merge binding supplies the current target, or null before initialization.
 
 In Python declarations, use `ref.profile().grain.ids` or
 `ref.profile("source").grain.ids` for the corresponding selector. Grain-key

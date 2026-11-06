@@ -9,7 +9,7 @@ import typing
 from . import arg_types
 
 FunctionKindId = typing.Literal[
-    "write", "read", "escape", "conform", "expand", "collapse", "vectorize"
+    "write", "read", "escape", "conform", "expand", "collapse", "vectorize", "merge"
 ]
 ReturnKind = typing.Literal["dataframe", "none", "any"]
 DataFrameInputScope = typing.Literal["none", "target", "foreign", "unrestricted"]
@@ -98,6 +98,7 @@ CONFORM: typing.Final[FunctionKindId] = "conform"
 EXPAND: typing.Final[FunctionKindId] = "expand"
 COLLAPSE: typing.Final[FunctionKindId] = "collapse"
 VECTORIZE: typing.Final[FunctionKindId] = "vectorize"
+MERGE: typing.Final[FunctionKindId] = "merge"
 
 FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = types.MappingProxyType(
     {
@@ -241,6 +242,26 @@ FUNCTION_KINDS: typing.Final[typing.Mapping[FunctionKindId, FunctionKind]] = typ
             row_order_relation="preserve",
             existing_data_relation="preserve",
         ),
+        MERGE: FunctionKind(
+            id=MERGE,
+            dataframe_inputs=2,
+            returns=arg_types.DATAFRAME,
+            produces_features=False,
+            requires_feature_outputs=False,
+            is_source=False,
+            is_transformer=False,
+            produces_fragment=False,
+            is_sink=False,
+            is_effect=False,
+            dataframe_input_scope="unrestricted",
+            feature_input_scope="none",
+            dimension_change="preserve",
+            fragment_dimensions="not_applicable",
+            row_count_relation="unrestricted",
+            key_relation="unrestricted",
+            row_order_relation="unrestricted",
+            existing_data_relation="unrestricted",
+        ),
     }
 )
 
@@ -282,6 +303,7 @@ __all__ = [
     "FunctionKind",
     "FunctionKindId",
     "KeyRelation",
+    "MERGE",
     "READ",
     "RowCountRelation",
     "RowOrderRelation",

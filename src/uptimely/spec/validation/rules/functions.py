@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from uptimely.spec import functions
+from uptimely.spec import arg_types, functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 
@@ -36,6 +36,52 @@ def validate_dataframe_count(spec: spec_model.Spec) -> None:
             raise errors.SpecError(
                 f"Kind {kind} requires {expected} dataframe argument(s), got {dataframe_inputs}."
                 + functions.kind_hint(function.returns, dataframe_inputs),
+                code="invalid_function_input_contract",
+                path=("functions", function_id, "args"),
+            )
+
+
+def validate_nullable_dataframe_arguments(spec: spec_model.Spec) -> None:
+    """Reserve nullable dataframe arguments for merge functions."""
+    logger.debug("    - checking nullable dataframe arguments are reserved for merge functions")
+    for function_id, function in spec.functions.root.items():
+        if function.kind == functions.MERGE:
+            continue
+        if any(
+            argument.type == arg_types.OPTIONAL_DATAFRAME for argument in function.args.values()
+        ):
+            raise errors.SpecError(
+                "Nullable dataframe arguments are reserved for merge functions",
+                code="invalid_function_input_contract",
+                path=("functions", function_id, "args"),
+            )
+
+
+def validate_merge_target_argument(spec: spec_model.Spec) -> None:
+    """Require merge functions to declare a nullable dataframe target."""
+    logger.debug("    - checking merge function target arguments")
+    for function_id, function in spec.functions.root.items():
+        if function.kind != functions.MERGE:
+            continue
+        target = function.args.get("target")
+        if target is None or target.type != arg_types.OPTIONAL_DATAFRAME:
+            raise errors.SpecError(
+                "Merge functions must declare target as 'dataframe | null'",
+                code="invalid_function_input_contract",
+                path=("functions", function_id, "args"),
+            )
+
+
+def validate_merge_fragment_argument(spec: spec_model.Spec) -> None:
+    """Require merge functions to declare a dataframe fragment."""
+    logger.debug("    - checking merge function fragment arguments")
+    for function_id, function in spec.functions.root.items():
+        if function.kind != functions.MERGE:
+            continue
+        fragment = function.args.get("fragment")
+        if fragment is None or fragment.type != arg_types.DATAFRAME:
+            raise errors.SpecError(
+                "Merge functions must declare fragment as 'dataframe'",
                 code="invalid_function_input_contract",
                 path=("functions", function_id, "args"),
             )

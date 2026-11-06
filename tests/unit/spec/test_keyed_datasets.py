@@ -45,7 +45,7 @@ def test_keyed_profiles_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
     assert payload["profiles"]["first"]["category"] == "telemetry"
     assert payload["profiles"]["first"]["scope"] == "One row per machine"
     assert payload == model.model_dump(exclude_none=False)
-    assert payload["spec_version"] == 5
+    assert payload["spec_version"] == 6
     assert "assembly" in payload["profiles"]["first"]
     assert "mappings" not in payload["profiles"]["first"]
 
@@ -88,7 +88,7 @@ def test_operator_id_is_inferred_from_assembly_key() -> None:
     operator = payload["profiles"]["telemetry"]["assembly"]["calculate"]
 
     assert "id" not in operator
-    assert set(operator) == {"compute", "interface", "row_context"}
+    assert set(operator) == {"compute", "merge", "interface", "row_context"}
     assert spec.Spec.model_validate(payload) == model
 
 
