@@ -74,7 +74,7 @@ test("produced schema is a table listing declared columns vertically with their 
   assert.doesNotMatch(content, /Produced dataset/);
   const table = content.match(/<table data-dataset-schema="readings"[\s\S]*?<\/table>/)[0];
   assert.equal((table.match(/scope="col"/g) || []).length, 5);
-  assert.match(table, />Producing action<\/th>/);
+  assert.match(table, />Producing operator<\/th>/);
   assert.match(table, /None declared/);
   assert.equal((table.match(/scope="row"/g) || []).length, 2);
   assert.match(table, /data-schema-column="temperature"[\s\S]*?Temperature[\s\S]*?temperature[\s\S]*?Feature[\s\S]*?float[\s\S]*?>C<\/td>/);
@@ -83,7 +83,7 @@ test("produced schema is a table listing declared columns vertically with their 
   assert.match(table, /data-schema-column="label"[\s\S]*?string[\s\S]*?—<\/td>/);
 });
 
-test("schema columns include every producing action including grain and vectorized features", () => {
+test("schema columns include every producing operator including grain and vectorized features", () => {
   const config = {
     dimensions: { machine: { resolutions: { unit: { key: "machine_id" } } } },
     functions: { read: { kind: "read" }, compute: { kind: "vectorize" } },
@@ -98,15 +98,15 @@ test("schema columns include every producing action including grain and vectoriz
     },
   };
   const columns = schemaColumns(config, profile);
-  assert.deepEqual(columns.map(({ id, actions }) => [id, actions]), [
+  assert.deepEqual(columns.map(({ id, operators }) => [id, operators]), [
     ["machine_id", ["load"]], ["temperature", ["load"]],
     ["score", ["calculate", "revise"]], ["orphan", []],
   ]);
 });
 
-test("profile details show every declared action in order including vectorized actions", () => {
+test("profile details show every declared operator in order including vectorized operator", () => {
   const kinds = ["read", "vectorize", "expand", "vectorize", "collapse", "escape", "write"];
-  const assembly = Object.fromEntries(kinds.map((kind, index) => [`action_${index}`, {
+  const assembly = Object.fromEntries(kinds.map((kind, index) => [`operator_${index}`, {
     compute: { function: kind, args: { output: `$outputs.value_${index}` } },
     interface: { inputs: [], outputs: [] },
   }]));
@@ -117,17 +117,17 @@ test("profile details show every declared action in order including vectorized a
   };
   const render = () => renderCatalog({ catalogs: { summary: {}, configuration } }, "profiles").content;
   const content = render();
-  assert.deepEqual([...content.matchAll(/data-profile-action="([^"]+)"/g)].map(match => match[1]),
+  assert.deepEqual([...content.matchAll(/data-profile-operator="([^"]+)"/g)].map(match => match[1]),
     Object.keys(assembly));
-  assert.equal((content.match(/data-action-kind="vectorize"/g) || []).length, 2);
-  assert.match(content, /Argument bindings for action_1/);
+  assert.equal((content.match(/data-operator-kind="vectorize"/g) || []).length, 2);
+  assert.match(content, /Argument bindings for operator_1/);
   assert.match(content, /href="\?view=functions#function-vectorize">vectorize function/);
   assert.match(content, /\$outputs.value_1/);
 
-  configuration.profiles.telemetry.assembly = { calculate: assembly.action_1 };
+  configuration.profiles.telemetry.assembly = { calculate: assembly.operator_1 };
   const vectorizedOnly = render();
-  assert.match(vectorizedOnly, />Actions<\/h3>/);
-  assert.match(vectorizedOnly, /data-profile-action="calculate" data-action-kind="vectorize"/);
+  assert.match(vectorizedOnly, />Operator<\/h3>/);
+  assert.match(vectorizedOnly, /data-profile-operator="calculate" data-operator-kind="vectorize"/);
 });
 
 test("profile grain uses flat cards with dimension and resolution metadata", () => {

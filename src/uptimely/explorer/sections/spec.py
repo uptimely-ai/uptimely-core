@@ -30,7 +30,7 @@ class ExplorerSummary:
     """Typed summary values displayed in the explorer overview."""
 
     profile_count: int
-    action_count: int
+    operator_count: int
     dimension_count: int
     feature_count: int
     bound_feature_count: int
@@ -76,7 +76,7 @@ def build_context(
 def _feature_data(
     spec_definition: spec_model.Spec,
 ) -> tuple[list[dict], list[dict], set[str]]:
-    """Collect action-produced feature metadata and calculated feature references."""
+    """Collect operator-produced feature metadata and calculated feature references."""
     fragment_features: list[dict] = []
     calculated_features: list[dict] = []
     seen_inputs: set[tuple[str, str]] = set()
@@ -180,16 +180,16 @@ def _build_context(
         if isinstance(kind, str):
             function_groups.setdefault(kind, {})[function_id] = function
             function["declared_returns"] = function_kinds.FUNCTION_KINDS[kind].returns
-            function["escape_actions"] = []
-            function["action_usage_count"] = 0
+            function["escape_operators"] = []
+            function["operator_usage_count"] = 0
     for key, operator in spec_definition.operator_items:
         function = function_definitions[operator.compute.function]
-        function["action_usage_count"] = function.get("action_usage_count", 0) + 1
+        function["operator_usage_count"] = function.get("operator_usage_count", 0) + 1
         if function_kinds.FUNCTION_KINDS[function["kind"]].is_effect:
-            function["escape_actions"].append(
+            function["escape_operators"].append(
                 {
                     "profile": key[0],
-                    "action": operator.id,
+                    "operator": operator.id,
                     "inputs": operator.input_features,
                     "outputs": operator.output_features,
                 }
@@ -247,14 +247,14 @@ def _build_context(
     profile_count = len(spec_definition.profiles)
     operator_count = sum(
         1
-        for operator in spec_definition.actions
+        for operator in spec_definition.operators
         if function_kinds.FUNCTION_KINDS[
             spec_definition.functions[operator.compute.function].kind
         ].is_source
     )
     summary = ExplorerSummary(
         profile_count=profile_count,
-        action_count=operator_count,
+        operator_count=operator_count,
         dimension_count=len(dimensions),
         feature_count=len([*fragment_features, *calculated_features]),
         bound_feature_count=len(calculated_features),
@@ -272,7 +272,7 @@ def _build_context(
             "feature": feature,
             "dependencies": operator.input_features,
         }
-        for operator in spec_definition.actions
+        for operator in spec_definition.operators
         if spec_definition.functions[operator.compute.function].kind
         in {function_kinds.ESCAPE, function_kinds.VECTORIZE}
         for feature in operator.output_features

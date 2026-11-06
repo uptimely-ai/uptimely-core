@@ -10,7 +10,7 @@ from uptimely import entrypoint as entrypoint_module
 from uptimely import row_context as uptimely_row_context
 from uptimely.spec import functions
 
-PLAN_VERSION = 4
+PLAN_VERSION = 5
 
 
 @dataclasses.dataclass(frozen=True)
@@ -21,7 +21,7 @@ class Invocation:
     function_kind: functions.FunctionKindId
     entrypoint: str
     function_id: str
-    mapping_id: str
+    operator_id: str
     dataset_id: str | None
     arguments: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
     dependency_ids: list[str] = dataclasses.field(default_factory=list)
@@ -40,8 +40,8 @@ class Invocation:
             raise ValueError("Invocations must declare an entrypoint")
         if not self.function_id:
             raise ValueError("Invocations must declare a function_id")
-        if not self.mapping_id:
-            raise ValueError("Invocations must declare a mapping_id")
+        if not self.operator_id:
+            raise ValueError("Invocations must declare an operator_id")
         if self.function_kind == functions.COLLAPSE and not self.output_features:
             raise ValueError("Collapse must declare output_features")
         if self.row_context is not None:

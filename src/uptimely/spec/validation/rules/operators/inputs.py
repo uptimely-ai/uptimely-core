@@ -1,4 +1,4 @@
-"""Atomic action input, reference, and source scope checks."""
+"""Atomic operator input, reference, and source scope checks."""
 
 import logging
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def validate_source_feature(spec: spec_model.Spec) -> None:
     """Require collapse to reference a source feature."""
-    logger.debug("    - checking collapse actions reference source features")
+    logger.debug("    - checking collapse operator reference source features")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if (
@@ -115,13 +115,13 @@ def validate_source_dimensions(spec: spec_model.Spec) -> None:
 
 def validate_input_feature(spec: spec_model.Spec) -> None:
     """Require an explicit input feature to be declared."""
-    logger.debug("    - checking action input feature declarations")
+    logger.debug("    - checking operator input feature declarations")
     feature_names = spec.grain_key_ids | spec.feature_owners.keys()
-    for operator in spec.actions:
+    for operator in spec.operators:
         for feature in operator.input_features:
             if feature not in feature_names:
                 raise ValueError(
-                    f"Action {operator.id} references unknown input feature: {feature}"
+                    f"Operator {operator.id} references unknown input feature: {feature}"
                 )
 
 
@@ -138,7 +138,7 @@ def validate_input_scope(spec: spec_model.Spec) -> None:
         for feature in operator.input_features:
             if feature not in spec.local_features[key[0]]:
                 raise ValueError(
-                    f"Action {operator.id} cannot read feature {feature} from another profile"
+                    f"Operator {operator.id} cannot read feature {feature} from another profile"
                 )
 
 
@@ -146,19 +146,19 @@ def validate_feature_reference(spec: spec_model.Spec) -> None:
     """Require a structural feature reference to be declared."""
     logger.debug("    - checking structural feature references")
     feature_names = spec.grain_key_ids | spec.feature_owners.keys()
-    for operator in spec.actions:
+    for operator in spec.operators:
         for feature in operator.feature_selectors:
             if feature != selectors.CURRENT_ID and feature not in feature_names:
-                raise ValueError(f"Action {operator.id} references unknown feature: {feature}")
+                raise ValueError(f"Operator {operator.id} references unknown feature: {feature}")
 
 
 def validate_dataset_reference(spec: spec_model.Spec) -> None:
     """Require a structural profile reference to be declared."""
     logger.debug("    - checking structural profile references")
-    for operator in spec.actions:
+    for operator in spec.operators:
         for dataset in operator.dataset_references:
             if dataset != selectors.CURRENT_ID and dataset not in spec.profiles:
-                raise ValueError(f"Action {operator.id} references unknown profile: {dataset}")
+                raise ValueError(f"Operator {operator.id} references unknown profile: {dataset}")
 
 
 def validate_dimension_reference(spec: spec_model.Spec) -> None:
@@ -168,7 +168,7 @@ def validate_dimension_reference(spec: spec_model.Spec) -> None:
         for dimension, path in operator.dimension_reference_paths:
             if dimension not in spec.dimensions:
                 raise errors.SpecError(
-                    f"Action {operator.id} references unknown dimension: {dimension}",
+                    f"Operator {operator.id} references unknown dimension: {dimension}",
                     code="unknown_dimension_reference",
                     path=(*spec.declaration_paths[key], "compute", "args", *path),
                 )

@@ -79,8 +79,8 @@
 .av-authoring .av-node-label { color: #52647b; }
 .av-definition { border-color: #bdccdf; background: #eaf1fc; }
 .av-definition .av-node-label { color: #244f83; }
-.av-action { border-color: #b7e6d8; background: #dff5ef; }
-.av-action .av-node-label { color: #14634f; }
+.av-operator { border-color: #b7e6d8; background: #dff5ef; }
+.av-operator .av-node-label { color: #14634f; }
 .av-result { border-color: #f0d391; background: #fff0cf; }
 .av-result .av-node-label { color: #80500b; }
 .av-legend { grid-template-columns: repeat(4, minmax(0, 1fr)); }

@@ -45,7 +45,7 @@ calculations predictable and makes them easier to test and reuse.
 
 Keep source and sink communication in `read` and `write` functions. Use an
 explicitly declared `escape` function when work requires side effects outside
-those kinds, and leave execution concerns to the engine. Escape actions may
+those kinds, and leave execution concerns to the engine. Escape operators may
 declare feature inputs and outputs to define logical dependencies and
 scheduling. The engine does not implicitly hand off dataframes based on feature
 declarations. An escape function may receive explicitly bound dataframe

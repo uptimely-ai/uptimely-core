@@ -140,7 +140,7 @@ def _context(
     value: typing.Any,
     explicit: row_context.RowContext | RowContextBinding[typing.Any] | None = None,
 ) -> row_context.RowContext | None:
-    """Consolidate argument annotations and explicit action metadata."""
+    """Consolidate argument annotations and explicit operator metadata."""
     annotated = _collect(value)
     if explicit is None:
         return annotated

@@ -206,7 +206,7 @@ snapshot:
 
 Version 4 documents are rejected rather than parsed with compatibility rules.
 Update every profile's `actions` object to `assembly`. Within each operator,
-rename `binding` to `compute` and the action-level `features` object to
+rename `binding` to `compute` and the operator-level `features` object to
 `interface`. Remove the operator's `id` field; its ID is the key in `assembly`.
 Set `spec_version` to `5` (the default when omitted), then rebuild generated
 execution plans and Explorer snapshots.
@@ -224,7 +224,7 @@ arguments. The key supplies the operator ID; an `id` attribute is rejected.
 `scope` is an optional free-form string for descriptive metadata, for example
 an explanation of which observations are intended to belong to the profile.
 It is not interpreted: it does not filter observations, check coverage, or
-drive action execution.
+drive operator execution.
 
 The former `row_scope` object is not accepted.
 
@@ -243,7 +243,7 @@ selected resolution to have type `datetime`; step-based row context requires
 type `integer`.
 
 Order is a logical convention, not a physical sort or partition guarantee.
-Functions implement sorting and grouping themselves. Action context inherits
+Functions implement sorting and grouping themselves. Operator context inherits
 profile order to interpret preceding and following observations.
 
 ## Features
@@ -303,8 +303,8 @@ execution engine guide.
 
 A function is a logical analytical function definition bound to an implementation. Each
 function declares a kind and implementation entrypoint, plus the schema
-for its arguments. An action binds a function to concrete arguments and feature
-inputs and outputs. When you build the project, each action becomes a step in
+for its arguments. An operator binds a function to concrete arguments and feature
+inputs and outputs. When you build the project, each operator becomes a step in
 the execution plan. The engine runs those steps using the Python
 implementations.
 
@@ -357,8 +357,8 @@ Python spec declarations execute during source loading. If an analytical
 implementation is unavailable in that environment, declare its entrypoint as a
 string and do not import the implementation from the spec declaration itself.
 
-Use kind-oriented function names. Action identifiers and feature names
-can differ from the function identifier. Each action binds one function, whose
+Use kind-oriented function names. Operator identifiers and feature names
+can differ from the function identifier. Each operator binds one function, whose
 declared kind determines its analytical role.
 
 ### Function kinds
@@ -389,13 +389,13 @@ dimensions to be a strict superset of the target dimensions; `expand` requires
 them to be a strict subset. These kinds return fragments for their
 declaring (target) dataset; the engine does not pass its accumulated target
 frame to the function.
-Escape actions may declare feature inputs, outputs, both, or neither. These
+Escape operators may declare feature inputs, outputs, both, or neither. These
 declarations define logical feature dependencies and invocation ordering; they
 do not themselves transfer dataframes to or from the escape function. An
 escape function may receive dataframes through explicitly declared dataframe
 arguments, subject to the normal argument-binding rules; feature declarations
 do not implicitly bind a dataframe. Its return value is ignored, so declared
-outputs are not materialized as dataset columns. A downstream dataframe action
+outputs are not materialized as dataset columns. A downstream dataframe operator
 that needs an escape output will fail at runtime unless that feature is
 independently available in its dataframe.
 
@@ -407,7 +407,7 @@ their dataframe argument. A dataframe argument represents a dataset input;
 other arguments may carry identifiers, features, or external resource
 settings. `escape` may declare any number of dataframe arguments. Each must be
 explicitly bound to a dataset; the engine does not implicitly pass the
-action's accumulated dataframe.
+operator's accumulated dataframe.
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
@@ -500,13 +500,13 @@ declaration of features produced by an operator. Compute arguments may use
 feature references to pass identifiers, including output names; those arguments
 do not infer inputs or outputs. Profile dimension keys are required in every
 returned table, even when omitted from `outputs`.
-A write action declares empty outputs and explicitly lists its required inputs.
-Data-producing actions require at least one output. Vectorize outputs cannot
+A write operator declares empty outputs and explicitly lists its required inputs.
+Data-producing operators require at least one output. Vectorize outputs cannot
 redeclare profile dimensions. Collapse must produce at least one non-dimension
 feature. There is no binding-level `return` field.
 
 Each `read`, `conform`, `collapse`, or `expand` result is a fragment containing
-the target dataset's complete dimension keys and that action's declared
+the target dataset's complete dimension keys and that operator's declared
 outputs. An `expand` fragment may omit dimension keys its lower-dimensional
 source cannot supply; the engine left-joins it onto the accumulated dataset by
 the keys it carries. The engine validates required columns, types, and unique
@@ -523,7 +523,7 @@ details.
 | `$features.<id>.id` | `string` | Feature identifier string. |
 | `$dimensions.<id>.id` | `string` | Dimension identifier string. |
 | `$profiles.<id>.grain.ids` | `array[string]` | Dataframe key names selected by that profile's grain. |
-| `$profiles.@.grain.ids` | `array[string]` | Dataframe key names selected by the action's target profile. |
+| `$profiles.@.grain.ids` | `array[string]` | Dataframe key names selected by the operator's target profile. |
 | `$profiles.<id>.dataframe` | `dataframe` | Materialized table for that profile. |
 | `$profiles.@.dataframe` | `dataframe` | Current profile's input-ready table. |
 | `$profiles.<id>.id` | `string` | Profile identifier string. |
@@ -545,9 +545,9 @@ the operation's source dataframe remains its only dataframe argument.
 
 ### Row Context
 
-`row_context` belongs to the action, not its features or function template.
+`row_context` belongs to the operator, not its features or function template.
 It describes the greatest required input reach across all calculations in that
-action. It does not describe returned rows or alter full-table execution.
+operator. It does not describe returned rows or alter full-table execution.
 
 | Field | Required | Default | Meaning |
 | --- | --- | --- | --- |
@@ -617,9 +617,9 @@ are acyclic. When a function's declared return kind and dataframe arguments
 conflict with its kind, validation suggests a matching kind where
 possible. It never changes the kind automatically; `escape` must be
 declared explicitly for intentional uncontrolled work. Spec validation does
-not require escape inputs to be produced by a `read` action. Escape outputs
+not require escape inputs to be produced by a `read` operator. Escape outputs
 count as logical feature producers for dependency validation, but are not
-materialized by the engine. A declared feature without a producing action
+materialized by the engine. A declared feature without a producing operator
 triggers a warning rather than preventing the Spec from loading. Validation
 does not import implementations or inspect calculated data.
 

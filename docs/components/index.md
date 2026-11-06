@@ -22,7 +22,7 @@ functions or connect to live data.
 
 The compiler specification defines how a Spec document becomes a
 portable plan for deployment and execution. It resolves declared feature
-dependencies into action dependencies, selects required calculations, and
+dependencies into operator dependencies, selects required calculations, and
 orders function calls so independent work can be identified
 and prerequisites run first. Keeping this step separate from execution makes
 the plan inspectable and reusable, and lets errors in the declared workflow be

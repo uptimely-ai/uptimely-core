@@ -1,7 +1,7 @@
 # Feature graphs
 
 `uptimely.spec.feature_graph` represents dependencies between features and
-actions and supports subgraph selection. The Explorer visualizes those
+operators and supports subgraph selection. The Explorer visualizes those
 relationships in **Lineage**, distinct from **Topology** (invocation dependencies)
 and **Animation** (the execution walkthrough).
 
@@ -24,17 +24,17 @@ been validated and has not changed.
       members: [FeatureGraphBase, FeatureGraph, FeatureSubGraph, FeatureGraphNodeMeta]
 
 `Node` is the graph library's node type, re-exported from
-`uptimely.spec.feature_graph`. `FeatureGraphNodeMeta` describes the feature or action metadata carried by a node.
+`uptimely.spec.feature_graph`. `FeatureGraphNodeMeta` describes the feature or operator metadata carried by a node.
 
 ## models
 
 `uptimely.spec.feature_graph.models` defines the metadata attached to
-feature and action nodes.
+feature and operator nodes.
 
 ::: uptimely.spec.feature_graph.models
     options:
       heading_level: 3
       show_root_heading: false
-      members: [FeatureNode, ActionNode]
+      members: [FeatureNode, OperatorNode]
 
 </div>

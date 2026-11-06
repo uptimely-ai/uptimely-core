@@ -143,7 +143,7 @@ test("profile scope and logical order share a responsive row only when both exis
   assert.doesNotMatch(renderCatalog(data, "profiles").content, /data-profile-context/);
 });
 
-test("profile actions expose engineering contracts and inspectable bindings", async () => {
+test("profile operator expose engineering contracts and inspectable bindings", async () => {
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
   const data = sampleData();
   const config = data.catalogs.configuration;
@@ -158,21 +158,21 @@ test("profile actions expose engineering contracts and inspectable bindings", as
     interface: { inputs: [], outputs: ["$features.<logical>"] },
   };
   const html = renderCatalog(data, "profiles").content;
-  assert.ok(html.indexOf("Produced schema</h3>") < html.indexOf("Actions</h3>"));
+  assert.ok(html.indexOf("Produced schema</h3>") < html.indexOf("Operator</h3>"));
   assert.match(html, /Produced schema<\/h3><div class="ui-table-scroll profile-schema-scroll/);
-  assert.match(html, /class="ui-section-title">Actions<\/h3>/);
-  assert.match(html, /data-profile-action="aggregate" data-action-kind="collapse"/);
+  assert.match(html, /class="ui-section-title">Operator<\/h3>/);
+  assert.match(html, /data-profile-operator="aggregate" data-operator-kind="collapse"/);
   assert.match(html, /href="\?view=functions#function-aggregate">Maximum &lt;reading&gt;<\/a>/);
   assert.match(html, /Input features<\/dt><dd><code>raw<\/code>/);
   assert.match(html, /Output features<\/dt><dd><code>value<\/code>/);
-  assert.match(html, /<details class="profile-action-bindings"><summary>Argument bindings <span>2<\/span>/);
-  assert.match(html, /<span class="ui-badge ui-badge--neutral">collapse<\/span>\s*<\/header>\s*<details class="profile-action-bindings">/);
+  assert.match(html, /<details class="profile-operator-bindings"><summary>Argument bindings <span>2<\/span>/);
+  assert.match(html, /<span class="ui-badge ui-badge--neutral">collapse<\/span>\s*<\/header>\s*<details class="profile-operator-bindings">/);
   assert.match(html, /<th scope="row">options<\/th><td><code>\{&quot;method&quot;:&quot;&lt;max&gt;&quot;\}/);
   assert.match(html, /Group by grain keys:/);
   assert.match(html, /Output features \(logical\)<\/dt><dd><code>&lt;logical&gt;<\/code>/);
   assert.match(html, /None declared/);
   assert.match(html, /escape outputs are not materialized/);
-  assert.match(html, /data-profile-action="calculate" data-action-kind="vectorize"/);
+  assert.match(html, /data-profile-operator="calculate" data-operator-kind="vectorize"/);
   assert.match(html, /data-lucide="table-properties"/);
   assert.ok(!html.includes("<max>"));
 });

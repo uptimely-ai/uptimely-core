@@ -47,7 +47,7 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
         function_kind=kind,
         entrypoint="example:transfer",
         function_id="transfer",
-        mapping_id="transfer_source-values",
+        operator_id="transfer_source-values",
         dataset_id="target",
         input_features=["input_value"],
         output_features=["result"],
@@ -63,7 +63,7 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
     step = data_lineage.build_context(definition, plan)["stages"][0][0]
     source = step.input_tables[0]
 
-    assert step.action == "Transfer Source Values"
+    assert step.operator == "Transfer Source Values"
     assert source.dataset == "source"
     assert [key.name for key in source.keys] == source_dimensions
     assert source.join_dimensions == ["id"]

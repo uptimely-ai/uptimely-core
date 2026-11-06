@@ -52,7 +52,7 @@ def invocation_lineage_payload(
                 "function_id": invocation.function_id,
                 "function_name": function_name,
                 "arguments": invocation.arguments,
-                "mapping_id": invocation.mapping_id,
+                "operator_id": invocation.operator_id,
                 "profile": invocation.dataset_id,
                 "dataset_id": invocation.dataset_id,
                 "dataset_name": dataset_name,

@@ -39,7 +39,7 @@ def merge_fragment(
         function_kind="read",
         entrypoint="test:read",
         function_id="read",
-        mapping_id="read",
+        operator_id="read",
         dataset_id="dataset",
         id_columns=list(main.id_columns),
         column_types=dict(dimension_types or {}),
@@ -135,7 +135,7 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
                 {"type": invocation.column_types.get(feature)},
             )
         profile.setdefault("assembly", {}).setdefault(
-            invocation.mapping_id,
+            invocation.operator_id,
             {
                 "compute": {"function": invocation.function_id},
                 "interface": {

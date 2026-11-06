@@ -81,13 +81,13 @@ def test_compiler_rejects_missing_function_entrypoints(
     caplog.set_level(logging.DEBUG, logger="uptimely.compiler")
 
     with pytest.raises(
-        ValueError, match=f"Missing entrypoint for function {function_id} used by action "
+        ValueError, match=f"Missing entrypoint for function {function_id} used by operator "
     ):
         compiler.Compiler().compile(spec_definition)
 
-    assert "  Invocation checks for 18 actions:" in caplog.messages
+    assert "  Invocation checks for 18 operators:" in caplog.messages
     assert caplog.messages.count("    - checking functions declare entrypoints") == 1
-    assert not any(message.startswith("\nCompiler action:") for message in caplog.messages)
+    assert not any(message.startswith("\nCompiler operator:") for message in caplog.messages)
 
 
 @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
@@ -103,7 +103,7 @@ def test_compiler_summarizes_invocation_checks_once(
     assert caplog.messages.count("\nCompiler validation:") == (1 if level == logging.DEBUG else 0)
     summaries = [message for message in caplog.messages if "  Invocation checks for " in message]
     assert summaries == (
-        [f"  Invocation checks for {len(compiled.invocations)} actions:"]
+        [f"  Invocation checks for {len(compiled.invocations)} operators:"]
         if level == logging.DEBUG
         else []
     )
@@ -113,7 +113,7 @@ def test_compiler_summarizes_invocation_checks_once(
         "    - checking emitted invocation contracts",
     ):
         assert caplog.messages.count(check) == (1 if level == logging.DEBUG else 0)
-    assert not any(message.startswith("\nCompiler action:") for message in caplog.messages)
+    assert not any(message.startswith("\nCompiler operator:") for message in caplog.messages)
     signature_summaries = [
         message for message in caplog.messages if "  Signature checks for " in message
     ]

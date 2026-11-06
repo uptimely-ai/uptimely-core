@@ -9,8 +9,7 @@ import pytest
 
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions as assembly
-from uptimely.spec.python import bind, binding_conversion, conversion, profile, ref
+from uptimely.spec.python import assembly, bind, binding_conversion, conversion, profile, ref
 
 MODULE_LOCATIONS = [
     "math",
@@ -293,7 +292,7 @@ def test_generic_mapping_exports_function_kind_without_importing(
 def test_generic_mapping_requires_operation_metadata() -> None:
     with pytest.raises(ValueError, match="kind"):
         assembly.Operator(
-            id="action",
+            id="operator",
             interface=assembly.Interface(
                 inputs=[],
                 outputs=[],

@@ -1,8 +1,7 @@
 import pytest
 
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions as assembly
-from uptimely.spec.python import conversion, profile, ref
+from uptimely.spec.python import assembly, conversion, profile, ref
 
 
 def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:

@@ -52,10 +52,10 @@ function animationStep(step, stage) {
   }
   return `<article class="data-lineage-step" id="step-${step.number}" data-invocation-id="${escape(step.invocation_id)}"
     data-dependencies="${escape(step.dependencies.join(","))}" data-function-kind="${escape(step.kind.id)}" data-stage="${stage}" aria-labelledby="step-${step.number}-title">
-    <header class="data-lineage-step-header"><h3 id="step-${step.number}-title">${escape(step.action)}</h3>
+    <header class="data-lineage-step-header"><h3 id="step-${step.number}-title">${escape(step.operator)}</h3>
       <p class="data-lineage-step-dataset">Profile: ${escape(profile)}</p></header>
     <div class="data-lineage-scene"><div class="data-lineage-panel data-lineage-panel-output">
-      <p class="data-lineage-waiting" hidden>New features will appear in the main table as the action runs.</p>
+      <p class="data-lineage-waiting" hidden>New features will appear in the main table as the operator runs.</p>
       ${sampleTable(step.main_columns.filter(column => column.role !== "Existing"), keys, null, "output", step.row_count,
         ["remove", "add"].includes(step.kind.dimension_change), profile, joins, step.input_tables.length ? "added" : null)}
     </div><div class="data-lineage-arrow" data-flow="${step.kind.is_sink ? "down" : "up"}">
@@ -92,15 +92,15 @@ export function animation(data) {
             previousStage = stage;
             return `${changed ? `<p class="context-group-label animation-stage-label"><span>Stage ${number}</span></p>` : ""}
               <a href="#step-${step.number}" data-animation-step="${step.number}"><span class="animation-step-number">${position + 1}</span>
-                <span class="context-link-icon" title="${escape(step.kind.id)}">${kindIcon(step.kind.id)}</span><span class="context-link-label">${escape(step.action)}</span></a>`;
+                <span class="context-link-icon" title="${escape(step.kind.id)}">${kindIcon(step.kind.id)}</span><span class="context-link-label">${escape(step.operator)}</span></a>`;
           }).join("")}</div>`;
         }).join("")}</nav>` : '<p class="context-empty">No processing steps.</p>'}
     </aside>`,
     content: `<main class="data-lineage-page">
-      ${stages.length ? `<p id="animation-dataset-prompt" role="status" hidden>Choose a profile in Animation controls to view its actions.</p>
+      ${stages.length ? `<p id="animation-dataset-prompt" role="status" hidden>Choose a profile in Animation controls to view its operator.</p>
         <div id="data-lineage-board">${stages.map((stage, index) => `<section class="data-lineage-stage" aria-labelledby="stage-${index + 1}">
           <h2 id="stage-${index + 1}">Stage ${index + 1} / ${stage.length} independent step${stage.length === 1 ? "" : "s"}</h2>
           ${stage.map(step => animationStep(step, index + 1)).join("")}</section>`).join("")}</div>`
-        : "<p>No processing steps. Add function actions to the spec to display the animation.</p>"}</main>`,
+        : "<p>No processing steps. Add function operator to the spec to display the animation.</p>"}</main>`,
   };
 }

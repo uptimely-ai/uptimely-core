@@ -85,7 +85,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
 def test_mapping_rejects_duplicate_output_ids() -> None:
     with pytest.raises(ValueError, match="output feature IDs must not repeat"):
         authoring.Operator(
-            id="action",
+            id="operator",
             interface=authoring.Interface(
                 outputs=[
                     authoring.Feature(id="temperature"),
@@ -331,7 +331,7 @@ def test_programmatic_dataset_uses_function_name_for_catalog_id() -> None:
     assert set(declaration.function_catalog()) == {"calculate"}
 
 
-def test_action_interface_inputs_accept_feature_declarations() -> None:
+def test_operator_interface_inputs_accept_feature_declarations() -> None:
     operator = authoring.Operator(
         id="calculate",
         interface=authoring.Interface(
@@ -414,7 +414,7 @@ def test_operator_rejects_flat_declaration_fields(legacy: str) -> None:
 def test_mapping_requires_function_kind_metadata() -> None:
     with pytest.raises(ValueError, match="Function kind is required"):
         authoring.Operator(
-            id="action",
+            id="operator",
             interface=authoring.Interface(
                 outputs=[],
             ),
@@ -442,9 +442,9 @@ def test_kind_annotation_is_inferred_without_wrapping_function() -> None:
     assert declaration.function_catalog()["calculate"].kind == "vectorize"
 
 
-def test_action_export_uses_its_identifier() -> None:
+def test_operator_export_uses_its_identifier() -> None:
     operator = authoring.Operator(
-        id="action",
+        id="operator",
         interface=authoring.Interface(
             outputs=[],
         ),
@@ -453,11 +453,11 @@ def test_action_export_uses_its_identifier() -> None:
             arguments={},
         ),
     )
-    assert operator.to_model().id == "action"
+    assert operator.to_model().id == "operator"
 
 
 @pytest.mark.parametrize("identifier", ["", " ", None, 1])
-def test_action_rejects_invalid_identifiers(identifier: typing.Any) -> None:
+def test_operator_rejects_invalid_identifiers(identifier: typing.Any) -> None:
     with pytest.raises(ValueError, match="Operator requires a non-empty id"):
         authoring.Operator(
             id=identifier,
@@ -472,7 +472,7 @@ def test_action_rejects_invalid_identifiers(identifier: typing.Any) -> None:
 
 
 @pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
-def test_actions_accept_every_declared_function_kind(kind: functions.FunctionKindId) -> None:
+def test_operator_accept_every_declared_function_kind(kind: functions.FunctionKindId) -> None:
     operator = authoring.Operator(
         id="work",
         interface=authoring.Interface(
@@ -489,7 +489,7 @@ def test_actions_accept_every_declared_function_kind(kind: functions.FunctionKin
 
 
 @pytest.mark.parametrize("invalid", ["invalid", [object()], [None]])
-def test_action_list_rejects_invalid_values(invalid: typing.Any) -> None:
+def test_operator_list_rejects_invalid_values(invalid: typing.Any) -> None:
     with pytest.raises(
         TypeError, match="assembly must (be a sequence or mapping of|contain) Operators"
     ):
@@ -497,12 +497,12 @@ def test_action_list_rejects_invalid_values(invalid: typing.Any) -> None:
 
 
 @pytest.mark.parametrize("invalid", [{}, "invalid", [object()], [None]])
-def test_action_groups_reject_invalid_values(invalid: typing.Any) -> None:
+def test_operator_groups_reject_invalid_values(invalid: typing.Any) -> None:
     with pytest.raises(TypeError, match="assembly group 'calculations'"):
         authoring.Profile(id="example", assembly={"calculations": invalid})
 
 
-def test_action_groups_flatten_in_mapping_order() -> None:
+def test_operator_groups_flatten_in_mapping_order() -> None:
     first = authoring.Operator(
         id="read",
         interface=authoring.Interface(
@@ -532,7 +532,7 @@ def test_action_groups_flatten_in_mapping_order() -> None:
 
 
 @pytest.mark.parametrize("second_kind", ["read", "write", "escape"])
-def test_action_ids_are_unique_across_groups(second_kind: functions.FunctionKindId) -> None:
+def test_operator_ids_are_unique_across_groups(second_kind: functions.FunctionKindId) -> None:
     first = authoring.Operator(
         id="duplicate",
         interface=authoring.Interface(
@@ -557,7 +557,7 @@ def test_action_ids_are_unique_across_groups(second_kind: functions.FunctionKind
         )
 
 
-def test_action_defaults_and_inherited_lists_are_not_shared_between_instances() -> None:
+def test_operator_defaults_and_inherited_lists_are_not_shared_between_instances() -> None:
     read = authoring.Operator(
         id="read",
         interface=authoring.Interface(
@@ -586,7 +586,7 @@ def test_action_defaults_and_inherited_lists_are_not_shared_between_instances() 
     assert constructed.assembly == [read]
 
 
-def test_subclasses_can_explicitly_extend_or_clear_inherited_actions() -> None:
+def test_subclasses_can_explicitly_extend_or_clear_inherited_operator() -> None:
     read = authoring.Operator(
         id="read",
         interface=authoring.Interface(
@@ -613,7 +613,7 @@ def test_subclasses_can_explicitly_extend_or_clear_inherited_actions() -> None:
     assert Base.assembly == [read]
 
 
-def test_conversion_revalidates_modified_actions() -> None:
+def test_conversion_revalidates_modified_operator() -> None:
     declaration = authoring.Profile(id="example")
     declaration.assembly = [
         authoring.Operator(
@@ -640,7 +640,7 @@ def test_conversion_revalidates_modified_actions() -> None:
         declaration.function_catalog()
 
 
-def test_grouped_actions_preserve_dependencies_and_canonical_mapping_ids() -> None:
+def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> None:
     class Example(authoring.Profile):
         id = "example"
         assembly = {

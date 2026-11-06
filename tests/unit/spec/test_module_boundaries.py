@@ -108,10 +108,10 @@ def test_execution_plan_does_not_import_outer_layers() -> None:
     [
         "uptimely.spec.model.spec",
         "uptimely.spec.validation",
-        "uptimely.spec.validation.rules.actions.outputs",
-        "uptimely.spec.validation.rules.actions.inputs",
-        "uptimely.spec.validation.rules.actions.contracts",
-        "uptimely.spec.validation.rules.actions.dependencies",
+        "uptimely.spec.validation.rules.operators.outputs",
+        "uptimely.spec.validation.rules.operators.inputs",
+        "uptimely.spec.validation.rules.operators.contracts",
+        "uptimely.spec.validation.rules.operators.dependencies",
         "uptimely.spec.python.conversion",
         "uptimely.spec.json.codec",
         "uptimely.spec.api",
@@ -227,9 +227,10 @@ def test_structural_operations_do_not_inspect_python_entrypoints(
     validation.validate_spec(document)
     graph = spec.FeatureGraph(document)
     assert graph.feature_names
-    expected_actions = list(document.actions)
+    expected_operators = list(document.operators)
     assert all(
-        actual is expected for actual, expected in zip(graph.actions, expected_actions, strict=True)
+        actual is expected
+        for actual, expected in zip(graph.operators, expected_operators, strict=True)
     )
     assert spec.load_spec(SPEC_PATH) == document
 

@@ -123,17 +123,18 @@ class FragmentValidator(_FrameValidator):
             self.comparison_frame
         ) != self.backend.row_count(self.frame):
             raise ValueError(
-                f"{self.invocation.function_kind.capitalize()} action {self.invocation.mapping_id} "
+                f"{self.invocation.function_kind.capitalize()} operator "
+                f"{self.invocation.operator_id} "
                 "must preserve the accumulated profile row count"
             )
 
     def _validate_output_columns(self) -> None:
-        """Require every declared action output in the raw result."""
+        """Require every declared operator output in the raw result."""
         logger.debug("    - checking declared output columns")
         missing = sorted(set(self.effective_output_features) - self.columns)
         if missing:
             raise ValueError(
-                f"Action {self.invocation.mapping_id} is missing output columns: "
+                f"Operator {self.invocation.operator_id} is missing output columns: "
                 + ", ".join(missing)
             )
 
@@ -152,7 +153,8 @@ class FragmentValidator(_FrameValidator):
             self.comparison_frame, self.frame, self.dimensions
         ):
             raise ValueError(
-                f"{self.invocation.function_kind.capitalize()} action {self.invocation.mapping_id} "
+                f"{self.invocation.function_kind.capitalize()} operator "
+                f"{self.invocation.operator_id} "
                 "must preserve the profile grain keys"
             )
 

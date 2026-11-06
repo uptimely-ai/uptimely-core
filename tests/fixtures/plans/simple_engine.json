@@ -1,5 +1,5 @@
 {
-  "plan_version": 4,
+  "plan_version": 5,
   "required_backend": "polars",
   "resources": {
     "dimensions": {
@@ -64,7 +64,7 @@
       "function_kind": "read",
       "entrypoint": "test:read",
       "function_id": "load",
-      "mapping_id": "reading",
+      "operator_id": "reading",
       "dataset_id": "telemetry",
       "id_columns": ["asset_id"],
       "column_types": {"asset_id": "string"},
@@ -82,7 +82,7 @@
       "function_kind": "vectorize",
       "entrypoint": "test:double",
       "function_id": "double",
-      "mapping_id": "doubled",
+      "operator_id": "doubled",
       "dataset_id": "telemetry",
       "id_columns": ["asset_id"],
       "column_types": {"asset_id": "string"},
@@ -106,7 +106,7 @@
       "function_kind": "write",
       "entrypoint": "test:write",
       "function_id": "save",
-      "mapping_id": "save_doubled",
+      "operator_id": "save_doubled",
       "dataset_id": "telemetry",
       "id_columns": ["asset_id"],
       "column_types": {"asset_id": "string"},

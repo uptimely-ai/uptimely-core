@@ -54,7 +54,7 @@ class Compiler:
         """Emit portable invocations after validating schedulability."""
         _ = self.execution_stages
         nodes = self.graph.invocations
-        logger.debug("  Invocation checks for %d actions:", len(nodes))
+        logger.debug("  Invocation checks for %d operators:", len(nodes))
         logger.debug("    - checking functions declare entrypoints")
         logger.debug("    - checking structural argument references resolve")
         logger.debug("    - checking emitted invocation contracts")
@@ -142,7 +142,7 @@ class Compiler:
             except (ImportError, AttributeError, ValueError, TypeError, NameError) as error:
                 raise ValueError(
                     f"Could not read signature of function {function.id} "
-                    f"used by action {node.action_id} from entrypoint "
+                    f"used by operator {node.operator_id} from entrypoint "
                     f"{function.entrypoint}; available build package: "
                     f"{self.packages[function.entrypoint]}: {error}"
                 ) from error

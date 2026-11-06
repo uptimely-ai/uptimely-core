@@ -99,7 +99,7 @@ def test_global_parameter_and_feature_authoring() -> None:
     assert feature.name == "Asset Limit"
 
 
-def test_profile_features_attributes_can_be_action_outputs() -> None:
+def test_profile_features_attributes_can_be_operator_outputs() -> None:
     class Features(up.FeatureSet):
         value = up.Feature(id="value", type="float")
 
@@ -132,7 +132,7 @@ def test_feature_roles_follow_interface_in_nested_arguments(shape: str, declared
         "context": row_context.rows(output, before=1),
     }
 
-    def create_action() -> up.Operator:
+    def create_operator() -> up.Operator:
         return up.Operator(
             id="calculate",
             interface=up.Interface(
@@ -144,7 +144,7 @@ def test_feature_roles_follow_interface_in_nested_arguments(shape: str, declared
             ),
         )
 
-    operator = create_action()
+    operator = create_operator()
     assert operator.to_model().input_features == ([] if declared else ["result"])
     assert operator.to_model().output_features == (["result"] if declared else [])
 

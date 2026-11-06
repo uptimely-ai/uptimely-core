@@ -36,7 +36,7 @@
 .data-lineage-links .is-offscreen > path { stroke-dasharray: 4 4; opacity: 0.35; }
 .data-lineage-links.is-working g > path { opacity: 1; filter: drop-shadow(0 0 4px var(--link-color)); }
 .data-lineage-links.is-working circle { fill: var(--lineage-shared); }
-/* Joined dimensions are static ties; feature dependencies carry a moving data flow while the action runs. */
+/* Joined dimensions are static ties; feature dependencies carry a moving data flow while the operator runs. */
 .is-playing .data-lineage-links.is-working:not(.is-drawing) :is([data-link="input"], [data-link="output"], [data-link="write"]):not(.is-new) > path {
   stroke-dasharray: 6 6; animation: data-lineage-data-flow 0.6s linear infinite; }
 .is-playing .data-lineage-links.is-drawing [data-link="input"] > path,
@@ -98,7 +98,7 @@
 .data-lineage-table-scroll[data-more-left][data-more-right]:not([data-anchored]) {
   mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent); }
 .data-lineage-minimap { position: relative; height: 10px; margin-top: 10px; border-radius: 999px;
-  background: #1e293b; cursor: pointer; touch-action: none; user-select: none; }
+  background: #1e293b; cursor: pointer; touch-operator: none; user-select: none; }
 .data-lineage-minimap:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .data-lineage-minimap[hidden] { display: none; }
 .data-lineage-minimap > .data-lineage-minimap-view { position: absolute; top: 0; bottom: 0; min-width: 24px;

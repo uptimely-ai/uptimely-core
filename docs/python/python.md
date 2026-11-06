@@ -167,9 +167,9 @@ insertion order:
 
 ```python
 assembly = {
-    "ingestion": [read_action],
-    "calculations": [calculate_action],
-    "publishing": [write_action],
+    "ingestion": [read_operator],
+    "calculations": [calculate_operator],
+    "publishing": [write_operator],
 }
 ```
 
@@ -183,7 +183,7 @@ The assembly defaults to an empty list and is copied for each profile instance.
 Constructor arguments replace the class declaration, including when an empty
 list is passed. Subclasses inherit assembly using normal Python attribute lookup:
 defining `assembly` replaces the inherited list rather than merging it. To extend
-it, write `assembly = [*Base.assembly, another_action]`.
+it, write `assembly = [*Base.assembly, another_operator]`.
 
 List order and group order do not impose execution order. Declared feature
 dependencies determine scheduling. Uptimely does not inspect an escape
@@ -195,11 +195,11 @@ function's internal steps.
   attributes or entries in `mappings={...}` into the appropriate assembly list.
   Use the former attribute name or dictionary key as the operator ID.
 - Replace imports from `uptimely.spec.python.mapping` or
-  `uptimely.spec.python.mappings` with `uptimely.spec.python.actions`, or import
+  `uptimely.spec.python.mappings` with `uptimely.spec.python.assembly`, or import
   `Operator` directly from `uptimely.spec.python`.
 - Access declarations through `Profile.assembly` rather than `Profile.mappings`.
 - Convert an operator with `Operator.to_model()`; its own ID supplies the canonical
-  action identifier. Feature metadata remains in `outputs`, and
+  operator identifier. Feature metadata remains in `outputs`, and
   `Feature.to_model()` is unchanged.
 
 Python profiles expose declarations through `Profile.assembly`; canonical
@@ -241,19 +241,19 @@ optional class registries.
 
 ## feature
 
-`uptimely.spec.python.feature` declares metadata for action outputs.
+`uptimely.spec.python.feature` declares metadata for operator outputs.
 
 ::: uptimely.spec.python.feature
     options:
       heading_level: 3
       show_root_heading: false
 
-## actions module
+## assembly module
 
-`uptimely.spec.python.actions` defines `Operator`, `Interface`, and `Binding`,
+`uptimely.spec.python.assembly` defines `Operator`, `Interface`, and `Binding`,
 the declarations used in a profile's assembly.
 
-::: uptimely.spec.python.actions
+::: uptimely.spec.python.assembly
     options:
       heading_level: 3
       show_root_heading: false
@@ -293,13 +293,13 @@ references to functions and spec objects. It does not construct or load data.
 | `up.ref.data()` | Current profile's dataframe. |
 | `up.ref.data("telemetry")` | Named profile's dataframe. |
 | `up.ref.feature("temperature")` | Input feature column; infers a dependency unless `inputs` is explicit. |
-| `up.ref.feature("maximum")` | Identifier of a feature in the containing action's `outputs`; no input dependency. |
+| `up.ref.feature("maximum")` | Identifier of a feature in the containing operator's `outputs`; no input dependency. |
 
 `ref.feature()` does not declare a feature. An undeclared output name raises
 `ValueError`, including references nested in lists, dictionaries, and bindings.
 Use `ref.profile().data`, `ref.profile(name).data`,
 `ref.feature(name)`, and `ref.feature(name).id` to create deferred references.
-The general `.id` selector does not require the feature to be an action output.
+The general `.id` selector does not require the feature to be an operator output.
 
 Function references accept `validate_signature`, defaulting to `True`.
 Conversion preserves it in the function catalog and exported JSON. When

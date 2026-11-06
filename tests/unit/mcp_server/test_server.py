@@ -164,10 +164,10 @@ async def test_escape_function_description_reports_logical_feature_dependencies(
         "returns": "any",
     } in listing
     assert described["declared_returns"] == "any"
-    assert described["escape_actions"] == [
+    assert described["escape_operators"] == [
         {
             "profile": "pump_telemetry",
-            "action": "external_audit",
+            "operator": "external_audit",
             "inputs": ["bearing_temperature", "vibration_rms"],
             "outputs": [],
         }

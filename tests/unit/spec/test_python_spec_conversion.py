@@ -7,14 +7,12 @@ import pytest
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import (
     Spec,
+    assembly,
     conversion,
     dimension,
     feature,
     profile,
     ref,
-)
-from uptimely.spec.python import (
-    actions as assembly,
 )
 
 
@@ -46,7 +44,7 @@ def test_output_reference_logging_is_one_counted_summary(
     conversion.to_model(profiles=iter(declarations))
 
     assert caplog.messages == (
-        ["\nPython spec validation:\n  - collected feature interfaces for 3 actions"]
+        ["\nPython spec validation:\n  - collected feature interfaces for 3 operators"]
         if level == logging.DEBUG
         else []
     )

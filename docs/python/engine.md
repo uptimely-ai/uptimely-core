@@ -46,7 +46,7 @@ accumulator and return the fragment unchanged.
 Validation failures leave the accumulated dataframe unchanged.
 
 `RuntimeState.main_frames` indexes accumulators by profile ID. Each main frame
-owns its `fragments` mapping. The executor passes the producing action's mapping
+owns its `fragments` mapping. The executor passes the producing operator's mapping
 ID explicitly as `merge(..., fragment_id=...)`, retaining the prepared fragment
 only after a successful merge. Without an ID, a merge does not retain a reference. Fragment
 lookup searches these owners and rejects names ambiguous across profiles;

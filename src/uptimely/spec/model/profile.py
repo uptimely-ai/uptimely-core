@@ -83,7 +83,7 @@ class Operator(common.StrictModel):
 
     @property
     def arguments(self) -> dict[str, common.BindingArgument]:
-        """Return this action's supplied argument values."""
+        """Return this operator's supplied argument values."""
         return self.compute.args
 
     @functools.cached_property
@@ -163,8 +163,8 @@ class Profile(common.StrictModel):
     def arguments(self) -> dict[tuple[str, str], common.BindingArgument]:
         """Return compute arguments keyed by operator key and argument name."""
         return {
-            (action_id, name): value
-            for action_id, operator in self.assembly.items()
+            (operator_id, name): value
+            for operator_id, operator in self.assembly.items()
             for name, value in operator.arguments.items()
         }
 
@@ -172,9 +172,9 @@ class Profile(common.StrictModel):
     def feature_producers(self) -> dict[str, tuple[tuple[str, Operator], ...]]:
         """Return all declared output operators per feature, retaining aliases."""
         producers: dict[str, list[tuple[str, Operator]]] = {}
-        for action_id, operator in self.assembly.items():
+        for operator_id, operator in self.assembly.items():
             for feature_id in operator.output_features:
-                producers.setdefault(feature_id, []).append((action_id, operator))
+                producers.setdefault(feature_id, []).append((operator_id, operator))
         return {feature: tuple(operators) for feature, operators in producers.items()}
 
     @functools.cached_property

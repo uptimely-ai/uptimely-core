@@ -12,8 +12,8 @@ from uptimely.spec.validation.rules import (
     dimensions,
 )
 from uptimely.spec.validation.rules import features as feature_rules
-from uptimely.spec.validation.rules.actions import contracts as contracts_validation
-from uptimely.spec.validation.rules.actions import inputs as action_inputs
+from uptimely.spec.validation.rules.operators import contracts as contracts_validation
+from uptimely.spec.validation.rules.operators import inputs as operator_inputs
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
@@ -37,7 +37,7 @@ def test_binding_feature_selectors_do_not_become_input_dependencies() -> None:
     operator.interface.inputs = []
     operator.compute.args["dependency_hint"] = "$features.bearing_temperature"
 
-    facts = next(item for item in document.actions if item is operator)
+    facts = next(item for item in document.operators if item is operator)
 
     assert facts.input_features == []
     assert "bearing_temperature" in [
@@ -79,10 +79,10 @@ def test_collapse_rules_report_their_own_fault_without_validating_bindings(
     else:
         document = spec.Spec.model_validate(configuration)
     with pytest.raises(ValueError, match=message):
-        action_inputs.validate_source_feature(document)
-        action_inputs.validate_feature_owner(document)
-        action_inputs.validate_source_count(document)
-        action_inputs.validate_source_target(document)
+        operator_inputs.validate_source_feature(document)
+        operator_inputs.validate_feature_owner(document)
+        operator_inputs.validate_source_count(document)
+        operator_inputs.validate_source_target(document)
     with pytest.raises(validation.SpecError, match="unknown arguments: unexpected"):
         bindings.validate_arguments(document)
 
@@ -96,13 +96,13 @@ def test_independent_rules_report_grouping_and_dimension_reference_faults() -> N
     operator["compute"]["args"]["unexpected"] = "$dimensions.missing"
     document = spec.Spec.model_validate(configuration)
     with pytest.raises(ValueError, match="grouping keys must exist in source"):
-        action_inputs.validate_grouping_dimensions(document)
+        operator_inputs.validate_grouping_dimensions(document)
     with pytest.raises(validation.SpecError, match="unknown dimension: missing"):
-        action_inputs.validate_dimension_reference(document)
+        operator_inputs.validate_dimension_reference(document)
 
 
 @pytest.mark.parametrize("invalid_binding", [False, True])
-def test_binding_and_contract_paths_keep_their_existing_action_identifiers(
+def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
     invalid_binding: bool,
 ) -> None:
     document = spec.Spec.model_validate(_configuration())
@@ -159,7 +159,7 @@ def test_public_standalone_profile_id_validation_rejects_mismatched_keys() -> No
     assert error.value.path == ("profiles", "wrong")
 
 
-def test_duplicate_ids_block_action_cycle_validation() -> None:
+def test_duplicate_ids_block_operator_cycle_validation() -> None:
     document = spec.Spec.model_validate(_configuration())
     dataset = document.profiles["pump_profile"]
     document.profiles["wrong"] = spec.Profile(id="different")
@@ -176,7 +176,7 @@ def test_document_validation_rejects_duplicate_output_producers() -> None:
     assembly["duplicate"] = copy.deepcopy(assembly["pressure_flow_efficiency"])
     document = spec.Spec.model_validate(configuration)
 
-    with pytest.raises(ValueError, match="produced by multiple actions"):
+    with pytest.raises(ValueError, match="produced by multiple operators"):
         validation.validate_spec(document)
 
 
@@ -253,7 +253,7 @@ def test_mapping_dependency_cycle_keeps_its_message() -> None:
         validation.validate_spec(model)
 
     assert str(error.value) == (
-        "Action feature dependency cycle: pump_telemetry.recommended_flow_rate"
+        "Operator feature dependency cycle: pump_telemetry.recommended_flow_rate"
     )
 
 
@@ -267,7 +267,7 @@ def test_mapping_dependency_rejects_unknown_feature() -> None:
         validation.validate_spec(model)
 
     assert str(error.value) == (
-        "Action pressure_flow_efficiency references unknown input feature: missing_feature"
+        "Operator pressure_flow_efficiency references unknown input feature: missing_feature"
     )
 
 
@@ -317,7 +317,7 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     )
     original = document.model_copy(deep=True)
     profiles = document.profile_items
-    assembly = document.actions
+    assembly = document.operators
     assert sum(item.id.startswith("pump_profile") for _, item in profiles) == 2
     assert any(len(owners) > 1 for owners in document.feature_owners.values())
     assert any(item.compute.function not in document.functions for item in assembly)
@@ -328,7 +328,7 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     function_id, function, dataframe_inputs = next(document.functions.iter_functions())
     assert function_id == function.id
     assert dataframe_inputs == len(function.arguments_by_type.get("dataframe", {}))
-    assert document.actions_arguments
+    assert document.operator_arguments
     assert document == original
 
 

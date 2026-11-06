@@ -20,16 +20,16 @@ export function initializeFeatureLineage(signal) {
 			return;
 		}
 		const label = node.label || node.id || 'Unknown';
-		if (node.is_action === true) {
+		if (node.is_operator === true) {
 			const entrypoint = node.entrypoint || null;
 			const features = Array.isArray(node.features) ? node.features : [];
 			const outputLabel = node.is_effect ? 'Declared logical outputs' : 'Produces';
 			const rows = [
-				['Node type', 'Action'],
+				['Node type', 'Operator'],
 				['Profile', node.profile || 'n/a'],
 				['Profile', node.dataset_name || node.dataset_id],
 				['Profile ID', node.dataset_id],
-				['Action', node.action_id || label],
+				['Operator', node.operator_id || label],
 				['Function', node.function_name || node.function_id || 'n/a'],
 				['Function ID', node.function_id || 'n/a'],
 				['Function kind', node.function_kind || 'n/a'],
@@ -85,14 +85,14 @@ export function initializeFeatureLineage(signal) {
 		const layout = ExplorerLineage.prepareDatasetLayout(
 			graphData, node => nodeRanks.get(node.id), node => node.label || node.id);
 		const drawNode = (node, ctx) => {
-			const isAction = node.is_action === true;
-			const color = isAction ? functionColor : node.datasetColor;
-			ExplorerLineage.drawCard(node, ctx, node.label || node.id, color, highlight, !isAction);
+			const isOperator = node.is_operator === true;
+			const color = isOperator ? functionColor : node.datasetColor;
+			ExplorerLineage.drawCard(node, ctx, node.label || node.id, color, highlight, !isOperator);
 		};
 		return ExplorerLineage.createDatasetLineage2D(lineageContainer, graphData, style, layout, highlight, {
-			label: node => `${node.is_action ? 'action' : 'feature'}: ${node.label}\nprofile: ${node.profile || 'n/a'}`,
-			color: node => node.is_action ? functionColor : node.datasetColor,
-			nodeValue: node => node.is_action
+			label: node => `${node.is_operator ? 'operator' : 'feature'}: ${node.label}\nprofile: ${node.profile || 'n/a'}`,
+			color: node => node.is_operator ? functionColor : node.datasetColor,
+			nodeValue: node => node.is_operator
 				? LINEAGE_LAYOUT_2D.functionValue : LINEAGE_LAYOUT_2D.featureValue,
 			nodeRelativeSize: LINEAGE_LAYOUT_2D.nodeRelativeSize,
 			drawNode,
@@ -103,14 +103,14 @@ export function initializeFeatureLineage(signal) {
 	function createLineage3D(lineageContainer, graphData, updateSelection, style, highlight) {
 		const functionColor = style.function_color;
 		return ExplorerLineage.createLineage3D(lineageContainer, graphData, style, {
-			label: node => `${node.is_action ? 'function' : 'feature'}: ${node.label}\nprofile: ${node.profile || 'n/a'}`,
-			color: node => node.is_action ? functionColor : node.datasetColor,
+			label: node => `${node.is_operator ? 'function' : 'feature'}: ${node.label}\nprofile: ${node.profile || 'n/a'}`,
+			color: node => node.is_operator ? functionColor : node.datasetColor,
 			onSelect: updateSelection,
 			highlight,
 			configure: forceGraph => forceGraph.linkDirectionalArrowLength(style.arrow_length)
 				.linkDirectionalArrowRelPos(style.arrow_rel_pos),
 			object: node => {
-				if (!node.is_action) {
+				if (!node.is_operator) {
 					return ExplorerLineage.datasetNodeObject(node, node.label, style);
 				}
 				const mesh = new THREE.Mesh(

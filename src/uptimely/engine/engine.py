@@ -112,11 +112,11 @@ class Engine:
             started = time.perf_counter()
             logger.debug(
                 "\nInvocation: %s [%s]",
-                invocation.mapping_id,
+                invocation.operator_id,
                 invocation.function_kind,
                 extra={"invocation_id": invocation.id, "profile_id": invocation.dataset_id},
             )
-            if invocation.function_id != invocation.mapping_id:
+            if invocation.function_id != invocation.operator_id:
                 logger.debug("  Function: %s", invocation.function_id)
             try:
                 invocation_executor.execute(invocation)

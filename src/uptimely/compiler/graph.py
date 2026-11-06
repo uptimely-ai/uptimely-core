@@ -21,7 +21,7 @@ class InvocationNode:
 
     function_id: str
     dataset_id: str
-    action_id: str
+    operator_id: str
     feature_id: str | None = None
     output_features: tuple[str, ...] = ()
     arguments: dict[str, object] = dataclasses.field(
@@ -35,7 +35,7 @@ class InvocationNode:
     @property
     def node_id(self) -> str:
         """Stable graph identifier for this invocation."""
-        return f"invocation:{self.function_id}:{self.dataset_id}:{self.action_id}"
+        return f"invocation:{self.function_id}:{self.dataset_id}:{self.operator_id}"
 
     def __str__(self) -> str:
         return f"{self.function_id}({self.dataset_id})"
@@ -53,7 +53,7 @@ class InvocationGraph:
         """Build a dependency graph from a validated Spec.
 
         Args:
-            spec_definition: The validated Spec containing actions and functions.
+            spec_definition: The validated Spec containing operators and functions.
             graph: An existing graph to index, used when constructing a subset.
         """
         self.spec = spec_definition
@@ -61,7 +61,7 @@ class InvocationGraph:
         self._nodes = {node.reference.node_id: node for node in self.graph}
 
     def _create_graph(self) -> graphable_.graph.Graph:
-        """Build graph nodes and connect their action, feature, and sink dependencies."""
+        """Build graph nodes and connect their operator, feature, and sink dependencies."""
         nodes: dict[str, GraphNode] = {}
         feature_producers: dict[str, InvocationNode] = {}
         dataset_sources: dict[str, list[InvocationNode]] = {}
@@ -91,7 +91,7 @@ class InvocationGraph:
             invocation = InvocationNode(
                 function_id=operator.compute.function,
                 dataset_id=profile.id,
-                action_id=operator.id,
+                operator_id=operator.id,
                 feature_id=feature_id,
                 output_features=tuple(outputs),
                 arguments=operator.compute.args,
@@ -111,7 +111,7 @@ class InvocationGraph:
 
         graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
         self._add_reader_dependencies(graph, nodes, dataset_sources)
-        self._add_action_dependencies(graph, nodes, feature_producers, dataset_sources)
+        self._add_operator_dependencies(graph, nodes, feature_producers, dataset_sources)
         self._add_transformer_dependencies(graph, nodes, dataset_sources, dataset_transformers)
         self._add_sink_dependencies(
             graph, nodes, dataset_sources, dataset_sinks, dataset_transformers
@@ -140,16 +140,16 @@ class InvocationGraph:
                 for read in reads:
                     graph.add_edge(nodes[read.node_id], nodes[source.node_id])
 
-    def _add_action_dependencies(
+    def _add_operator_dependencies(
         self,
         graph: graphable_.graph.Graph,
         nodes: dict[str, GraphNode],
         feature_producers: dict[str, InvocationNode],
         dataset_sources: dict[str, list[InvocationNode]],
     ) -> None:
-        """Connect action dataframe and feature references to their producers."""
+        """Connect operator dataframe and feature references to their producers."""
         for invocation in (node.reference for node in nodes.values()):
-            dataset_references = self.action_for(invocation).compute.dataset_dependencies(
+            dataset_references = self.operator_for(invocation).compute.dataset_dependencies(
                 invocation.dataset_id
             )
             for referenced_id in dataset_references:
@@ -212,9 +212,9 @@ class InvocationGraph:
         """Return a node's profile by its globally unique ID."""
         return self.spec.profiles[node.dataset_id]
 
-    def action_for(self, node: InvocationNode) -> spec.Operator:
+    def operator_for(self, node: InvocationNode) -> spec.Operator:
         """Return the declaration that produced an invocation node."""
-        return self.profile_for(node).assembly[node.action_id]
+        return self.profile_for(node).assembly[node.operator_id]
 
     def topology(self) -> list[list[InvocationNode]]:
         """Return invocations grouped by dependency level (topological order)."""

@@ -7,7 +7,7 @@ from support import examples as example_support
 
 from uptimely import spec
 from uptimely.spec import validation
-from uptimely.spec.validation.rules.actions import inputs as action_inputs
+from uptimely.spec.validation.rules.operators import inputs as operator_inputs
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
@@ -46,9 +46,9 @@ def test_collapse_source_discovery_retains_invalid_candidates(
     source = facts[key]
 
     def validate_source() -> None:
-        action_inputs.validate_source_feature(document)
-        action_inputs.validate_feature_owner(document)
-        action_inputs.validate_source_count(document)
+        operator_inputs.validate_source_feature(document)
+        operator_inputs.validate_feature_owner(document)
+        operator_inputs.validate_source_count(document)
 
     if message is not None:
         with pytest.raises(ValueError, match=message):
@@ -59,7 +59,7 @@ def test_collapse_source_discovery_retains_invalid_candidates(
         assert source is not None
         owners = document.feature_owners
         assert any(source in owners.get(feature, ()) for feature in operator.input_features)
-        assert document.actions_by_key[key] is operator
+        assert document.operators_by_key[key] is operator
     assert document == original
 
 

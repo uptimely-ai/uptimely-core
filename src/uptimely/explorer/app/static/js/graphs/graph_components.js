@@ -43,7 +43,7 @@ function appendLegend(container, entries) {
 
 function prepareDatasetColors(data, container) {
 	const datasets = new Map(data.nodes
-		.filter(node => !node.is_action)
+		.filter(node => !node.is_operator)
 		.map(node => [
 			node.dataset_id || LineageConfig.UNASSIGNED_DATASET,
 			node.dataset_name || node.dataset_id || LineageConfig.UNASSIGNED_DATASET,

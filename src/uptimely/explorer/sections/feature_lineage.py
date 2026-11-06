@@ -36,15 +36,15 @@ def feature_lineage_payload(
 
 
 def _node_data(
-    reference: models.FeatureNode | models.ActionNode,
+    reference: models.FeatureNode | models.OperatorNode,
 ) -> dict[str, object]:
     """Build Explorer metadata from a feature graph node."""
-    if isinstance(reference, models.ActionNode):
+    if isinstance(reference, models.OperatorNode):
         return common.filled_fields(
             node_type="feature",
-            is_action=True,
+            is_operator=True,
             label=reference.function.name,
-            action_id=reference.action_id,
+            operator_id=reference.operator_id,
             features=list(reference.features),
             profile=reference.profile_id,
             dataset_id=reference.dataset_id,
@@ -60,7 +60,7 @@ def _node_data(
 
     return common.filled_fields(
         node_type="feature",
-        is_action=False,
+        is_operator=False,
         label=reference.display_name or reference.name,
         feature_id=reference.name,
         profile=reference.profile_id,

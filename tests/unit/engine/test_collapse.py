@@ -15,8 +15,7 @@ from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions as assembly
-from uptimely.spec.python import dimension, feature, profile, ref
+from uptimely.spec.python import assembly, dimension, feature, profile, ref
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -329,8 +328,8 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     conform_invocation = next(
         item for item in portable.invocations if item.function_kind == "conform"
     )
-    source_read = next(item for item in portable.invocations if item.mapping_id == "read_source")
-    target_read = next(item for item in portable.invocations if item.mapping_id == "read_target")
+    source_read = next(item for item in portable.invocations if item.operator_id == "read_source")
+    target_read = next(item for item in portable.invocations if item.operator_id == "read_target")
 
     assert conform_invocation.arguments == {
         "source": "foreign",

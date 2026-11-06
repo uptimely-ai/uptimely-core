@@ -11,7 +11,7 @@ from uptimely.spec import model as spec_model
 from . import models
 
 Node = graphable_.graphable.Graphable
-FeatureGraphNodeMeta = models.ActionNode | models.FeatureNode
+FeatureGraphNodeMeta = models.OperatorNode | models.FeatureNode
 
 
 class FeatureGraphBase:
@@ -37,15 +37,15 @@ class FeatureGraphBase:
                 for node in level
                 if isinstance(node.reference, models.FeatureNode)
             ]
-        if item_type == "action":
+        if item_type == "operator":
             return [
-                node.reference for node in level if isinstance(node.reference, models.ActionNode)
+                node.reference for node in level if isinstance(node.reference, models.OperatorNode)
             ]
-        if item_type == "action_name":
+        if item_type == "operator_name":
             return [
-                node.reference.action_id
+                node.reference.operator_id
                 for node in level
-                if isinstance(node.reference, models.ActionNode)
+                if isinstance(node.reference, models.OperatorNode)
             ]
         if item_type == "node":
             return level
@@ -81,12 +81,12 @@ class FeatureGraphBase:
 
     @property
     def input_names(self) -> list[str]:
-        """Source-provided inputs required by actions in this graph."""
+        """Source-provided inputs required by operator in this graph."""
         return sorted(feature.name for feature in self.feature_nodes if feature.is_source_input)
 
     @property
     def feature_input_names(self) -> list[str]:
-        """Raw features required by actions but not produced by one."""
+        """Raw features required by operator but not produced by one."""
         return self.input_names
 
     @property
@@ -115,7 +115,7 @@ class FeatureGraphBase:
 
     @property
     def feature_names(self) -> set[str]:
-        """Names of all features produced by graph actions."""
+        """Names of all features produced by graph operator."""
         return {
             feature.name
             for feature in self.feature_nodes
@@ -124,7 +124,7 @@ class FeatureGraphBase:
 
 
 class FeatureGraph(FeatureGraphBase):
-    """Global dependency graph built from all feature actions."""
+    """Global dependency graph built from all feature operator."""
 
     def __init__(self, spec: spec_model.Spec, *, validate: bool = True) -> None:
         """Build the complete dependency graph from spec declarations.
@@ -135,18 +135,18 @@ class FeatureGraph(FeatureGraphBase):
         """
         if validate:
             validation.validate_spec(spec)
-        self.actions = spec.actions
+        self.operators = spec.operators
         self.spec = spec
         self._node_index: dict[str, Node] = {}
         self._explicit_output_names = None
         self.graph = self._create_graph()
 
     def _declared_features(self) -> dict[str, models.FeatureNode]:
-        """Resolve output metadata directly from action and dataset declarations."""
+        """Resolve output metadata directly from operators and dataset declarations."""
         feature_metadata: dict[str, models.FeatureNode] = {}
         for key, operator in self.spec.operator_items:
-            profile = self.spec.action_profiles[key]
-            profile_id = self.spec.action_profile_keys[key]
+            profile = self.spec.operator_profiles[key]
+            profile_id = self.spec.operator_profile_keys[key]
             function = self.spec.functions[operator.compute.function]
             kind = functions.FUNCTION_KINDS[function.kind]
             is_source_input = kind.is_source and kind.dimension_change != "remove"
@@ -185,7 +185,7 @@ class FeatureGraph(FeatureGraphBase):
         return feature_metadata
 
     def _create_graph(self) -> graphable_.graph.Graph:
-        """Connect declared feature inputs, actions, and non-dimension outputs."""
+        """Connect declared feature inputs, operator, and non-dimension outputs."""
         graph = graphable_.graph.Graph()
         nodes: dict[str, Node] = {}
         output_names = {
@@ -204,7 +204,7 @@ class FeatureGraph(FeatureGraphBase):
 
         def feature_meta(
             name: str,
-            action: models.ActionNode | None = None,
+            operator: models.OperatorNode | None = None,
         ) -> models.FeatureNode:
             metadata = feature_metadata.get(name, models.FeatureNode(name=name))
             display_name = metadata.display_name
@@ -224,38 +224,38 @@ class FeatureGraph(FeatureGraphBase):
                 metadata,
                 data_type=(
                     None
-                    if action is not None
-                    and functions.FUNCTION_KINDS[action.function.kind].is_transformer
+                    if operator is not None
+                    and functions.FUNCTION_KINDS[operator.function.kind].is_transformer
                     else metadata.data_type
                 ),
-                profile_id=action.profile_id if action is not None else metadata.profile_id,
+                profile_id=operator.profile_id if operator is not None else metadata.profile_id,
                 display_name=display_name,
                 is_input=name in dependency_names,
                 is_output=name in output_names,
             )
 
         for key, operator in self.spec.operator_items:
-            profile = self.spec.action_profiles[key]
-            profile_id = self.spec.action_profile_keys[key]
+            profile = self.spec.operator_profiles[key]
+            profile_id = self.spec.operator_profile_keys[key]
             outputs = [
                 name for name in operator.output_features if name not in self.spec.grain_key_ids
             ]
-            action_metadata = models.ActionNode(
-                action_id=operator.id,
+            operator_metadata = models.OperatorNode(
+                operator_id=operator.id,
                 features=tuple(sorted(outputs)),
                 profile_id=profile_id,
                 dataset_id=profile.id,
                 dataset_name=profile.name,
-                action=operator,
+                operator=operator,
                 function=self.spec.functions[operator.compute.function],
             )
-            action_node = node(action_metadata)
+            operator_node = node(operator_metadata)
             for output in outputs:
-                output_node = node(feature_meta(output, action_metadata))
-                graph.add_edge(action_node, output_node)
+                output_node = node(feature_meta(output, operator_metadata))
+                graph.add_edge(operator_node, output_node)
             for parent in set(operator.input_features):
                 parent_node = node(feature_meta(parent))
-                graph.add_edge(parent_node, action_node)
+                graph.add_edge(parent_node, operator_node)
 
         self._node_index = nodes
         return graph

@@ -44,7 +44,7 @@ def test_document_structure_checks_emit_debug_bullets(caplog: pytest.LogCaptureF
         "\nSpec validation:\n  Document structure:",
         f"    - checking object keys as identifiers for {len(profiles)} profiles",
         "    - checking spec version is an integer",
-        f"    - checking feature references for {operator_count} actions",
+        f"    - checking feature references for {operator_count} operators",
     ]
     assert all(record.levelno == logging.DEBUG for record in caplog.records)
 
@@ -62,7 +62,7 @@ def test_loading_logs_one_spec_validation_heading(caplog: pytest.LogCaptureFixtu
     )
 
 
-def test_invalid_action_reference_does_not_repeat_document_checks(
+def test_invalid_operator_reference_does_not_repeat_document_checks(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
@@ -74,7 +74,7 @@ def test_invalid_action_reference_does_not_repeat_document_checks(
 
 
 @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
-def test_structure_summary_counts_profiles_and_actions_once(
+def test_structure_summary_counts_profiles_and_operator_once(
     caplog: pytest.LogCaptureFixture, level: int
 ) -> None:
     configuration = {
@@ -83,19 +83,22 @@ def test_structure_summary_counts_profiles_and_actions_once(
             "profile_1": {
                 "name": "First",
                 "assembly": {
-                    f"action_{operator}": {"compute": {"function": "read"}} for operator in range(8)
+                    f"operator_{operator}": {"compute": {"function": "read"}}
+                    for operator in range(8)
                 },
             },
             "profile_2": {
                 "name": "Second",
                 "assembly": {
-                    f"action_{operator}": {"compute": {"function": "read"}} for operator in range(5)
+                    f"operator_{operator}": {"compute": {"function": "read"}}
+                    for operator in range(5)
                 },
             },
             "profile_3": {
                 "name": "Third",
                 "assembly": {
-                    f"action_{operator}": {"compute": {"function": "read"}} for operator in range(7)
+                    f"operator_{operator}": {"compute": {"function": "read"}}
+                    for operator in range(7)
                 },
             },
         },
@@ -109,7 +112,7 @@ def test_structure_summary_counts_profiles_and_actions_once(
             "\nSpec validation:\n  Document structure:",
             "    - checking object keys as identifiers for 3 profiles",
             "    - checking spec version is an integer",
-            "    - checking feature references for 20 actions",
+            "    - checking feature references for 20 operators",
         ]
         if level == logging.DEBUG
         else []
@@ -121,7 +124,7 @@ def test_structure_summary_counts_existing_resource_models(
 ) -> None:
     document = spec.Spec.model_validate_json(SPEC_PATH.read_text(encoding="utf-8"))
     profile_count = len(document.profile_items)
-    operator_count = len(document.actions)
+    operator_count = len(document.operators)
     caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
 
     spec.Spec.model_validate({"profiles": document.profiles})
@@ -130,7 +133,7 @@ def test_structure_summary_counts_existing_resource_models(
         "\nSpec validation:\n  Document structure:",
         f"    - checking object keys as identifiers for {profile_count} profiles",
         "    - checking spec version is an integer",
-        f"    - checking feature references for {operator_count} actions",
+        f"    - checking feature references for {operator_count} operators",
     ]
 
 
@@ -140,7 +143,7 @@ def test_structure_summary_counts_existing_resource_models(
         {"profiles": ["invalid"]},
         {"profiles": {"profile": None}},
         {"profiles": {"profile": {"unknown": True}}},
-        {"profiles": {"profile": {"assembly": {"action": ["invalid"]}}}},
+        {"profiles": {"profile": {"assembly": {"operator": ["invalid"]}}}},
     ],
 )
 def test_structure_summary_preserves_invalid_document_errors(
@@ -262,7 +265,7 @@ def test_spec_rejects_unknown_write_function(tmp_path: pathlib.Path) -> None:
     profile = configuration["profiles"]["pump_telemetry"]
     profile["assembly"]["write_pump_telemetry"]["compute"]["function"] = "missing_write"
 
-    with pytest.raises(ValueError, match="actions reference unknown functions: missing_write"):
+    with pytest.raises(ValueError, match="operators reference unknown functions: missing_write"):
         spec.load_spec(_write_configuration(tmp_path, configuration, "write.json"))
 
 
@@ -433,7 +436,7 @@ def test_spec_validation_rejects_missing_output_variables() -> None:
     document = spec.Spec.model_validate(configuration)
 
     with pytest.raises(
-        ValueError, match="Action pressure_flow_efficiency must declare one or more features"
+        ValueError, match="Operator pressure_flow_efficiency must declare one or more features"
     ):
         validation.validate_spec(document)
 
@@ -469,7 +472,7 @@ def test_spec_validation_rejects_duplicate_fragment_input_names(
 
     with pytest.raises(
         ValueError,
-        match="Feature bearing_temperature is produced by multiple actions",
+        match="Feature bearing_temperature is produced by multiple operators",
     ):
         spec.load_spec(spec_path)
 
@@ -499,7 +502,7 @@ def test_spec_validation_rejects_unknown_vectorize_template(
 
     with pytest.raises(
         ValueError,
-        match="actions reference unknown functions: missing_vectorize_template",
+        match="operators reference unknown functions: missing_vectorize_template",
     ):
         spec.load_spec(spec_path)
 

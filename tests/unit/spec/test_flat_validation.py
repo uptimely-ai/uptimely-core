@@ -16,7 +16,7 @@ import pytest
 
 from uptimely import row_context as row_context_model
 from uptimely.spec import api, functions, model
-from uptimely.spec.python import actions as assembly
+from uptimely.spec.python import assembly
 from uptimely.spec.python import feature as python_feature
 from uptimely.spec.python import profile as python_profile
 from uptimely.spec.python import ref as python_ref
@@ -30,10 +30,10 @@ from uptimely.spec.validation.rules import (
     row_context,
 )
 from uptimely.spec.validation.rules import functions as function_rules
-from uptimely.spec.validation.rules.actions import contracts as action_contracts
-from uptimely.spec.validation.rules.actions import dependencies
-from uptimely.spec.validation.rules.actions import inputs as action_inputs
-from uptimely.spec.validation.rules.actions import outputs as action_outputs
+from uptimely.spec.validation.rules.operators import contracts as operator_contracts
+from uptimely.spec.validation.rules.operators import dependencies
+from uptimely.spec.validation.rules.operators import inputs as operator_inputs
+from uptimely.spec.validation.rules.operators import outputs as operator_outputs
 
 type Mutation = collections.abc.Callable[[model.Spec], object]
 
@@ -162,7 +162,7 @@ def test_dimension_change_uses_dimension_identities_not_cardinality(
     assert len(spec.profiles["source"].dimension_ids) == len(spec.profiles["target"].dimension_ids)
 
     with pytest.raises(ValueError, match="preserve target dimensionality"):
-        action_contracts.validate_dimension_change(spec)
+        operator_contracts.validate_dimension_change(spec)
 
     definitions = dict(functions.FUNCTION_KINDS)
     definitions[functions.CONFORM] = dataclasses.replace(
@@ -170,7 +170,7 @@ def test_dimension_change_uses_dimension_identities_not_cardinality(
     )
     monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
-    assert action_contracts.validate_dimension_change(spec) is None
+    assert operator_contracts.validate_dimension_change(spec) is None
 
 
 @pytest.mark.parametrize(
@@ -196,7 +196,7 @@ def test_full_validation_preserves_valid_function_kinds(kind: functions.Function
 
 
 @pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
-def test_source_discovery_visits_every_action_kind(kind: functions.FunctionKindId) -> None:
+def test_source_discovery_visits_every_operator_kind(kind: functions.FunctionKindId) -> None:
     spec = make_spec(kind)
     before = spec.model_dump()
     sources = spec.input_sources
@@ -251,9 +251,9 @@ def test_source_discovery_does_not_choose_an_ambiguous_owner(
 
 def test_every_rule_is_registered_with_one_spec_parameter() -> None:
     modules = (
-        action_contracts,
-        action_inputs,
-        action_outputs,
+        operator_contracts,
+        operator_inputs,
+        operator_outputs,
         bindings,
         profile_identity,
         dependencies,
@@ -317,7 +317,7 @@ def test_failed_prerequisite_stops_runner_and_warnings(monkeypatch: pytest.Monke
         pytest.fail("Warnings must not be emitted for invalid specs")
 
     monkeypatch.setattr(validation, "VALIDATION_DEPENDENCIES", {dependent: (first,), first: ()})
-    monkeypatch.setattr(action_outputs, "warn_unproduced_features", warn)
+    monkeypatch.setattr(operator_outputs, "warn_unproduced_features", warn)
     with pytest.raises(ValueError, match="invalid prerequisite"):
         validation.validate_spec(make_spec())
     assert seen == ["first"]
@@ -383,31 +383,31 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "requires 1 dataframe",
         ),
         (
-            action_outputs.validate_function_reference,
+            operator_outputs.validate_function_reference,
             "vectorize",
             lambda s: setattr(compute(s).compute, "function", "missing"),
             "unknown functions",
         ),
         (
-            action_outputs.validate_function_id,
+            operator_outputs.validate_function_id,
             "vectorize",
             lambda s: setattr(s.functions["compute"], "id", " "),
             "non-empty string id",
         ),
         (
-            action_outputs.validate_output_names,
+            operator_outputs.validate_output_names,
             "vectorize",
             lambda s: setattr(compute(s).interface, "outputs", ["$features. "]),
             "non-empty output",
         ),
         (
-            action_outputs.validate_output_presence,
+            operator_outputs.validate_output_presence,
             "vectorize",
             lambda s: compute(s).interface.outputs.clear(),
             "one or more features",
         ),
         (
-            action_outputs.validate_nonproducing_outputs,
+            operator_outputs.validate_nonproducing_outputs,
             "write",
             lambda s: compute(s).interface.outputs.append("$features.x"),
             "cannot produce features",
@@ -419,31 +419,31 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "Duplicate feature",
         ),
         (
-            action_outputs.validate_dimension_collision,
+            operator_outputs.validate_dimension_collision,
             "vectorize",
             lambda s: compute(s).interface.outputs.append("$features.machine"),
             "duplicate profile",
         ),
         (
-            action_outputs.validate_output_feature,
+            operator_outputs.validate_output_feature,
             "vectorize",
             lambda s: compute(s).interface.outputs.append("$features.missing"),
             "unknown feature",
         ),
         (
-            action_outputs.validate_unique_producer,
+            operator_outputs.validate_unique_producer,
             "vectorize",
             lambda s: compute(s).interface.outputs.append("$features.x"),
-            "multiple actions",
+            "multiple operator",
         ),
         (
-            action_outputs.validate_collapse_output,
+            operator_outputs.validate_collapse_output,
             "collapse",
             lambda s: setattr(compute(s).interface, "outputs", ["$features.machine"]),
             "non-dimension feature",
         ),
         (
-            action_outputs.validate_current_feature_selector,
+            operator_outputs.validate_current_feature_selector,
             "vectorize",
             lambda s: (
                 compute(s).interface.outputs.append("$features.x"),
@@ -452,19 +452,19 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "cannot use",
         ),
         (
-            action_inputs.validate_input_feature,
+            operator_inputs.validate_input_feature,
             "vectorize",
             lambda s: compute(s).interface.inputs.append("$features.missing"),
             "unknown input",
         ),
         (
-            action_inputs.validate_input_scope,
+            operator_inputs.validate_input_scope,
             "vectorize",
             lambda s: compute(s).interface.inputs.append("$features.s"),
             "another profile",
         ),
         (
-            action_inputs.validate_feature_reference,
+            operator_inputs.validate_feature_reference,
             "vectorize",
             lambda s: compute(s).compute.args.update(
                 {"extra": {"nested": ["$features.missing.id"]}}
@@ -472,13 +472,13 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "unknown feature",
         ),
         (
-            action_inputs.validate_dataset_reference,
+            operator_inputs.validate_dataset_reference,
             "vectorize",
             lambda s: compute(s).compute.args.update({"data": "$profiles.missing.dataframe"}),
             "unknown profile",
         ),
         (
-            action_inputs.validate_dimension_reference,
+            operator_inputs.validate_dimension_reference,
             "vectorize",
             lambda s: compute(s).compute.args.update({"extra": ["$dimensions.missing.id"]}),
             "unknown dimension",
@@ -496,37 +496,37 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "requires argument type",
         ),
         (
-            action_inputs.validate_source_feature,
+            operator_inputs.validate_source_feature,
             "collapse",
             lambda s: compute(s).interface.inputs.clear(),
             "must reference a source feature",
         ),
         (
-            action_inputs.validate_feature_owner,
+            operator_inputs.validate_feature_owner,
             "collapse",
             lambda s: compute(s).interface.inputs.append("$features.missing"),
             "unknown input",
         ),
         (
-            action_inputs.validate_source_count,
+            operator_inputs.validate_source_count,
             "collapse",
             lambda s: compute(s).interface.inputs.append("$features.x"),
             "belong to one profile",
         ),
         (
-            action_inputs.validate_source_target,
+            operator_inputs.validate_source_target,
             "collapse",
             lambda s: setattr(compute(s).interface, "inputs", ["$features.x"]),
             "target profile",
         ),
         (
-            action_inputs.validate_grouping_dimensions,
+            operator_inputs.validate_grouping_dimensions,
             "collapse",
             lambda s: s.profiles["source"].grain.clear(),
             "grouping keys",
         ),
         (
-            action_inputs.validate_source_features,
+            operator_inputs.validate_source_features,
             "collapse",
             lambda s: (
                 s.profiles["target"].features.update({"other": model.Feature(id="other")}),
@@ -536,7 +536,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "outside source",
         ),
         (
-            action_inputs.validate_source_dimensions,
+            operator_inputs.validate_source_dimensions,
             "collapse",
             lambda s: (
                 s.dimensions.update(
@@ -554,79 +554,79 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "unknown source dimensions",
         ),
         (
-            action_contracts.validate_dataset_argument_reference,
+            operator_contracts.validate_dataset_argument_reference,
             "vectorize",
             lambda s: compute(s).compute.args.update({"data": 42}),
             "must reference a profile",
         ),
         (
-            action_contracts.validate_dataset_argument_selector,
+            operator_contracts.validate_dataset_argument_selector,
             "vectorize",
             lambda s: compute(s).compute.args.update({"data": "$profiles.target.id"}),
             "must select profile data",
         ),
         (
-            action_contracts.validate_dataset_argument_source,
+            operator_contracts.validate_dataset_argument_source,
             "vectorize",
             lambda s: compute(s).compute.args.update({"data": "$profiles.missing.dataframe"}),
             "unknown profile",
         ),
         (
-            action_contracts.validate_dataset_argument_count,
+            operator_contracts.validate_dataset_argument_count,
             "collapse",
             lambda s: s.functions["compute"].args.clear(),
             "exactly 1 foreign",
         ),
         (
-            action_contracts.validate_foreign_dataset_argument,
+            operator_contracts.validate_foreign_dataset_argument,
             "collapse",
             lambda s: compute(s).compute.args.update({"data": "$profiles.target.dataframe"}),
             "foreign source",
         ),
         (
-            action_contracts.validate_input_feature_source_count,
+            operator_contracts.validate_input_feature_source_count,
             "conform",
             lambda s: compute(s).interface.inputs.append("$features.x"),
             "one source profile",
         ),
         (
-            action_contracts.validate_dataset_argument_feature_source,
+            operator_contracts.validate_dataset_argument_feature_source,
             "conform",
             lambda s: compute(s).compute.args.update({"data": "$profiles.target.dataframe"}),
             "foreign source profile source",
         ),
         (
-            action_contracts.validate_dataset_argument_features,
+            operator_contracts.validate_dataset_argument_features,
             "expand",
             lambda s: compute(s).interface.inputs.append("$features.time"),
             "profile inputs",
         ),
         (
-            action_contracts.validate_feature_input_scope,
+            operator_contracts.validate_feature_input_scope,
             "read",
             lambda s: compute(s).interface.inputs.append("$features.x"),
             "cannot declare",
         ),
         (
-            action_contracts.validate_target_dataset_input,
+            operator_contracts.validate_target_dataset_input,
             "vectorize",
             lambda s: compute(s).compute.args.update({"data": "$profiles.source.dataframe"}),
             "consume its target",
         ),
         (
-            action_contracts.validate_target_dataset_only,
+            operator_contracts.validate_target_dataset_only,
             "write",
             lambda s: compute(s).compute.args.update({"data": "$profiles.source.dataframe"}),
             "publish a foreign",
         ),
         (
-            action_contracts.validate_dimension_source,
+            operator_contracts.validate_dimension_source,
             "collapse",
             lambda s: compute(s).compute.args.update({"data": "$profiles.target.dataframe"}),
             "consume its source",
         ),
         (
-            action_contracts.validate_dimension_change,
+            operator_contracts.validate_dimension_change,
             "collapse",
             lambda s: s.profiles["target"].grain.append(
                 model.Grain(dimension="time", resolution="time")
@@ -634,13 +634,13 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "strictly higher",
         ),
         (
-            action_contracts.validate_dimension_change,
+            operator_contracts.validate_dimension_change,
             "conform",
             lambda s: s.profiles["target"].grain.pop(),
             "preserve target",
         ),
         (
-            action_contracts.validate_dimension_expansion_input,
+            operator_contracts.validate_dimension_expansion_input,
             "expand",
             lambda s: s.profiles["source"].grain.append(
                 model.Grain(dimension="time", resolution="time")
@@ -648,13 +648,13 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "lower-dimensional",
         ),
         (
-            action_contracts.validate_matching_keys,
+            operator_contracts.validate_matching_keys,
             "expand",
             lambda s: compute(s).compute.args.update({"keys": "$profiles.target.grain.ids"}),
             "Matching key",
         ),
         (
-            dependencies.validate_action_cycle,
+            dependencies.validate_operator_cycle,
             "vectorize",
             lambda s: compute(s).interface.inputs.append("$features.y"),
             "dependency cycle",
@@ -720,7 +720,7 @@ def test_reference_failure_blocks_cycle_check() -> None:
         validation.validate_spec(spec)
 
 
-def test_cycle_uses_action_dictionary_keys_after_model_id_edit() -> None:
+def test_cycle_uses_operator_dictionary_keys_after_model_id_edit() -> None:
     spec = make_spec()
     compute(spec).id = "edited_model_id"
     compute(spec).interface.inputs.append("$features.y")
@@ -733,7 +733,7 @@ def test_new_model_validation_observes_edits_and_warns_only_after_success() -> N
     validation.validate_spec(spec)
     target(spec).features["unproduced"] = model.Feature(id="unproduced")
     spec = model.Spec.model_validate(spec.model_dump())
-    with pytest.warns(UserWarning, match="Features have no producer action: unproduced"):
+    with pytest.warns(UserWarning, match="Features have no producer operator: unproduced"):
         validation.validate_spec(spec)
     compute(spec).interface.inputs.append("$features.missing")
     spec = model.Spec.model_validate(spec.model_dump())

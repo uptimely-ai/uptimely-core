@@ -111,7 +111,7 @@ export class ViewController {
     if (view.graph) {
       const style = this.data.graphs[view.graph];
       this.document.body.style.setProperty("--lineage-background", style.background_color);
-      this.document.getElementById("action-legend")?.style.setProperty("--color", style.function_color);
+      this.document.getElementById("operator-legend")?.style.setProperty("--color", style.function_color);
     }
     for (const step of view.initialize) {
       const component = this.initializers[step.name](signal);
