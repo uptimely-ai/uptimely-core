@@ -248,9 +248,108 @@ test("topology controls use topology labels while retaining graph hooks", () => 
   }, true);
   assert.match(context, /aria-label="Topology context"/);
   assert.match(context, /aria-label="Topology view"/);
-  assert.match(context, /id="reset-lineage"[^>]*>Reset topology</);
+  assert.match(context, /id="reset-lineage"[^>]*aria-label="Reset view"[^>]*title="Reset view"[^>]*>[\s\S]*?data-lucide="scan-search"/);
   assert.match(context, /id="invocation-node-details"/);
   assert.doesNotMatch(context, /Lineage context|Reset lineage/);
+  assert.doesNotMatch(context, /show-operators/);
+});
+
+test("lineage and topology reset controls use accessible icon-only buttons", () => {
+  for (const topology of [false, true]) {
+    const { context } = lineage({
+      graphs: { feature_lineage: {}, feature_style: {}, invocation_lineage: {}, invocation_style: {} },
+    }, topology);
+    const label = "Reset view";
+    assert.match(context, new RegExp(`<button class="ui-button lineage-reset" id="reset-lineage" type="button" aria-label="${label}" title="${label}" aria-controls="lineage"><i[^>]*data-lucide="scan-search" aria-hidden="true"><\\/i><\\/button>`));
+    const group = context.match(/<div class="lineage-buttons" role="group" aria-label="(?:Lineage|Topology) viewport">([\s\S]*?)<\/div>/)?.[1];
+    assert.ok(group);
+    assert.equal([...group.matchAll(/<button\b/g)].length, 3);
+    assert.match(group, /data-zoom="1.25"[\s\S]*data-zoom="0.8"[\s\S]*id="reset-lineage"/);
+    assert.doesNotMatch(context, />Reset (lineage|topology)</);
+  }
+});
+
+test("feature lineage exposes a pressed accessible function-icon toggle beside dimension controls", () => {
+  const { context } = lineage({
+    graphs: { feature_lineage: {}, feature_style: {} },
+  }, false);
+  assert.match(context, /class="lineage-control-groups">[\s\S]*data-dimension="3d"[\s\S]*class="ui-button lineage-operator-toggle"/);
+  assert.match(context, /<button class="ui-button lineage-operator-toggle" id="show-operators" type="button" aria-label="Show operators" title="Show operators" aria-pressed="true" aria-controls="lineage"><i[^>]*data-lucide="square-function" aria-hidden="true"><\/i><\/button>/);
+  assert.doesNotMatch(context, /type="checkbox"|>Show operators</);
+});
+
+test("2D and 3D controls use square and box icons with preserved selection and labels", () => {
+  for (const topology of [false, true]) {
+    const { context } = lineage({
+      graphs: { feature_lineage: {}, feature_style: {}, invocation_lineage: {}, invocation_style: {} },
+    }, topology);
+    for (const [dimension, name, pressed] of [["2d", "square", "true"], ["3d", "box", "false"]]) {
+      const button = [...context.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)]
+        .map(match => match[0]).find(markup => markup.includes(`data-dimension="${dimension}"`));
+      assert.ok(button);
+      assert.ok(button.includes(`title="Show ${dimension.toUpperCase()} view"`));
+      assert.ok(button.includes(`aria-label="Show ${dimension.toUpperCase()} view"`));
+      assert.ok(button.includes(`aria-pressed="${pressed}"`));
+      assert.ok(button.includes(`aria-controls="lineage-${dimension}"`));
+      assert.ok(button.includes(`data-lucide="${name}" aria-hidden="true"`));
+      assert.doesNotMatch(button, />(2D|3D)<\/button>/);
+    }
+  }
+});
+
+test("every lineage and topology graph control has a tooltip matching its accessible label", () => {
+  for (const topology of [false, true]) {
+    const { context } = lineage({
+      graphs: { feature_lineage: {}, feature_style: {}, invocation_lineage: {}, invocation_style: {} },
+    }, topology);
+    const controls = context.slice(context.indexOf('<div class="lineage-control-groups">'),
+      context.indexOf('<details class="panel"'));
+    const buttons = [...controls.matchAll(/<button\b[^>]*>/g)].map(match => match[0]);
+    assert.equal(buttons.length, topology ? 5 : 6);
+    for (const button of buttons) {
+      const title = button.match(/\btitle="([^"]+)"/)?.[1];
+      const label = button.match(/\baria-label="([^"]+)"/)?.[1];
+      assert.ok(title, button);
+      assert.equal(title, label);
+    }
+  }
+});
+
+test("lineage and topology zoom buttons use the corresponding accessible icons", () => {
+  for (const topology of [false, true]) {
+    const { context } = lineage({
+      graphs: { feature_lineage: {}, feature_style: {}, invocation_lineage: {}, invocation_style: {} },
+    }, topology);
+    for (const [factor, name, label] of [["1.25", "zoom-in", "Zoom in"], ["0.8", "zoom-out", "Zoom out"]]) {
+      const button = [...context.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)]
+        .map(match => match[0]).find(markup => markup.includes(`data-zoom="${factor}"`));
+      assert.ok(button);
+      assert.ok(button.includes(`aria-label="${label}" title="${label}"`));
+      assert.ok(button.includes(`data-lucide="${name}" aria-hidden="true"`));
+      assert.doesNotMatch(button, />[+-]<\/button>/);
+    }
+  }
+});
+
+test("all graph buttons share sizing and alignment with larger mobile touch targets", async () => {
+  const styles = await readFile(new URL("../css/graph.css", root), "utf8");
+  const shared = styles.match(/\.lineage-control-groups \.ui-button \{([^}]+)\}/)[1];
+  for (const rule of ["box-sizing: border-box", "display: inline-flex",
+    "align-items: center", "justify-content: center", "flex-shrink: 0",
+    "height: 40px", "min-width: 40px", "line-height: 1"]) {
+    assert.ok(shared.includes(rule), rule);
+  }
+  assert.match(styles, /@media \(max-width: 640px\) \{\s*\.lineage-control-groups \.ui-button \{ height: 44px; min-width: 44px; \}/);
+});
+
+test("graph groups have additional horizontal spacing without changing spacing within groups", async () => {
+  const [graph, base] = await Promise.all([
+    readFile(new URL("../css/graph.css", root), "utf8"),
+    readFile(new URL("../css/base.css", root), "utf8"),
+  ]);
+  assert.match(graph, /\.lineage-control-groups \{[^}]*gap: 8px 12px;/);
+  assert.match(base, /\.mobile-primary-controls \.lineage-control-groups \{[^}]*gap: 6px 10px;/);
+  assert.match(graph, /\.lineage-buttons \{[^}]*gap: 4px;/);
 });
 
 test("stage argument bindings use the shared table and preserve typed values", () => {

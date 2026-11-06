@@ -113,6 +113,22 @@ test("browser back/forward and item hashes update the active view without stale 
   assert.deepEqual(app.errors, []);
 });
 
+test("same-page lineage options update the graph component without refetching or remounting", async () => {
+  const app = await boot({ view: "lineage" });
+  const lineage = app.mounted.find(instance => instance.name === "lineage");
+  const mounts = app.mounted.length;
+  await app.click("?view=lineage&operators=hide");
+  assert.equal(lineage.updates, 1);
+  await app.back();
+  assert.equal(lineage.updates, 2);
+  await app.forward();
+  assert.equal(lineage.updates, 3);
+  assert.equal(app.mounted.length, mounts);
+  assert.equal(app.fetched.length, 1);
+  assert.deepEqual(app.errors, []);
+  app.explorer.dispose();
+});
+
 test("modified, external, download and local fragment clicks keep native browser behavior", async () => {
   const app = await boot();
   for (const options of [{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true },

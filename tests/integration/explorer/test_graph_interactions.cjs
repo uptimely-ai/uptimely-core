@@ -259,6 +259,9 @@ function loadLineageScript(context, filename) {
 	} else if (filename === 'graphs/graph_view_controller.js') {
 		source = source.replace(/^export function /gm, 'function ');
 		source += '\nglobalThis.mountLineageViews = mountLineageViews;';
+	} else if (filename === 'graphs/feature_projection.js') {
+		source = source.replace(/^export function /gm, 'function ');
+		source += '\nglobalThis.projectFeatureLineage = projectFeatureLineage;';
 	} else if (filename === 'graphs/lineage_initializer.js') {
 		source = source.replace(
 			/^import \{ (?:ExplorerLineage|mountLineageViews) \} from '\.\/[^']+';\n/gm,
@@ -268,7 +271,7 @@ function loadLineageScript(context, filename) {
 		source += '\nglobalThis.initializeLineage = initializeLineage;';
 	} else {
 		source = source.replace(
-			/^import \{ (?:ExplorerLineage|initializeLineage|mountLineageViews) \} from '\.\/[^']+';\n/gm,
+			/^import \{ (?:ExplorerLineage|initializeLineage|mountLineageViews|projectFeatureLineage) \} from '\.\/[^']+';\n/gm,
 			'',
 		);
 		const initializer = source.match(/export function (initialize\w+)/)?.[1];
@@ -285,6 +288,7 @@ function loadLineageDependencies(context) {
 	for (const script of [
 		'graphs/graph_config.js', 'graphs/dataset_layout.js',
 		'graphs/graph_components.js', 'graphs/lineage_initializer.js',
+		'graphs/feature_projection.js',
 	]) {
 		loadLineageScript(context, script);
 	}
@@ -298,7 +302,7 @@ function createElement() {
 		classList: { toggle() {} }, style: { setProperty() {} },
 		addEventListener(name, callback) { this.listeners[name] = callback; },
 		setAttribute(name, value) { this.attributes[name] = value; },
-		append(child) { this.children.push(child); }, replaceChildren() {},
+		append(child) { this.children.push(child); }, replaceChildren() {}, remove() {},
 	};
 }
 
@@ -391,7 +395,12 @@ for (const filename of ['graphs/feature_graph.js', 'graphs/invocation_graph.js']
 				getElementById: element, createElement,
 				querySelectorAll: selector => selector === '[data-dimension]' ? buttons : [],
 			},
-			window: { addEventListener() {} },
+			window: {
+				addEventListener() {},
+				location: { href: 'https://example.test/?view=lineage' },
+				history: { pushState() {} },
+			},
+			URL,
 			ResizeObserver: class { observe() {} disconnect() { disconnected = true; } },
 			console,
 			SpriteText: class {
@@ -594,6 +603,12 @@ for (const filename of ['graphs/feature_graph.js', 'graphs/invocation_graph.js']
 			buttons[1 - index].listeners.click();
 			assert.ok([...graph.objects.values()].every(object => object.scale.value === undefined));
 		}
+		graph2D.zoom(2.5);
+		const fits3D = graph.fitCalls.length;
+		buttons[1].listeners.click();
+		buttons[0].listeners.click();
+		assert.equal(graph2D.properties.get('zoom'), 2.5);
+		assert.equal(graph.fitCalls.length, fits3D);
 		node.is_operator = filename === 'graphs/feature_graph.js';
 		node.is_effect = true;
 		node.features = ['result'];

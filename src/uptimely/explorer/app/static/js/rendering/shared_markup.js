@@ -16,7 +16,9 @@ const ICONS = {
   profiles: "layers-2", datasets: "table-2",
   dimensions: "axis-3d", resolutions: "scan-square", functions: "square-function",
   invocations: "square-function", "feature-lineage": "diagram-flow-horizontal", "invocation-lineage": "layout-arrow-right",
-  "data-lineage": "monitor-play", stages: "list-ordered",
+  "data-lineage": "monitor-play", stages: "list-ordered", reset: "scan-search",
+  "zoom-in": "zoom-in", "zoom-out": "zoom-out",
+  "view-2d": "square", "view-3d": "box",
 };
 
 const TYPE_ICONS = {
